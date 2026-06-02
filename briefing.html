@@ -2493,12 +2493,20 @@ function renderFinal() {
   });
 
   document.getElementById('sendWhatsApp').addEventListener('click', () => {
+    if (!CONFIG.WHATSAPP_NUMBER || CONFIG.WHATSAPP_NUMBER === 'PEGA_AQUI_TU_NUMERO') {
+      showToast('Configura tu número en CONFIG.WHATSAPP_NUMBER');
+      return;
+    }
     const text = encodeURIComponent(prompt);
     const url = `https://wa.me/${CONFIG.WHATSAPP_NUMBER}?text=${text}`;
     window.open(url, '_blank');
   });
 
   document.getElementById('sendEmail').addEventListener('click', () => {
+    if (!CONFIG.EMAIL || CONFIG.EMAIL.indexOf('pega_aqui') !== -1) {
+      showToast('Configura tu email en CONFIG.EMAIL');
+      return;
+    }
     const subject = encodeURIComponent(`Nuevo briefing — ${state.answers.nombre_negocio || state.answers.nombre_cliente || 'cliente'}`);
     const body = encodeURIComponent(prompt);
     window.location.href = `mailto:${CONFIG.EMAIL}?subject=${subject}&body=${body}`;
