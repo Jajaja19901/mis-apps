@@ -57,6 +57,28 @@ Reglas del director:
 - Eficiencia de modelos: los agentes ya traen su modelo asignado (Opus solo en arquitecto,
   seguridad y QA; Sonnet en los que producen; Haiku en rendimiento). No los cambies sin motivo.
 
+## 🔒 REGLAS DE ORO (lo que NUNCA se hace sin que el prompt lo pida)
+OBLIGATORIAS para el director y los 10 agentes, en CADA app. El Agente 10 (QA) las verifica y veta.
+
+1. **No inventes nombre, marca ni logo.** Si el briefing no los da, usa placeholders neutros
+   (`BUSINESS_NAME: "Tu Negocio"`, sin logo) y avísalo al final. Nunca te los inventes.
+2. **No copies datos de una app a otra** (nombre, logo, contacto, textos, colores, servicios).
+   Cada app es una ISLA y nace SOLO de su propio briefing/prompt.
+3. **Las apps de prueba son pruebas.** No reutilices nada de ellas en otra app.
+4. **Única excepción para copiar/inspirarte: que el prompt lo diga EXPRESAMENTE.** Si el briefing
+   incluye una referencia —un enlace o un "usa/inspírate en tal página"— entonces SÍ puedes tomar
+   inspiración de ESA referencia concreta, y solo de esa. Sin referencia explícita en el prompt
+   → no copies nada de ningún sitio.
+5. **Si falta un dato esencial**, usa placeholder y avísalo. JAMÁS asumas a qué marca o negocio
+   pertenece algo, ni arrastres contexto de otra app/conversación.
+6. **El QA comprueba** que nombre, logo, contacto, colores y textos vienen del briefing o son
+   placeholders. Si hay algo inventado o copiado sin que el prompt lo pidiera → ❌ y no se entrega.
+
+> Por qué: en automático, cada app se genera desde su propio super-prompt (lo crea la herramienta
+> de briefing). Si el cliente quiere que te inspires en una web, lo pondrá como enlace en el prompt;
+> entonces —y solo entonces— puedes copiar de esa referencia. Así, aunque se lancen 10 apps en un
+> día, ninguna hereda la marca ni los datos de otra.
+
 ## Filosofía obligatoria de cada app (la base para todos los proyectos)
 - **Un solo archivo HTML autocontenido** (CSS y JS inline), mobile-first.
 - **Sin registro de usuarios finales.** Único acceso privado: **panel de admin del dueño**
