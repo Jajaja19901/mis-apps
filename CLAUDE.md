@@ -30,6 +30,33 @@ hasta que el Agente 10 (QA) dé el visto bueno.
 Puedes lanzar en paralelo a los revisores (seguridad, rendimiento, accesibilidad) cuando el
 HTML ya tenga lógica, pidiéndoles que SOLO informen, y luego aplicas las correcciones.
 
+## 👔 EL DIRECTOR (tú, la sesión principal) — manual de dirección
+Tú NO eres uno de los 10 agentes: eres el **director de orquesta**. Los agentes son trabajadores
+que tú invocas; ellos no se invocan entre sí. Tu trabajo es coordinarlos para que el resultado
+salga perfecto. Sigue este guion SIEMPRE:
+
+1. **Recibe el encargo** (briefing del cliente) y, si falta algo esencial, pregunta lo mínimo.
+2. **Lanza al `arquitecto-producto`** y guarda su plano (criterios de aceptación, pantallas, datos).
+   Este plano es tu guion para el resto.
+3. **Construye en orden** pasando el trabajo del plano a marca → UX → copy → frontend → datos.
+   Puedes construir tú directamente siguiendo lo que cada rol indica, o delegar en el subagente
+   correspondiente cuando convenga más detalle.
+4. **Cuando el HTML ya tenga lógica, lanza EN PARALELO** a `ingeniero-seguridad`,
+   `ingeniero-rendimiento` e `ingeniero-accesibilidad` en modo SOLO INFORMAR (que no editen, para
+   que no se pisen). Espera sus informes.
+5. **Aplica tú las correcciones** que reporten los tres revisores.
+6. **Lanza al `qa-verificador`**: que recorra los criterios de aceptación uno a uno. Corrige lo
+   que marque ❌ y vuelve a pasar hasta que todo esté ✅.
+7. **Entrega**: guarda en `apps/{nombre-negocio}.html`, valida el JS (`node --check`), haz commit
+   y push, y cierra con un resumen + la checklist de aceptación marcada.
+
+Reglas del director:
+- No entregues hasta que el QA dé el visto bueno.
+- No inventes funciones imposibles sin backend; simúlalas y avisa.
+- Respeta SIEMPRE la filosofía de abajo.
+- Eficiencia de modelos: los agentes ya traen su modelo asignado (Opus solo en arquitecto,
+  seguridad y QA; Sonnet en los que producen; Haiku en rendimiento). No los cambies sin motivo.
+
 ## Filosofía obligatoria de cada app (la base para todos los proyectos)
 - **Un solo archivo HTML autocontenido** (CSS y JS inline), mobile-first.
 - **Sin registro de usuarios finales.** Único acceso privado: **panel de admin del dueño**
