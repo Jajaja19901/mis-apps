@@ -222,13 +222,28 @@
    ⚙️  CONFIGURA BREYVAL AQUÍ
    ================================================================== */
 const CONFIG = {
-  BUSINESS_NAME : "Breyval",
-  WHATSAPP      : "34694252706",
-  EMAIL         : "Breyval.soluciones.solares@gmail.com",
-  ADMIN_PASSWORD: "breyval-2026",     // ⚠️ CÁMBIALA. Cerrojo básico, visible en el código.
+  BUSINESS_NAME : "Tu Estudio",                 // (ficticio de momento — cámbialo por tu marca)
+  WHATSAPP      : "34600000000",                // (ficticio de momento) tu WhatsApp con prefijo
+  EMAIL         : "hola@tunegocio-demo.com",    // (ficticio de momento) tu email
+  ADMIN_PASSWORD: "demo-2026",                  // ⚠️ CÁMBIALA. Cerrojo básico, visible en el código.
   BRIEFING_URL  : "../briefing.html",
   MERCADO_MIN   : 2000,
   MERCADO_MAX   : 4000,
+  SENAL         : 100,                          // importe de la señal (€) para reservar
+
+  /* ── MÉTODOS DE PAGO (reales) ──────────────────────────────────────────
+     Pega aquí tus enlaces de cobro. Se crean en cada plataforma SIN programar
+     y funcionan al instante. Deja en "" los que no uses.
+       · Stripe: panel Stripe → "Payment links" → crea uno de la señal → pega la URL (https://buy.stripe.com/...)
+       · PayPal: https://paypal.me/TUUSUARIO/100
+       · Bizum:  enlace de cobro Bizum de tu pasarela (o déjalo vacío y cobras por WhatsApp)
+     ⚠️ El cobro AUTOMÁTICO de un % de cada venta (Stripe Connect) NO va aquí:
+        necesita un servidor (Fase 2). Esto son cobros directos (señal/resto), que sí funcionan sin servidor. */
+  PAGOS: {
+    stripe: "",
+    paypal: "",
+    bizum:  "",
+  },
   DEMOS: [
     { icon:"🏗️", name:"Presupuestador de reformas", desc:"Calcula presupuestos al instante y capta clientes. Reformas y energía solar.", url:"./reformas-presupuestador.html" },
     { icon:"💇", name:"Peluquería · embudo de citas", desc:"Web de reservas con panel del dueño y export de clientes.", url:"./peluqueria-aurora.html" },
@@ -377,7 +392,12 @@ function renderLanding(){
           <button class="btn ${n.destacado?'btn-primary':'btn-ghost'}" data-nivel="${esc(n.id)}">Reservar ${esc(n.id)}</button>
         </div>`).join("")}
       </div>
-      <div class="pay-note">💳 <b>Pago único + mantenimiento desde 20€/mes.</b> Reservas tu proyecto con una señal de 100-200€ y pagas el resto cuando te entregamos la app terminada.</div>
+      <div class="pay-note">💳 <b>Pago único + mantenimiento desde 20€/mes.</b> Reservas tu proyecto con una señal de ${CONFIG.SENAL}€ y pagas el resto cuando te entregamos la app terminada.</div>
+      <div style="text-align:center;margin-top:18px">
+        <div class="eyebrow">Reserva tu proyecto</div>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px" id="pagos">${pagosBtns()}</div>
+        <p style="color:var(--ink-mut);font-size:12px;margin-top:10px">Pago seguro a través de la plataforma. La señal de ${CONFIG.SENAL}€ reserva tu proyecto y se descuenta del total.</p>
+      </div>
       <div class="extras">
         <div class="extra">🤖 <b>Bot de respuestas</b> (preguntas y respuestas automáticas): +100€</div>
         <div class="extra">🧠 <b>Bot con IA</b> conversacional: a consultar</div>
@@ -484,7 +504,11 @@ function renderGracias(){
     <h1>¡Gracias${l&&l.nombre?", "+esc(l.nombre):""}!</h1>
     <p>Hemos recibido tu solicitud${l&&l.negocio?` para <b>${esc(l.negocio)}</b>`:""}. Te escribimos por WhatsApp enseguida. Si no se ha abierto solo, escríbenos tú:</p>
     ${(CONFIG.WHATSAPP&&CONFIG.WHATSAPP!=="PEGA_AQUI_TU_NUMERO")?`<a class="btn btn-primary btn-lg" href="https://wa.me/${esc(CONFIG.WHATSAPP)}" target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>`:""}
-    <div style="margin-top:16px"><a class="btn btn-ghost" href="#/">Volver al inicio</a></div>
+    <div style="margin-top:24px"><div class="eyebrow">¿Quieres reservar ya?</div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px">${pagosBtns()}</div>
+      <p style="color:var(--ink-mut);font-size:12px;margin-top:10px">Señal de ${CONFIG.SENAL}€ para reservar tu proyecto. Se descuenta del total.</p>
+    </div>
+    <div style="margin-top:18px"><a class="btn btn-ghost" href="#/">Volver al inicio</a></div>
   </div></div></section></main>
   ${footer()}`;
 }
@@ -576,6 +600,18 @@ function footer(){ const C=CONFIG; return `<footer class="site"><div class="wrap
 </div></footer>`; }
 function fab(){ const C=CONFIG; if(!C.WHATSAPP||C.WHATSAPP==="PEGA_AQUI_TU_NUMERO") return ""; return `<a class="fab" href="https://wa.me/${esc(C.WHATSAPP)}" target="_blank" rel="noopener noreferrer" aria-label="Escríbenos por WhatsApp">${icWA()}</a>`; }
 function faq(q,a){ return `<details><summary>${esc(q)}</summary><div class="a">${esc(a)}</div></details>`; }
+function pagosBtns(){
+  const P=CONFIG.PAGOS||{}; let b="";
+  if(P.stripe) b+=`<a class="btn btn-primary" href="${esc(P.stripe)}" target="_blank" rel="noopener noreferrer">💳 Pagar señal con tarjeta</a>`;
+  if(P.paypal) b+=`<a class="btn btn-ghost" href="${esc(P.paypal)}" target="_blank" rel="noopener noreferrer">Pagar con PayPal</a>`;
+  if(P.bizum)  b+=`<a class="btn btn-ghost" href="${esc(P.bizum)}" target="_blank" rel="noopener noreferrer">Pagar con Bizum</a>`;
+  if(!b){ // sin enlaces configurados → reservar por WhatsApp
+    const wa=(CONFIG.WHATSAPP&&CONFIG.WHATSAPP!=="PEGA_AQUI_TU_NUMERO")
+      ? `https://wa.me/${esc(CONFIG.WHATSAPP)}?text=${encodeURIComponent("Hola, quiero reservar mi proyecto y pagar la señal de "+CONFIG.SENAL+"€.")}` : "#form";
+    b=`<a class="btn btn-primary" href="${wa}" target="_blank" rel="noopener noreferrer">Reservar (pago por WhatsApp)</a>`;
+  }
+  return b;
+}
 function showToast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(showToast._t); showToast._t=setTimeout(()=>t.classList.remove("show"),2600); }
 
 function logoMark(s){ s=s||30; return `<svg width="${s}" height="${s}" viewBox="0 0 64 64" aria-hidden="true" focusable="false" style="flex-shrink:0">
