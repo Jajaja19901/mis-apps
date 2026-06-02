@@ -11,7 +11,7 @@
 <style>
   :root{
     --bg:#f6f7f9; --card:#fff; --ink:#1b2430; --ink-soft:#566372; --ink-mut:#5e6e80;
-    --brand:#e07a36; --brand-deep:#c5611f; --brand-soft:#fdeee2;
+    --brand:#e07a36; --brand-deep:#a84e18; --brand-soft:#fdeee2;
     --slate:#1f3349; --slate-2:#27384d; --slate-soft:#eef1f5; --line:#e3e8ee; --ok:#2f8a52;
     --sora:'Sora',sans-serif; --sans:'Inter',-apple-system,sans-serif;
     --shadow:0 1px 2px rgba(20,30,45,.05),0 10px 30px rgba(20,30,45,.07);
@@ -35,6 +35,8 @@
   .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.16em;color:var(--brand-deep);font-weight:700}
   :focus-visible{outline:3px solid var(--brand-deep);outline-offset:2px;border-radius:6px}
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  .skip{position:absolute;left:12px;top:-60px;z-index:200;background:var(--slate);color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none;transition:top .15s}
+  .skip:focus{top:12px}
 
   header.site{position:sticky;top:0;z-index:50;background:rgba(246,247,249,.9);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
   header.site .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
@@ -99,7 +101,7 @@
   .anchor-box{background:var(--slate);color:#fff;border-radius:24px;padding:40px 28px;text-align:center;max-width:760px;margin:0 auto}
   .anchor-row{display:flex;justify-content:center;align-items:stretch;gap:14px;flex-wrap:wrap;margin:22px 0 10px}
   .anchor-col{flex:1;min-width:170px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:20px}
-  .anchor-col.win{background:var(--brand);border-color:var(--brand)}
+  .anchor-col.win{background:var(--brand-deep);border-color:var(--brand-deep)}
   .anchor-col small{display:block;color:#cfdae6;font-size:13px;text-transform:uppercase;letter-spacing:.08em}
   .anchor-col.win small{color:#fff}
   .anchor-col b{font-family:var(--sora);font-size:clamp(22px,5vw,30px);display:block;margin-top:6px}
@@ -143,13 +145,14 @@
   .ff{margin-bottom:14px}
   .ff label{display:block;font-size:13px;color:#cfdae6;margin-bottom:6px}
   .ff input,.ff select,.ff textarea{width:100%;background:#2e4257;border:1px solid #3c5571;color:#fff;border-radius:12px;padding:14px 15px;font-family:var(--sans);font-size:16px}
-  .ff input:focus,.ff select:focus,.ff textarea:focus{outline:none;border-color:var(--brand)}
+  .ff input:focus,.ff select:focus,.ff textarea:focus{border-color:var(--brand)}
+  .ff input:focus-visible,.ff select:focus-visible,.ff textarea:focus-visible{outline:2px solid #ffb47a;outline-offset:1px}
   .ff textarea{min-height:90px;resize:vertical}
   .ff.bad input,.ff.bad select{border-color:#ff8a6e}
   .ff .err{color:#ffc2b3;font-size:13px;margin-top:5px;display:none}
   .ff.bad .err{display:block}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  .form-wrap .btn-primary{width:100%;margin-top:6px;background:var(--brand)}
+  .form-wrap .btn-primary{width:100%;margin-top:6px;background:var(--brand-deep)}
   .form-wrap .btn-primary:hover{background:#fff;color:var(--brand-deep)}
   .priv{text-align:center;color:#9fb0c2;font-size:12px;margin-top:14px}
 
@@ -181,7 +184,7 @@
   .gate h2{font-size:23px;margin-bottom:6px}
   .gate p{color:var(--ink-soft);font-size:14px;margin-bottom:18px}
   .gate input{width:100%;border:1px solid var(--line);border-radius:11px;padding:14px;font-size:16px;font-family:var(--sans);margin-bottom:12px}
-  .gate input:focus{outline:none;border-color:var(--brand)}
+  .gate input:focus{border-color:var(--brand)}
   .gate .btn-primary{width:100%}
   .gate .err{color:#c43d2a;font-size:13px;margin-top:10px;display:none}
   .gate.bad .err{display:block}
@@ -199,7 +202,7 @@
   .lead .r2{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
   .lead select{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-family:var(--sans);font-size:13px;background:var(--card)}
   .tag{font-size:12px;padding:3px 10px;border-radius:999px;font-weight:600}
-  .tag.nuevo{background:#e6f0ff;color:#2b5bb5}.tag.contactado{background:#fff2d9;color:#9a6b00}.tag.cerrado{background:#e3f3e8;color:var(--ok)}
+  .tag.nuevo{background:#e6f0ff;color:#2b5bb5}.tag.contactado{background:#fff2d9;color:#7e5700}.tag.cerrado{background:#e3f3e8;color:#1e6b38}
   .lead a.wa{color:var(--ok);font-weight:600;font-size:13px;text-decoration:none}
   .lead button.del{background:none;border:none;color:var(--ink-mut);cursor:pointer;font-size:13px}
   .lead button.del:hover{color:#c43d2a}
@@ -262,7 +265,8 @@ function route(){
   // desplazar a la sección ancla si aplica (#form, #demos, #niveles...)
   if(h && h.length>1 && h[1]!=="/"){
     const el=document.getElementById(h.slice(1));
-    if(el) setTimeout(()=>el.scrollIntoView({behavior:"smooth",block:"start"}),30);
+    const reduce=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if(el) setTimeout(()=>el.scrollIntoView({behavior:reduce?"auto":"smooth",block:"start"}),30);
   } else { window.scrollTo(0,0); }
 }
 window.addEventListener("hashchange",route);
@@ -273,8 +277,9 @@ window.addEventListener("hashchange",route);
 function renderLanding(){
   const C=CONFIG;
   document.getElementById("app").innerHTML = `
+  <a href="#main-content" class="skip">Saltar al contenido</a>
   ${header()}
-  <main>
+  <main id="main-content">
     <section class="hero"><div class="wrap">
       <div style="display:flex;justify-content:center;margin-bottom:14px">${logoMark(72)}</div>
       <div class="eyebrow">Webs y apps para negocios</div>
@@ -416,12 +421,12 @@ function renderLanding(){
         <h2>Pide tu app o una demo a medida</h2>
         <p class="s">Cuéntanos lo justo y te contactamos por WhatsApp. Sin compromiso.</p>
         <div class="row2">
-          <div class="ff" id="f-nombre"><label for="i-nombre">Tu nombre *</label><input id="i-nombre" maxlength="60" autocomplete="name"><div class="err">Dinos cómo te llamas.</div></div>
-          <div class="ff" id="f-negocio"><label for="i-negocio">Tu negocio / sector *</label><input id="i-negocio" maxlength="60"><div class="err">¿A qué te dedicas?</div></div>
+          <div class="ff" id="f-nombre"><label for="i-nombre">Tu nombre *</label><input id="i-nombre" maxlength="60" autocomplete="name" required aria-required="true" aria-describedby="err-nombre"><div class="err" id="err-nombre" role="alert">Dinos cómo te llamas.</div></div>
+          <div class="ff" id="f-negocio"><label for="i-negocio">Tu negocio / sector *</label><input id="i-negocio" maxlength="60" required aria-required="true" aria-describedby="err-negocio"><div class="err" id="err-negocio" role="alert">¿A qué te dedicas?</div></div>
         </div>
         <div class="row2">
-          <div class="ff" id="f-tel"><label for="i-tel">WhatsApp o teléfono *</label><input id="i-tel" type="tel" inputmode="tel" maxlength="20" autocomplete="tel"><div class="err">Necesitamos un teléfono válido.</div></div>
-          <div class="ff" id="f-email"><label for="i-email">Email (opcional)</label><input id="i-email" type="email" maxlength="80" autocomplete="email"><div class="err">Revisa el email.</div></div>
+          <div class="ff" id="f-tel"><label for="i-tel">WhatsApp o teléfono *</label><input id="i-tel" type="tel" inputmode="tel" maxlength="20" autocomplete="tel" required aria-required="true" aria-describedby="err-tel"><div class="err" id="err-tel" role="alert">Necesitamos un teléfono válido.</div></div>
+          <div class="ff" id="f-email"><label for="i-email">Email (opcional)</label><input id="i-email" type="email" maxlength="80" autocomplete="email" aria-describedby="err-email"><div class="err" id="err-email" role="alert">Revisa el email.</div></div>
         </div>
         <div class="row2">
           <div class="ff"><label for="i-nivel">Nivel que te interesa</label><select id="i-nivel">
@@ -454,7 +459,7 @@ function onLead(e){
   const g=id=>document.getElementById(id);
   const nombre=g("i-nombre").value.trim(), negocio=g("i-negocio").value.trim(), tel=g("i-tel").value.trim(), email=g("i-email").value.trim();
   let ok=true;
-  const set=(f,bad)=>{ g(f).classList.toggle("bad",bad); if(bad) ok=false; };
+  const set=(f,bad)=>{ g(f).classList.toggle("bad",bad); const inp=g("i"+f.slice(1)); if(inp) inp.setAttribute("aria-invalid",bad?"true":"false"); if(bad) ok=false; };
   set("f-nombre", nombre.length<2);
   set("f-negocio", negocio.length<2);
   set("f-tel", !/^[0-9 +().-]{7,20}$/.test(tel));
@@ -493,6 +498,7 @@ function renderAdmin(){
   const leads=loadLeads(); const cnt=k=>leads.filter(l=>l.estado===k).length;
   document.getElementById("app").innerHTML=`
   <div class="admin"><div class="wrap">
+    <h1 class="sr-only">Panel de leads de ${esc(CONFIG.BUSINESS_NAME)}</h1>
     <div class="admin-bar"><h2>Leads · ${esc(CONFIG.BUSINESS_NAME)}</h2>
       <div style="display:flex;gap:8px"><button class="btn btn-ghost" id="csv">Exportar CSV</button><a class="btn btn-ghost" href="#/">Ver web</a><button class="btn btn-ghost" id="logout">Salir</button></div>
     </div>
@@ -538,6 +544,7 @@ function exportCSV(){
 function renderGate(bad){
   document.getElementById("app").innerHTML=`
   <div class="admin"><div class="gate ${bad?"bad":""}">
+    <h1 class="sr-only">Acceso al panel de Breyval</h1>
     <h2>Panel de Breyval</h2><p>Zona privada. Introduce tu contraseña.</p>
     <form id="gf"><label for="gp" class="sr-only">Contraseña</label><input id="gp" type="password" placeholder="Contraseña" autocomplete="current-password"><button class="btn btn-primary" type="submit">Entrar</button><div class="err">Contraseña incorrecta.</div></form>
     <p style="margin-top:14px;font-size:12px"><a href="#/" style="color:var(--ink-mut)">← Volver a la web</a></p>
@@ -559,12 +566,12 @@ function header(){ return `<header class="site"><div class="wrap">
   <a href="#form" class="btn btn-primary nav-cta">Pide tu app</a>
 </div></header>`; }
 function footer(){ const C=CONFIG; return `<footer class="site"><div class="wrap">
-  <div class="cols">
+  <nav class="cols" aria-label="Pie de página">
     <div><div class="logo" style="margin-bottom:10px">${logoMark(30)}<span>${esc(C.BUSINESS_NAME)}</span></div>
       <p style="font-size:14px;max-width:300px">Webs y apps profesionales para negocios. Rápidas, baratas y pensadas para vender.</p></div>
     <div><h4>Breyval</h4><a href="#niveles">Niveles y precios</a><a href="#demos">Ver demos</a><a href="${esc(C.BRIEFING_URL)}">Briefing completo</a></div>
     <div><h4>Contacto</h4><a href="https://wa.me/${esc(C.WHATSAPP)}" target="_blank" rel="noopener noreferrer">WhatsApp</a><a href="mailto:${esc(C.EMAIL)}">${esc(C.EMAIL)}</a></div>
-  </div>
+  </nav>
   <div class="copyr"><span>© ${new Date().getFullYear()} ${esc(C.BUSINESS_NAME)} · Sin cookies de tracking</span><a href="#/admin">Acceso equipo</a></div>
 </div></footer>`; }
 function fab(){ const C=CONFIG; if(!C.WHATSAPP||C.WHATSAPP==="PEGA_AQUI_TU_NUMERO") return ""; return `<a class="fab" href="https://wa.me/${esc(C.WHATSAPP)}" target="_blank" rel="noopener noreferrer" aria-label="Escríbenos por WhatsApp">${icWA()}</a>`; }
