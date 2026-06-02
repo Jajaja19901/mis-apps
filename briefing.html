@@ -1084,7 +1084,7 @@ const TIPOS_PROYECTO = [
     id: "webapp",
     label: "Web app interactiva",
     icon: "⚡",
-    desc: "Donde tus clientes HACEN cosas dentro: reservar, comprar, gestionar, calcular, ver su panel personal..."
+    desc: "Donde tus clientes HACEN cosas: reservar, comprar, calcular, dejar sus datos... sin tener que registrarse. Tú lo gestionas todo desde tu panel privado."
   },
   {
     id: "ambos",
@@ -1100,27 +1100,27 @@ const TIPOS_PROYECTO = [
 const PLANTILLAS_APP = [
   {
     id: "reservas",
-    label: "Sistema de reservas con cuenta",
+    label: "Sistema de reservas",
     icon: "📅",
-    desc: "El cliente se registra, reserva citas, ve su historial, cancela. Tú ves todas las reservas en un panel."
+    desc: "El cliente reserva cita sin registrarse (solo deja nombre y contacto). Tú ves y gestionas todas las reservas en tu panel de admin."
   },
   {
     id: "tienda",
-    label: "Tienda online completa",
+    label: "Tienda online",
     icon: "🛒",
-    desc: "Catálogo, carrito, checkout, cuenta de cliente, historial de pedidos."
+    desc: "Catálogo, carrito y checkout como invitado (sin cuenta). Tú gestionas productos y pedidos desde tu panel de admin."
   },
   {
     id: "panel-cliente",
-    label: "Panel de cliente / portal",
-    icon: "👤",
-    desc: "Cada cliente entra con su cuenta y ve sus datos, documentos, facturas, progreso..."
+    label: "Embudo de captación de clientes",
+    icon: "🎯",
+    desc: "Página de venta que termina en un formulario. Los leads caen en tu panel de admin para que los gestiones."
   },
   {
     id: "academia",
     label: "Plataforma de cursos / academia",
     icon: "🎓",
-    desc: "Alumnos entran, ven sus lecciones, marcan completadas, ven su progreso, descargan recursos."
+    desc: "Acceso libre a los cursos sin registro; el progreso se guarda en el dispositivo del visitante. Tú gestionas el contenido."
   },
   {
     id: "calculadora",
@@ -1306,17 +1306,16 @@ const QUESTIONS = [
     showIf: (a) => a.tipo_proyecto === 'webapp' || a.tipo_proyecto === 'ambos',
   },
 
-  // CUENTAS / LOGIN
+  // ADMIN / GESTIÓN (sin registro de usuarios finales)
   {
     section: "Tu app",
-    title: "¿Tus usuarios necesitan crear cuenta?",
-    help: "Si SÍ, cada cliente tendrá su acceso privado con email y contraseña. Si NO, todos usan la app de forma anónima.",
+    title: "¿Quién gestiona la app por dentro?",
+    help: "Tus clientes NO se registran ni dan datos: usan la web libremente. Solo tú (el dueño) entras a un panel de administración privado para gestionarlo todo. Así no recoges datos personales y te olvidas del RGPD.",
     type: "options",
     key: "app_cuentas",
     options: [
-      "Sí, cada cliente tiene su cuenta privada con login",
-      "No, todos usan la app sin registrarse",
-      "Sí, pero solo yo / mi equipo (uso interno)",
+      "Solo yo, el dueño (un panel de admin privado)",
+      "Yo y mi equipo (varios accesos de admin)",
     ],
     required: true,
     showIf: (a) => a.tipo_proyecto === 'webapp' || a.tipo_proyecto === 'ambos',
@@ -2548,6 +2547,14 @@ function buildPrompt() {
   lines.push('10. 🧪 **QA / VERIFICADOR FINAL** — Recorre UNO A UNO los criterios de aceptación del Agente 1 y CADA flujo de usuario, como si fueras el cliente. Marca ✅ o ❌. Corrige todo lo ❌ y vuelve a pasar. Entrega solo cuando TODO esté en ✅.');
   lines.push('');
 
+  // FILOSOFÍA GLOBAL
+  lines.push('## 🧭 FILOSOFÍA (aplica a TODO):');
+  lines.push('');
+  lines.push('- Esto es un **embudo de venta / captación**: cada pantalla empuja suavemente hacia la acción principal del cliente. Diseña para CONVERTIR, no solo para informar.');
+  lines.push('- **Sin registro de usuarios finales** y **sin recogida de datos personales** más allá de lo que alguien escriba voluntariamente en un formulario de contacto. Sin cookies de tracking ni analítica invasiva. Objetivo: que NO aplique el RGPD/protección de datos.');
+  lines.push('- El único acceso privado es el **panel de administración del dueño**.');
+  lines.push('');
+
   // REGLAS COMUNES
   lines.push('## Reglas obligatorias de tu entrega:');
   lines.push('');
@@ -2634,18 +2641,17 @@ function buildPrompt() {
     lines.push('');
     lines.push('A) **DATOS PERSISTENTES con localStorage**. Todo lo que el usuario haga (registros, datos, acciones) debe guardarse en localStorage para que persista entre sesiones. NUNCA uses window.storage — usa exclusivamente localStorage del navegador.');
     lines.push('');
-    lines.push('B) **ESTRUCTURA FUNCIONAL OBLIGATORIA**:');
-
-    if (a.app_cuentas === 'Sí, cada cliente tiene su cuenta privada con login' || a.app_cuentas === 'Sí, pero solo yo / mi equipo (uso interno)') {
-      lines.push('   - Pantalla de **registro + login** funcional (validación email, password mínimo 6 chars).');
-      lines.push('   - Sistema de **sesión persistente** con localStorage (token o flag de sesión activa).');
-      lines.push('   - **Cerrar sesión** visible en todas las pantallas privadas.');
-      lines.push('   - **NO uses bcrypt ni librerías**: para fines de demo, guarda contraseñas en localStorage con un hash sencillo (avisa al cliente que la app no es para producción real sin un backend).');
-    } else {
-      lines.push('   - SIN login. Todos los usuarios usan la app de forma anónima. Identifica las sesiones con un id generado en localStorage al primer uso.');
+    lines.push('B) **MODELO SIN REGISTRO DE USUARIOS (regla de oro)**:');
+    lines.push('   - **Los clientes finales NUNCA se registran ni inician sesión.** Usan la web/embudo libremente, sin usuario ni contraseña.');
+    lines.push('   - **NO recojas datos personales** salvo lo que el visitante envíe voluntariamente en un formulario de contacto/lead (nombre, email, teléfono). Sin cookies de tracking, sin analítica invasiva. Así NO aplica el RGPD/protección de datos.');
+    lines.push('   - **Único acceso privado: un PANEL DE ADMINISTRADOR para el dueño**, en una ruta oculta `#/admin`, protegido por una contraseña simple definida como constante al principio del código (variable `ADMIN_PASSWORD`, fácil de cambiar). Avisa al cliente de que cambie esa contraseña.');
+    if (a.app_cuentas === 'Yo y mi equipo (varios accesos de admin)') {
+      lines.push('   - El panel de admin lo usan el dueño y su equipo: una sola contraseña compartida es suficiente (sin cuentas individuales).');
     }
-
-    lines.push('   - **Pantalla principal** (dashboard) con lo que pidió el cliente al entrar.');
+    lines.push('   - Desde el panel de admin, el dueño ve y gestiona todo: leads recibidos, contenido, pedidos/reservas si aplica. Botón de **cerrar sesión de admin** visible dentro del panel.');
+    lines.push('');
+    lines.push('B2) **ESTRUCTURA FUNCIONAL OBLIGATORIA**:');
+    lines.push('   - **Pantalla principal** (el embudo / lo público) con lo que pidió el cliente al entrar.');
     lines.push('   - **Navegación clara** entre pantallas/secciones (router simple basado en hashes #/ruta o tabs).');
     lines.push('   - **Estado vacío bonito**: cuando no hay datos todavía, muestra un mensaje invitador con icono y CTA, no pantallas vacías raras.');
     lines.push('   - **Confirmaciones** al crear/borrar cosas importantes.');
@@ -2661,32 +2667,28 @@ function buildPrompt() {
     // Instrucciones adaptadas a la plantilla elegida
     const plantilla = a.plantilla_app;
     if (plantilla === 'reservas') {
-      lines.push('D) **PLANTILLA: SISTEMA DE RESERVAS**. Construye:');
+      lines.push('D) **PLANTILLA: SISTEMA DE RESERVAS (sin registro)**. Construye:');
       lines.push('   - Calendario o selector de fecha/hora para reservar.');
       lines.push('   - Listado de servicios reservables (con duración y precio).');
-      lines.push('   - "Mis reservas" del usuario: futuras y pasadas, con opción de cancelar.');
-      lines.push('   - Panel admin oculto en #/admin con todas las reservas y filtros básicos.');
+      lines.push('   - El cliente reserva dejando solo nombre + teléfono/email en ese momento (sin crear cuenta). Recibe confirmación en pantalla.');
+      lines.push('   - **Panel admin** oculto en #/admin: el dueño ve TODAS las reservas, con filtros básicos y opción de marcar/cancelar.');
     } else if (plantilla === 'tienda') {
-      lines.push('D) **PLANTILLA: TIENDA ONLINE**. Construye:');
+      lines.push('D) **PLANTILLA: TIENDA ONLINE (sin registro)**. Construye:');
       lines.push('   - Catálogo con filtros básicos (categoría, precio).');
       lines.push('   - Carrito persistente en localStorage.');
-      lines.push('   - Proceso de checkout (datos envío, resumen, confirmación). Pago simulado.');
-      lines.push('   - "Mis pedidos" con estados (pendiente, enviado, entregado).');
-      lines.push('   - Admin oculto en #/admin para ver/gestionar pedidos.');
+      lines.push('   - Checkout como invitado (datos de envío solo en el pedido, sin crear cuenta). Pago simulado.');
+      lines.push('   - **Panel admin** oculto en #/admin: el dueño gestiona productos y ve/actualiza el estado de los pedidos (pendiente, enviado, entregado).');
     } else if (plantilla === 'panel-cliente') {
-      lines.push('D) **PLANTILLA: PORTAL DE CLIENTE**. Construye:');
-      lines.push('   - Login + dashboard personalizado por cliente.');
-      lines.push('   - Sus datos personales editables.');
-      lines.push('   - Sección de documentos/facturas (placeholders).');
-      lines.push('   - Historial de actividad.');
-      lines.push('   - Soporte: formulario para abrir tickets.');
+      lines.push('D) **PLANTILLA: EMBUDO DE CAPTACIÓN + PANEL DUEÑO**. Construye:');
+      lines.push('   - Página de venta/embudo pública sin registro que termina en un formulario de lead (nombre, contacto, mensaje).');
+      lines.push('   - **Panel admin** oculto en #/admin: el dueño ve todos los leads recibidos, con estado (nuevo, contactado, cerrado) y notas.');
+      lines.push('   - Exportar leads a CSV desde el panel.');
     } else if (plantilla === 'academia') {
-      lines.push('D) **PLANTILLA: PLATAFORMA DE CURSOS**. Construye:');
-      lines.push('   - Login de alumno + dashboard.');
-      lines.push('   - Listado de cursos del alumno con barra de progreso.');
+      lines.push('D) **PLANTILLA: PLATAFORMA DE CURSOS (sin registro)**. Construye:');
+      lines.push('   - Acceso libre a los cursos sin login. El progreso se guarda en el localStorage del propio dispositivo del visitante.');
+      lines.push('   - Listado de cursos con barra de progreso local.');
       lines.push('   - Vista de lección con contenido (texto/video placeholder) y botón "marcar como completada".');
-      lines.push('   - Cálculo automático del progreso del curso.');
-      lines.push('   - Recursos descargables (links).');
+      lines.push('   - **Panel admin** oculto en #/admin: el dueño gestiona los cursos y lecciones.');
     } else if (plantilla === 'calculadora') {
       lines.push('D) **PLANTILLA: CALCULADORA / CONFIGURADOR**. Construye:');
       lines.push('   - Flujo guiado paso a paso con preguntas.');
@@ -2694,8 +2696,8 @@ function buildPrompt() {
       lines.push('   - Pantalla final con el resultado (presupuesto, recomendación, configuración).');
       lines.push('   - Opción de guardar el resultado y enviarlo por email/WhatsApp.');
     } else if (plantilla === 'gestor') {
-      lines.push('D) **PLANTILLA: DASHBOARD / GESTOR INTERNO**. Construye:');
-      lines.push('   - Login para uso interno.');
+      lines.push('D) **PLANTILLA: DASHBOARD / GESTOR INTERNO (solo dueño)**. Construye:');
+      lines.push('   - Acceso solo al panel de admin del dueño (contraseña simple), sin usuarios finales.');
       lines.push('   - Dashboard con métricas visuales (gráficos simples con SVG o canvas, NO librerías pesadas).');
       lines.push('   - Tabla principal con buscador y filtros.');
       lines.push('   - CRUD completo: crear, editar, borrar registros.');
