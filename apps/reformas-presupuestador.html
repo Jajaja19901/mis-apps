@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Breyval · Reformas y energía solar · Calcula tu presupuesto en 1 minuto</title>
+<meta name="description" content="Breyval, expertos en energía solar y especialistas en reformas. Calcula online el presupuesto de tu reforma o instalación solar en 1 minuto, sin compromiso.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#fff; --ink:#1b2430; --ink-soft:#566372; --ink-mut:#5e6e80;
+    --brand:#e07a36; --brand-deep:#c5611f; --brand-soft:#fdeee2;
+    --slate:#27384d; --slate-soft:#eef1f5; --line:#e3e8ee; --ok:#2f8a52; --err:#c43d2a;
+    --sora:'Sora',sans-serif; --sans:'Inter',-apple-system,sans-serif;
+    --shadow:0 1px 2px rgba(20,30,45,.05),0 10px 30px rgba(20,30,45,.07);
+    --radius:16px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{scroll-behavior:smooth}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:var(--sora);font-weight:600;letter-spacing:-.02em;line-height:1.15}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 20px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--sans);font-weight:600;font-size:15px;border:none;border-radius:999px;padding:14px 26px;cursor:pointer;transition:transform .15s,background .2s;text-decoration:none;line-height:1}
+  .btn:active{transform:scale(.97)}
+  .btn-primary{background:var(--brand-deep);color:#fff}
+  .btn-primary:hover{background:#a8500f}
+  .btn-primary:disabled{background:var(--line);color:var(--ink-mut);cursor:not-allowed}
+  .btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+  .btn-ghost:hover{border-color:var(--ink)}
+  .btn-lg{padding:17px 32px;font-size:16px}
+  .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.15em;color:var(--brand-deep);font-weight:700}
+
+  header.site{position:sticky;top:0;z-index:50;background:rgba(246,247,249,.88);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  header.site .wrap{display:flex;align-items:center;justify-content:space-between;height:62px}
+  .logo{font-family:var(--sora);font-weight:700;font-size:19px;display:flex;align-items:center;gap:9px;color:var(--slate)}
+  .logo .mk{width:26px;height:26px;border-radius:7px;background:var(--brand);display:flex;align-items:center;justify-content:center}
+  .logo .mk svg{width:16px;height:16px;color:#fff}
+  header .nav-cta{font-size:14px;padding:11px 18px}
+
+  .hero{padding:60px 0 40px;text-align:center}
+  .hero h1{font-size:clamp(32px,7vw,52px);margin:16px auto;max-width:760px}
+  .hero h1 em{font-style:normal;color:var(--brand)}
+  .hero p{font-size:18px;color:var(--ink-soft);max-width:560px;margin:0 auto 26px}
+  .hero-meta{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;margin-top:26px;color:var(--ink-mut);font-size:14px}
+  .hero-meta span{display:inline-flex;align-items:center;gap:7px}
+  .hero-meta svg{width:16px;height:16px;color:var(--brand)}
+
+  section{padding:48px 0}
+  .sec-head{text-align:center;max-width:560px;margin:0 auto 32px}
+  .sec-head h2{font-size:clamp(24px,5vw,34px);margin:10px 0}
+  .sec-head p{color:var(--ink-soft)}
+  .grid{display:grid;gap:18px}
+  .grid-3{grid-template-columns:repeat(3,1fr)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow)}
+  .step-ic{width:42px;height:42px;border-radius:11px;background:var(--brand-soft);color:var(--brand-deep);display:flex;align-items:center;justify-content:center;font-family:var(--sora);font-weight:700;margin-bottom:14px}
+  .card h3{font-size:19px;margin-bottom:6px}
+  .card p{color:var(--ink-soft);font-size:15px}
+
+  .trust{background:var(--slate);color:#dfe6ee}
+  .trust .grid-3{gap:26px}
+  .trust .item{text-align:center}
+  .trust .big{font-family:var(--sora);font-size:34px;color:#fff;font-weight:700}
+  .trust small{color:#aab8c7}
+
+  /* WIZARD */
+  .calc-shell{max-width:640px;margin:0 auto}
+  .progress{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .progress-bar{flex:1;height:6px;background:var(--line);border-radius:6px;overflow:hidden}
+  .progress-fill{height:100%;background:var(--brand-deep);width:100%;transform-origin:left;transform:scaleX(.25);transition:transform .4s cubic-bezier(.16,1,.3,1)}
+  .progress-txt{font-size:13px;color:var(--ink-mut);font-variant-numeric:tabular-nums}
+  .step h2{font-size:clamp(22px,5vw,30px);margin:18px 0 6px}
+  .step .help{color:var(--ink-soft);margin-bottom:22px}
+  .opt-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .opt{background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:18px 16px;cursor:pointer;transition:all .18s;display:flex;flex-direction:column;gap:6px;box-shadow:var(--shadow)}
+  .opt:hover{border-color:var(--brand)}
+  .opt.sel{border-color:var(--brand);background:var(--brand-soft)}
+  .opt .oi{font-size:26px}
+  .opt b{font-family:var(--sora);font-size:16px}
+  .opt small{color:var(--ink-soft);font-size:13px}
+  .num-field{display:flex;align-items:center;gap:12px;background:var(--card);border:1.5px solid var(--line);border-radius:14px;padding:8px 10px;box-shadow:var(--shadow)}
+  .num-field input{flex:1;border:none;outline:none;font-family:var(--sora);font-size:30px;font-weight:600;color:var(--ink);width:100%;background:transparent;text-align:center}
+  .num-field .stp{width:46px;height:46px;border-radius:10px;border:1px solid var(--line);background:var(--slate-soft);font-size:22px;cursor:pointer;color:var(--slate)}
+  .num-unit{text-align:center;color:var(--ink-mut);margin-top:8px;font-size:14px}
+  .check{background:var(--card);border:1.5px solid var(--line);border-radius:13px;padding:14px 16px;cursor:pointer;display:flex;align-items:center;gap:12px;margin-bottom:10px;transition:all .18s}
+  .check:hover{border-color:var(--brand)}
+  .check.sel{border-color:var(--brand);background:var(--brand-soft)}
+  .check .box{width:22px;height:22px;border-radius:6px;border:1.5px solid var(--ink-mut);flex-shrink:0;position:relative}
+  .check.sel .box{background:var(--brand);border-color:var(--brand)}
+  .check.sel .box::after{content:'';position:absolute;top:3px;left:7px;width:5px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .check .ct{flex:1}
+  .check b{font-weight:600;font-size:15px}
+  .check .pr{color:var(--ink-mut);font-size:13px}
+  .field-err{color:var(--err);font-size:13px;margin-top:8px;display:none}
+  .field-err.show{display:block}
+  .wiz-nav{display:flex;gap:10px;margin-top:26px}
+  .wiz-nav .btn{flex:1}
+
+  /* RESULTADO */
+  .result-card{background:var(--slate);color:#fff;border-radius:22px;padding:34px 26px;text-align:center}
+  .result-card .eyebrow{color:var(--brand)}
+  .result-range{font-family:var(--sora);font-weight:700;font-size:clamp(30px,8vw,46px);margin:10px 0;letter-spacing:-.02em}
+  .result-card .disc{color:#aab8c7;font-size:13px;max-width:420px;margin:6px auto 0}
+  .breakdown{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-top:18px;text-align:left}
+  .breakdown .row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;font-size:15px;color:var(--ink-soft);border-bottom:1px dashed var(--line)}
+  .breakdown .row:last-child{border:none}
+  .breakdown .row b{color:var(--ink)}
+  .lead-form{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:24px;margin-top:18px;box-shadow:var(--shadow)}
+  .lead-form h3{font-size:21px;margin-bottom:4px}
+  .lead-form p.s{color:var(--ink-soft);font-size:14px;margin-bottom:18px}
+  .ff{margin-bottom:12px}
+  .ff label{display:block;font-size:13px;color:var(--ink-soft);margin-bottom:5px}
+  .ff input,.ff textarea{width:100%;border:1px solid var(--line);border-radius:11px;padding:13px 14px;font-family:var(--sans);font-size:16px;color:var(--ink)}
+  .ff input:focus,.ff textarea:focus{outline:none;border-color:var(--brand)}
+  .ff.bad input{border-color:var(--err)}
+  .ff .err{color:var(--err);font-size:13px;margin-top:5px;display:none}
+  .ff.bad .err{display:block}
+  .lead-form .btn-primary{width:100%;margin-top:6px}
+  .priv{font-size:12px;color:var(--ink-mut);text-align:center;margin-top:12px}
+
+  /* GRACIAS */
+  .gracias{text-align:center;max-width:520px;margin:0 auto;padding:30px 0}
+  .gracias .ok{width:72px;height:72px;border-radius:50%;background:var(--ok);margin:0 auto 18px;display:flex;align-items:center;justify-content:center}
+  .gracias .ok svg{width:36px;height:36px;color:#fff}
+  .gracias h1{font-size:30px;margin-bottom:10px}
+  .gracias p{color:var(--ink-soft);margin-bottom:22px}
+
+  footer.site{border-top:1px solid var(--line);padding:34px 0;color:var(--ink-soft);font-size:15px}
+  footer .cols{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:24px}
+  footer h4{font-family:var(--sans);font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--ink-mut);margin-bottom:11px}
+  footer a{display:block;margin-bottom:7px;text-decoration:none;color:var(--ink-soft)}
+  footer a:hover{color:var(--brand-deep)}
+  .copyr{margin-top:24px;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-mut);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+  .copyr a{color:var(--ink-mut)}
+
+  .fab{position:fixed;right:18px;bottom:18px;width:56px;height:56px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(37,211,102,.45);z-index:60;text-decoration:none}
+  .fab svg{width:30px;height:30px;fill:#fff}
+
+  .toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 20px;border-radius:999px;font-size:14px;font-weight:500;opacity:0;pointer-events:none;transition:.3s;z-index:100;max-width:90%}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* ADMIN */
+  .admin{min-height:100vh;padding:22px 0}
+  .gate{max-width:380px;margin:7vh auto;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:30px;box-shadow:var(--shadow)}
+  .gate h2{font-size:23px;margin-bottom:6px}
+  .gate p{color:var(--ink-soft);font-size:14px;margin-bottom:18px}
+  .gate input{width:100%;border:1px solid var(--line);border-radius:11px;padding:14px;font-size:16px;font-family:var(--sans);margin-bottom:12px}
+  .gate input:focus{outline:none;border-color:var(--brand)}
+  .gate .btn-primary{width:100%}
+  .gate .err{color:var(--err);font-size:13px;margin-top:10px;display:none}
+  .gate.bad .err{display:block}
+  .admin-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:12px}
+  .admin-bar h2{font-size:24px}
+  .stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 18px;min-width:120px}
+  .stat .big{font-family:var(--sora);font-size:24px;color:var(--brand-deep);font-weight:700}
+  .stat small{color:var(--ink-mut);font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+  .lead{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:12px;box-shadow:var(--shadow)}
+  .lead-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+  .lead b.nm{font-size:16px}
+  .lead .meta{color:var(--ink-mut);font-size:13px;margin:3px 0}
+  .lead .est{font-family:var(--sora);font-weight:600;color:var(--brand-deep)}
+  .lead .row2{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+  .lead select{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-family:var(--sans);font-size:13px;background:var(--card)}
+  .tag{font-size:12px;padding:3px 10px;border-radius:999px;font-weight:600}
+  .tag.nuevo{background:#e6f0ff;color:#2b5bb5}
+  .tag.contactado{background:#fff2d9;color:#9a6b00}
+  .tag.cerrado{background:#e3f3e8;color:var(--ok)}
+  .lead a.wa{color:var(--ok);font-weight:600;font-size:13px;text-decoration:none}
+  .lead button.del{background:none;border:none;color:var(--ink-mut);cursor:pointer;font-size:13px}
+  .lead button.del:hover{color:var(--err)}
+  .empty{text-align:center;color:var(--ink-mut);padding:46px 20px}
+  .empty .ic{font-size:40px;margin-bottom:10px}
+
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  :focus-visible{outline:3px solid var(--brand-deep);outline-offset:2px;border-radius:6px}
+  .fab:focus-visible{outline:3px solid #fff;outline-offset:3px}
+  .fab{will-change:transform}
+  .result-card .eyebrow{color:#ffb47a}
+  @media(max-width:780px){.grid-3{grid-template-columns:1fr}footer .cols{grid-template-columns:1fr;gap:18px}.opt-grid{grid-template-columns:1fr 1fr}header .nav-cta{display:none}.hero{padding:42px 0 30px}}
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ==================================================================
+   ⚙️  CONFIGURA TU NEGOCIO AQUÍ  (cambia estos valores y listo)
+   ================================================================== */
+const CONFIG = {
+  BUSINESS_NAME : "Breyval",
+  TAGLINE       : "Reformas y energía solar, sin sorpresas",
+  CITY          : "PON_AQUI_TU_ZONA",           // ej: "Asturias" / "Madrid y alrededores"
+  WHATSAPP      : "34694252706",                // WhatsApp de negocio (prefijo 34 + número)
+  EMAIL         : "Breyval.soluciones.solares@gmail.com",
+  ADMIN_PASSWORD: "breyval-2026",               // ⚠️ CÁMBIALA. Es tu acceso privado (cerrojo básico, visible en el código).
+
+  // ── PRECIOS (edítalos a tu gusto; son orientativos para España 2026) ──
+  PRICING: {
+    // €/m² para nivel MEDIO (multiplicador 1.0)
+    tipos: [
+      { id:"solar",        label:"Placas solares", icon:"☀️", m2:230 },  // €/m² de paneles (orientativo)
+      { id:"cocina",       label:"Cocina",          icon:"🍳", m2:600 },
+      { id:"bano",         label:"Baño",            icon:"🛁", m2:700 },
+      { id:"piso",         label:"Piso completo",   icon:"🏠", m2:450 },
+      { id:"pintura",      label:"Pintura",         icon:"🎨", m2:18  },
+      { id:"fontaneria",   label:"Fontanería",      icon:"🔧", m2:90  },
+      { id:"electricidad", label:"Electricidad",    icon:"💡", m2:75  },
+    ],
+    calidades: [
+      { id:"basico",  label:"Básico",  desc:"Materiales funcionales, acabados estándar.",      mult:0.8  },
+      { id:"medio",   label:"Medio",   desc:"Buena relación calidad-precio, marcas conocidas.", mult:1.0  },
+      { id:"premium", label:"Premium", desc:"Materiales de gama alta, acabados de diseño.",      mult:1.45 },
+    ],
+    extras: [
+      { id:"demolicion", label:"Demolición y retirada de escombros", precio:1200 },
+      { id:"electro",    label:"Electrodomésticos incluidos",        precio:2500 },
+      { id:"mampara",    label:"Mampara / plato de ducha de obra",   precio:900  },
+      { id:"suelo",      label:"Suelo nuevo (tarima / porcelánico)", precio:1800 },
+      { id:"led",        label:"Iluminación LED / domótica",         precio:700  },
+      { id:"licencia",   label:"Proyecto y licencia de obra",        precio:1500 },
+    ],
+    margenMin: 0.90,   // rango inferior
+    margenMax: 1.15,   // rango superior
+    m2Min: 1, m2Max: 1000,
+  },
+};
+
+const LEADS_KEY = "reformas_leads_v1";
+const ADMIN_KEY = "reformas_admin_ok";
+const GATE_KEY  = "reformas_gate";
+
+/* ---------- almacenamiento ---------- */
+function loadLeads(){ try{ const r=localStorage.getItem(LEADS_KEY); return r?JSON.parse(r):[]; }catch(e){ return []; } }
+function saveLeads(list){ try{ localStorage.setItem(LEADS_KEY, JSON.stringify(list)); }catch(e){ showToast("No se pudo guardar en este dispositivo"); } }
+
+/* ---------- seguridad: escapar texto del usuario ---------- */
+function esc(s){ if(s===null||s===undefined) return ""; return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
+function eur(n){ return Math.round(n/100)*100; }
+function fmt(n){ return eur(n).toLocaleString("es-ES") + " €"; }
+
+/* ---------- estado del presupuestador (en memoria, no se pierde al ir atrás) ---------- */
+let calc = { step:1, tipo:null, metros:"", calidad:null, extras:[] };
+function resetCalc(){ calc = { step:1, tipo:null, metros:"", calidad:null, extras:[] }; }
+
+/* ---------- cálculo ---------- */
+function calcular(){
+  const P = CONFIG.PRICING;
+  const tipo = P.tipos.find(t=>t.id===calc.tipo);
+  const cal  = P.calidades.find(c=>c.id===calc.calidad);
+  const m2 = parseFloat(calc.metros)||0;
+  const base = (tipo? tipo.m2:0) * m2;
+  const ajustado = base * (cal? cal.mult:1);
+  const extrasSel = P.extras.filter(e=>calc.extras.includes(e.id));
+  const extrasTotal = extrasSel.reduce((s,e)=>s+e.precio,0);
+  const subtotal = ajustado + extrasTotal;
+  return {
+    tipo, cal, m2, base, ajustado, extrasSel, extrasTotal, subtotal,
+    min: eur(subtotal * P.margenMin),
+    max: eur(subtotal * P.margenMax),
+  };
+}
+
+/* ==================================================================
+   ROUTER
+   ================================================================== */
+function route(){
+  const h = location.hash.replace(/^#\/?/,"");
+  if(h==="admin")      renderAdmin();
+  else if(h==="calc")  renderCalc();
+  else if(h==="gracias") renderGracias();
+  else                 renderHome();
+  window.scrollTo(0,0);
+}
+window.addEventListener("hashchange",route);
+function go(r){ location.hash = r; }
+
+/* ==================================================================
+   HOME (landing / embudo)
+   ================================================================== */
+function renderHome(){
+  const C=CONFIG;
+  document.getElementById("app").innerHTML = `
+  ${header()}
+  <main>
+    <section class="hero"><div class="wrap">
+      <div class="eyebrow">Expertos en energía solar · Especialistas en reformas</div>
+      <h1>Calcula tu reforma o instalación solar <em>en 1 minuto</em></h1>
+      <p>Sin llamadas, sin compromiso y sin registrarte. Responde 4 preguntas y verás al instante cuánto te costaría. Si te encaja, te preparamos el presupuesto detallado.</p>
+      <a href="#/calc" class="btn btn-primary btn-lg">Calcular mi presupuesto →</a>
+      <div class="hero-meta">
+        <span>${ic('clock')} Tarda 1 minuto</span>
+        <span>${ic('lock')} Sin dar datos personales</span>
+        <span>${ic('check')} Estimación al instante</span>
+      </div>
+    </div></section>
+
+    <section><div class="wrap">
+      <div class="sec-head"><div class="eyebrow">Cómo funciona</div><h2>Tu presupuesto en 3 pasos</h2></div>
+      <div class="grid grid-3">
+        <div class="card"><div class="step-ic">1</div><h3>Configura tu reforma</h3><p>Eliges qué reformar, los metros y el nivel de acabados.</p></div>
+        <div class="card"><div class="step-ic">2</div><h3>Mira el precio al instante</h3><p>Te mostramos un rango estimado con su desglose, al momento.</p></div>
+        <div class="card"><div class="step-ic">3</div><h3>Recibe el detalle</h3><p>Nos dejas tu teléfono y te enviamos el presupuesto cerrado por WhatsApp.</p></div>
+      </div>
+      <div style="text-align:center;margin-top:26px"><a href="#/calc" class="btn btn-primary btn-lg">Empezar ahora →</a></div>
+    </div></section>
+
+    <section class="trust"><div class="wrap">
+      <div class="grid grid-3">
+        <div class="item"><div class="big">+350</div><small>reformas entregadas</small></div>
+        <div class="item"><div class="big">15 años</div><small>de experiencia</small></div>
+        <div class="item"><div class="big">Precio cerrado</div><small>por escrito, sin sorpresas</small></div>
+      </div>
+    </div></section>
+  </main>
+  ${footer()}
+  ${fab()}
+  `;
+}
+
+/* ==================================================================
+   PRESUPUESTADOR (wizard de 4 pasos + resultado)
+   ================================================================== */
+function renderCalc(){
+  const C=CONFIG, P=C.PRICING;
+  let inner = "";
+  const totalSteps = 4;
+  const progress = calc.step<=totalSteps ? (calc.step/totalSteps*100) : 100;
+  const progTxt = calc.step<=totalSteps ? `Paso ${calc.step} de ${totalSteps}` : "Resultado";
+
+  if(calc.step===1){
+    inner = `
+      <div class="step">
+        <h2>¿Qué quieres reformar?</h2>
+        <p class="help">Elige el tipo de reforma principal.</p>
+        <div class="opt-grid" id="tipos" role="group" aria-label="Tipo de reforma">
+          ${P.tipos.map(t=>`<div class="opt ${calc.tipo===t.id?'sel':''}" data-id="${esc(t.id)}" role="button" tabindex="0" aria-pressed="${calc.tipo===t.id}">
+            <span class="oi" aria-hidden="true">${t.icon}</span><b>${esc(t.label)}</b></div>`).join("")}
+        </div>
+      </div>`;
+  } else if(calc.step===2){
+    inner = `
+      <div class="step">
+        <h2>¿Cuántos m² tiene?</h2>
+        <p class="help">La superficie aproximada a reformar.</p>
+        <div class="num-field">
+          <button class="stp" id="mMinus" aria-label="Menos">−</button>
+          <input id="metros" type="number" inputmode="numeric" min="${P.m2Min}" max="${P.m2Max}" value="${esc(calc.metros)}" placeholder="0" aria-label="Metros cuadrados">
+          <button class="stp" id="mPlus" aria-label="Más">+</button>
+        </div>
+        <div class="num-unit">metros cuadrados (m²)</div>
+        <div class="field-err" id="mErr">Escribe una superficie válida (entre ${P.m2Min} y ${P.m2Max} m²).</div>
+      </div>`;
+  } else if(calc.step===3){
+    inner = `
+      <div class="step">
+        <h2>¿Qué nivel de acabados?</h2>
+        <p class="help">El nivel de materiales y calidades.</p>
+        <div id="cals" role="group" aria-label="Nivel de acabados">
+          ${P.calidades.map(c=>`<div class="check ${calc.calidad===c.id?'sel':''}" data-id="${esc(c.id)}" role="button" tabindex="0" aria-pressed="${calc.calidad===c.id}">
+            <div class="box" aria-hidden="true"></div><div class="ct"><b>${esc(c.label)}</b><div class="pr">${esc(c.desc)}</div></div></div>`).join("")}
+        </div>
+      </div>`;
+  } else if(calc.step===4){
+    inner = `
+      <div class="step">
+        <h2>¿Algún extra? <span style="color:var(--ink-mut);font-weight:400;font-size:16px">(opcional)</span></h2>
+        <p class="help">Marca lo que necesites. Puedes dejarlo todo sin marcar.</p>
+        <div id="extras" role="group" aria-label="Extras opcionales">
+          ${P.extras.map(e=>`<div class="check ${calc.extras.includes(e.id)?'sel':''}" data-id="${esc(e.id)}" role="checkbox" tabindex="0" aria-checked="${calc.extras.includes(e.id)}">
+            <div class="box" aria-hidden="true"></div><div class="ct"><b>${esc(e.label)}</b><div class="pr">+ ${fmt(e.precio)}</div></div></div>`).join("")}
+        </div>
+      </div>`;
+  } else {
+    return renderResultado();
+  }
+
+  document.getElementById("app").innerHTML = `
+  ${header()}
+  <main><section><div class="wrap"><div class="calc-shell">
+    <h1 class="sr-only">Presupuestador de reformas</h1>
+    <div class="progress"><div class="progress-bar" role="progressbar" aria-valuenow="${Math.round(progress)}" aria-valuemin="0" aria-valuemax="100" aria-label="Progreso del presupuestador"><div class="progress-fill" style="transform:scaleX(${progress/100})"></div></div><span class="progress-txt">${progTxt}</span></div>
+    ${inner}
+    <div class="wiz-nav">
+      ${calc.step>1 ? `<button class="btn btn-ghost" id="back">← Atrás</button>` : `<a class="btn btn-ghost" href="#/">← Inicio</a>`}
+      <button class="btn btn-primary" id="next">${calc.step===totalSteps?'Ver mi presupuesto':'Continuar →'}</button>
+    </div>
+  </div></div></section></main>
+  ${fab()}`;
+
+  attachCalc();
+}
+
+function attachCalc(){
+  const P=CONFIG.PRICING;
+  if(calc.step===1){
+    document.querySelectorAll("#tipos .opt").forEach(el=>el.addEventListener("click",()=>{
+      calc.tipo=el.dataset.id;
+      document.querySelectorAll("#tipos .opt").forEach(o=>{o.classList.remove("sel");o.setAttribute("aria-pressed","false");});
+      el.classList.add("sel"); el.setAttribute("aria-pressed","true");
+    }));
+  } else if(calc.step===2){
+    const inp=document.getElementById("metros");
+    inp.addEventListener("input",()=>{ calc.metros=inp.value; });
+    document.getElementById("mPlus").addEventListener("click",()=>{ inp.value=(parseInt(inp.value)||0)+1; calc.metros=inp.value; });
+    document.getElementById("mMinus").addEventListener("click",()=>{ inp.value=Math.max(P.m2Min,(parseInt(inp.value)||0)-1); calc.metros=inp.value; });
+  } else if(calc.step===3){
+    document.querySelectorAll("#cals .check").forEach(el=>el.addEventListener("click",()=>{
+      calc.calidad=el.dataset.id;
+      document.querySelectorAll("#cals .check").forEach(o=>{o.classList.remove("sel");o.setAttribute("aria-pressed","false");});
+      el.classList.add("sel"); el.setAttribute("aria-pressed","true");
+    }));
+  } else if(calc.step===4){
+    document.querySelectorAll("#extras .check").forEach(el=>el.addEventListener("click",()=>{
+      const id=el.dataset.id;
+      const on = !calc.extras.includes(id);
+      if(on){ calc.extras.push(id); el.classList.add("sel"); }
+      else { calc.extras=calc.extras.filter(x=>x!==id); el.classList.remove("sel"); }
+      el.setAttribute("aria-checked", String(on));
+    }));
+  }
+  // Teclado: Enter/Espacio activan las tarjetas (accesibilidad)
+  document.querySelectorAll(".opt,.check").forEach(el=>el.addEventListener("keydown",ev=>{
+    if(ev.key==="Enter"||ev.key===" "){ ev.preventDefault(); el.click(); }
+  }));
+  const back=document.getElementById("back");
+  if(back) back.addEventListener("click",()=>{ calc.step--; renderCalc(); });
+  document.getElementById("next").addEventListener("click",()=>{
+    if(calc.step===1 && !calc.tipo){ showToast("Elige qué reformar"); return; }
+    if(calc.step===2){
+      const m=parseFloat(calc.metros);
+      if(!m || m<P.m2Min || m>P.m2Max || isNaN(m)){ document.getElementById("mErr").classList.add("show"); return; }
+    }
+    if(calc.step===3 && !calc.calidad){ showToast("Elige un nivel de acabados"); return; }
+    calc.step++;
+    renderCalc();
+  });
+}
+
+function renderResultado(){
+  const r=calcular();
+  const C=CONFIG;
+  document.getElementById("app").innerHTML=`
+  ${header()}
+  <main><section><div class="wrap"><div class="calc-shell">
+    <div class="result-card">
+      <div class="eyebrow">Presupuesto estimado</div>
+      <div class="result-range">${fmt(r.min)} – ${fmt(r.max)}</div>
+      <p class="disc">Estimación orientativa para ${esc(r.tipo.label.toLowerCase())} de ${r.m2} m² (acabado ${esc(r.cal.label.toLowerCase())}). El precio final se cierra tras una visita técnica gratuita.</p>
+    </div>
+    <div class="breakdown">
+      <div class="row"><span>${esc(r.tipo.label)} · ${r.m2} m² · ${esc(r.cal.label)}</span><b>${fmt(r.ajustado)}</b></div>
+      ${r.extrasSel.map(e=>`<div class="row"><span>+ ${esc(e.label)}</span><b>${fmt(e.precio)}</b></div>`).join("")}
+    </div>
+
+    <form class="lead-form" id="leadForm" novalidate>
+      <h3>Recibe tu presupuesto detallado</h3>
+      <p class="s">Te lo preparamos a medida y te lo enviamos por WhatsApp. Sin compromiso.</p>
+      <div class="ff" id="f-nombre"><label for="i-nombre">Tu nombre</label><input id="i-nombre" maxlength="60" autocomplete="name"></div>
+      <div class="ff" id="f-tel"><label for="i-tel">Teléfono *</label><input id="i-tel" type="tel" inputmode="tel" maxlength="20" autocomplete="tel"><div class="err">Necesitamos un teléfono válido para enviarte el presupuesto.</div></div>
+      <div class="ff" id="f-msg"><label for="i-msg">¿Algo que debamos saber? (opcional)</label><textarea id="i-msg" maxlength="500" rows="2"></textarea></div>
+      <button type="submit" class="btn btn-primary btn-lg">Recibir presupuesto detallado</button>
+      <div class="priv">🔒 Solo usamos tus datos para enviarte este presupuesto. No los compartimos.</div>
+    </form>
+    <div style="text-align:center;margin-top:14px"><button class="btn btn-ghost" id="redo">↺ Calcular otra reforma</button></div>
+  </div></div></section></main>
+  ${fab()}`;
+
+  document.getElementById("redo").addEventListener("click",()=>{ resetCalc(); go("calc"); renderCalc(); });
+  document.getElementById("leadForm").addEventListener("submit",e=>{
+    e.preventDefault();
+    const tel=document.getElementById("i-tel").value.trim();
+    const telOk=/^[0-9 +().-]{7,20}$/.test(tel);
+    document.getElementById("f-tel").classList.toggle("bad",!telOk);
+    if(!telOk) return;
+    const nombre=document.getElementById("i-nombre").value.trim();
+    const msg=document.getElementById("i-msg").value.trim();
+    const lead={
+      id:"lead_"+Date.now()+"_"+Math.random().toString(36).slice(2,6),
+      fecha:new Date().toISOString(),
+      nombre, telefono:tel, mensaje:msg,
+      tipo:r.tipo.id, tipoLabel:r.tipo.label,
+      metros:r.m2, calidad:r.cal.label,
+      extrasLabels:r.extrasSel.map(x=>x.label),
+      estimacionMin:r.min, estimacionMax:r.max,
+      estado:"nuevo",
+    };
+    const list=loadLeads(); list.unshift(lead); saveLeads(list);
+    window._lastLead=lead;
+    go("gracias");
+  });
+}
+
+/* ==================================================================
+   GRACIAS
+   ================================================================== */
+function renderGracias(){
+  const C=CONFIG;
+  const l=window._lastLead;
+  if(!l){ go(""); return; }
+  const waMsg=encodeURIComponent(`Hola ${C.BUSINESS_NAME}, soy ${l.nombre||""}. He calculado un presupuesto de ${fmt(l.estimacionMin)}–${fmt(l.estimacionMax)} para ${l.tipoLabel} de ${l.metros} m² (${l.calidad}). Me gustaría recibir el presupuesto detallado.`);
+  const waNum = (C.WHATSAPP && C.WHATSAPP!=="PEGA_AQUI_TU_NUMERO") ? C.WHATSAPP : "";
+  document.getElementById("app").innerHTML=`
+  ${header()}
+  <main><section><div class="wrap"><div class="gracias">
+    <div class="ok">${ic('check')}</div>
+    <h1>¡Gracias, ${esc(l.nombre||"")}!</h1>
+    <p>Hemos recibido tu solicitud para <b>${esc(l.tipoLabel)}</b> (${l.metros} m², ${esc(l.calidad)}). Te enviaremos tu presupuesto detallado muy pronto. Si quieres, acelera escribiéndonos ahora:</p>
+    ${waNum ? `<a class="btn btn-primary btn-lg" href="https://wa.me/${esc(waNum)}?text=${waMsg}" target="_blank" rel="noopener noreferrer">Enviar mi presupuesto por WhatsApp</a>`
+            : `<p style="color:var(--ink-mut);font-size:14px">(Configura el WhatsApp del negocio en CONFIG para activar el envío directo.)</p>`}
+    <div style="margin-top:16px"><a class="btn btn-ghost" href="#/">Volver al inicio</a></div>
+  </div></div></section></main>
+  ${fab()}`;
+}
+
+/* ==================================================================
+   PANEL DE ADMIN (solo el dueño)
+   ================================================================== */
+function isAdmin(){ try{ return sessionStorage.getItem(ADMIN_KEY)==="1"; }catch(e){ return false; } }
+
+function renderAdmin(){
+  if(!isAdmin()){ renderGate(); return; }
+  const leads=loadLeads();
+  const cnt=k=>leads.filter(l=>l.estado===k).length;
+  const media = leads.length ? Math.round(leads.reduce((s,l)=>s+((l.estimacionMin+l.estimacionMax)/2),0)/leads.length) : 0;
+  document.getElementById("app").innerHTML=`
+  <div class="admin"><div class="wrap">
+    <div class="admin-bar">
+      <h2>Panel · ${esc(CONFIG.BUSINESS_NAME)}</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" id="csv">Exportar CSV</button>
+        <a class="btn btn-ghost" href="#/">Ver web</a>
+        <button class="btn btn-ghost" id="logout">Salir</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="big">${leads.length}</div><small>Solicitudes</small></div>
+      <div class="stat"><div class="big">${cnt("nuevo")}</div><small>Nuevas</small></div>
+      <div class="stat"><div class="big">${cnt("contactado")}</div><small>Contactadas</small></div>
+      <div class="stat"><div class="big">${media?fmt(media):"—"}</div><small>Valor medio</small></div>
+    </div>
+    <div id="list">
+      ${leads.length? leads.map(renderLead).join("") : `<div class="empty"><div class="ic">📭</div><b>Aún no hay solicitudes</b><p>Cuando alguien calcule un presupuesto, aparecerá aquí.</p></div>`}
+    </div>
+  </div></div>`;
+
+  document.getElementById("logout").addEventListener("click",()=>{ try{sessionStorage.removeItem(ADMIN_KEY);}catch(e){} renderGate(); });
+  document.getElementById("csv").addEventListener("click",exportCSV);
+  document.querySelectorAll("[data-st]").forEach(s=>s.addEventListener("change",e=>{ updateLead(e.target.dataset.id,{estado:e.target.value}); renderAdmin(); }));
+  document.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",e=>{ if(confirm("¿Borrar esta solicitud?")){ saveLeads(loadLeads().filter(l=>l.id!==e.target.dataset.id)); renderAdmin(); } }));
+}
+
+function renderLead(l){
+  const d=new Date(l.fecha);
+  const when=d.toLocaleDateString("es-ES",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"});
+  const tel=(l.telefono||"").replace(/[^0-9]/g,"");
+  const waMsg=encodeURIComponent(`Hola ${l.nombre||""}, soy ${CONFIG.BUSINESS_NAME}. Sobre tu reforma de ${l.tipoLabel} (${l.metros} m², ${l.calidad}), aquí tienes tu presupuesto detallado:`);
+  const extras=(l.extrasLabels&&l.extrasLabels.length)? " · Extras: "+l.extrasLabels.map(esc).join(", ") : "";
+  const st=["nuevo","contactado","cerrado"].includes(l.estado)?l.estado:"nuevo";
+  return `
+  <div class="lead">
+    <div class="lead-top">
+      <div>
+        <b class="nm">${esc(l.nombre||"(sin nombre)")}</b> <span class="tag ${st}">${esc(st)}</span>
+        <div class="meta">${esc(when)} · 📞 ${esc(l.telefono||"")}</div>
+        <div class="meta">${esc(l.tipoLabel)} · ${esc(String(l.metros))} m² · ${esc(l.calidad)}${extras}</div>
+        <div class="est">${fmt(l.estimacionMin)} – ${fmt(l.estimacionMax)}</div>
+        ${l.mensaje?`<div class="meta">💬 ${esc(l.mensaje)}</div>`:""}
+      </div>
+      <a class="wa" href="https://wa.me/${esc(tel)}?text=${waMsg}" target="_blank" rel="noopener noreferrer">WhatsApp →</a>
+    </div>
+    <div class="row2">
+      <select data-st data-id="${esc(l.id)}" aria-label="Estado de la solicitud de ${esc(l.nombre||'sin nombre')}">
+        <option value="nuevo" ${st==="nuevo"?"selected":""}>Nueva</option>
+        <option value="contactado" ${st==="contactado"?"selected":""}>Contactada</option>
+        <option value="cerrado" ${st==="cerrado"?"selected":""}>Cerrada</option>
+      </select>
+      <button class="del" data-del data-id="${esc(l.id)}" aria-label="Borrar solicitud de ${esc(l.nombre||'sin nombre')}">Borrar</button>
+    </div>
+  </div>`;
+}
+
+function updateLead(id,patch){ saveLeads(loadLeads().map(l=>l.id===id?{...l,...patch}:l)); }
+
+function exportCSV(){
+  const leads=loadLeads();
+  if(!leads.length){ showToast("No hay datos que exportar"); return; }
+  const head=["Fecha","Nombre","Telefono","Tipo","m2","Calidad","Extras","Estimacion min","Estimacion max","Estado","Mensaje"];
+  const cell=v=>{ let s=String(v==null?"":v); if(/^[=+\-@]/.test(s)) s="'"+s; return '"'+s.replace(/"/g,'""')+'"'; };
+  const rows=leads.map(l=>[l.fecha,l.nombre,l.telefono,l.tipoLabel,l.metros,l.calidad,(l.extrasLabels||[]).join(" | "),l.estimacionMin,l.estimacionMax,l.estado,l.mensaje].map(cell).join(";"));
+  const csv=[head.join(";"),...rows].join("\n");
+  const blob=new Blob(["﻿"+csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`solicitudes-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(a.href);
+}
+
+function renderGate(bad){
+  document.getElementById("app").innerHTML=`
+  <div class="admin"><div class="gate ${bad?"bad":""}">
+    <h2>Acceso del dueño</h2>
+    <p>Zona privada de ${esc(CONFIG.BUSINESS_NAME)}. Introduce tu contraseña.</p>
+    <form id="gateForm">
+      <input id="gp" type="password" placeholder="Contraseña" autocomplete="current-password" aria-label="Contraseña">
+      <button class="btn btn-primary" type="submit">Entrar</button>
+      <div class="err">Contraseña incorrecta.</div>
+    </form>
+    <p style="margin-top:14px;font-size:12px"><a href="#/" style="color:var(--ink-mut)">← Volver a la web</a></p>
+  </div></div>`;
+  document.getElementById("gateForm").addEventListener("submit",e=>{
+    e.preventDefault();
+    const now=Date.now(); let g={n:0,until:0};
+    try{ g=JSON.parse(sessionStorage.getItem(GATE_KEY)||"{}"); }catch(err){}
+    if(g.until && now<g.until){ showToast(`Demasiados intentos. Espera ${Math.ceil((g.until-now)/1000)}s.`); return; }
+    if(document.getElementById("gp").value===CONFIG.ADMIN_PASSWORD){
+      try{ sessionStorage.setItem(ADMIN_KEY,"1"); sessionStorage.removeItem(GATE_KEY); }catch(err){}
+      renderAdmin();
+    } else {
+      g.n=(g.n||0)+1; if(g.n>=5){ g.until=now+60000; g.n=0; showToast("Demasiados intentos. Espera 60 segundos."); }
+      try{ sessionStorage.setItem(GATE_KEY,JSON.stringify(g)); }catch(err){}
+      renderGate(true);
+    }
+  });
+}
+
+/* ==================================================================
+   TROZOS REUTILIZABLES + UTILIDADES
+   ================================================================== */
+function header(){ return `
+  <header class="site"><div class="wrap">
+    <a class="logo" href="#/" style="text-decoration:none"><span class="mk">${ic('hammer')}</span>${esc(CONFIG.BUSINESS_NAME)}</a>
+    <a href="#/calc" class="btn btn-primary nav-cta">Calcular presupuesto</a>
+  </div></header>`; }
+
+function footer(){ const C=CONFIG; const waNum=(C.WHATSAPP&&C.WHATSAPP!=="PEGA_AQUI_TU_NUMERO")?C.WHATSAPP:""; return `
+  <footer class="site"><div class="wrap">
+    <div class="cols">
+      <div><div class="logo" style="margin-bottom:10px"><span class="mk">${ic('hammer')}</span>${esc(C.BUSINESS_NAME)}</div>
+        <p style="font-size:14px;max-width:280px">${esc(C.TAGLINE)}. Reformas con presupuesto cerrado en ${esc(ciudad())}.</p></div>
+      <div><h4>Contacto</h4>
+        ${waNum?`<a href="https://wa.me/${esc(waNum)}" target="_blank" rel="noopener noreferrer">WhatsApp</a>`:""}
+        <a href="mailto:${esc(C.EMAIL)}">${esc(C.EMAIL)}</a></div>
+      <div><h4>Zona</h4><p style="font-size:14px">${esc(ciudad())}</p></div>
+    </div>
+    <div class="copyr"><span>© ${new Date().getFullYear()} ${esc(C.BUSINESS_NAME)}</span><a href="#/admin">Acceso del equipo</a></div>
+  </div></footer>`; }
+
+function fab(){ const C=CONFIG; if(!C.WHATSAPP||C.WHATSAPP==="PEGA_AQUI_TU_NUMERO") return "";
+  return `<a class="fab" href="https://wa.me/${esc(C.WHATSAPP)}" target="_blank" rel="noopener noreferrer" aria-label="Escríbenos por WhatsApp">${icWA()}</a>`; }
+
+function showToast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(showToast._t); showToast._t=setTimeout(()=>t.classList.remove("show"),2600); }
+function ciudad(){ const c=CONFIG.CITY; return (c && c!=="PON_AQUI_TU_ZONA") ? c : "tu zona"; }
+
+function ic(n){ const s='viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
+  const p={ clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    lock:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    check:'<polyline points="20 6 9 17 4 12"/>',
+    hammer:'<path d="M14 6l4 4M3 21l7-7M12.5 7.5l4 4 4-4-2-2a3 3 0 0 0-4 0z"/>' };
+  return `<svg aria-hidden="true" focusable="false" ${s}>${p[n]||""}</svg>`; }
+function icWA(){ return '<svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.516 5.26l-.999 3.648 3.973-1.207zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>'; }
+
+/* ARRANQUE */
+route();
+</script>
+</body>
+</html>
