@@ -208,6 +208,36 @@
   .lead button.del:hover{color:#c43d2a}
   .empty{text-align:center;color:var(--ink-mut);padding:46px 20px}.empty .ic{font-size:40px;margin-bottom:10px}
 
+  /* CHAT BOT */
+  .chat-launch{position:fixed;right:18px;bottom:86px;z-index:70;display:flex;align-items:center;gap:10px}
+  .chat-bubble-teaser{background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);border-radius:14px;padding:8px 12px;font-size:13px;font-weight:600;color:var(--slate);max-width:150px;animation:bob 2.4s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  .chat-btn{width:60px;height:60px;border-radius:50%;background:var(--brand-deep);border:none;cursor:pointer;box-shadow:0 8px 24px rgba(168,78,24,.45);display:flex;align-items:center;justify-content:center;position:relative}
+  .chat-btn svg{width:30px;height:30px;fill:#fff}
+  .chat-btn .dot{position:absolute;top:3px;right:3px;width:13px;height:13px;background:#4caf50;border:2px solid #fff;border-radius:50%}
+  .chat-btn:focus-visible{outline:3px solid #fff;outline-offset:3px}
+  .chat-panel{position:fixed;right:18px;bottom:18px;width:344px;max-width:calc(100vw - 36px);height:486px;max-height:calc(100vh - 36px);background:#fff;border-radius:18px;box-shadow:var(--shadow-lg);z-index:71;display:none;flex-direction:column;overflow:hidden;border:1px solid var(--line)}
+  .chat-panel.open{display:flex}
+  .chat-head{background:var(--slate);color:#fff;padding:13px 15px;display:flex;align-items:center;gap:10px}
+  .chat-head .av{width:34px;height:34px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+  .chat-head b{font-size:15px;display:block;line-height:1.2}.chat-head small{color:#aab8c7;font-size:12px}
+  .chat-head .x{margin-left:auto;background:none;border:none;color:#fff;font-size:24px;cursor:pointer;line-height:1;padding:0 4px}
+  .chat-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
+  .msg{max-width:86%;padding:10px 13px;border-radius:14px;font-size:14px;line-height:1.5;word-wrap:break-word}
+  .msg.bot{background:#fff;border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:4px}
+  .msg.bot a{color:var(--brand-deep);font-weight:600}
+  .msg.user{background:var(--brand-deep);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+  .chat-quick{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 10px;background:var(--bg)}
+  .chat-quick button{background:#fff;border:1px solid var(--brand);color:var(--brand-deep);border-radius:999px;padding:7px 12px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:var(--sans)}
+  .chat-quick button:hover{background:var(--brand-soft)}
+  .chat-sell{background:var(--brand-soft);padding:9px 14px;font-size:12.5px;color:var(--brand-deep);text-align:center;border-top:1px solid var(--line)}
+  .chat-sell a{font-weight:700;text-decoration:underline}
+  .chat-input{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);background:#fff}
+  .chat-input input{flex:1;border:1px solid var(--line);border-radius:999px;padding:11px 14px;font-family:var(--sans);font-size:14px;color:var(--ink)}
+  .chat-input input:focus{outline:none;border-color:var(--brand)}
+  .chat-input button{background:var(--brand-deep);border:none;color:#fff;width:44px;height:44px;border-radius:50%;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .chat-input button svg{width:18px;height:18px}
+  @media(max-width:520px){.chat-bubble-teaser{display:none}}
   @media(max-width:900px){.planes{grid-template-columns:repeat(2,1fr)}.g4{grid-template-columns:1fr 1fr}}
   @media(max-width:760px){.g3{grid-template-columns:1fr}.split{grid-template-columns:1fr}footer .cols{grid-template-columns:1fr;gap:18px}.row2{grid-template-columns:1fr}header .nav-cta{padding:9px 14px;font-size:13px}}
   @media(max-width:520px){.planes{grid-template-columns:1fr}.g4{grid-template-columns:1fr 1fr}}
@@ -217,6 +247,7 @@
 <body>
 <div id="app"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div id="chatRoot"></div>
 <script>
 /* ==================================================================
    ⚙️  CONFIGURA BREYVAL AQUÍ
@@ -274,6 +305,7 @@ function esc(s){ if(s==null) return ""; return String(s).replace(/&/g,"&amp;").r
 let view="";
 function route(){
   const h=location.hash;
+  const cr=document.getElementById("chatRoot"); if(cr) cr.style.display=(h==="#/admin")?"none":"block";
   if(h==="#/admin"){ view="admin"; renderAdmin(); window.scrollTo(0,0); return; }
   if(h==="#/gracias"){ view="gracias"; renderGracias(); window.scrollTo(0,0); return; }
   if(view!=="landing"){ view="landing"; renderLanding(); }
@@ -622,11 +654,90 @@ function logoMark(s){ s=s||30; return `<svg width="${s}" height="${s}" viewBox="
   <path d="M7 59 L20 40 L33 59 Z" fill="#4caf50"/><path d="M23 59 L34 37 L46 59 Z" fill="#2f8fd0"/><path d="M39 59 L52 43 L61 59 Z" fill="#e0662e"/>
 </svg>`; }
 function ic(n){ const s='viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"';
-  const p={ clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', shield:'<path d="M12 3l8 3v6c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V6z"/>', tag:'<path d="M20.5 13.5L12 22l-9-9V4h9z"/><circle cx="7.5" cy="7.5" r="1.2" fill="currentColor"/>', check:'<polyline points="20 6 9 17 4 12"/>' };
+  const p={ clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', shield:'<path d="M12 3l8 3v6c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V6z"/>', tag:'<path d="M20.5 13.5L12 22l-9-9V4h9z"/><circle cx="7.5" cy="7.5" r="1.2" fill="currentColor"/>', check:'<polyline points="20 6 9 17 4 12"/>', send:'<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>' };
   return `<svg aria-hidden="true" focusable="false" ${s}>${p[n]||""}</svg>`; }
 function icWA(){ return '<svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.516 5.26l-.999 3.648 3.973-1.207zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>'; }
 
+/* ==================================================================
+   CHAT BOT (palabras clave, sin servidor, sin coste) — y demo del producto
+   Añade más respuestas a BOT_KB cuando quieras (ampliable a 100+).
+   ================================================================== */
+const BOT_KB = [
+  { k:["precio","cuesta","cuanto","vale","tarifa","cuestan"], a:"Las webs van <b>desde 250€</b> (pago único) + mantenimiento desde 20€/mes. Hay 5 niveles. Míralos en la sección de <a href='#niveles'>niveles</a>." },
+  { k:["tarda","tiempo","cuando","plazo","rapido","dias"], a:"Tu web suele estar lista en <b>unos pocos días</b>, no en meses. Te damos fecha antes de empezar." },
+  { k:["mia","propiedad","es mia","duena","dueno"], a:"Sí, la web es <b>100% tuya</b>. Te la entregamos lista y tú la controlas." },
+  { k:["mantenimiento","mensual","cuota","mes"], a:"El mantenimiento (seguir online, actualizada y cambios pequeños) va <b>desde 20€/mes</b> según el tamaño." },
+  { k:["bot","chatbot","asistente","robot"], a:"¡Como yo! 🤖 Te pongo un bot así en tu web por <b>+100€</b>. Resuelve dudas de tus clientes solo, 24/7. <a href='#form'>Pídelo aquí</a>." },
+  { k:["rgpd","datos","registro","cookies","privacidad","ley","legal"], a:"Tus clientes <b>no se registran</b> y no recogemos datos personales (solo un formulario voluntario). Sin tracking → te ahorras el RGPD. 🔒" },
+  { k:["senal","pago","pagar","paga","reserva","bizum","tarjeta","paypal","cobr"], a:"Reservas con una <b>señal</b> y pagas el resto al entregarte la app. Aceptamos tarjeta, Bizum o transferencia." },
+  { k:["dominio","punto com","punto es","direccion","url"], a:"Te montamos tu <b>dominio propio</b> (tunegocio.es). Ronda 10-15€/año + el alta. Nos encargamos nosotros." },
+  { k:["demo","ejemplo","ver","muestra","prueba","funciona"], a:"¡Pruébalas! <a href='./reformas-presupuestador.html' target='_blank' rel='noopener noreferrer'>Presupuestador de reformas</a> y <a href='./peluqueria-aurora.html' target='_blank' rel='noopener noreferrer'>Peluquería</a>." },
+  { k:["nivel","plan","paquete","opcion"], a:"5 niveles: Básica (desde 250€), Mediana, Grande, Premium y Premium Plus. Échales un ojo en <a href='#niveles'>niveles</a>." },
+  { k:["online","publicar","hosting","internet","subir","enlace"], a:"Te la dejamos <b>publicada en internet</b> con su enlace, lista para compartir con tus clientes." },
+  { k:["cambio","modificar","editar","actualizar","ampliar"], a:"Los cambios pequeños entran en el mantenimiento. Para ampliaciones grandes, presupuesto cerrado." },
+  { k:["programador","caro","barato","diferencia","por que","porque"], a:"Un programador a medida cobra 2.000-4.000€ y tarda meses. Con nuestro sistema te lo damos <b>desde 250€ y en días</b>." },
+  { k:["sector","negocio","sirve","peluqueria","restaurante","tienda","clinica","reforma","gimnasio","abogado"], a:"Servimos a cualquier negocio: peluquerías, reformas, clínicas, tiendas, restaurantes, autónomos... lo adaptamos a lo tuyo." },
+  { k:["hola","buenas","hey","saludos","ola"], a:"¡Hola! 👋 ¿En qué te ayudo? Pregúntame por precios, tiempos, el bot... o pulsa una opción de abajo." },
+  { k:["gracias","genial","perfecto","vale","ok"], a:"¡A ti! 😊 Si quieres tu web, rellena el <a href='#form'>formulario</a> y te contactamos enseguida." },
+  { k:["garantia","seguro","confianza","fiar"], a:"Precio cerrado por escrito antes de empezar, y te acompañamos después. Somos tu <b>socio</b>, no un proveedor que desaparece." },
+];
+const BOT_QUICK = [
+  {label:"💰 Precios", q:"precio"}, {label:"⏱️ ¿Cuánto tarda?", q:"tarda"}, {label:"🤖 El bot", q:"bot"},
+  {label:"👀 Ver demos", q:"demo"}, {label:"🔒 ¿Y el RGPD?", q:"rgpd"}, {label:"📞 Hablar con alguien", q:"contacto"},
+];
+let chatGreeted=false;
+function buildChat(){
+  const root=document.getElementById("chatRoot"); if(!root) return;
+  root.innerHTML=`
+    <div class="chat-launch" id="chatLaunch">
+      <div class="chat-bubble-teaser">¿Dudas? Pregúntame 👋</div>
+      <button class="chat-btn" id="chatOpen" aria-label="Abrir chat de ayuda" aria-expanded="false">
+        <span class="dot"></span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H8l-4 4V6a2 2 0 0 1 2-2z"/></svg>
+      </button>
+    </div>
+    <div class="chat-panel" id="chatPanel" role="dialog" aria-label="Chat de ayuda de ${esc(CONFIG.BUSINESS_NAME)}">
+      <div class="chat-head"><span class="av" aria-hidden="true">🤖</span>
+        <div><b>Asistente de ${esc(CONFIG.BUSINESS_NAME)}</b><small>Te responde al instante</small></div>
+        <button class="x" id="chatClose" aria-label="Cerrar chat">×</button>
+      </div>
+      <div class="chat-msgs" id="chatMsgs" aria-live="polite"></div>
+      <div class="chat-quick">${BOT_QUICK.map(q=>`<button data-q="${esc(q.q)}">${esc(q.label)}</button>`).join("")}</div>
+      <div class="chat-sell">💡 ¿Quieres un bot así en tu web? <a href="#form" id="chatSell">Te lo ponemos (+100€)</a></div>
+      <form class="chat-input" id="chatForm"><label class="sr-only" for="chatText">Escribe tu pregunta</label><input id="chatText" autocomplete="off" placeholder="Escribe tu pregunta..."><button type="submit" aria-label="Enviar">${ic('send')}</button></form>
+    </div>`;
+  document.getElementById("chatOpen").addEventListener("click",openChat);
+  document.getElementById("chatClose").addEventListener("click",closeChat);
+  document.getElementById("chatSell").addEventListener("click",closeChat);
+  document.getElementById("chatForm").addEventListener("submit",e=>{ e.preventDefault(); const t=document.getElementById("chatText"); const v=t.value.trim(); if(v){ chatUser(v); t.value=""; } });
+  document.querySelectorAll(".chat-quick button").forEach(b=>b.addEventListener("click",()=>chatUser(b.textContent,b.dataset.q)));
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ const p=document.getElementById("chatPanel"); if(p&&p.classList.contains("open")) closeChat(); } });
+}
+function openChat(){
+  document.getElementById("chatPanel").classList.add("open");
+  document.getElementById("chatLaunch").style.display="none";
+  document.getElementById("chatOpen").setAttribute("aria-expanded","true");
+  if(!chatGreeted){ chatBot("¡Hola! 👋 Soy el asistente de "+esc(CONFIG.BUSINESS_NAME)+". Pregúntame por precios, tiempos, el bot... o pulsa una opción 👇"); chatGreeted=true; }
+  setTimeout(()=>{ const t=document.getElementById("chatText"); if(t) t.focus(); },80);
+}
+function closeChat(){
+  document.getElementById("chatPanel").classList.remove("open");
+  document.getElementById("chatLaunch").style.display="flex";
+  const o=document.getElementById("chatOpen");
+  o.setAttribute("aria-expanded","false");
+  o.focus();
+}
+function chatAppend(html,cls){ const m=document.getElementById("chatMsgs"); const d=document.createElement("div"); d.className="msg "+cls; d.innerHTML=html; m.appendChild(d); m.scrollTop=m.scrollHeight; }
+function chatBot(html){ chatAppend(html,"bot"); }
+function chatUser(text,forceKey){ chatAppend(esc(text),"user"); setTimeout(()=>chatBot(botAnswer(forceKey||text)),350); }
+function botAnswer(text){
+  const n=String(text).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  for(const e of BOT_KB){ if(e.k.some(k=>n.includes(k))) return e.a; }
+  return `No estoy seguro de eso 🤔. Te paso con una persona: <a href="https://wa.me/${esc(CONFIG.WHATSAPP)}" target="_blank" rel="noopener noreferrer">escríbenos por WhatsApp</a> o usa el <a href="#form">formulario</a>.`;
+}
+
 /* ARRANQUE */
+buildChat();
 route();
 </script>
 </body>
