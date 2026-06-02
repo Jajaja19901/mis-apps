@@ -227,6 +227,10 @@
   .msg.bot{background:#fff;border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:4px}
   .msg.bot a{color:var(--brand-deep);font-weight:600}
   .msg.user{background:var(--brand-deep);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+  .msg.typing{display:flex;gap:4px;align-items:center;padding:13px}
+  .msg.typing span{width:7px;height:7px;border-radius:50%;background:var(--ink-mut);animation:td 1s infinite}
+  .msg.typing span:nth-child(2){animation-delay:.15s}.msg.typing span:nth-child(3){animation-delay:.3s}
+  @keyframes td{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
   .chat-quick{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 10px;background:var(--bg)}
   .chat-quick button{background:#fff;border:1px solid var(--brand);color:var(--brand-deep);border-radius:999px;padding:7px 12px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:var(--sans)}
   .chat-quick button:hover{background:var(--brand-soft)}
@@ -663,23 +667,38 @@ function icWA(){ return '<svg aria-hidden="true" focusable="false" viewBox="0 0 
    Añade más respuestas a BOT_KB cuando quieras (ampliable a 100+).
    ================================================================== */
 const BOT_KB = [
-  { k:["precio","cuesta","cuanto","vale","tarifa","cuestan"], a:"Las webs van <b>desde 250€</b> (pago único) + mantenimiento desde 20€/mes. Hay 5 niveles. Míralos en la sección de <a href='#niveles'>niveles</a>." },
-  { k:["tarda","tiempo","cuando","plazo","rapido","dias"], a:"Tu web suele estar lista en <b>unos pocos días</b>, no en meses. Te damos fecha antes de empezar." },
-  { k:["mia","propiedad","es mia","duena","dueno"], a:"Sí, la web es <b>100% tuya</b>. Te la entregamos lista y tú la controlas." },
-  { k:["mantenimiento","mensual","cuota","mes"], a:"El mantenimiento (seguir online, actualizada y cambios pequeños) va <b>desde 20€/mes</b> según el tamaño." },
-  { k:["bot","chatbot","asistente","robot"], a:"¡Como yo! 🤖 Te pongo un bot así en tu web por <b>+100€</b>. Resuelve dudas de tus clientes solo, 24/7. <a href='#form'>Pídelo aquí</a>." },
-  { k:["rgpd","datos","registro","cookies","privacidad","ley","legal"], a:"Tus clientes <b>no se registran</b> y no recogemos datos personales (solo un formulario voluntario). Sin tracking → te ahorras el RGPD. 🔒" },
-  { k:["senal","pago","pagar","paga","reserva","bizum","tarjeta","paypal","cobr"], a:"Reservas con una <b>señal</b> y pagas el resto al entregarte la app. Aceptamos tarjeta, Bizum o transferencia." },
-  { k:["dominio","punto com","punto es","direccion","url"], a:"Te montamos tu <b>dominio propio</b> (tunegocio.es). Ronda 10-15€/año + el alta. Nos encargamos nosotros." },
-  { k:["demo","ejemplo","ver","muestra","prueba","funciona"], a:"¡Pruébalas! <a href='./reformas-presupuestador.html' target='_blank' rel='noopener noreferrer'>Presupuestador de reformas</a> y <a href='./peluqueria-aurora.html' target='_blank' rel='noopener noreferrer'>Peluquería</a>." },
-  { k:["nivel","plan","paquete","opcion"], a:"5 niveles: Básica (desde 250€), Mediana, Grande, Premium y Premium Plus. Échales un ojo en <a href='#niveles'>niveles</a>." },
-  { k:["online","publicar","hosting","internet","subir","enlace"], a:"Te la dejamos <b>publicada en internet</b> con su enlace, lista para compartir con tus clientes." },
-  { k:["cambio","modificar","editar","actualizar","ampliar"], a:"Los cambios pequeños entran en el mantenimiento. Para ampliaciones grandes, presupuesto cerrado." },
-  { k:["programador","caro","barato","diferencia","por que","porque"], a:"Un programador a medida cobra 2.000-4.000€ y tarda meses. Con nuestro sistema te lo damos <b>desde 250€ y en días</b>." },
-  { k:["sector","negocio","sirve","peluqueria","restaurante","tienda","clinica","reforma","gimnasio","abogado"], a:"Servimos a cualquier negocio: peluquerías, reformas, clínicas, tiendas, restaurantes, autónomos... lo adaptamos a lo tuyo." },
-  { k:["hola","buenas","hey","saludos","ola"], a:"¡Hola! 👋 ¿En qué te ayudo? Pregúntame por precios, tiempos, el bot... o pulsa una opción de abajo." },
-  { k:["gracias","genial","perfecto","vale","ok"], a:"¡A ti! 😊 Si quieres tu web, rellena el <a href='#form'>formulario</a> y te contactamos enseguida." },
-  { k:["garantia","seguro","confianza","fiar"], a:"Precio cerrado por escrito antes de empezar, y te acompañamos después. Somos tu <b>socio</b>, no un proveedor que desaparece." },
+  { k:["hola","buenas","hey","saludos","ola","hi","buenos dias","buenas tardes","que tal"], a:"¡Hola! 👋 ¿En qué te ayudo? Pregúntame por precios, tiempos, el bot... o pulsa una opción de abajo." },
+  { k:["precio","precios","cuesta","cuestan","cuanto","cuanta","vale","valen","tarifa","tarifas","presupuesto","coste","costar","barato","caro"], a:"Las webs van <b>desde 250€</b> (pago único) + mantenimiento desde 20€/mes. Hay 5 niveles. Míralos en <a href='#niveles'>niveles</a>." },
+  { k:["tarda","tardan","tiempo","cuando","plazo","rapido","rapida","dias","semana","entrega","listo","lista"], a:"Tu web suele estar lista en <b>unos pocos días</b>, no en meses. Te damos fecha antes de empezar." },
+  { k:["mia","mio","propiedad","es mia","duena","dueno","propietario","me pertenece"], a:"Sí, la web es <b>100% tuya</b>. Te la entregamos lista y tú la controlas." },
+  { k:["mantenimiento","mensual","cuota","mensualidad","suscripcion","al mes","cada mes"], a:"El mantenimiento (seguir online, actualizada y cambios pequeños) va <b>desde 20€/mes</b> según el tamaño." },
+  { k:["bot","chatbot","asistente","robot","chat"], a:"¡Como yo! 🤖 Te pongo un bot así en tu web por <b>+100€</b>. Resuelve dudas de tus clientes solo, 24/7. <a href='#form'>Pídelo aquí</a>." },
+  { k:["ia","inteligencia","gpt","conversacional"], a:"El bot con <b>IA real</b> (entiende cualquier frase) es un plus a consultar. El de respuestas, como yo, va por +100€." },
+  { k:["rgpd","datos","registro","registrar","cookies","privacidad","ley","legal","gdpr","proteccion de datos"], a:"Tus clientes <b>no se registran</b> y no recogemos datos personales (solo un formulario voluntario). Sin tracking → te ahorras el RGPD. 🔒" },
+  { k:["senal","pago","pagar","paga","pagas","reserva","reservar","bizum","tarjeta","paypal","cobro","cobrar","transferencia","fianza","adelanto"], a:"Reservas con una <b>señal</b> y pagas el resto al entregarte la app. Aceptamos tarjeta, Bizum o transferencia." },
+  { k:["dominio","punto com",".com","punto es",".es","direccion web","url","nombre de la web"], a:"Te montamos tu <b>dominio propio</b> (tunegocio.es). Ronda 10-15€/año + el alta. Nos encargamos nosotros." },
+  { k:["demo","demos","ejemplo","ejemplos","ver","muestra","muestrame","prueba","probar","funciona","como queda","como se ve"], a:"¡Pruébalas! <a href='./reformas-presupuestador.html' target='_blank' rel='noopener noreferrer'>Presupuestador de reformas</a> y <a href='./peluqueria-aurora.html' target='_blank' rel='noopener noreferrer'>Peluquería</a>." },
+  { k:["nivel","niveles","plan","planes","paquete","paquetes","opcion","opciones","basica","mediana","grande","premium"], a:"5 niveles: Básica (desde 250€), Mediana, Grande, Premium y Premium Plus. Échales un ojo en <a href='#niveles'>niveles</a>." },
+  { k:["online","publicar","publicas","hosting","internet","subir","enlace","link","en la calle","alojamiento"], a:"Te la dejamos <b>publicada en internet</b> con su enlace, lista para compartir con tus clientes." },
+  { k:["cambio","cambios","modificar","editar","actualizar","ampliar","retoque","corregir","añadir","agregar"], a:"Los cambios pequeños entran en el mantenimiento. Para ampliaciones grandes, presupuesto cerrado." },
+  { k:["programador","programadora","agencia","diferencia","por que","porque","truco","como es tan barato"], a:"Un programador a medida cobra 2.000-4.000€ y tarda meses. Con nuestro sistema te lo damos <b>desde 250€ y en días</b>." },
+  { k:["tienda","vender","ecommerce","carrito","productos","catalogo","comprar online","venta online"], a:"Sí, montamos <b>tiendas online</b> con catálogo, carrito y checkout. Lo gestionas desde tu panel." },
+  { k:["cita","citas","agenda","agendar","calendario","reservar cita","reservas"], a:"Montamos <b>sistemas de reservas/citas</b> sin que el cliente se registre. Tú las ves en tu panel." },
+  { k:["movil","responsive","celular","adapta","tablet","telefono movil"], a:"Todas las webs son <b>mobile-first</b>: se ven perfectas en móvil, tablet y ordenador." },
+  { k:["seo","google","aparecer en google","posicionamiento","me encuentren","buscar","busquedas"], a:"Incluimos <b>SEO básico</b> para que te encuentren en Google (títulos, descripción, etc.)." },
+  { k:["redes","instagram","facebook","tiktok","redes sociales"], a:"Te ponemos botones/enlaces a tus <b>redes sociales</b> sin problema." },
+  { k:["foto","fotos","imagenes","logo","material","mis fotos"], a:"Tú nos pasas tus <b>fotos y logo</b> y los integramos. Si no tienes, usamos imágenes adecuadas a tu negocio." },
+  { k:["idioma","idiomas","ingles","multiidioma","varios idiomas","bilingue"], a:"Podemos hacerla en <b>varios idiomas</b> (disponible desde el nivel Premium)." },
+  { k:["factura","iva","facturar","recibo"], a:"Sí, te damos <b>factura</b> de tu pedido." },
+  { k:["soporte","ayuda","problema","no funciona","fallo","error"], a:"Para cualquier cosa, te ayudamos. Escríbenos y lo resolvemos rápido." },
+  { k:["app","aplicacion","web o app","diferencia web app"], a:"Hacemos <b>webs</b> (presencia) y <b>apps</b> (que 'hacen cosas': reservas, calculadoras, tiendas...). Te aconsejamos según tu negocio." },
+  { k:["donde","ubicacion","ciudad","zona","trabajais","sitio"], a:"Trabajamos <b>online para cualquier zona</b>. Da igual dónde estés." },
+  { k:["cancelar","anular","baja","permanencia","dejar el mantenimiento"], a:"<b>Sin permanencia.</b> Puedes darte de baja del mantenimiento cuando quieras." },
+  { k:["empezar","empiezo","como empiezo","como funciona","proceso","pasos","contratar","quiero una","como pido","como contrato"], a:"Muy fácil: rellenas el <a href='#form'>formulario</a> o el <a href='../briefing.html'>briefing</a>, te damos precio, y en días tienes tu web. 🚀" },
+  { k:["briefing","cuestionario","contar mi proyecto","explicar"], a:"El <a href='../briefing.html'>briefing</a> es un cuestionario rápido para contarnos tu proyecto. Cuanto más detalle, mejor sale." },
+  { k:["sector","negocio","sirve","autonomo","gremio","oficio"], a:"Servimos a cualquier negocio: peluquerías, reformas, clínicas, tiendas, restaurantes, autónomos... lo adaptamos a lo tuyo." },
+  { k:["garantia","seguro","confianza","fiar","fiable","y si no me gusta","devolucion"], a:"Precio cerrado por escrito antes de empezar, y te acompañamos después. Somos tu <b>socio</b>, no un proveedor que desaparece." },
+  { k:["gracias","genial","perfecto","vale","ok","estupendo","fenomenal"], a:"¡A ti! 😊 Si quieres tu web, rellena el <a href='#form'>formulario</a> y te contactamos enseguida." },
 ];
 const BOT_QUICK = [
   {label:"💰 Precios", q:"precio"}, {label:"⏱️ ¿Cuánto tarda?", q:"tarda"}, {label:"🤖 El bot", q:"bot"},
@@ -729,7 +748,14 @@ function closeChat(){
 }
 function chatAppend(html,cls){ const m=document.getElementById("chatMsgs"); const d=document.createElement("div"); d.className="msg "+cls; d.innerHTML=html; m.appendChild(d); m.scrollTop=m.scrollHeight; }
 function chatBot(html){ chatAppend(html,"bot"); }
-function chatUser(text,forceKey){ chatAppend(esc(text),"user"); setTimeout(()=>chatBot(botAnswer(forceKey||text)),350); }
+function chatUser(text,forceKey){
+  chatAppend(esc(text),"user");
+  const ans=botAnswer(forceKey||text);
+  const m=document.getElementById("chatMsgs");
+  const t=document.createElement("div"); t.className="msg bot typing"; t.id="chatTyping"; t.setAttribute("aria-hidden","true");
+  t.innerHTML="<span></span><span></span><span></span>"; m.appendChild(t); m.scrollTop=m.scrollHeight;
+  setTimeout(()=>{ const x=document.getElementById("chatTyping"); if(x) x.remove(); chatBot(ans); }, 650);
+}
 function botAnswer(text){
   const n=String(text).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
   for(const e of BOT_KB){ if(e.k.some(k=>n.includes(k))) return e.a; }
