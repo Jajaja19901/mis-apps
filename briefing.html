@@ -1,0 +1,2911 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Cuéntame tu proyecto · Briefing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #faf8f5;
+    --bg-deep: #f3efe9;
+    --ink: #1a1a1a;
+    --ink-soft: #4a4a4a;
+    --ink-muted: #8a8580;
+    --accent: #c8553d;
+    --accent-deep: #a8412e;
+    --accent-soft: #f4e4dc;
+    --line: #e8e2d8;
+    --card: #ffffff;
+    --shadow-sm: 0 1px 2px rgba(20, 15, 10, 0.04), 0 2px 8px rgba(20, 15, 10, 0.03);
+    --shadow-lg: 0 20px 60px rgba(20, 15, 10, 0.08), 0 4px 16px rgba(20, 15, 10, 0.04);
+    --serif: 'Fraunces', Georgia, serif;
+    --sans: 'Inter', -apple-system, sans-serif;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: radial-gradient(circle at 1px 1px, rgba(20,15,10,0.015) 1px, transparent 0);
+    background-size: 3px 3px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .topbar {
+    padding: 18px 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+    background: rgba(250, 248, 245, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .brand {
+    font-family: var(--serif);
+    font-weight: 500;
+    font-size: 19px;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .brand-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: inline-block;
+    animation: pulse 2.5s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.85); }
+  }
+
+  .progress-wrap {
+    flex: 1;
+    max-width: 200px;
+    margin: 0 16px;
+    display: none;
+  }
+  .progress-wrap.visible { display: block; }
+
+  .progress-track {
+    height: 3px;
+    background: var(--line);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--ink);
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+  }
+
+  .progress-label {
+    font-size: 11px;
+    color: var(--ink-muted);
+    margin-top: 6px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .stage {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 22px 140px;
+    width: 100%;
+  }
+
+  .screen {
+    width: 100%;
+    max-width: 580px;
+    animation: enter 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes enter {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* WELCOME */
+  .welcome {
+    text-align: center;
+    padding-top: 24px;
+  }
+
+  .welcome-eyebrow {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    font-weight: 500;
+    margin-bottom: 24px;
+    opacity: 0;
+    animation: enter 0.8s 0.1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .welcome h1 {
+    font-family: var(--serif);
+    font-size: clamp(38px, 9vw, 58px);
+    line-height: 1.02;
+    letter-spacing: -0.035em;
+    font-weight: 400;
+    margin-bottom: 24px;
+    opacity: 0;
+    animation: enter 0.8s 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .welcome h1 em {
+    font-style: italic;
+    color: var(--accent);
+    font-weight: 300;
+  }
+
+  .welcome p {
+    font-size: 17px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    max-width: 460px;
+    margin: 0 auto 36px;
+    opacity: 0;
+    animation: enter 0.8s 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .welcome-meta {
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+    margin-bottom: 40px;
+    opacity: 0;
+    animation: enter 0.8s 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    flex-wrap: wrap;
+  }
+
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--ink-muted);
+  }
+
+  .meta-item svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+
+  .start-btn {
+    opacity: 0;
+    animation: enter 0.8s 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  /* QUESTION */
+  .question-screen { padding-top: 8px; }
+
+  .q-section {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    color: var(--accent);
+    font-weight: 500;
+    margin-bottom: 18px;
+  }
+
+  .q-title {
+    font-family: var(--serif);
+    font-size: clamp(28px, 6.5vw, 38px);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    font-weight: 400;
+    margin-bottom: 14px;
+    color: var(--ink);
+  }
+
+  .q-help {
+    font-size: 15px;
+    color: var(--ink-muted);
+    line-height: 1.55;
+    margin-bottom: 24px;
+  }
+
+  /* EJEMPLO INSPIRADOR */
+  .q-example {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 12px 12px 0;
+    padding: 14px 16px;
+    margin-bottom: 28px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    animation: enter 0.5s 0.1s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .q-example-label {
+    font-family: var(--serif);
+    font-style: italic;
+    font-weight: 500;
+    color: var(--accent-deep);
+    font-size: 13px;
+    margin-bottom: 4px;
+    display: block;
+  }
+
+  .q-example-text {
+    font-style: italic;
+    color: var(--ink-soft);
+  }
+
+  /* INPUTS */
+  .q-input {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 20px;
+    font-family: var(--sans);
+    font-size: 17px;
+    color: var(--ink);
+    transition: border 0.2s, box-shadow 0.2s, background 0.2s;
+    -webkit-appearance: none;
+    appearance: none;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .q-input:focus {
+    outline: none;
+    border-color: var(--ink);
+    box-shadow: 0 0 0 4px rgba(26, 26, 26, 0.06), var(--shadow-sm);
+  }
+
+  textarea.q-input {
+    min-height: 140px;
+    resize: vertical;
+    line-height: 1.55;
+    font-family: var(--sans);
+  }
+
+  .q-input::placeholder {
+    color: var(--ink-muted);
+    opacity: 0.7;
+  }
+
+  /* Contador de caracteres */
+  .char-meter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--ink-muted);
+  }
+
+  .char-meter .hint {
+    flex: 1;
+  }
+
+  .char-meter .count {
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-muted);
+  }
+
+  .char-meter.good .count {
+    color: #4a7c3a;
+  }
+
+  /* OPTIONS */
+  .q-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .opt {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 16px 18px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.65, 0, 0.35, 1);
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: var(--shadow-sm);
+    user-select: none;
+  }
+
+  .opt:hover, .opt:active {
+    border-color: var(--ink);
+    transform: translateY(-1px);
+  }
+
+  .opt.selected {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: var(--bg);
+  }
+
+  .opt-radio {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid var(--ink-muted);
+    flex-shrink: 0;
+    position: relative;
+    transition: all 0.2s;
+  }
+
+  .opt.selected .opt-radio {
+    border-color: var(--bg);
+  }
+
+  .opt.selected .opt-radio::after {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    background: var(--bg);
+    border-radius: 50%;
+  }
+
+  .opt-icon {
+    font-size: 22px;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+
+  .opt-label {
+    font-size: 16px;
+    font-weight: 400;
+    flex: 1;
+  }
+
+  .opt.multi .opt-radio { border-radius: 5px; }
+  .opt.multi.selected .opt-radio::after { border-radius: 2px; }
+
+  /* OPTIONS CARD (tarjeta grande con icono + descripción) */
+  .opt-card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 22px 22px;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.65, 0, 0.35, 1);
+    box-shadow: var(--shadow-sm);
+    user-select: none;
+    position: relative;
+    display: grid;
+    grid-template-columns: 44px 1fr 20px;
+    gap: 16px;
+    align-items: start;
+  }
+
+  .opt-card:hover, .opt-card:active {
+    border-color: var(--ink);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(20,15,10,0.06);
+  }
+
+  .opt-card.selected {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .opt-card-icon {
+    font-size: 32px;
+    line-height: 1;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .opt-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .opt-card-label {
+    font-size: 17px;
+    font-weight: 500;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+
+  .opt-card-desc {
+    font-size: 14px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+
+  .opt-card-check {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1.5px solid var(--ink-muted);
+    flex-shrink: 0;
+    margin-top: 4px;
+    position: relative;
+    transition: all 0.25s;
+  }
+
+  .opt-card.selected .opt-card-check {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  .opt-card.selected .opt-card-check::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 11px;
+    border: solid var(--bg);
+    border-width: 0 2px 2px 0;
+    transform: translate(-50%, -65%) rotate(45deg);
+  }
+
+  /* UPLOAD */
+  .upload-zone {
+    background: var(--card);
+    border: 2px dashed var(--line);
+    border-radius: 14px;
+    padding: 32px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .upload-zone:hover, .upload-zone:active {
+    border-color: var(--ink);
+    background: var(--bg-deep);
+  }
+
+  .upload-zone svg {
+    width: 28px;
+    height: 28px;
+    color: var(--ink-muted);
+    margin-bottom: 10px;
+  }
+
+  .upload-zone-text {
+    font-size: 15px;
+    color: var(--ink);
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  .upload-zone-hint {
+    font-size: 13px;
+    color: var(--ink-muted);
+  }
+
+  .upload-zone input { display: none; }
+
+  .file-list {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .file-chip {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    animation: enter 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .file-chip-thumb {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    background: var(--bg-deep);
+    flex-shrink: 0;
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .file-chip-thumb svg {
+    width: 22px;
+    height: 22px;
+    color: var(--ink-muted);
+  }
+
+  .file-chip-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .file-chip-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--ink);
+    font-weight: 500;
+    font-size: 14px;
+  }
+
+  .file-chip-meta {
+    font-size: 11px;
+    color: var(--ink-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .file-chip-saved {
+    color: #4a7c3a;
+    font-weight: 500;
+  }
+
+  .file-chip-remove {
+    background: none;
+    border: none;
+    color: var(--ink-muted);
+    cursor: pointer;
+    font-size: 22px;
+    padding: 4px 8px;
+    line-height: 1;
+    flex-shrink: 0;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+
+  .file-chip-remove:hover {
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  /* Loader cuando comprime */
+  .file-chip-loading {
+    background: var(--card);
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--ink-muted);
+    animation: enter 0.4s ease-out;
+  }
+
+  .spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--line);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* COLOR */
+  .color-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+
+  .color-swatch {
+    aspect-ratio: 1;
+    border-radius: 12px;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: all 0.2s;
+  }
+
+  .color-swatch.selected {
+    border-color: var(--ink);
+    transform: scale(0.9);
+  }
+
+  /* NAVBAR */
+  .navbar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(250, 248, 245, 0.9);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid var(--line);
+    padding: 16px 22px;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 10;
+  }
+
+  .btn {
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 500;
+    padding: 14px 24px;
+    border-radius: 999px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.65, 0, 0.35, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    letter-spacing: -0.01em;
+  }
+
+  .btn:active { transform: scale(0.97); }
+
+  .btn-primary {
+    background: var(--ink);
+    color: var(--bg);
+  }
+
+  .btn-primary:hover { background: var(--accent); }
+
+  .btn-primary:disabled {
+    background: var(--line);
+    color: var(--ink-muted);
+    cursor: not-allowed;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink-soft);
+  }
+
+  .btn-ghost:hover { color: var(--ink); }
+
+  .btn-lg {
+    padding: 18px 32px;
+    font-size: 16px;
+  }
+
+  .btn svg { width: 16px; height: 16px; }
+
+  /* REVIEW */
+  .review-screen { padding-top: 8px; }
+
+  .review-title {
+    font-family: var(--serif);
+    font-size: clamp(32px, 7vw, 42px);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    font-weight: 400;
+    margin-bottom: 14px;
+  }
+
+  .review-title em {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .review-sub {
+    color: var(--ink-soft);
+    font-size: 16px;
+    line-height: 1.55;
+    margin-bottom: 32px;
+  }
+
+  .review-section {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 20px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .review-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .review-section-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-muted);
+    font-weight: 600;
+  }
+
+  .review-edit {
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 13px;
+    cursor: pointer;
+    font-family: var(--sans);
+    font-weight: 500;
+    padding: 4px 8px;
+  }
+
+  .review-edit:hover {
+    text-decoration: underline;
+  }
+
+  .review-item {
+    margin-bottom: 10px;
+  }
+
+  .review-item:last-child { margin-bottom: 0; }
+
+  .review-item-label {
+    font-size: 13px;
+    color: var(--ink-muted);
+    margin-bottom: 3px;
+  }
+
+  .review-item-value {
+    font-size: 15px;
+    color: var(--ink);
+    line-height: 1.5;
+    word-wrap: break-word;
+  }
+
+  .review-item-value.empty {
+    color: var(--ink-muted);
+    font-style: italic;
+  }
+
+  /* FINAL */
+  .final {
+    text-align: center;
+    padding-top: 20px;
+  }
+
+  .final-check {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin: 0 auto 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s both;
+  }
+
+  .final-check svg {
+    width: 36px;
+    height: 36px;
+    color: var(--bg);
+    stroke-dasharray: 50;
+    stroke-dashoffset: 50;
+    animation: draw 0.5s 0.6s ease-out forwards;
+  }
+
+  @keyframes pop {
+    from { transform: scale(0); }
+    to { transform: scale(1); }
+  }
+
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+
+  .final h1 {
+    font-family: var(--serif);
+    font-size: clamp(32px, 8vw, 48px);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    font-weight: 400;
+    margin-bottom: 18px;
+  }
+
+  .final h1 em {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .final p {
+    color: var(--ink-soft);
+    font-size: 16px;
+    line-height: 1.55;
+    max-width: 460px;
+    margin: 0 auto 32px;
+  }
+
+  .send-options {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 24px;
+  }
+
+  .send-btn {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 18px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    width: 100%;
+    text-align: left;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .send-btn:hover, .send-btn:active {
+    border-color: var(--ink);
+    transform: translateY(-1px);
+  }
+
+  .send-btn-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--bg-deep);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .send-btn-icon svg { width: 20px; height: 20px; }
+
+  .send-btn-text { flex: 1; }
+
+  .send-btn-title {
+    font-weight: 500;
+    margin-bottom: 2px;
+  }
+
+  .send-btn-sub {
+    font-size: 13px;
+    color: var(--ink-muted);
+  }
+
+  .send-btn-arrow { color: var(--ink-muted); }
+
+  .toast {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink);
+    color: var(--bg);
+    padding: 12px 22px;
+    border-radius: 999px;
+    font-size: 14px;
+    font-weight: 500;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 100;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .ornament {
+    text-align: center;
+    margin: 32px 0;
+    color: var(--ink-muted);
+    font-family: var(--serif);
+    font-style: italic;
+    font-size: 14px;
+    opacity: 0.5;
+  }
+
+  .preview-toggle {
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    margin-top: 16px;
+    font-family: var(--sans);
+  }
+
+  .preview-toggle:hover {
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+
+  .preview-box {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 20px;
+    margin-top: 20px;
+    text-align: left;
+    max-height: 320px;
+    overflow-y: auto;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    font-size: 12px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    white-space: pre-wrap;
+    word-break: break-word;
+    display: none;
+  }
+
+  .preview-box.show {
+    display: block;
+    animation: enter 0.4s ease-out;
+  }
+
+  @media (max-width: 480px) {
+    .topbar { padding: 14px 18px; }
+    .brand { font-size: 17px; }
+    .stage { padding: 24px 18px 140px; }
+    .navbar { padding: 14px 18px; padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
+    .btn { padding: 13px 20px; font-size: 14px; }
+    .btn-lg { padding: 16px 28px; font-size: 15px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <span>Briefing</span>
+    </div>
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-label" id="progressLabel">0 / 0</div>
+    </div>
+  </header>
+
+  <main class="stage" id="stage"></main>
+
+  <nav class="navbar" id="navbar" style="display:none;">
+    <button class="btn btn-ghost" id="backBtn">← Atrás</button>
+    <button class="btn btn-primary" id="nextBtn">Continuar →</button>
+  </nav>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ========================================
+   ⚙️ CONFIGURACIÓN — CAMBIA ESTOS VALORES
+   ======================================== */
+const CONFIG = {
+  WHATSAPP_NUMBER: "PEGA_AQUI_TU_NUMERO",  // Ej España: "34666777888"
+  EMAIL: "pega_aqui_tu_email@dominio.com",
+  BRAND_NAME: "Tu Estudio",
+};
+
+/* ========================================
+   EJEMPLOS POR TIPO DE NEGOCIO
+   ======================================== */
+const TIPOS_NEGOCIO = [
+  { id: "restaurante", label: "Restaurante / Bar / Café", icon: "🍽️" },
+  { id: "tienda", label: "Tienda / E-commerce", icon: "🛍️" },
+  { id: "belleza", label: "Peluquería / Estética / Spa", icon: "💇" },
+  { id: "salud", label: "Clínica / Dentista / Fisio", icon: "🩺" },
+  { id: "servicios", label: "Servicios profesionales (abogado, gestor, consultor)", icon: "💼" },
+  { id: "construccion", label: "Construcción / Reformas / Oficios", icon: "🔨" },
+  { id: "inmobiliaria", label: "Inmobiliaria", icon: "🏠" },
+  { id: "fitness", label: "Gimnasio / Yoga / Entrenamiento", icon: "💪" },
+  { id: "educacion", label: "Academia / Cursos / Coaching", icon: "📚" },
+  { id: "creativo", label: "Estudio creativo / Fotografía / Diseño", icon: "🎨" },
+  { id: "tech", label: "Empresa de tecnología / SaaS / App", icon: "💻" },
+  { id: "evento", label: "Bodas / Eventos / Catering", icon: "🎉" },
+  { id: "otro", label: "Otro / No estoy seguro", icon: "✨" },
+];
+
+/* ========================================
+   TIPOS DE PROYECTO (web vs web app vs ambos)
+   ======================================== */
+const TIPOS_PROYECTO = [
+  {
+    id: "web",
+    label: "Solo web informativa",
+    icon: "🌐",
+    desc: "Para que te encuentren en Google y te contacten. Tu cliente entra, lee, ve fotos y te llama o escribe."
+  },
+  {
+    id: "webapp",
+    label: "Web app interactiva",
+    icon: "⚡",
+    desc: "Donde tus clientes HACEN cosas dentro: reservar, comprar, gestionar, calcular, ver su panel personal..."
+  },
+  {
+    id: "ambos",
+    label: "Las dos cosas",
+    icon: "✨",
+    desc: "Web pública informativa + zona privada interactiva. Lo más completo."
+  },
+];
+
+/* ========================================
+   PLANTILLAS DE WEB APP
+   ======================================== */
+const PLANTILLAS_APP = [
+  {
+    id: "reservas",
+    label: "Sistema de reservas con cuenta",
+    icon: "📅",
+    desc: "El cliente se registra, reserva citas, ve su historial, cancela. Tú ves todas las reservas en un panel."
+  },
+  {
+    id: "tienda",
+    label: "Tienda online completa",
+    icon: "🛒",
+    desc: "Catálogo, carrito, checkout, cuenta de cliente, historial de pedidos."
+  },
+  {
+    id: "panel-cliente",
+    label: "Panel de cliente / portal",
+    icon: "👤",
+    desc: "Cada cliente entra con su cuenta y ve sus datos, documentos, facturas, progreso..."
+  },
+  {
+    id: "academia",
+    label: "Plataforma de cursos / academia",
+    icon: "🎓",
+    desc: "Alumnos entran, ven sus lecciones, marcan completadas, ven su progreso, descargan recursos."
+  },
+  {
+    id: "calculadora",
+    label: "Calculadora / configurador",
+    icon: "🧮",
+    desc: "Herramienta interactiva: presupuestos automáticos, recomendaciones según respuestas, configurar producto..."
+  },
+  {
+    id: "gestor",
+    label: "Gestor / dashboard interno",
+    icon: "📊",
+    desc: "Para que tú o tu equipo gestionéis algo: pedidos, clientes, inventario, tareas, agenda..."
+  },
+  {
+    id: "otra",
+    label: "Otra cosa (te lo explico abajo)",
+    icon: "✨",
+    desc: "Si tu idea no encaja en las anteriores, marca esta y descríbelo en la siguiente pregunta."
+  },
+];
+
+/* Ejemplos específicos por tipo de negocio para cada pregunta.
+   Si no hay ejemplo para ese tipo, se usa el del fallback "otro". */
+const EJEMPLOS = {
+  descripcion_negocio: {
+    restaurante: "Somos un restaurante italiano de cocina casera en el centro de Valencia. Trabajamos con pasta fresca hecha cada mañana y un horno de leña que lleva 40 años en la familia.",
+    tienda: "Vendemos ropa sostenible para mujeres entre 25 y 45 años. Todas las prendas son de algodón orgánico y producidas en talleres locales en Portugal.",
+    belleza: "Salón de peluquería especializado en cortes modernos y coloración. Ofrecemos también tratamientos de hidratación profundos y ondas permanentes.",
+    salud: "Clínica dental con tres dentistas. Hacemos desde limpiezas básicas hasta ortodoncia invisible y carillas estéticas.",
+    servicios: "Despacho de abogados especializado en derecho laboral y despidos. Llevamos 12 años defendiendo trabajadores en Madrid.",
+    construccion: "Empresa de reformas integrales de pisos y baños. Trabajamos en toda Barcelona con un equipo de 8 personas y damos garantía de 5 años.",
+    inmobiliaria: "Inmobiliaria especializada en alquileres de larga duración en la zona norte de Madrid. Gestionamos también las llaves y reparaciones.",
+    fitness: "Gimnasio boutique con entrenamiento personal y clases reducidas de máximo 8 personas. Especializados en mujeres mayores de 40.",
+    educacion: "Academia online que enseña a programar desde cero a personas sin experiencia técnica. Cursos en directo con tutor personal.",
+    creativo: "Estudio de fotografía especializado en bodas y retratos de familia. Trabajamos con luz natural y un estilo documental, sin posados forzados.",
+    tech: "Desarrollamos software a medida para PYMEs: gestión de stock, facturación e integración con tiendas online.",
+    evento: "Organizamos bodas íntimas para 30-80 personas en fincas rurales. Nos encargamos de todo: catering, decoración, música y coordinación del día.",
+    otro: "Somos una empresa de [lo que hacéis] que ofrece [lo que vendéis] a [vuestros clientes]. Llevamos [X años] y nos diferencia [vuestra particularidad].",
+  },
+
+  diferencial: {
+    restaurante: "Nuestra carbonara la hacemos con huevo de gallinas felices y guanciale curado por nosotros. Solo abrimos jueves a domingo para que cada plato salga perfecto.",
+    tienda: "Cada prenda viene con la historia de quién la hizo y dónde. Y damos 100 días de devolución, no 30 como todos.",
+    belleza: "Somos la única peluquería de la zona con colorista formada en Londres. Y cada cita incluye un masaje craneal de 10 minutos.",
+    salud: "Atendemos urgencias el mismo día, sin lista de espera. Y damos presupuesto cerrado por escrito antes de empezar.",
+    servicios: "Solo cobramos si ganamos el caso. La primera consulta siempre es gratis y dura 1 hora completa.",
+    construccion: "Acabamos cuando prometemos. Damos un Gantt al cliente con fecha exacta de entrega y si nos retrasamos descontamos del precio.",
+    inmobiliaria: "Visitas verificadas en 24h. Trabajamos solo con propietarios verificados y contratos blindados que evitan impagos.",
+    fitness: "Cada cliente tiene un plan totalmente personal y revisamos progreso cada 4 semanas con báscula de impedancia.",
+    educacion: "Profesores con experiencia real en empresa, no académicos. Y garantía: si no encuentras trabajo en 6 meses, te devolvemos el dinero.",
+    creativo: "Entregamos las fotos en 7 días, no en 6 semanas como la mayoría. Y damos derechos de uso totales sin coste extra.",
+    tech: "Mantenimiento gratuito durante el primer año. Y trabajamos por iteraciones de 2 semanas, no por proyectos cerrados que cambian.",
+    evento: "Solo aceptamos una boda por fin de semana para volcarnos al 100%. Y tenemos un seguro de cancelación incluido.",
+    otro: "Lo que nos hace únicos es [algo concreto que hacéis distinto]. Por ejemplo: el tiempo de respuesta, la garantía, el material, la atención, el precio fijo...",
+  },
+
+  cliente_ideal: {
+    restaurante: "Parejas y grupos de amigos de 30-55 años, urbanitas con buen nivel económico, que valoran la calidad por encima del precio y vienen una vez al mes.",
+    tienda: "Mujeres profesionales de 30-50 años, conscientes con el medio ambiente, que prefieren tener pocas prendas pero buenas. Gastan 80-200€ por compra.",
+    belleza: "Mujeres y hombres de 25-60 años que cuidan su imagen. Vienen cada 4-6 semanas y están dispuestos a pagar más por servicio premium.",
+    salud: "Familias con hijos pequeños y adultos de 35-65. Buscan un dentista de confianza, no el más barato.",
+    servicios: "Trabajadores que acaban de ser despedidos, autónomos con problemas con clientes morosos o empresas pequeñas que necesitan asesoría continua.",
+    construccion: "Propietarios de pisos de 70-150 m², de 35-60 años, que quieren modernizar su casa sin agobios y valoran la formalidad.",
+    inmobiliaria: "Propietarios que viven fuera y no pueden gestionar su piso. Y profesionales que se mudan a Madrid y necesitan un piso rápido sin estafas.",
+    fitness: "Mujeres de 40+ años que llevan años sin hacer deporte y se sienten intimidadas por los gimnasios grandes. Quieren un sitio seguro y personal.",
+    educacion: "Personas de 25-40 años descontentas con su trabajo actual que quieren cambiar al sector tech sin haber estudiado nada relacionado.",
+    creativo: "Parejas que se casan en 6-18 meses, con presupuesto medio-alto, que odian las fotos formales y quieren recuerdos auténticos.",
+    tech: "PYMEs de 5-50 empleados que están saturadas con Excel y necesitan automatizar su gestión interna.",
+    evento: "Parejas de 30-45 años con presupuesto de 15.000-40.000€ que quieren una boda especial pero íntima, lejos del modelo de salón típico.",
+    otro: "Edad aproximada, género si aplica, nivel económico, qué le importa, qué le frustra, dónde vive, qué busca cuando os encuentra.",
+  },
+
+  problema: {
+    restaurante: "Están cansados de restaurantes caros con porciones pequeñas y comida industrial. Quieren un sitio donde la comida sepa a casa pero la experiencia sea especial.",
+    tienda: "Están hartas de la moda rápida que se rompe en 3 lavados. Quieren ropa duradera y bonita, pero no tienen tiempo de investigar marcas sostenibles.",
+    belleza: "Han salido decepcionados de otras peluquerías con cortes que no entendieron lo que pedían. Quieren a alguien que escuche.",
+    salud: "Tienen miedo al dentista por experiencias pasadas malas o presupuestos abusivos. Quieren transparencia y trato humano.",
+    servicios: "Están desbordados, no entienden el lenguaje legal y necesitan alguien que les explique las cosas claras y luche por ellos.",
+    construccion: "Han oído historias de reformas que se eternizan o se disparan de precio. Quieren tranquilidad y fechas que se cumplan.",
+    inmobiliaria: "Han tenido inquilinos morosos, propietarios que no responden o agencias que les engañan. Buscan profesionales serios.",
+    fitness: "Se sienten ridículos en el gym, no saben qué hacer en cada máquina y necesitan alguien que les guíe sin juzgarles.",
+    educacion: "Han probado cursos online gratuitos y los han dejado a medias. Necesitan estructura, motivación y un tutor real.",
+    creativo: "Han visto fotos de boda muy posadas y artificiales y quieren algo que de verdad refleje cómo son ellos como pareja.",
+    tech: "Pierden horas cada semana en tareas repetitivas. Han probado herramientas genéricas (Trello, Notion) y no se adaptan a su flujo real.",
+    evento: "Están agobiados con la logística de la boda y los proveedores no les contestan. Quieren delegar y disfrutar.",
+    otro: "Cuál es el dolor, la frustración o el deseo no resuelto de tu cliente que tú vas a calmar.",
+  },
+
+  inspiraciones: {
+    restaurante: "https://www.diverxo.com — me gusta porque las fotos de los platos son enormes y se ve la calidad del producto. https://www.sushisamba.com — me encanta el tono cálido y oscuro.",
+    tienda: "https://www.everlane.com — me gusta porque cuentan la historia detrás de cada prenda. https://www.cos.com — me encanta lo minimalista y elegante que es.",
+    belleza: "https://www.salonbuzz.com — me encanta el estilo moderno y limpio. https://www.fudgehairsalon.com — me gusta cómo muestran el equipo y los antes/después.",
+    salud: "https://www.invisalign.com — me gusta porque transmite confianza y profesionalidad. https://www.clinicabaviera.com — me gusta la claridad de los servicios.",
+    servicios: "https://www.cuatrecasas.com — me gusta el aire serio y profesional. https://www.legalitas.com — me gusta cómo explican los servicios sin lenguaje legal.",
+    construccion: "https://www.viviendea.com — me gusta porque enseñan reformas reales con fotos antes/después. https://www.lacasaporelteg.com — me encanta el estilo limpio.",
+    inmobiliaria: "https://www.idealista.com — claridad. https://www.engelvoelkers.com — me gusta el aire elegante y premium.",
+    fitness: "https://www.barrysbootcamp.com — me gusta porque transmite intensidad y comunidad. https://www.equinox.com — me encanta el lujo y la calidad.",
+    educacion: "https://www.platzi.com — me gusta cómo presentan los cursos. https://www.masterclass.com — me encanta el storytelling.",
+    creativo: "https://www.unfold.com — me gusta el estilo editorial. https://www.beautifuldestinations.com — fotografía cinematográfica.",
+    tech: "https://www.stripe.com — la claridad y el diseño limpio. https://www.linear.app — el aire futurista y rápido.",
+    evento: "https://www.junebugweddings.com — me gusta lo emocional. https://www.greenweddingshoes.com — el estilo bohemio y natural.",
+    otro: "Pega 2-3 webs que te encanten. Di el link y POR QUÉ te gusta (colores, tipo de fotos, simplicidad, sensación...).",
+  },
+
+  textos: {
+    restaurante: "Lema: 'Comida como en casa, experiencia como fuera'. Descripción: 'Llevamos 25 años cocinando con amor recetas que pasaron de abuela a nieto. Cada plato es un trozo de Italia en tu mesa.'",
+    tienda: "Lema: 'Menos, pero mejor.' Texto: 'Cada prenda dura años. Cada compra apoya a un taller local. Cada decisión cuenta.'",
+    belleza: "Lema: 'Tu pelo, tu identidad.' Texto: 'En 90 minutos no solo te cortamos el pelo, te entendemos.'",
+    salud: "Lema: 'Sonríe sin miedo.' Texto: 'Te explicamos cada paso, te damos precio cerrado y te tratamos como nos gustaría que nos tratasen a nosotros.'",
+    servicios: "Lema: 'Defendemos tus derechos, no los nuestros.' Texto: 'Primera consulta gratis. Si no ganamos, no cobramos.'",
+    construccion: "Lema: 'Reformas que sí acaban cuando prometemos.' Texto: 'Llevamos 15 años entregando obras en plazo y con presupuesto cerrado.'",
+    inmobiliaria: "Lema: 'Tu piso, en buenas manos.' Texto: 'Gestionamos el alquiler de A a Z. Tú cobras puntualmente. Nosotros nos ocupamos del resto.'",
+    fitness: "Lema: 'Donde sí puedes.' Texto: 'Sin máquinas intimidantes, sin miradas, solo tú y un entrenador que cree en ti.'",
+    educacion: "Lema: 'De cero a programador en 6 meses.' Texto: 'Aprende con tutor real, en directo, con proyectos reales. Si no consigues trabajo, te devolvemos el dinero.'",
+    creativo: "Lema: 'Fotos que sí parecen vosotros.' Texto: 'Sin poses forzadas. Sin sonrisas falsas. Solo momentos reales que recordaréis siempre.'",
+    tech: "Lema: 'Software que se adapta a ti, no al revés.' Texto: 'Desarrollamos a medida en iteraciones cortas. Si algo no funciona, lo cambiamos.'",
+    evento: "Lema: 'Tu boda, sin el agobio.' Texto: 'Nos encargamos de todo para que tú solo disfrutes. Una boda al fin de semana. La tuya.'",
+    otro: "Slogan o frase de tu marca, párrafos que ya tengas escritos. Si no tienes nada, di 'no tengo, redacta tú'.",
+  },
+};
+
+/* ========================================
+   ESTRUCTURA DE PREGUNTAS
+   ======================================== */
+const QUESTIONS = [
+  // PRIMERO: TIPO DE NEGOCIO (esto adapta el resto)
+  {
+    section: "Empezamos",
+    title: "¿Qué tipo de negocio tienes?",
+    help: "Elige el que más se parezca. Con esto adaptaré los ejemplos siguientes a tu sector.",
+    type: "options-icon",
+    key: "tipo_negocio",
+    options: TIPOS_NEGOCIO,
+    required: true,
+  },
+
+  // SEGUNDO: TIPO DE PROYECTO (web / web app / ambos)
+  {
+    section: "Empezamos",
+    title: "¿Qué necesitas que te construya?",
+    help: "Lee bien las opciones. La diferencia es importante: una web te trae clientes, una web app además te permite gestionarlos.",
+    type: "options-card",
+    key: "tipo_proyecto",
+    options: TIPOS_PROYECTO,
+    required: true,
+  },
+
+  // SI eligió webapp o ambos → preguntar plantilla
+  {
+    section: "Tu app",
+    title: "¿Qué tipo de app necesitas?",
+    help: "Elige la que más se parezca a lo que imaginas. Si tu idea es muy distinta, marca 'Otra cosa'.",
+    type: "options-card",
+    key: "plantilla_app",
+    options: PLANTILLAS_APP,
+    required: true,
+    showIf: (a) => a.tipo_proyecto === 'webapp' || a.tipo_proyecto === 'ambos',
+  },
+
+  // SI marcó plantilla "otra" → descripción libre
+  {
+    section: "Tu app",
+    title: "Cuéntame con tus palabras qué debe hacer tu app",
+    help: "Olvídate de tecnicismos. Imagina a tu cliente usándola: qué ve, qué pulsa, qué consigue. Cuanto más detalle, mejor.",
+    type: "textarea",
+    key: "app_descripcion_libre",
+    placeholder: "Ej: 'Mi cliente entra con su email, ve un panel con sus pedidos pendientes, puede marcar uno como recibido, y le aparece un botón para repetir el pedido en un click...'",
+    minChars: 100,
+    required: true,
+    showIf: (a) => (a.tipo_proyecto === 'webapp' || a.tipo_proyecto === 'ambos') && a.plantilla_app === 'otra',
+  },
+
+  // PARA TODAS las web apps: qué hace el usuario dentro
+  {
+    section: "Tu app",
+    title: "¿Qué hará tu cliente dentro de la app?",
+    help: "Lista las 3-5 acciones más importantes que harán los usuarios. Empieza cada una con un verbo.",
+    type: "textarea",
+    key: "app_acciones",
+    placeholder: "1. Reservar una cita\n2. Ver mis citas anteriores\n3. Cancelar una cita\n4. Actualizar mis datos",
+    minChars: 50,
+    required: true,
+    showIf: (a) => a.tipo_proyecto === 'webapp' || a.tipo_proyecto === 'ambos',
+  },
+
+  // CUENTAS / LOGIN
+  {
+    section: "Tu app",
+    title: "¿Tus usuarios necesitan crear cuenta?",
+    help: "Si SÍ, cada cliente tendrá su acceso privado con email y contraseña. Si NO, todos usan la app de forma anónima.",
+    type: "options",
+    key: "app_cuentas",
+    options: [
+      "Sí, cada cliente tiene su cuenta privada con login",
+      "No, todos usan la app sin registrarse",
+      "Sí, pero solo yo / mi equipo (uso interno)",
+    ],
+    required: true,
+    showIf: (a) => a.tipo_proyecto === 'webapp' || a.tipo_proyecto === 'ambos',
+  },
+
+  // QUÉ VE AL ENTRAR
+  {
+    section: "Tu app",
+    title: "Cuando tu cliente entra a la app, ¿qué es lo PRIMERO que debería ver?",
+    help: "La pantalla principal. Lo más importante de un vistazo.",
+    type: "textarea",
+    key: "app_pantalla_principal",
+    placeholder: "Ej: 'Su próxima cita con fecha y hora, un botón grande de Reservar nueva, y debajo un listado de sus últimas reservas.'",
+    minChars: 40,
+    required: true,
+    showIf: (a) => a.tipo_proyecto === 'webapp' || a.tipo_proyecto === 'ambos',
+  },
+
+  // BLOQUE 1: TÚ
+  {
+    section: "Sobre ti",
+    title: "¿Cómo te llamas?",
+    help: "Para poder dirigirme a ti durante el proceso.",
+    type: "text",
+    key: "nombre_cliente",
+    placeholder: "Tu nombre",
+    required: true,
+  },
+  {
+    section: "Sobre tu negocio",
+    title: "¿Cuál es el nombre de tu negocio?",
+    help: "Si aún no tiene nombre o estás dudando, dime cómo te gustaría llamarlo.",
+    type: "text",
+    key: "nombre_negocio",
+    placeholder: "Ej: La Trattoria de Sergio",
+    required: true,
+  },
+
+  // BLOQUE 2: NEGOCIO (con ejemplos adaptados)
+  {
+    section: "Sobre tu negocio",
+    title: "¿A qué te dedicas exactamente?",
+    help: "Cuéntamelo como si se lo contaras a un amigo en un café. Sin tecnicismos, mínimo 2-3 frases.",
+    type: "textarea",
+    key: "descripcion_negocio",
+    placeholder: "Empieza por: 'Somos...' o 'Tenemos...'",
+    example: true,
+    exampleKey: "descripcion_negocio",
+    minChars: 80,
+    required: true,
+  },
+  {
+    section: "Sobre tu negocio",
+    title: "¿Qué te hace diferente?",
+    help: "Una cosa muy concreta. NO digas 'somos los mejores' — todos lo dicen. Di QUÉ haces tú que otros no hacen.",
+    type: "textarea",
+    key: "diferencial",
+    placeholder: "Ej: 'Solo trabajamos con...' / 'Damos garantía de...' / 'Nuestro proceso es...'",
+    example: true,
+    exampleKey: "diferencial",
+    minChars: 60,
+    required: true,
+  },
+  {
+    section: "Sobre tu negocio",
+    title: "¿Qué productos o servicios concretos vendes?",
+    help: "Lista lo que vendes. Si son muchos, los 5-8 principales.",
+    type: "textarea",
+    key: "productos_servicios",
+    placeholder: "1. ...\n2. ...\n3. ...",
+    minChars: 30,
+    required: true,
+  },
+
+  // BLOQUE 3: CLIENTE
+  {
+    section: "Tu cliente ideal",
+    title: "¿Quién es tu cliente ideal?",
+    help: "Edad aproximada, perfil, qué le importa. Cuanto más concreto, mejor saldrá tu web.",
+    type: "textarea",
+    key: "cliente_ideal",
+    placeholder: "Ej: 'Mujeres de 35-50 años, profesionales urbanas, que valoran...'",
+    example: true,
+    exampleKey: "cliente_ideal",
+    minChars: 80,
+    required: true,
+  },
+  {
+    section: "Tu cliente ideal",
+    title: "¿Qué problema le resuelves?",
+    help: "El dolor, frustración o deseo de tu cliente que tú calmas.",
+    type: "textarea",
+    key: "problema",
+    placeholder: "Ej: 'Están hartos de...' / 'Quieren X pero no encuentran...'",
+    example: true,
+    exampleKey: "problema",
+    minChars: 60,
+    required: true,
+  },
+
+  // BLOQUE 4: OBJETIVO Y TONO
+  {
+    section: "Objetivo de tu web",
+    title: "¿Qué debe conseguir tu web?",
+    help: "El objetivo número 1. Solo uno: el más importante.",
+    type: "options",
+    key: "objetivo_web",
+    options: [
+      "Que me llamen / contacten",
+      "Que compren online (e-commerce)",
+      "Que reserven cita / mesa / servicio",
+      "Que pidan presupuesto",
+      "Que se apunten a una lista (newsletter)",
+      "Que conozcan la marca (presencia profesional)",
+      "Que descarguen algo (app, PDF, recurso)",
+    ],
+    required: true,
+  },
+  {
+    section: "Objetivo de tu web",
+    title: "¿Qué pondrá el botón principal de la web?",
+    help: "El botón grande que aparecerá en primera pantalla. El que más quieres que pulsen.",
+    type: "text",
+    key: "cta_principal",
+    placeholder: "Ej: 'Reservar mesa' / 'Pedir presupuesto gratis' / 'Llamar ahora'",
+    required: true,
+  },
+  {
+    section: "Objetivo de tu web",
+    title: "Si esto sale perfecto, ¿cómo lo notarás?",
+    help: "Tu definición de éxito en una frase. Esto es lo que usaré para comprobar que el resultado es EXACTAMENTE lo que querías.",
+    type: "textarea",
+    key: "exito_cliente",
+    placeholder: "Ej: 'Que un cliente nuevo entienda en 5 segundos qué hago y me reserve sin llamar' / 'Que reciba 3 presupuestos a la semana desde la web'",
+    minChars: 30,
+    required: true,
+  },
+  {
+    section: "Estilo y tono",
+    title: "¿Cómo debe hablar tu web?",
+    help: "El tono de voz. Cómo se dirige al cliente cuando lee la página.",
+    type: "options",
+    key: "tono_voz",
+    options: [
+      "Cercano y de tú a tú",
+      "Formal y profesional (de usted)",
+      "Divertido y atrevido",
+      "Emocional e inspirador",
+      "Directo y sin rodeos",
+      "Técnico y experto",
+    ],
+    required: true,
+  },
+
+  // BLOQUE 5: ESTILO VISUAL
+  {
+    section: "Estilo visual",
+    title: "¿Qué vibra debe transmitir visualmente?",
+    help: "Elige hasta 3 que mejor te representen.",
+    type: "multi",
+    key: "vibras",
+    options: [
+      "Elegante y premium",
+      "Cercano y humano",
+      "Moderno y tecnológico",
+      "Natural y orgánico",
+      "Divertido y atrevido",
+      "Serio y profesional",
+      "Minimalista y limpio",
+      "Vintage y artesanal",
+      "Oscuro y misterioso",
+      "Luminoso y alegre",
+    ],
+    max: 3,
+    required: true,
+  },
+  {
+    section: "Estilo visual",
+    title: "¿Color principal?",
+    help: "Elige uno o escribe el código hex. Si no lo tienes claro, puedes saltarlo.",
+    type: "color",
+    key: "color_principal",
+    required: false,
+  },
+  {
+    section: "Estilo visual",
+    title: "¿Páginas web que te inspiran?",
+    help: "Pega 2-3 links de webs que te gusten y dime POR QUÉ. Esto es ORO para que salga bien.",
+    type: "textarea",
+    key: "inspiraciones",
+    placeholder: "https://ejemplo.com — me gusta porque...",
+    example: true,
+    exampleKey: "inspiraciones",
+    minChars: 50,
+    required: true,
+  },
+
+  // BLOQUE 6: MATERIALES
+  {
+    section: "Materiales",
+    title: "¿Tienes logo o imágenes?",
+    help: "Sube lo que tengas: logo, fotos de productos, equipo, local. No pasa nada si no tienes nada.",
+    type: "upload",
+    key: "archivos",
+    required: false,
+  },
+  {
+    section: "Materiales",
+    title: "Textos importantes de tu marca",
+    help: "Slogan, frases tuyas, párrafos que ya tengas. Si no tienes nada, escribe 'no tengo, redacta tú'.",
+    type: "textarea",
+    key: "textos",
+    placeholder: "Lema: ...\nDescripción: ...",
+    example: true,
+    exampleKey: "textos",
+    minChars: 0,
+    required: true,
+  },
+
+  // BLOQUE 7: CONTEXTO LOCAL Y CONTACTO
+  {
+    section: "Tu negocio en el mundo",
+    title: "¿Dónde opera tu negocio?",
+    help: "Ciudad, barrio, provincia o 'solo online'. Es importante para que te encuentren en Google.",
+    type: "text",
+    key: "ubicacion",
+    placeholder: "Ej: 'Madrid, barrio de Chamberí' / 'Toda España, solo online'",
+    required: true,
+  },
+  {
+    section: "Tu negocio en el mundo",
+    title: "Horarios (si aplica)",
+    help: "Si tienes local físico, dime tus horarios. Si no aplica, escribe 'no aplica'.",
+    type: "text",
+    key: "horarios",
+    placeholder: "Ej: 'L-V 9-14h y 17-20h, sábados 10-14h, domingo cerrado'",
+    required: false,
+  },
+  {
+    section: "Tu negocio en el mundo",
+    title: "¿1-2 competidores directos?",
+    help: "Para no copiarlos, pero saber qué hacen. Pega sus webs si las tienen.",
+    type: "textarea",
+    key: "competencia",
+    placeholder: "Ej: https://competidor1.com — es mi competencia directa porque...",
+    required: false,
+  },
+  {
+    section: "Funcionalidades",
+    title: "¿Qué funciones necesita la web?",
+    help: "Marca todo lo que aplique.",
+    type: "multi",
+    key: "funciones",
+    options: [
+      "Formulario de contacto",
+      "Sistema de reservas / citas",
+      "Tienda online (vender productos)",
+      "Catálogo (mostrar sin vender online)",
+      "Blog / Noticias",
+      "Galería de fotos",
+      "Botón directo a WhatsApp",
+      "Mapa con ubicación",
+      "Testimonios de clientes",
+      "Preguntas frecuentes (FAQ)",
+      "Sección 'Sobre nosotros' / equipo",
+      "Newsletter / suscripción email",
+    ],
+    required: false,
+  },
+  {
+    section: "Contacto",
+    title: "Datos de contacto reales",
+    help: "Teléfono, email, dirección. Lo que aparecerá en la web para que te contacten.",
+    type: "textarea",
+    key: "contacto_publico",
+    placeholder: "Teléfono: ...\nEmail: ...\nDirección: ...",
+    minChars: 10,
+    required: true,
+  },
+  {
+    section: "Contacto",
+    title: "¿Tienes redes sociales?",
+    help: "Pega los links que tengas. Si no, escribe 'no tengo'.",
+    type: "textarea",
+    key: "redes",
+    placeholder: "Instagram: ...\nFacebook: ...\nLinkedIn: ...",
+    required: false,
+  },
+  {
+    section: "Cierre",
+    title: "Tu email (para que te avise cuando esté listo)",
+    help: "Necesito tu email para mandarte tu proyecto.",
+    type: "email",
+    key: "email_cliente",
+    placeholder: "tu@email.com",
+    required: true,
+  },
+  {
+    section: "Cierre",
+    title: "¿Algo más que quieras que sepa?",
+    help: "Cualquier deseo, restricción, idea o cosa especial. Última oportunidad.",
+    type: "textarea",
+    key: "extra",
+    placeholder: "Ej: 'Me gustaría que cargara muy rápido' / 'Tengo prisa, lo necesito en X días'",
+    required: false,
+  },
+];
+
+const COLORS = [
+  "#1a1a1a", "#c8553d", "#d4a574", "#7a9b76",
+  "#4a6fa5", "#8b5a8c", "#c97b9a", "#3d6b5c",
+  "#a8421f", "#5b4636", "#2c3e50", "#e8b04b",
+];
+
+/* ========================================
+   ESTADO Y PERSISTENCIA
+   ======================================== */
+const STORAGE_KEY = "briefing_data_v3";
+let state = {
+  step: -1,
+  answers: {},
+  files: [],
+};
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (saved && typeof saved === 'object') state = { ...state, ...saved };
+    }
+  } catch (e) { console.warn(e); }
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch (e) {
+    // localStorage lleno o no disponible — intentar guardar sin las imágenes
+    console.warn('Storage error, guardando sin imágenes:', e);
+    try {
+      const lightState = {
+        ...state,
+        files: state.files.map(f => ({
+          name: f.name,
+          type: f.type,
+          size: f.size,
+          originalSize: f.originalSize,
+          dataUrl: null, // sin dataUrl para no ocupar espacio
+        })),
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(lightState));
+      showToast('Demasiadas imágenes guardadas, las miniaturas no se conservarán al recargar');
+    } catch (e2) {
+      console.warn('Fallo total al guardar:', e2);
+    }
+  }
+}
+
+function resetState() {
+  state = { step: -1, answers: {}, files: [] };
+  try { localStorage.removeItem(STORAGE_KEY); } catch(e){}
+}
+
+/* ========================================
+   RENDER
+   ======================================== */
+const stage = document.getElementById('stage');
+const navbar = document.getElementById('navbar');
+const backBtn = document.getElementById('backBtn');
+const nextBtn = document.getElementById('nextBtn');
+const progressWrap = document.getElementById('progressWrap');
+const progressFill = document.getElementById('progressFill');
+const progressLabel = document.getElementById('progressLabel');
+const toast = document.getElementById('toast');
+
+function showToast(msg, duration = 2200) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => toast.classList.remove('show'), duration);
+}
+
+function getExample(exampleKey) {
+  const tipo = state.answers.tipo_negocio || 'otro';
+  const examples = EJEMPLOS[exampleKey];
+  if (!examples) return null;
+  return examples[tipo] || examples.otro;
+}
+
+function render() {
+  stage.innerHTML = '';
+  const total = QUESTIONS.length;
+  const REVIEW_STEP = total; // paso de revisión justo después de la última pregunta
+  const FINAL_STEP = total + 1; // pantalla final de envío
+
+  if (state.step === -1) {
+    renderWelcome();
+    navbar.style.display = 'none';
+    progressWrap.classList.remove('visible');
+  } else if (state.step >= 0 && state.step < total) {
+    renderQuestion(QUESTIONS[state.step]);
+    navbar.style.display = 'flex';
+    progressWrap.classList.add('visible');
+    const totalVis = totalVisible();
+    const currentVis = visibleIndex(state.step);
+    const progress = ((currentVis - 1) / totalVis) * 100;
+    progressFill.style.width = progress + '%';
+    progressLabel.textContent = `${currentVis} / ${totalVis}`;
+    updateNavButtons();
+  } else if (state.step === REVIEW_STEP) {
+    renderReview();
+    navbar.style.display = 'none';
+    progressWrap.classList.add('visible');
+    progressFill.style.width = '95%';
+    progressLabel.textContent = `Revisión`;
+  } else {
+    renderFinal();
+    navbar.style.display = 'none';
+    progressWrap.classList.add('visible');
+    progressFill.style.width = '100%';
+    progressLabel.textContent = `Completado`;
+  }
+
+  saveState();
+}
+
+function renderWelcome() {
+  const hasProgress = Object.keys(state.answers).length > 0;
+  const div = document.createElement('div');
+  div.className = 'screen welcome';
+  div.innerHTML = `
+    <div class="welcome-eyebrow">Briefing creativo</div>
+    <h1>Vamos a crear<br><em>algo tuyo.</em></h1>
+    <p>Te haré unas preguntas tranquilas, una por una. Tus respuestas se convertirán en el plano exacto de tu nueva web o app. Cuanto más concreto seas, mejor saldrá.</p>
+    <div class="welcome-meta">
+      <div class="meta-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>Unos 10 minutos</span>
+      </div>
+      <div class="meta-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        <span>Se guarda solo</span>
+      </div>
+      <div class="meta-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span>100% confidencial</span>
+      </div>
+    </div>
+    <button class="btn btn-primary btn-lg start-btn" id="startBtn">
+      ${hasProgress ? 'Continuar briefing' : 'Empezar'}
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+    </button>
+    ${hasProgress ? `<button class="preview-toggle" id="restartBtn" style="margin-top:16px;">Empezar uno nuevo desde cero</button>` : ''}
+  `;
+  stage.appendChild(div);
+
+  document.getElementById('startBtn').addEventListener('click', () => {
+    if (Object.keys(state.answers).length > 0) {
+      // Saltar a primera pregunta visible sin responder
+      let firstEmpty = QUESTIONS.findIndex((q, i) => {
+        if (!shouldShowQuestion(i)) return false;
+        const v = state.answers[q.key];
+        if (Array.isArray(v)) return v.length === 0;
+        return !v || v.toString().trim() === '';
+      });
+      if (firstEmpty === -1) firstEmpty = QUESTIONS.length;
+      state.step = firstEmpty;
+    } else {
+      state.step = 0;
+    }
+    render();
+  });
+
+  const restart = document.getElementById('restartBtn');
+  if (restart) {
+    restart.addEventListener('click', () => {
+      if (confirm('¿Seguro que quieres borrar el progreso y empezar de cero?')) {
+        resetState();
+        state.step = 0;
+        render();
+      }
+    });
+  }
+}
+
+function renderQuestion(q) {
+  const div = document.createElement('div');
+  div.className = 'screen question-screen';
+
+  let inputHTML = '';
+  const value = state.answers[q.key] !== undefined ? state.answers[q.key] : '';
+
+  // EJEMPLO INSPIRADOR (si aplica)
+  let exampleHTML = '';
+  if (q.example) {
+    const ex = getExample(q.exampleKey);
+    if (ex) {
+      exampleHTML = `
+        <div class="q-example">
+          <span class="q-example-label">💡 Ejemplo para ti</span>
+          <div class="q-example-text">"${escapeHtml(ex)}"</div>
+        </div>
+      `;
+    }
+  }
+
+  // INPUTS
+  if (q.type === 'text' || q.type === 'email') {
+    const inputType = q.type === 'email' ? 'email' : 'text';
+    inputHTML = `<input type="${inputType}" class="q-input" id="qInput" placeholder="${escapeHtml(q.placeholder || '')}" value="${escapeHtml(value)}" autocomplete="off">`;
+  } else if (q.type === 'textarea') {
+    inputHTML = `<textarea class="q-input" id="qInput" placeholder="${escapeHtml(q.placeholder || '')}">${escapeHtml(value)}</textarea>`;
+    if (q.minChars) {
+      inputHTML += `<div class="char-meter" id="charMeter">
+        <span class="hint">Recomendado: al menos ${q.minChars} caracteres</span>
+        <span class="count" id="charCount">0</span>
+      </div>`;
+    }
+  } else if (q.type === 'options') {
+    inputHTML = `<div class="q-options" id="qOptions">
+      ${q.options.map(opt => `
+        <div class="opt ${value === opt ? 'selected' : ''}" data-value="${escapeHtml(opt)}">
+          <div class="opt-radio"></div>
+          <div class="opt-label">${escapeHtml(opt)}</div>
+        </div>
+      `).join('')}
+    </div>`;
+  } else if (q.type === 'options-icon') {
+    inputHTML = `<div class="q-options" id="qOptions">
+      ${q.options.map(opt => `
+        <div class="opt ${value === opt.id ? 'selected' : ''}" data-value="${escapeHtml(opt.id)}">
+          <div class="opt-radio"></div>
+          <span class="opt-icon">${opt.icon}</span>
+          <div class="opt-label">${escapeHtml(opt.label)}</div>
+        </div>
+      `).join('')}
+    </div>`;
+  } else if (q.type === 'options-card') {
+    inputHTML = `<div class="q-options" id="qOptions">
+      ${q.options.map(opt => `
+        <div class="opt-card ${value === opt.id ? 'selected' : ''}" data-value="${escapeHtml(opt.id)}">
+          <div class="opt-card-icon">${opt.icon}</div>
+          <div class="opt-card-body">
+            <div class="opt-card-label">${escapeHtml(opt.label)}</div>
+            <div class="opt-card-desc">${escapeHtml(opt.desc)}</div>
+          </div>
+          <div class="opt-card-check"></div>
+        </div>
+      `).join('')}
+    </div>`;
+  } else if (q.type === 'multi') {
+    const selected = Array.isArray(value) ? value : [];
+    inputHTML = `<div class="q-options" id="qOptions">
+      ${q.options.map(opt => `
+        <div class="opt multi ${selected.includes(opt) ? 'selected' : ''}" data-value="${escapeHtml(opt)}">
+          <div class="opt-radio"></div>
+          <div class="opt-label">${escapeHtml(opt)}</div>
+        </div>
+      `).join('')}
+    </div>`;
+  } else if (q.type === 'color') {
+    inputHTML = `<div class="color-grid" id="qColors">
+      ${COLORS.map(c => `
+        <div class="color-swatch ${value === c ? 'selected' : ''}" data-value="${c}" style="background:${c}"></div>
+      `).join('')}
+    </div>
+    <input type="text" class="q-input" id="qInput" placeholder="O escribe el código hex (#1a1a1a) o describe el color" value="${escapeHtml(typeof value === 'string' && !COLORS.includes(value) ? value : '')}">`;
+  } else if (q.type === 'upload') {
+    inputHTML = `
+      <label class="upload-zone" for="qFile">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div class="upload-zone-text">Toca para subir archivos</div>
+        <div class="upload-zone-hint">Fotos, PDFs o documentos · Las fotos se comprimen automáticamente</div>
+        <input type="file" id="qFile" multiple accept="image/*,.pdf,.doc,.docx">
+      </label>
+      <div class="file-list" id="fileList">
+        ${state.files.map((f, i) => renderFileChip(f, i)).join('')}
+      </div>
+      <div id="fileLoading"></div>
+    `;
+  }
+
+  div.innerHTML = `
+    <div class="q-section">${escapeHtml(q.section)}</div>
+    <h2 class="q-title">${escapeHtml(q.title)}</h2>
+    <p class="q-help">${escapeHtml(q.help || '')}</p>
+    ${exampleHTML}
+    ${inputHTML}
+  `;
+  stage.appendChild(div);
+
+  attachQuestionHandlers(q);
+  updateCharCount(q);
+
+  setTimeout(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, 50);
+}
+
+function updateCharCount(q) {
+  if (q.type === 'textarea' && q.minChars) {
+    const input = document.getElementById('qInput');
+    const meter = document.getElementById('charMeter');
+    const count = document.getElementById('charCount');
+    if (!input || !meter || !count) return;
+    const update = () => {
+      const len = input.value.length;
+      count.textContent = len;
+      if (len >= q.minChars) {
+        meter.classList.add('good');
+      } else {
+        meter.classList.remove('good');
+      }
+    };
+    update();
+    input.addEventListener('input', update);
+  }
+}
+
+function attachQuestionHandlers(q) {
+  if (q.type === 'text' || q.type === 'email' || q.type === 'textarea') {
+    const input = document.getElementById('qInput');
+    input.addEventListener('input', (e) => {
+      state.answers[q.key] = e.target.value;
+      updateNavButtons();
+      saveState();
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && q.type !== 'textarea') {
+        e.preventDefault();
+        if (canProceed()) goNext();
+      }
+    });
+  } else if (q.type === 'options' || q.type === 'options-icon') {
+    document.querySelectorAll('#qOptions .opt').forEach(el => {
+      el.addEventListener('click', () => {
+        document.querySelectorAll('#qOptions .opt').forEach(o => o.classList.remove('selected'));
+        el.classList.add('selected');
+        state.answers[q.key] = el.dataset.value;
+        updateNavButtons();
+        saveState();
+      });
+    });
+  } else if (q.type === 'options-card') {
+    document.querySelectorAll('#qOptions .opt-card').forEach(el => {
+      el.addEventListener('click', () => {
+        document.querySelectorAll('#qOptions .opt-card').forEach(o => o.classList.remove('selected'));
+        el.classList.add('selected');
+        state.answers[q.key] = el.dataset.value;
+        updateNavButtons();
+        saveState();
+      });
+    });
+  } else if (q.type === 'multi') {
+    document.querySelectorAll('#qOptions .opt').forEach(el => {
+      el.addEventListener('click', () => {
+        const current = Array.isArray(state.answers[q.key]) ? state.answers[q.key] : [];
+        const val = el.dataset.value;
+        let next;
+        if (current.includes(val)) {
+          next = current.filter(v => v !== val);
+        } else {
+          if (q.max && current.length >= q.max) {
+            showToast(`Máximo ${q.max} opciones`);
+            return;
+          }
+          next = [...current, val];
+        }
+        state.answers[q.key] = next;
+        el.classList.toggle('selected');
+        updateNavButtons();
+        saveState();
+      });
+    });
+  } else if (q.type === 'color') {
+    document.querySelectorAll('#qColors .color-swatch').forEach(el => {
+      el.addEventListener('click', () => {
+        document.querySelectorAll('#qColors .color-swatch').forEach(s => s.classList.remove('selected'));
+        el.classList.add('selected');
+        state.answers[q.key] = el.dataset.value;
+        document.getElementById('qInput').value = '';
+        updateNavButtons();
+        saveState();
+      });
+    });
+    document.getElementById('qInput').addEventListener('input', (e) => {
+      document.querySelectorAll('#qColors .color-swatch').forEach(s => s.classList.remove('selected'));
+      state.answers[q.key] = e.target.value;
+      updateNavButtons();
+      saveState();
+    });
+  } else if (q.type === 'upload') {
+    const fileInput = document.getElementById('qFile');
+    fileInput.addEventListener('change', async (e) => {
+      const files = Array.from(e.target.files);
+      // Resetear el input para poder volver a subir el mismo archivo si hace falta
+      e.target.value = '';
+
+      for (const file of files) {
+        // Mostrar loader mientras procesamos
+        const loadingId = 'load-' + Date.now() + Math.random().toString(36).slice(2, 6);
+        const loadEl = document.getElementById('fileLoading');
+        if (loadEl) {
+          loadEl.insertAdjacentHTML('beforeend', `
+            <div class="file-chip-loading" id="${loadingId}">
+              <div class="spinner"></div>
+              <span>Procesando "${escapeHtml(file.name)}"...</span>
+            </div>
+          `);
+        }
+
+        try {
+          const processed = await processFile(file);
+          if (processed) {
+            state.files.push(processed);
+            saveState();
+          }
+        } catch (err) {
+          console.warn('Error procesando archivo:', err);
+          showToast(`No se pudo procesar "${file.name}"`);
+        }
+
+        // Quitar el loader
+        const elToRemove = document.getElementById(loadingId);
+        if (elToRemove) elToRemove.remove();
+      }
+      render();
+    });
+
+    document.querySelectorAll('.file-chip-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const i = parseInt(btn.dataset.index);
+        state.files.splice(i, 1);
+        saveState();
+        render();
+      });
+    });
+  }
+}
+
+// Render visual de cada archivo subido (con preview de imagen si es foto)
+function renderFileChip(f, i) {
+  const isImage = f.type && f.type.startsWith('image/');
+  const sizeKB = Math.round(f.size / 1024);
+  const sizeStr = sizeKB >= 1024 ? `${(sizeKB/1024).toFixed(1)} MB` : `${sizeKB} KB`;
+
+  // Si se comprimió, mostrar ahorro
+  let savedHTML = '';
+  if (f.originalSize && f.originalSize > f.size) {
+    const origKB = Math.round(f.originalSize / 1024);
+    const origStr = origKB >= 1024 ? `${(origKB/1024).toFixed(1)} MB` : `${origKB} KB`;
+    const pct = Math.round((1 - f.size / f.originalSize) * 100);
+    savedHTML = ` · <span class="file-chip-saved">↓ ${pct}% (de ${origStr})</span>`;
+  }
+
+  const thumb = isImage && f.dataUrl
+    ? `<div class="file-chip-thumb" style="background-image:url('${f.dataUrl}')"></div>`
+    : `<div class="file-chip-thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>`;
+
+  return `
+    <div class="file-chip">
+      ${thumb}
+      <div class="file-chip-info">
+        <div class="file-chip-name">${escapeHtml(f.name)}</div>
+        <div class="file-chip-meta">${sizeStr}${savedHTML}</div>
+      </div>
+      <button class="file-chip-remove" data-index="${i}" aria-label="Quitar">×</button>
+    </div>
+  `;
+}
+
+// Procesar un archivo: si es imagen, comprimir. Si no, dejar tal cual.
+async function processFile(file) {
+  const isImage = file.type && file.type.startsWith('image/');
+  const originalSize = file.size;
+  const MAX_SIZE = 25 * 1024 * 1024; // 25MB hard limit
+
+  if (file.size > MAX_SIZE) {
+    showToast(`"${file.name}" es demasiado grande (máx 25MB)`);
+    return null;
+  }
+
+  // Si NO es imagen, guardar tal cual
+  if (!isImage) {
+    // Para no-imágenes solo guardamos metadata (no las metemos en localStorage como base64 grande)
+    return {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      originalSize: originalSize,
+      dataUrl: null,
+    };
+  }
+
+  // Si es imagen, comprimir
+  try {
+    const compressed = await compressImage(file);
+    return {
+      name: file.name,
+      type: 'image/jpeg',
+      size: compressed.size,
+      originalSize: originalSize,
+      dataUrl: compressed.dataUrl,
+    };
+  } catch (err) {
+    console.warn('Fallo al comprimir, guardando original:', err);
+    // Fallback: si la compresión falla, intentar guardar original SOLO si es pequeña
+    if (originalSize > 2 * 1024 * 1024) {
+      showToast(`No se pudo comprimir "${file.name}" y es muy grande`);
+      return null;
+    }
+    const dataUrl = await fileToDataUrl(file);
+    return {
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      originalSize: originalSize,
+      dataUrl: dataUrl,
+    };
+  }
+}
+
+// Comprimir imagen usando canvas: max 1600px ancho, calidad 0.82 JPEG
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('No se pudo leer el archivo'));
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('No es una imagen válida'));
+      img.onload = () => {
+        try {
+          const MAX_W = 1600;
+          const MAX_H = 1600;
+          let { width, height } = img;
+
+          // Redimensionar si excede
+          if (width > MAX_W || height > MAX_H) {
+            const ratio = Math.min(MAX_W / width, MAX_H / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          // Fondo blanco para que JPEG no muestre transparencias raras
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Calidad 0.82 da buena relación tamaño/calidad
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+
+          // Calcular tamaño aproximado del dataUrl (base64 = ~33% más grande que binario)
+          // Ej: si dataUrl tiene 100 chars, los datos binarios son ~75 bytes
+          const base64Length = dataUrl.length - dataUrl.indexOf(',') - 1;
+          const size = Math.round(base64Length * 0.75);
+
+          resolve({ dataUrl, size, width, height });
+        } catch (err) {
+          reject(err);
+        }
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function canProceed() {
+  if (state.step < 0 || state.step >= QUESTIONS.length) return true;
+  const q = QUESTIONS[state.step];
+  if (!q.required) return true;
+  const val = state.answers[q.key];
+  if (q.type === 'multi') return Array.isArray(val) && val.length > 0;
+  if (q.type === 'email') return val && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+  return val && val.toString().trim().length > 0;
+}
+
+// ¿Debe mostrarse esta pregunta según las respuestas actuales?
+function shouldShowQuestion(idx) {
+  if (idx < 0 || idx >= QUESTIONS.length) return true;
+  const q = QUESTIONS[idx];
+  if (!q.showIf) return true;
+  try { return !!q.showIf(state.answers); }
+  catch (e) { return true; }
+}
+
+// Limpiar respuestas de preguntas que ya no aplican (si cambió condición)
+function purgeHiddenAnswers() {
+  QUESTIONS.forEach(q => {
+    if (q.showIf && !q.showIf(state.answers)) {
+      delete state.answers[q.key];
+    }
+  });
+}
+
+// Calcular cuántas preguntas son visibles en total (para el progreso)
+function totalVisible() {
+  return QUESTIONS.filter((q, i) => shouldShowQuestion(i)).length;
+}
+
+// Calcular qué número de pregunta visible es esta
+function visibleIndex(idx) {
+  let count = 0;
+  for (let i = 0; i <= idx; i++) {
+    if (shouldShowQuestion(i)) count++;
+  }
+  return count;
+}
+
+function updateNavButtons() {
+  backBtn.style.visibility = state.step > 0 ? 'visible' : 'hidden';
+  nextBtn.disabled = !canProceed();
+  // ¿Hay alguna pregunta visible después de la actual?
+  let hasNext = false;
+  for (let i = state.step + 1; i < QUESTIONS.length; i++) {
+    if (shouldShowQuestion(i)) { hasNext = true; break; }
+  }
+  const isLast = !hasNext;
+  nextBtn.innerHTML = isLast
+    ? 'Revisar todo <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>'
+    : 'Continuar <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>';
+}
+
+function goNext() {
+  if (!canProceed()) return;
+  // Limpiar respuestas que ya no apliquen (por cambios en condiciones)
+  purgeHiddenAnswers();
+  // Avanzar al siguiente paso visible
+  let next = state.step + 1;
+  while (next < QUESTIONS.length && !shouldShowQuestion(next)) {
+    next++;
+  }
+  // Si ya pasamos todas las preguntas, ir a revisión
+  if (next >= QUESTIONS.length) next = QUESTIONS.length;
+  state.step = next;
+  render();
+}
+
+function goBack() {
+  if (state.step > 0) {
+    // Retroceder al anterior paso visible
+    let prev = state.step - 1;
+    while (prev >= 0 && !shouldShowQuestion(prev)) {
+      prev--;
+    }
+    if (prev < 0) {
+      state.step = -1;
+    } else {
+      state.step = prev;
+    }
+    render();
+  } else if (state.step === 0) {
+    state.step = -1;
+    render();
+  }
+}
+
+backBtn.addEventListener('click', goBack);
+nextBtn.addEventListener('click', goNext);
+
+/* ========================================
+   PANTALLA DE REVISIÓN
+   ======================================== */
+function renderReview() {
+  const div = document.createElement('div');
+  div.className = 'screen review-screen';
+
+  // Agrupar por sección (solo preguntas visibles)
+  const sections = {};
+  QUESTIONS.forEach((q, idx) => {
+    if (!shouldShowQuestion(idx)) return;
+    if (!sections[q.section]) sections[q.section] = [];
+    sections[q.section].push({ q, idx });
+  });
+
+  let sectionsHTML = '';
+  Object.entries(sections).forEach(([sectionName, items]) => {
+    let itemsHTML = '';
+    items.forEach(({ q, idx }) => {
+      const val = state.answers[q.key];
+      let display = '';
+      let isEmpty = false;
+
+      if (q.type === 'options-icon') {
+        const opt = TIPOS_NEGOCIO.find(o => o.id === val);
+        display = opt ? `${opt.icon} ${opt.label}` : '';
+        isEmpty = !val;
+      } else if (q.type === 'options-card') {
+        const opt = (q.options || []).find(o => o.id === val);
+        display = opt ? `${opt.icon} ${opt.label}` : '';
+        isEmpty = !val;
+      } else if (q.type === 'multi') {
+        display = Array.isArray(val) && val.length ? val.join(', ') : '';
+        isEmpty = !Array.isArray(val) || val.length === 0;
+      } else if (q.type === 'upload') {
+        display = state.files.length ? `${state.files.length} archivo(s) subido(s)` : '';
+        isEmpty = state.files.length === 0;
+      } else {
+        display = val ? val.toString() : '';
+        isEmpty = !val || val.toString().trim() === '';
+      }
+
+      itemsHTML += `
+        <div class="review-item">
+          <div class="review-item-label">${escapeHtml(q.title)}</div>
+          <div class="review-item-value ${isEmpty ? 'empty' : ''}">${isEmpty ? 'Sin completar' : escapeHtml(display)}</div>
+        </div>
+      `;
+    });
+
+    sectionsHTML += `
+      <div class="review-section">
+        <div class="review-section-header">
+          <div class="review-section-title">${escapeHtml(sectionName)}</div>
+          <button class="review-edit" data-step="${items[0].idx}">Editar</button>
+        </div>
+        ${itemsHTML}
+      </div>
+    `;
+  });
+
+  div.innerHTML = `
+    <div class="q-section">Casi listo</div>
+    <h2 class="review-title">Revisa <em>tu briefing</em></h2>
+    <p class="review-sub">Echa un vistazo a tus respuestas. Si quieres cambiar algo, pulsa "Editar" en cada sección. Cuando esté todo bien, sigue al envío.</p>
+    ${sectionsHTML}
+    <div style="display:flex; gap:10px; margin-top:24px;">
+      <button class="btn btn-ghost" id="reviewBack">← Atrás</button>
+      <button class="btn btn-primary" id="reviewNext" style="flex:1;">Todo correcto, enviar →</button>
+    </div>
+  `;
+  stage.appendChild(div);
+
+  document.querySelectorAll('.review-edit').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.step = parseInt(btn.dataset.step);
+      render();
+    });
+  });
+
+  document.getElementById('reviewBack').addEventListener('click', () => {
+    // Buscar la última pregunta visible
+    let last = QUESTIONS.length - 1;
+    while (last >= 0 && !shouldShowQuestion(last)) last--;
+    state.step = last >= 0 ? last : 0;
+    render();
+  });
+
+  document.getElementById('reviewNext').addEventListener('click', () => {
+    state.step = QUESTIONS.length + 1;
+    render();
+  });
+}
+
+/* ========================================
+   PANTALLA FINAL
+   ======================================== */
+function renderFinal() {
+  const prompt = buildPrompt();
+
+  const div = document.createElement('div');
+  div.className = 'screen final';
+  div.innerHTML = `
+    <div class="final-check">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <h1>¡Listo, ${escapeHtml(state.answers.nombre_cliente || 'gracias')}!<br><em>Trabajo en marcha.</em></h1>
+    <p>Ya tengo todo lo que necesito. Pulsa cualquiera de estas opciones para enviarme la información y comenzar a construir tu web.</p>
+
+    <div class="send-options">
+      <button class="send-btn" id="sendWhatsApp">
+        <div class="send-btn-icon" style="background:#dcf8c6">
+          <svg viewBox="0 0 24 24" fill="#25D366"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448L.057 24z"/></svg>
+        </div>
+        <div class="send-btn-text">
+          <div class="send-btn-title">Enviar por WhatsApp</div>
+          <div class="send-btn-sub">Lo más rápido</div>
+        </div>
+        <div class="send-btn-arrow">→</div>
+      </button>
+
+      <button class="send-btn" id="sendEmail">
+        <div class="send-btn-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        </div>
+        <div class="send-btn-text">
+          <div class="send-btn-title">Enviar por email</div>
+          <div class="send-btn-sub">Abre tu app de correo</div>
+        </div>
+        <div class="send-btn-arrow">→</div>
+      </button>
+
+      <button class="send-btn" id="copyBtn">
+        <div class="send-btn-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </div>
+        <div class="send-btn-text">
+          <div class="send-btn-title">Copiar resumen</div>
+          <div class="send-btn-sub">Para pegarlo donde quieras</div>
+        </div>
+        <div class="send-btn-arrow">→</div>
+      </button>
+    </div>
+
+    <button class="preview-toggle" id="previewToggle">Ver resumen completo</button>
+    <pre class="preview-box" id="previewBox">${escapeHtml(prompt)}</pre>
+
+    <div class="ornament">— Gracias por tu confianza —</div>
+
+    <button class="btn btn-ghost" id="restartBtn" style="margin-top:8px;">Empezar de nuevo</button>
+  `;
+  stage.appendChild(div);
+
+  document.getElementById('sendWhatsApp').addEventListener('click', () => {
+    const text = encodeURIComponent(prompt);
+    const url = `https://wa.me/${CONFIG.WHATSAPP_NUMBER}?text=${text}`;
+    window.open(url, '_blank');
+  });
+
+  document.getElementById('sendEmail').addEventListener('click', () => {
+    const subject = encodeURIComponent(`Nuevo briefing — ${state.answers.nombre_negocio || state.answers.nombre_cliente || 'cliente'}`);
+    const body = encodeURIComponent(prompt);
+    window.location.href = `mailto:${CONFIG.EMAIL}?subject=${subject}&body=${body}`;
+  });
+
+  document.getElementById('copyBtn').addEventListener('click', async () => {
+    const ok = await copyToClipboard(prompt);
+    showToast(ok ? '✓ Copiado al portapapeles' : 'Selecciona y copia manualmente');
+    if (!ok) document.getElementById('previewBox').classList.add('show');
+  });
+
+  document.getElementById('previewToggle').addEventListener('click', () => {
+    document.getElementById('previewBox').classList.toggle('show');
+  });
+
+  document.getElementById('restartBtn').addEventListener('click', () => {
+    if (confirm('¿Seguro que quieres empezar un briefing nuevo? Se borrará el actual.')) {
+      resetState();
+      state.step = -1;
+      render();
+    }
+  });
+}
+
+async function copyToClipboard(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch (e) {}
+
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    ta.style.top = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch (e) {
+    return false;
+  }
+}
+
+/* ========================================
+   CONSTRUCCIÓN DEL PROMPT FINAL
+   El prompt está pensado para que cuando se pegue en una conversación nueva con Claude,
+   Claude tenga TODO lo necesario para construir la web sin pedir más datos.
+   ======================================== */
+function buildPrompt() {
+  const a = state.answers;
+  const lines = [];
+  const tipo = a.tipo_proyecto || 'web';
+  const isWeb = tipo === 'web';
+  const isApp = tipo === 'webapp';
+  const isAmbos = tipo === 'ambos';
+  const hasApp = isApp || isAmbos;
+
+  // ENCABEZADO DE LA INSTRUCCIÓN — adaptado al tipo de proyecto
+  lines.push('# 🎯 INSTRUCCIÓN PARA CLAUDE');
+  lines.push('');
+
+  if (isWeb) {
+    lines.push('Eres un diseñador y desarrollador frontend senior. Tu trabajo ahora es construir una **WEB INFORMATIVA COMPLETA** basada en el briefing que te paso debajo. Lee TODO el briefing antes de empezar.');
+  } else if (isApp) {
+    lines.push('Eres un desarrollador full-stack senior. Tu trabajo ahora es construir una **WEB APP INTERACTIVA COMPLETA** basada en el briefing que te paso debajo. Lee TODO el briefing antes de empezar. Esto NO es una web informativa; es una aplicación funcional donde el usuario HACE cosas.');
+  } else {
+    lines.push('Eres un desarrollador full-stack senior. Tu trabajo es construir **DOS COSAS**: (1) una web informativa pública, Y (2) una web app interactiva conectadas en el mismo archivo. La web atrae visitantes, la app les permite hacer cosas tras logarse.');
+  }
+  lines.push('');
+
+  // ========================================
+  // EQUIPO DE 10 AGENTES ESPECIALISTAS
+  // ========================================
+  lines.push('## 🤖 CÓMO DEBES TRABAJAR: EQUIPO DE 10 AGENTES ESPECIALISTAS');
+  lines.push('');
+  lines.push('No improvises ni construyas de un tirón. Trabaja como un estudio profesional que pasa el proyecto por **10 especialistas, EN ESTE ORDEN**. Cada agente revisa y mejora el trabajo del anterior. El objetivo NO es "una web bonita": es entregar **exactamente lo que el cliente pidió, al 100%, segura y rápida**. No entregues nada hasta que el Agente 10 dé el visto bueno.');
+  lines.push('');
+  lines.push('1. 🧭 **ARQUITECTO DE PRODUCTO** — Lee el briefing entero dos veces. Extrae una lista de **CRITERIOS DE ACEPTACIÓN** concretos (cada cosa que el cliente tiene que poder VER o HACER). Define alcance, flujos de usuario, modelo de datos y mapa de pantallas. Si algo es ambiguo, elige la opción más simple y útil y anótalo al final.');
+  lines.push('2. 🎨 **DISEÑADOR DE MARCA** — Crea el sistema visual desde la vibra y el color del cliente: paleta (principal + 2-3 apoyos), tipografía premium de Google Fonts, escala de espaciado, radios y sombras coherentes. Nada genérico, nada de plantilla.');
+  lines.push('3. 🧱 **DISEÑADOR UX** — Diseña navegación, jerarquía y todos los estados (vacío, carga, error, éxito). Mobile-first. Tiene que entenderse sin manual: si un usuario nuevo duda dónde pulsar, está mal.');
+  lines.push('4. ✍️ **COPYWRITER** — Escribe TODOS los textos reales en el tono del cliente. Titulares que venden, CTAs claros, microcopys útiles. CERO "lorem ipsum", cero "[texto aquí]".');
+  lines.push('5. 💻 **INGENIERO FRONTEND** — HTML semántico, CSS responsive impecable de 320px a 2560px, componentes reutilizables. Un solo archivo autocontenido.');
+  if (hasApp) {
+    lines.push('6. ⚙️ **INGENIERO DE DATOS/APP** — Capa de datos en localStorage bien estructurada, gestión de estado, CRUD completo, router simple por hash, IDs únicos, validación de cada formulario.');
+  } else {
+    lines.push('6. ⚙️ **INGENIERO DE INTERACCIÓN** — Formularios que validan en cliente, feedback inmediato (toasts, estados de botón), y cualquier lógica dinámica que pida el cliente.');
+  }
+  lines.push('7. 🔐 **INGENIERO DE SEGURIDAD** — Revisa TODO el código contra la checklist de seguridad de más abajo. Nada de XSS, nada de eval, nada de inyección. Si algo toca datos del usuario, lo sanea. Este agente tiene PODER DE VETO.');
+  lines.push('8. ⚡ **INGENIERO DE RENDIMIENTO** — Asegura el presupuesto de rendimiento de más abajo: carga < 2s, cero dependencias pesadas, imágenes diferidas, animaciones a 60fps. Mide mentalmente el peso del archivo.');
+  lines.push('9. ♿ **INGENIERO DE ACCESIBILIDAD** — WCAG AA: contraste suficiente, labels en inputs, foco visible, navegación por teclado completa, aria-labels en botones de solo icono, respeta prefers-reduced-motion.');
+  lines.push('10. 🧪 **QA / VERIFICADOR FINAL** — Recorre UNO A UNO los criterios de aceptación del Agente 1 y CADA flujo de usuario, como si fueras el cliente. Marca ✅ o ❌. Corrige todo lo ❌ y vuelve a pasar. Entrega solo cuando TODO esté en ✅.');
+  lines.push('');
+
+  // REGLAS COMUNES
+  lines.push('## Reglas obligatorias de tu entrega:');
+  lines.push('');
+  lines.push('1. **UN SOLO ARCHIVO HTML autocontenido**. CSS y JS inline. Cero dependencias externas pesadas. Solo Google Fonts si hace falta.');
+  lines.push('2. **MOBILE-FIRST**. El 80% de las visitas serán desde móvil. Diseña móvil primero, escritorio después.');
+  lines.push('3. **RESPONSIVE perfecto**. Funciona impecable de 320px a 2560px.');
+  lines.push('4. **PERFORMANCE**: carga < 2 segundos. SVG inline en vez de iconos pesados. Imágenes optimizadas o placeholders.');
+  lines.push('5. **MICROANIMACIONES sutiles**: fade-in al hacer scroll, hover suaves, transiciones de 200-400ms. NUNCA exageres.');
+  lines.push('6. **TIPOGRAFÍA premium** de Google Fonts, elegida según la vibra del cliente (no Inter ni Roboto genéricos).');
+  lines.push('7. **PALETA DE COLORES** basada en el color principal del cliente + 2-3 complementarios coherentes con la vibra pedida.');
+  lines.push('8. **TONO DE VOZ del cliente** respetado en todos los textos.');
+  lines.push('9. **CONTENIDO REAL**: si falta algún texto, REDÁCTALO TÚ basándote en el negocio. NUNCA uses "Lorem ipsum" ni "[Texto aquí]".');
+  lines.push('10. **SEO básico**: title, meta description, alt en imágenes, encabezados H1-H3 jerárquicos.');
+  lines.push('11. **ACCESIBILIDAD**: contraste AA, labels en formularios, aria-labels en botones de solo icono.');
+  lines.push('12. **ENTREGA**: archivo .html descargable en outputs, listo para abrir.');
+  lines.push('');
+
+  // SEGURIDAD (Agente 7)
+  lines.push('## 🔐 SEGURIDAD OBLIGATORIA (revisada por el Agente 7):');
+  lines.push('');
+  lines.push('- **Nunca** inyectes datos del usuario con `innerHTML` sin escapar. Usa `textContent` o una función de escape de HTML para todo lo que escriba el usuario.');
+  lines.push('- **Prohibido** `eval`, `new Function`, `document.write` y `setTimeout`/`setInterval` con strings.');
+  lines.push('- **Valida y sanea** toda entrada: emails, números, longitudes máximas, caracteres permitidos.');
+  lines.push('- Enlaces externos con `rel="noopener noreferrer"`.');
+  lines.push('- No guardes datos sensibles en claro de forma evidente; si hay login de demo, avisa explícitamente al cliente de que NO es seguridad de producción y que necesita un backend real para datos sensibles.');
+  lines.push('- Maneja errores con try/catch en parseos de JSON y en acceso a localStorage (puede estar lleno o bloqueado).');
+  lines.push('');
+
+  // RENDIMIENTO (Agente 8)
+  lines.push('## ⚡ RENDIMIENTO OBLIGATORIO (revisado por el Agente 8):');
+  lines.push('');
+  lines.push('- **Presupuesto:** First paint < 1s, interactivo < 2s en un móvil de gama media con 4G.');
+  lines.push('- Cero librerías pesadas. Solo HTML/CSS/JS nativo (+ Google Fonts si hace falta).');
+  lines.push('- Iconos como SVG inline, nunca packs de iconos ni imágenes para iconos.');
+  lines.push('- Imágenes con `loading="lazy"` y dimensiones fijas para evitar saltos de layout (CLS).');
+  lines.push('- Animaciones solo con `transform` y `opacity` (60fps). Respeta `prefers-reduced-motion`.');
+  lines.push('- CSS y JS mínimos y sin código muerto.');
+  lines.push('');
+
+  // CRITERIOS DE ACEPTACIÓN (Agente 1 → verificados por Agente 10)
+  lines.push('## 🎯 CRITERIOS DE ACEPTACIÓN — ESTO DEFINE EL ÉXITO');
+  lines.push('');
+  lines.push('El Agente 1 debe convertir esto en una checklist y el Agente 10 debe verificarlo punto por punto antes de entregar. La entrega NO está terminada hasta que TODO esté en ✅:');
+  lines.push('');
+  lines.push(`- [ ] La acción nº1 que el cliente quiere conseguir está clarísima y a un clic: **${a.objetivo_web || 'su objetivo principal'}**.`);
+  if (a.cta_principal) {
+    lines.push(`- [ ] El botón principal dice exactamente "**${a.cta_principal}**" y es lo más visible de la primera pantalla.`);
+  }
+  if (hasApp && a.app_acciones) {
+    lines.push('- [ ] El usuario puede hacer, de principio a fin y sin errores, cada una de estas acciones:');
+    a.app_acciones.split('\n').map(s => s.trim()).filter(Boolean).forEach(act => {
+      lines.push(`    - [ ] ${act.replace(/^[-*\d.()\s]+/, '')}`);
+    });
+  }
+  if (hasApp && a.app_pantalla_principal) {
+    lines.push(`- [ ] Al entrar, lo PRIMERO que se ve es: ${a.app_pantalla_principal}`);
+  }
+  if (a.exito_cliente) {
+    lines.push(`- [ ] Se cumple la definición de éxito del cliente: "${a.exito_cliente}"`);
+  }
+  lines.push('- [ ] Funciona perfecto en móvil (320px), tablet y escritorio.');
+  lines.push('- [ ] Pasa la checklist de seguridad y el presupuesto de rendimiento.');
+  lines.push('- [ ] No hay ni un solo "lorem ipsum" ni texto de relleno.');
+  lines.push('');
+
+  // REGLAS ESPECÍFICAS WEB
+  if (isWeb || isAmbos) {
+    lines.push('## Secciones obligatorias de la WEB INFORMATIVA (en este orden):');
+    lines.push('');
+    lines.push('- **Hero** (primera pantalla con título potente, subtítulo y botón principal con el CTA del cliente)');
+    lines.push('- **Sobre el negocio** / propuesta de valor');
+    lines.push('- **Servicios o productos** (los que aporta el cliente)');
+    lines.push('- **Por qué nosotros** / diferencial');
+    lines.push('- **Testimonios** (si no hay reales, crea 3 placeholders creíbles con nombres realistas)');
+    lines.push('- **Las funcionalidades pedidas** (formulario, reservas, mapa, WhatsApp, FAQ...)');
+    lines.push('- **Contacto** con todos los datos del cliente');
+    lines.push('- **Footer** con redes y créditos');
+    lines.push('');
+  }
+
+  // REGLAS ESPECÍFICAS WEB APP
+  if (hasApp) {
+    lines.push('## Reglas obligatorias de la WEB APP INTERACTIVA:');
+    lines.push('');
+    lines.push('A) **DATOS PERSISTENTES con localStorage**. Todo lo que el usuario haga (registros, datos, acciones) debe guardarse en localStorage para que persista entre sesiones. NUNCA uses window.storage — usa exclusivamente localStorage del navegador.');
+    lines.push('');
+    lines.push('B) **ESTRUCTURA FUNCIONAL OBLIGATORIA**:');
+
+    if (a.app_cuentas === 'Sí, cada cliente tiene su cuenta privada con login' || a.app_cuentas === 'Sí, pero solo yo / mi equipo (uso interno)') {
+      lines.push('   - Pantalla de **registro + login** funcional (validación email, password mínimo 6 chars).');
+      lines.push('   - Sistema de **sesión persistente** con localStorage (token o flag de sesión activa).');
+      lines.push('   - **Cerrar sesión** visible en todas las pantallas privadas.');
+      lines.push('   - **NO uses bcrypt ni librerías**: para fines de demo, guarda contraseñas en localStorage con un hash sencillo (avisa al cliente que la app no es para producción real sin un backend).');
+    } else {
+      lines.push('   - SIN login. Todos los usuarios usan la app de forma anónima. Identifica las sesiones con un id generado en localStorage al primer uso.');
+    }
+
+    lines.push('   - **Pantalla principal** (dashboard) con lo que pidió el cliente al entrar.');
+    lines.push('   - **Navegación clara** entre pantallas/secciones (router simple basado en hashes #/ruta o tabs).');
+    lines.push('   - **Estado vacío bonito**: cuando no hay datos todavía, muestra un mensaje invitador con icono y CTA, no pantallas vacías raras.');
+    lines.push('   - **Confirmaciones** al crear/borrar cosas importantes.');
+    lines.push('   - **Feedback visual**: loaders, toasts de éxito, mensajes de error claros.');
+    lines.push('');
+    lines.push('C) **CALIDAD DE INGENIERÍA**:');
+    lines.push('   - Código JS limpio, organizado por funciones por dominio. Comentado lo justo.');
+    lines.push('   - Validación de formularios en cliente. Mensajes de error útiles.');
+    lines.push('   - Manejo de errores con try/catch en operaciones críticas.');
+    lines.push('   - IDs únicos para cada registro (uuid simple o timestamp).');
+    lines.push('');
+
+    // Instrucciones adaptadas a la plantilla elegida
+    const plantilla = a.plantilla_app;
+    if (plantilla === 'reservas') {
+      lines.push('D) **PLANTILLA: SISTEMA DE RESERVAS**. Construye:');
+      lines.push('   - Calendario o selector de fecha/hora para reservar.');
+      lines.push('   - Listado de servicios reservables (con duración y precio).');
+      lines.push('   - "Mis reservas" del usuario: futuras y pasadas, con opción de cancelar.');
+      lines.push('   - Panel admin oculto en #/admin con todas las reservas y filtros básicos.');
+    } else if (plantilla === 'tienda') {
+      lines.push('D) **PLANTILLA: TIENDA ONLINE**. Construye:');
+      lines.push('   - Catálogo con filtros básicos (categoría, precio).');
+      lines.push('   - Carrito persistente en localStorage.');
+      lines.push('   - Proceso de checkout (datos envío, resumen, confirmación). Pago simulado.');
+      lines.push('   - "Mis pedidos" con estados (pendiente, enviado, entregado).');
+      lines.push('   - Admin oculto en #/admin para ver/gestionar pedidos.');
+    } else if (plantilla === 'panel-cliente') {
+      lines.push('D) **PLANTILLA: PORTAL DE CLIENTE**. Construye:');
+      lines.push('   - Login + dashboard personalizado por cliente.');
+      lines.push('   - Sus datos personales editables.');
+      lines.push('   - Sección de documentos/facturas (placeholders).');
+      lines.push('   - Historial de actividad.');
+      lines.push('   - Soporte: formulario para abrir tickets.');
+    } else if (plantilla === 'academia') {
+      lines.push('D) **PLANTILLA: PLATAFORMA DE CURSOS**. Construye:');
+      lines.push('   - Login de alumno + dashboard.');
+      lines.push('   - Listado de cursos del alumno con barra de progreso.');
+      lines.push('   - Vista de lección con contenido (texto/video placeholder) y botón "marcar como completada".');
+      lines.push('   - Cálculo automático del progreso del curso.');
+      lines.push('   - Recursos descargables (links).');
+    } else if (plantilla === 'calculadora') {
+      lines.push('D) **PLANTILLA: CALCULADORA / CONFIGURADOR**. Construye:');
+      lines.push('   - Flujo guiado paso a paso con preguntas.');
+      lines.push('   - Cálculo dinámico del resultado según las respuestas.');
+      lines.push('   - Pantalla final con el resultado (presupuesto, recomendación, configuración).');
+      lines.push('   - Opción de guardar el resultado y enviarlo por email/WhatsApp.');
+    } else if (plantilla === 'gestor') {
+      lines.push('D) **PLANTILLA: DASHBOARD / GESTOR INTERNO**. Construye:');
+      lines.push('   - Login para uso interno.');
+      lines.push('   - Dashboard con métricas visuales (gráficos simples con SVG o canvas, NO librerías pesadas).');
+      lines.push('   - Tabla principal con buscador y filtros.');
+      lines.push('   - CRUD completo: crear, editar, borrar registros.');
+      lines.push('   - Exportar a CSV.');
+    } else if (plantilla === 'otra') {
+      lines.push('D) **PLANTILLA: A MEDIDA**. El cliente describe abajo lo que necesita. Interpreta su descripción y construye la app más cercana posible. Si dudas, opta por lo más simple y funcional.');
+    }
+    lines.push('');
+  }
+
+  // NO HAGAS
+  lines.push('## NO HAGAS:');
+  lines.push('- No uses gradientes morados sobre blanco (cliché de AI).');
+  lines.push('- No uses fuentes genéricas (Arial, Helvetica, Inter, Roboto).');
+  lines.push('- No metas librerías pesadas (no Bootstrap, no jQuery, no React, no Vue).');
+  lines.push('- No pidas más información: si falta algo, INVENTA algo coherente y avísame al final.');
+  lines.push('- No entregues fragmentos: entrega el HTML completo, abrible en cualquier navegador.');
+  if (hasApp) {
+    lines.push('- No uses window.storage. Solo localStorage estándar.');
+    lines.push('- No prometas funciones imposibles sin backend (pagos reales, emails reales). Simúlalo y avisa.');
+  }
+  lines.push('');
+  lines.push('---');
+  lines.push('');
+
+  // BRIEFING
+  lines.push(`# 📋 BRIEFING DEL CLIENTE`);
+  lines.push('');
+  lines.push(`**Negocio:** ${a.nombre_negocio || '—'}`);
+  lines.push(`**Cliente que rellena:** ${a.nombre_cliente || '—'} (${a.email_cliente || 'sin email'})`);
+  lines.push(`**Fecha:** ${new Date().toLocaleDateString('es-ES', { day:'numeric', month:'long', year:'numeric' })}`);
+
+  const tipoObj = TIPOS_NEGOCIO.find(t => t.id === a.tipo_negocio);
+  lines.push(`**Sector:** ${tipoObj ? tipoObj.label : '—'}`);
+
+  const tipoProyObj = TIPOS_PROYECTO.find(t => t.id === a.tipo_proyecto);
+  lines.push(`**Tipo de proyecto:** ${tipoProyObj ? `${tipoProyObj.icon} ${tipoProyObj.label}` : '—'}`);
+
+  if (hasApp) {
+    const plantObj = PLANTILLAS_APP.find(p => p.id === a.plantilla_app);
+    lines.push(`**Tipo de app:** ${plantObj ? `${plantObj.icon} ${plantObj.label}` : '—'}`);
+  }
+
+  lines.push('');
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  lines.push('');
+
+  // BLOQUE APP (si aplica) — al principio para que sea lo primero que leas
+  if (hasApp) {
+    lines.push('## 🔧 ESPECIFICACIONES DE LA WEB APP');
+    lines.push('');
+    if (a.app_descripcion_libre) {
+      lines.push(`**Descripción libre del cliente:**`);
+      lines.push(a.app_descripcion_libre);
+      lines.push('');
+    }
+    lines.push(`**Acciones principales que harán los usuarios:**`);
+    lines.push(a.app_acciones || '—');
+    lines.push('');
+    lines.push(`**¿Necesita cuentas?:** ${a.app_cuentas || '—'}`);
+    lines.push('');
+    lines.push(`**Pantalla principal al entrar (lo más importante):**`);
+    lines.push(a.app_pantalla_principal || '—');
+    lines.push('');
+    lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    lines.push('');
+  }
+
+  lines.push('## 1. EL NEGOCIO');
+  lines.push('');
+  lines.push(`**A qué se dedica:**`);
+  lines.push(a.descripcion_negocio || '—');
+  lines.push('');
+  lines.push(`**Qué lo hace diferente:**`);
+  lines.push(a.diferencial || '—');
+  lines.push('');
+  lines.push(`**Productos/servicios concretos que vende:**`);
+  lines.push(a.productos_servicios || '—');
+  lines.push('');
+
+  lines.push('## 2. EL CLIENTE OBJETIVO');
+  lines.push('');
+  lines.push(`**Quién es:**`);
+  lines.push(a.cliente_ideal || '—');
+  lines.push('');
+  lines.push(`**Problema que se le resuelve:**`);
+  lines.push(a.problema || '—');
+  lines.push('');
+
+  lines.push('## 3. OBJETIVO DE LA WEB');
+  lines.push('');
+  lines.push(`**Acción principal que debe conseguir:** ${a.objetivo_web || '—'}`);
+  lines.push(`**Texto del botón principal (CTA):** "${a.cta_principal || '—'}"`);
+  if (a.exito_cliente) {
+    lines.push(`**Definición de éxito del cliente (criterio nº1):** ${a.exito_cliente}`);
+  }
+  lines.push('');
+
+  lines.push('## 4. ESTILO Y TONO');
+  lines.push('');
+  lines.push(`**Tono de voz:** ${a.tono_voz || '—'}`);
+  if (Array.isArray(a.vibras) && a.vibras.length) {
+    lines.push(`**Vibras visuales:** ${a.vibras.join(', ')}`);
+  } else {
+    lines.push(`**Vibras visuales:** —`);
+  }
+  lines.push(`**Color principal:** ${a.color_principal || 'a definir según vibra'}`);
+  lines.push('');
+  lines.push(`**Webs que inspiran al cliente:**`);
+  lines.push(a.inspiraciones || '—');
+  lines.push('');
+
+  lines.push('## 5. CONTEXTO LOCAL');
+  lines.push('');
+  lines.push(`**Ubicación / zona:** ${a.ubicacion || '—'}`);
+  lines.push(`**Horarios:** ${a.horarios || 'no aplica'}`);
+  lines.push('');
+  if (a.competencia) {
+    lines.push(`**Competencia directa (referencia, NO copiar):**`);
+    lines.push(a.competencia);
+    lines.push('');
+  }
+
+  lines.push('## 6. FUNCIONALIDADES PEDIDAS');
+  lines.push('');
+  if (Array.isArray(a.funciones) && a.funciones.length) {
+    a.funciones.forEach(f => lines.push(`- ${f}`));
+  } else {
+    lines.push('- (ninguna explícita — usar las estándar)');
+  }
+  lines.push('');
+
+  lines.push('## 7. TEXTOS Y MATERIALES');
+  lines.push('');
+  lines.push(`**Textos aportados:**`);
+  lines.push(a.textos || '—');
+  lines.push('');
+  if (state.files.length) {
+    lines.push(`**Archivos adjuntos:**`);
+    state.files.forEach(f => {
+      const kb = Math.round(f.size / 1024);
+      const sizeStr = kb >= 1024 ? `${(kb/1024).toFixed(1)} MB` : `${kb} KB`;
+      let extra = '';
+      if (f.originalSize && f.originalSize > f.size) {
+        const origKB = Math.round(f.originalSize / 1024);
+        const origStr = origKB >= 1024 ? `${(origKB/1024).toFixed(1)} MB` : `${origKB} KB`;
+        extra = ` — comprimida desde ${origStr}`;
+      }
+      lines.push(`- ${f.name} (${f.type || 'archivo'}, ${sizeStr}${extra})`);
+    });
+    lines.push('');
+    lines.push('  ⚠️ IMPORTANTE: las imágenes se han comprimido localmente y se quedaron en el dispositivo del cliente. NO viajan en este mensaje. Pídelas al cliente por separado (WhatsApp, email, AirDrop) antes de construir la web.');
+    lines.push('');
+  } else {
+    lines.push(`**Archivos:** ninguno. Usa placeholders coherentes con el negocio.`);
+    lines.push('');
+  }
+
+  lines.push('## 8. CONTACTO PÚBLICO');
+  lines.push('');
+  lines.push(a.contacto_publico || '—');
+  lines.push('');
+  if (a.redes) {
+    lines.push(`**Redes sociales:**`);
+    lines.push(a.redes);
+    lines.push('');
+  }
+
+  if (a.extra) {
+    lines.push('## 9. NOTAS EXTRA');
+    lines.push('');
+    lines.push(a.extra);
+    lines.push('');
+  }
+
+  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  lines.push('');
+  lines.push('## ✅ AHORA EMPIEZA — RECORRE LOS 10 AGENTES:');
+  lines.push('');
+  lines.push('1. **Agente 1 (Arquitecto):** relee el briefing y escribe la checklist de criterios de aceptación + el mapa de pantallas y datos.');
+  lines.push('2. **Agentes 2-4 (Marca, UX, Copy):** define sistema visual, navegación y todos los textos reales.');
+  if (hasApp) {
+    lines.push('3. **Agentes 5-6 (Frontend, Datos):** construye el HTML completo con la capa de datos en localStorage y todos los flujos.');
+  } else {
+    lines.push('3. **Agente 5 (Frontend):** construye el HTML completo, responsive y con todas las secciones.');
+  }
+  lines.push('4. **Agentes 7-9 (Seguridad, Rendimiento, Accesibilidad):** repasa y corrige el código contra las tres checklists.');
+  lines.push('5. **Agente 10 (QA):** verifica UNO A UNO los criterios de aceptación. Marca ✅/❌, corrige los ❌ y vuelve a pasar.');
+  lines.push(`6. Entrega el archivo en outputs como \`${isApp ? 'app' : (isAmbos ? 'web-app' : 'web')}-{nombre-negocio}.html\`.`);
+  lines.push('7. Cierra con: (a) la checklist de aceptación marcada, (b) decisiones clave que tomaste, (c) qué supuestos rellenaste por ti mismo, y (d) qué pulir en una 2ª iteración.');
+  lines.push('');
+  lines.push(`Briefing recogido vía la herramienta de ${CONFIG.BRAND_NAME}.`);
+
+  return lines.join('\n');
+}
+
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/* ARRANQUE */
+loadState();
+if (state.step > QUESTIONS.length + 1) state.step = QUESTIONS.length + 1;
+render();
+</script>
+</body>
+</html>
