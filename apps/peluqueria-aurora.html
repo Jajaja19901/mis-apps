@@ -150,11 +150,45 @@
   @media(max-width:820px){.grid-3{grid-template-columns:1fr 1fr}footer .cols{grid-template-columns:1fr 1fr}}
   @media(max-width:560px){.grid-3{grid-template-columns:1fr}footer .cols{grid-template-columns:1fr;gap:18px}.hero{padding:46px 0 36px}header .nav-cta{display:none}}
   @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+  /* CHAT BOT */
+  .chat-launch{position:fixed;right:18px;bottom:86px;z-index:70;display:flex;align-items:center;gap:10px}
+  .chat-bubble-teaser{background:#fff;border:1px solid var(--line);box-shadow:var(--shadow);border-radius:14px;padding:8px 12px;font-size:13px;font-weight:600;color:var(--ink);max-width:150px;animation:bob 2.4s ease-in-out infinite}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+  .chat-btn{width:60px;height:60px;border-radius:50%;background:var(--brand-deep);border:none;cursor:pointer;box-shadow:0 8px 24px rgba(40,25,15,.35);display:flex;align-items:center;justify-content:center;position:relative}
+  .chat-btn svg{width:30px;height:30px;fill:#fff}
+  .chat-btn .dot{position:absolute;top:3px;right:3px;width:13px;height:13px;background:var(--ok);border:2px solid #fff;border-radius:50%}
+  .chat-btn:focus-visible{outline:3px solid #fff;outline-offset:3px}
+  .chat-panel{position:fixed;right:18px;bottom:18px;width:344px;max-width:calc(100vw - 36px);height:486px;max-height:calc(100vh - 36px);background:#fff;border-radius:18px;box-shadow:0 30px 60px rgba(40,25,15,.2);z-index:71;display:none;flex-direction:column;overflow:hidden;border:1px solid var(--line)}
+  .chat-panel.open{display:flex}
+  .chat-head{background:var(--ink);color:#fff;padding:13px 15px;display:flex;align-items:center;gap:10px}
+  .chat-head .av{width:34px;height:34px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+  .chat-head b{font-size:15px;display:block;line-height:1.2}.chat-head small{color:#cbbfb8;font-size:12px}
+  .chat-head .x{margin-left:auto;background:none;border:none;color:#fff;font-size:24px;cursor:pointer;line-height:1;padding:0 4px}
+  .chat-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--bg)}
+  .msg{max-width:86%;padding:10px 13px;border-radius:14px;font-size:14px;line-height:1.5;word-wrap:break-word}
+  .msg.bot{background:#fff;border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:4px}
+  .msg.bot a{color:var(--brand-deep);font-weight:600}
+  .msg.user{background:var(--brand-deep);color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+  .msg.typing{display:flex;gap:4px;align-items:center;padding:13px}
+  .msg.typing span{width:7px;height:7px;border-radius:50%;background:var(--ink-mut);animation:td 1s infinite}
+  .msg.typing span:nth-child(2){animation-delay:.15s}.msg.typing span:nth-child(3){animation-delay:.3s}
+  @keyframes td{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
+  .chat-quick{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 10px;background:var(--bg)}
+  .chat-quick button{background:#fff;border:1px solid var(--brand);color:var(--brand-deep);border-radius:999px;padding:7px 12px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:var(--sans)}
+  .chat-sell{background:#fff;padding:9px 14px;font-size:12.5px;color:var(--ink);text-align:center;border-top:1px solid var(--line)}
+  .chat-sell a{font-weight:700;text-decoration:underline;color:var(--brand-deep)}
+  .chat-input{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line);background:#fff}
+  .chat-input input{flex:1;border:1px solid var(--line);border-radius:999px;padding:11px 14px;font-family:var(--sans);font-size:14px;color:var(--ink)}
+  .chat-input input:focus{outline:none;border-color:var(--brand)}
+  .chat-input button{background:var(--brand-deep);border:none;color:#fff;width:44px;height:44px;border-radius:50%;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+  .chat-input button svg{width:18px;height:18px;stroke:#fff;fill:none}
+  @media(max-width:520px){.chat-bubble-teaser{display:none}}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div id="chatRoot"></div>
 
 <script>
 /* ==================================================================
@@ -232,6 +266,7 @@ function esc(s){
    ================================================================== */
 function route(){
   const h = location.hash.replace(/^#\/?/,"");
+  const cr=document.getElementById("chatRoot"); if(cr) cr.style.display=(h==="admin")?"none":"block";
   if(h==="admin") renderAdmin();
   else renderSite();
   window.scrollTo(0,0);
@@ -503,7 +538,89 @@ function iconPin(){ return '<svg aria-hidden="true" viewBox="0 0 24 24" fill="no
 function iconCheck(){ return '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'; }
 function iconWA(){ return '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.516 5.26l-.999 3.648 3.973-1.207zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>'; }
 
+/* ==================================================================
+   CHAT BOT DEL SALÓN (palabras clave, sin servidor)
+   ================================================================== */
+const BOT_KB=[
+  { k:["hola","buenas","hey","saludos","ola","que tal"], a:"¡Hola! 👋 ¿En qué te ayudo? Pregúntame por horarios, precios, o pide tu cita 💇" },
+  { k:["cita","reservar","reserva","pedir cita","agendar","turno","apuntar"], a:"¡Claro! Pide tu cita aquí mismo 👉 <a href='#reservar'>Reservar cita</a>. Es en un minuto y sin registrarte." },
+  { k:["horario","hora","abrir","abierto","cuando abris","cerrais","cierran","abris"], a:`Nuestro horario: <b>${esc(CONFIG.HOURS)}</b>.` },
+  { k:["precio","precios","cuesta","cuanto","vale","tarifa","tarifas"], a:"Algunos precios: corte desde 22€, color desde 45€, tratamientos desde 30€, barbería desde 18€. ¿<a href='#reservar'>Reservamos</a>?" },
+  { k:["servicio","servicios","que haceis","ofreceis","hacen"], a:"Hacemos corte y peinado, color y mechas, tratamientos, recogidos para eventos, barbería y novias a domicilio. 💇" },
+  { k:["corte","cortar","peinado","peinar"], a:"El corte & peinado va <b>desde 22€</b> e incluye asesoramiento de imagen. <a href='#reservar'>Pide cita</a>." },
+  { k:["color","mechas","tinte","balayage","mecha","teñir"], a:"Color & mechas <b>desde 45€</b>, con productos sin amoníaco. <a href='#reservar'>Reserva</a>." },
+  { k:["tratamiento","hidratacion","keratina","cuero cabelludo"], a:"Tratamientos (hidratación, keratina...) <b>desde 30€</b>." },
+  { k:["barba","hombre","masculino","barberia","afeitar"], a:"Barbería: arreglo de barba y corte masculino con toalla caliente, <b>desde 18€</b>." },
+  { k:["boda","novia","novias","evento","recogido","recogidos"], a:"Hacemos recogidos para bodas y eventos (con prueba previa) y vamos a domicilio para novias. 👰" },
+  { k:["donde","direccion","ubicacion","como llego","mapa","sitio","estais"], a:`Estamos en <b>${esc(CONFIG.ADDRESS)}</b> (${esc(CONFIG.CITY)}).` },
+  { k:["aparcar","parking","aparcamiento","coche"], a:"Hay aparcamiento en la zona. Si vienes en coche, dínoslo y te orientamos." },
+  { k:["pago","pagar","tarjeta","efectivo","bizum"], a:"Puedes pagar con tarjeta, efectivo o Bizum, como prefieras." },
+  { k:["cancelar","anular","cambiar cita","aplazar"], a:"Sin problema: escríbenos por WhatsApp y cambiamos o cancelamos tu cita." },
+  { k:["whatsapp","telefono","llamar","contacto","hablar","escribir"], a:`Escríbenos por <a href='https://wa.me/${esc(CONFIG.WHATSAPP)}' target='_blank' rel='noopener noreferrer'>WhatsApp</a> y te atendemos enseguida.` },
+  { k:["gracias","genial","perfecto","vale","ok"], a:"¡A ti! 💛 Te esperamos. <a href='#reservar'>Reserva tu cita</a> cuando quieras." },
+];
+const BOT_QUICK=[
+  {label:"📅 Reservar cita",q:"cita"},{label:"🕐 Horario",q:"horario"},{label:"💶 Precios",q:"precio"},
+  {label:"✂️ Servicios",q:"servicios"},{label:"📍 Dónde estáis",q:"donde"},{label:"📞 WhatsApp",q:"contacto"},
+];
+let chatGreeted=false;
+function buildChat(){
+  const root=document.getElementById("chatRoot"); if(!root) return;
+  root.innerHTML=`
+    <div class="chat-launch" id="chatLaunch">
+      <div class="chat-bubble-teaser">¿Dudas? Pregúntame 👋</div>
+      <button class="chat-btn" id="chatOpen" aria-label="Abrir chat de ayuda" aria-expanded="false">
+        <span class="dot"></span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H8l-4 4V6a2 2 0 0 1 2-2z"/></svg>
+      </button>
+    </div>
+    <div class="chat-panel" id="chatPanel" role="dialog" aria-label="Chat de ${esc(CONFIG.BUSINESS_NAME)}">
+      <div class="chat-head"><span class="av" aria-hidden="true">💬</span>
+        <div><b>${esc(CONFIG.BUSINESS_NAME)}</b><small>Te respondemos al instante</small></div>
+        <button class="x" id="chatClose" aria-label="Cerrar chat">×</button>
+      </div>
+      <div class="chat-msgs" id="chatMsgs" aria-live="polite"></div>
+      <div class="chat-quick">${BOT_QUICK.map(q=>`<button data-q="${esc(q.q)}">${esc(q.label)}</button>`).join("")}</div>
+      <div class="chat-sell">💇 ¿Te decides? <a href="#reservar" id="chatSell">Reserva tu cita</a></div>
+      <form class="chat-input" id="chatForm"><input id="chatText" autocomplete="off" placeholder="Escribe tu pregunta..." aria-label="Escribe tu pregunta"><button type="submit" aria-label="Enviar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button></form>
+    </div>`;
+  document.getElementById("chatOpen").addEventListener("click",openChat);
+  document.getElementById("chatClose").addEventListener("click",closeChat);
+  document.getElementById("chatSell").addEventListener("click",closeChat);
+  document.getElementById("chatForm").addEventListener("submit",e=>{ e.preventDefault(); const t=document.getElementById("chatText"); const v=t.value.trim(); if(v){ chatUser(v); t.value=""; } });
+  document.querySelectorAll(".chat-quick button").forEach(b=>b.addEventListener("click",()=>chatUser(b.textContent,b.dataset.q)));
+  document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ const p=document.getElementById("chatPanel"); if(p&&p.classList.contains("open")) closeChat(); } });
+}
+function openChat(){
+  document.getElementById("chatPanel").classList.add("open");
+  document.getElementById("chatLaunch").style.display="none";
+  document.getElementById("chatOpen").setAttribute("aria-expanded","true");
+  if(!chatGreeted){ chatBot("¡Hola! 👋 Soy el asistente de "+esc(CONFIG.BUSINESS_NAME)+". Pregúntame por horarios, precios o pide tu cita 💇"); chatGreeted=true; }
+  setTimeout(()=>{ const t=document.getElementById("chatText"); if(t) t.focus(); },80);
+}
+function closeChat(){
+  document.getElementById("chatPanel").classList.remove("open");
+  document.getElementById("chatLaunch").style.display="flex";
+  const o=document.getElementById("chatOpen"); o.setAttribute("aria-expanded","false"); o.focus();
+}
+function chatAppend(html,cls){ const m=document.getElementById("chatMsgs"); const d=document.createElement("div"); d.className="msg "+cls; d.innerHTML=html; m.appendChild(d); m.scrollTop=m.scrollHeight; }
+function chatBot(html){ chatAppend(html,"bot"); }
+function chatUser(text,forceKey){
+  chatAppend(esc(text),"user");
+  const ans=botAnswer(forceKey||text);
+  const m=document.getElementById("chatMsgs");
+  const t=document.createElement("div"); t.className="msg bot typing"; t.id="chatTyping"; t.setAttribute("aria-hidden","true");
+  t.innerHTML="<span></span><span></span><span></span>"; m.appendChild(t); m.scrollTop=m.scrollHeight;
+  setTimeout(()=>{ const x=document.getElementById("chatTyping"); if(x) x.remove(); chatBot(ans); },650);
+}
+function botAnswer(text){
+  const n=String(text).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  for(const e of BOT_KB){ if(e.k.some(k=>n.includes(k))) return e.a; }
+  return `No estoy seguro de eso 🤔. Escríbenos por <a href="https://wa.me/${esc(CONFIG.WHATSAPP)}" target="_blank" rel="noopener noreferrer">WhatsApp</a> o <a href="#reservar">pide tu cita</a>.`;
+}
+
 /* ARRANQUE */
+buildChat();
 route();
 </script>
 </body>
