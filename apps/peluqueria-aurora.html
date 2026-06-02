@@ -7,11 +7,11 @@
 <meta name="description" content="Peluquería Aurora en Madrid. Cortes, color y tratamientos con cita previa. Reserva en 1 minuto sin registrarte.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   /* ============ CONFIG VISUAL ============ */
   :root{
-    --bg:#faf7f4; --card:#ffffff; --ink:#221c1a; --ink-soft:#5a514c; --ink-mut:#9b908a;
+    --bg:#faf7f4; --card:#ffffff; --ink:#221c1a; --ink-soft:#5a514c; --ink-mut:#7a6e69;
     --brand:#b9755a; --brand-deep:#9c5c44; --brand-soft:#f3e6df; --line:#ece2da;
     --ok:#3f7d52; --err:#c0492f;
     --serif:'Fraunces',Georgia,serif; --sans:'Inter',-apple-system,sans-serif;
@@ -19,13 +19,15 @@
     --radius:16px;
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html{scroll-behavior:smooth}
+  @media(not (prefers-reduced-motion:reduce)){html{scroll-behavior:smooth}}
   body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased}
   img{max-width:100%;display:block}
   a{color:inherit}
   .wrap{max-width:1080px;margin:0 auto;padding:0 20px}
-  .btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--sans);font-weight:600;font-size:15px;border:none;border-radius:999px;padding:14px 24px;cursor:pointer;transition:transform .15s,background .2s,box-shadow .2s;text-decoration:none;line-height:1}
+  .btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--sans);font-weight:600;font-size:15px;border:none;border-radius:999px;padding:14px 24px;cursor:pointer;transition:transform .15s,background .2s;text-decoration:none;line-height:1}
   .btn:active{transform:scale(.97)}
+  :focus-visible{outline:3px solid var(--brand-deep);outline-offset:3px;border-radius:6px}
+  .field input:focus-visible,.field textarea:focus-visible,.field select:focus-visible,.admin-gate input:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(156,92,68,.4)}
   .btn-primary{background:var(--brand);color:#fff}
   .btn-primary:hover{background:var(--brand-deep)}
   .btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
@@ -114,7 +116,7 @@
   /* ============ ADMIN ============ */
   .admin{min-height:100vh;background:var(--bg);padding:24px 0}
   .admin-gate{max-width:380px;margin:8vh auto;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:30px;box-shadow:var(--shadow)}
-  .admin-gate h2{font-size:24px;margin-bottom:6px}
+  .admin-gate h1{font-size:24px;margin-bottom:6px}
   .admin-gate p{color:var(--ink-soft);font-size:14px;margin-bottom:18px}
   .admin-gate input{width:100%;border:1px solid var(--line);border-radius:12px;padding:14px;font-size:16px;font-family:var(--sans);margin-bottom:12px}
   .admin-gate input:focus{outline:none;border-color:var(--brand)}
@@ -122,7 +124,7 @@
   .admin-gate .err{color:var(--err);font-size:13px;margin-top:10px;display:none}
   .admin-gate.bad .err{display:block}
   .admin-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
-  .admin-bar h2{font-size:26px}
+  .admin-bar h1{font-size:26px}
   .admin-stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px}
   .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 18px;min-width:110px}
   .stat .big{font-family:var(--serif);font-size:26px;color:var(--brand)}
@@ -286,7 +288,7 @@ function renderSite(){
 
     <section id="reservar"><div class="wrap">
       <form class="book" id="bookForm" novalidate>
-        <div class="eyebrow" style="text-align:center;color:var(--brand)">Reserva</div>
+        <div class="eyebrow" style="text-align:center;color:#d4967e">Reserva</div>
         <h2>Pide tu cita</h2>
         <p class="sub">Déjanos tus datos y te confirmamos por WhatsApp o teléfono. No creamos ninguna cuenta.</p>
         <div class="field" id="f-name"><label for="i-name">Tu nombre *</label><input id="i-name" name="name" autocomplete="name" maxlength="60"><div class="err">Dinos cómo te llamas.</div></div>
@@ -294,7 +296,7 @@ function renderSite(){
         <div class="field" id="f-svc"><label for="i-svc">¿Qué servicio quieres?</label><select id="i-svc" name="service">${SERVICE_OPTIONS.map(o=>`<option>${esc(o)}</option>`).join("")}</select></div>
         <div class="field" id="f-msg"><label for="i-msg">¿Algo que debamos saber? (opcional)</label><textarea id="i-msg" name="message" maxlength="500" placeholder="Ej: prefiero por las tardes, vengo con mi hija..."></textarea></div>
         <button type="submit" class="btn btn-primary btn-lg">Enviar y pedir cita</button>
-        <div class="privacy">🔒 Tus datos solo se usan para gestionar tu cita. No los compartimos con nadie.</div>
+        <div class="privacy"><span aria-hidden="true">🔒</span> Tus datos solo se usan para gestionar tu cita. No los compartimos con nadie.</div>
       </form>
     </div></section>
   </main>
@@ -376,9 +378,9 @@ function renderAdmin(){
   const count=k=>leads.filter(l=>l.status===k).length;
 
   document.getElementById("app").innerHTML=`
-  <div class="admin"><div class="wrap">
+  <main class="admin"><div class="wrap">
     <div class="admin-bar">
-      <h2>Panel · ${esc(CONFIG.BUSINESS_NAME)}</h2>
+      <h1>Panel · ${esc(CONFIG.BUSINESS_NAME)}</h1>
       <div style="display:flex;gap:8px">
         <button class="btn btn-ghost" id="exportBtn">Exportar CSV</button>
         <a class="btn btn-ghost" href="#">Ver web</a>
@@ -393,9 +395,9 @@ function renderAdmin(){
     </div>
     <div id="leadList">
       ${leads.length? leads.map(renderLead).join("") :
-        `<div class="empty"><div class="ic">📭</div><b>Aún no hay solicitudes</b><p>Cuando alguien pida cita en la web, aparecerá aquí al instante.</p></div>`}
+        `<div class="empty"><div class="ic" aria-hidden="true">📭</div><b>Aún no hay solicitudes</b><p>Cuando alguien pida cita en la web, aparecerá aquí al instante.</p></div>`}
     </div>
-  </div></div>`;
+  </div></main>`;
 
   document.getElementById("logoutBtn").addEventListener("click",()=>{ try{sessionStorage.removeItem(ADMIN_KEY);}catch(e){} location.hash="#/admin"; });
   document.getElementById("exportBtn").addEventListener("click",exportCSV);
@@ -429,8 +431,8 @@ function renderLead(l){
         <option value="contactado" ${l.status==="contactado"?"selected":""}>Contactado</option>
         <option value="cerrado" ${l.status==="cerrado"?"selected":""}>Cerrado</option>
       </select>
-      <input data-note data-id="${esc(l.id)}" value="${esc(l.note)}" placeholder="Nota privada..." style="flex:1;min-width:140px;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-family:var(--sans);font-size:13px">
-      <button class="del" data-del data-id="${esc(l.id)}">Borrar</button>
+      <input data-note data-id="${esc(l.id)}" value="${esc(l.note)}" placeholder="Nota privada..." aria-label="Nota privada sobre ${esc(l.name)}" style="flex:1;min-width:140px;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-family:var(--sans);font-size:13px">
+      <button class="del" data-del data-id="${esc(l.id)}" aria-label="Borrar solicitud de ${esc(l.name)}">Borrar</button>
     </div>
   </div>`;
 }
@@ -458,8 +460,8 @@ function exportCSV(){
 
 function renderAdminGate(bad){
   document.getElementById("app").innerHTML=`
-  <div class="admin"><div class="admin-gate ${bad?"bad":""}">
-    <h2>Acceso del dueño</h2>
+  <main class="admin"><div class="admin-gate ${bad?"bad":""}">
+    <h1>Acceso del dueño</h1>
     <p>Zona privada de ${esc(CONFIG.BUSINESS_NAME)}. Introduce tu contraseña para ver las solicitudes.</p>
     <form id="gateForm">
       <input id="gatePass" type="password" placeholder="Contraseña" autocomplete="current-password" aria-label="Contraseña">
@@ -467,7 +469,7 @@ function renderAdminGate(bad){
       <div class="err">Contraseña incorrecta.</div>
     </form>
     <p style="margin-top:16px;font-size:12px"><a href="#" style="color:var(--ink-mut)">← Volver a la web</a></p>
-  </div></div>`;
+  </div></main>`;
   document.getElementById("gateForm").addEventListener("submit",e=>{
     e.preventDefault();
     // Bloqueo anti-fuerza-bruta: tras 5 fallos, 60s de espera
@@ -494,11 +496,11 @@ function renderAdminGate(bad){
    UTILIDADES
    ================================================================== */
 function showToast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(showToast._t); showToast._t=setTimeout(()=>t.classList.remove("show"),2400); }
-function star(){ return '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.6-5.2 4.6 1.6 6.8L12 17.3 5.8 20.9l1.6-6.8L2.2 8.9l6.9-.6z"/></svg>'; }
-function iconClock(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'; }
-function iconPin(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0116 0z"/><circle cx="12" cy="10" r="3"/></svg>'; }
-function iconCheck(){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'; }
-function iconWA(){ return '<svg viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.516 5.26l-.999 3.648 3.973-1.207zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>'; }
+function star(){ return '<svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.9 6.3 6.9.6-5.2 4.6 1.6 6.8L12 17.3 5.8 20.9l1.6-6.8L2.2 8.9l6.9-.6z"/></svg>'; }
+function iconClock(){ return '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'; }
+function iconPin(){ return '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0116 0z"/><circle cx="12" cy="10" r="3"/></svg>'; }
+function iconCheck(){ return '<svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'; }
+function iconWA(){ return '<svg aria-hidden="true" viewBox="0 0 24 24"><path d="M.057 24l1.687-6.163a11.867 11.867 0 01-1.587-5.946C.16 5.335 5.495 0 12.05 0a11.817 11.817 0 018.413 3.488 11.824 11.824 0 013.48 8.414c-.003 6.557-5.338 11.892-11.893 11.892a11.9 11.9 0 01-5.688-1.448L.057 24zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884a9.86 9.86 0 001.516 5.26l-.999 3.648 3.973-1.207zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>'; }
 
 /* ARRANQUE */
 route();
