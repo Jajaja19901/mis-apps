@@ -1,0 +1,52 @@
+name: Crear app automaticamente desde una issue
+
+# El robot se activa cuando se abre (o se etiqueta) una issue con la etiqueta "crear-app".
+# Toma el contenido de la issue (el briefing) y lanza la fabrica de 10 agentes.
+on:
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  crear-app:
+    # Solo se ejecuta si la issue tiene la etiqueta crear-app
+    if: contains(github.event.issue.labels.*.name, 'crear-app')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Construir la app con los 10 agentes
+        uses: anthropics/claude-code-action@v1
+        with:
+          # ── AUTENTICACIÓN — usa SOLO una de las dos (deja la otra comentada) ──
+          # Opción A) Con tu suscripción de Claude (no gasta API de pago):
+          #   genera el token en tu ordenador con:  claude setup-token
+          #   y guárdalo como secreto CLAUDE_CODE_OAUTH_TOKEN
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Opción B) Con API key de pago (descomenta y comenta la de arriba):
+          # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+          label_trigger: "crear-app"
+
+          prompt: |
+            Un cliente ha rellenado el briefing y se ha creado esta issue con su encargo.
+            Briefing del cliente:
+
+            ${{ github.event.issue.body }}
+
+            Tu tarea: ejecuta el comando /crear-app con ese briefing y construye la app
+            COMPLETA siguiendo CLAUDE.md y el pipeline de los 10 agentes de .claude/agents/.
+            Filosofía obligatoria: un solo HTML autocontenido, sin registro de usuarios
+            finales, panel de admin del dueño en #/admin, sin recogida de datos personales
+            (sin RGPD), embudo de venta. Guarda la app en apps/{nombre-negocio}.html,
+            haz commit en una rama nueva y abre una Pull Request. Al final, comenta en la
+            issue un resumen y el nombre del archivo creado.
+
+          claude_args: |
+            --model claude-opus-4-8

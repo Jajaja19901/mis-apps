@@ -1049,6 +1049,7 @@ const CONFIG = {
   WHATSAPP_NUMBER: "PEGA_AQUI_TU_NUMERO",  // Ej España: "34666777888"
   EMAIL: "pega_aqui_tu_email@dominio.com",
   BRAND_NAME: "Tu Estudio",
+  GITHUB_REPO: "Jajaja19901/mis-apps",     // tu repo: el robot crea la app desde una "issue" con etiqueta crear-app
 };
 
 /* ========================================
@@ -2406,6 +2407,17 @@ function renderFinal() {
     <p>Ya tengo todo lo que necesito. Pulsa cualquiera de estas opciones para enviarme la información y comenzar a construir tu web.</p>
 
     <div class="send-options">
+      <button class="send-btn" id="sendRobot" style="border-color:var(--accent);background:var(--accent-soft);">
+        <div class="send-btn-icon" style="background:var(--accent);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M12 8V4M9 4h6"/><circle cx="9" cy="14" r="1" fill="#fff"/><circle cx="15" cy="14" r="1" fill="#fff"/></svg>
+        </div>
+        <div class="send-btn-text">
+          <div class="send-btn-title">Enviar para crear mi app 🤖</div>
+          <div class="send-btn-sub">Automático: lo construye el robot</div>
+        </div>
+        <div class="send-btn-arrow">→</div>
+      </button>
+
       <button class="send-btn" id="sendWhatsApp">
         <div class="send-btn-icon" style="background:#dcf8c6">
           <svg viewBox="0 0 24 24" fill="#25D366"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448L.057 24z"/></svg>
@@ -2448,6 +2460,37 @@ function renderFinal() {
     <button class="btn btn-ghost" id="restartBtn" style="margin-top:8px;">Empezar de nuevo</button>
   `;
   stage.appendChild(div);
+
+  document.getElementById('sendRobot').addEventListener('click', () => {
+    const a = state.answers;
+    const tipoNeg = (TIPOS_NEGOCIO.find(t => t.id === a.tipo_negocio) || {}).label || '';
+    const lineas = [
+      `Negocio: ${a.nombre_negocio || ''}`,
+      `Sector: ${tipoNeg}`,
+      `A qué se dedica: ${a.descripcion_negocio || ''}`,
+      `Qué lo diferencia: ${a.diferencial || ''}`,
+      `Productos/servicios: ${a.productos_servicios || ''}`,
+      `Cliente ideal: ${a.cliente_ideal || ''}`,
+      `Problema que resuelve: ${a.problema || ''}`,
+      `Objetivo principal: ${a.objetivo_web || ''}`,
+      `Botón principal (CTA): ${a.cta_principal || ''}`,
+      `Definición de éxito: ${a.exito_cliente || ''}`,
+      `Tono de voz: ${a.tono_voz || ''}`,
+      `Vibras: ${Array.isArray(a.vibras) ? a.vibras.join(', ') : ''}`,
+      `Color principal: ${a.color_principal || ''}`,
+      `Inspiraciones: ${a.inspiraciones || ''}`,
+      `Ubicación: ${a.ubicacion || ''}`,
+      `Horarios: ${a.horarios || ''}`,
+      `Funciones: ${Array.isArray(a.funciones) ? a.funciones.join(', ') : ''}`,
+      `Contacto público: ${a.contacto_publico || ''}`,
+      `Notas extra: ${a.extra || ''}`,
+    ].join('\n');
+    const title = encodeURIComponent('App: ' + (a.nombre_negocio || 'nuevo proyecto'));
+    const body = encodeURIComponent(lineas);
+    const url = `https://github.com/${CONFIG.GITHUB_REPO}/issues/new?title=${title}&body=${body}&labels=crear-app`;
+    window.open(url, '_blank');
+    showToast('Abriendo el formulario de envío…');
+  });
 
   document.getElementById('sendWhatsApp').addEventListener('click', () => {
     const text = encodeURIComponent(prompt);
