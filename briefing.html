@@ -501,22 +501,28 @@
     transition: all 0.2s;
   }
 
-  .upload-zone:hover, .upload-zone:active {
-    border-color: var(--ink);
-    background: var(--bg-deep);
+  .upload-zone:hover, .upload-zone:active, .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .upload-zone:focus-visible {
+    border-color: var(--accent);
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
   }
 
   .upload-zone svg {
-    width: 28px;
-    height: 28px;
-    color: var(--ink-muted);
+    width: 36px;
+    height: 36px;
+    color: var(--accent);
     margin-bottom: 10px;
   }
 
   .upload-zone-text {
     font-size: 15px;
     color: var(--ink);
-    font-weight: 500;
+    font-weight: 600;
     margin-bottom: 4px;
   }
 
@@ -525,7 +531,13 @@
     color: var(--ink-muted);
   }
 
-  .upload-zone input { display: none; }
+  /* Input oculto visualmente pero accesible (no display:none, que rompe el teclado) */
+  .upload-zone input {
+    position: absolute;
+    width: 1px; height: 1px;
+    opacity: 0; overflow: hidden;
+    clip: rect(0 0 0 0); white-space: nowrap;
+  }
 
   .file-list {
     margin-top: 14px;
@@ -1017,6 +1029,8 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+    /* El spinner, en vez de quedar congelado a medias, se muestra como punto estático */
+    .spinner { animation: none !important; border-top-color: var(--accent); opacity: .6; }
   }
 </style>
 </head>
@@ -1664,6 +1678,14 @@ const QUESTIONS = [
     placeholder: "Ej: La Trattoria de Sergio",
     required: true,
   },
+  {
+    section: "Sobre tu negocio",
+    title: "📷 Sube tu logo y tus fotos",
+    help: "Aquí mismo puedes subir tu logo, fotos de tus productos, tu equipo o tu local. Cuantas más fotos reales subas, más se parecerá tu web a tu negocio. Si todavía no tienes nada, no pasa nada: sáltalo y usaremos imágenes coherentes.",
+    type: "upload",
+    key: "archivos",
+    required: false,
+  },
 
   // BLOQUE 2: NEGOCIO (con ejemplos adaptados)
   {
@@ -1825,14 +1847,6 @@ const QUESTIONS = [
   },
 
   // BLOQUE 6: MATERIALES
-  {
-    section: "Materiales",
-    title: "¿Tienes logo o imágenes?",
-    help: "Sube lo que tengas: logo, fotos de productos, equipo, local. No pasa nada si no tienes nada.",
-    type: "upload",
-    key: "archivos",
-    required: false,
-  },
   {
     section: "Materiales",
     title: "Textos importantes de tu marca",
@@ -2267,16 +2281,17 @@ function renderQuestion(q) {
     <input type="text" class="q-input" id="qInput" placeholder="O escribe el código hex (#1a1a1a) o describe el color" value="${escapeHtml(typeof value === 'string' && !COLORS.includes(value) ? value : '')}">`;
   } else if (q.type === 'upload') {
     inputHTML = `
-      <label class="upload-zone" for="qFile">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        <div class="upload-zone-text">Toca para subir archivos</div>
-        <div class="upload-zone-hint">Fotos, PDFs o documentos · Las fotos se comprimen automáticamente</div>
+      <label class="upload-zone" for="qFile" tabindex="0" role="button" aria-label="Subir tu logo y fotos del negocio (opcional). Pulsa Enter para abrir el selector de archivos.">
+        <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div class="upload-zone-text">Toca para subir tu logo o fotos</div>
+        <div class="upload-zone-hint">Opcional · Tus fotos se comprimen y se quedan en tu dispositivo · Si no tienes nada ahora, sáltalo</div>
         <input type="file" id="qFile" multiple accept="image/*,.pdf,.doc,.docx">
       </label>
-      <div class="file-list" id="fileList">
+      <div class="file-list" id="fileList" aria-live="polite" aria-atomic="false">
         ${state.files.map((f, i) => renderFileChip(f, i)).join('')}
       </div>
-      <div id="fileLoading"></div>
+      ${state.files.length === 0 ? `<p style="font-size:13px;color:var(--ink-muted);text-align:center;margin-top:10px;">Sin fotos todavía — no es obligatorio</p>` : ''}
+      <div id="fileLoading" aria-live="polite" aria-atomic="true"></div>
     `;
   }
 
@@ -2413,19 +2428,17 @@ function attachQuestionHandlers(q) {
     });
   } else if (q.type === 'upload') {
     const fileInput = document.getElementById('qFile');
-    fileInput.addEventListener('change', async (e) => {
-      const files = Array.from(e.target.files);
-      // Resetear el input para poder volver a subir el mismo archivo si hace falta
-      e.target.value = '';
+    const zone = document.querySelector('.upload-zone');
 
+    async function procesarArchivos(files) {
       for (const file of files) {
-        // Mostrar loader mientras procesamos
+        // Mostrar loader mientras procesamos (anunciado por aria-live)
         const loadingId = 'load-' + Date.now() + Math.random().toString(36).slice(2, 6);
         const loadEl = document.getElementById('fileLoading');
         if (loadEl) {
           loadEl.insertAdjacentHTML('beforeend', `
             <div class="file-chip-loading" id="${loadingId}">
-              <div class="spinner"></div>
+              <div class="spinner" aria-hidden="true"></div>
               <span>Procesando "${escapeHtml(file.name)}"...</span>
             </div>
           `);
@@ -2436,6 +2449,7 @@ function attachQuestionHandlers(q) {
           if (processed) {
             state.files.push(processed);
             saveState();
+            showToast(`✓ "${processed.name}" añadido`, 1500);
           }
         } catch (err) {
           console.warn('Error procesando archivo:', err);
@@ -2447,7 +2461,30 @@ function attachQuestionHandlers(q) {
         if (elToRemove) elToRemove.remove();
       }
       render();
+    }
+
+    fileInput.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files);
+      e.target.value = ''; // permite volver a subir el mismo archivo
+      procesarArchivos(files);
     });
+
+    // Accesibilidad: abrir el selector con teclado (Enter/Espacio sobre la zona)
+    if (zone) {
+      zone.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+      });
+      // Arrastrar y soltar (escritorio)
+      ['dragenter', 'dragover'].forEach(ev => zone.addEventListener(ev, (e) => {
+        e.preventDefault(); zone.classList.add('drag-over');
+      }));
+      ['dragleave', 'dragend'].forEach(ev => zone.addEventListener(ev, () => zone.classList.remove('drag-over')));
+      zone.addEventListener('drop', (e) => {
+        e.preventDefault(); zone.classList.remove('drag-over');
+        const files = Array.from((e.dataTransfer && e.dataTransfer.files) || []);
+        if (files.length) procesarArchivos(files);
+      });
+    }
 
     document.querySelectorAll('.file-chip-remove').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -2477,7 +2514,7 @@ function renderFileChip(f, i) {
 
   const thumb = isImage && f.dataUrl
     ? `<div class="file-chip-thumb" style="background-image:url('${f.dataUrl}')"></div>`
-    : `<div class="file-chip-thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>`;
+    : `<div class="file-chip-thumb"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>`;
 
   return `
     <div class="file-chip">
@@ -2486,7 +2523,7 @@ function renderFileChip(f, i) {
         <div class="file-chip-name">${escapeHtml(f.name)}</div>
         <div class="file-chip-meta">${sizeStr}${savedHTML}</div>
       </div>
-      <button class="file-chip-remove" data-index="${i}" aria-label="Quitar">×</button>
+      <button class="file-chip-remove" data-index="${i}" aria-label="Quitar ${escapeHtml(f.name)}">×</button>
     </div>
   `;
 }
@@ -2733,17 +2770,23 @@ function renderReview() {
         display = Array.isArray(val) && val.length ? val.join(', ') : '';
         isEmpty = !Array.isArray(val) || val.length === 0;
       } else if (q.type === 'upload') {
-        display = state.files.length ? `${state.files.length} archivo(s) subido(s)` : '';
-        isEmpty = state.files.length === 0;
+        const n = state.files.length;
+        display = n ? `${n} archivo${n > 1 ? 's' : ''} subido${n > 1 ? 's' : ''}` : '';
+        isEmpty = n === 0;
       } else {
         display = val ? val.toString() : '';
         isEmpty = !val || val.toString().trim() === '';
       }
 
+      // Recordatorio amable en la subida de fotos si se saltó sin archivos
+      const emptyText = (isEmpty && q.type === 'upload')
+        ? 'Sin fotos — si tienes logo o imágenes, pulsa «Editar» para añadirlas antes de enviar'
+        : 'Sin completar';
+
       itemsHTML += `
         <div class="review-item">
           <div class="review-item-label">${escapeHtml(q.title)}</div>
-          <div class="review-item-value ${isEmpty ? 'empty' : ''}">${isEmpty ? 'Sin completar' : escapeHtml(display)}</div>
+          <div class="review-item-value ${isEmpty ? 'empty' : ''}">${isEmpty ? emptyText : escapeHtml(display)}</div>
         </div>
       `;
     });
