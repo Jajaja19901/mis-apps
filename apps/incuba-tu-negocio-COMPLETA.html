@@ -538,12 +538,49 @@ route();
     const fr=document.createElement('iframe'); fr.id='ovFrame'; fr.title='Vista previa'; fr.style.cssText='flex:1;width:100%;border:0;background:#070b12';
     ov.appendChild(bar); ov.appendChild(fr); document.body.appendChild(ov);
     bar.querySelector('#ovBack').addEventListener('click',close); document.addEventListener('keydown',function(e){ if(e.key==='Escape') close(); }); }
+  /* Las demos usan enrutado por hash con <a href="#/calc">. Cargadas con srcdoc el navegador resuelve
+     esos href contra la URL del PADRE (la incubadora) y te sacaba fuera; cargadas con blob: desde file://
+     el origen es opaco (blob:null) y la navegacion por hash resultaba poco fiable. Solucion robusta para
+     http(s) Y file://: usamos srcdoc (render fiable) e inyectamos un interceptor que captura los clicks en
+     a[href^="#"] dentro de la demo y asigna location.hash por JS (operacion same-document sobre la URL
+     propia del iframe, independiente del <base>), disparando su route() y manteniendo TODA la navegacion
+     (calc, reservar, admin, volver) DENTRO de la demo. */
+  function injectShim(html){
+    /* Interceptor de navegacion por hash, robusto en about:srcdoc / blob: / file://.
+       No dependemos de que el navegador dispare "hashchange" tras asignar location.hash
+       (poco fiable en documentos srcdoc de origen opaco): aplicamos el hash y, ademas,
+       invocamos directamente el router de la demo (window.route) y disparamos el evento
+       manualmente. Asi TODA la navegacion (home, calc, reservar, admin, volver) ocurre
+       DENTRO del iframe, sin salirse jamas a la incubadora. */
+    var shim='<script>(function(){'+
+      'function fire(){var ev;try{ev=new HashChangeEvent("hashchange");}catch(e){try{ev=document.createEvent("HashChangeEvent");ev.initHashChangeEvent("hashchange",false,false,"","");}catch(_){ev=document.createEvent("Event");ev.initEvent("hashchange",false,false);}}try{window.dispatchEvent(ev);}catch(e){}}'+
+      'function nav(){try{if(typeof window.route==="function"){window.route();}else{fire();}}catch(e){fire();}}'+
+      'function go(href){'+
+        'var h=href.charAt(0)==="#"?href.slice(1):href;'+              /* "#/calc" -> "/calc" ; "#" -> "" ; "#reservar" -> "reservar" */
+        'var target=h.replace(/^\\/?/,"");'+                            /* ruta logica sin la barra: "calc","reservar","admin","" */
+        'var wantHash="#"+h;'+
+        'if(location.hash!==wantHash){try{location.hash=h;}catch(e){}}'+
+        'nav();'+
+        /* tras re-renderizar (route reconstruye el DOM), si el hash apunta a un ancla
+           existente (p.ej. #reservar) desplazamos hacia ella en el siguiente frame */
+        'if(target){setTimeout(function(){var el=null;try{el=document.getElementById(target);}catch(e){}if(el&&el.scrollIntoView){try{el.scrollIntoView({behavior:"smooth",block:"start"});}catch(e){try{el.scrollIntoView();}catch(_){}}}},30);}'+
+      '}'+
+      'document.addEventListener("click",function(e){if(e.defaultPrevented||e.button)return;var t=e.target;var a=t&&t.closest?t.closest("a[href]"):null;if(!a)return;var href=a.getAttribute("href")||"";if(href.charAt(0)!=="#")return;e.preventDefault();go(href);},true);'+
+      /* Arranque garantizado: cuando el documento ya tiene su router cargado, forzamos un route()
+         inicial para pintar el estado correspondiente al hash (normalmente la home). */
+      'function boot(){nav();}'+
+      'if(document.readyState==="complete"||document.readyState==="interactive"){setTimeout(boot,0);}else{document.addEventListener("DOMContentLoaded",function(){setTimeout(boot,0);});}'+
+      'window.addEventListener("load",function(){setTimeout(boot,0);});'+
+      '})();<\/script>';
+    if(/<head[^>]*>/i.test(html)) return html.replace(/<head[^>]*>/i,function(m){return m+shim;});
+    if(/<html[^>]*>/i.test(html)) return html.replace(/<html[^>]*>/i,function(m){return m+shim;});
+    return shim+html;
+  }
   function open(html){ ensure(); ov.style.display='flex'; var f=document.getElementById('ovFrame');
     if(curUrl){ try{URL.revokeObjectURL(curUrl);}catch(e){} curUrl=null; }
-    // URL blob en vez de srcdoc: el iframe tiene su propia URL base, asi la navegacion por hash (#/calc, #reservar) se queda DENTRO de la demo y no salta a la incubadora
-    curUrl=URL.createObjectURL(new Blob([html],{type:'text/html'}));
-    f.removeAttribute('srcdoc'); f.src=curUrl; window.scrollTo(0,0); }
-  function close(){ if(ov){ var f=document.getElementById('ovFrame'); if(f) f.src='about:blank'; ov.style.display='none'; if(curUrl){ try{URL.revokeObjectURL(curUrl);}catch(e){} curUrl=null; } } }
+    f.removeAttribute('src');
+    f.srcdoc=injectShim(html); window.scrollTo(0,0); }
+  function close(){ if(ov){ var f=document.getElementById('ovFrame'); if(f){ f.removeAttribute('srcdoc'); f.src='about:blank'; } ov.style.display='none'; if(curUrl){ try{URL.revokeObjectURL(curUrl);}catch(e){} curUrl=null; } } }
   document.addEventListener('click',function(e){ var a=e.target&&e.target.closest?e.target.closest('a[href]'):null; if(!a) return; var href=a.getAttribute('href')||''; for(var key in APPS){ if(href.indexOf(key)!==-1){ e.preventDefault(); open(b64ToUtf8(APPS[key])); return; } } }, true);
 })();
 </script>
