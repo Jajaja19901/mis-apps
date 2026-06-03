@@ -1039,6 +1039,69 @@
     word-break: break-word;
     display: block;
   }
+  .deposit-card {
+    text-align: left;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 18px;
+    margin: 18px 0 6px;
+    background: var(--card);
+  }
+  .deposit-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .deposit-badge {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--accent, #c8553d);
+    background: var(--accent-soft, rgba(200,85,61,.12));
+    padding: 5px 10px;
+    border-radius: 999px;
+  }
+  .deposit-amount {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--ink, #1a1a1a);
+  }
+  .deposit-sub {
+    font-size: 13.5px;
+    color: var(--ink-soft);
+    margin: 0 0 14px;
+    line-height: 1.5;
+  }
+  .deposit-methods {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  @media (max-width: 420px) { .deposit-methods { grid-template-columns: 1fr; } }
+  .deposit-method {
+    border: 1.5px solid var(--line);
+    background: var(--bg, #fff);
+    border-radius: 12px;
+    padding: 12px 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink, #1a1a1a);
+    cursor: pointer;
+    transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
+  }
+  .deposit-method:hover { transform: translateY(-1px); }
+  .deposit-method.selected {
+    border-color: var(--accent, #c8553d);
+    box-shadow: 0 0 0 3px var(--accent-soft, rgba(200,85,61,.15));
+  }
+  .deposit-note {
+    font-size: 11.5px;
+    color: var(--ink-muted, #8a8378);
+    margin: 10px 0 0;
+    font-style: italic;
+  }
+
   .preview-label {
     display: block;
     text-align: left;
@@ -2941,6 +3004,31 @@ function renderReview() {
 function renderFinal() {
   const prompt = buildPrompt();
 
+  // Señal (fianza) por nivel — POR AHORA SOLO VISUAL, no cobra nada real.
+  const NIVEL_PRECIO = { basica: 250, mediana: 450, grande: 650, premium: 850, premiumplus: null };
+  const SENAL = { basica: 100, mediana: 100, grande: 150, premium: 200, premiumplus: 200 };
+  const nivel = state.answers.nivel;
+  const senal = SENAL[nivel] || 100;
+  const precio = NIVEL_PRECIO[nivel];
+  const resto = (precio != null) ? (precio - senal) : null;
+  const restoTxt = (resto != null)
+    ? `El resto (<b>${resto}€</b>) lo pagas cuando te entreguemos la app.`
+    : `El resto lo pagas cuando te entreguemos la app.`;
+  const depositHTML = `
+    <div class="deposit-card">
+      <div class="deposit-head">
+        <span class="deposit-badge">Paso 1 · Señal para empezar</span>
+        <span class="deposit-amount">${senal}€</span>
+      </div>
+      <p class="deposit-sub">Reservas tu plaza pagando la señal de <b>${senal}€</b> ahora. ${restoTxt}</p>
+      <div class="deposit-methods">
+        <button class="deposit-method" data-m="Bizum" type="button">📲 Bizum</button>
+        <button class="deposit-method" data-m="Tarjeta" type="button">💳 Tarjeta</button>
+        <button class="deposit-method" data-m="Transferencia" type="button">🏦 Transferencia</button>
+      </div>
+      <p class="deposit-note">Demostración — el pago todavía es visual, no se cobra nada.</p>
+    </div>`;
+
   const div = document.createElement('div');
   div.className = 'screen final';
   div.innerHTML = `
@@ -2948,7 +3036,9 @@ function renderFinal() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
     </div>
     <h1>¡Listo, ${escapeHtml(state.answers.nombre_cliente || 'gracias')}!<br><em>Trabajo en marcha.</em></h1>
-    <p>Ya tengo todo lo que necesito. Pulsa cualquiera de estas opciones para enviarme la información y comenzar a construir tu web.</p>
+    <p>Ya tengo todo lo que necesito. Paga la señal para reservar tu plaza y luego envíame la información para empezar.</p>
+
+    ${depositHTML}
 
     <div class="send-options">
       <button class="send-btn" id="sendRobot" style="border-color:var(--accent);background:var(--accent-soft);">
@@ -3005,6 +3095,14 @@ function renderFinal() {
     <button class="btn btn-ghost" id="restartBtn" style="margin-top:8px;">Empezar de nuevo</button>
   `;
   stage.appendChild(div);
+
+  document.querySelectorAll('.deposit-method').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.deposit-method').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      showToast(`Demostración: aquí iría el pago de ${senal}€ por ${btn.dataset.m}`);
+    });
+  });
 
   document.getElementById('sendRobot').addEventListener('click', () => {
     const a = state.answers;
