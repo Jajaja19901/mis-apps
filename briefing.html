@@ -1629,6 +1629,49 @@ const QUESTIONS = [
   },
 ];
 
+/* ========================================
+   ADAPTACIÓN POR NIVEL (Básica pregunta poco; Premium, todo)
+   ======================================== */
+const NIVEL_RANK = { basica:1, mediana:2, grande:3, premium:4, premiumplus:5 };
+
+// 1) Pregunta de nivel, justo después del tipo de negocio
+QUESTIONS.splice(1, 0, {
+  section: "Tu proyecto",
+  title: "¿Qué nivel quieres para tu web o app?",
+  help: "Cuanto más alto, más completo (y te haré más preguntas). Elige por lo que necesitas hoy; puedes subir de nivel cuando quieras.",
+  type: "options-card",
+  key: "nivel",
+  options: [
+    { id:"basica",      label:"Básica",        icon:"🥚", desc:"Presencia profesional y contacto. Lo esencial. Desde 250€." },
+    { id:"mediana",     label:"Mediana",       icon:"🐣", desc:"Para captar clientes: más secciones, diseño y formulario. Desde 450€." },
+    { id:"grande",      label:"Grande",        icon:"🐤", desc:"Con una función fuerte: reservas, tienda o calculadora. Desde 650€." },
+    { id:"premium",     label:"Premium",       icon:"🦅", desc:"App completa con varias funciones. Desde 850€." },
+    { id:"premiumplus", label:"Premium Plus",  icon:"🚀", desc:"Premium + bot de atención. Lo más completo." },
+  ],
+  required: true,
+});
+
+// 2) Pregunta del bot (solo Premium Plus)
+QUESTIONS.push({
+  section: "Tu app",
+  title: "¿Qué dudas debe resolver tu bot?",
+  help: "Lista las preguntas frecuentes que tu bot responderá solo a tus clientes (horarios, precios, cómo reservar…).",
+  type: "textarea",
+  key: "app_bot",
+  placeholder: "Ej:\n¿Cuál es el horario?\n¿Cuánto cuesta X?\n¿Cómo pido cita?",
+  required: false,
+  minNivel: "premiumplus",
+});
+
+// 3) Umbral de nivel por pregunta (si no se alcanza el nivel, no se pregunta)
+const NIVEL_MIN = {
+  diferencial:"mediana", cliente_ideal:"mediana", problema:"mediana", exito_cliente:"mediana",
+  vibras:"mediana", color_principal:"mediana", inspiraciones:"mediana", archivos:"mediana",
+  textos:"mediana", horarios:"mediana", funciones:"mediana", redes:"mediana",
+  tipo_proyecto:"grande", competencia:"grande",
+};
+QUESTIONS.forEach(q => { if (NIVEL_MIN[q.key] && !q.minNivel) q.minNivel = NIVEL_MIN[q.key]; });
+
 const COLORS = [
   "#1a1a1a", "#c8553d", "#d4a574", "#7a9b76",
   "#4a6fa5", "#8b5a8c", "#c97b9a", "#3d6b5c",
@@ -2234,6 +2277,11 @@ function canProceed() {
 function shouldShowQuestion(idx) {
   if (idx < 0 || idx >= QUESTIONS.length) return true;
   const q = QUESTIONS[idx];
+  // Filtro por nivel: si la pregunta exige un nivel mayor del elegido, no se muestra
+  if (q.minNivel) {
+    const cur = NIVEL_RANK[state.answers.nivel] || 0;
+    if (cur < NIVEL_RANK[q.minNivel]) return false;
+  }
   if (!q.showIf) return true;
   try { return !!q.showIf(state.answers); }
   catch (e) { return true; }
@@ -2808,6 +2856,9 @@ function buildPrompt() {
   const tipoObj = TIPOS_NEGOCIO.find(t => t.id === a.tipo_negocio);
   lines.push(`**Sector:** ${tipoObj ? tipoObj.label : '—'}`);
 
+  const NIVEL_LABEL = { basica:'Básica', mediana:'Mediana', grande:'Grande', premium:'Premium', premiumplus:'Premium Plus' };
+  if (a.nivel) lines.push(`**Nivel contratado:** ${NIVEL_LABEL[a.nivel] || a.nivel} (ajusta el alcance de la web/app a este nivel)`);
+
   const tipoProyObj = TIPOS_PROYECTO.find(t => t.id === a.tipo_proyecto);
   lines.push(`**Tipo de proyecto:** ${tipoProyObj ? `${tipoProyObj.icon} ${tipoProyObj.label}` : '—'}`);
 
@@ -2837,6 +2888,11 @@ function buildPrompt() {
     lines.push(`**Pantalla principal al entrar (lo más importante):**`);
     lines.push(a.app_pantalla_principal || '—');
     lines.push('');
+    if (a.nivel === 'premiumplus' && a.app_bot) {
+      lines.push(`**Bot de atención (Premium Plus) — dudas que debe resolver:**`);
+      lines.push(a.app_bot);
+      lines.push('');
+    }
     lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     lines.push('');
   }
