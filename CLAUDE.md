@@ -135,4 +135,7 @@ OBLIGATORIAS para el director y los 10 agentes, en CADA app. El Agente 10 (QA) l
 - Un archivo `.html` por app en `apps/`.
 - Caja de configuración (`CONFIG`) arriba del todo para que el dueño cambie nombre, WhatsApp,
   email, horario y contraseña en 1 minuto.
+- **Si editas `briefing.html` o una demo embebida**, regenera la incubadora "todo-en-uno" con
+  `node tools/regenerar-completa.mjs` y vuelve a verificarla; si no, `apps/incuba-tu-negocio-COMPLETA.html`
+  se queda con la versión vieja del cuestionario.
 - Commit descriptivo y push a la rama de trabajo.
