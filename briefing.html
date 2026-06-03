@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Incuba tu Negocio · Cuéntanos tu proyecto</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -999,7 +999,6 @@
     font-family: var(--serif);
     font-style: italic;
     font-size: 14px;
-    opacity: 0.5;
   }
 
   .preview-toggle {
@@ -1051,7 +1050,8 @@
   .price-big { font-family: var(--sora, inherit); font-size: clamp(34px, 9vw, 48px); font-weight: 800; line-height: 1.05; margin: 4px 0; color: var(--ink); }
   .price-sub { font-size: 13px; color: var(--ink-soft); margin-bottom: 12px; }
   .price-market { display: flex; flex-direction: column; gap: 6px; align-items: center; font-size: 13.5px; color: var(--ink-soft); }
-  .price-save { display: inline-block; background: var(--accent, #c8553d); color: #fff; font-weight: 700; font-size: 12.5px; padding: 4px 12px; border-radius: 999px; }
+  .price-save { display: inline-block; background: var(--accent, #c8553d); color: #04221a; font-weight: 800; font-size: 12.5px; padding: 4px 12px; border-radius: 999px; }
+  .sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
   .deposit-card {
     text-align: left;
     border: 1px solid var(--line);
@@ -1153,13 +1153,14 @@
 </head>
 <body>
 <div class="app">
+  <h1 class="sr-only">Cuestionario · Incuba tu Negocio</h1>
   <header class="topbar">
     <div class="brand">
       <span class="brand-dot"></span>
       <span>Incuba tu Negocio</span>
     </div>
     <div class="progress-wrap" id="progressWrap">
-      <div class="progress-track">
+      <div class="progress-track" id="progressTrack" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Progreso del cuestionario">
         <div class="progress-fill" id="progressFill"></div>
       </div>
       <div class="progress-label" id="progressLabel">0 / 0</div>
@@ -1174,7 +1175,7 @@
   </nav>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
 /* ========================================
@@ -2216,6 +2217,8 @@ const nextBtn = document.getElementById('nextBtn');
 const progressWrap = document.getElementById('progressWrap');
 const progressFill = document.getElementById('progressFill');
 const progressLabel = document.getElementById('progressLabel');
+const progressTrack = document.getElementById('progressTrack');
+function setProgress(pct, label){ progressFill.style.width = pct + '%'; progressLabel.textContent = label; if(progressTrack){ progressTrack.setAttribute('aria-valuenow', Math.round(pct)); progressTrack.setAttribute('aria-valuetext', label); } }
 const toast = document.getElementById('toast');
 
 function showToast(msg, duration = 2200) {
@@ -2249,21 +2252,18 @@ function render() {
     const totalVis = totalVisible();
     const currentVis = visibleIndex(state.step);
     const progress = ((currentVis - 1) / totalVis) * 100;
-    progressFill.style.width = progress + '%';
-    progressLabel.textContent = `${currentVis} / ${totalVis}`;
+    setProgress(progress, `${currentVis} / ${totalVis}`);
     updateNavButtons();
   } else if (state.step === REVIEW_STEP) {
     renderReview();
     navbar.style.display = 'none';
     progressWrap.classList.add('visible');
-    progressFill.style.width = '95%';
-    progressLabel.textContent = `Revisión`;
+    setProgress(95, `Revisión`);
   } else {
     renderFinal();
     navbar.style.display = 'none';
     progressWrap.classList.add('visible');
-    progressFill.style.width = '100%';
-    progressLabel.textContent = `Completado`;
+    setProgress(100, `Completado`);
   }
 
   saveState();
@@ -2360,9 +2360,9 @@ function renderQuestion(q) {
   // INPUTS
   if (q.type === 'text' || q.type === 'email') {
     const inputType = q.type === 'email' ? 'email' : 'text';
-    inputHTML = `<input type="${inputType}" class="q-input" id="qInput" placeholder="${escapeHtml(q.placeholder || '')}" value="${escapeHtml(value)}" autocomplete="off">`;
+    inputHTML = `<input type="${inputType}" class="q-input" id="qInput" placeholder="${escapeHtml(q.placeholder || '')}" value="${escapeHtml(value)}" autocomplete="off" aria-label="${escapeHtml(q.title || 'Respuesta')}">`;
   } else if (q.type === 'textarea') {
-    inputHTML = `<textarea class="q-input" id="qInput" placeholder="${escapeHtml(q.placeholder || '')}">${escapeHtml(value)}</textarea>`;
+    inputHTML = `<textarea class="q-input" id="qInput" placeholder="${escapeHtml(q.placeholder || '')}" aria-label="${escapeHtml(q.title || 'Respuesta')}">${escapeHtml(value)}</textarea>`;
     if (q.minChars) {
       inputHTML += `<div class="char-meter" id="charMeter">
         <span class="hint">Recomendado: al menos ${q.minChars} caracteres</span>
@@ -2384,7 +2384,7 @@ function renderQuestion(q) {
       : '';
     inputHTML = search + `<div class="q-options" id="qOptions">
       ${q.options.map(opt => `
-        <div class="opt ${value === opt.id ? 'selected' : ''}" data-value="${escapeHtml(opt.id)}">
+        <div class="opt ${value === opt.id ? 'selected' : ''}" data-value="${escapeHtml(opt.id)}" role="button" tabindex="0" aria-pressed="${value === opt.id}" aria-label="${escapeHtml(opt.label)}">
           <div class="opt-radio"></div>
           <span class="opt-icon">${opt.icon}</span>
           <div class="opt-label">${escapeHtml(opt.label)}</div>
@@ -2394,7 +2394,7 @@ function renderQuestion(q) {
   } else if (q.type === 'options-card') {
     inputHTML = `<div class="q-options" id="qOptions">
       ${q.options.map(opt => `
-        <div class="opt-card ${value === opt.id ? 'selected' : ''}" data-value="${escapeHtml(opt.id)}">
+        <div class="opt-card ${value === opt.id ? 'selected' : ''}" data-value="${escapeHtml(opt.id)}" role="button" tabindex="0" aria-pressed="${value === opt.id}" aria-label="${escapeHtml(opt.label)}">
           <div class="opt-card-icon">${opt.icon}</div>
           <div class="opt-card-body">
             <div class="opt-card-label">${escapeHtml(opt.label)}</div>
@@ -2408,7 +2408,7 @@ function renderQuestion(q) {
     const selected = Array.isArray(value) ? value : [];
     inputHTML = `<div class="q-options" id="qOptions">
       ${q.options.map(opt => `
-        <div class="opt multi ${selected.includes(opt) ? 'selected' : ''}" data-value="${escapeHtml(opt)}">
+        <div class="opt multi ${selected.includes(opt) ? 'selected' : ''}" data-value="${escapeHtml(opt)}" role="checkbox" tabindex="0" aria-checked="${selected.includes(opt)}" aria-label="${escapeHtml(opt)}">
           <div class="opt-radio"></div>
           <div class="opt-label">${escapeHtml(opt)}</div>
         </div>
@@ -2433,13 +2433,13 @@ function renderQuestion(q) {
   } else if (q.type === 'color') {
     inputHTML = `<div class="color-grid" id="qColors">
       ${COLORS.map(c => `
-        <div class="color-swatch ${value === c ? 'selected' : ''}" data-value="${c}" style="background:${c}"></div>
+        <div class="color-swatch ${value === c ? 'selected' : ''}" data-value="${c}" style="background:${c}" role="button" tabindex="0" aria-label="Elegir color ${c}" aria-pressed="${value === c}"></div>
       `).join('')}
     </div>
-    <input type="text" class="q-input" id="qInput" placeholder="O escribe el código hex (#1a1a1a) o describe el color" value="${escapeHtml(typeof value === 'string' && !COLORS.includes(value) ? value : '')}">`;
+    <input type="text" class="q-input" id="qInput" placeholder="O escribe el código hex (#1a1a1a) o describe el color" value="${escapeHtml(typeof value === 'string' && !COLORS.includes(value) ? value : '')}" aria-label="Código de color o descripción">`;
   } else if (q.type === 'upload') {
     inputHTML = `
-      <label class="upload-zone" for="qFile" tabindex="0" role="button" aria-label="Subir tu logo y fotos del negocio (opcional). Pulsa Enter para abrir el selector de archivos.">
+      <label class="upload-zone" for="qFile" aria-label="Subir tu logo y fotos del negocio (opcional)">
         <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         <div class="upload-zone-text">Toca para subir tu logo o fotos</div>
         <div class="upload-zone-hint">Opcional · Tus fotos se comprimen y se quedan en tu dispositivo · Si no tienes nada ahora, sáltalo</div>
@@ -2517,8 +2517,9 @@ function attachQuestionHandlers(q) {
   } else if (q.type === 'options' || q.type === 'options-icon') {
     document.querySelectorAll('#qOptions .opt').forEach(el => {
       el.addEventListener('click', () => {
-        document.querySelectorAll('#qOptions .opt').forEach(o => o.classList.remove('selected'));
+        document.querySelectorAll('#qOptions .opt').forEach(o => { o.classList.remove('selected'); o.setAttribute('aria-pressed','false'); });
         el.classList.add('selected');
+        el.setAttribute('aria-pressed','true');
         state.answers[q.key] = el.dataset.value;
         updateNavButtons();
         saveState();
@@ -2539,8 +2540,9 @@ function attachQuestionHandlers(q) {
   } else if (q.type === 'options-card') {
     document.querySelectorAll('#qOptions .opt-card').forEach(el => {
       el.addEventListener('click', () => {
-        document.querySelectorAll('#qOptions .opt-card').forEach(o => o.classList.remove('selected'));
+        document.querySelectorAll('#qOptions .opt-card').forEach(o => { o.classList.remove('selected'); o.setAttribute('aria-pressed','false'); });
         el.classList.add('selected');
+        el.setAttribute('aria-pressed','true');
         state.answers[q.key] = el.dataset.value;
         updateNavButtons();
         saveState();
@@ -2562,7 +2564,8 @@ function attachQuestionHandlers(q) {
           next = [...current, val];
         }
         state.answers[q.key] = next;
-        el.classList.toggle('selected');
+        const on = el.classList.toggle('selected');
+        el.setAttribute('aria-checked', String(on));
         updateNavButtons();
         saveState();
       });
@@ -2588,8 +2591,9 @@ function attachQuestionHandlers(q) {
   } else if (q.type === 'color') {
     document.querySelectorAll('#qColors .color-swatch').forEach(el => {
       el.addEventListener('click', () => {
-        document.querySelectorAll('#qColors .color-swatch').forEach(s => s.classList.remove('selected'));
+        document.querySelectorAll('#qColors .color-swatch').forEach(s => { s.classList.remove('selected'); s.setAttribute('aria-pressed','false'); });
         el.classList.add('selected');
+        el.setAttribute('aria-pressed','true');
         state.answers[q.key] = el.dataset.value;
         document.getElementById('qInput').value = '';
         updateNavButtons();
@@ -2597,7 +2601,7 @@ function attachQuestionHandlers(q) {
       });
     });
     document.getElementById('qInput').addEventListener('input', (e) => {
-      document.querySelectorAll('#qColors .color-swatch').forEach(s => s.classList.remove('selected'));
+      document.querySelectorAll('#qColors .color-swatch').forEach(s => { s.classList.remove('selected'); s.setAttribute('aria-pressed','false'); });
       state.answers[q.key] = e.target.value;
       updateNavButtons();
       saveState();
@@ -3055,9 +3059,9 @@ function renderFinal() {
       </div>
       <p class="deposit-sub">Reservas tu plaza pagando la señal de <b>${senal}€</b> ahora. ${restoTxt}</p>
       <div class="deposit-methods">
-        <button class="deposit-method" data-m="Bizum" type="button">📲 Bizum</button>
-        <button class="deposit-method" data-m="Tarjeta" type="button">💳 Tarjeta</button>
-        <button class="deposit-method" data-m="Transferencia" type="button">🏦 Transferencia</button>
+        <button class="deposit-method" data-m="Bizum" type="button" aria-pressed="false">📲 Bizum</button>
+        <button class="deposit-method" data-m="Tarjeta" type="button" aria-pressed="false">💳 Tarjeta</button>
+        <button class="deposit-method" data-m="Transferencia" type="button" aria-pressed="false">🏦 Transferencia</button>
       </div>
       <p class="deposit-note">Demostración — el pago todavía es visual, no se cobra nada.</p>
     </div>`;
@@ -3132,8 +3136,9 @@ function renderFinal() {
 
   document.querySelectorAll('.deposit-method').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.deposit-method').forEach(b => b.classList.remove('selected'));
+      document.querySelectorAll('.deposit-method').forEach(b => { b.classList.remove('selected'); b.setAttribute('aria-pressed','false'); });
       btn.classList.add('selected');
+      btn.setAttribute('aria-pressed','true');
       showToast(`Demostración: aquí iría el pago de ${senal}€ por ${btn.dataset.m}`);
     });
   });
@@ -3165,7 +3170,7 @@ function renderFinal() {
     const title = encodeURIComponent('App: ' + (a.nombre_negocio || 'nuevo proyecto'));
     const body = encodeURIComponent(lineas);
     const url = `https://github.com/${CONFIG.GITHUB_REPO}/issues/new?title=${title}&body=${body}&labels=crear-app`;
-    window.open(url, '_blank');
+    window.open(url, '_blank', 'noopener');
     showToast('Abriendo el formulario de envío…');
   });
 
@@ -3176,7 +3181,7 @@ function renderFinal() {
     }
     const text = encodeURIComponent(prompt);
     const url = `https://wa.me/${CONFIG.WHATSAPP_NUMBER}?text=${text}`;
-    window.open(url, '_blank');
+    window.open(url, '_blank', 'noopener');
   });
 
   document.getElementById('sendEmail').addEventListener('click', () => {
