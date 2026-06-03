@@ -16,12 +16,19 @@ Está PROHIBIDO dar por bueno un flujo "porque el código parece correcto". Un b
 ## 🧪 PROTOCOLO DE NAVEGADOR REAL (obligatorio)
 Tienes Bash. Conduce la app como si fueras el cliente, en dos capas:
 
+**Capa 0 — tests de aceptación embebidos (obligatorio):**
+El HTML final DEBE incluir el bloque `<script type="application/json" id="acceptance-tests">` con
+**un test por criterio** del Arquitecto (en el DSL: goto/click/clickText/fill/check/submit/expect/…).
+Si no está, créalo tú a partir de los criterios. El verificador los ejecuta clic a clic.
+
 **Capa 1 — puerta automática (rápida, obligatoria):**
 ```bash
 npm i puppeteer >/dev/null 2>&1
 node tools/verificar-app.mjs apps/<negocio>.html --shots
 ```
-Exige `✅ APTO`. Si sale `❌ NO APTO` (errores de consola, rutas en blanco o botones muertos), corrígelo y vuelve a pasarlo. Esto ya recorre rutas, pulsa controles y entra en iframes — pero NO conoce los criterios de aceptación concretos: eso lo pruebas tú en la capa 2.
+Exige `✅ APTO`. Esto recorre rutas, pulsa controles, entra en iframes **y ejecuta los tests de
+aceptación embebidos** (cada criterio del cliente, probado a máquina). Si sale `❌ NO APTO` (errores
+de consola, rutas en blanco, botones muertos o un test que falla), corrígelo y vuelve a pasarlo.
 
 **Capa 2 — tú, criterio por criterio, con puppeteer a mano:**
 

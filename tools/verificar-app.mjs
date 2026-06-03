@@ -8,6 +8,12 @@
  * (overlays/demos) y caza errores de consola y "controles muertos" (cosas que
  * al pulsarlas no hacen absolutamente nada).
  *
+ * Además, si la app trae embebidos sus TESTS DE ACEPTACIÓN en
+ *   <script type="application/json" id="acceptance-tests">[{ "name":..., "steps":[...] }]</script>
+ * los EJECUTA uno a uno (clic → resultado esperado) y falla si alguno no se cumple.
+ * Pasos: goto, reload, wait, click, clickText, fill{sel,value}, check, submit,
+ *        expect, expectHash, expectVisible, expectGone.
+ *
  * Uso:
  *   npm i puppeteer            # una sola vez (Chromium queda en caché)
  *   node tools/verificar-app.mjs apps/mi-negocio.html [--shots] [--strict]
@@ -98,9 +104,57 @@ function ctxOf(frame) {
 }
 
 async function load() {
-  errors.length = 0; // los de carga se recogen abajo de forma controlada
   await page.goto(fileUrl, { waitUntil: "networkidle0", timeout: 30000 });
   await sleep(300);
+}
+
+// ===== Tests de aceptación por app (DSL embebido en <script type="application/json" id="acceptance-tests">) =====
+// Pasos disponibles: goto, reload, wait, click, clickText, fill{sel,value}, check, submit,
+//                    expect (texto que debe aparecer), expectHash, expectVisible, expectGone.
+async function runStep(step) {
+  const k = Object.keys(step)[0];
+  const v = step[k];
+  switch (k) {
+    case "goto": await page.evaluate((h) => { location.hash = h; }, v); await sleep(280); return { ok: true };
+    case "reload": await load(); return { ok: true };
+    case "wait": await sleep(Math.min(+v || 200, 3000)); return { ok: true };
+    case "click": { const ok = await page.evaluate((s) => { const e = document.querySelector(s); if (!e) return false; e.click(); return true; }, v); await sleep(220); return { ok, msg: ok ? "" : "no existe el selector " + v }; }
+    case "clickText": { const ok = await page.evaluate((t) => { const els = [...document.querySelectorAll('a,button,[role=button],input[type=submit],[data-action]')].filter((x) => x.offsetParent !== null && (x.innerText || x.value || "").includes(t)); if (!els.length) return false; els.sort((a, b) => (a.innerText || a.value || "").length - (b.innerText || b.value || "").length); els[0].click(); return true; }, v); await sleep(220); return { ok, msg: ok ? "" : 'no hay elemento visible con el texto "' + v + '"' }; }
+    case "fill": { const ok = await page.evaluate((o) => { const e = document.querySelector(o.sel); if (!e) return false; e.value = o.value; e.dispatchEvent(new Event("input", { bubbles: true })); return true; }, v); return { ok, msg: ok ? "" : "no existe el campo " + (v && v.sel) }; }
+    case "check": { const ok = await page.evaluate((s) => { const e = document.querySelector(s); if (!e) return false; e.checked = true; e.dispatchEvent(new Event("change", { bubbles: true })); return true; }, v); return { ok, msg: ok ? "" : "no existe el checkbox " + v }; }
+    case "submit": { const ok = await page.evaluate((s) => { const e = document.querySelector(s); if (!e) return false; if (e.requestSubmit) e.requestSubmit(); else e.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true })); return true; }, v); await sleep(320); return { ok, msg: ok ? "" : "no existe el formulario " + v }; }
+    case "expect": { const ok = await page.evaluate((t) => document.body.innerText.includes(t), v); return { ok, msg: ok ? "" : 'no aparece el texto "' + v + '"' }; }
+    case "expectHash": { const cur = await page.evaluate(() => location.hash); return { ok: cur === v, msg: cur === v ? "" : 'el hash es "' + cur + '" y se esperaba "' + v + '"' }; }
+    case "expectVisible": { const ok = await page.evaluate((s) => { const e = document.querySelector(s); return !!(e && e.offsetParent !== null); }, v); return { ok, msg: ok ? "" : "no está visible " + v }; }
+    case "expectGone": { const ok = await page.evaluate((s) => { const e = document.querySelector(s); return !(e && e.offsetParent !== null); }, v); return { ok, msg: ok ? "" : "sigue visible " + v }; }
+    default: return { ok: false, msg: "paso no reconocido: " + k };
+  }
+}
+async function runAcceptanceTests() {
+  let spec;
+  try { spec = await page.evaluate(() => { const el = document.getElementById("acceptance-tests"); if (!el) return null; try { return JSON.parse(el.textContent); } catch (e) { return { __error: e.message }; } }); }
+  catch (e) { spec = null; }
+  if (spec === null) { ok.push("Tests de aceptación: la app no trae bloque #acceptance-tests (opcional pero recomendado)."); return; }
+  if (spec && spec.__error) { errors.push("Bloque #acceptance-tests con JSON inválido: " + spec.__error); return; }
+  const tests = Array.isArray(spec) ? spec : (spec.tests || []);
+  if (!tests.length) { warnings.push("Bloque #acceptance-tests presente pero sin tests."); return; }
+  let passed = 0;
+  for (const t of tests) {
+    await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
+    await load();
+    let fail = null;
+    const steps = t.steps || [];
+    for (let i = 0; i < steps.length; i++) {
+      const before = errors.length;
+      let r;
+      try { r = await runStep(steps[i]); } catch (e) { r = { ok: false, msg: e.message }; }
+      if (errors.length > before) { fail = { i, msg: "error JS durante el paso" }; break; }
+      if (!r.ok) { fail = { i, msg: r.msg || "falló" }; break; }
+    }
+    if (fail) errors.push(`Test "${t.name || "(sin nombre)"}" ❌ en el paso ${fail.i + 1}: ${fail.msg}`);
+    else { passed++; ok.push(`Test de aceptación ✓ ${t.name || "(sin nombre)"}`); }
+  }
+  ok.push(`Tests de aceptación: ${passed}/${tests.length} en verde.`);
 }
 
 // 1) CARGA SIN ERRORES
@@ -183,6 +237,9 @@ if (frames.length) {
   ok.push(`Probados ${frames.length} iframe(s)/overlay(s) interno(s).`);
   await shot("iframe");
 }
+
+// 5) TESTS DE ACEPTACIÓN POR APP (cada criterio del cliente, probado clic a clic)
+await runAcceptanceTests();
 
 await browser.close();
 

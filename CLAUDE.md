@@ -55,7 +55,10 @@ salga perfecto. Sigue este guion SIEMPRE:
 Para que la app llegue **100% funcional** al paso 10, no basta con leer el código: hay que abrirla
 y pulsarla. Hay un verificador que lo hace solo (Chromium headless, desde `file://` como el cliente):
 recorre cada ruta hash, **pulsa cada botón/enlace**, entra en los iframes/overlays, y caza errores
-de consola y botones muertos.
+de consola y botones muertos. Además, si la app trae sus **tests de aceptación** embebidos
+(`<script type="application/json" id="acceptance-tests">[{name, steps:[...]}]</script>`, que escribe el
+Arquitecto a partir de los criterios), los **ejecuta clic a clic** y falla si alguno no se cumple —
+así cada criterio del cliente queda probado a máquina.
 
 ```bash
 npm i puppeteer                                   # una vez (Chromium queda en caché)
