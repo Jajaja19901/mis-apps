@@ -1,0 +1,58 @@
+name: Verificar la app del PR (segunda ronda automatica)
+
+# Cuando un PR toca una app en apps/, el robot la abre y la PULSA solita:
+# recorre rutas, pulsa botones, entra en iframes y caza errores/botones muertos.
+# Si NO sale APTO, el check falla y la app rota no puede mergearse.
+on:
+  pull_request:
+    paths:
+      - 'apps/**.html'
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repo (con historial para el diff)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Preparar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Instalar el navegador (puppeteer)
+        run: npm i puppeteer
+
+      - name: Verificar cada app cambiada en el PR
+        run: |
+          set -e
+          BASE="${{ github.event.pull_request.base.sha }}"
+          CHANGED=$(git diff --name-only "$BASE" HEAD -- 'apps/*.html' || true)
+          if [ -z "$CHANGED" ]; then
+            echo "No hay apps cambiadas que verificar."
+            exit 0
+          fi
+          echo "Apps a verificar:"; echo "$CHANGED"
+          FAIL=0
+          for f in $CHANGED; do
+            if [ ! -f "$f" ]; then echo "Saltando $f (borrada)"; continue; fi
+            echo "::group::🔎 Verificando $f"
+            if node tools/verificar-app.mjs "$f"; then
+              echo "✅ $f APTO"
+            else
+              echo "❌ $f NO APTO"
+              FAIL=1
+            fi
+            echo "::endgroup::"
+          done
+          if [ "$FAIL" -ne 0 ]; then
+            echo "::error::Alguna app no pasó el verificador. Corrige y vuelve a subir."
+            exit 1
+          fi
+          echo "Todas las apps del PR están ✅ APTO."
+
+      - name: Limpiar dependencias de prueba
+        if: always()
+        run: rm -rf node_modules package.json package-lock.json
