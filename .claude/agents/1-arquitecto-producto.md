@@ -37,6 +37,39 @@ aparecer), `expectHash`, `expectVisible`, `expectGone`. Escribe **un test por cr
 (acción principal completa paso a paso, formulario que guarda, panel de admin, etc.). Deja estos
 tests en el plano para que el constructor los embeba y el QA los pase en verde.
 
+**Ejemplo del bloque (relleno, adáptalo a la app real):**
+```html
+<script type="application/json" id="acceptance-tests">
+[
+  { "name": "Completa la acción principal", "steps": [
+    { "goto": "#/" },
+    { "clickText": "Reservar" },
+    { "expect": "Elige día" },
+    { "clickText": "Continuar" },
+    { "expect": "Paso 2" }
+  ]},
+  { "name": "El formulario valida y guarda", "steps": [
+    { "goto": "#/contacto" },
+    { "submit": "#contactForm" },
+    { "expect": "obligatorio" },
+    { "fill": { "sel": "#nombre", "value": "Ana" } },
+    { "fill": { "sel": "#email", "value": "ana@mail.com" } },
+    { "check": "#consent" },
+    { "submit": "#contactForm" },
+    { "expect": "Gracias" }
+  ]},
+  { "name": "El dueño entra al panel", "steps": [
+    { "goto": "#/admin" },
+    { "fill": { "sel": "#adm-pass", "value": "CONTRASEÑA" } },
+    { "submit": "#adminLoginForm" },
+    { "expect": "Panel" }
+  ]}
+]
+</script>
+```
+Usa selectores e IDs que existan de verdad en la app y textos que el usuario ve. Cada paso debe
+poder fallar (es lo que prueba el criterio).
+
 ## Autocomprobación antes de entregar
 - ¿Cada criterio se comprueba pulsando? ¿Hay alguno vago ("se ve bien")? Reescríbelo.
 - ¿Cada criterio tiene su test ejecutable en el DSL?

@@ -3383,7 +3383,15 @@ function buildPrompt() {
   // CRITERIOS DE ACEPTACIÓN (Agente 1 → verificados por Agente 10)
   lines.push('## 🎯 CRITERIOS DE ACEPTACIÓN — ESTO DEFINE EL ÉXITO');
   lines.push('');
-  lines.push('El Agente 1 debe convertir esto en una checklist Y en **tests de aceptación ejecutables**, que se embeben en el HTML final como `<script type="application/json" id="acceptance-tests">[{name, steps:[...]}]<\/script>` (pasos: goto/click/clickText/fill/check/submit/expect/expectHash/expectVisible). El verificador los ejecuta clic a clic y el Agente 10 exige que TODOS pasen. La entrega NO está terminada hasta que TODO esté en ✅:');
+  lines.push('El Agente 1 debe convertir esto en una checklist Y en **tests de aceptación ejecutables** que el **constructor EMBEBE** en el HTML final (justo antes del `<script>` de la lógica) y que el verificador ejecuta clic a clic; el Agente 10 exige que TODOS pasen. Pasos del DSL: goto/click/clickText/fill{sel,value}/check/submit/expect/expectHash/expectVisible/expectGone. Ejemplo del bloque (adáptalo con IDs y textos reales de la app):');
+  lines.push('```html');
+  lines.push('<script type="application/json" id="acceptance-tests">');
+  lines.push('[{"name":"Acción principal","steps":[{"goto":"#/"},{"clickText":"TU CTA"},{"expect":"texto que aparece"}]},');
+  lines.push(' {"name":"Formulario valida y guarda","steps":[{"goto":"#/contacto"},{"submit":"#contactForm"},{"expect":"obligatorio"},{"fill":{"sel":"#nombre","value":"Ana"}},{"check":"#consent"},{"submit":"#contactForm"},{"expect":"Gracias"}]},');
+  lines.push(' {"name":"Panel del dueño","steps":[{"goto":"#/admin"},{"fill":{"sel":"#adm-pass","value":"CLAVE"}},{"submit":"#adminLoginForm"},{"expect":"Panel"}]}]');
+  lines.push('<\/script>');
+  lines.push('```');
+  lines.push('La entrega NO está terminada hasta que TODO esté en ✅:');
   lines.push('');
   lines.push(`- [ ] La acción nº1 que el cliente quiere conseguir está clarísima y a un clic: **${a.objetivo_web || 'su objetivo principal'}**.`);
   if (a.cta_principal) {

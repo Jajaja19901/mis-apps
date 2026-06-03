@@ -18,6 +18,7 @@ Un solo HTML autocontenido, mobile-first, embudo de venta. **Sin registro de usu
 5. **Validación** de cada formulario con mensajes útiles, **casilla de consentimiento obligatoria** si se recogen datos.
 6. **Errores** con try/catch en `JSON.parse` y en TODO acceso a `localStorage` (puede estar lleno, en modo privado o sandbox).
 7. **Feedback**: toasts de éxito, confirmaciones al borrar.
+8. **EMBEBE los tests de aceptación** del Arquitecto en el HTML final, justo antes de tu `<script>`, como `<script type="application/json" id="acceptance-tests">[...]</script>`. Usa selectores/IDs que existan de verdad en tu código. Si el Arquitecto no los dejó, créalos a partir de los criterios. El verificador los ejecuta y deben salir TODOS en verde.
 
 ## ⚙️ Reglas técnicas que evitan los bugs de SIEMPRE (no negociables)
 - **Reengancha los listeners después de CADA render.** Si una vista reconstruye su HTML con `innerHTML`, los `addEventListener` anteriores se pierden: vuelve a asociarlos al pintar. La causa nº1 de "las opciones no responden" es un botón cuyo listener no se reenganchó tras re-renderizar.
