@@ -118,6 +118,9 @@ OBLIGATORIAS para el director y los 10 agentes, en CADA app. El Agente 10 (QA) l
   admin** (input de archivo → `localStorage` dataURL). No hacen falta las fotos del cliente para
   entregar: arranca con placeholders/arte SVG generado y estado vacío; el dueño los reemplaza.
   El **logo** = el del briefing si lo hay, o un logotipo/emblema SVG; nunca inventes marca/nombre.
+- **Instalable (PWA):** favicon = el logo, **manifest embebido** + metas Apple → "Añadir a pantalla
+  de inicio" con el logo como icono y a pantalla completa; si el dueño sube su logo, ese es el icono.
+  Botón discreto "Instalar app". (Instalar requiere HTTPS; en `file://` es web normal.)
 - **Venta sin backend:** sin servidor el cobro con tarjeta NO es real. Haz **carrito + pedido**
   (que el dueño ve en su panel) y **cierra el pago por WhatsApp/Bizum**, con aviso de que la
   tarjeta es simulada. "Comprar online" se cumple así, no con cobro automático.
