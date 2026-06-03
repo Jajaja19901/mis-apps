@@ -1054,6 +1054,10 @@ const CONFIG = {
   EMAIL: "pega_aqui_tu_email@dominio.com",
   BRAND_NAME: "Tu Estudio",
   GITHUB_REPO: "Jajaja19901/mis-apps",     // tu repo: el robot crea la app desde una "issue" con etiqueta crear-app
+  // ── FOTOS A LA NUBE (para que las imágenes te lleguen como enlaces en el prompt) ──
+  // Crea una cuenta GRATIS en cloudinary.com → Settings → Upload → crea un "unsigned upload preset".
+  // Pega aquí tu "Cloud name" y el nombre del preset. Si lo dejas vacío, las fotos se quedan en local (como antes).
+  CLOUDINARY: { cloudName: "", uploadPreset: "" },
 };
 
 /* ========================================
@@ -1662,6 +1666,21 @@ QUESTIONS.push({
   required: false,
   minNivel: "premiumplus",
 });
+
+// 2b) Pregunta "lo que NO quiero" (todos los niveles, opcional) — justo tras el tono de voz
+(function () {
+  const i = QUESTIONS.findIndex(q => q.key === 'tono_voz');
+  const noQuiero = {
+    section: "Estilo y tono",
+    title: "¿Hay algo que NO quieras?",
+    help: "Dime lo que NO te gusta o NO quieres: colores, estilos, palabras, o cosas que otros suelen hacer y a ti no te encajan. Así no vamos en la dirección equivocada.",
+    type: "textarea",
+    key: "no_quiero",
+    placeholder: "Ej: 'Nada de morado' · 'Sin fotos de stock genéricas' · 'No quiero que pidan registro' · 'Evita textos largos'",
+    required: false,
+  };
+  if (i >= 0) QUESTIONS.splice(i + 1, 0, noQuiero); else QUESTIONS.push(noQuiero);
+})();
 
 // 3) Umbral de nivel por pregunta (si no se alcanza el nivel, no se pregunta)
 const NIVEL_MIN = {
@@ -2594,6 +2613,36 @@ function renderFinal() {
       render();
     }
   });
+
+  // Si hay fotos sin subir y la nube está configurada, súbelas y vuelve a pintar (para meter los enlaces en el prompt)
+  const C = CONFIG.CLOUDINARY;
+  if (C && C.cloudName && C.uploadPreset &&
+      state.files.some(f => f.type && f.type.startsWith('image/') && f.dataUrl && !f.url)) {
+    uploadImagesToCloud().then(done => { if (done) render(); });
+  }
+}
+
+// Sube a Cloudinary (cuenta gratis) las imágenes que aún no tengan enlace. Devuelve true si subió algo.
+async function uploadImagesToCloud() {
+  const C = CONFIG.CLOUDINARY;
+  if (!C || !C.cloudName || !C.uploadPreset) return false;
+  const pendientes = state.files.filter(f => f.type && f.type.startsWith('image/') && f.dataUrl && !f.url);
+  if (!pendientes.length) return false;
+  showToast('Subiendo tus fotos a la nube…', 6000);
+  let alguna = false;
+  for (const f of pendientes) {
+    try {
+      const fd = new FormData();
+      fd.append('file', f.dataUrl);
+      fd.append('upload_preset', C.uploadPreset);
+      const r = await fetch(`https://api.cloudinary.com/v1_1/${C.cloudName}/image/upload`, { method: 'POST', body: fd });
+      const j = await r.json();
+      if (j && j.secure_url) { f.url = j.secure_url; alguna = true; }
+    } catch (e) { console.warn('No se pudo subir una imagen:', e); }
+  }
+  saveState();
+  if (alguna) showToast('✓ Fotos subidas');
+  return alguna;
 }
 
 async function copyToClipboard(text) {
@@ -2941,6 +2990,11 @@ function buildPrompt() {
   lines.push(`**Webs que inspiran al cliente:**`);
   lines.push(a.inspiraciones || '—');
   lines.push('');
+  if (a.no_quiero) {
+    lines.push(`**⛔ LO QUE EL CLIENTE NO QUIERE (respétalo SÍ o SÍ):**`);
+    lines.push(a.no_quiero);
+    lines.push('');
+  }
 
   lines.push('## 5. CONTEXTO LOCAL');
   lines.push('');
@@ -2978,10 +3032,16 @@ function buildPrompt() {
         const origStr = origKB >= 1024 ? `${(origKB/1024).toFixed(1)} MB` : `${origKB} KB`;
         extra = ` — comprimida desde ${origStr}`;
       }
-      lines.push(`- ${f.name} (${f.type || 'archivo'}, ${sizeStr}${extra})`);
+      const link = f.url ? ` → ${f.url}` : '';
+      lines.push(`- ${f.name} (${f.type || 'archivo'}, ${sizeStr}${extra})${link}`);
     });
     lines.push('');
-    lines.push('  ⚠️ IMPORTANTE: las imágenes se han comprimido localmente y se quedaron en el dispositivo del cliente. NO viajan en este mensaje. Pídelas al cliente por separado (WhatsApp, email, AirDrop) antes de construir la web.');
+    const algunaSubida = state.files.some(f => f.url);
+    if (algunaSubida) {
+      lines.push('  ✅ Las imágenes con enlace (→) están subidas a la nube: ábrelas para descargarlas y úsalas en la web.');
+    } else {
+      lines.push('  ⚠️ IMPORTANTE: las imágenes se quedaron en el dispositivo del cliente. NO viajan en este mensaje. Pídelas al cliente por separado (WhatsApp, email) antes de construir la web.');
+    }
     lines.push('');
   } else {
     lines.push(`**Archivos:** ninguno. Usa placeholders coherentes con el negocio.`);
