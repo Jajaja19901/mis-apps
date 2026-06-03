@@ -16,6 +16,7 @@ const SOURCES = {
   "briefing.html": "briefing.html",
   "peluqueria-aurora.html": "apps/peluqueria-aurora.html",
   "reformas-presupuestador.html": "apps/reformas-presupuestador.html",
+  "tienda-arte-ejemplo.html": "apps/tienda-arte-ejemplo.html",
 };
 
 if (!fs.existsSync(COMPLETA)) { console.error("No existe " + COMPLETA); process.exit(1); }
