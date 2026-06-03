@@ -262,6 +262,7 @@ function route(){
   const h=location.hash;
   if(h==="#/admin"){ stopIncu(); view="admin"; renderAdmin(); window.scrollTo(0,0); return; }
   if(h==="#/gracias"){ stopIncu(); view="gracias"; renderGracias(); window.scrollTo(0,0); return; }
+  if(h==="#/legal"){ stopIncu(); view="legal"; renderLegal(); window.scrollTo(0,0); return; }
   if(view!=="landing"){ view="landing"; renderLanding(); startIncubator(); }
   if(h && h.length>1 && h[1]!=="/"){ const el=document.getElementById(h.slice(1)); const r=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches; if(el) setTimeout(()=>el.scrollIntoView({behavior:r?"auto":"smooth",block:"start"}),30); }
   else window.scrollTo(0,0);
@@ -379,9 +380,10 @@ function renderLanding(){
           <div class="ff"><label for="i-nivel">Nivel que te interesa</label><select id="i-nivel"><option value="No lo sé">No lo sé / aconséjame</option>${CONFIG.NIVELES.map(n=>`<option value="${esc(n.id)}">${esc(n.id)} (${esc(n.precio)})</option>`).join("")}</select></div>
         </div>
         <div class="ff"><label for="i-msg">Cuéntanos tu idea (opcional)</label><textarea id="i-msg" maxlength="600" rows="2"></textarea></div>
+        <div class="ff" id="f-acepto"><label for="i-acepto" style="display:flex;gap:9px;align-items:flex-start;font-size:13px;color:var(--ink-soft);cursor:pointer"><input type="checkbox" id="i-acepto" style="width:auto;margin-top:3px;flex:0 0 auto" aria-describedby="e-acepto"><span>He leído y acepto la <a href="#/legal" style="color:var(--neo);text-decoration:underline">política de privacidad</a>.</span></label><div class="err" id="e-acepto" role="alert">Debes aceptar la política de privacidad para continuar.</div></div>
         <button type="submit" class="btn btn-primary btn-lg">🥚 Empezar a incubar</button>
         <div style="text-align:center;margin-top:12px"><a href="${esc(C.BRIEFING_URL)}" style="color:var(--neo);font-size:14px;text-decoration:underline">…o rellenar el cuestionario completo →</a></div>
-        <div class="priv">🔒 No usamos cookies ni te registramos. Solo usamos lo que escribes para contactarte.</div>
+        <div class="priv">🔒 No usamos cookies de seguimiento. Solo usamos lo que escribes para contactarte.</div>
       </form>
     </div></section>
   </main>
@@ -416,6 +418,7 @@ function onLead(e){
   const nombre=g("i-nombre").value.trim(), negocio=g("i-negocio").value.trim(), tel=g("i-tel").value.trim();
   let ok=true; const set=(f,bad)=>{ g(f).classList.toggle("bad",bad); const inp=g("i"+f.slice(1)); if(inp) inp.setAttribute("aria-invalid",bad?"true":"false"); if(bad) ok=false; };
   set("f-nombre",nombre.length<2); set("f-negocio",negocio.length<2); set("f-tel",!/^[0-9 +().-]{7,20}$/.test(tel));
+  const acepto=g("i-acepto").checked; g("f-acepto").classList.toggle("bad",!acepto); if(!acepto) ok=false;
   if(!ok) return;
   const nivel=g("i-nivel").value, msg=g("i-msg").value.trim();
   const lead={ id:"lead_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), fecha:new Date().toISOString(), nombre, negocio, telefono:tel, nivel, mensaje:msg, estado:"nuevo" };
@@ -434,6 +437,34 @@ function renderGracias(){
     <a href="${esc(CONFIG.BRIEFING_URL)}" class="btn btn-primary btn-lg">Rellenar el cuestionario completo</a>
     <div style="margin-top:16px"><a class="btn btn-ghost" href="#/">Volver al inicio</a></div>
   </div></div></section></main>${footer()}`;
+}
+
+function renderLegal(){
+  const C=CONFIG;
+  document.getElementById("app").innerHTML=`${header()}<main id="main"><section><div class="wrap" style="max-width:780px">
+    <h1 style="font-size:clamp(26px,5vw,38px)">Política de privacidad y aviso legal</h1>
+    <p style="color:var(--ink-soft);margin:10px 0 6px;font-size:13px"><i>⚠️ Plantilla. Rellena los datos entre [corchetes] con los tuyos reales antes de publicar. No es asesoramiento legal; revísalo con un gestor si tienes dudas.</i></p>
+
+    <h3 style="margin-top:26px;color:#fff">1. Quién es el responsable</h3>
+    <p style="color:var(--ink-soft)">Titular: <b>[Nombre o razón social]</b> · NIF/DNI: <b>[—]</b> · Dirección: <b>[—]</b> · Email de contacto: <a href="mailto:${esc(C.EMAIL)}" style="color:var(--neo)">${esc(C.EMAIL)}</a>.</p>
+
+    <h3 style="margin-top:22px;color:#fff">2. Qué datos recogemos y para qué</h3>
+    <p style="color:var(--ink-soft)">Solo recogemos los datos que tú nos facilitas voluntariamente en el formulario de contacto (<b>nombre, teléfono y, opcionalmente, email y tu mensaje</b>). Los usamos <b>únicamente para responderte y gestionar tu solicitud</b>. No recogemos datos de navegación ni usamos cookies de seguimiento.</p>
+
+    <h3 style="margin-top:22px;color:#fff">3. Base legal y conservación</h3>
+    <p style="color:var(--ink-soft)">La base legal es <b>tu consentimiento</b> (la casilla que marcas al enviar). Conservamos tus datos solo el tiempo necesario para atender tu solicitud o la relación que surja, y luego los eliminamos.</p>
+
+    <h3 style="margin-top:22px;color:#fff">4. Con quién se comparten</h3>
+    <p style="color:var(--ink-soft)">No cedemos tus datos a terceros, salvo obligación legal. El contacto se realiza por los medios que tú facilitas (p. ej. WhatsApp).</p>
+
+    <h3 style="margin-top:22px;color:#fff">5. Tus derechos</h3>
+    <p style="color:var(--ink-soft)">Puedes ejercer tus derechos de <b>acceso, rectificación, supresión, oposición, limitación y portabilidad</b> escribiendo a <a href="mailto:${esc(C.EMAIL)}" style="color:var(--neo)">${esc(C.EMAIL)}</a>. También puedes reclamar ante la Agencia Española de Protección de Datos (aepd.es).</p>
+
+    <h3 style="margin-top:22px;color:#fff">6. Aviso legal (LSSI)</h3>
+    <p style="color:var(--ink-soft)">Este sitio es titularidad de <b>[Nombre/empresa]</b>, con NIF <b>[—]</b> y domicilio en <b>[—]</b>. Actividad: creación de webs y apps para negocios. Contacto: ${esc(C.EMAIL)}.</p>
+
+    <div style="margin-top:30px"><a class="btn btn-ghost" href="#/">← Volver</a></div>
+  </div></section></main>${footer()}`;
 }
 
 /* ADMIN */
@@ -475,7 +506,7 @@ function renderGate(bad){
 
 /* reutilizables */
 function header(){ return `<header class="site"><div class="wrap"><a class="logo" href="#/">${logoMark(34)}<span>${esc(CONFIG.BUSINESS_NAME)}</span></a><a href="${esc(CONFIG.BRIEFING_URL)}" class="btn btn-primary nav-cta">Incubar mi negocio</a></div></header>`; }
-function footer(){ const C=CONFIG; return `<footer class="site"><div class="wrap"><nav class="cols" aria-label="Pie de página"><div><div class="logo" style="margin-bottom:10px">${logoMark(30)}<span>${esc(C.BUSINESS_NAME)}</span></div><p style="font-size:14px;max-width:300px;color:var(--ink-soft)">Incubamos tu negocio: webs y apps profesionales para autónomos y pymes. Rápidas, baratas y para vender.</p></div><div><h3>Incubadora</h3><a href="#proceso">Cómo funciona</a><a href="#niveles">Niveles</a><a href="${esc(C.BRIEFING_URL)}">Cuestionario</a></div><div><h3>Contacto</h3><a href="mailto:${esc(C.EMAIL)}">${esc(C.EMAIL)}</a></div></nav><div class="copyr"><span>© ${new Date().getFullYear()} ${esc(C.BUSINESS_NAME)} · sin cookies de tracking</span><a href="#/admin">Acceso equipo</a></div></div></footer>`; }
+function footer(){ const C=CONFIG; return `<footer class="site"><div class="wrap"><nav class="cols" aria-label="Pie de página"><div><div class="logo" style="margin-bottom:10px">${logoMark(30)}<span>${esc(C.BUSINESS_NAME)}</span></div><p style="font-size:14px;max-width:300px;color:var(--ink-soft)">Incubamos tu negocio: webs y apps profesionales para autónomos y pymes. Rápidas, baratas y para vender.</p></div><div><h3>Incubadora</h3><a href="#proceso">Cómo funciona</a><a href="#niveles">Niveles</a><a href="${esc(C.BRIEFING_URL)}">Cuestionario</a></div><div><h3>Contacto</h3><a href="mailto:${esc(C.EMAIL)}">${esc(C.EMAIL)}</a></div></nav><div class="copyr"><span>© ${new Date().getFullYear()} ${esc(C.BUSINESS_NAME)} · sin cookies de tracking</span><span><a href="#/legal">Política de privacidad y aviso legal</a> · <a href="#/admin">Acceso equipo</a></span></div></div></footer>`; }
 function faq(q,a){ return `<details><summary>${esc(q)}</summary><div class="a">${esc(a)}</div></details>`; }
 function showToast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(showToast._t); showToast._t=setTimeout(()=>t.classList.remove("show"),2600); }
 function logoMark(s){ s=s||30; return `<svg width="${s}" height="${s}" viewBox="0 0 48 48" aria-hidden="true" focusable="false" style="flex-shrink:0">

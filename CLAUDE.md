@@ -85,6 +85,10 @@ OBLIGATORIAS para el director y los 10 agentes, en CADA app. El Agente 10 (QA) l
   en `#/admin`, con una constante `ADMIN_PASSWORD` al principio del código.
 - **Sin recogida de datos personales** salvo formularios voluntarios. Sin cookies de tracking
   → que no aplique el RGPD.
+- **Si la app recoge datos por formulario** (nombre, teléfono, email…): incluye SIEMPRE una
+  **casilla de consentimiento** ("Acepto la política de privacidad", obligatoria para enviar) y
+  una página/sección de **Política de Privacidad + Aviso Legal** (plantilla con placeholders del
+  titular), enlazada en el pie. Por ley (RGPD/LSSI en España).
 - Orientado a **convertir** (embudo de venta): cada pantalla empuja a la acción principal.
 - Seguro y rápido. Sin librerías pesadas (nada de Bootstrap, jQuery, React, Vue).
 - Contenido REAL, cero "lorem ipsum".
