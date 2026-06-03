@@ -675,6 +675,35 @@
     transform: scale(0.9);
   }
 
+  /* Paletas premium */
+  .palette-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 480px) { .palette-grid { grid-template-columns: 1fr; } }
+  .palette-card {
+    border: 2px solid var(--line, #e6e1d8);
+    border-radius: 14px;
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--card, #fff);
+    transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .palette-card:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(0,0,0,0.10); }
+  .palette-card.selected {
+    border-color: var(--ink, #1a1a1a);
+    box-shadow: 0 8px 22px rgba(0,0,0,0.14);
+  }
+  .palette-bands { display: flex; height: 56px; }
+  .palette-bands span { flex: 1; }
+  .palette-bands span.base { flex: 1.6; }
+  .palette-meta { padding: 10px 12px; }
+  .palette-name { font-weight: 700; font-size: 14px; color: var(--ink, #1a1a1a); display: flex; align-items: center; gap: 6px; }
+  .palette-card.selected .palette-name::after { content: "✓"; color: var(--accent, #c8553d); font-weight: 800; }
+  .palette-vibe { font-size: 12px; color: var(--ink-muted, #8a8378); margin-top: 2px; }
+
   /* NAVBAR */
   .navbar {
     position: fixed;
@@ -1827,6 +1856,14 @@ const QUESTIONS = [
   },
   {
     section: "Estilo visual",
+    title: "¿Una paleta premium?",
+    help: "Combinaciones elegidas por diseñadores (base + acento + neutro). Toca la que más te encaje, o sáltala y deja solo el color principal de abajo.",
+    type: "palette",
+    key: "paleta_premium",
+    required: false,
+  },
+  {
+    section: "Estilo visual",
     title: "¿Color principal?",
     help: "Elige uno o escribe el código hex. Si no lo tienes claro, puedes saltarlo.",
     type: "color",
@@ -2012,6 +2049,23 @@ const COLORS = [
   "#1a1a1a", "#c8553d", "#d4a574", "#7a9b76",
   "#4a6fa5", "#8b5a8c", "#c97b9a", "#3d6b5c",
   "#a8421f", "#5b4636", "#2c3e50", "#e8b04b",
+];
+
+/* Paletas premium curadas: cada una = base (color principal) + acento + neutro de fondo.
+   El Diseñador de Marca (Agente 2) la usa como punto de partida del sistema visual. */
+const PALETTES = [
+  { id: "onix-oro",        name: "Ónix & Oro",          vibe: "Lujo sobrio, elegante", base: "#0E0E10", accent: "#C9A24B", neutral: "#F4F1EA" },
+  { id: "esmeralda-real",  name: "Esmeralda Real",      vibe: "Premium, confiable",     base: "#0B3D2E", accent: "#1E8C6B", neutral: "#EAF3EE" },
+  { id: "borgona-crema",   name: "Borgoña & Crema",     vibe: "Cálido, gourmet",        base: "#5A1A2B", accent: "#A23E48", neutral: "#F3E9E1" },
+  { id: "medianoche-cobre",name: "Medianoche & Cobre",  vibe: "Moderno, tecnológico",   base: "#0F2238", accent: "#B5683C", neutral: "#EDF1F5" },
+  { id: "salvia-serena",   name: "Salvia Serena",       vibe: "Natural, calmado",       base: "#3E4A3D", accent: "#8AA17E", neutral: "#F1F0E8" },
+  { id: "terracota-calida",name: "Terracota Cálida",    vibe: "Artesanal, acogedor",    base: "#7A3B2E", accent: "#C8553D", neutral: "#F6ECE3" },
+  { id: "lavanda-noche",   name: "Lavanda Nocturna",    vibe: "Creativo, sofisticado",  base: "#2A2540", accent: "#8C7AB5", neutral: "#F0ECF7" },
+  { id: "marfil-carbon",   name: "Marfil & Carbón",     vibe: "Minimalista, premium",   base: "#1C1C1C", accent: "#B8A38A", neutral: "#F5F2EC" },
+  { id: "coral-sofis",     name: "Coral Sofisticado",   vibe: "Fresco, cercano",        base: "#2B2B33", accent: "#E07A5F", neutral: "#F4EDE6" },
+  { id: "azul-arena",      name: "Azul Profundo & Arena",vibe: "Serio, marítimo",       base: "#14304D", accent: "#D9B27C", neutral: "#EFF2F4" },
+  { id: "rosa-grafito",    name: "Rosa Polvo & Grafito",vibe: "Delicado, boutique",     base: "#2E2A2C", accent: "#C98B9A", neutral: "#F6EEF0" },
+  { id: "verde-bosque",    name: "Bosque & Oliva",      vibe: "Orgánico, robusto",      base: "#23311F", accent: "#9CA961", neutral: "#EEF0E6" },
 ];
 
 /* ========================================
@@ -2272,6 +2326,22 @@ function renderQuestion(q) {
         </div>
       `).join('')}
     </div>`;
+  } else if (q.type === 'palette') {
+    inputHTML = `<div class="palette-grid" id="qPalette">
+      ${PALETTES.map(p => `
+        <div class="palette-card ${value === p.id ? 'selected' : ''}" data-value="${escapeHtml(p.id)}" role="button" tabindex="0" aria-pressed="${value === p.id}" aria-label="Paleta ${escapeHtml(p.name)}: ${escapeHtml(p.vibe)}">
+          <div class="palette-bands" aria-hidden="true">
+            <span class="base" style="background:${p.base}"></span>
+            <span style="background:${p.accent}"></span>
+            <span style="background:${p.neutral}"></span>
+          </div>
+          <div class="palette-meta">
+            <div class="palette-name">${escapeHtml(p.name)}</div>
+            <div class="palette-vibe">${escapeHtml(p.vibe)}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>`;
   } else if (q.type === 'color') {
     inputHTML = `<div class="color-grid" id="qColors">
       ${COLORS.map(c => `
@@ -2408,6 +2478,24 @@ function attachQuestionHandlers(q) {
         updateNavButtons();
         saveState();
       });
+    });
+  } else if (q.type === 'palette') {
+    document.querySelectorAll('#qPalette .palette-card').forEach(el => {
+      const select = () => {
+        const already = el.classList.contains('selected');
+        document.querySelectorAll('#qPalette .palette-card').forEach(s => { s.classList.remove('selected'); s.setAttribute('aria-pressed', 'false'); });
+        if (already) {
+          delete state.answers[q.key]; // segunda pulsación = deseleccionar (es opcional)
+        } else {
+          el.classList.add('selected');
+          el.setAttribute('aria-pressed', 'true');
+          state.answers[q.key] = el.dataset.value;
+        }
+        updateNavButtons();
+        saveState();
+      };
+      el.addEventListener('click', select);
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(); } });
     });
   } else if (q.type === 'color') {
     document.querySelectorAll('#qColors .color-swatch').forEach(el => {
@@ -3357,7 +3445,11 @@ function buildPrompt() {
   } else {
     lines.push(`**Vibras visuales:** —`);
   }
-  lines.push(`**Color principal:** ${a.color_principal || 'a definir según vibra'}`);
+  const palSel = PALETTES.find(p => p.id === a.paleta_premium);
+  if (palSel) {
+    lines.push(`**Paleta premium elegida:** "${palSel.name}" (${palSel.vibe}) → base ${palSel.base}, acento ${palSel.accent}, neutro/fondo ${palSel.neutral}. Úsala como punto de partida del sistema visual (genera a partir de ahí los neutros y estados, manteniendo contraste AA).`);
+  }
+  lines.push(`**Color principal:** ${a.color_principal || (palSel ? palSel.base : 'a definir según vibra')}`);
   lines.push('');
   lines.push(`**Webs que inspiran al cliente:**`);
   lines.push(a.inspiraciones || '—');
