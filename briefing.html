@@ -1039,6 +1039,19 @@
     word-break: break-word;
     display: block;
   }
+  .price-card {
+    text-align: center;
+    border: 1.5px solid var(--accent, #c8553d);
+    border-radius: 18px;
+    padding: 20px 18px;
+    margin: 18px 0 10px;
+    background: var(--accent-soft, rgba(200,85,61,.06));
+  }
+  .price-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--accent, #c8553d); }
+  .price-big { font-family: var(--sora, inherit); font-size: clamp(34px, 9vw, 48px); font-weight: 800; line-height: 1.05; margin: 4px 0; color: var(--ink); }
+  .price-sub { font-size: 13px; color: var(--ink-soft); margin-bottom: 12px; }
+  .price-market { display: flex; flex-direction: column; gap: 6px; align-items: center; font-size: 13.5px; color: var(--ink-soft); }
+  .price-save { display: inline-block; background: var(--accent, #c8553d); color: #fff; font-weight: 700; font-size: 12.5px; padding: 4px 12px; border-radius: 999px; }
   .deposit-card {
     text-align: left;
     border: 1px solid var(--line);
@@ -3004,8 +3017,12 @@ function renderReview() {
 function renderFinal() {
   const prompt = buildPrompt();
 
-  // Señal (fianza) por nivel — POR AHORA SOLO VISUAL, no cobra nada real.
-  const NIVEL_PRECIO = { basica: 250, mediana: 450, grande: 650, premium: 850, premiumplus: null };
+  // Precio orientativo y señal por nivel — VALORES EDITABLES (cámbialos aquí en 10 seg).
+  const NIVEL_PRECIO = { basica: 250, mediana: 450, grande: 650, premium: 850, premiumplus: 950 };
+  const MERCADO = { // lo que cobraría una agencia/freelance por algo así (para anclar el valor)
+    basica: [600, 900], mediana: [1000, 1500], grande: [1500, 2200], premium: [2000, 3000], premiumplus: [3000, 4500]
+  };
+  const NIVEL_LBL = { basica:'Básica', mediana:'Mediana', grande:'Grande', premium:'Premium', premiumplus:'Premium Plus' };
   const SENAL = { basica: 100, mediana: 100, grande: 150, premium: 200, premiumplus: 200 };
   const nivel = state.answers.nivel;
   const senal = SENAL[nivel] || 100;
@@ -3014,6 +3031,22 @@ function renderFinal() {
   const restoTxt = (resto != null)
     ? `El resto (<b>${resto}€</b>) lo pagas cuando te entreguemos la app.`
     : `El resto lo pagas cuando te entreguemos la app.`;
+  const eur = n => Number(n).toLocaleString('es-ES') + '€';
+  let priceHTML = '';
+  if (precio != null && MERCADO[nivel]) {
+    const [mLo, mHi] = MERCADO[nivel];
+    const ahorro = Math.round((1 - precio / mLo) * 100);
+    priceHTML = `
+    <div class="price-card">
+      <div class="price-eyebrow">Tu presupuesto · Nivel ${NIVEL_LBL[nivel] || ''}</div>
+      <div class="price-big">${eur(precio)}</div>
+      <div class="price-sub">pago único${nivel === 'premiumplus' ? ' · incluye el asistente de FAQ (normalmente +300€, aquí solo +100€)' : ''}</div>
+      <div class="price-market">
+        <span>En el mercado, una web/app así cuesta <b>${eur(mLo)}–${eur(mHi)}</b></span>
+        <span class="price-save">Ahorras ~${ahorro}%</span>
+      </div>
+    </div>`;
+  }
   const depositHTML = `
     <div class="deposit-card">
       <div class="deposit-head">
@@ -3038,6 +3071,7 @@ function renderFinal() {
     <h1>¡Listo, ${escapeHtml(state.answers.nombre_cliente || 'gracias')}!<br><em>Trabajo en marcha.</em></h1>
     <p>Ya tengo todo lo que necesito. Paga la señal para reservar tu plaza y luego envíame la información para empezar.</p>
 
+    ${priceHTML}
     ${depositHTML}
 
     <div class="send-options">
