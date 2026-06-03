@@ -3070,14 +3070,14 @@ function buildPrompt() {
   lines.push('4. ✍️ **COPYWRITER** — Escribe TODOS los textos reales en el tono del cliente. Titulares que venden, CTAs claros, microcopys útiles. CERO "lorem ipsum", cero "[texto aquí]".');
   lines.push('5. 💻 **INGENIERO FRONTEND** — HTML semántico, CSS responsive impecable de 320px a 2560px, componentes reutilizables. Un solo archivo autocontenido.');
   if (hasApp) {
-    lines.push('6. ⚙️ **INGENIERO DE DATOS/APP** — Capa de datos en localStorage bien estructurada, gestión de estado, CRUD completo, router simple por hash, IDs únicos, validación de cada formulario.');
+    lines.push('6. ⚙️ **INGENIERO DE DATOS/APP** — Capa de datos en localStorage bien estructurada, gestión de estado, CRUD completo, router simple por hash, IDs únicos, validación de cada formulario. REGLAS ANTI-BUG: **reengancha los listeners después de CADA re-render** (si reconstruyes el HTML con innerHTML, los addEventListener se pierden — causa nº1 de "los botones no responden"); el router debe **arrancar en la carga** (no solo en hashchange) y **funcionar abriendo el archivo desde file://**; tras cambiar el hash, invoca el render directamente (no asumas que hashchange siempre se dispara). Antes de pasar a los revisores, abre la app y pulsa cada flujo para confirmar que funciona.');
   } else {
     lines.push('6. ⚙️ **INGENIERO DE INTERACCIÓN** — Formularios que validan en cliente, feedback inmediato (toasts, estados de botón), y cualquier lógica dinámica que pida el cliente.');
   }
   lines.push('7. 🔐 **INGENIERO DE SEGURIDAD** — Revisa TODO el código contra la checklist de seguridad de más abajo. Nada de XSS, nada de eval, nada de inyección. Si algo toca datos del usuario, lo sanea. Este agente tiene PODER DE VETO.');
   lines.push('8. ⚡ **INGENIERO DE RENDIMIENTO** — Asegura el presupuesto de rendimiento de más abajo: carga < 2s, cero dependencias pesadas, imágenes diferidas, animaciones a 60fps. Mide mentalmente el peso del archivo.');
   lines.push('9. ♿ **INGENIERO DE ACCESIBILIDAD** — WCAG AA: contraste suficiente, labels en inputs, foco visible, navegación por teclado completa, aria-labels en botones de solo icono, respeta prefers-reduced-motion.');
-  lines.push('10. 🧪 **QA / VERIFICADOR FINAL** — Recorre UNO A UNO los criterios de aceptación del Agente 1 y CADA flujo de usuario, como si fueras el cliente. Marca ✅ o ❌. Corrige todo lo ❌ y vuelve a pasar. Entrega solo cuando TODO esté en ✅.');
+  lines.push('10. 🧪 **QA / VERIFICADOR FINAL** — NO verifica leyendo el código: **abre la app en un navegador y PULSA**. Recorre uno a uno los criterios de aceptación del Agente 1 y CADA flujo de principio a fin, haciendo clic en cada botón/enlace y cada paso de cada asistente. Un botón que no hace nada, un paso que no avanza, una pantalla en blanco o un error en consola = ❌ automático. Marca ✅/❌, corrige todo lo ❌ y vuelve a pasar. Entrega solo cuando TODO esté en ✅. (Si trabajas dentro del repo, pasa la puerta `node tools/verificar-app.mjs apps/{negocio}.html` y exige `✅ APTO`.)');
   lines.push('');
 
   // FILOSOFÍA GLOBAL
@@ -3148,6 +3148,9 @@ function buildPrompt() {
   if (a.exito_cliente) {
     lines.push(`- [ ] Se cumple la definición de éxito del cliente: "${a.exito_cliente}"`);
   }
+  lines.push('- [ ] **Cada botón y cada enlace HACE algo** (ninguno muerto) y **la consola no muestra ni un error** durante todo el recorrido.');
+  lines.push('- [ ] **Cada paso de cada flujo/asistente avanza** correctamente hasta el final (probado pulsando, no leyendo el código).');
+  lines.push('- [ ] La navegación nunca te saca de donde estás ni deja una pantalla en blanco.');
   lines.push('- [ ] Funciona perfecto en móvil (320px), tablet y escritorio.');
   lines.push('- [ ] Pasa la checklist de seguridad y el presupuesto de rendimiento.');
   lines.push('- [ ] No hay ni un solo "lorem ipsum" ni texto de relleno.');
@@ -3255,7 +3258,7 @@ function buildPrompt() {
   lines.push('- No uses gradientes morados sobre blanco (cliché de AI).');
   lines.push('- No uses fuentes genéricas (Arial, Helvetica, Inter, Roboto).');
   lines.push('- No metas librerías pesadas (no Bootstrap, no jQuery, no React, no Vue).');
-  lines.push('- No pidas más información: si falta algo, INVENTA algo coherente y avísame al final.');
+  lines.push('- No pidas más información. Si falta un TEXTO (descripción, sección, microcopy), redáctalo tú coherente con el negocio. PERO **nunca inventes nombre de empresa, logo, datos de contacto, premios, cifras ni datos legales** que no estén en el briefing: usa un placeholder neutro (p.ej. `BUSINESS_NAME: "Tu Negocio"`, `[EMAIL]`, `[NIF]`) y avísame al final en una lista de "datos que faltan".');
   lines.push('- No entregues fragmentos: entrega el HTML completo, abrible en cualquier navegador.');
   if (hasApp) {
     lines.push('- No uses window.storage. Solo localStorage estándar.');
@@ -3446,7 +3449,7 @@ function buildPrompt() {
     lines.push('3. **Agente 5 (Frontend):** construye el HTML completo, responsive y con todas las secciones.');
   }
   lines.push('4. **Agentes 7-9 (Seguridad, Rendimiento, Accesibilidad):** repasa y corrige el código contra las tres checklists.');
-  lines.push('5. **Agente 10 (QA):** verifica UNO A UNO los criterios de aceptación. Marca ✅/❌, corrige los ❌ y vuelve a pasar.');
+  lines.push('5. **Agente 10 (QA):** abre la app en un navegador y verifica UNO A UNO los criterios de aceptación PULSANDO cada botón y cada paso. Marca ✅/❌, corrige los ❌ y vuelve a pasar hasta que TODO esté en ✅.');
   lines.push(`6. Entrega el archivo en outputs como \`${isApp ? 'app' : (isAmbos ? 'web-app' : 'web')}-{nombre-negocio}.html\`.`);
   lines.push('7. Cierra con: (a) la checklist de aceptación marcada, (b) decisiones clave que tomaste, (c) qué supuestos rellenaste por ti mismo, y (d) qué pulir en una 2ª iteración.');
   lines.push('');
