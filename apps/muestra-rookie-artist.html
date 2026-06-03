@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Lauraspaint · Arte que se siente · Las Palmas</title>
+<meta name="theme-color" content="#7a3f8c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lauraspaint">
+<link rel="icon" id="favicon">
+<link rel="apple-touch-icon" id="appleIcon">
+<link rel="manifest" id="manifest">
 <meta name="description" content="Obras, cursos de pintura, diseño de logos, decoración de fiestas y diseños en ropa. Arte polivalente hecho a mano en Las Palmas. Consigue el tuyo.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -274,7 +282,7 @@ const CONFIG = {
 };
 
 /* ===== Logo: unicornio pintando (inventado, SVG inline) ===== */
-const UNICORN_SVG = `<svg viewBox="0 0 64 64" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+const UNICORN_INNER = `
   <path d="M30 12C18 14 13 26 17 38C19 31 24 29 27 31C24 22 28 16 34 16Z" fill="#F2A341"/>
   <path d="M26 15C15 19 12 31 17 44C19 35 25 34 28 36C24 26 27 18 33 19Z" fill="#e0568f"/>
   <path d="M22 20C13 26 12 39 18 51C20 41 27 40 30 42C25 31 27 23 32 22Z" fill="#7a3f8c"/>
@@ -286,8 +294,43 @@ const UNICORN_SVG = `<svg viewBox="0 0 64 64" width="100%" height="100%" xmlns="
   <circle cx="41" cy="31" r="2.5" fill="#241726"/>
   <circle cx="52" cy="44" r="1.3" fill="#cdb3d6"/>
   <rect x="2" y="49" width="30" height="4.4" rx="2.2" transform="rotate(-20 2 49)" fill="#8a5a2b"/>
-  <path d="M28 41L38 47L31 52Z" fill="#1E8C6B"/>
-</svg>`;
+  <path d="M28 41L38 47L31 52Z" fill="#1E8C6B"/>`;
+const UNICORN_SVG = `<svg viewBox="0 0 64 64" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">${UNICORN_INNER}</svg>`;
+// Icono cuadrado de la app: el logo subido por la dueña, o el unicornio sobre fondo degradado.
+function appIconURI(){
+  var stored=null; try{ stored=JSON.parse(localStorage.getItem('ra_logo')||'null'); }catch(e){}
+  if(stored) return stored;
+  var svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">'
+    +'<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a3f8c"/><stop offset="1" stop-color="#1E8C6B"/></linearGradient></defs>'
+    +'<rect width="512" height="512" rx="116" fill="url(#g)"/>'
+    +'<g transform="translate(96 104) scale(5)">'+UNICORN_INNER+'</g></svg>';
+  return 'data:image/svg+xml,'+encodeURIComponent(svg);
+}
+
+/* ===== PWA: instalar con el logo + icono de pestaña ===== */
+let deferredPrompt = null;
+function setupPWA(){
+  const icon = appIconURI();
+  const fav = document.getElementById('favicon'); if (fav) fav.href = icon;
+  const ai = document.getElementById('appleIcon'); if (ai) ai.href = icon;
+  const ml = document.getElementById('manifest');
+  if (ml) {
+    const manifest = {
+      name: CONFIG.BUSINESS_NAME, short_name: CONFIG.BUSINESS_NAME.slice(0,12),
+      description: CONFIG.TAGLINE, theme_color: "#7a3f8c", background_color: "#FAF6FB",
+      display: "standalone", start_url: ".", scope: ".",
+      icons: [{ src: icon, sizes: "512x512", type: icon.indexOf("data:image/svg")===0 ? "image/svg+xml" : "image/png", purpose: "any maskable" }]
+    };
+    try { if (ml._u) URL.revokeObjectURL(ml._u); const u = URL.createObjectURL(new Blob([JSON.stringify(manifest)], {type:"application/manifest+json"})); ml.href = u; ml._u = u; } catch(e){}
+  }
+}
+window.addEventListener("beforeinstallprompt", function(e){ e.preventDefault(); deferredPrompt = e; const b = document.getElementById("installBtn"); if (b) b.style.display = "inline-flex"; });
+function installApp(){
+  if (deferredPrompt) { deferredPrompt.prompt(); try { deferredPrompt.userChoice.finally(()=>{ deferredPrompt=null; }); } catch(e){ deferredPrompt=null; } return; }
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  openModal('<div class="center"><div style="font-size:48px">📲</div><h2>Añade '+esc(CONFIG.BUSINESS_NAME)+' a tu inicio</h2><p class="muted">'+(ios?'Pulsa <b>Compartir</b> y luego <b>"Añadir a pantalla de inicio"</b>. Tendrás la app con su icono en el móvil.':'En el menú del navegador (⋮) elige <b>"Instalar app"</b> o <b>"Añadir a pantalla de inicio"</b>.')+'</p><button class="btn btn-primary" data-action="closeModal">Entendido</button></div>');
+}
+function logoMark(){ var l=null; try{ l=JSON.parse(localStorage.getItem("ra_logo")||"null"); }catch(e){} return l ? '<img src="'+esc(l)+'" alt="" style="width:100%;height:100%;object-fit:contain">' : UNICORN_SVG; }
 
 /* ===== "Cuadros" inventados: arte abstracto generado en SVG (placeholder hasta que Laura suba los suyos) ===== */
 const ART_PALETTES = [["#7a3f8c","#b06fc2","#F2A341"],["#1E8C6B","#43c79b","#fef3df"],["#F2A341","#e07b39","#7a3f8c"],["#2c7a8c","#43b3c7","#ffffff"],["#c0392b","#F2A341","#7a3f8c"],["#5d2c6e","#9a4fb0","#1E8C6B"],["#e0568f","#f2a341","#fff7ee"],["#1E8C6B","#7a3f8c","#F2A341"]];
@@ -308,7 +351,7 @@ const DB = {
   get(k, fb){ try{ const v=localStorage.getItem(k); return v==null?fb:JSON.parse(v); }catch(e){ return fb; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ toast("No se pudo guardar (almacenamiento lleno)"); return false; } }
 };
-const K = { prod:"ra_productos", gal:"ra_galeria", cart:"ra_cart", orders:"ra_pedidos", leads:"ra_leads", admin:"ra_admin", seeded:"ra_seed_v2" };
+const K = { prod:"ra_productos", gal:"ra_galeria", cart:"ra_cart", orders:"ra_pedidos", leads:"ra_leads", admin:"ra_admin", logo:"ra_logo", seeded:"ra_seed_v2" };
 
 /* ===== Seed de muestra ===== */
 const CATS = [
@@ -365,7 +408,7 @@ function updateCartCount(){ const el=document.getElementById('cartCount'); const
 /* ===== Layout ===== */
 function header(){
   return `<header class="top"><div class="wrap nav">
-    <a class="logo" href="#/"><span class="mark" style="padding:4px">${UNICORN_SVG}</span>${esc(CONFIG.BUSINESS_NAME)}</a>
+    <a class="logo" href="#/"><span class="mark" style="padding:4px">${logoMark()}</span>${esc(CONFIG.BUSINESS_NAME)}</a>
     <button class="burger" data-action="menu" aria-label="Abrir menú" aria-expanded="false">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
     <nav class="nav-links" id="navLinks">
@@ -401,6 +444,7 @@ function footer(){
     </div>
     <div><h4>Contacto</h4>
       <button class="fl" data-action="wa">💬 WhatsApp</button>
+      <button class="fl" data-action="install" id="installBtn">📲 Instalar como app</button>
       <span class="fl">📍 ${esc(CONFIG.CITY)}</span>
       <a class="fl" href="#/legal">Aviso legal y privacidad</a>
       <a class="fl" href="#/admin">· Acceso dueña</a>
@@ -630,6 +674,15 @@ function openWA(text){ window.open(waLink(text||`Hola ${CONFIG.BUSINESS_NAME}, t
 
 /* ===== ADMIN ===== */
 function isAdmin(){ return DB.get(K.admin,false)===true; }
+function adminLogo(){
+  const l=DB.get(K.logo,null);
+  return `<div class="box" style="max-width:none;margin-bottom:14px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+    <div style="width:56px;height:56px;border-radius:14px;overflow:hidden;background:linear-gradient(135deg,var(--brand),var(--emerald));display:grid;place-items:center;flex:0 0 auto">${l?`<img src="${esc(l)}" alt="logo" style="width:100%;height:100%;object-fit:contain">`:`<div style="width:40px">${UNICORN_SVG}</div>`}</div>
+    <div style="flex:1;min-width:160px"><b>Logo de la marca</b><p class="muted" style="font-size:13px;margin:2px 0 0">Súbelo: se usa en la cabecera y como icono al instalar la app en el móvil.</p></div>
+    <label class="btn btn-ghost btn-sm" style="cursor:pointer">Subir logo<input type="file" accept="image/*" data-action="logoImg" style="display:none"></label>
+    ${l?`<button class="btn btn-ghost btn-sm" data-action="logoDel">Quitar</button>`:''}
+  </div>`;
+}
 function viewAdmin(sub){
   if(!isAdmin()) return page(adminLogin());
   sub=sub||"productos";
@@ -644,7 +697,8 @@ function viewAdmin(sub){
       <h2 style="margin:0">Panel de ${esc(CONFIG.BUSINESS_NAME)}</h2>
       <button class="btn btn-ghost btn-sm" style="margin-left:auto" data-action="adminLogout">Cerrar sesión</button>
     </div>
-    <p class="muted" style="margin-top:0">Aquí gestionas TODO: tus productos, tu galería, los pedidos y los mensajes.</p>
+    <p class="muted" style="margin-top:0">Aquí gestionas TODO: tu logo, tus productos, tu galería, los pedidos y los mensajes.</p>
+    ${adminLogo()}
     <div class="admin-tabs">${tab("productos","🖼️ Productos")}${tab("galeria","📷 Galería")}${tab("pedidos","📦 Pedidos")}${tab("mensajes","💌 Mensajes")}</div>
     <div class="box" style="max-width:none">${body}</div>
   </div></section>`);
@@ -808,6 +862,8 @@ document.addEventListener('click',function(e){
     case 'qty': setQty(el.dataset.id, parseInt(el.dataset.d,10)); break;
     case 'cat': case 'filter': location.hash='#/tienda/'+el.dataset.cat; break;
     case 'wa': openWA(); break;
+    case 'install': installApp(); break;
+    case 'logoDel': if(confirm('¿Quitar el logo y volver al icono por defecto?')){ DB.set(K.logo,null); setupPWA(); render(); } break;
     case 'waOrder':{ const o=DB.get(K.orders,[]).find(x=>x.id===el.dataset.id); if(o)openWA(`Hola, soy ${o.cliente.nombre}. Mi pedido #${o.id} (${eur(o.total)}): ${o.items.map(i=>i.qty+'× '+i.nombre).join(', ')}. ¿Cómo cerramos el pago?`); break; }
     case 'closeModal': closeModal(); break;
     // admin
@@ -842,10 +898,12 @@ document.addEventListener('change',function(e){
   const el=e.target.closest('[data-action]'); if(!el) return;
   if(el.dataset.action==='prodImg'){ readImg(el.files[0],d=>{ PENDING_IMG=d; const pv=document.getElementById('imgPrev'); if(pv&&d)pv.innerHTML=`<img src="${d}" style="max-height:90px;border-radius:10px">`; }); }
   if(el.dataset.action==='galImg'){ readImg(el.files[0],d=>{ PENDING_IMG=d; const pv=document.getElementById('imgPrev2'); if(pv&&d)pv.innerHTML=`<img src="${d}" style="max-height:90px;border-radius:10px">`; }); }
+  if(el.dataset.action==='logoImg'){ readImg(el.files[0],d=>{ if(d){ DB.set(K.logo,d); setupPWA(); render(); toast("Logo actualizado ✓ (también será el icono de la app)"); } }); }
 });
 
 /* ===== INIT ===== */
 seed();
+setupPWA();                  // favicon + icono + manifest (instalar con el logo)
 render();                    // arranca en la carga (no solo en hashchange) → funciona desde file://
 </script>
 </body>
