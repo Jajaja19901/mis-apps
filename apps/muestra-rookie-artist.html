@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Rookie Artist · Arte que se siente · Las Palmas</title>
+<title>Lauraspaint · Arte que se siente · Las Palmas</title>
 <meta name="description" content="Obras, cursos de pintura, diseño de logos, decoración de fiestas y diseños en ropa. Arte polivalente hecho a mano en Las Palmas. Consigue el tuyo.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -216,7 +216,7 @@ footer .fl{display:block;padding:4px 0;font-size:14px;color:#cdb6d4;background:n
 "use strict";
 /* ===== CONFIG (cámbialo en 1 minuto) ===== */
 const CONFIG = {
-  BUSINESS_NAME: "Rookie Artist",            // placeholder a confirmar con Laura (de su Instagram @rookie.artist90)
+  BUSINESS_NAME: "Lauraspaint",              // nombre de marca facilitado por la clienta
   TAGLINE: "Arte que se siente",
   CITY: "Las Palmas",
   WHATSAPP: "34800061837",                   // del briefing — REVISAR (parece tener un dígito de más)
@@ -226,12 +226,42 @@ const CONFIG = {
   CTA: "Consigue el tuyo"
 };
 
+/* ===== Logo: unicornio pintando (inventado, SVG inline) ===== */
+const UNICORN_SVG = `<svg viewBox="0 0 64 64" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <path d="M30 12C18 14 13 26 17 38C19 31 24 29 27 31C24 22 28 16 34 16Z" fill="#F2A341"/>
+  <path d="M26 15C15 19 12 31 17 44C19 35 25 34 28 36C24 26 27 18 33 19Z" fill="#e0568f"/>
+  <path d="M22 20C13 26 12 39 18 51C20 41 27 40 30 42C25 31 27 23 32 22Z" fill="#7a3f8c"/>
+  <path d="M34 14C44 14 51 22 51 33L51 41C51 47 47 51 41 51L34 51C30 51 27 48 27 44C23 43 21 38 23 33C25 23 27 14 34 14Z" fill="#fff"/>
+  <ellipse cx="50" cy="43" rx="6.5" ry="5.2" fill="#fff"/>
+  <path d="M36 15L38 6L44 15Z" fill="#fff"/>
+  <path d="M41 13L45 0L49 13Z" fill="#F2A341"/>
+  <path d="M42 10L48 10M42.5 6L47 6" stroke="#fff" stroke-width="1.3" stroke-linecap="round"/>
+  <circle cx="41" cy="31" r="2.5" fill="#241726"/>
+  <circle cx="52" cy="44" r="1.3" fill="#cdb3d6"/>
+  <rect x="2" y="49" width="30" height="4.4" rx="2.2" transform="rotate(-20 2 49)" fill="#8a5a2b"/>
+  <path d="M28 41L38 47L31 52Z" fill="#1E8C6B"/>
+</svg>`;
+
+/* ===== "Cuadros" inventados: arte abstracto generado en SVG (placeholder hasta que Laura suba los suyos) ===== */
+const ART_PALETTES = [["#7a3f8c","#b06fc2","#F2A341"],["#1E8C6B","#43c79b","#fef3df"],["#F2A341","#e07b39","#7a3f8c"],["#2c7a8c","#43b3c7","#ffffff"],["#c0392b","#F2A341","#7a3f8c"],["#5d2c6e","#9a4fb0","#1E8C6B"],["#e0568f","#f2a341","#fff7ee"],["#1E8C6B","#7a3f8c","#F2A341"]];
+function art(i){
+  const c = ART_PALETTES[((i%ART_PALETTES.length)+ART_PALETTES.length)%ART_PALETTES.length];
+  const s = '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">'+
+    '<rect width="400" height="300" fill="'+c[0]+'"/>'+
+    '<circle cx="'+(110+(i*47)%180)+'" cy="'+(90+(i*61)%130)+'" r="'+(70+(i*13)%40)+'" fill="'+c[1]+'" opacity="0.85"/>'+
+    '<path d="M0 '+(190+(i*29)%70)+' Q200 '+(80+(i*43)%140)+' 400 '+(170+(i*23)%90)+' L400 300 L0 300 Z" fill="'+c[2]+'" opacity="0.92"/>'+
+    '<circle cx="'+(300-(i*31)%140)+'" cy="'+(80+(i*19)%110)+'" r="34" fill="#ffffff" opacity="0.45"/>'+
+    '<path d="M'+(40+(i*17)%80)+' 250 q40 -60 90 -20 t90 -10" stroke="#ffffff" stroke-width="6" fill="none" opacity="0.5" stroke-linecap="round"/>'+
+    '</svg>';
+  return 'data:image/svg+xml,'+encodeURIComponent(s);
+}
+
 /* ===== Storage seguro ===== */
 const DB = {
   get(k, fb){ try{ const v=localStorage.getItem(k); return v==null?fb:JSON.parse(v); }catch(e){ return fb; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ toast("No se pudo guardar (almacenamiento lleno)"); return false; } }
 };
-const K = { prod:"ra_productos", gal:"ra_galeria", cart:"ra_cart", orders:"ra_pedidos", leads:"ra_leads", admin:"ra_admin", seeded:"ra_seed_v1" };
+const K = { prod:"ra_productos", gal:"ra_galeria", cart:"ra_cart", orders:"ra_pedidos", leads:"ra_leads", admin:"ra_admin", seeded:"ra_seed_v2" };
 
 /* ===== Seed de muestra ===== */
 const CATS = [
@@ -253,12 +283,14 @@ function seed(){
     {cat:"ropa",   n:"Camiseta pintada a mano", precio:30, ph:"👕", d:"Diseño único pintado a mano. Tallas S-XL."},
     {cat:"fiestas",n:"Pack decoración fiesta",  precio:150, ph:"🎉", d:"Ambientación artística para tu evento."}
   ];
-  DB.set(K.prod, P.map((p,i)=>({id:"p"+(i+1), nombre:p.n, categoria:p.cat, precio:p.precio, ph:p.ph, img:null, desc:p.d})));
+  DB.set(K.prod, P.map((p,i)=>({id:"p"+(i+1), nombre:p.n, categoria:p.cat, precio:p.precio, ph:p.ph, img:art(i), desc:p.d})));
   DB.set(K.gal, [
-    {id:"g1",titulo:"Retrato a color",ph:"🎨",img:null},
-    {id:"g2",titulo:"Mural infantil",ph:"🖌️",img:null},
-    {id:"g3",titulo:"Logo cafetería",ph:"☕",img:null},
-    {id:"g4",titulo:"Cuadro abstracto",ph:"🌈",img:null}
+    {id:"g1",titulo:"Retrato a color",ph:"🎨",img:art(11)},
+    {id:"g2",titulo:"Mural infantil",ph:"🖌️",img:art(12)},
+    {id:"g3",titulo:"Logo cafetería",ph:"☕",img:art(13)},
+    {id:"g4",titulo:"Cuadro abstracto",ph:"🌈",img:art(14)},
+    {id:"g5",titulo:"Acuarela marina",ph:"🌊",img:art(15)},
+    {id:"g6",titulo:"Encargo personalizado",ph:"✨",img:art(16)}
   ]);
   DB.set(K.seeded, true);
 }
@@ -286,7 +318,7 @@ function updateCartCount(){ const el=document.getElementById('cartCount'); const
 /* ===== Layout ===== */
 function header(){
   return `<header class="top"><div class="wrap nav">
-    <a class="logo" href="#/"><span class="mark">R</span>${esc(CONFIG.BUSINESS_NAME)}</a>
+    <a class="logo" href="#/"><span class="mark" style="padding:4px">${UNICORN_SVG}</span>${esc(CONFIG.BUSINESS_NAME)}</a>
     <button class="burger" data-action="menu" aria-label="Abrir menú" aria-expanded="false">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
     <nav class="nav-links" id="navLinks">
@@ -339,7 +371,7 @@ function viewHome(){
       </div>
       <div class="trust"><span>🎨 <b>Hecho a mano</b></span><span>📦 <b>Envíos</b> a toda España</span><span>⭐ <b>Piezas únicas</b></span></div>
     </div>
-    <div class="hero-art" aria-hidden="true"><span>🎨</span></div>
+    <div class="hero-art" aria-hidden="true"><div style="width:58%;filter:drop-shadow(0 10px 18px rgba(0,0,0,.25))">${UNICORN_SVG}</div></div>
   </div></section>
 
   <section><div class="wrap">
