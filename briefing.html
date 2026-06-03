@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
 
   :root {
     --bg: #070b12;
@@ -66,7 +67,7 @@
     align-items: center;
     justify-content: space-between;
     border-bottom: 1px solid var(--line);
-    background: rgba(250, 248, 245, 0.85);
+    background: rgba(7, 11, 18, 0.9);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     position: sticky;
@@ -300,7 +301,7 @@
   .q-input:focus {
     outline: none;
     border-color: var(--ink);
-    box-shadow: 0 0 0 4px rgba(26, 26, 26, 0.06), var(--shadow-sm);
+    outline: 2px solid var(--accent); outline-offset: 2px; box-shadow: 0 0 0 4px rgba(39,230,166,.18), var(--shadow-sm);
   }
 
   textarea.q-input {
@@ -427,7 +428,7 @@
   .opt-card:hover, .opt-card:active {
     border-color: var(--ink);
     transform: translateY(-2px);
-    box-shadow: 0 10px 30px rgba(20,15,10,0.06);
+    box-shadow: var(--shadow-lg);
   }
 
   .opt-card.selected {
@@ -668,7 +669,7 @@
     bottom: 0;
     left: 0;
     right: 0;
-    background: rgba(250, 248, 245, 0.9);
+    background: rgba(7, 11, 18, 0.92);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-top: 1px solid var(--line);
@@ -1922,8 +1923,20 @@ function renderQuestion(q) {
 
   attachQuestionHandlers(q);
   updateCharCount(q);
+  enableKeyboardOptions();
 
   setTimeout(() => { window.scrollTo({ top: 0, behavior: 'smooth' }); }, 50);
+}
+
+// Hace que las tarjetas de opción (divs) sean usables por teclado (Tab + Enter/Espacio)
+function enableKeyboardOptions() {
+  document.querySelectorAll('#qOptions .opt, #qOptions .opt-card, #qColors .color-swatch').forEach(el => {
+    el.tabIndex = 0;
+    el.setAttribute('role', el.classList.contains('multi') ? 'checkbox' : 'button');
+    el.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); el.click(); }
+    });
+  });
 }
 
 function updateCharCount(q) {
@@ -2422,7 +2435,7 @@ function renderFinal() {
       </button>
 
       <button class="send-btn" id="sendWhatsApp">
-        <div class="send-btn-icon" style="background:#dcf8c6">
+        <div class="send-btn-icon" style="background:rgba(37,211,102,.18)">
           <svg viewBox="0 0 24 24" fill="#25D366"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448L.057 24z"/></svg>
         </div>
         <div class="send-btn-text">
