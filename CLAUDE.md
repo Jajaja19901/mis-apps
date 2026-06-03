@@ -41,14 +41,31 @@ salga perfecto. Sigue este guion SIEMPRE:
 3. **Construye en orden** pasando el trabajo del plano a marca → UX → copy → frontend → datos.
    Puedes construir tú directamente siguiendo lo que cada rol indica, o delegar en el subagente
    correspondiente cuando convenga más detalle.
-4. **Cuando el HTML ya tenga lógica, lanza EN PARALELO** a `ingeniero-seguridad`,
-   `ingeniero-rendimiento` e `ingeniero-accesibilidad` en modo SOLO INFORMAR (que no editen, para
-   que no se pisen). Espera sus informes.
-5. **Aplica tú las correcciones** que reporten los tres revisores.
-6. **Lanza al `qa-verificador`**: que recorra los criterios de aceptación uno a uno. Corrige lo
-   que marque ❌ y vuelve a pasar hasta que todo esté ✅.
-7. **Entrega**: guarda en `apps/{nombre-negocio}.html`, valida el JS (`node --check`), haz commit
-   y push, y cierra con un resumen + la checklist de aceptación marcada.
+4. **Cuando el HTML ya tenga lógica, pasa el VERIFICADOR AUTOMÁTICO** (puerta obligatoria, ver
+   abajo) y corrige lo que marque antes de seguir. No mandes a los revisores algo que no arranca.
+5. **Lanza EN PARALELO** a `ingeniero-seguridad`, `ingeniero-rendimiento` e
+   `ingeniero-accesibilidad` en modo SOLO INFORMAR (que no editen, para que no se pisen). Espera
+   sus informes y **aplica tú las correcciones**.
+6. **Lanza al `qa-verificador`**: que recorra los criterios de aceptación uno a uno PULSANDO en un
+   navegador. Corrige lo que marque ❌ y vuelve a pasar hasta que todo esté ✅.
+7. **Entrega**: guarda en `apps/{nombre-negocio}.html`, **vuelve a pasar el VERIFICADOR y exige
+   `✅ APTO`**, haz commit y push, y cierra con un resumen + la checklist de aceptación marcada.
+
+## ✅ Puerta automática obligatoria: `tools/verificar-app.mjs`
+Para que la app llegue **100% funcional** al paso 10, no basta con leer el código: hay que abrirla
+y pulsarla. Hay un verificador que lo hace solo (Chromium headless, desde `file://` como el cliente):
+recorre cada ruta hash, **pulsa cada botón/enlace**, entra en los iframes/overlays, y caza errores
+de consola y botones muertos.
+
+```bash
+npm i puppeteer                                   # una vez (Chromium queda en caché)
+node tools/verificar-app.mjs apps/mi-negocio.html --shots
+```
+
+Termina en `✅ APTO` (código 0) o `❌ NO APTO` (código != 0, hay errores). **No se entrega nada que
+no salga `✅ APTO`.** Los `⚠ AVISOS` se revisan a mano. Lo ejecutan el Ingeniero de Datos (6) antes
+de pasar a los revisores, el QA (10), y tú antes de hacer commit. Limpia `node_modules`/`package*.json`
+(están en `.gitignore`) — no entran al repo.
 
 Reglas del director:
 - No entregues hasta que el QA dé el visto bueno.

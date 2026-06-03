@@ -14,13 +14,18 @@ Un solo HTML autocontenido, mobile-first, embudo de venta, sin registro de usuar
 Está PROHIBIDO dar por bueno un flujo "porque el código parece correcto". Un botón que en el código hace `step++` puede no avanzar en un navegador real por mil motivos (un listener que no se reengancha tras re-render, un evento que no se dispara en `srcdoc`/`file://`, un `preventDefault` que sobra, un overlay que tapa el clic). **Tienes que abrir la app en un navegador de verdad y hacer clic en cada cosa.** Si no lo has ejecutado en un navegador, no lo has verificado.
 
 ## 🧪 PROTOCOLO DE NAVEGADOR REAL (obligatorio)
-Tienes Bash. Móntate un navegador headless y conduce la app como si fueras el cliente:
+Tienes Bash. Conduce la app como si fueras el cliente, en dos capas:
 
-1. Instala el navegador una sola vez (el Chromium queda en caché):
-   ```bash
-   cd <repo> && npm i puppeteer >/dev/null 2>&1
-   ```
-   Si la instalación falla por red, dilo claramente en tu informe y haz al menos la verificación estática más rigurosa posible — pero deja constancia de que NO pudiste probar en navegador.
+**Capa 1 — puerta automática (rápida, obligatoria):**
+```bash
+npm i puppeteer >/dev/null 2>&1
+node tools/verificar-app.mjs apps/<negocio>.html --shots
+```
+Exige `✅ APTO`. Si sale `❌ NO APTO` (errores de consola, rutas en blanco o botones muertos), corrígelo y vuelve a pasarlo. Esto ya recorre rutas, pulsa controles y entra en iframes — pero NO conoce los criterios de aceptación concretos: eso lo pruebas tú en la capa 2.
+
+**Capa 2 — tú, criterio por criterio, con puppeteer a mano:**
+
+1. Si la instalación falla por red, dilo claramente en tu informe y haz al menos la verificación estática más rigurosa posible — pero deja constancia de que NO pudiste probar en navegador.
 2. Carga la app **desde `file://`** (así es como la abre el cliente al hacer doble clic) con un viewport móvil (p.ej. 430×900):
    ```js
    const puppeteer=require("puppeteer"), path=require("path");

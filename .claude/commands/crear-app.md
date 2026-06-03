@@ -17,9 +17,13 @@ $ARGUMENTS
 4. **copywriter** → todos los textos reales en el tono del negocio (cero relleno).
 5. **ingeniero-frontend** + **ingeniero-datos** → un solo HTML autocontenido, responsive,
    con la lógica en localStorage y el panel de admin.
-6. **Revisores EN PARALELO** (solo informan) → `ingeniero-seguridad`, `ingeniero-rendimiento`,
+6. **VERIFICADOR AUTOMÁTICO** (puerta obligatoria) → `node tools/verificar-app.mjs apps/{negocio}.html`.
+   Corrige todo hasta que salga `✅ APTO` antes de seguir.
+7. **Revisores EN PARALELO** (solo informan) → `ingeniero-seguridad`, `ingeniero-rendimiento`,
    `ingeniero-accesibilidad`. Aplica tú las correcciones que reporten.
-7. **qa-verificador** → verifica los criterios de aceptación uno a uno; corrige lo que falle.
+8. **qa-verificador** → verifica los criterios de aceptación uno a uno PULSANDO en un navegador;
+   corrige lo que falle.
+9. **Antes de entregar**, vuelve a pasar `tools/verificar-app.mjs` y exige `✅ APTO`.
 
 ## Reglas obligatorias (filosofía de la fábrica)
 - Un solo archivo HTML autocontenido (CSS y JS inline), mobile-first.
@@ -31,5 +35,6 @@ $ARGUMENTS
 
 ## Entrega
 - Guarda el archivo en `apps/{nombre-negocio}.html`.
+- El verificador debe dar `✅ APTO` (sin errores de consola, todas las rutas vivas, sin botones muertos).
 - Haz commit y push.
 - Resume las decisiones clave y la checklist de aceptación marcada.

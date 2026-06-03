@@ -29,10 +29,14 @@ Un solo HTML autocontenido, mobile-first, embudo de venta. **Sin registro de usu
 
 ## 🧪 Autocomprobación en navegador ANTES de entregar (obligatoria)
 Tienes Bash. No pases a los revisores algo que no hayas visto funcionar:
-1. `npm i puppeteer` (Chromium en caché; si la red falla, dilo y haz al menos `node --check` de cada `<script>`).
-2. Carga el HTML desde `file://` con viewport móvil. Engancha `pageerror`/`console` y **falla si hay cualquier error**.
-3. **Pulsa cada flujo**: acción principal paso a paso (cada "Continuar" avanza), enviar formulario vacío (valida), sin consentimiento (bloquea), correcto (guarda en localStorage y muestra éxito). Admin: contraseña mal (rechaza), bien (entra), cambiar estado, exportar CSV. Verifica en el DOM que cada clic hace lo esperado.
-4. Limpia lo que instales (`node_modules`, `package*.json`) antes de terminar.
+1. Pasa la **puerta automática** de la fábrica:
+   ```bash
+   npm i puppeteer >/dev/null 2>&1
+   node tools/verificar-app.mjs apps/<negocio>.html --shots
+   ```
+   Debe salir `✅ APTO` (cero errores de consola, todas las rutas vivas, sin botones muertos). Si sale `❌ NO APTO`, **arréglalo y vuelve a pasarlo** hasta que esté en verde. (Si la red impide instalar, dilo y haz al menos `node --check` de cada `<script>`.)
+2. Además, **prueba a mano los flujos con datos**: enviar formulario vacío (valida), sin consentimiento (bloquea), correcto (guarda en localStorage y muestra éxito); admin con contraseña mal (rechaza) y bien (entra, cambiar estado, exportar CSV). El verificador detecta controles muertos y errores, pero estos caminos con datos los confirmas tú.
+3. Limpia lo que instales (`node_modules`, `package*.json` — ya están en `.gitignore`) antes de terminar.
 
 ## Tu entrega
 El HTML con toda la lógica funcionando de principio a fin, **verificado pulsando en un navegador**, con un breve resumen de qué probaste y qué viste, listo para los revisores (seguridad, rendimiento, accesibilidad).
