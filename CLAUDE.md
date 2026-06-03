@@ -109,6 +109,17 @@ OBLIGATORIAS para el director y los 10 agentes, en CADA app. El Agente 10 (QA) l
 - Orientado a **convertir** (embudo de venta): cada pantalla empuja a la acción principal.
 - Seguro y rápido. Sin librerías pesadas (nada de Bootstrap, jQuery, React, Vue).
 - Contenido REAL, cero "lorem ipsum".
+- **Firma del estudio (SIEMPRE):** en el pie va, discreto, **"Diseñado por Incuba tu Negocio ·
+  por Jaime M. M."** (en `CONFIG`: `STUDIO_BRAND`, `STUDIO_AUTHOR`, `STUDIO_URL` para enlazarlo).
+- **Imágenes del dueño:** la galería/catálogo/productos los sube el **dueño desde el panel de
+  admin** (input de archivo → `localStorage` dataURL). No hacen falta las fotos del cliente para
+  entregar: arranca con placeholders/arte SVG generado y estado vacío; el dueño los reemplaza.
+  El **logo** = el del briefing si lo hay, o un logotipo/emblema SVG; nunca inventes marca/nombre.
+- **Venta sin backend:** sin servidor el cobro con tarjeta NO es real. Haz **carrito + pedido**
+  (que el dueño ve en su panel) y **cierra el pago por WhatsApp/Bizum**, con aviso de que la
+  tarjeta es simulada. "Comprar online" se cumple así, no con cobro automático.
+- **Datos dudosos/contradictorios** (teléfono raro, nombre que es una descripción, paleta premium
+  + color distinto): elige lo más coherente, úsalo y anótalo en "datos a confirmar". No bloquees.
 
 ## Ejemplo de referencia ya construido
 `apps/peluqueria-aurora.html` es una app completa que sigue toda esta filosofía
