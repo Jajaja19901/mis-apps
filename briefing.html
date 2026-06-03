@@ -1020,26 +1020,38 @@
   }
 
   .preview-box {
+    width: 100%;
+    box-sizing: border-box;
     background: var(--card);
     border: 1px solid var(--line);
     border-radius: 14px;
-    padding: 20px;
-    margin-top: 20px;
+    padding: 16px;
+    margin-top: 14px;
     text-align: left;
-    max-height: 320px;
+    height: 240px;
     overflow-y: auto;
+    resize: vertical;
     font-family: 'SFMono-Regular', Consolas, monospace;
     font-size: 12px;
     line-height: 1.55;
     color: var(--ink-soft);
     white-space: pre-wrap;
     word-break: break-word;
-    display: none;
-  }
-
-  .preview-box.show {
     display: block;
-    animation: enter 0.4s ease-out;
+  }
+  .preview-label {
+    display: block;
+    text-align: left;
+    margin-top: 20px;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .preview-hint {
+    text-align: left;
+    font-size: 12px;
+    color: var(--ink-muted, #8a8378);
+    margin: 4px 0 0;
   }
 
   @media (max-width: 480px) {
@@ -1093,7 +1105,7 @@
    ⚙️ CONFIGURACIÓN — CAMBIA ESTOS VALORES
    ======================================== */
 const CONFIG = {
-  WHATSAPP_NUMBER: "PEGA_AQUI_TU_NUMERO",  // Ej España: "34666777888"
+  WHATSAPP_NUMBER: "34680363828",  // Ej España: "34666777888"
   EMAIL: "pega_aqui_tu_email@dominio.com",
   BRAND_NAME: "Tu Estudio",
   GITHUB_REPO: "Jajaja19901/mis-apps",     // tu repo: el robot crea la app desde una "issue" con etiqueta crear-app
@@ -2984,8 +2996,9 @@ function renderFinal() {
       </button>
     </div>
 
-    <button class="preview-toggle" id="previewToggle">Ver resumen completo</button>
-    <pre class="preview-box" id="previewBox">${escapeHtml(prompt)}</pre>
+    <label class="preview-label" for="previewBox">📋 Tu prompt completo — no se borra, está aquí siempre:</label>
+    <p class="preview-hint">Toca dentro, mantén pulsado → "Seleccionar todo" → "Copiar". O usa el botón "Copiar resumen" de arriba, o "Enviar por WhatsApp".</p>
+    <textarea class="preview-box" id="previewBox" readonly aria-label="Prompt completo del briefing">${escapeHtml(prompt)}</textarea>
 
     <div class="ornament">— Gracias por tu confianza —</div>
 
@@ -3045,13 +3058,11 @@ function renderFinal() {
   });
 
   document.getElementById('copyBtn').addEventListener('click', async () => {
+    const box = document.getElementById('previewBox');
+    // Selecciona el texto del cuadro (fiable en móvil) y luego intenta copiar
+    try { box.focus(); box.select(); box.setSelectionRange(0, box.value.length); } catch (e) {}
     const ok = await copyToClipboard(prompt);
-    showToast(ok ? '✓ Copiado al portapapeles' : 'Selecciona y copia manualmente');
-    if (!ok) document.getElementById('previewBox').classList.add('show');
-  });
-
-  document.getElementById('previewToggle').addEventListener('click', () => {
-    document.getElementById('previewBox').classList.toggle('show');
+    showToast(ok ? '✓ Copiado al portapapeles' : 'Ya está seleccionado: pulsa "Copiar" en tu teclado');
   });
 
   document.getElementById('restartBtn').addEventListener('click', () => {
