@@ -111,6 +111,16 @@ section{padding:22px 0}
 @media(min-width:520px){.fb-row{grid-template-columns:repeat(6,1fr)}}
 .fb-pic{background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:10px 4px;cursor:pointer;font-family:'Fredoka';display:flex;flex-direction:column;gap:2px;align-items:center;transition:.12s}
 .fb-pic:hover{border-color:var(--brand);transform:translateY(-2px)} .fb-pic .fp-e{font-size:28px} .fb-pic .fp-w{font-size:12px;font-weight:700;color:var(--ink-soft)}
+/* Pares mínimos */
+.par-wrap{display:flex;align-items:center;justify-content:center;gap:10px;margin:8px 0}
+.par-card{flex:1;max-width:170px;background:var(--surface);border:2px solid var(--line);border-radius:18px;padding:16px 8px;cursor:pointer;font-family:'Fredoka';display:flex;flex-direction:column;gap:4px;align-items:center;box-shadow:var(--sh);transition:.12s}
+.par-card:hover{border-color:var(--brand);transform:translateY(-2px)} .par-card .pc-e{font-size:48px} .par-card .pc-w{font-size:22px;font-weight:700;color:var(--brand)} .par-card .pc-say{font-size:16px}
+.par-vs{font-size:24px;flex:0 0 auto}
+/* Fotos personalizadas */
+.pic-img{width:44px;height:44px;object-fit:cover;border-radius:10px;display:block}
+.sp-item .pic-img{width:30px;height:30px}
+.cus-list{display:grid;gap:8px}
+.cus-it{display:flex;align-items:center;gap:10px;background:#f6f9fe;border:1px solid var(--line);border-radius:12px;padding:8px 10px} .cus-it .cus-w{flex:1;font-weight:700}
 .grid{display:grid;gap:14px;grid-template-columns:repeat(2,1fr)}
 @media(min-width:640px){.grid{grid-template-columns:repeat(3,1fr)}}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;cursor:pointer;font-family:inherit;text-align:center;box-shadow:var(--sh);transition:transform .14s,box-shadow .14s;display:flex;flex-direction:column;gap:6px;align-items:center}
@@ -245,6 +255,8 @@ body.calm{font-size:18px} body.calm *{animation:none!important;transition:none!i
     { "goto": "#/aprender/comprension/ordenes" }, { "click": "[data-correct=\"1\"]" }, { "expect": "¡Muy bien!" } ]},
   { "name": "Construir frases forma una frase", "steps": [
     { "goto": "#/aprender/comprension/frases" }, { "click": "[data-action=\"frase-add\"]" }, { "expectVisible": "#fbItems .sp-item" } ]},
+  { "name": "Pares minimos de produccion", "steps": [
+    { "goto": "#/paresmin" }, { "expectVisible": ".par-card" }, { "click": "[data-action=\"par-star\"]" }, { "expect": "¡Muy bien!" } ]},
   { "name": "Progreso para familias", "steps": [
     { "goto": "#/progreso" }, { "expectVisible": ".stat-cards" } ]},
   { "name": "Opuestos funciona", "steps": [
@@ -274,7 +286,7 @@ body.calm{font-size:18px} body.calm *{animation:none!important;transition:none!i
 "use strict";
 const CONFIG = { APP_NAME:"Laura M M · Logopeda", ADMIN_PASSWORD:"logo1234", WHATSAPP:"34611773150", EMAIL:"", CITY:"Arucas y zona norte de Gran Canaria", STUDIO_BRAND:"Incuba tu Negocio", STUDIO_AUTHOR:"Jaime M. M.", STUDIO_URL:"" };
 const DB = { get(k,fb){ try{ const v=localStorage.getItem(k); return v==null?fb:JSON.parse(v); }catch(e){ return fb; } }, set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ toast("No se pudo guardar"); return false; } } };
-const K = { stars:"lg_stars", reports:"lg_reports", admin:"lg_admin", calm:"lg_calm", prog:"lg_prog" };
+const K = { stars:"lg_stars", reports:"lg_reports", admin:"lg_admin", calm:"lg_calm", prog:"lg_prog", custom:"lg_custom" };
 function speak(text){ try{ if(!('speechSynthesis' in window)){ toast('Tu dispositivo no puede leer en voz alta'); return; } window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(String(text)); u.lang='es-ES'; u.rate=.85; u.pitch=1.1; const vs=window.speechSynthesis.getVoices().filter(v=>/es/i.test(v.lang)); if(vs[0])u.voice=vs[0]; window.speechSynthesis.speak(u); }catch(e){} }
 try{ if('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged=()=>{}; }catch(e){}
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -282,11 +294,28 @@ function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(
 let toastT; function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
 function stars(){ return DB.get(K.stars,0); } function addStar(n){ DB.set(K.stars, stars()+(n||1)); }
 /* ===== Progreso (mide el aprendizaje) ===== */
-const MOD_LABEL={articulacion:"Articulación",vocab:"Vocabulario",rima:"Rimas",silabas:"Sílabas",inicial:"Sonido inicial",discrim:"Discriminación",fichas:"Sonidos (fichas)",orden:"Escucha y toca",leer:"Leer palabras",forma:"Formas",opuesto:"Opuestos",intruso:"El intruso",frases:"Construir frases",cuento:"Cuentos"};
+const MOD_LABEL={articulacion:"Articulación",paresmin:"Pares mínimos",voz:"Dilo tú (voz)",vocab:"Vocabulario",rima:"Rimas",silabas:"Sílabas",inicial:"Sonido inicial",discrim:"Discriminación",fichas:"Sonidos (fichas)",orden:"Escucha y toca",leer:"Leer palabras",forma:"Formas",opuesto:"Opuestos",intruso:"El intruso",frases:"Construir frases",cuento:"Cuentos"};
 function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
 function loadProg(){ return DB.get(K.prog,{mods:{},days:{},streak:0,lastDay:''}); }
 function touchDay(p){ p=p||loadProg(); const t=todayKey(); p.days[t]=(p.days[t]||0)+1; if(p.lastDay!==t){ const y=new Date(); y.setDate(y.getDate()-1); const yk=y.getFullYear()+'-'+(y.getMonth()+1)+'-'+y.getDate(); p.streak=(p.lastDay===yk)?(p.streak||0)+1:1; p.lastDay=t; } DB.set(K.prog,p); return p; }
 function recordResult(mod,ok){ if(!mod)return; const p=loadProg(); const m=p.mods[mod]||(p.mods[mod]={c:0,t:0}); m.t++; if(ok)m.c++; touchDay(p); }
+/* ===== Personalización (la familia sube fotos y palabras del niño) ===== */
+function loadCustom(){ return DB.get(K.custom,{items:[]}); }
+function saveCustom(c){ DB.set(K.custom,c); }
+function readImageResized(file,cb){ try{ const r=new FileReader(); r.onload=function(){ const img=new Image(); img.onload=function(){ const max=320; let w=img.width,h=img.height; if(w>h&&w>max){h=Math.round(h*max/w);w=max;} else if(h>max){w=Math.round(w*max/h);h=max;} const c=document.createElement('canvas'); c.width=w;c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); cb(c.toDataURL('image/jpeg',0.8)); }; img.onerror=function(){cb('');}; img.src=r.result; }; r.onerror=function(){cb('');}; r.readAsDataURL(file); }catch(e){cb('');} }
+/* ===== Reconocimiento de voz (opcional; "dilo tú" y la app comprueba) ===== */
+function norm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z]/g,''); }
+function listen(target,statusId){
+  const st=statusId&&document.getElementById(statusId);
+  const SRC=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SRC){ if(st)st.textContent='Este navegador no escucha la voz. Prueba en Chrome o Android.'; return; }
+  try{ if(SR)SR.abort(); }catch(e){}
+  SR=new SRC(); SR.lang='es-ES'; SR.interimResults=false; SR.maxAlternatives=3;
+  if(st)st.textContent='🎤 Escuchando… di la palabra';
+  SR.onresult=function(ev){ let said=[]; for(let i=0;i<ev.results.length;i++){ const r=ev.results[i]; for(let j=0;j<r.length;j++)said.push(r[j].transcript); } const ok=said.some(s=>norm(s).indexOf(norm(target))>=0); if(st)st.textContent= ok?('¡Muy bien! Dijiste «'+target+'» 🎉'):('He oído: «'+(said[0]||'')+'». Inténtalo otra vez'); if(ok){ addStar(1); recordResult('voz',true); speak('¡Muy bien!'); } };
+  SR.onerror=function(){ if(st)st.textContent='No te he oído bien. Inténtalo otra vez.'; };
+  try{ SR.start(); }catch(e){ if(st)st.textContent='No se pudo activar el micrófono.'; }
+}
 function shuffle(a){ a=[...a]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 function rand(a){ return a[Math.floor(Math.random()*a.length)]; }
 
@@ -424,6 +453,8 @@ let FICHA=null; /* ficha de sonidos actual */
 let MIC_CTX=null, MIC_RAF=null, MIC_STREAM=null, BALLOON=0, MIC_REC=null, MIC_CHUNKS=[], MIC_URL=''; /* micrófono mágico */
 let CAM_STREAM=null; /* espejo (cámara) */
 let FRASE_BUILD=[]; /* construir frases */
+let PARI={grp:'rr',idx:0}; /* pares mínimos de producción */
+let SR=null; /* reconocimiento de voz */
 const TRAZ_LETRAS=['A','E','I','O','U','M','P','L','S','T','D','N','C','R'];
 /* ===== Cuentos / lectura dialógica (lo más didáctico: nombrar, leer y AMPLIAR frases) ===== */
 const SCENES=[
@@ -459,6 +490,12 @@ const ORDEN_POOL=[{w:'perro',e:'🐶'},{w:'gato',e:'🐈'},{w:'pelota',e:'⚽'},
 const F_QUIEN=[{w:'El niño',e:'🧒'},{w:'La niña',e:'👧'},{w:'El perro',e:'🐶'},{w:'El gato',e:'🐈'},{w:'Mamá',e:'👩'},{w:'Papá',e:'👨'}];
 const F_ACCION=[{w:'come',e:'🍽️'},{w:'bebe',e:'🥤'},{w:'mira',e:'👀'},{w:'tiene',e:'🤲'},{w:'lava',e:'🧼'},{w:'coge',e:'✋'}];
 const F_QUE=[{w:'pan',e:'🍞'},{w:'agua',e:'💧'},{w:'la pelota',e:'⚽'},{w:'un libro',e:'📖'},{w:'la manzana',e:'🍎'},{w:'el coche',e:'🚗'}];
+/* Pares mínimos de PRODUCCIÓN (decir los dos; foco en /r/, /rr/, /l/, /s/) */
+const PARES_PROD=[
+  {id:'rr',label:'r · rr',pares:[{a:{w:'pero',e:'🙂'},b:{w:'perro',e:'🐶'}},{a:{w:'caro',e:'💰'},b:{w:'carro',e:'🛒'}},{a:{w:'pera',e:'🍐'},b:{w:'perra',e:'🐕'}},{a:{w:'coro',e:'🎶'},b:{w:'corro',e:'🏃'}}]},
+  {id:'rl',label:'r · l',pares:[{a:{w:'rata',e:'🐀'},b:{w:'lata',e:'🥫'}},{a:{w:'pero',e:'🙂'},b:{w:'pelo',e:'💇'}},{a:{w:'rana',e:'🐸'},b:{w:'lana',e:'🧶'}},{a:{w:'rosa',e:'🌹'},b:{w:'losa',e:'🧱'}}]},
+  {id:'sz',label:'s · z',pares:[{a:{w:'casa',e:'🏠'},b:{w:'caza',e:'🏹'}},{a:{w:'masa',e:'🍞'},b:{w:'maza',e:'🔨'}},{a:{w:'sumo',e:'💪'},b:{w:'zumo',e:'🧃'}},{a:{w:'poso',e:'☕'},b:{w:'pozo',e:'🕳️'}}]}
+];
 /* Conciencia fonémica con fichas (sin letras): contar los sonidos de la palabra */
 const FICHAS_WORDS=[
   {w:'sol',e:'☀️',son:['s','o','l']},{w:'pan',e:'🍞',son:['p','a','n']},{w:'pez',e:'🐟',son:['p','e','z']},{w:'uva',e:'🍇',son:['u','v','a']},
@@ -599,7 +636,7 @@ function downloadProg(){ try{ const a=document.createElement('a'); a.href=URL.cr
 /* ===== Articulación ===== */
 function viewArticulacion(phonId){
   const ph = phonId ? PHONEMES.find(p=>p.id===phonId) : null;
-  if(!ph){ return page(`<section>${back('#/aprender','Aprender')}<div class="center" style="margin:10px 0 16px"><h2>Elige un sonido</h2><p class="muted">Practica sílabas, palabras y una frase. Pulsa 🔊 para oírlo.</p></div><div class="chips">${PHONEMES.map(p=>`<button class="chip" data-action="go" data-h="#/aprender/articulacion/${p.id}">${esc(p.label)}</button>`).join('')}</div></section>`); }
+  if(!ph){ return page(`<section>${back('#/aprender','Aprender')}<div class="center" style="margin:10px 0 16px"><h2>Elige un sonido</h2><p class="muted">Practica sílabas, palabras y una frase. Pulsa 🔊 para oírlo.</p></div><div class="chips">${PHONEMES.map(p=>`<button class="chip" data-action="go" data-h="#/aprender/articulacion/${p.id}">${esc(p.label)}</button>`).join('')}</div><div class="center" style="margin-top:16px"><a class="btn btn-primary" href="#/paresmin">🔁 Pares mínimos (r·rr, r·l, s·z)</a></div></section>`); }
   if(!ART||ART.phon!==phonId) ART={phon:phonId,idx:0};
   const word=ph.palabras[ART.idx];
   return page(`<section>${back('#/aprender/articulacion','Sonidos')}
@@ -611,11 +648,27 @@ function viewArticulacion(phonId){
       <button class="speak-btn" id="speakBtn" data-action="say" data-w="${esc(word.w)}">🔊 Escuchar</button>
       <div class="dots" aria-hidden="true">${ph.palabras.map((_,i)=>`<i class="${i===ART.idx?'on':''}"></i>`).join('')}</div>
     </div>
-    <div class="center" style="margin:10px 0"><button class="btn btn-ghost btn-sm" data-action="mirror-on">🪞 Espejo (mírate la boca)</button></div>
+    <div class="center" style="margin:10px 0;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" data-action="mirror-on">🪞 Espejo</button><button class="btn btn-ghost btn-sm" data-action="listen" data-w="${esc(word.w)}">🎤 Dilo tú</button></div>
+    <div id="srStatus" class="muted" style="min-height:22px;text-align:center"></div>
     <div class="row-nav"><button class="btn btn-ghost btn-sm" data-action="art-prev">◀</button><button class="btn btn-green btn-sm" data-action="art-star">¡Lo dije! ⭐</button><button class="btn btn-primary btn-sm" data-action="art-next">▶</button></div>
     <div class="center" style="margin-top:18px"><h3>Sílabas</h3><div class="syl-grid">${ph.silabas.map(s=>`<button class="syl" data-action="say" data-w="${esc(s)}">${esc(s)}</button>`).join('')}</div></div>
     <div class="center" style="margin-top:18px"><h3>Frase</h3><div class="box" style="max-width:430px"><p style="font-family:Fredoka;font-size:20px;margin:0 0 10px">${esc(ph.frase)}</p><button class="speak-btn" data-action="say" data-w="${esc(ph.frase)}">🔊 Escuchar frase</button></div></div>
   </section>`);
+}
+/* ===== Pares mínimos de producción ===== */
+function viewParesMin(){
+  const grp=PARES_PROD.find(g=>g.id===PARI.grp)||PARES_PROD[0];
+  const par=grp.pares[PARI.idx%grp.pares.length];
+  return page(`<section>${back('#/aprender/articulacion','Sonidos')}<div class="center" style="margin:6px 0 10px"><h2>Pares mínimos 🔁</h2><p class="muted">Cambia un solo sonido y cambia la palabra. Di las dos despacio.</p></div>
+  <div class="chips" style="justify-content:center">${PARES_PROD.map(g=>`<button class="chip ${g.id===grp.id?'active':''}" data-action="par-grp" data-c="${g.id}">${esc(g.label)}</button>`).join('')}</div>
+  <div class="par-wrap">
+    <button class="par-card" data-action="say" data-w="${esc(par.a.w)}"><span class="pc-e" aria-hidden="true">${esc(par.a.e)}</span><span class="pc-w">${esc(par.a.w)}</span><span class="pc-say">🔊</span></button>
+    <span class="par-vs">↔️</span>
+    <button class="par-card" data-action="say" data-w="${esc(par.b.w)}"><span class="pc-e" aria-hidden="true">${esc(par.b.e)}</span><span class="pc-w">${esc(par.b.w)}</span><span class="pc-say">🔊</span></button>
+  </div>
+  <div class="center" style="margin:12px 0;display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button class="btn btn-ghost btn-sm" data-action="mirror-on">🪞 Espejo</button><button class="btn btn-ghost btn-sm" data-action="listen" data-w="${esc(par.b.w)}">🎤 Di «${esc(par.b.w)}»</button></div>
+  <div id="srStatus" class="muted" style="min-height:22px;text-align:center"></div>
+  <div class="row-nav"><button class="btn btn-ghost btn-sm" data-action="par-prev">◀</button><button class="btn btn-green btn-sm" data-action="par-star">¡Las dije! ⭐</button><button class="btn btn-primary btn-sm" data-action="par-next">▶</button></div></section>`);
 }
 /* ===== Sistema de QUIZ genérico ===== */
 function genVocab(catId){ const cat=catById(catId); const opts=shuffle(cat.items).slice(0,3); const correct=rand(opts); return {title:"¿Qué es?",prompt:{kind:'image',value:correct.e},options:shuffle(opts).map(o=>({kind:'text',label:o.w,correct:o.w===correct.w}))}; }
@@ -693,12 +746,13 @@ function viewCAA(){
 function viewAgenda(){
   return page(`<section>${back('#/caa','Comunicar')}<div class="center" style="margin:8px 0 12px"><h2>Mi agenda 📅</h2><p class="muted">Toca cada paso cuando lo hagas. Anticipar la rutina da seguridad.</p></div><div class="agenda">${RUTINA.map((r,i)=>`<button class="ag-step ${AGENDA_DONE[i]?'done':''}" data-action="agenda" data-i="${i}" data-w="${esc(r.w)}"><span class="ag-num">${i+1}</span><span class="ae" aria-hidden="true">${esc(r.e)}</span><span class="an">${esc(r.w)}</span><span class="ack" aria-hidden="true">${AGENDA_DONE[i]?'✅':'⬜'}</span></button>`).join('')}</div><div class="center" style="margin-top:14px"><button class="btn btn-ghost btn-sm" data-action="agenda-reset">↺ Empezar de nuevo</button></div></section>`);
 }
+function allCAA(){ const c=loadCustom(); const cats=CAA.slice(); if(c.items&&c.items.length) cats.push({id:'mis',label:'⭐ Mis cosas',items:c.items.map(it=>({w:it.w,e:it.e||'🖼️',img:it.img||''}))}); return cats; }
 function viewComunicador(){
-  const cat=CAA.find(c=>c.id===CAA_CAT)||CAA[0];
+  const cats=allCAA(); const cat=cats.find(c=>c.id===CAA_CAT)||cats[0];
   return page(`<section>${back('#/caa','Comunicar')}
-    <div class="strip"><div class="strip-row"><div class="strip-items" id="stripItems">${CAA_PHRASE.length?CAA_PHRASE.map(p=>`<div class="sp-item"><div class="e" aria-hidden="true">${esc(p.e)}</div><div class="w">${esc(p.w)}</div></div>`).join(''):'<span class="ph">Toca pictogramas para formar una frase…</span>'}</div><div class="strip-ctrl"><button class="say" data-action="caa-say" aria-label="Leer la frase">🔊</button><button class="back" data-action="caa-del" aria-label="Borrar último">⌫</button><button class="clear" data-action="caa-clear" aria-label="Vaciar">🗑️</button></div></div></div>
-    <div class="chips">${CAA.map(c=>`<button class="chip ${c.id===CAA_CAT?'active':''}" data-action="caa-cat" data-c="${c.id}" style="font-size:15px;min-width:auto;padding:9px 14px">${esc(c.label)}</button>`).join('')}</div>
-    <div class="pic-grid">${cat.items.map(it=>`<button class="pic-btn" data-action="caa-add" data-w="${esc(it.w)}" data-e="${esc(it.e)}"><span class="pe" aria-hidden="true">${esc(it.e)}</span><span class="pw">${esc(it.w)}</span></button>`).join('')}</div></section>`);
+    <div class="strip"><div class="strip-row"><div class="strip-items" id="stripItems">${CAA_PHRASE.length?CAA_PHRASE.map(p=>`<div class="sp-item">${p.img?`<div class="e"><img class="pic-img" src="${esc(p.img)}" alt=""></div>`:`<div class="e" aria-hidden="true">${esc(p.e)}</div>`}<div class="w">${esc(p.w)}</div></div>`).join(''):'<span class="ph">Toca pictogramas para formar una frase…</span>'}</div><div class="strip-ctrl"><button class="say" data-action="caa-say" aria-label="Leer la frase">🔊</button><button class="back" data-action="caa-del" aria-label="Borrar último">⌫</button><button class="clear" data-action="caa-clear" aria-label="Vaciar">🗑️</button></div></div></div>
+    <div class="chips">${cats.map(c=>`<button class="chip ${c.id===cat.id?'active':''}" data-action="caa-cat" data-c="${c.id}" style="font-size:15px;min-width:auto;padding:9px 14px">${esc(c.label)}</button>`).join('')}</div>
+    <div class="pic-grid">${cat.items.map(it=>`<button class="pic-btn" data-action="caa-add" data-w="${esc(it.w)}" data-e="${esc(it.e)}" data-img="${esc(it.img||'')}">${it.img?`<span class="pe"><img class="pic-img" src="${esc(it.img)}" alt=""></span>`:`<span class="pe" aria-hidden="true">${esc(it.e)}</span>`}<span class="pw">${esc(it.w)}</span></button>`).join('')}</div></section>`);
 }
 function viewEmociones(){
   return page(`<section>${back('#/caa','Comunicar')}<div class="center" style="margin:8px 0 6px"><h2>¿Cómo me siento?</h2></div><div class="emo-out" id="emoOut" aria-live="polite">${EMO?('Me siento '+esc(EMO)):'Toca una cara'}</div><div class="emo-grid">${EMOCIONES.map(e=>`<button class="emo-btn ${EMO===e.w?'sel':''}" data-action="emo" data-w="${esc(e.w)}"><span class="ef" aria-hidden="true">${esc(e.e)}</span><span class="en">${esc(e.w)}</span></button>`).join('')}</div></section>`);
@@ -720,14 +774,20 @@ function viewPanel(){
   if(!isAdmin()){ return page(`<section><div class="box" style="max-width:420px"><div class="center" style="font-size:46px">🔒</div><h2 class="center">Panel de la logopeda</h2><p class="muted center">Valoraciones guardadas.</p><form id="gateForm"><div class="field"><label for="gatePass">Contraseña</label><input id="gatePass" type="password" autocomplete="current-password"></div><button class="btn btn-primary btn-block" type="submit">Entrar</button></form><p class="muted center" style="font-size:12px;margin-top:10px">Demo: ${esc(CONFIG.ADMIN_PASSWORD)}</p></div></section>`); }
   const reps=DB.get(K.reports,[]);
   const body = reps.length ? `<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-ghost btn-sm" data-action="export">⬇️ Exportar CSV</button></div>${reps.map(r=>`<div class="report-card"><div class="rc-top"><b>${esc(r.nombre||'Peque')} · ${esc(r.edad)}</b><span class="muted" style="font-size:12px">${new Date(r.fecha).toLocaleDateString('es-ES')}</span></div><div style="margin:8px 0;display:flex;gap:8px;flex-wrap:wrap">${Object.entries(r.areas).map(([a,p])=>`<span class="stars-bar" style="color:var(--ink-soft);font-size:12px;padding:4px 10px">${esc(a)}: ${p}%</span>`).join('')}</div>${r.flags&&r.flags.length?`<div class="muted" style="font-size:13px"><b>A reforzar:</b> ${esc(r.flags.join(' · '))}</div>`:''}<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" data-action="del-report" data-id="${esc(r.id)}">🗑️ Borrar</button></div></div>`).join('')}` : `<div class="box"><div class="center muted" style="padding:20px"><div style="font-size:44px">📭</div><p>Aún no hay valoraciones guardadas.</p><a class="btn btn-primary" href="#/valorar">Hacer una valoración</a></div></div>`;
-  return page(`<section><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><h2 style="margin:0">Panel de la logopeda</h2><button class="btn btn-ghost btn-sm" style="margin-left:auto" data-action="logout">Salir</button></div>${body}</section>`);
+  const c=loadCustom();
+  const custom=`<div class="box-card" style="margin-bottom:16px"><h3 style="margin:0 0 6px">⭐ Mis cosas (personalizar)</h3><p class="muted" style="font-size:14px">Añade <b>fotos y palabras del niño</b> (sus juguetes, la familia). Aparecen en Comunicar → «Mis cosas».</p>
+    <div class="field"><label for="cusW">Palabra o nombre</label><input id="cusW" type="text" placeholder="Ej: mi peluche, la abuela"></div>
+    <div class="field"><label for="cusImg">Foto (opcional)</label><input id="cusImg" type="file" accept="image/*"></div>
+    <button class="btn btn-primary btn-sm" data-action="cus-add">➕ Añadir</button>
+    <div class="cus-list" style="margin-top:10px">${c.items.length?c.items.map((it,i)=>`<div class="cus-it">${it.img?`<img class="pic-img" src="${esc(it.img)}" alt="">`:`<span style="font-size:24px">${esc(it.e||'🖼️')}</span>`}<span class="cus-w">${esc(it.w)}</span><button class="btn btn-ghost btn-sm" data-action="cus-del" data-i="${i}">Quitar</button></div>`).join(''):'<p class="muted" style="font-size:13px">Aún no hay nada en «Mis cosas».</p>'}</div></div>`;
+  return page(`<section><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><h2 style="margin:0">Panel de la logopeda</h2><button class="btn btn-ghost btn-sm" style="margin-left:auto" data-action="logout">Salir</button></div>${custom}${body}</section>`);
 }
 function viewAviso(){ const wa=CONFIG.WHATSAPP.replace(/\D/g,''); return page(`<section>${back('#/','Inicio')}<div class="box" style="max-width:680px;text-align:left"><h2>Contacto y aviso</h2><p><b>${esc(CONFIG.APP_NAME)}</b><br>${esc(CONFIG.CITY)}<br>📞 WhatsApp: <a href="https://wa.me/${wa}" target="_blank" rel="noopener noreferrer" style="color:var(--brand);font-weight:700">${esc(CONFIG.WHATSAPP.replace(/^34/,'+34 '))}</a>${CONFIG.EMAIL?`<br>✉️ <a href="mailto:${esc(CONFIG.EMAIL)}" style="color:var(--brand);font-weight:700">${esc(CONFIG.EMAIL)}</a>`:''}</p><hr style="border:none;border-top:1px solid var(--line);margin:14px 0"><p><b>Herramienta de apoyo.</b> Ayuda a practicar el habla, el lenguaje y la lectoescritura y ofrece una valoración <b>orientativa</b>. No es un diagnóstico ni sustituye a la sesión con la logopeda.</p><p><b>Datos.</b> Todo se guarda solo en este dispositivo (localStorage); no se envía a ningún servidor.</p><p><b>Voz.</b> La pronunciación la genera el navegador; la calidad depende del dispositivo.</p><div class="center" style="margin-top:14px"><a class="btn btn-green" href="https://wa.me/${wa}" target="_blank" rel="noopener noreferrer">Escribir por WhatsApp</a> <a class="btn btn-ghost" href="#/">Volver</a></div></div></section>`); }
 
 /* ===== Router ===== */
 function parse(){ return location.hash.replace(/^#\/?/,'').split('/'); }
 function render(){
-  stopMic(); closeMirror();
+  stopMic(); closeMirror(); try{ if(SR)SR.abort(); }catch(e){}
   const p=parse(), a=p[0], b=p[1], c=p[2];
   let html;
   if(a===''||a==null) html=viewHome();
@@ -742,6 +802,7 @@ function render(){
     else html=viewAprender();
   }
   else if(a==='caa'){ if(b==='comunicador') html=viewComunicador(); else if(b==='emociones') html=viewEmociones(); else if(b==='agenda') html=viewAgenda(); else html=viewCAA(); }
+  else if(a==='paresmin') html=viewParesMin();
   else if(a==='magico') html=viewMagico();
   else if(a==='familias') html=viewFamilias();
   else if(a==='progreso') html=viewProgreso();
@@ -799,7 +860,14 @@ document.addEventListener('click',function(e){
     case 'export-prog': downloadProg(); break;
     case 'reset-prog': if(el.dataset.armed==='1'){ DB.set(K.prog,{mods:{},days:{},streak:0,lastDay:''}); render(); toast('Progreso borrado'); } else { el.dataset.armed='1'; el.textContent='⚠️ Pulsa otra vez'; setTimeout(()=>{ if(el){el.dataset.armed='0';el.textContent='Borrar';} },3000); } break;
     case 'caa-cat': CAA_CAT=el.dataset.c; render(); break;
-    case 'caa-add': CAA_PHRASE.push({w:el.dataset.w,e:el.dataset.e}); speak(el.dataset.w); render(); break;
+    case 'caa-add': CAA_PHRASE.push({w:el.dataset.w,e:el.dataset.e,img:el.dataset.img||''}); speak(el.dataset.w); render(); break;
+    case 'listen': listen(el.dataset.w,'srStatus'); break;
+    case 'par-grp': PARI={grp:el.dataset.c,idx:0}; render(); break;
+    case 'par-prev': { const g=PARES_PROD.find(x=>x.id===PARI.grp)||PARES_PROD[0]; PARI.idx=(PARI.idx-1+g.pares.length)%g.pares.length; render(); break; }
+    case 'par-next': { const g=PARES_PROD.find(x=>x.id===PARI.grp)||PARES_PROD[0]; PARI.idx=(PARI.idx+1)%g.pares.length; render(); break; }
+    case 'par-star': addStar(1); recordResult('paresmin',true); toast('¡Muy bien! ⭐'); render(); break;
+    case 'cus-add': { const w=(document.getElementById('cusW')||{}).value||''; const f=document.getElementById('cusImg'); if(!w.trim()){ toast('Escribe una palabra'); break; } const file=f&&f.files&&f.files[0]; const done=img=>{ const c=loadCustom(); c.items.push({w:w.trim(),img:img||'',e:'🖼️'}); saveCustom(c); render(); toast('Añadido a «Mis cosas»'); }; if(file) readImageResized(file,done); else done(''); break; }
+    case 'cus-del': { const c=loadCustom(); c.items.splice(+el.dataset.i,1); saveCustom(c); render(); break; }
     case 'caa-del': CAA_PHRASE.pop(); render(); break;
     case 'caa-clear': CAA_PHRASE=[]; render(); break;
     case 'caa-say': if(CAA_PHRASE.length) speak(CAA_PHRASE.map(p=>p.w).join(' ')); break;
