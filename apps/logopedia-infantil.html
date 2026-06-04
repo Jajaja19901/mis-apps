@@ -86,6 +86,19 @@ section{padding:22px 0}
 .qbox{max-width:480px;margin:0 auto;text-align:center}
 .qprompt{font-family:'Fredoka';font-size:24px;font-weight:700;margin:6px 0 10px}
 .qpic{font-size:96px;margin:2px 0 12px}
+.read-word{font-family:'Fredoka';font-weight:700;font-size:54px;letter-spacing:.06em;color:var(--brand);margin:6px 0}
+.shape-target{width:120px;height:120px;margin:4px auto 10px;border:3px dashed #b9cce8;border-radius:16px;padding:10px;background:#fafcff}
+.shape-opt{display:inline-block;width:54px;height:54px}
+.le-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(min-width:520px){.le-grid{grid-template-columns:repeat(5,1fr)}}
+.le-letter{background:var(--surface);border:2px solid var(--line);border-radius:16px;padding:12px 4px;cursor:pointer;font-family:'Fredoka';transition:.12s;display:flex;flex-direction:column;gap:2px;align-items:center}
+.le-letter:hover{border-color:var(--brand);transform:translateY(-2px)} .le-letter .ll{font-size:32px;font-weight:700;color:var(--brand)} .le-letter .le{font-size:24px} .le-letter .lw{font-size:11px;font-weight:700;color:var(--ink-soft)}
+.agenda{display:grid;gap:10px}
+.ag-step{display:flex;align-items:center;gap:14px;background:var(--surface);border:2px solid var(--line);border-radius:16px;padding:12px 14px;cursor:pointer;text-align:left;font-family:inherit;transition:.12s}
+.ag-step:hover{border-color:var(--purple)} .ag-step.done{background:var(--green-soft);border-color:var(--green)}
+.ag-step .ae{font-size:36px;flex:0 0 auto} .ag-step .an{font-family:'Fredoka';font-weight:600;font-size:18px;flex:1}
+.ag-step.done .an{text-decoration:line-through;color:var(--ink-soft)} .ag-step .ack{font-size:24px;flex:0 0 auto}
+.ag-num{width:30px;height:30px;border-radius:50%;background:var(--purple-soft);color:var(--purple);display:grid;place-items:center;font-family:'Fredoka';font-weight:700;flex:0 0 auto}
 .opts{display:grid;gap:12px}
 .optbtn{background:var(--surface);border:2px solid var(--line);border-radius:16px;padding:16px;font-family:'Fredoka';font-size:22px;cursor:pointer;transition:.14s}
 .optbtn:hover{border-color:var(--brand)} .optbtn.good{background:var(--green-soft);border-color:var(--green);color:var(--green)} .optbtn.bad{background:var(--coral-soft);border-color:var(--coral);color:var(--coral)}
@@ -174,6 +187,14 @@ body.calm{font-size:18px} body.calm *{animation:none!important;transition:none!i
     { "goto": "#/aprender/comprension/opuestos" }, { "click": "[data-correct=\"1\"]" }, { "expect": "¡Muy bien!" } ]},
   { "name": "Intruso funciona", "steps": [
     { "goto": "#/aprender/comprension/intruso" }, { "click": "[data-correct=\"1\"]" }, { "expect": "¡Muy bien!" } ]},
+  { "name": "Lectoescritura: leer palabra y elegir dibujo", "steps": [
+    { "goto": "#/aprender/lectoescritura/palabras" }, { "click": "[data-correct=\"1\"]" }, { "expect": "¡Muy bien!" } ]},
+  { "name": "Encajar formas funciona", "steps": [
+    { "goto": "#/aprender/lectoescritura/formas" }, { "click": "[data-correct=\"1\"]" }, { "expect": "¡Muy bien!" } ]},
+  { "name": "Letras y sonidos se muestran", "steps": [
+    { "goto": "#/aprender/lectoescritura/letras" }, { "expectVisible": ".le-letter" } ]},
+  { "name": "Agenda visual TEA marca pasos", "steps": [
+    { "goto": "#/caa/agenda" }, { "click": "[data-action=\"agenda\"]" }, { "expectVisible": ".ag-step.done" } ]},
   { "name": "El comunicador construye frases", "steps": [
     { "goto": "#/caa/comunicador" }, { "click": "[data-action=\"caa-add\"]" }, { "expectVisible": "#stripItems .sp-item" } ]},
   { "name": "Valoracion por edad llega a resultado", "steps": [
@@ -185,7 +206,7 @@ body.calm{font-size:18px} body.calm *{animation:none!important;transition:none!i
 
 <script>
 "use strict";
-const CONFIG = { APP_NAME:"Laura M. · Logopeda", ADMIN_PASSWORD:"logo1234", WHATSAPP:"34600000000", STUDIO_BRAND:"Incuba tu Negocio", STUDIO_AUTHOR:"Jaime M. M.", STUDIO_URL:"" };
+const CONFIG = { APP_NAME:"Laura M M · Logopeda", ADMIN_PASSWORD:"logo1234", WHATSAPP:"34611773150", EMAIL:"", CITY:"Arucas y zona norte de Gran Canaria", STUDIO_BRAND:"Incuba tu Negocio", STUDIO_AUTHOR:"Jaime M. M.", STUDIO_URL:"" };
 const DB = { get(k,fb){ try{ const v=localStorage.getItem(k); return v==null?fb:JSON.parse(v); }catch(e){ return fb; } }, set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ toast("No se pudo guardar"); return false; } } };
 const K = { stars:"lg_stars", reports:"lg_reports", admin:"lg_admin", calm:"lg_calm" };
 function speak(text){ try{ if(!('speechSynthesis' in window)){ toast('Tu dispositivo no puede leer en voz alta'); return; } window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(String(text)); u.lang='es-ES'; u.rate=.85; u.pitch=1.1; const vs=window.speechSynthesis.getVoices().filter(v=>/es/i.test(v.lang)); if(vs[0])u.voice=vs[0]; window.speechSynthesis.speak(u); }catch(e){} }
@@ -287,6 +308,32 @@ const EJERCICIOS = [
   {e:"😬",n:"Abrir y cerrar",t:"Abre mucho la boca y ciérrala despacio; luego rápido. Como un cocodrilo."}
 ];
 
+/* ===== LECTOESCRITURA (especialidad: dislexia y lectoescritura) ===== */
+const ABC = [
+  {l:"a",w:"araña",e:"🕷️"},{l:"e",w:"elefante",e:"🐘"},{l:"i",w:"iglú",e:"🧊"},{l:"o",w:"oso",e:"🐻"},{l:"u",w:"uva",e:"🍇"},
+  {l:"m",w:"mano",e:"✋"},{l:"p",w:"pato",e:"🦆"},{l:"l",w:"luna",e:"🌙"},{l:"s",w:"sol",e:"☀️"},{l:"t",w:"taza",e:"☕"},
+  {l:"d",w:"dado",e:"🎲"},{l:"n",w:"nido",e:"🪺"},{l:"f",w:"foca",e:"🦭"},{l:"c",w:"casa",e:"🏠"},{l:"r",w:"ratón",e:"🐭"}
+];
+const LEEPALABRAS = [
+  {w:"sol",e:"☀️"},{w:"pan",e:"🍞"},{w:"oso",e:"🐻"},{w:"pato",e:"🦆"},{w:"casa",e:"🏠"},{w:"luna",e:"🌙"},
+  {w:"mano",e:"✋"},{w:"gato",e:"🐈"},{w:"flor",e:"🌸"},{w:"vaso",e:"🥛"},{w:"dado",e:"🎲"},{w:"sopa",e:"🍲"}
+];
+/* Formas geométricas (SVG) para encajar */
+const SHAPES = [
+  {id:"triangulo",n:"triángulo",d:'<polygon points="40,8 74,68 6,68"/>'},
+  {id:"cuadrado",n:"cuadrado",d:'<rect x="12" y="12" width="56" height="56" rx="4"/>'},
+  {id:"circulo",n:"círculo",d:'<circle cx="40" cy="40" r="30"/>'},
+  {id:"rombo",n:"rombo",d:'<polygon points="40,6 72,40 40,74 8,40"/>'},
+  {id:"estrella",n:"estrella",d:'<polygon points="40,6 50,30 76,30 55,46 63,72 40,56 17,72 25,46 4,30 30,30"/>'},
+  {id:"corazon",n:"corazón",d:'<path d="M40 70 L12 42 a16 16 0 0 1 28-12 a16 16 0 0 1 28 12 Z"/>'}
+];
+function shapeSVG(id,fill,stroke){ const s=SHAPES.find(x=>x.id===id); return `<svg viewBox="0 0 80 80" width="100%" height="100%" aria-hidden="true"><g fill="${fill}" stroke="${stroke}" stroke-width="3" stroke-linejoin="round">${s.d}</g></svg>`; }
+/* Agenda visual / rutina (apoyo TEA) */
+const RUTINA = [
+  {w:"Levantarse",e:"🛏️"},{w:"Desayunar",e:"🥣"},{w:"Lavarse los dientes",e:"🪥"},{w:"Ir al cole",e:"🏫"},
+  {w:"Comer",e:"🍽️"},{w:"Jugar",e:"🧸"},{w:"Baño",e:"🛁"},{w:"Cuento",e:"📖"},{w:"Dormir",e:"😴"}
+];
+
 /* ===== VALORACIÓN lenguaje por edad ===== */
 const ASSESS = {
   "2-3 años":[{area:"Comprensión",q:"Entiende órdenes sencillas ('dame la pelota')."},{area:"Expresivo",q:"Junta dos palabras ('más agua')."},{area:"Expresivo",q:"Dice unas 50 palabras o más."},{area:"Habla",q:"Le entiende gente de fuera de la familia parte de lo que dice."},{area:"Social",q:"Señala para pedir o mostrar."}],
@@ -300,6 +347,7 @@ let ART=null;        // {phon, idx} articulación palabras
 let QZ=null, QZKEY=''; // quiz genérico
 let ASSESSMENT=null;
 let CAA_PHRASE=[], CAA_CAT=CAA[0].id, EMO=null;
+let LE_CONS='m', AGENDA_DONE={};
 
 /* ===== Iconos / PWA / calma ===== */
 const LOGO_SVG=`<svg viewBox="0 0 48 48" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="48" height="48" rx="12" fill="#2563b8"/><path d="M12 16c0-2 1.6-3.5 3.6-3.5h17c2 0 3.6 1.5 3.6 3.5v9c0 2-1.6 3.5-3.6 3.5H22l-6 5v-5h-.4C13.6 28.5 12 27 12 25z" fill="#fff"/><circle cx="19" cy="20.5" r="2" fill="#2563b8"/><circle cx="24" cy="20.5" r="2" fill="#2563b8"/><circle cx="29" cy="20.5" r="2" fill="#2563b8"/></svg>`;
@@ -320,7 +368,7 @@ function tilesHTML(list){ return `<div class="grid">${list.map(t=>`<button class
 
 /* ===== Home ===== */
 function viewHome(){
-  return page(`<section class="hero"><div class="big-emoji">🗣️</div><h1>Enseñar a <span>hablar</span></h1><p class="muted">Articulación, vocabulario, conciencia fonológica y comprensión. Todo suena en voz alta. Apoyo para la logopeda.</p></section>
+  return page(`<section class="hero"><div class="big-emoji">🗣️</div><h1>Enseñar a <span>hablar</span> y a <span>leer</span></h1><p class="muted">Articulación, vocabulario, conciencia fonológica, lectoescritura y comprensión. Todo suena en voz alta. Apoyo para la logopeda.</p></section>
   <section><div class="choices">
     <button class="choice jugar" data-action="go" data-h="#/aprender"><span class="ce">🎮</span><h2>Aprender a hablar</h2><p>Fonemas, vocabulario, rimas, comprensión, soplo</p></button>
     <button class="choice comunica" data-action="go" data-h="#/caa"><span class="ce">🗨️</span><h2>Comunicar</h2><p>Pictogramas que hablan y emociones</p></button>
@@ -334,6 +382,7 @@ function viewAprender(){
     {h:"#/aprender/articulacion",e:"🔤",b:"Articulación",s:"Sonidos: sílabas, palabras y frases"},
     {h:"#/aprender/vocabulario",e:"🖼️",b:"Vocabulario",s:"Nombrar por categorías"},
     {h:"#/aprender/fonologica",e:"🧠",b:"Conciencia fonológica",s:"Rimas, sílabas, sonido inicial"},
+    {h:"#/aprender/lectoescritura",e:"📖",b:"Lectoescritura",s:"Letras, sílabas y leer palabras"},
     {h:"#/aprender/comprension",e:"💬",b:"Comprensión",s:"Opuestos y categorías"},
     {h:"#/aprender/soplo",e:"🌬️",b:"Soplo y boca",s:"Praxias y respiración"}
   ])}</section>`);
@@ -366,16 +415,20 @@ function genInicial(){ const correct=rand(INICIAL_POOL); const dist=shuffle(INIC
 function genOpuesto(){ const o=rand(OPUESTOS); const dist=shuffle(OPUESTOS.filter(x=>x.b!==o.b)).slice(0,2).map(x=>x.b); const opts=shuffle([{label:o.b,correct:true},...dist.map(d=>({label:d,correct:false}))]); return {title:"Lo contrario",prompt:{kind:'text',value:'Lo contrario de '+o.a+' '+o.ea},options:opts.map(x=>({kind:'text',label:x.label,correct:x.correct}))}; }
 function genIntruso(){ const cat=rand(VOCAB_CATS); const otros=VOCAB_CATS.filter(c=>c.id!==cat.id); const intruso=rand(rand(otros).items); const items=shuffle(cat.items).slice(0,3); const opts=shuffle([...items.map(i=>({...i,correct:false})),{...intruso,correct:true}]); return {title:"El intruso",prompt:{kind:'text',value:'¿Cuál NO es de '+cat.label.toLowerCase()+'?'},options:opts.map(o=>({kind:'image',label:o.w,emoji:o.e,correct:!!o.correct}))}; }
 function genDiscrim(){ const pair=rand(PARES); const said=rand(pair); return {title:"¿Cuál he dicho?",hideLabels:true,prompt:{kind:'say',value:said.w,text:'Escucha y señala'},options:shuffle(pair).map(o=>({kind:'image',label:o.w,emoji:o.e,correct:o.w===said.w}))}; }
-const QUIZGENS = { vocab:genVocab, rima:genRima, silabas:genSilabas, inicial:genInicial, discrim:genDiscrim, opuesto:genOpuesto, intruso:genIntruso };
+function genLeer(){ const correct=rand(LEEPALABRAS); const dist=shuffle(LEEPALABRAS.filter(x=>x.w!==correct.w)).slice(0,2); const opts=shuffle([{...correct,correct:true},...dist.map(d=>({...d,correct:false}))]); return {title:"Lee y elige",hideLabels:true,prompt:{kind:'read',value:correct.w},options:opts.map(o=>({kind:'image',label:o.w,emoji:o.e,correct:!!o.correct}))}; }
+function genForma(){ const correct=rand(SHAPES); const dist=shuffle(SHAPES.filter(x=>x.id!==correct.id)).slice(0,2); const opts=shuffle([{...correct,correct:true},...dist.map(d=>({...d,correct:false}))]); return {title:"Encaja la forma",prompt:{kind:'shape',value:correct.id,text:'Pon la pieza igual aquí'},options:opts.map(o=>({kind:'shape',label:o.n,shapeId:o.id,correct:!!o.correct}))}; }
+const QUIZGENS = { vocab:genVocab, rima:genRima, silabas:genSilabas, inicial:genInicial, discrim:genDiscrim, leer:genLeer, forma:genForma, opuesto:genOpuesto, intruso:genIntruso };
 function quiz(key,arg){ const k=key+'|'+(arg||''); if(!QZ||QZKEY!==k){ QZ=QUIZGENS[key](arg); QZKEY=k; } return QZ; }
 function renderQuiz(backHref,backTxt,q){
   let promptHTML='';
   if(q.prompt.kind==='image') promptHTML=`<div class="qpic" aria-hidden="true">${esc(q.prompt.value)}</div>`;
   else if(q.prompt.kind==='say') promptHTML=`<div class="qprompt">${esc(q.prompt.text||'')} ${q.prompt.emoji?'<span aria-hidden="true">'+esc(q.prompt.emoji)+'</span>':''}</div><button class="speak-btn" id="speakBtn" data-action="say" data-w="${esc(q.prompt.value)}">🔊 Escuchar</button>`;
+  else if(q.prompt.kind==='read') promptHTML=`<div class="read-word">${esc(q.prompt.value)}</div><button class="speak-btn" id="speakBtn" data-action="say" data-w="${esc(q.prompt.value)}">🔊 Leer</button>`;
+  else if(q.prompt.kind==='shape') promptHTML=`<div class="shape-target">${shapeSVG(q.prompt.value,'#eef3fb','#9bb6dd')}</div><div class="qprompt">${esc(q.prompt.text||'')}</div>`;
   else promptHTML=`<div class="qprompt">${esc(q.prompt.value)}</div>`;
-  const imgOpts=q.options[0]&&q.options[0].kind==='image';
+  const imgOpts=q.options[0]&&(q.options[0].kind==='image'||q.options[0].kind==='shape');
   const optsHTML = imgOpts
-    ? `<div class="opt-imgs">${q.options.map(o=>`<button class="opt-img" data-action="answer" data-correct="${o.correct?1:0}" aria-label="${esc(o.label)}"><span class="oe" aria-hidden="true">${esc(o.emoji)}</span>${q.hideLabels?'':`<span class="ow">${esc(o.label)}</span>`}</button>`).join('')}</div>`
+    ? `<div class="opt-imgs">${q.options.map(o=>`<button class="opt-img" data-action="answer" data-correct="${o.correct?1:0}" aria-label="${esc(o.label)}"><span class="oe" aria-hidden="true">${o.kind==='shape'?`<span class="shape-opt">${shapeSVG(o.shapeId,'#2563b8','#1c4d92')}</span>`:esc(o.emoji)}</span>${q.hideLabels?'':`<span class="ow">${esc(o.label)}</span>`}</button>`).join('')}</div>`
     : `<div class="opts">${q.options.map(o=>`<button class="optbtn" data-action="answer" data-correct="${o.correct?1:0}">${esc(o.label)}</button>`).join('')}</div>`;
   return page(`<section>${back(backHref,backTxt)}<div class="qbox"><div class="center"><h2>${esc(q.title)}</h2></div>${promptHTML}<div class="feedback" id="fb" aria-live="polite"></div>${optsHTML}</div></section>`);
 }
@@ -400,9 +453,21 @@ function viewComprension(sub){
 function viewSoplo(){
   return page(`<section>${back('#/aprender','Aprender')}<div class="center" style="margin:8px 0 16px"><h2>Soplo y boca 🌬️</h2><p class="muted">Pulsa 🔊 para oír la instrucción.</p></div><div class="exlist">${EJERCICIOS.map(x=>`<div class="excard"><span class="ee" aria-hidden="true">${x.e}</span><div class="ex-body"><b>${esc(x.n)}</b><p class="muted" style="margin:.2em 0 0">${esc(x.t)}</p></div><button class="btn btn-primary btn-sm" data-action="say" data-w="${esc(x.n+'. '+x.t)}">🔊</button></div>`).join('')}</div><div class="center" style="margin-top:20px"><div class="blow animate" aria-hidden="true"></div><p class="muted" style="margin-top:8px">¡Sopla hacia la pelota!</p></div></section>`);
 }
+/* ===== Lectoescritura (especialidad de Laura) ===== */
+function viewLecto(sub){
+  if(!sub) return page(`<section>${back('#/aprender','Aprender')}<div class="center" style="margin:10px 0 16px"><h2>Lectoescritura 📖</h2><p class="muted">De la letra a leer palabras. Base del trabajo en dislexia.</p></div>${tilesHTML([{h:"#/aprender/lectoescritura/letras",e:"🔡",b:"Letras y sonidos",s:"A de araña"},{h:"#/aprender/lectoescritura/silabas",e:"🧩",b:"Leer sílabas",s:"pa, pe, pi, po, pu"},{h:"#/aprender/lectoescritura/palabras",e:"📕",b:"Leer palabras",s:"Lee y elige el dibujo"},{h:"#/aprender/lectoescritura/formas",e:"🔺",b:"Encajar formas",s:"Pon la pieza igual"}])}</section>`);
+  if(sub==='letras') return page(`<section>${back('#/aprender/lectoescritura','Lectoescritura')}<div class="center" style="margin:8px 0 14px"><h2>Letras y sonidos</h2><p class="muted">Toca una letra y escucha.</p></div><div class="le-grid">${ABC.map(x=>`<button class="le-letter" data-action="say" data-w="${esc(x.l+', '+x.l+' de '+x.w)}"><span class="ll">${esc(x.l.toUpperCase())}</span><span class="le" aria-hidden="true">${esc(x.e)}</span><span class="lw">${esc(x.w)}</span></button>`).join('')}</div></section>`);
+  if(sub==='silabas'){ const ph=PHONEMES.find(p=>p.id===LE_CONS)||PHONEMES[0]; return page(`<section>${back('#/aprender/lectoescritura','Lectoescritura')}<div class="center" style="margin:8px 0 12px"><h2>Leer sílabas</h2><p class="muted">Elige una letra y lee sus sílabas.</p></div><div class="chips">${PHONEMES.map(p=>`<button class="chip ${p.id===LE_CONS?'active':''}" data-action="le-cons" data-c="${p.id}">${esc(p.label)}</button>`).join('')}</div><div class="syl-grid">${ph.silabas.map(s=>`<button class="syl" data-action="say" data-w="${esc(s)}">${esc(s)}</button>`).join('')}</div></section>`); }
+  if(sub==='palabras') return renderQuiz('#/aprender/lectoescritura','Lectoescritura',quiz('leer'));
+  if(sub==='formas') return renderQuiz('#/aprender/lectoescritura','Lectoescritura',quiz('forma'));
+  return viewLecto();
+}
 /* ===== Comunicar ===== */
 function viewCAA(){
-  return page(`<section>${back('#/','Inicio')}<div class="center" style="margin:10px 0 6px"><h2>Comunicar 🗨️</h2><p class="muted">Toca y la app habla.</p></div>${tilesHTML([{h:"#/caa/comunicador",e:"🗨️",b:"Comunicador",s:"Construir frases con pictos"},{h:"#/caa/emociones",e:"😀",b:"Emociones",s:"¿Cómo me siento?"}])}</section>`);
+  return page(`<section>${back('#/','Inicio')}<div class="center" style="margin:10px 0 6px"><h2>Comunicar 🗨️</h2><p class="muted">Toca y la app habla.</p></div>${tilesHTML([{h:"#/caa/comunicador",e:"🗨️",b:"Comunicador",s:"Construir frases con pictos"},{h:"#/caa/emociones",e:"😀",b:"Emociones",s:"¿Cómo me siento?"},{h:"#/caa/agenda",e:"📅",b:"Agenda visual",s:"Mi rutina con pictos"}])}</section>`);
+}
+function viewAgenda(){
+  return page(`<section>${back('#/caa','Comunicar')}<div class="center" style="margin:8px 0 12px"><h2>Mi agenda 📅</h2><p class="muted">Toca cada paso cuando lo hagas. Anticipar la rutina da seguridad.</p></div><div class="agenda">${RUTINA.map((r,i)=>`<button class="ag-step ${AGENDA_DONE[i]?'done':''}" data-action="agenda" data-i="${i}" data-w="${esc(r.w)}"><span class="ag-num">${i+1}</span><span class="ae" aria-hidden="true">${esc(r.e)}</span><span class="an">${esc(r.w)}</span><span class="ack" aria-hidden="true">${AGENDA_DONE[i]?'✅':'⬜'}</span></button>`).join('')}</div><div class="center" style="margin-top:14px"><button class="btn btn-ghost btn-sm" data-action="agenda-reset">↺ Empezar de nuevo</button></div></section>`);
 }
 function viewComunicador(){
   const cat=CAA.find(c=>c.id===CAA_CAT)||CAA[0];
@@ -433,7 +498,7 @@ function viewPanel(){
   const body = reps.length ? `<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-ghost btn-sm" data-action="export">⬇️ Exportar CSV</button></div>${reps.map(r=>`<div class="report-card"><div class="rc-top"><b>${esc(r.nombre||'Peque')} · ${esc(r.edad)}</b><span class="muted" style="font-size:12px">${new Date(r.fecha).toLocaleDateString('es-ES')}</span></div><div style="margin:8px 0;display:flex;gap:8px;flex-wrap:wrap">${Object.entries(r.areas).map(([a,p])=>`<span class="stars-bar" style="color:var(--ink-soft);font-size:12px;padding:4px 10px">${esc(a)}: ${p}%</span>`).join('')}</div>${r.flags&&r.flags.length?`<div class="muted" style="font-size:13px"><b>A reforzar:</b> ${esc(r.flags.join(' · '))}</div>`:''}<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" data-action="del-report" data-id="${esc(r.id)}">🗑️ Borrar</button></div></div>`).join('')}` : `<div class="box"><div class="center muted" style="padding:20px"><div style="font-size:44px">📭</div><p>Aún no hay valoraciones guardadas.</p><a class="btn btn-primary" href="#/valorar">Hacer una valoración</a></div></div>`;
   return page(`<section><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><h2 style="margin:0">Panel de la logopeda</h2><button class="btn btn-ghost btn-sm" style="margin-left:auto" data-action="logout">Salir</button></div>${body}</section>`);
 }
-function viewAviso(){ return page(`<section>${back('#/','Inicio')}<div class="box" style="max-width:680px;text-align:left"><h2>Aviso y privacidad</h2><p><b>Herramienta de apoyo.</b> Ayuda a practicar el habla y el lenguaje y ofrece una valoración <b>orientativa</b>. No es un diagnóstico ni sustituye a una logopeda colegiada.</p><p><b>Datos.</b> Todo se guarda solo en este dispositivo (localStorage); no se envía a ningún servidor.</p><p><b>Voz.</b> La pronunciación la genera el navegador; la calidad depende del dispositivo.</p><div class="center" style="margin-top:14px"><a class="btn btn-ghost" href="#/">Volver</a></div></div></section>`); }
+function viewAviso(){ const wa=CONFIG.WHATSAPP.replace(/\D/g,''); return page(`<section>${back('#/','Inicio')}<div class="box" style="max-width:680px;text-align:left"><h2>Contacto y aviso</h2><p><b>${esc(CONFIG.APP_NAME)}</b><br>${esc(CONFIG.CITY)}<br>📞 WhatsApp: <a href="https://wa.me/${wa}" target="_blank" rel="noopener noreferrer" style="color:var(--brand);font-weight:700">${esc(CONFIG.WHATSAPP.replace(/^34/,'+34 '))}</a>${CONFIG.EMAIL?`<br>✉️ <a href="mailto:${esc(CONFIG.EMAIL)}" style="color:var(--brand);font-weight:700">${esc(CONFIG.EMAIL)}</a>`:''}</p><hr style="border:none;border-top:1px solid var(--line);margin:14px 0"><p><b>Herramienta de apoyo.</b> Ayuda a practicar el habla, el lenguaje y la lectoescritura y ofrece una valoración <b>orientativa</b>. No es un diagnóstico ni sustituye a la sesión con la logopeda.</p><p><b>Datos.</b> Todo se guarda solo en este dispositivo (localStorage); no se envía a ningún servidor.</p><p><b>Voz.</b> La pronunciación la genera el navegador; la calidad depende del dispositivo.</p><div class="center" style="margin-top:14px"><a class="btn btn-green" href="https://wa.me/${wa}" target="_blank" rel="noopener noreferrer">Escribir por WhatsApp</a> <a class="btn btn-ghost" href="#/">Volver</a></div></div></section>`); }
 
 /* ===== Router ===== */
 function parse(){ return location.hash.replace(/^#\/?/,'').split('/'); }
@@ -445,11 +510,12 @@ function render(){
     if(b==='articulacion') html=viewArticulacion(c);
     else if(b==='vocabulario') html=viewVocabulario(c);
     else if(b==='fonologica') html=viewFonologica(c);
+    else if(b==='lectoescritura') html=viewLecto(c);
     else if(b==='comprension') html=viewComprension(c);
     else if(b==='soplo') html=viewSoplo();
     else html=viewAprender();
   }
-  else if(a==='caa'){ if(b==='comunicador') html=viewComunicador(); else if(b==='emociones') html=viewEmociones(); else html=viewCAA(); }
+  else if(a==='caa'){ if(b==='comunicador') html=viewComunicador(); else if(b==='emociones') html=viewEmociones(); else if(b==='agenda') html=viewAgenda(); else html=viewCAA(); }
   else if(a==='valorar') html=viewValorar();
   else if(a==='resultado') html=ASSESSMENT?viewResultado():viewValorar();
   else if(a==='panel') html=viewPanel();
@@ -482,6 +548,9 @@ document.addEventListener('click',function(e){
     case 'caa-clear': CAA_PHRASE=[]; render(); break;
     case 'caa-say': if(CAA_PHRASE.length) speak(CAA_PHRASE.map(p=>p.w).join(' ')); break;
     case 'emo': EMO=el.dataset.w; speak('Me siento '+el.dataset.w); render(); break;
+    case 'le-cons': LE_CONS=el.dataset.c; render(); break;
+    case 'agenda': { const i=+el.dataset.i; AGENDA_DONE[i]=!AGENDA_DONE[i]; if(AGENDA_DONE[i])speak(el.dataset.w); render(); break; }
+    case 'agenda-reset': AGENDA_DONE={}; render(); break;
     case 'age': ASSESSMENT={edad:el.dataset.a,nombre:(document.getElementById('childName')||{}).value||'',marks:{}}; render(); break;
     case 'mark': if(ASSESSMENT){ ASSESSMENT.marks[+el.dataset.i]=+el.dataset.v; el.parentElement.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed','false')); el.setAttribute('aria-pressed','true'); } break;
     case 'result': location.hash='#/resultado'; break;
