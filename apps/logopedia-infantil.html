@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Logopedia Infantil · Jugar y valorar el lenguaje</title>
+<meta name="description" content="App de logopedia infantil: juegos de fonemas, vocabulario, escucha y soplo que hablan en voz alta, y una valoración orientativa del lenguaje por edades. Herramienta de apoyo para la logopeda.">
+<meta name="theme-color" content="#2563b8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Logopedia">
+<link rel="icon" id="favicon">
+<link rel="apple-touch-icon" id="appleIcon">
+<link rel="manifest" id="manifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ====== Logopedia Infantil — app de apoyo para valorar y tratar (un solo HTML, sin backend) ====== */
+:root{
+  --brand:#2563b8; --brand-deep:#1c4d92; --brand-soft:#e7f0fb;
+  --green:#0f7a52; --green-soft:#e2f3ec;
+  --coral:#d9531f; --coral-soft:#fdece4;
+  --gold:#e8a300;
+  --bg:#f6f8fc; --surface:#ffffff;
+  --ink:#1f2733; --ink-soft:#55617a; --ink-mut:#8a94a8;
+  --line:#e4e9f2;
+  --r:18px; --r-lg:26px;
+  --sh:0 6px 18px rgba(30,50,90,.08); --sh-lg:0 16px 40px rgba(30,50,90,.16);
+  --max:880px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Nunito',system-ui,sans-serif;line-height:1.5;overflow-x:hidden}
+h1,h2,h3{font-family:'Fredoka',system-ui,sans-serif;font-weight:600;line-height:1.1;margin:0 0 .4em}
+h1{font-size:clamp(28px,6vw,40px)} h2{font-size:clamp(22px,5vw,30px)} h3{font-size:18px}
+p{margin:0 0 1em}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 16px}
+.muted{color:var(--ink-soft)}
+.center{text-align:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;border:none;border-radius:999px;padding:14px 24px;font-family:'Fredoka',sans-serif;font-weight:600;font-size:16px;cursor:pointer;transition:transform .14s,box-shadow .14s,background .14s;line-height:1}
+.btn:hover{transform:translateY(-2px)}
+.btn:active{transform:translateY(0)}
+.btn-primary{background:var(--brand);color:#fff;box-shadow:0 8px 18px rgba(37,99,184,.3)}
+.btn-primary:hover{background:var(--brand-deep)}
+.btn-green{background:var(--green);color:#fff}
+.btn-coral{background:var(--coral);color:#fff}
+.btn-ghost{background:var(--surface);color:var(--brand);border:2px solid var(--brand)}
+.btn-ghost:hover{background:var(--brand-soft)}
+.btn-sm{padding:9px 16px;font-size:14px}
+.btn-block{display:flex;width:100%}
+.btn:focus-visible,[role=button]:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+/* Header */
+header.top{position:sticky;top:0;z-index:40;background:rgba(246,248,252,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.nav{display:flex;align-items:center;gap:12px;height:60px}
+.logo{display:flex;align-items:center;gap:10px;font-family:'Fredoka';font-weight:700;font-size:19px;color:var(--ink)}
+.logo .mk{width:34px;height:34px;border-radius:10px;overflow:hidden;flex:0 0 auto;display:grid;place-items:center}
+.nav .sp{margin-left:auto}
+.nav a.panel-link{font-weight:700;font-size:13px;color:var(--ink-soft);padding:8px 10px;border-radius:999px}
+.nav a.panel-link:hover{background:var(--brand-soft);color:var(--brand)}
+
+section{padding:26px 0}
+.hero{text-align:center;padding:36px 0 14px}
+.hero .big-emoji{font-size:64px;margin-bottom:6px}
+.hero h1 span{color:var(--brand)}
+
+/* Tarjetas grandes home */
+.choices{display:grid;gap:16px;grid-template-columns:1fr}
+@media(min-width:620px){.choices{grid-template-columns:1fr 1fr}}
+.choice{border:none;border-radius:var(--r-lg);padding:26px 22px;text-align:left;cursor:pointer;color:#fff;font-family:inherit;display:flex;flex-direction:column;gap:6px;min-height:150px;transition:transform .15s,box-shadow .15s;box-shadow:var(--sh)}
+.choice:hover{transform:translateY(-3px);box-shadow:var(--sh-lg)}
+.choice .ce{font-size:46px}
+.choice h2{color:#fff;margin:0}
+.choice p{margin:0;opacity:.95;font-weight:600}
+.choice.jugar{background:linear-gradient(135deg,#2563b8,#3f86e0)}
+.choice.valorar{background:linear-gradient(135deg,#0f7a52,#1ba573)}
+
+/* Menú de juegos */
+.grid{display:grid;gap:14px;grid-template-columns:repeat(2,1fr)}
+@media(min-width:620px){.grid{grid-template-columns:repeat(2,1fr)}}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;cursor:pointer;font-family:inherit;text-align:center;box-shadow:var(--sh);transition:transform .14s,box-shadow .14s;display:flex;flex-direction:column;gap:6px;align-items:center}
+.tile:hover{transform:translateY(-3px);box-shadow:var(--sh-lg)}
+.tile .te{font-size:42px}
+.tile b{font-family:'Fredoka';font-size:17px}
+.tile small{color:var(--ink-soft);font-weight:600}
+
+/* Chips fonema */
+.chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-bottom:18px}
+.chip{border:2px solid var(--line);background:var(--surface);color:var(--ink);border-radius:14px;min-width:54px;padding:12px 14px;font-family:'Fredoka';font-weight:600;font-size:18px;cursor:pointer;transition:.14s}
+.chip:hover{border-color:var(--brand)}
+.chip.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+
+/* Tarjeta de palabra */
+.wordcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-lg);max-width:420px;margin:0 auto;padding:28px 22px;text-align:center}
+.wordcard .pic{font-size:120px;line-height:1;margin-bottom:8px}
+.wordcard .word{font-family:'Fredoka';font-size:40px;font-weight:700;color:var(--brand);letter-spacing:.5px}
+.speak-btn{margin-top:14px;background:var(--gold);color:#3a2b00;border:none;border-radius:999px;padding:16px 26px;font-family:'Fredoka';font-weight:700;font-size:18px;cursor:pointer;display:inline-flex;gap:10px;align-items:center;box-shadow:0 6px 16px rgba(232,163,0,.35)}
+.speak-btn:hover{transform:translateY(-2px)}
+.row-nav{display:flex;justify-content:space-between;gap:10px;max-width:420px;margin:16px auto 0}
+.dots{display:flex;gap:6px;justify-content:center;margin-top:12px}
+.dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.dots i.on{background:var(--brand)}
+
+/* Juego de opciones */
+.qbox{max-width:460px;margin:0 auto;text-align:center}
+.qpic{font-size:110px;margin:6px 0 16px}
+.opts{display:grid;gap:12px}
+.optbtn{background:var(--surface);border:2px solid var(--line);border-radius:16px;padding:16px;font-family:'Fredoka';font-size:22px;cursor:pointer;transition:.14s}
+.optbtn:hover{border-color:var(--brand)}
+.optbtn.good{background:var(--green-soft);border-color:var(--green);color:var(--green)}
+.optbtn.bad{background:var(--coral-soft);border-color:var(--coral);color:var(--coral)}
+.opt-imgs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.opt-img{background:var(--surface);border:2px solid var(--line);border-radius:16px;padding:14px 6px;font-size:46px;cursor:pointer;transition:.14s}
+.opt-img:hover{border-color:var(--brand)}
+.opt-img.good{background:var(--green-soft);border-color:var(--green)}
+.opt-img.bad{background:var(--coral-soft);border-color:var(--coral)}
+.feedback{font-family:'Fredoka';font-size:24px;font-weight:700;margin:14px 0;min-height:30px}
+.feedback.ok{color:var(--green)} .feedback.no{color:var(--coral)}
+.stars-bar{display:inline-flex;gap:6px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-weight:800;color:#8a6500;box-shadow:var(--sh)}
+
+/* Soplo / praxias */
+.exlist{display:grid;gap:12px}
+.excard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;gap:14px;align-items:center;box-shadow:var(--sh)}
+.excard .ee{font-size:40px;flex:0 0 auto}
+.excard .ex-body{flex:1;min-width:0}
+.excard b{font-family:'Fredoka';font-size:17px}
+.blow{width:64px;height:64px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff7,transparent),var(--coral);flex:0 0 auto}
+.blow.animate{animation:blow 2.6s ease-in-out infinite}
+@keyframes blow{0%,100%{transform:scale(.85)}50%{transform:scale(1.15)}}
+
+/* Valoración */
+.box{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh);padding:22px;max-width:620px;margin:0 auto}
+.age-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:8px}
+.age-btn{background:var(--surface);border:2px solid var(--line);border-radius:16px;padding:18px;font-family:'Fredoka';font-size:18px;cursor:pointer;transition:.14s}
+.age-btn:hover{border-color:var(--brand);transform:translateY(-2px)}
+.item{padding:14px 0;border-bottom:1px solid var(--line)}
+.item .q{font-weight:700;margin-bottom:8px}
+.item .area-tag{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--brand);background:var(--brand-soft);padding:2px 8px;border-radius:999px;margin-bottom:6px}
+.scale{display:flex;gap:8px}
+.scale button{flex:1;border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:10px;font-family:'Fredoka';font-weight:600;cursor:pointer;font-size:14px}
+.scale button[aria-pressed="true"][data-v="2"]{background:var(--green-soft);border-color:var(--green);color:var(--green)}
+.scale button[aria-pressed="true"][data-v="1"]{background:#fff6df;border-color:var(--gold);color:#8a6500}
+.scale button[aria-pressed="true"][data-v="0"]{background:var(--coral-soft);border-color:var(--coral);color:var(--coral)}
+.result-area{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);gap:10px}
+.bar{flex:1;height:10px;border-radius:999px;background:var(--line);overflow:hidden;max-width:180px}
+.bar i{display:block;height:100%;border-radius:999px;background:var(--green)}
+.bar i.low{background:var(--coral)} .bar i.mid{background:var(--gold)}
+.flag-list li{margin-bottom:6px}
+.disclaimer{background:var(--coral-soft);border:1px solid #f3c9b6;color:#8a3a13;border-radius:14px;padding:12px 14px;font-size:13.5px;font-weight:700;margin:14px 0}
+.field{margin-bottom:14px;text-align:left}
+.field label{display:block;font-weight:700;margin-bottom:6px;font-size:14px}
+.field input,.field select{width:100%;padding:12px 14px;border:2px solid var(--line);border-radius:12px;font-family:inherit;font-size:16px;background:var(--surface);color:var(--ink)}
+
+/* Panel */
+.report-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:var(--sh);margin-bottom:12px}
+.report-card .rc-top{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.tablewrap{overflow-x:auto}
+
+/* Footer */
+footer{background:var(--ink);color:#d7deea;padding:30px 0 24px;margin-top:30px;text-align:center}
+footer .fl{display:inline-block;margin:0 8px;color:#bcc8db;font-size:14px;background:none;border:none;cursor:pointer;font-family:inherit}
+footer .credit{border-top:1px solid rgba(255,255,255,.12);margin-top:16px;padding-top:14px;font-size:12.5px;color:#9aa7bd}
+
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(160%);background:var(--ink);color:#fff;padding:13px 22px;border-radius:999px;font-weight:700;z-index:200;transition:transform .3s;box-shadow:var(--sh-lg);max-width:90vw;text-align:center}
+#toast.show{transform:translateX(-50%) translateY(0)}
+.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<h1 class="sr-only">Logopedia Infantil — jugar y valorar el lenguaje</h1>
+<div id="app" role="main"></div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<!-- Tests de aceptación (el verificador los ejecuta; no afectan a la app) -->
+<script type="application/json" id="acceptance-tests">
+[
+  { "name": "La home ofrece jugar y valorar", "steps": [
+    { "goto": "#/" },
+    { "expect": "Jugar y aprender" },
+    { "expect": "Hacer una valoración" }
+  ]},
+  { "name": "Los juegos de fonemas muestran una palabra para hablar", "steps": [
+    { "goto": "#/jugar/sonidos" },
+    { "clickText": "R (fuerte)" },
+    { "expectVisible": "#speakBtn" }
+  ]},
+  { "name": "El juego de vocabulario da feedback al acertar", "steps": [
+    { "goto": "#/jugar/vocabulario" },
+    { "click": "[data-correct=\"1\"]" },
+    { "expect": "¡Muy bien!" }
+  ]},
+  { "name": "La valoración llega a un resultado orientativo", "steps": [
+    { "goto": "#/valorar" },
+    { "clickText": "3-4 años" },
+    { "clickText": "Ver resultado" },
+    { "expect": "Resultado orientativo" }
+  ]},
+  { "name": "El panel de la logopeda está protegido", "steps": [
+    { "goto": "#/panel" },
+    { "fill": { "sel": "#gatePass", "value": "logo1234" } },
+    { "submit": "#gateForm" },
+    { "expect": "Panel de la logopeda" }
+  ]}
+]
+</script>
+
+<script>
+"use strict";
+/* ===== CONFIG ===== */
+const CONFIG = {
+  APP_NAME: "Logopedia Infantil",
+  ADMIN_PASSWORD: "logo1234",            // ⚠️ cámbiala
+  WHATSAPP: "34600000000",               // nº de la logopeda (para compartir el informe)
+  STUDIO_BRAND: "Incuba tu Negocio",
+  STUDIO_AUTHOR: "Jaime M. M.",
+  STUDIO_URL: ""
+};
+
+/* ===== Storage seguro ===== */
+const DB = {
+  get(k,fb){ try{ const v=localStorage.getItem(k); return v==null?fb:JSON.parse(v); }catch(e){ return fb; } },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ toast("No se pudo guardar"); return false; } }
+};
+const K = { stars:"lg_stars", reports:"lg_reports", admin:"lg_admin", vocab:"lg_vocab" };
+
+/* ===== Voz (Web Speech API) — robusto, sin backend ===== */
+function speak(text){
+  try{
+    if(!('speechSynthesis' in window)) { toast('Tu dispositivo no puede leer en voz alta'); return; }
+    window.speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(String(text));
+    u.lang='es-ES'; u.rate=.85; u.pitch=1.1;
+    const vs=window.speechSynthesis.getVoices().filter(v=>/es/i.test(v.lang));
+    if(vs[0]) u.voice=vs[0];
+    window.speechSynthesis.speak(u);
+  }catch(e){ /* sin voz disponible: no rompemos nada */ }
+}
+try{ if('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged=()=>{}; }catch(e){}
+
+/* ===== Utils ===== */
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+let toastT; function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2400); }
+function stars(){ return DB.get(K.stars,0); }
+function addStar(n){ DB.set(K.stars, stars()+(n||1)); }
+function pick(arr,n){ const a=[...arr]; const out=[]; while(out.length<n && a.length){ out.push(a.splice(Math.floor(Math.random()*a.length),1)[0]); } return out; }
+
+/* ===== Contenido ===== */
+const PHONEMES = [
+  {id:"p", label:"P", words:[{w:"pato",e:"🦆"},{w:"pan",e:"🍞"},{w:"pelota",e:"⚽"},{w:"pera",e:"🍐"}]},
+  {id:"m", label:"M", words:[{w:"mano",e:"✋"},{w:"mono",e:"🐵"},{w:"manzana",e:"🍎"},{w:"mariposa",e:"🦋"}]},
+  {id:"l", label:"L", words:[{w:"luna",e:"🌙"},{w:"lobo",e:"🐺"},{w:"limón",e:"🍋"},{w:"león",e:"🦁"}]},
+  {id:"s", label:"S", words:[{w:"sol",e:"☀️"},{w:"oso",e:"🐻"},{w:"casa",e:"🏠"},{w:"sopa",e:"🍲"}]},
+  {id:"r", label:"R (fuerte)", words:[{w:"ratón",e:"🐭"},{w:"rosa",e:"🌹"},{w:"perro",e:"🐕"},{w:"guitarra",e:"🎸"}]},
+  {id:"r2", label:"R (suave)", words:[{w:"cara",e:"😊"},{w:"pera",e:"🍐"},{w:"toro",e:"🐂"},{w:"loro",e:"🦜"}]},
+  {id:"k", label:"C/K", words:[{w:"casa",e:"🏠"},{w:"coco",e:"🥥"},{w:"cama",e:"🛏️"},{w:"copa",e:"🥤"}]},
+  {id:"t", label:"T", words:[{w:"taza",e:"☕"},{w:"tomate",e:"🍅"},{w:"tren",e:"🚂"},{w:"tortuga",e:"🐢"}]},
+  {id:"f", label:"F", words:[{w:"foca",e:"🦭"},{w:"foto",e:"📷"},{w:"sofá",e:"🛋️"},{w:"flor",e:"🌸"}]},
+  {id:"ch", label:"CH", words:[{w:"coche",e:"🚗"},{w:"chocolate",e:"🍫"},{w:"chupete",e:"🍼"},{w:"ducha",e:"🚿"}]}
+];
+const VOCAB_DEFAULT = [
+  {w:"sol",e:"☀️"},{w:"luna",e:"🌙"},{w:"perro",e:"🐕"},{w:"gato",e:"🐈"},{w:"pato",e:"🦆"},
+  {w:"oso",e:"🐻"},{w:"pez",e:"🐟"},{w:"flor",e:"🌸"},{w:"casa",e:"🏠"},{w:"coche",e:"🚗"},
+  {w:"pelota",e:"⚽"},{w:"manzana",e:"🍎"},{w:"plátano",e:"🍌"},{w:"pan",e:"🍞"},{w:"queso",e:"🧀"},
+  {w:"zapato",e:"👟"},{w:"mano",e:"✋"},{w:"árbol",e:"🌳"},{w:"estrella",e:"⭐"},{w:"tren",e:"🚂"},
+  {w:"león",e:"🦁"},{w:"tortuga",e:"🐢"},{w:"mariposa",e:"🦋"},{w:"helado",e:"🍦"}
+];
+function vocab(){ const v=DB.get(K.vocab,null); return (v&&v.length)?v:VOCAB_DEFAULT; }
+
+const EJERCICIOS = [
+  {e:"🌬️", n:"Soplar fuerte", t:"Soplamos como si apagáramos las velas de un cumpleaños. ¡Hincha la tripa y suelta el aire despacio!"},
+  {e:"🎈", n:"Hinchar globo", t:"Imagina que hinchas un globo muy grande. Toma aire por la nariz y sopla por la boca."},
+  {e:"😛", n:"Sacar la lengua", t:"Saca la lengua y tócate la nariz, luego la barbilla. ¡Como una serpiente!"},
+  {e:"😗", n:"Beso de pez", t:"Pon boca de pez y haz muchos besitos. Mua, mua, mua."},
+  {e:"😃", n:"Sonrisa grande", t:"Sonríe muy grande enseñando los dientes y luego pon boca de morro. Repite cinco veces."},
+  {e:"👅", n:"Limpiar dientes", t:"Pasa la lengua por todos los dientes de arriba y de abajo, como si los limpiaras."}
+];
+
+/* ===== Valoración por edades (orientativa) ===== */
+const ASSESS = {
+  "2-3 años":[
+    {area:"Comprensión", q:"Entiende órdenes sencillas ('dame la pelota', 'ven aquí')."},
+    {area:"Expresivo", q:"Junta dos palabras ('más agua', 'mamá ven')."},
+    {area:"Expresivo", q:"Dice unas 50 palabras diferentes o más."},
+    {area:"Habla", q:"Le entienden personas de fuera de la familia parte de lo que dice."},
+    {area:"Social", q:"Señala o lleva cosas para pedir o mostrar."}
+  ],
+  "3-4 años":[
+    {area:"Comprensión", q:"Entiende preguntas qué, quién y dónde."},
+    {area:"Expresivo", q:"Hace frases de 3 o 4 palabras."},
+    {area:"Habla", q:"Se le entiende casi siempre, aunque falle algún sonido."},
+    {area:"Expresivo", q:"Usa plurales y algún verbo en pasado."},
+    {area:"Social", q:"Mantiene una conversación corta por turnos."}
+  ],
+  "4-5 años":[
+    {area:"Comprensión", q:"Sigue instrucciones de 2 o 3 pasos."},
+    {area:"Habla", q:"Pronuncia bien casi todos los sonidos (puede fallar la r/rr/s)."},
+    {area:"Expresivo", q:"Cuenta algo que le pasó con cierto orden."},
+    {area:"Expresivo", q:"Usa frases largas y bien construidas."},
+    {area:"Social", q:"Pregunta el significado de palabras nuevas."}
+  ],
+  "5-6 años":[
+    {area:"Habla", q:"Pronuncia correctamente todos los sonidos, incluida la r."},
+    {area:"Comprensión", q:"Entiende conceptos de tiempo (ayer, mañana, antes/después)."},
+    {area:"Expresivo", q:"Cuenta un cuento o experiencia con detalle y orden."},
+    {area:"Lectoescritura", q:"Reconoce letras y asocia algún sonido con su letra."},
+    {area:"Social", q:"Adapta cómo habla según con quién esté."}
+  ]
+};
+
+/* ===== Estado de juego/valoración (en memoria) ===== */
+let GAME = null;     // {phon, idx} para sonidos
+let VOCABQ = null;   // pregunta actual de vocabulario/escucha
+let ASSESSMENT = null; // {edad, marks:{}}
+
+/* ===== Logo / iconos ===== */
+const LOGO_SVG = `<svg viewBox="0 0 48 48" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="48" height="48" rx="12" fill="#2563b8"/><path d="M12 16c0-2 1.6-3.5 3.6-3.5h17c2 0 3.6 1.5 3.6 3.5v9c0 2-1.6 3.5-3.6 3.5H22l-6 5v-5h-.4C13.6 28.5 12 27 12 25z" fill="#fff"/><circle cx="19" cy="20.5" r="2" fill="#2563b8"/><circle cx="24" cy="20.5" r="2" fill="#2563b8"/><circle cx="29" cy="20.5" r="2" fill="#2563b8"/></svg>`;
+function appIconURI(){
+  const s='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="12" fill="#2563b8"/><path d="M12 16c0-2 1.6-3.5 3.6-3.5h17c2 0 3.6 1.5 3.6 3.5v9c0 2-1.6 3.5-3.6 3.5H22l-6 5v-5h-.4C13.6 28.5 12 27 12 25z" fill="#ffffff"/><circle cx="19" cy="20.5" r="2" fill="#2563b8"/><circle cx="24" cy="20.5" r="2" fill="#2563b8"/><circle cx="29" cy="20.5" r="2" fill="#2563b8"/></svg>';
+  return 'data:image/svg+xml,'+encodeURIComponent(s);
+}
+let deferredPrompt=null;
+function setupPWA(){
+  const icon=appIconURI();
+  const f=document.getElementById('favicon'); if(f)f.href=icon;
+  const a=document.getElementById('appleIcon'); if(a)a.href=icon;
+  const m=document.getElementById('manifest');
+  if(m){ const man={name:CONFIG.APP_NAME,short_name:"Logopedia",description:"Jugar y valorar el lenguaje",theme_color:"#2563b8",background_color:"#f6f8fc",display:"standalone",start_url:".",scope:".",icons:[{src:icon,sizes:"512x512",type:"image/svg+xml",purpose:"any maskable"}]};
+    try{ if(m._u)URL.revokeObjectURL(m._u); const u=URL.createObjectURL(new Blob([JSON.stringify(man)],{type:"application/manifest+json"})); m.href=u; m._u=u; }catch(e){} }
+}
+window.addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); deferredPrompt=e; const b=document.getElementById('installBtn'); if(b)b.style.display='inline-block'; });
+function installApp(){
+  if(deferredPrompt){ deferredPrompt.prompt(); try{deferredPrompt.userChoice.finally(()=>deferredPrompt=null);}catch(e){deferredPrompt=null;} return; }
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  toast(ios?'Pulsa Compartir → Añadir a pantalla de inicio':'Menú del navegador → Instalar app');
+}
+
+/* ===== Layout ===== */
+function header(){
+  return `<header class="top"><div class="wrap nav">
+    <a class="logo" href="#/"><span class="mk">${LOGO_SVG}</span>${esc(CONFIG.APP_NAME)}</a>
+    <span class="sp"></span>
+    <span class="stars-bar" title="Estrellas ganadas">⭐ ${stars()}</span>
+    <a class="panel-link" href="#/panel">🔒 Logopeda</a>
+  </div></header>`;
+}
+function footer(){
+  const credit=`Diseñado por <b>${esc(CONFIG.STUDIO_BRAND)}</b> · por ${esc(CONFIG.STUDIO_AUTHOR)}`;
+  return `<footer><div class="wrap">
+    <button class="fl" data-action="install" id="installBtn" style="display:none">📲 Instalar app</button>
+    <a class="fl" href="#/">Inicio</a><a class="fl" href="#/valorar">Valoración</a><a class="fl" href="#/aviso">Aviso</a>
+    <div class="credit">${CONFIG.STUDIO_URL?`<a href="${esc(CONFIG.STUDIO_URL)}" target="_blank" rel="noopener noreferrer" style="color:#bcc8db">${credit}</a>`:credit}</div>
+  </div></footer>`;
+}
+function page(inner){ return header()+'<div class="wrap">'+inner+'</div>'+footer(); }
+function back(href,txt){ return `<a class="btn btn-ghost btn-sm" href="${href}">← ${esc(txt||'Volver')}</a>`; }
+
+/* ===== Vistas ===== */
+function viewHome(){
+  return page(`<section class="hero">
+    <div class="big-emoji">🗣️</div>
+    <h1>Aprender a hablar, <span>jugando</span></h1>
+    <p class="muted">Juegos que suenan en voz alta y una valoración del lenguaje por edades. Una herramienta de apoyo para la logopeda.</p>
+  </section>
+  <section><div class="choices">
+    <button class="choice jugar" data-action="go" data-h="#/jugar">
+      <span class="ce">🎮</span><h2>Jugar y aprender</h2><p>Fonemas, vocabulario, escucha y soplo</p>
+    </button>
+    <button class="choice valorar" data-action="go" data-h="#/valorar">
+      <span class="ce">📋</span><h2>Hacer una valoración</h2><p>Orientativa, por edad y por áreas</p>
+    </button>
+  </div></section>`);
+}
+
+function viewJugar(){
+  const tiles=[
+    {h:"#/jugar/sonidos", e:"🔤", b:"Sonidos", s:"Practica fonemas (r, s, l…)"},
+    {h:"#/jugar/vocabulario", e:"🖼️", b:"¿Qué es?", s:"Nombrar dibujos"},
+    {h:"#/jugar/escucha", e:"👂", b:"Escucha y señala", s:"Comprensión"},
+    {h:"#/jugar/soplo", e:"🌬️", b:"Soplo y boca", s:"Praxias y respiración"}
+  ];
+  return page(`<section>
+    ${back('#/','Inicio')}
+    <div class="center" style="margin:10px 0 18px"><h2>Elige un juego</h2></div>
+    <div class="grid">${tiles.map(t=>`<button class="tile" data-action="go" data-h="${t.h}"><span class="te">${t.e}</span><b>${t.b}</b><small>${t.s}</small></button>`).join('')}</div>
+  </section>`);
+}
+
+function viewSonidos(){
+  const ph = GAME ? PHONEMES.find(p=>p.id===GAME.phon) : null;
+  if(!ph){
+    return page(`<section>${back('#/jugar','Juegos')}
+      <div class="center" style="margin:10px 0 16px"><h2>Elige un sonido</h2><p class="muted">Practicaremos palabras con ese sonido. Pulsa 🔊 para oírlas.</p></div>
+      <div class="chips">${PHONEMES.map(p=>`<button class="chip" data-action="phon" data-id="${p.id}">${esc(p.label)}</button>`).join('')}</div>
+    </section>`);
+  }
+  const word=ph.words[GAME.idx];
+  return page(`<section>${back('#/jugar/sonidos','Sonidos')}
+    <div class="center" style="margin:8px 0 14px"><span class="stars-bar">Sonido ${esc(ph.label)}</span></div>
+    <div class="wordcard">
+      <div class="pic" aria-hidden="true">${esc(word.e)}</div>
+      <div class="word">${esc(word.w)}</div>
+      <button class="speak-btn" id="speakBtn" data-action="say" data-w="${esc(word.w)}">🔊 Escuchar</button>
+      <div class="dots" aria-hidden="true">${ph.words.map((_,i)=>`<i class="${i===GAME.idx?'on':''}"></i>`).join('')}</div>
+    </div>
+    <div class="row-nav">
+      <button class="btn btn-ghost btn-sm" data-action="word-prev">◀ Antes</button>
+      <button class="btn btn-green btn-sm" data-action="word-star">¡Lo hice! ⭐</button>
+      <button class="btn btn-primary btn-sm" data-action="word-next">Otra ▶</button>
+    </div>
+  </section>`);
+}
+
+function newVocabQ(mode){ // mode: 'name' (qué es) | 'listen' (escucha y señala)
+  const items=pick(vocab(),3);
+  const correct=items[Math.floor(Math.random()*items.length)];
+  VOCABQ={mode,items,correct};
+}
+function viewVocab(mode){
+  if(!VOCABQ || VOCABQ.mode!==mode) newVocabQ(mode);
+  const {items,correct}=VOCABQ;
+  if(mode==='name'){
+    return page(`<section>${back('#/jugar','Juegos')}
+      <div class="qbox">
+        <div class="center"><h2>¿Qué es?</h2></div>
+        <div class="qpic" aria-hidden="true">${esc(correct.e)}</div>
+        <div class="feedback" id="fb" aria-live="polite"></div>
+        <div class="opts">${items.map(it=>`<button class="optbtn" data-action="answer" data-correct="${it.w===correct.w?1:0}" data-w="${esc(it.w)}">${esc(it.w)}</button>`).join('')}</div>
+      </div>
+    </section>`);
+  }
+  // listen
+  return page(`<section>${back('#/jugar','Juegos')}
+    <div class="qbox">
+      <div class="center"><h2>Escucha y señala</h2></div>
+      <button class="speak-btn" id="speakBtn" data-action="say" data-w="${esc(correct.w)}">🔊 Escuchar palabra</button>
+      <div class="feedback" id="fb" aria-live="polite" style="margin-top:16px"></div>
+      <div class="opt-imgs">${items.map(it=>`<button class="opt-img" data-action="answer" data-correct="${it.w===correct.w?1:0}" data-w="${esc(it.w)}" aria-label="${esc(it.w)}">${esc(it.e)}</button>`).join('')}</div>
+    </div>
+  </section>`);
+  }
+
+function viewSoplo(){
+  return page(`<section>${back('#/jugar','Juegos')}
+    <div class="center" style="margin:8px 0 16px"><h2>Soplo y boca 🌬️</h2><p class="muted">Ejercicios de respiración y praxias. Pulsa 🔊 para oír la instrucción.</p></div>
+    <div class="exlist">${EJERCICIOS.map(x=>`<div class="excard">
+      <span class="ee" aria-hidden="true">${x.e}</span>
+      <div class="ex-body"><b>${esc(x.n)}</b><p class="muted" style="margin:.2em 0 0">${esc(x.t)}</p></div>
+      <button class="btn btn-primary btn-sm" data-action="say" data-w="${esc(x.n+'. '+x.t)}">🔊</button>
+    </div>`).join('')}</div>
+    <div class="center" style="margin-top:20px"><div class="blow animate" aria-hidden="true"></div><p class="muted" style="margin-top:8px">¡Sopla hacia la pelota mientras se mueve!</p></div>
+  </section>`);
+}
+
+/* ===== Valoración ===== */
+function viewValorar(){
+  if(!ASSESSMENT){
+    return page(`<section>${back('#/','Inicio')}
+      <div class="box">
+        <h2>Valoración del lenguaje</h2>
+        <p class="muted">Marca lo que el niño o la niña hace. Al final verás un resumen orientativo por áreas. <b>No es un diagnóstico.</b></p>
+        <div class="field"><label for="childName">Nombre del niño/a (opcional)</label><input id="childName" placeholder="Ej: Martín" autocomplete="off"></div>
+        <h3 style="margin-top:10px">¿Qué edad tiene?</h3>
+        <div class="age-grid">${Object.keys(ASSESS).map(a=>`<button class="age-btn" data-action="age" data-a="${esc(a)}">${esc(a)}</button>`).join('')}</div>
+      </div>
+    </section>`);
+  }
+  const items=ASSESS[ASSESSMENT.edad];
+  return page(`<section>${back('#/valorar','')}
+    <div class="box">
+      <h2>${esc(ASSESSMENT.edad)} ${ASSESSMENT.nombre?'· '+esc(ASSESSMENT.nombre):''}</h2>
+      <p class="muted">Marca: <b>Sí</b> lo hace, <b>A veces</b>, o <b>No</b> todavía.</p>
+      <div id="items">${items.map((it,i)=>`<div class="item">
+        <span class="area-tag">${esc(it.area)}</span>
+        <div class="q">${esc(it.q)}</div>
+        <div class="scale" role="group" aria-label="${esc(it.q)}">
+          <button data-action="mark" data-i="${i}" data-v="2" aria-pressed="${ASSESSMENT.marks[i]===2}">Sí</button>
+          <button data-action="mark" data-i="${i}" data-v="1" aria-pressed="${ASSESSMENT.marks[i]===1}">A veces</button>
+          <button data-action="mark" data-i="${i}" data-v="0" aria-pressed="${ASSESSMENT.marks[i]===0}">No</button>
+        </div>
+      </div>`).join('')}</div>
+      <button class="btn btn-green btn-block" data-action="result" style="margin-top:16px">Ver resultado</button>
+    </div>
+  </section>`);
+}
+
+function computeResult(){
+  const items=ASSESS[ASSESSMENT.edad];
+  const areas={};
+  const flags=[];
+  items.forEach((it,i)=>{
+    const v = (ASSESSMENT.marks[i]!=null)?ASSESSMENT.marks[i]:1; // sin marcar = neutro
+    if(!areas[it.area]) areas[it.area]={sum:0,max:0};
+    areas[it.area].sum+=v; areas[it.area].max+=2;
+    if(ASSESSMENT.marks[i]===0) flags.push(it.q);
+  });
+  return {areas,flags};
+}
+function viewResultado(){
+  const {areas,flags}=computeResult();
+  const pct=a=>Math.round((areas[a].sum/areas[a].max)*100);
+  const cls=p=>p<50?'low':(p<80?'mid':'');
+  const recomienda = flags.length>=2;
+  return page(`<section>${back('#/valorar','')}
+    <div class="box">
+      <div class="center"><div style="font-size:50px">📋</div><h2>Resultado orientativo</h2>
+        <p class="muted">${esc(ASSESSMENT.nombre||'Peque')} · ${esc(ASSESSMENT.edad)}</p></div>
+      <h3>Por áreas</h3>
+      ${Object.keys(areas).map(a=>{const p=pct(a);return `<div class="result-area"><span><b>${esc(a)}</b></span><span class="bar"><i class="${cls(p)}" style="width:${p}%"></i></span><span style="font-weight:800;min-width:42px;text-align:right">${p}%</span></div>`;}).join('')}
+      ${flags.length?`<h3 style="margin-top:16px">A reforzar</h3><ul class="flag-list">${flags.map(f=>`<li>${esc(f)}</li>`).join('')}</ul>`:`<p style="margin-top:16px;color:var(--green);font-weight:700">👏 No se marcaron dificultades claras.</p>`}
+      <div class="disclaimer">⚠️ Esto es una <b>orientación</b>, no un diagnóstico. ${recomienda?'Por lo marcado, <b>conviene una valoración con la logopeda</b>.':'Ante cualquier duda, consulta con la logopeda.'} No sustituye una evaluación profesional.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary" data-action="save-report">💾 Guardar</button>
+        <button class="btn btn-green" data-action="share-report">Compartir por WhatsApp</button>
+        <button class="btn btn-ghost" data-action="go" data-h="#/valorar">Nueva valoración</button>
+      </div>
+    </div>
+  </section>`);
+}
+function reportText(){
+  const {areas,flags}=computeResult();
+  const lines=[`Valoración orientativa del lenguaje`,`${ASSESSMENT.nombre||'Peque'} · ${ASSESSMENT.edad}`,''];
+  Object.keys(areas).forEach(a=>lines.push(`- ${a}: ${Math.round((areas[a].sum/areas[a].max)*100)}%`));
+  if(flags.length){ lines.push('','A reforzar:'); flags.forEach(f=>lines.push('· '+f)); }
+  lines.push('','(Orientativo, no es un diagnóstico)');
+  return lines.join('\n');
+}
+function saveReport(){
+  const {areas,flags}=computeResult();
+  const rep={ id:uid(), fecha:new Date().toISOString(), nombre:ASSESSMENT.nombre||'', edad:ASSESSMENT.edad,
+    areas:Object.fromEntries(Object.keys(areas).map(a=>[a,Math.round((areas[a].sum/areas[a].max)*100)])), flags };
+  const all=DB.get(K.reports,[]); all.unshift(rep); DB.set(K.reports,all);
+  toast('Valoración guardada ✓ (en el panel)');
+}
+
+/* ===== Panel (gated) ===== */
+function isAdmin(){ return DB.get(K.admin,false)===true; }
+function viewPanel(sub){
+  if(!isAdmin()){
+    return page(`<section><div class="box" style="max-width:420px">
+      <div class="center" style="font-size:46px">🔒</div>
+      <h2 class="center">Panel de la logopeda</h2>
+      <p class="muted center">Zona privada con las valoraciones guardadas.</p>
+      <form id="gateForm"><div class="field"><label for="gatePass">Contraseña</label><input id="gatePass" type="password" autocomplete="current-password"></div>
+      <button class="btn btn-primary btn-block" type="submit">Entrar</button></form>
+      <p class="muted center" style="font-size:12px;margin-top:10px">Demo: ${esc(CONFIG.ADMIN_PASSWORD)}</p>
+    </div></section>`);
+  }
+  sub=sub||'informes';
+  const tab=(id,l)=>`<button class="chip ${sub===id?'active':''}" data-action="ptab" data-t="${id}" style="font-size:14px;min-width:auto;padding:9px 14px">${l}</button>`;
+  let body = sub==='vocab'? panelVocab() : panelInformes();
+  return page(`<section>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+      <h2 style="margin:0">Panel de la logopeda</h2>
+      <button class="btn btn-ghost btn-sm" style="margin-left:auto" data-action="logout">Salir</button>
+    </div>
+    <div class="chips" style="justify-content:flex-start">${tab('informes','📋 Valoraciones')}${tab('vocab','🖼️ Vocabulario')}</div>
+    ${body}
+  </section>`);
+}
+function panelInformes(){
+  const reps=DB.get(K.reports,[]);
+  if(!reps.length) return `<div class="box">${'<div class="center muted" style="padding:20px"><div style="font-size:44px">📭</div><p>Aún no hay valoraciones guardadas.</p><a class="btn btn-primary" href="#/valorar">Hacer una valoración</a></div>'}</div>`;
+  return `<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-ghost btn-sm" data-action="export">⬇️ Exportar CSV</button></div>
+  ${reps.map(r=>`<div class="report-card">
+    <div class="rc-top"><b>${esc(r.nombre||'Peque')} · ${esc(r.edad)}</b><span class="muted" style="font-size:12px">${new Date(r.fecha).toLocaleDateString('es-ES')}</span></div>
+    <div style="margin:8px 0;display:flex;gap:8px;flex-wrap:wrap">${Object.entries(r.areas).map(([a,p])=>`<span class="stars-bar" style="color:var(--ink-soft);font-size:12px;padding:4px 10px">${esc(a)}: ${p}%</span>`).join('')}</div>
+    ${r.flags&&r.flags.length?`<div class="muted" style="font-size:13px"><b>A reforzar:</b> ${esc(r.flags.join(' · '))}</div>`:''}
+    <div style="margin-top:8px"><button class="btn btn-ghost btn-sm" data-action="del-report" data-id="${esc(r.id)}">🗑️ Borrar</button></div>
+  </div>`).join('')}`;
+}
+function panelVocab(){
+  const v=vocab();
+  return `<div class="box">
+    <h3>Tus palabras (${v.length})</h3>
+    <p class="muted" style="font-size:13px">Añade tus propias palabras con un emoji. Se usan en los juegos de vocabulario y escucha.</p>
+    <form id="vocabForm" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin:10px 0">
+      <div class="field" style="flex:1;min-width:120px;margin:0"><label for="vw">Palabra</label><input id="vw" placeholder="tambor"></div>
+      <div class="field" style="width:90px;margin:0"><label for="ve">Emoji</label><input id="ve" placeholder="🥁" maxlength="4"></div>
+      <button class="btn btn-primary btn-sm" type="submit">Añadir</button>
+    </form>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">${v.map((it,i)=>`<span class="stars-bar" style="color:var(--ink);font-size:15px;gap:8px">${esc(it.e)} ${esc(it.w)} <button data-action="vdel" data-i="${i}" aria-label="Quitar ${esc(it.w)}" style="border:none;background:none;cursor:pointer;color:var(--coral);font-weight:800">×</button></span>`).join('')}</div>
+    ${DB.get(K.vocab,null)?`<button class="btn btn-ghost btn-sm" data-action="vreset" style="margin-top:12px">Volver a las palabras por defecto</button>`:''}
+  </div>`;
+}
+
+function viewAviso(){
+  return page(`<section>${back('#/','Inicio')}<div class="box" style="max-width:680px;text-align:left">
+    <h2>Aviso y privacidad</h2>
+    <p><b>Herramienta de apoyo.</b> Esta app ayuda a practicar el lenguaje y ofrece una valoración <b>orientativa</b>. No es un diagnóstico ni sustituye la evaluación de una logopeda colegiada.</p>
+    <p><b>Datos.</b> Todo (estrellas, valoraciones, palabras) se guarda solo en este dispositivo (localStorage). No se envía a ningún servidor. Las valoraciones pueden contener datos de un menor: guárdalas con cuidado y no las compartas sin permiso de la familia.</p>
+    <p><b>Voz.</b> La pronunciación la genera el propio navegador; la calidad depende del dispositivo.</p>
+    <div class="center" style="margin-top:14px"><a class="btn btn-ghost" href="#/">Volver</a></div>
+  </div></section>`);
+}
+
+/* ===== Router ===== */
+function parse(){ const h=location.hash.replace(/^#\/?/,''); return h.split('/'); }
+function render(){
+  const [a,b]=parse();
+  let html;
+  if(a===''||a==null) html=viewHome();
+  else if(a==='jugar'){
+    if(b==='sonidos') html=viewSonidos();
+    else if(b==='vocabulario') html=viewVocab('name');
+    else if(b==='escucha') html=viewVocab('listen');
+    else if(b==='soplo') html=viewSoplo();
+    else html=viewJugar();
+  }
+  else if(a==='valorar') html=viewValorar();
+  else if(a==='resultado') html=ASSESSMENT?viewResultado():viewValorar();
+  else if(a==='panel') html=viewPanel(b);
+  else if(a==='aviso') html=viewAviso();
+  else html=viewHome();
+  document.getElementById('app').innerHTML=html;
+  window.scrollTo(0,0);
+}
+
+/* ===== Eventos (delegación: robusto ante re-render) ===== */
+document.addEventListener('click',function(e){
+  const el=e.target.closest('[data-action]'); if(!el) return;
+  const act=el.dataset.action;
+  switch(act){
+    case 'go': location.hash=el.dataset.h; break;
+    case 'install': installApp(); break;
+    case 'say': speak(el.dataset.w); break;
+    case 'phon': GAME={phon:el.dataset.id, idx:0}; render(); break;
+    case 'word-next': if(GAME){ const ph=PHONEMES.find(p=>p.id===GAME.phon); GAME.idx=(GAME.idx+1)%ph.words.length; render(); } break;
+    case 'word-prev': if(GAME){ const ph=PHONEMES.find(p=>p.id===GAME.phon); GAME.idx=(GAME.idx-1+ph.words.length)%ph.words.length; render(); } break;
+    case 'word-star': addStar(1); toast('¡Muy bien! ⭐'); render(); break;
+    case 'answer':{
+      const ok=el.dataset.correct==='1';
+      const fb=document.getElementById('fb');
+      document.querySelectorAll('[data-action="answer"]').forEach(o=>o.disabled=true);
+      el.classList.add(ok?'good':'bad');
+      if(ok){ addStar(1); if(fb){fb.textContent='¡Muy bien! ⭐'; fb.className='feedback ok';} speak('¡Muy bien!'); }
+      else { if(fb){fb.textContent='Casi… prueba otra vez'; fb.className='feedback no';} document.querySelectorAll('[data-correct="1"]').forEach(o=>o.classList.add('good')); }
+      setTimeout(()=>{ VOCABQ=null; render(); }, ok?1100:1600);
+      break;
+    }
+    case 'age':{ ASSESSMENT={edad:el.dataset.a, nombre:(document.getElementById('childName')||{}).value||'', marks:{}}; render(); break; }
+    case 'mark':{ if(ASSESSMENT){ ASSESSMENT.marks[+el.dataset.i]=+el.dataset.v;
+      el.parentElement.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed','false'));
+      el.setAttribute('aria-pressed','true'); } break; }
+    case 'result': location.hash='#/resultado'; break;
+    case 'save-report': saveReport(); break;
+    case 'share-report':{ const url='https://wa.me/'+CONFIG.WHATSAPP.replace(/\D/g,'')+'?text='+encodeURIComponent(reportText()); window.open(url,'_blank','noopener'); break; }
+    case 'ptab': location.hash='#/panel/'+el.dataset.t; break;
+    case 'logout': DB.set(K.admin,false); toast('Sesión cerrada'); location.hash='#/'; break;
+    case 'del-report': if(confirm('¿Borrar esta valoración?')){ DB.set(K.reports,DB.get(K.reports,[]).filter(r=>r.id!==el.dataset.id)); render(); } break;
+    case 'export': exportCSV(); break;
+    case 'vdel':{ const v=vocab().slice(); v.splice(+el.dataset.i,1); DB.set(K.vocab,v); render(); break; }
+    case 'vreset': if(confirm('¿Volver a las palabras por defecto?')){ DB.set(K.vocab,null); render(); } break;
+  }
+});
+document.addEventListener('submit',function(e){
+  if(e.target.id==='gateForm'){ e.preventDefault(); const v=document.getElementById('gatePass').value;
+    if(v===CONFIG.ADMIN_PASSWORD){ DB.set(K.admin,true); render(); toast('¡Hola! 👋'); } else { toast('Contraseña incorrecta'); } }
+  else if(e.target.id==='vocabForm'){ e.preventDefault(); const w=document.getElementById('vw').value.trim(), em=document.getElementById('ve').value.trim()||'🟦';
+    if(!w){ toast('Escribe una palabra'); return; } const v=vocab().slice(); v.push({w,e:em}); DB.set(K.vocab,v); render(); toast('Palabra añadida ✓'); }
+});
+window.addEventListener('hashchange',render);
+
+function exportCSV(){
+  const reps=DB.get(K.reports,[]);
+  const rows=[['Fecha','Nombre','Edad','Areas','A reforzar']];
+  reps.forEach(r=>rows.push([new Date(r.fecha).toLocaleString('es-ES'), r.nombre||'', r.edad, Object.entries(r.areas).map(([a,p])=>a+' '+p+'%').join(' | '), (r.flags||[]).join(' | ')]));
+  const csv=rows.map(row=>row.map(c=>{ c=String(c); if(/^[=+\-@]/.test(c))c="'"+c; return '"'+c.replace(/"/g,'""')+'"'; }).join(',')).join('\n');
+  try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'})); a.download='valoraciones.csv'; a.click(); URL.revokeObjectURL(a.href); }catch(e){ toast('No se pudo exportar'); }
+}
+
+/* ===== INIT ===== */
+setupPWA();
+render();   // arranca en la carga; funciona desde file://
+</script>
+</body>
+</html>
