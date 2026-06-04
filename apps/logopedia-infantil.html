@@ -100,6 +100,17 @@ section{padding:22px 0}
 .bar{flex:1;height:12px;border-radius:999px;background:var(--line);overflow:hidden}
 .bar i{display:block;height:100%;border-radius:999px;background:#1ba573} .bar i.low{background:#e0593a} .bar i.mid{background:#e8a300}
 @media print{ .top,footer,.btn,.mini-links{display:none!important} .box-card,.stat-card{box-shadow:none} }
+/* Espejo (cámara) */
+.mirror-ov{position:fixed;inset:0;z-index:300;background:rgba(15,25,40,.78);display:flex;align-items:center;justify-content:center;padding:18px}
+.mirror-card{background:#fff;border-radius:20px;padding:14px;max-width:420px;width:100%;text-align:center;box-shadow:var(--sh-lg)}
+.mirror-card video{width:100%;border-radius:14px;background:#000;transform:scaleX(-1);max-height:60vh}
+/* Construir frases */
+.fb-grp{margin:14px 0}
+.fb-h{font-family:'Fredoka';font-weight:700;color:var(--brand);margin:0 0 6px;font-size:16px}
+.fb-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media(min-width:520px){.fb-row{grid-template-columns:repeat(6,1fr)}}
+.fb-pic{background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:10px 4px;cursor:pointer;font-family:'Fredoka';display:flex;flex-direction:column;gap:2px;align-items:center;transition:.12s}
+.fb-pic:hover{border-color:var(--brand);transform:translateY(-2px)} .fb-pic .fp-e{font-size:28px} .fb-pic .fp-w{font-size:12px;font-weight:700;color:var(--ink-soft)}
 .grid{display:grid;gap:14px;grid-template-columns:repeat(2,1fr)}
 @media(min-width:640px){.grid{grid-template-columns:repeat(3,1fr)}}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;cursor:pointer;font-family:inherit;text-align:center;box-shadow:var(--sh);transition:transform .14s,box-shadow .14s;display:flex;flex-direction:column;gap:6px;align-items:center}
@@ -230,6 +241,10 @@ body.calm{font-size:18px} body.calm *{animation:none!important;transition:none!i
     { "goto": "#/familias" }, { "expectVisible": ".fam-card" } ]},
   { "name": "Microfono magico disponible", "steps": [
     { "goto": "#/magico" }, { "expectVisible": "#balloon" } ]},
+  { "name": "Escucha y toca (seguir orden)", "steps": [
+    { "goto": "#/aprender/comprension/ordenes" }, { "click": "[data-correct=\"1\"]" }, { "expect": "¡Muy bien!" } ]},
+  { "name": "Construir frases forma una frase", "steps": [
+    { "goto": "#/aprender/comprension/frases" }, { "click": "[data-action=\"frase-add\"]" }, { "expectVisible": "#fbItems .sp-item" } ]},
   { "name": "Progreso para familias", "steps": [
     { "goto": "#/progreso" }, { "expectVisible": ".stat-cards" } ]},
   { "name": "Opuestos funciona", "steps": [
@@ -267,7 +282,7 @@ function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(
 let toastT; function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
 function stars(){ return DB.get(K.stars,0); } function addStar(n){ DB.set(K.stars, stars()+(n||1)); }
 /* ===== Progreso (mide el aprendizaje) ===== */
-const MOD_LABEL={articulacion:"Articulación",vocab:"Vocabulario",rima:"Rimas",silabas:"Sílabas",inicial:"Sonido inicial",discrim:"Discriminación",fichas:"Sonidos (fichas)",leer:"Leer palabras",forma:"Formas",opuesto:"Opuestos",intruso:"El intruso",cuento:"Cuentos"};
+const MOD_LABEL={articulacion:"Articulación",vocab:"Vocabulario",rima:"Rimas",silabas:"Sílabas",inicial:"Sonido inicial",discrim:"Discriminación",fichas:"Sonidos (fichas)",orden:"Escucha y toca",leer:"Leer palabras",forma:"Formas",opuesto:"Opuestos",intruso:"El intruso",frases:"Construir frases",cuento:"Cuentos"};
 function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
 function loadProg(){ return DB.get(K.prog,{mods:{},days:{},streak:0,lastDay:''}); }
 function touchDay(p){ p=p||loadProg(); const t=todayKey(); p.days[t]=(p.days[t]||0)+1; if(p.lastDay!==t){ const y=new Date(); y.setDate(y.getDate()-1); const yk=y.getFullYear()+'-'+(y.getMonth()+1)+'-'+y.getDate(); p.streak=(p.lastDay===yk)?(p.streak||0)+1:1; p.lastDay=t; } DB.set(K.prog,p); return p; }
@@ -407,6 +422,8 @@ let CAA_PHRASE=[], CAA_CAT=CAA[0].id, EMO=null;
 let LE_CONS='m', AGENDA_DONE={}, LE_TRAZ='A';
 let FICHA=null; /* ficha de sonidos actual */
 let MIC_CTX=null, MIC_RAF=null, MIC_STREAM=null, BALLOON=0, MIC_REC=null, MIC_CHUNKS=[], MIC_URL=''; /* micrófono mágico */
+let CAM_STREAM=null; /* espejo (cámara) */
+let FRASE_BUILD=[]; /* construir frases */
 const TRAZ_LETRAS=['A','E','I','O','U','M','P','L','S','T','D','N','C','R'];
 /* ===== Cuentos / lectura dialógica (lo más didáctico: nombrar, leer y AMPLIAR frases) ===== */
 const SCENES=[
@@ -424,8 +441,24 @@ const SCENES=[
    items:[{w:'mar',e:'🌊'},{w:'barco',e:'⛵'},{w:'pez',e:'🐟'},{w:'concha',e:'🐚'},{w:'cubo',e:'🪣'},{w:'pala',e:'🦀'},{w:'sombrilla',e:'⛱️'},{w:'helado',e:'🍦'}],
    cuento:'En la playa, el niño hace un castillo con el cubo y la pala. Un barco navega por el mar y come un helado.',
    modelo:'El barco navega por el mar.',
-   pistas:['¿Qué ves en la playa?','¿De qué color es el mar?','¿Qué hace el niño con el cubo?','¿Has ido tú a la playa?']}
+   pistas:['¿Qué ves en la playa?','¿De qué color es el mar?','¿Qué hace el niño con el cubo?','¿Has ido tú a la playa?']},
+  {id:'granja',titulo:'En la granja',e:'🚜',
+   items:[{w:'vaca',e:'🐄'},{w:'gallina',e:'🐔'},{w:'cerdo',e:'🐷'},{w:'caballo',e:'🐎'},{w:'oveja',e:'🐑'},{w:'tractor',e:'🚜'},{w:'huevo',e:'🥚'},{w:'maíz',e:'🌽'}],
+   cuento:'En la granja, la vaca come hierba y la gallina pone un huevo. El granjero conduce el tractor por el campo.',
+   modelo:'La gallina pone un huevo.',
+   pistas:['¿Qué animales ves?','¿Qué hace la vaca?','¿Qué sonido hace el cerdo?','¿Cuál te gusta más?']},
+  {id:'cumple',titulo:'El cumpleaños',e:'🎂',
+   items:[{w:'tarta',e:'🎂'},{w:'globo',e:'🎈'},{w:'regalo',e:'🎁'},{w:'vela',e:'🕯️'},{w:'amigo',e:'🧒'},{w:'gorro',e:'🎉'},{w:'zumo',e:'🧃'},{w:'música',e:'🎵'}],
+   cuento:'Hoy es el cumpleaños. Soplamos las velas de la tarta y abrimos los regalos. ¡Vienen los amigos a jugar!',
+   modelo:'Soplo las velas de la tarta.',
+   pistas:['¿Qué hay en la fiesta?','¿Cuántas velas tiene la tarta?','¿Qué regalo te gustaría?','¿Quién viene a tu cumple?']}
 ];
+/* Escucha y toca (comprensión: seguir una orden sencilla) */
+const ORDEN_POOL=[{w:'perro',e:'🐶'},{w:'gato',e:'🐈'},{w:'pelota',e:'⚽'},{w:'coche',e:'🚗'},{w:'flor',e:'🌸'},{w:'pez',e:'🐟'},{w:'sol',e:'☀️'},{w:'casa',e:'🏠'},{w:'libro',e:'📖'},{w:'manzana',e:'🍎'},{w:'silla',e:'🪑'},{w:'zapato',e:'👟'}];
+/* Construir frases (gramática: sujeto + verbo + objeto) */
+const F_QUIEN=[{w:'El niño',e:'🧒'},{w:'La niña',e:'👧'},{w:'El perro',e:'🐶'},{w:'El gato',e:'🐈'},{w:'Mamá',e:'👩'},{w:'Papá',e:'👨'}];
+const F_ACCION=[{w:'come',e:'🍽️'},{w:'bebe',e:'🥤'},{w:'mira',e:'👀'},{w:'tiene',e:'🤲'},{w:'lava',e:'🧼'},{w:'coge',e:'✋'}];
+const F_QUE=[{w:'pan',e:'🍞'},{w:'agua',e:'💧'},{w:'la pelota',e:'⚽'},{w:'un libro',e:'📖'},{w:'la manzana',e:'🍎'},{w:'el coche',e:'🚗'}];
 /* Conciencia fonémica con fichas (sin letras): contar los sonidos de la palabra */
 const FICHAS_WORDS=[
   {w:'sol',e:'☀️',son:['s','o','l']},{w:'pan',e:'🍞',son:['p','a','n']},{w:'pez',e:'🐟',son:['p','e','z']},{w:'uva',e:'🍇',son:['u','v','a']},
@@ -543,6 +576,9 @@ function recStart(){
 }
 function recStop(){ try{ if(MIC_REC&&MIC_REC.state==='recording')MIC_REC.stop(); }catch(e){} const a=document.getElementById('recStart'),b=document.getElementById('recStop'); if(a)a.disabled=false; if(b)b.disabled=true; }
 function recPlay(){ if(!MIC_URL){ return; } try{ const au=new Audio(MIC_URL); au.play(); }catch(e){} }
+/* ===== Espejo (cámara frontal para verse la boca) ===== */
+function openMirror(){ if(document.getElementById('mirrorOv'))return; if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ toast('Este dispositivo no tiene cámara'); return; } const ov=document.createElement('div'); ov.id='mirrorOv'; ov.className='mirror-ov'; ov.innerHTML='<div class="mirror-card"><video id="mirrorVid" autoplay playsinline muted></video><p class="muted" style="margin:8px 0 0">Mírate la boca mientras lo dices 🪞</p><button class="btn btn-ghost btn-sm" data-action="mirror-off" style="margin-top:8px">Cerrar espejo</button></div>'; document.body.appendChild(ov); navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}}).then(function(s){ CAM_STREAM=s; const v=document.getElementById('mirrorVid'); if(v){ v.srcObject=s; } else { s.getTracks().forEach(t=>t.stop()); } }).catch(function(){ toast('No se pudo abrir la cámara (permiso denegado)'); closeMirror(); }); }
+function closeMirror(){ try{ if(CAM_STREAM)CAM_STREAM.getTracks().forEach(t=>t.stop()); }catch(e){} CAM_STREAM=null; const ov=document.getElementById('mirrorOv'); if(ov)ov.remove(); }
 /* ===== Progreso para familias ===== */
 function viewProgreso(){
   const p=loadProg(); const keys=Object.keys(p.mods); let tot=0,cor=0; keys.forEach(k=>{tot+=p.mods[k].t;cor+=p.mods[k].c;}); const pct=tot?Math.round(cor*100/tot):0; const dias=Object.keys(p.days).length;
@@ -575,6 +611,7 @@ function viewArticulacion(phonId){
       <button class="speak-btn" id="speakBtn" data-action="say" data-w="${esc(word.w)}">🔊 Escuchar</button>
       <div class="dots" aria-hidden="true">${ph.palabras.map((_,i)=>`<i class="${i===ART.idx?'on':''}"></i>`).join('')}</div>
     </div>
+    <div class="center" style="margin:10px 0"><button class="btn btn-ghost btn-sm" data-action="mirror-on">🪞 Espejo (mírate la boca)</button></div>
     <div class="row-nav"><button class="btn btn-ghost btn-sm" data-action="art-prev">◀</button><button class="btn btn-green btn-sm" data-action="art-star">¡Lo dije! ⭐</button><button class="btn btn-primary btn-sm" data-action="art-next">▶</button></div>
     <div class="center" style="margin-top:18px"><h3>Sílabas</h3><div class="syl-grid">${ph.silabas.map(s=>`<button class="syl" data-action="say" data-w="${esc(s)}">${esc(s)}</button>`).join('')}</div></div>
     <div class="center" style="margin-top:18px"><h3>Frase</h3><div class="box" style="max-width:430px"><p style="font-family:Fredoka;font-size:20px;margin:0 0 10px">${esc(ph.frase)}</p><button class="speak-btn" data-action="say" data-w="${esc(ph.frase)}">🔊 Escuchar frase</button></div></div>
@@ -591,7 +628,8 @@ function genDiscrim(){ const pair=rand(PARES); const said=rand(pair); return {ti
 function genLeer(){ const correct=rand(LEEPALABRAS); const dist=shuffle(LEEPALABRAS.filter(x=>x.w!==correct.w)).slice(0,2); const opts=shuffle([{...correct,correct:true},...dist.map(d=>({...d,correct:false}))]); return {title:"Lee y elige",hideLabels:true,prompt:{kind:'read',value:correct.w},options:opts.map(o=>({kind:'image',label:o.w,emoji:o.e,correct:!!o.correct}))}; }
 function genForma(){ const correct=rand(SHAPES); const dist=shuffle(SHAPES.filter(x=>x.id!==correct.id)).slice(0,2); const opts=shuffle([{...correct,correct:true},...dist.map(d=>({...d,correct:false}))]); return {title:"Encaja la forma",prompt:{kind:'shape',value:correct.id,text:'Pon la pieza igual aquí'},options:opts.map(o=>({kind:'shape',label:o.n,shapeId:o.id,correct:!!o.correct}))}; }
 function genFichas(){ const it=rand(FICHAS_WORDS); const n=it.son.length; const optsN=shuffle([n,n+1,Math.max(2,n-1)].filter((v,i,a)=>a.indexOf(v)===i)).slice(0,3); if(optsN.indexOf(n)<0)optsN[0]=n; return {title:"¿Cuántos sonidos?",prompt:{kind:'fichas',w:it.w,e:it.e,son:it.son},options:shuffle(optsN).map(x=>({kind:'text',label:String(x),correct:x===n}))}; }
-const QUIZGENS = { vocab:genVocab, rima:genRima, silabas:genSilabas, inicial:genInicial, discrim:genDiscrim, fichas:genFichas, leer:genLeer, forma:genForma, opuesto:genOpuesto, intruso:genIntruso };
+function genOrden(){ const correct=rand(ORDEN_POOL); const dist=shuffle(ORDEN_POOL.filter(o=>o.w!==correct.w)).slice(0,2); const opts=shuffle([{...correct,correct:true},...dist.map(d=>({...d,correct:false}))]); return {title:"Escucha y toca",hideLabels:true,prompt:{kind:'say',value:'Toca el '+correct.w,text:'Escucha y toca…'},options:opts.map(o=>({kind:'image',label:o.w,emoji:o.e,correct:!!o.correct}))}; }
+const QUIZGENS = { vocab:genVocab, rima:genRima, silabas:genSilabas, inicial:genInicial, discrim:genDiscrim, fichas:genFichas, orden:genOrden, leer:genLeer, forma:genForma, opuesto:genOpuesto, intruso:genIntruso };
 function quiz(key,arg){ const k=key+'|'+(arg||''); if(!QZ||QZKEY!==k){ QZ=QUIZGENS[key](arg); QZKEY=k; } return QZ; }
 function renderQuiz(backHref,backTxt,q){
   let promptHTML='';
@@ -621,10 +659,19 @@ function viewFonologica(sub){
   return viewFonologica();
 }
 function viewComprension(sub){
-  if(!sub) return page(`<section>${back('#/aprender','Aprender')}<div class="center" style="margin:10px 0 16px"><h2>Comprensión y lenguaje</h2></div>${tilesHTML([{h:"#/aprender/comprension/opuestos",e:"↔️",b:"Opuestos",s:"Lo contrario de…"},{h:"#/aprender/comprension/intruso",e:"🔎",b:"El intruso",s:"¿Cuál no es?"}])}</section>`);
+  if(!sub) return page(`<section>${back('#/aprender','Aprender')}<div class="center" style="margin:10px 0 16px"><h2>Comprensión y lenguaje</h2></div>${tilesHTML([{h:"#/aprender/comprension/ordenes",e:"👂",b:"Escucha y toca",s:"Sigue la orden"},{h:"#/aprender/comprension/frases",e:"🧱",b:"Construir frases",s:"Quién + qué hace + qué"},{h:"#/aprender/comprension/opuestos",e:"↔️",b:"Opuestos",s:"Lo contrario de…"},{h:"#/aprender/comprension/intruso",e:"🔎",b:"El intruso",s:"¿Cuál no es?"}])}</section>`);
+  if(sub==='ordenes') return renderQuiz('#/aprender/comprension','Comprensión',quiz('orden'));
+  if(sub==='frases') return viewFrases();
   if(sub==='opuestos') return renderQuiz('#/aprender/comprension','Comprensión',quiz('opuesto'));
   if(sub==='intruso') return renderQuiz('#/aprender/comprension','Comprensión',quiz('intruso'));
   return viewComprension();
+}
+/* ===== Construir frases (sujeto + verbo + objeto) ===== */
+function viewFrases(){
+  function grp(title,arr){ return `<div class="fb-grp"><div class="fb-h">${title}</div><div class="fb-row">${arr.map(it=>`<button class="fb-pic" data-action="frase-add" data-w="${esc(it.w)}" data-e="${esc(it.e)}"><span class="fp-e" aria-hidden="true">${esc(it.e)}</span><span class="fp-w">${esc(it.w)}</span></button>`).join('')}</div></div>`; }
+  return page(`<section>${back('#/aprender/comprension','Comprensión')}<div class="center" style="margin:6px 0 10px"><h2>Construir frases 🧱</h2><p class="muted">Toca una de cada fila y forma una frase. Luego pulsa 🔊 para oírla.</p></div>
+    <div class="strip"><div class="strip-row"><div class="strip-items" id="fbItems">${FRASE_BUILD.length?FRASE_BUILD.map(p=>`<div class="sp-item"><div class="e" aria-hidden="true">${esc(p.e)}</div><div class="w">${esc(p.w)}</div></div>`).join(''):'<span class="ph">Forma tu frase…</span>'}</div><div class="strip-ctrl"><button class="say" data-action="frase-read" aria-label="Leer la frase">🔊</button><button class="back" data-action="frase-del" aria-label="Borrar último">⌫</button><button class="clear" data-action="frase-clear" aria-label="Vaciar">🗑️</button></div></div></div>
+    ${grp('¿Quién?',F_QUIEN)}${grp('¿Qué hace?',F_ACCION)}${grp('¿Qué?',F_QUE)}</section>`);
 }
 function viewSoplo(){
   return page(`<section>${back('#/aprender','Aprender')}<div class="center" style="margin:8px 0 14px"><h2>Soplo y boca 🌬️</h2><p class="muted">Pulsa 🔊 para oír la instrucción.</p></div><button class="btn btn-primary btn-block" data-action="go" data-h="#/magico" style="margin-bottom:16px">🎤 Micrófono mágico (soplar e inflar el globo)</button><div class="exlist">${EJERCICIOS.map(x=>`<div class="excard"><span class="ee" aria-hidden="true">${x.e}</span><div class="ex-body"><b>${esc(x.n)}</b><p class="muted" style="margin:.2em 0 0">${esc(x.t)}</p></div><button class="btn btn-primary btn-sm" data-action="say" data-w="${esc(x.n+'. '+x.t)}">🔊</button></div>`).join('')}</div><div class="center" style="margin-top:20px"><div class="blow animate" aria-hidden="true"></div><p class="muted" style="margin-top:8px">¡Sopla hacia la pelota!</p></div></section>`);
@@ -680,7 +727,7 @@ function viewAviso(){ const wa=CONFIG.WHATSAPP.replace(/\D/g,''); return page(`<
 /* ===== Router ===== */
 function parse(){ return location.hash.replace(/^#\/?/,'').split('/'); }
 function render(){
-  stopMic();
+  stopMic(); closeMirror();
   const p=parse(), a=p[0], b=p[1], c=p[2];
   let html;
   if(a===''||a==null) html=viewHome();
@@ -728,7 +775,13 @@ document.addEventListener('click',function(e){
     case 'say': speak(el.dataset.w); break;
     case 'art-next': if(ART){ const ph=PHONEMES.find(p=>p.id===ART.phon); ART.idx=(ART.idx+1)%ph.palabras.length; render(); } break;
     case 'art-prev': if(ART){ const ph=PHONEMES.find(p=>p.id===ART.phon); ART.idx=(ART.idx-1+ph.palabras.length)%ph.palabras.length; render(); } break;
-    case 'art-star': addStar(1); toast('¡Muy bien! ⭐'); render(); break;
+    case 'art-star': addStar(1); recordResult('articulacion',true); toast('¡Muy bien! ⭐'); render(); break;
+    case 'mirror-on': openMirror(); break;
+    case 'mirror-off': closeMirror(); break;
+    case 'frase-add': FRASE_BUILD.push({w:el.dataset.w,e:el.dataset.e}); speak(el.dataset.w); render(); break;
+    case 'frase-del': FRASE_BUILD.pop(); render(); break;
+    case 'frase-clear': FRASE_BUILD=[]; render(); break;
+    case 'frase-read': if(FRASE_BUILD.length>=2){ speak(FRASE_BUILD.map(p=>p.w).join(' ')); addStar(1); recordResult('frases',true); toast('¡Buena frase! ⭐'); } else if(FRASE_BUILD.length){ speak(FRASE_BUILD.map(p=>p.w).join(' ')); } break;
     case 'answer':{ const ok=el.dataset.correct==='1'; const fb=document.getElementById('fb');
       recordResult((QZKEY||'').split('|')[0], ok);
       document.querySelectorAll('[data-action="answer"]').forEach(o=>o.disabled=true); el.classList.add(ok?'good':'bad');
