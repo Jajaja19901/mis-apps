@@ -76,6 +76,21 @@ section{padding:18px 0}
 .opt-img{border:1.5px solid var(--line);background:var(--surface);border-radius:16px;padding:16px 6px;cursor:pointer;font-family:inherit;transition:.12s;display:flex;flex-direction:column;gap:4px;align-items:center}
 .opt-img:hover{border-color:var(--brand)} .opt-img .oe{font-size:44px} .opt-img .ow{font-size:15px;font-weight:700}
 .opt-img.good{background:var(--green-soft);border-color:var(--green)} .opt-img.bad{background:var(--red-soft);border-color:var(--red)}
+/* Encontrar la palabra (SFA) */
+.sfa-word{font-size:30px;font-weight:800;color:var(--brand-dk);margin:0 0 14px;min-height:36px}
+.ficha{text-align:left;background:#f6fafb;border:1.5px solid var(--line);border-radius:16px;padding:14px 16px;margin:6px 0 14px}
+.ficha-h{font-weight:800;font-size:15px;color:var(--brand-dk);margin-bottom:8px;text-transform:uppercase;letter-spacing:.02em}
+.ficha-grid{display:grid;gap:8px}
+@media(min-width:520px){.ficha-grid{grid-template-columns:1fr 1fr}}
+.feat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.feat .fl2{display:block;font-size:13px;font-weight:800;color:var(--soft)} .feat .fv{font-size:16px}
+.cues{text-align:left;display:grid;gap:8px;margin:0 0 14px}
+.cue{background:var(--warm-soft);border:1px solid #f0cda9;border-radius:12px;padding:10px 14px;font-size:17px;font-weight:600;color:#7a3c08}
+.sfa-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+/* Fluencia */
+.flu-cat{font-size:18px;margin-bottom:10px} .flu-cat b{color:var(--brand-dk)}
+.flu-big{font-size:64px;font-weight:800;color:var(--brand);line-height:1.1}
+.flu-time{font-size:22px;font-weight:800;color:var(--warm);margin-bottom:4px}
 /* Orientación */
 .orient{display:grid;gap:12px;max-width:520px;margin:0 auto}
 .or-card{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:18px 20px;display:flex;align-items:center;gap:14px;box-shadow:var(--sh)}
@@ -122,6 +137,16 @@ footer .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:18p
     { "goto": "#/lenguaje/frases" }, { "click": "[data-correct=\"1\"]" }, { "expect": "Correcto" } ]},
   { "name": "Categorias semanticas funciona", "steps": [
     { "goto": "#/lenguaje/categorias" }, { "click": "[data-correct=\"1\"]" }, { "expect": "Correcto" } ]},
+  { "name": "Encontrar la palabra: pista y revelar (SFA)", "steps": [
+    { "goto": "#/lenguaje/encontrar" }, { "click": "[data-action=\"sfa-cue\"]" }, { "expectVisible": ".cue" }, { "click": "[data-action=\"sfa-word\"]" }, { "expectVisible": ".sfa-word" } ]},
+  { "name": "Fluencia verbal arranca el cronometro", "steps": [
+    { "goto": "#/lenguaje/fluencia" }, { "click": "[data-action=\"flu-start\"]" }, { "expectVisible": "#fluCount" } ]},
+  { "name": "Calculo y dinero funciona", "steps": [
+    { "goto": "#/memoria/calculo" }, { "click": "[data-correct=\"1\"]" }, { "expect": "Correcto" } ]},
+  { "name": "Atencion: senalar el diferente", "steps": [
+    { "goto": "#/memoria/atencion" }, { "click": "[data-correct=\"1\"]" }, { "expect": "Correcto" } ]},
+  { "name": "Praxias incluye voz alta", "steps": [
+    { "goto": "#/praxias" }, { "expect": "Voz alta" } ]},
   { "name": "Orientacion muestra el dia de hoy", "steps": [
     { "goto": "#/memoria/orientacion" }, { "expectVisible": "#orientHoy" } ]},
   { "name": "Juego de memoria muestra cartas", "steps": [
@@ -208,11 +233,48 @@ const PRAXIAS=[
   {e:'🔁',n:'Sílabas repetidas',t:'Repita rápido y claro: pa-ta-ka, pa-ta-ka. Mejora la coordinación al hablar.'},
   {e:'😬',n:'Inflar mejillas',t:'Coja aire e infle las dos mejillas; aguante 3 segundos y suelte. Repita 6 veces.'}
 ];
+/* Voz alta y respiración (inspirado en LSVT LOUD: una sola idea, "hable ALTO") */
+const VOZ=[
+  {e:'📣',n:'«Aaah» fuerte y largo',t:'Tome aire y diga "aaah" lo más ALTO que pueda, manteniéndolo todo lo que aguante. Repita 3 veces y descanse.'},
+  {e:'🔊',n:'Contar en voz ALTA',t:'Cuente del 1 al 10 hablando ALTO y claro, con voz firme. No grite ni fuerce la garganta.'},
+  {e:'🌬️',n:'Respiración profunda',t:'Inspire por la nariz hinchando la barriga 4 segundos, retenga 2 y suelte el aire despacio por la boca 6 segundos. Repita 5 veces.'},
+  {e:'💪',n:'Soplo con resistencia',t:'Coja aire y sople de forma larga y continua, como mantener encendida una vela sin apagarla. Note el abdomen trabajar.'},
+  {e:'🎵',n:'Subir y bajar la voz',t:'Diga "aaah" empezando grave y suba el tono como una sirena, luego baje. Trabaja el control de la voz.'},
+  {e:'🗯️',n:'Frase con voz firme',t:'Diga, ALTO y despacio: "Hoy hablo claro y fuerte". Repítalo 3 veces marcando cada palabra.'}
+];
+/* Encontrar la palabra — Análisis de Características Semánticas (SFA) + jerarquía de pistas (afasia) */
+const SFA=[
+  {w:'llave',e:'🔑',grupo:'un objeto de metal',uso:'abrir y cerrar puertas',accion:'se gira dentro de la cerradura',props:'pequeña, metálica, con dientes',lugar:'en el bolsillo o en un llavero',asoc:'la puerta de casa',frase:'Para abrir la puerta uso la',ini:'ll'},
+  {w:'paraguas',e:'☂️',grupo:'un objeto para la lluvia',uso:'protegernos del agua',accion:'se abre y se cierra',props:'tiene varillas y tela',lugar:'en la entrada de casa',asoc:'los días de lluvia',frase:'Cuando llueve abro el',ini:'p'},
+  {w:'reloj',e:'⌚',grupo:'un aparato',uso:'saber la hora',accion:'marca las horas',props:'redondo, con agujas o números',lugar:'en la muñeca o en la pared',asoc:'llegar puntual',frase:'Para saber la hora miro el',ini:'r'},
+  {w:'gafas',e:'👓',grupo:'un objeto para los ojos',uso:'ver mejor',accion:'se ponen en la cara',props:'tienen dos cristales',lugar:'sobre la nariz',asoc:'leer el periódico',frase:'Para ver mejor me pongo las',ini:'g'},
+  {w:'cuchara',e:'🥄',grupo:'un cubierto',uso:'comer',accion:'se lleva a la boca',props:'tiene mango y un hueco',lugar:'en el cajón de la cocina',asoc:'la sopa',frase:'Para tomar la sopa uso la',ini:'c'},
+  {w:'teléfono',e:'☎️',grupo:'un aparato',uso:'hablar con otras personas',accion:'suena y se contesta',props:'tiene teclas o pantalla',lugar:'en casa o en el bolsillo',asoc:'llamar a la familia',frase:'Para llamar a mi hija uso el',ini:'t'},
+  {w:'martillo',e:'🔨',grupo:'una herramienta',uso:'clavar clavos',accion:'golpea',props:'mango de madera y cabeza de metal',lugar:'en la caja de herramientas',asoc:'colgar un cuadro',frase:'Para clavar un clavo uso el',ini:'m'},
+  {w:'vaso',e:'🥛',grupo:'un recipiente',uso:'beber',accion:'se llena de líquido',props:'de cristal, hueco',lugar:'en la cocina',asoc:'el agua',frase:'Para beber agua uso un',ini:'v'}
+];
+/* Fluencia verbal (decir el máximo de palabras de una categoría en 60 s) */
+const FLU_CATS=['Animales','Frutas y verduras','Prendas de ropa','Cosas de la cocina','Pueblos o ciudades','Nombres de persona','Partes del cuerpo','Profesiones'];
+/* Cálculo y dinero (estimulación cognitiva) */
+const CALC=[
+  {q:'Tiene 5 € y gasta 2 €. ¿Cuánto le queda?',a:'3 €',d:['7 €','2 €']},
+  {q:'Un café cuesta 1 € y paga con 2 €. ¿Cuánto le devuelven?',a:'1 €',d:['3 €','0 €']},
+  {q:'Compra pan por 1 € y leche por 1 €. ¿Cuánto paga en total?',a:'2 €',d:['1 €','3 €']},
+  {q:'Tiene 10 € y compra algo de 6 €. ¿Cuánto le queda?',a:'4 €',d:['16 €','3 €']},
+  {q:'¿Cuántos días tiene una semana?',a:'7',d:['5','10']},
+  {q:'¿Cuántos meses tiene un año?',a:'12',d:['10','7']},
+  {q:'Si son las 3 en punto, ¿qué hora será en 2 horas?',a:'Las 5',d:['Las 2','Las 6']},
+  {q:'Una docena de huevos son…',a:'12 huevos',d:['6 huevos','10 huevos']},
+  {q:'Tiene 3 monedas de 2 €. ¿Cuánto dinero tiene?',a:'6 €',d:['5 €','3 €']}
+];
+const ATEN=['🍎','⭐','🔑','🌷','🔔','🚗','🏠','🐶','☂️','✂️','☕','🎈'];
 
 /* ============ Estado ============ */
 let COMM_CAT=COMM[0].id, PHRASE=[];
 let QZ=null, QZKEY='';
 let MEM=null; /* {cards:[{e,up,done}], first, lock, moves} */
+let SFA_I=0, SFA_N=0, SFA_SHOW=false; /* Encontrar la palabra */
+let FLU={cat:FLU_CATS[0], running:false, secs:60, count:0, done:false}, FLU_TIMER=null;
 
 /* ============ PWA / icono ============ */
 const LOGO_SVG='<svg viewBox="0 0 48 48" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="48" height="48" rx="12" fill="#0e7c86"/><path d="M14 14h20a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H22l-6 5v-5h-2a3 3 0 0 1-3-3v-9a3 3 0 0 1 3-3z" fill="#fff"/><path d="M18 22h12M18 26h8" stroke="#0e7c86" stroke-width="2.4" stroke-linecap="round"/></svg>';
@@ -239,8 +301,8 @@ function viewHome(){
   <section>${tiles([
     {h:'#/comunicar',e:'🗨️',b:'Comunicar',s:'Tablero para expresar necesidades sin hablar'},
     {h:'#/lenguaje',e:'🧠',b:'Lenguaje',s:'Afasia: nombrar, frases y categorías'},
-    {h:'#/memoria',e:'📅',b:'Memoria y orientación',s:'Saber qué día es y ejercitar la memoria'},
-    {h:'#/praxias',e:'👄',b:'Praxias y voz',s:'Ejercicios de boca, lengua y respiración'}
+    {h:'#/memoria',e:'📅',b:'Memoria y cognición',s:'Orientación, memoria, cálculo y atención'},
+    {h:'#/praxias',e:'👄',b:'Praxias y voz',s:'Boca, lengua, respiración y voz alta'}
   ])}</section>
   <section><div class="disclaimer">Esta aplicación es un <b>apoyo</b> para practicar; no es un tratamiento ni un diagnóstico y no sustituye las sesiones con la logopeda. Úsela acompañado de un familiar o cuidador si es necesario.</div></section>`);
 }
@@ -258,7 +320,9 @@ function viewComunicar(){
 function genDenom(){ const correct=rand(OBJETOS); const dist=shuffle(OBJETOS.filter(o=>o.w!==correct.w)).slice(0,2); const opts=shuffle([{...correct,c:true},...dist.map(d=>({...d,c:false}))]); return {title:'¿Qué es esto?',prompt:{kind:'image',value:correct.e},say:'¿Qué es esto?',options:opts.map(o=>({kind:'text',label:o.w,correct:o.c}))}; }
 function genFrase(){ const r=rand(REFRANES); const opts=shuffle([{label:r.b,correct:true},...r.dist.map(d=>({label:d,correct:false}))]); return {title:'Complete el dicho',prompt:{kind:'text',value:'«'+r.a+' …»'},say:r.a,options:opts.map(o=>({kind:'text',label:o.label,correct:o.correct}))}; }
 function genCateg(){ const cat=rand(CATEGS); const correct=rand(cat.items); const dist=shuffle(cat.dist).slice(0,2); const opts=shuffle([{...correct,c:true},...dist.map(d=>({...d,c:false}))]); return {title:'Categorías',prompt:{kind:'text',value:'¿Cuál es '+cat.label+'?'},say:'¿Cuál es '+cat.label.replace(/[A-Z]/g,m=>m.toLowerCase())+'?',options:opts.map(o=>({kind:'image',emoji:o.e,label:o.w,correct:o.c}))}; }
-const GENS={denom:genDenom,frase:genFrase,categ:genCateg};
+function genCalc(){ const it=rand(CALC); const opts=shuffle([{label:it.a,correct:true},...it.d.map(d=>({label:d,correct:false}))]); return {title:'Cálculo y dinero',prompt:{kind:'text',value:it.q},say:it.q,options:opts.map(o=>({kind:'text',label:o.label,correct:o.correct}))}; }
+function genAtencion(){ const same=rand(ATEN); const diff=rand(ATEN.filter(x=>x!==same)); const opts=shuffle([{emoji:same,correct:false},{emoji:same,correct:false},{emoji:same,correct:false},{emoji:diff,correct:true}]); return {title:'Atención',hideLabels:true,prompt:{kind:'text',value:'Señale el dibujo DIFERENTE'},say:'Señale el dibujo diferente',options:opts.map(o=>({kind:'image',emoji:o.emoji,label:o.correct?'el diferente':'igual',correct:o.correct}))}; }
+const GENS={denom:genDenom,frase:genFrase,categ:genCateg,calc:genCalc,atencion:genAtencion};
 function quiz(key){ if(!QZ||QZKEY!==key){ QZ=GENS[key](); QZKEY=key; } return QZ; }
 function renderQuiz(backHref,backTxt,q){
   let promptHTML='';
@@ -267,30 +331,82 @@ function renderQuiz(backHref,backTxt,q){
   const sayBtn=q.say?`<button class="speak-btn" data-action="say" data-w="${esc(q.say)}">🔊 Escuchar</button>`:'';
   const img=q.options[0]&&q.options[0].kind==='image';
   const opts=img
-    ? `<div class="opt-imgs">${q.options.map(o=>`<button class="opt-img" data-action="answer" data-correct="${o.correct?1:0}" aria-label="${esc(o.label)}"><span class="oe" aria-hidden="true">${esc(o.emoji)}</span><span class="ow">${esc(o.label)}</span></button>`).join('')}</div>`
+    ? `<div class="opt-imgs">${q.options.map(o=>`<button class="opt-img" data-action="answer" data-correct="${o.correct?1:0}" aria-label="${esc(o.label)}"><span class="oe" aria-hidden="true">${esc(o.emoji)}</span>${q.hideLabels?'':`<span class="ow">${esc(o.label)}</span>`}</button>`).join('')}</div>`
     : `<div class="opts">${q.options.map(o=>`<button class="optbtn" data-action="answer" data-correct="${o.correct?1:0}">${esc(o.label)}</button>`).join('')}</div>`;
   return page(`<section>${back(backHref,backTxt)}<div class="qbox"><h2>${esc(q.title)}</h2>${promptHTML}${sayBtn}<div class="feedback" id="fb" aria-live="polite"></div>${opts}</div></section>`);
 }
 function viewLenguaje(sub){
   if(!sub) return page(`<section>${back('#/','Inicio')}<div class="center" style="margin:8px 0 14px"><h2>Lenguaje</h2><p class="muted">Ejercicios para recuperar y mantener las palabras (afasia).</p></div>${tiles([
+    {h:'#/lenguaje/encontrar',e:'⭐',b:'Encontrar la palabra',s:'Método con pistas para cuando "no sale"'},
     {h:'#/lenguaje/denominacion',e:'🖼️',b:'Nombrar objetos',s:'¿Qué es esto?'},
+    {h:'#/lenguaje/fluencia',e:'⏱️',b:'Fluencia verbal',s:'Decir muchas palabras en 1 minuto'},
     {h:'#/lenguaje/frases',e:'💬',b:'Frases hechas',s:'Complete el dicho'},
     {h:'#/lenguaje/categorias',e:'🗂️',b:'Categorías',s:'¿Cuál pertenece a…?'}
   ])}</section>`);
+  if(sub==='encontrar') return viewEncontrar();
+  if(sub==='fluencia') return viewFluencia();
   if(sub==='denominacion') return renderQuiz('#/lenguaje','Lenguaje',quiz('denom'));
   if(sub==='frases') return renderQuiz('#/lenguaje','Lenguaje',quiz('frase'));
   if(sub==='categorias') return renderQuiz('#/lenguaje','Lenguaje',quiz('categ'));
   return viewLenguaje();
 }
+/* ===== ELITE: Encontrar la palabra (Análisis de Características Semánticas + jerarquía de pistas) ===== */
+function sfaCues(o){ return [
+  {ic:'🗂️',t:'Es '+o.grupo+'.'},
+  {ic:'🛠️',t:'Sirve para '+o.uso+'.'},
+  {ic:'📍',t:'Se encuentra '+o.lugar+'.'},
+  {ic:'✍️',t:o.frase+'…'},
+  {ic:'🔤',t:'Empieza por «'+o.ini+'».'},
+  {ic:'🔊',t:'Es… '+o.w+'. Repítalo en voz alta.'}
+]; }
+function viewEncontrar(){
+  const o=SFA[SFA_I%SFA.length]; const cues=sfaCues(o); const shown=cues.slice(0,SFA_N);
+  const feats=[['Grupo',o.grupo],['¿Para qué sirve?',o.uso],['¿Qué hace?',o.accion],['¿Cómo es?',o.props],['¿Dónde está?',o.lugar],['Me recuerda a…',o.asoc]];
+  const fichaSay='Vamos a describirlo. Es '+o.grupo+'. Sirve para '+o.uso+'. '+o.accion+'. Es '+o.props+'. Se encuentra '+o.lugar+'. Recuerda a '+o.asoc+'.';
+  return page(`<section>${back('#/lenguaje','Lenguaje')}<div class="center" style="margin:8px 0 6px"><h2>Encontrar la palabra</h2><p class="muted">Mire el dibujo. Si la palabra no sale, describa sus pistas; sirve para recuperarla.</p></div>
+  <div class="qbox">
+    <div class="qpic" aria-hidden="true">${SFA_SHOW?esc(o.e):'❓'}</div>
+    <div class="sfa-word" aria-live="polite">${SFA_SHOW?esc(o.w):'¿Qué es?'}</div>
+    <div class="ficha"><div class="ficha-h">Descríbalo (ayuda a que salga la palabra)</div><div class="ficha-grid">${feats.map(f=>`<div class="feat"><span class="fl2">${esc(f[0])}</span><span class="fv">${esc(f[1])}</span></div>`).join('')}</div><button class="speak-btn" data-action="say" data-w="${esc(fichaSay)}" style="margin-top:10px">🔊 Leer la descripción</button></div>
+    ${shown.length?`<div class="cues">${shown.map(c=>`<div class="cue"><span aria-hidden="true">${c.ic}</span> ${esc(c.t)}</div>`).join('')}</div>`:''}
+    <div class="sfa-actions">
+      ${SFA_N<cues.length?`<button class="btn btn-ghost" data-action="sfa-cue">💡 Dar una pista</button>`:''}
+      ${SFA_SHOW?'':`<button class="btn btn-primary" data-action="sfa-word">✅ Ver la palabra</button>`}
+      <button class="btn btn-ghost" data-action="sfa-next">➡️ Otro objeto</button>
+    </div>
+  </div></section>`);
+}
+/* ===== Fluencia verbal con cronómetro ===== */
+function viewFluencia(){
+  let body;
+  if(FLU.done){
+    const msg = FLU.count>=12?'¡Muy buena marca! 👏':FLU.count>=7?'Bien. Con práctica saldrán más.':'Buen intento. Pruebe otra categoría.';
+    body=`<div class="flu-big">${FLU.count}</div><p style="font-weight:700;margin:0 0 2px">palabras en 1 minuto</p><p class="muted">${esc(msg)}</p>
+      <div class="sfa-actions"><button class="btn btn-primary" data-action="flu-start">↻ Repetir</button><button class="btn btn-ghost" data-action="flu-cat">🔀 Otra categoría</button></div>`;
+  } else if(FLU.running){
+    body=`<div class="flu-time" id="fluTime">${FLU.secs} s</div><div class="flu-big" id="fluCount">${FLU.count}</div><p class="muted" style="margin:0 0 12px">Diga palabras en voz alta. Pulse «+1» por cada una.</p>
+      <button class="btn btn-primary btn-block" data-action="flu-plus" style="font-size:24px;padding:20px">＋1 palabra</button>
+      <div style="margin-top:12px"><button class="btn btn-ghost btn-sm" data-action="flu-reset">Parar</button></div>`;
+  } else {
+    body=`<p class="muted">Diga, en voz alta, todas las palabras que pueda de esta categoría. Tiene <b>1 minuto</b>. Un familiar pulsa «+1» por cada palabra correcta.</p>
+      <div class="sfa-actions"><button class="btn btn-primary" data-action="flu-start">▶️ Empezar</button><button class="btn btn-ghost" data-action="flu-cat">🔀 Otra categoría</button></div>`;
+  }
+  return page(`<section>${back('#/lenguaje','Lenguaje')}<div class="center" style="margin:8px 0 10px"><h2>Fluencia verbal</h2></div>
+  <div class="qbox"><div class="flu-cat">Categoría: <b>${esc(FLU.cat)}</b></div>${body}</div></section>`);
+}
 
 /* ============ Memoria y orientación ============ */
 function viewMemoria(sub){
-  if(!sub) return page(`<section>${back('#/','Inicio')}<div class="center" style="margin:8px 0 14px"><h2>Memoria y orientación</h2></div>${tiles([
+  if(!sub) return page(`<section>${back('#/','Inicio')}<div class="center" style="margin:8px 0 14px"><h2>Memoria y cognición</h2><p class="muted">Orientación, memoria, cálculo y atención (estimulación cognitiva).</p></div>${tiles([
     {h:'#/memoria/orientacion',e:'📅',b:'¿Qué día es hoy?',s:'Orientación en el tiempo'},
-    {h:'#/memoria/pares',e:'🃏',b:'Juego de parejas',s:'Encontrar las cartas iguales'}
+    {h:'#/memoria/pares',e:'🃏',b:'Juego de parejas',s:'Encontrar las cartas iguales'},
+    {h:'#/memoria/calculo',e:'🧮',b:'Cálculo y dinero',s:'Cuentas de la vida diaria'},
+    {h:'#/memoria/atencion',e:'🔎',b:'Atención',s:'Señalar el dibujo diferente'}
   ])}</section>`);
   if(sub==='orientacion') return viewOrientacion();
   if(sub==='pares') return viewPares();
+  if(sub==='calculo') return renderQuiz('#/memoria','Cognición',quiz('calc'));
+  if(sub==='atencion') return renderQuiz('#/memoria','Cognición',quiz('atencion'));
   return viewMemoria();
 }
 function viewOrientacion(){
@@ -322,9 +438,14 @@ function viewPares(){
 }
 
 /* ============ Praxias ============ */
+function exCard(x){ return `<div class="excard"><span class="ee" aria-hidden="true">${x.e}</span><div class="ex-body"><b>${esc(x.n)}</b><p class="muted" style="margin:.2em 0 0;font-size:16px">${esc(x.t)}</p></div><button class="btn btn-primary btn-sm" data-action="say" data-w="${esc(x.n+'. '+x.t)}" aria-label="Escuchar ${esc(x.n)}">🔊</button></div>`; }
 function viewPraxias(){
   return page(`<section>${back('#/','Inicio')}<div class="center" style="margin:8px 0 14px"><h2>Praxias y voz</h2><p class="muted">Ejercicios de boca, lengua, respiración y voz. Pulse 🔊 para oír la instrucción. Hágalos despacio y sin forzar.</p></div>
-  <div class="exlist">${PRAXIAS.map(x=>`<div class="excard"><span class="ee" aria-hidden="true">${x.e}</span><div class="ex-body"><b>${esc(x.n)}</b><p class="muted" style="margin:.2em 0 0;font-size:16px">${esc(x.t)}</p></div><button class="btn btn-primary btn-sm" data-action="say" data-w="${esc(x.n+'. '+x.t)}" aria-label="Escuchar ${esc(x.n)}">🔊</button></div>`).join('')}</div></section>`);
+  <h3 style="margin:6px 0 10px">👄 Boca y lengua</h3>
+  <div class="exlist">${PRAXIAS.map(exCard).join('')}</div>
+  <h3 style="margin:22px 0 6px">📣 Voz alta y respiración</h3>
+  <div class="disclaimer" style="margin-top:6px">Idea clave: <b>hable ALTO y claro</b>. Una voz más fuerte se entiende mejor. Hágalo sin gritar ni forzar la garganta.</div>
+  <div class="exlist">${VOZ.map(exCard).join('')}</div></section>`);
 }
 
 /* ============ Aviso / contacto ============ */
@@ -334,6 +455,7 @@ function viewAviso(){
   <p><b>${esc(CONFIG.APP_NAME)}</b><br>${esc(CONFIG.CITY)}<br>📞 WhatsApp: <a href="https://wa.me/${wa}" target="_blank" rel="noopener noreferrer" style="font-weight:700">${esc(CONFIG.WHATSAPP.replace(/^34/,'+34 '))}</a>${CONFIG.EMAIL?`<br>✉️ <a href="mailto:${esc(CONFIG.EMAIL)}" style="font-weight:700">${esc(CONFIG.EMAIL)}</a>`:''}</p>
   <hr style="border:none;border-top:1px solid var(--line);margin:16px 0">
   <p><b>Apoyo, no tratamiento.</b> Esta herramienta ayuda a practicar la comunicación, el lenguaje y la memoria. No es un diagnóstico ni sustituye las sesiones con la logopeda colegiada.</p>
+  <p><b>Enfoques en los que se inspira.</b> Los ejercicios se basan en métodos con respaldo clínico: análisis de características semánticas y jerarquía de pistas para recuperar palabras (afasia), estimulación cognitiva (orientación, cálculo y atención), fluencia verbal y trabajo de voz alta y respiración. Es material de práctica, no un protocolo médico.</p>
   <p><b>Privacidad.</b> No se piden datos personales. Las notas del panel se guardan solo en este dispositivo (localStorage) y no se envían a ningún servidor; por eso no se aplican cookies de seguimiento.</p>
   <div class="center" style="margin-top:16px"><a class="btn btn-green" href="https://wa.me/${wa}" target="_blank" rel="noopener noreferrer">Escribir por WhatsApp</a> <a class="btn btn-ghost" href="#/">Volver</a></div></div></section>`);
 }
@@ -353,7 +475,10 @@ function viewPanel(){
 
 /* ============ Router ============ */
 function parse(){ return location.hash.replace(/^#\/?/,'').split('/'); }
+function stopFluTimer(){ if(FLU_TIMER){ clearInterval(FLU_TIMER); FLU_TIMER=null; } }
+function startFluTimer(){ stopFluTimer(); FLU_TIMER=setInterval(function(){ const t=document.getElementById('fluTime'); if(!t){ stopFluTimer(); return; } FLU.secs--; t.textContent=FLU.secs+' s'; if(FLU.secs<=0){ stopFluTimer(); FLU.running=false; FLU.done=true; render(); } },1000); }
 function render(){
+  stopFluTimer();
   const p=parse(), a=p[0], b=p[1]; let html;
   if(a===''||a==null) html=viewHome();
   else if(a==='comunicar') html=viewComunicar();
@@ -380,6 +505,13 @@ document.addEventListener('click',function(e){
     case 'del': PHRASE.pop(); render(); break;
     case 'clear': PHRASE=[]; render(); break;
     case 'say-phrase': if(PHRASE.length) speak(PHRASE.map(p=>p.w).join(' ')); break;
+    case 'sfa-cue':{ const o=SFA[SFA_I%SFA.length]; const cues=sfaCues(o); if(SFA_N<cues.length){ SFA_N++; speak(cues[SFA_N-1].t); render(); } break; }
+    case 'sfa-word':{ SFA_SHOW=true; speak(SFA[SFA_I%SFA.length].w); render(); break; }
+    case 'sfa-next':{ SFA_I++; SFA_N=0; SFA_SHOW=false; render(); break; }
+    case 'flu-start':{ FLU.running=true; FLU.done=false; FLU.secs=60; FLU.count=0; render(); startFluTimer(); break; }
+    case 'flu-plus':{ if(FLU.running){ FLU.count++; const c=document.getElementById('fluCount'); if(c)c.textContent=FLU.count; } break; }
+    case 'flu-reset':{ stopFluTimer(); FLU.running=false; FLU.done=false; render(); break; }
+    case 'flu-cat':{ stopFluTimer(); FLU.cat=rand(FLU_CATS.filter(c=>c!==FLU.cat)); FLU.running=false; FLU.done=false; render(); break; }
     case 'answer':{ const ok=el.dataset.correct==='1'; const fb=document.getElementById('fb');
       document.querySelectorAll('[data-action="answer"]').forEach(o=>o.disabled=true); el.classList.add(ok?'good':'bad');
       if(ok){ if(fb){fb.textContent='¡Correcto! 👏'; fb.className='feedback ok';} speak('Correcto'); }
