@@ -168,6 +168,8 @@ body.calm{font-size:18px} body.calm *{animation:none!important;transition:none!i
     { "goto": "#/aprender/fonologica/rimas" }, { "click": "[data-correct=\"1\"]" }, { "expect": "¡Muy bien!" } ]},
   { "name": "Contar silabas funciona", "steps": [
     { "goto": "#/aprender/fonologica/silabas" }, { "click": "[data-correct=\"1\"]" }, { "expect": "¡Muy bien!" } ]},
+  { "name": "Discriminacion por pares minimos funciona", "steps": [
+    { "goto": "#/aprender/fonologica/discrimina" }, { "click": "[data-correct=\"1\"]" }, { "expect": "¡Muy bien!" } ]},
   { "name": "Opuestos funciona", "steps": [
     { "goto": "#/aprender/comprension/opuestos" }, { "click": "[data-correct=\"1\"]" }, { "expect": "¡Muy bien!" } ]},
   { "name": "Intruso funciona", "steps": [
@@ -196,19 +198,30 @@ function shuffle(a){ a=[...a]; for(let i=a.length-1;i>0;i--){ const j=Math.floor
 function rand(a){ return a[Math.floor(Math.random()*a.length)]; }
 
 /* ===== ARTICULACIÓN (fonemas: sílabas, palabras por posición, frase) ===== */
+/* Orden y edad de adquisición según Bosch/Jakobson (orientativo): de los sonidos
+   tempranos (nasales y oclusivas) a los tardíos (/s/, vibrantes y sínfones). */
 const PHONEMES = [
-  {id:"p",label:"P",silabas:["pa","pe","pi","po","pu"],frase:"Papá pela una pera.",palabras:[{w:"pato",e:"🦆",pos:"inicial"},{w:"pan",e:"🍞",pos:"inicial"},{w:"sapo",e:"🐸",pos:"media"},{w:"copa",e:"🥤",pos:"media"}]},
-  {id:"m",label:"M",silabas:["ma","me","mi","mo","mu"],frase:"Mi mamá come manzana.",palabras:[{w:"mano",e:"✋",pos:"inicial"},{w:"mono",e:"🐵",pos:"inicial"},{w:"cama",e:"🛏️",pos:"media"},{w:"goma",e:"🩹",pos:"media"}]},
-  {id:"l",label:"L",silabas:["la","le","li","lo","lu"],frase:"La luna es luz.",palabras:[{w:"luna",e:"🌙",pos:"inicial"},{w:"lobo",e:"🐺",pos:"inicial"},{w:"pala",e:"🥄",pos:"media"},{w:"sol",e:"☀️",pos:"final"}]},
-  {id:"s",label:"S",silabas:["sa","se","si","so","su"],frase:"El sapo se sienta solo.",palabras:[{w:"sol",e:"☀️",pos:"inicial"},{w:"sopa",e:"🍲",pos:"inicial"},{w:"oso",e:"🐻",pos:"media"},{w:"vaso",e:"🥛",pos:"media"}]},
-  {id:"r",label:"R (fuerte)",silabas:["ra","re","ri","ro","ru"],frase:"El ratón corre rápido.",palabras:[{w:"ratón",e:"🐭",pos:"inicial"},{w:"rosa",e:"🌹",pos:"inicial"},{w:"perro",e:"🐕",pos:"media"},{w:"guitarra",e:"🎸",pos:"media"}]},
-  {id:"r2",label:"R (suave)",silabas:["ara","ere","iri","oro","uru"],frase:"La cara del toro.",palabras:[{w:"cara",e:"😊",pos:"media"},{w:"pera",e:"🍐",pos:"media"},{w:"toro",e:"🐂",pos:"media"},{w:"loro",e:"🦜",pos:"media"}]},
-  {id:"k",label:"C/K",silabas:["ca","que","qui","co","cu"],frase:"La casa del conejo.",palabras:[{w:"casa",e:"🏠",pos:"inicial"},{w:"coco",e:"🥥",pos:"inicial"},{w:"boca",e:"👄",pos:"media"},{w:"saco",e:"🎒",pos:"media"}]},
-  {id:"t",label:"T",silabas:["ta","te","ti","to","tu"],frase:"Tomo té en la taza.",palabras:[{w:"taza",e:"☕",pos:"inicial"},{w:"tomate",e:"🍅",pos:"inicial"},{w:"pato",e:"🦆",pos:"media"},{w:"gato",e:"🐈",pos:"media"}]},
-  {id:"f",label:"F",silabas:["fa","fe","fi","fo","fu"],frase:"La foca toma una foto.",palabras:[{w:"foca",e:"🦭",pos:"inicial"},{w:"foto",e:"📷",pos:"inicial"},{w:"sofá",e:"🛋️",pos:"media"},{w:"café",e:"☕",pos:"media"}]},
-  {id:"ch",label:"CH",silabas:["cha","che","chi","cho","chu"],frase:"El coche de chocolate.",palabras:[{w:"coche",e:"🚗",pos:"media"},{w:"chupete",e:"🍼",pos:"inicial"},{w:"ducha",e:"🚿",pos:"media"},{w:"ocho",e:"8️⃣",pos:"media"}]}
+  {id:"m",label:"M",edad:"hacia los 3 años",silabas:["ma","me","mi","mo","mu"],frase:"Mi mamá come manzana.",palabras:[{w:"mano",e:"✋",pos:"inicial"},{w:"mono",e:"🐵",pos:"inicial"},{w:"cama",e:"🛏️",pos:"media"},{w:"goma",e:"🩹",pos:"media"}]},
+  {id:"p",label:"P",edad:"hacia los 3 años",silabas:["pa","pe","pi","po","pu"],frase:"Papá pela una pera.",palabras:[{w:"pato",e:"🦆",pos:"inicial"},{w:"pan",e:"🍞",pos:"inicial"},{w:"sapo",e:"🐸",pos:"media"},{w:"copa",e:"🥤",pos:"media"}]},
+  {id:"t",label:"T",edad:"hacia los 3 años",silabas:["ta","te","ti","to","tu"],frase:"Tomo té en la taza.",palabras:[{w:"taza",e:"☕",pos:"inicial"},{w:"tomate",e:"🍅",pos:"inicial"},{w:"pato",e:"🦆",pos:"media"},{w:"gato",e:"🐈",pos:"media"}]},
+  {id:"k",label:"C/K",edad:"3-4 años",silabas:["ca","que","qui","co","cu"],frase:"La casa del conejo.",palabras:[{w:"casa",e:"🏠",pos:"inicial"},{w:"coco",e:"🥥",pos:"inicial"},{w:"boca",e:"👄",pos:"media"},{w:"saco",e:"🎒",pos:"media"}]},
+  {id:"f",label:"F",edad:"3-4 años",silabas:["fa","fe","fi","fo","fu"],frase:"La foca toma una foto.",palabras:[{w:"foca",e:"🦭",pos:"inicial"},{w:"foto",e:"📷",pos:"inicial"},{w:"sofá",e:"🛋️",pos:"media"},{w:"café",e:"☕",pos:"media"}]},
+  {id:"ch",label:"CH",edad:"hacia los 4 años",silabas:["cha","che","chi","cho","chu"],frase:"El coche de chocolate.",palabras:[{w:"coche",e:"🚗",pos:"media"},{w:"chupete",e:"🍼",pos:"inicial"},{w:"ducha",e:"🚿",pos:"media"},{w:"ocho",e:"8️⃣",pos:"media"}]},
+  {id:"l",label:"L",edad:"hacia los 4 años",silabas:["la","le","li","lo","lu"],frase:"La luna es luz.",palabras:[{w:"luna",e:"🌙",pos:"inicial"},{w:"lobo",e:"🐺",pos:"inicial"},{w:"pala",e:"🥄",pos:"media"},{w:"sol",e:"☀️",pos:"final"}]},
+  {id:"s",label:"S",edad:"4-5 años",silabas:["sa","se","si","so","su"],frase:"El sapo se sienta solo.",palabras:[{w:"sol",e:"☀️",pos:"inicial"},{w:"sopa",e:"🍲",pos:"inicial"},{w:"oso",e:"🐻",pos:"media"},{w:"vaso",e:"🥛",pos:"media"}]},
+  {id:"r2",label:"R (suave)",edad:"4-5 años",silabas:["ara","ere","iri","oro","uru"],frase:"La cara del toro.",palabras:[{w:"cara",e:"😊",pos:"media"},{w:"pera",e:"🍐",pos:"media"},{w:"toro",e:"🐂",pos:"media"},{w:"loro",e:"🦜",pos:"media"}]},
+  {id:"r",label:"R (fuerte)",edad:"5-6 años",silabas:["ra","re","ri","ro","ru"],frase:"El ratón corre rápido.",palabras:[{w:"ratón",e:"🐭",pos:"inicial"},{w:"rosa",e:"🌹",pos:"inicial"},{w:"perro",e:"🐕",pos:"media"},{w:"guitarra",e:"🎸",pos:"media"}]}
 ];
 const POSLBL={inicial:"Al principio",media:"En medio",final:"Al final"};
+/* Pares mínimos para discriminación auditiva (terapia fonológica) */
+const PARES = [
+  [{w:"casa",e:"🏠"},{w:"taza",e:"☕"}],
+  [{w:"pato",e:"🦆"},{w:"gato",e:"🐈"}],
+  [{w:"foca",e:"🦭"},{w:"boca",e:"👄"}],
+  [{w:"sopa",e:"🍲"},{w:"copa",e:"🥤"}],
+  [{w:"pera",e:"🍐"},{w:"perra",e:"🐕"}],
+  [{w:"rana",e:"🐸"},{w:"lana",e:"🧶"}]
+];
 
 /* ===== VOCABULARIO por categorías ===== */
 const VOCAB_CATS = [
@@ -265,9 +278,13 @@ const EJERCICIOS = [
   {e:"🌬️",n:"Soplar fuerte",t:"Soplamos como si apagáramos las velas de un cumpleaños."},
   {e:"🎈",n:"Hinchar globo",t:"Toma aire por la nariz y sopla por la boca, como si hincharas un globo."},
   {e:"😛",n:"Sacar la lengua",t:"Saca la lengua y toca la nariz, luego la barbilla."},
+  {e:"↔️",n:"Lengua a los lados",t:"Con la boca abierta, lleva la punta de la lengua a una comisura y a la otra, despacio."},
+  {e:"👅",n:"Limpiar dientes",t:"Pasa la lengua por todos los dientes, arriba y abajo, como si los limpiaras."},
   {e:"😗",n:"Beso de pez",t:"Pon boca de pez y haz besitos: mua, mua, mua."},
   {e:"😃",n:"Sonrisa grande",t:"Sonríe enseñando los dientes y luego pon morro. Repite cinco veces."},
-  {e:"👅",n:"Limpiar dientes",t:"Pasa la lengua por todos los dientes, arriba y abajo."}
+  {e:"🫧",n:"Vibrar los labios",t:"Haz vibrar los labios soplando: brrrr, como una moto."},
+  {e:"😮",n:"Inflar mejillas",t:"Coge aire y infla las dos mejillas como un globo; aguanta y suelta."},
+  {e:"😬",n:"Abrir y cerrar",t:"Abre mucho la boca y ciérrala despacio; luego rápido. Como un cocodrilo."}
 ];
 
 /* ===== VALORACIÓN lenguaje por edad ===== */
@@ -328,7 +345,7 @@ function viewArticulacion(phonId){
   if(!ART||ART.phon!==phonId) ART={phon:phonId,idx:0};
   const word=ph.palabras[ART.idx];
   return page(`<section>${back('#/aprender/articulacion','Sonidos')}
-    <div class="center" style="margin:6px 0 12px"><span class="stars-bar">Sonido ${esc(ph.label)}</span></div>
+    <div class="center" style="margin:6px 0 12px"><span class="stars-bar">Sonido ${esc(ph.label)}</span>${ph.edad?`<div class="muted" style="font-size:13px;margin-top:6px">Se suele adquirir ${esc(ph.edad)}</div>`:''}</div>
     <div class="wordcard">
       <div class="pos">${esc(POSLBL[word.pos]||'')}</div>
       <div class="pic" aria-hidden="true">${esc(word.e)}</div>
@@ -348,7 +365,8 @@ function genSilabas(){ const it=rand(SILABAS_WORDS); const nums=[1,2,3,4]; retur
 function genInicial(){ const correct=rand(INICIAL_POOL); const dist=shuffle(INICIAL_POOL.filter(x=>x.i!==correct.i)).slice(0,2); const opts=shuffle([{...correct,correct:true},...dist.map(d=>({...d,correct:false}))]); return {title:"Sonido inicial",prompt:{kind:'text',value:'¿Cuál empieza por «'+correct.i.toUpperCase()+'»?'},options:opts.map(o=>({kind:'image',label:o.w,emoji:o.e,correct:!!o.correct}))}; }
 function genOpuesto(){ const o=rand(OPUESTOS); const dist=shuffle(OPUESTOS.filter(x=>x.b!==o.b)).slice(0,2).map(x=>x.b); const opts=shuffle([{label:o.b,correct:true},...dist.map(d=>({label:d,correct:false}))]); return {title:"Lo contrario",prompt:{kind:'text',value:'Lo contrario de '+o.a+' '+o.ea},options:opts.map(x=>({kind:'text',label:x.label,correct:x.correct}))}; }
 function genIntruso(){ const cat=rand(VOCAB_CATS); const otros=VOCAB_CATS.filter(c=>c.id!==cat.id); const intruso=rand(rand(otros).items); const items=shuffle(cat.items).slice(0,3); const opts=shuffle([...items.map(i=>({...i,correct:false})),{...intruso,correct:true}]); return {title:"El intruso",prompt:{kind:'text',value:'¿Cuál NO es de '+cat.label.toLowerCase()+'?'},options:opts.map(o=>({kind:'image',label:o.w,emoji:o.e,correct:!!o.correct}))}; }
-const QUIZGENS = { vocab:genVocab, rima:genRima, silabas:genSilabas, inicial:genInicial, opuesto:genOpuesto, intruso:genIntruso };
+function genDiscrim(){ const pair=rand(PARES); const said=rand(pair); return {title:"¿Cuál he dicho?",hideLabels:true,prompt:{kind:'say',value:said.w,text:'Escucha y señala'},options:shuffle(pair).map(o=>({kind:'image',label:o.w,emoji:o.e,correct:o.w===said.w}))}; }
+const QUIZGENS = { vocab:genVocab, rima:genRima, silabas:genSilabas, inicial:genInicial, discrim:genDiscrim, opuesto:genOpuesto, intruso:genIntruso };
 function quiz(key,arg){ const k=key+'|'+(arg||''); if(!QZ||QZKEY!==k){ QZ=QUIZGENS[key](arg); QZKEY=k; } return QZ; }
 function renderQuiz(backHref,backTxt,q){
   let promptHTML='';
@@ -357,7 +375,7 @@ function renderQuiz(backHref,backTxt,q){
   else promptHTML=`<div class="qprompt">${esc(q.prompt.value)}</div>`;
   const imgOpts=q.options[0]&&q.options[0].kind==='image';
   const optsHTML = imgOpts
-    ? `<div class="opt-imgs">${q.options.map(o=>`<button class="opt-img" data-action="answer" data-correct="${o.correct?1:0}" aria-label="${esc(o.label)}"><span class="oe" aria-hidden="true">${esc(o.emoji)}</span><span class="ow">${esc(o.label)}</span></button>`).join('')}</div>`
+    ? `<div class="opt-imgs">${q.options.map(o=>`<button class="opt-img" data-action="answer" data-correct="${o.correct?1:0}" aria-label="${esc(o.label)}"><span class="oe" aria-hidden="true">${esc(o.emoji)}</span>${q.hideLabels?'':`<span class="ow">${esc(o.label)}</span>`}</button>`).join('')}</div>`
     : `<div class="opts">${q.options.map(o=>`<button class="optbtn" data-action="answer" data-correct="${o.correct?1:0}">${esc(o.label)}</button>`).join('')}</div>`;
   return page(`<section>${back(backHref,backTxt)}<div class="qbox"><div class="center"><h2>${esc(q.title)}</h2></div>${promptHTML}<div class="feedback" id="fb" aria-live="polite"></div>${optsHTML}</div></section>`);
 }
@@ -366,10 +384,11 @@ function viewVocabulario(catId){
   return renderQuiz('#/aprender/vocabulario','Vocabulario',quiz('vocab',catId));
 }
 function viewFonologica(sub){
-  if(!sub) return page(`<section>${back('#/aprender','Aprender')}<div class="center" style="margin:10px 0 16px"><h2>Conciencia fonológica</h2></div>${tilesHTML([{h:"#/aprender/fonologica/rimas",e:"🎵",b:"Rimas",s:"¿Qué rima?"},{h:"#/aprender/fonologica/silabas",e:"👏",b:"Sílabas",s:"Contar palmadas"},{h:"#/aprender/fonologica/inicial",e:"🔠",b:"Sonido inicial",s:"¿Por qué empieza?"}])}</section>`);
+  if(!sub) return page(`<section>${back('#/aprender','Aprender')}<div class="center" style="margin:10px 0 16px"><h2>Conciencia fonológica</h2><p class="muted">De la rima (más fácil) al fonema (la base de la lectura).</p></div>${tilesHTML([{h:"#/aprender/fonologica/rimas",e:"🎵",b:"Rimas",s:"¿Qué rima?"},{h:"#/aprender/fonologica/silabas",e:"👏",b:"Sílabas",s:"Contar palmadas"},{h:"#/aprender/fonologica/inicial",e:"🔠",b:"Sonido inicial",s:"¿Por qué empieza?"},{h:"#/aprender/fonologica/discrimina",e:"👂",b:"Discriminación",s:"Pares mínimos"}])}</section>`);
   if(sub==='rimas') return renderQuiz('#/aprender/fonologica','Fonológica',quiz('rima'));
   if(sub==='silabas') return renderQuiz('#/aprender/fonologica','Fonológica',quiz('silabas'));
   if(sub==='inicial') return renderQuiz('#/aprender/fonologica','Fonológica',quiz('inicial'));
+  if(sub==='discrimina') return renderQuiz('#/aprender/fonologica','Fonológica',quiz('discrim'));
   return viewFonologica();
 }
 function viewComprension(sub){
