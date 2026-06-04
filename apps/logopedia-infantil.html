@@ -389,14 +389,15 @@ function viewJugar(){
   </section>`);
 }
 
-function viewSonidos(){
-  const ph = GAME ? PHONEMES.find(p=>p.id===GAME.phon) : null;
+function viewSonidos(phonId){
+  const ph = phonId ? PHONEMES.find(p=>p.id===phonId) : null;
   if(!ph){
     return page(`<section>${back('#/jugar','Juegos')}
       <div class="center" style="margin:10px 0 16px"><h2>Elige un sonido</h2><p class="muted">Practicaremos palabras con ese sonido. Pulsa 🔊 para oírlas.</p></div>
-      <div class="chips">${PHONEMES.map(p=>`<button class="chip" data-action="phon" data-id="${p.id}">${esc(p.label)}</button>`).join('')}</div>
+      <div class="chips">${PHONEMES.map(p=>`<button class="chip" data-action="go" data-h="#/jugar/sonidos/${p.id}">${esc(p.label)}</button>`).join('')}</div>
     </section>`);
   }
+  if(!GAME || GAME.phon!==phonId) GAME={phon:phonId, idx:0};
   const word=ph.words[GAME.idx];
   return page(`<section>${back('#/jugar/sonidos','Sonidos')}
     <div class="center" style="margin:8px 0 14px"><span class="stars-bar">Sonido ${esc(ph.label)}</span></div>
@@ -469,7 +470,7 @@ function viewValorar(){
     </section>`);
   }
   const items=ASSESS[ASSESSMENT.edad];
-  return page(`<section>${back('#/valorar','')}
+  return page(`<section><button class="btn btn-ghost btn-sm" data-action="valorar-restart">← Cambiar edad</button>
     <div class="box">
       <h2>${esc(ASSESSMENT.edad)} ${ASSESSMENT.nombre?'· '+esc(ASSESSMENT.nombre):''}</h2>
       <p class="muted">Marca: <b>Sí</b> lo hace, <b>A veces</b>, o <b>No</b> todavía.</p>
@@ -515,7 +516,7 @@ function viewResultado(){
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-primary" data-action="save-report">💾 Guardar</button>
         <button class="btn btn-green" data-action="share-report">Compartir por WhatsApp</button>
-        <button class="btn btn-ghost" data-action="go" data-h="#/valorar">Nueva valoración</button>
+        <button class="btn btn-ghost" data-action="valorar-restart">Nueva valoración</button>
       </div>
     </div>
   </section>`);
@@ -600,11 +601,11 @@ function viewAviso(){
 /* ===== Router ===== */
 function parse(){ const h=location.hash.replace(/^#\/?/,''); return h.split('/'); }
 function render(){
-  const [a,b]=parse();
+  const parts=parse(); const a=parts[0], b=parts[1];
   let html;
   if(a===''||a==null) html=viewHome();
   else if(a==='jugar'){
-    if(b==='sonidos') html=viewSonidos();
+    if(b==='sonidos') html=viewSonidos(parts[2]);
     else if(b==='vocabulario') html=viewVocab('name');
     else if(b==='escucha') html=viewVocab('listen');
     else if(b==='soplo') html=viewSoplo();
@@ -646,6 +647,7 @@ document.addEventListener('click',function(e){
       el.parentElement.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed','false'));
       el.setAttribute('aria-pressed','true'); } break; }
     case 'result': location.hash='#/resultado'; break;
+    case 'valorar-restart': ASSESSMENT=null; if(location.hash==='#/valorar'){ render(); } else { location.hash='#/valorar'; } break;
     case 'save-report': saveReport(); break;
     case 'share-report':{ const url='https://wa.me/'+CONFIG.WHATSAPP.replace(/\D/g,'')+'?text='+encodeURIComponent(reportText()); window.open(url,'_blank','noopener'); break; }
     case 'ptab': location.hash='#/panel/'+el.dataset.t; break;
