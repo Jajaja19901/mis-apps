@@ -99,6 +99,8 @@ section{padding:22px 0}
 .ag-step .ae{font-size:36px;flex:0 0 auto} .ag-step .an{font-family:'Fredoka';font-weight:600;font-size:18px;flex:1}
 .ag-step.done .an{text-decoration:line-through;color:var(--ink-soft)} .ag-step .ack{font-size:24px;flex:0 0 auto}
 .ag-num{width:30px;height:30px;border-radius:50%;background:var(--purple-soft);color:var(--purple);display:grid;place-items:center;font-family:'Fredoka';font-weight:700;flex:0 0 auto}
+.traza-wrap{max-width:480px;margin:8px auto 0;background:#fafcff;border:2px solid var(--line);border-radius:18px;padding:8px;box-shadow:var(--sh)}
+#traza{width:100%;height:auto;display:block;border-radius:12px;touch-action:none;cursor:crosshair;background:#fff}
 .opts{display:grid;gap:12px}
 .optbtn{background:var(--surface);border:2px solid var(--line);border-radius:16px;padding:16px;font-family:'Fredoka';font-size:22px;cursor:pointer;transition:.14s}
 .optbtn:hover{border-color:var(--brand)} .optbtn.good{background:var(--green-soft);border-color:var(--green);color:var(--green)} .optbtn.bad{background:var(--coral-soft);border-color:var(--coral);color:var(--coral)}
@@ -193,6 +195,8 @@ body.calm{font-size:18px} body.calm *{animation:none!important;transition:none!i
     { "goto": "#/aprender/lectoescritura/formas" }, { "click": "[data-correct=\"1\"]" }, { "expect": "¡Muy bien!" } ]},
   { "name": "Letras y sonidos se muestran", "steps": [
     { "goto": "#/aprender/lectoescritura/letras" }, { "expectVisible": ".le-letter" } ]},
+  { "name": "Escribir letras: lienzo de trazo disponible", "steps": [
+    { "goto": "#/aprender/lectoescritura/trazar" }, { "expectVisible": "#traza" } ]},
   { "name": "Agenda visual TEA marca pasos", "steps": [
     { "goto": "#/caa/agenda" }, { "click": "[data-action=\"agenda\"]" }, { "expectVisible": ".ag-step.done" } ]},
   { "name": "El comunicador construye frases", "steps": [
@@ -347,7 +351,8 @@ let ART=null;        // {phon, idx} articulación palabras
 let QZ=null, QZKEY=''; // quiz genérico
 let ASSESSMENT=null;
 let CAA_PHRASE=[], CAA_CAT=CAA[0].id, EMO=null;
-let LE_CONS='m', AGENDA_DONE={};
+let LE_CONS='m', AGENDA_DONE={}, LE_TRAZ='A';
+const TRAZ_LETRAS=['A','E','I','O','U','M','P','L','S','T','D','N','C','R'];
 
 /* ===== Iconos / PWA / calma ===== */
 const LOGO_SVG=`<svg viewBox="0 0 48 48" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect width="48" height="48" rx="12" fill="#2563b8"/><path d="M12 16c0-2 1.6-3.5 3.6-3.5h17c2 0 3.6 1.5 3.6 3.5v9c0 2-1.6 3.5-3.6 3.5H22l-6 5v-5h-.4C13.6 28.5 12 27 12 25z" fill="#fff"/><circle cx="19" cy="20.5" r="2" fill="#2563b8"/><circle cx="24" cy="20.5" r="2" fill="#2563b8"/><circle cx="29" cy="20.5" r="2" fill="#2563b8"/></svg>`;
@@ -455,7 +460,8 @@ function viewSoplo(){
 }
 /* ===== Lectoescritura (especialidad de Laura) ===== */
 function viewLecto(sub){
-  if(!sub) return page(`<section>${back('#/aprender','Aprender')}<div class="center" style="margin:10px 0 16px"><h2>Lectoescritura 📖</h2><p class="muted">De la letra a leer palabras. Base del trabajo en dislexia.</p></div>${tilesHTML([{h:"#/aprender/lectoescritura/letras",e:"🔡",b:"Letras y sonidos",s:"A de araña"},{h:"#/aprender/lectoescritura/silabas",e:"🧩",b:"Leer sílabas",s:"pa, pe, pi, po, pu"},{h:"#/aprender/lectoescritura/palabras",e:"📕",b:"Leer palabras",s:"Lee y elige el dibujo"},{h:"#/aprender/lectoescritura/formas",e:"🔺",b:"Encajar formas",s:"Pon la pieza igual"}])}</section>`);
+  if(!sub) return page(`<section>${back('#/aprender','Aprender')}<div class="center" style="margin:10px 0 16px"><h2>Lectoescritura 📖</h2><p class="muted">De la letra a leer palabras. Base del trabajo en dislexia.</p></div>${tilesHTML([{h:"#/aprender/lectoescritura/letras",e:"🔡",b:"Letras y sonidos",s:"A de araña"},{h:"#/aprender/lectoescritura/trazar",e:"✍️",b:"Escribir letras",s:"Repasa el trazo con el dedo"},{h:"#/aprender/lectoescritura/silabas",e:"🧩",b:"Leer sílabas",s:"pa, pe, pi, po, pu"},{h:"#/aprender/lectoescritura/palabras",e:"📕",b:"Leer palabras",s:"Lee y elige el dibujo"},{h:"#/aprender/lectoescritura/formas",e:"🔺",b:"Encajar formas",s:"Pon la pieza igual"}])}</section>`);
+  if(sub==='trazar') return page(`<section>${back('#/aprender/lectoescritura','Lectoescritura')}<div class="center" style="margin:8px 0 10px"><h2>Escribir letras ✍️</h2><p class="muted">Elige una letra y repasa el trazo con el dedo.</p></div><div class="chips">${TRAZ_LETRAS.map(L=>`<button class="chip ${L===LE_TRAZ?'active':''}" data-action="le-traz" data-c="${L}">${L}</button>`).join('')}</div><div class="traza-wrap"><canvas id="traza" width="600" height="380" aria-label="Lienzo para escribir la letra ${LE_TRAZ}"></canvas></div><div class="center" style="margin-top:12px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn btn-primary btn-sm" data-action="say" data-w="${esc(LE_TRAZ.toLowerCase())}">🔊 Escuchar</button><button class="btn btn-ghost btn-sm" data-action="traza-clear">🧽 Borrar</button></div></section>`);
   if(sub==='letras') return page(`<section>${back('#/aprender/lectoescritura','Lectoescritura')}<div class="center" style="margin:8px 0 14px"><h2>Letras y sonidos</h2><p class="muted">Toca una letra y escucha.</p></div><div class="le-grid">${ABC.map(x=>`<button class="le-letter" data-action="say" data-w="${esc(x.l+', '+x.l+' de '+x.w)}"><span class="ll">${esc(x.l.toUpperCase())}</span><span class="le" aria-hidden="true">${esc(x.e)}</span><span class="lw">${esc(x.w)}</span></button>`).join('')}</div></section>`);
   if(sub==='silabas'){ const ph=PHONEMES.find(p=>p.id===LE_CONS)||PHONEMES[0]; return page(`<section>${back('#/aprender/lectoescritura','Lectoescritura')}<div class="center" style="margin:8px 0 12px"><h2>Leer sílabas</h2><p class="muted">Elige una letra y lee sus sílabas.</p></div><div class="chips">${PHONEMES.map(p=>`<button class="chip ${p.id===LE_CONS?'active':''}" data-action="le-cons" data-c="${p.id}">${esc(p.label)}</button>`).join('')}</div><div class="syl-grid">${ph.silabas.map(s=>`<button class="syl" data-action="say" data-w="${esc(s)}">${esc(s)}</button>`).join('')}</div></section>`); }
   if(sub==='palabras') return renderQuiz('#/aprender/lectoescritura','Lectoescritura',quiz('leer'));
@@ -523,6 +529,16 @@ function render(){
   else html=viewHome();
   document.getElementById('app').innerHTML=html;
   window.scrollTo(0,0);
+  if(location.hash.indexOf('lectoescritura/trazar')>=0) initTraza(LE_TRAZ);
+}
+function initTraza(letter){
+  const cv=document.getElementById('traza'); if(!cv) return; const ctx=cv.getContext('2d');
+  function drawGuide(){ ctx.clearRect(0,0,cv.width,cv.height); ctx.save(); ctx.font="700 280px 'Fredoka',sans-serif"; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillStyle='#e7eef9'; ctx.fillText(letter,cv.width/2,cv.height/2+14); ctx.restore(); ctx.lineWidth=18; ctx.lineCap='round'; ctx.lineJoin='round'; ctx.strokeStyle='#2563b8'; }
+  drawGuide(); cv._clear=drawGuide; let drawing=false;
+  function pos(e){ const r=cv.getBoundingClientRect(); return {x:(e.clientX-r.left)*(cv.width/r.width), y:(e.clientY-r.top)*(cv.height/r.height)}; }
+  cv.addEventListener('pointerdown',e=>{ drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p.x+0.1,p.y+0.1); ctx.stroke(); try{cv.setPointerCapture(e.pointerId);}catch(_){} e.preventDefault(); });
+  cv.addEventListener('pointermove',e=>{ if(!drawing)return; const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); e.preventDefault(); });
+  cv.addEventListener('pointerup',()=>{ drawing=false; }); cv.addEventListener('pointercancel',()=>{ drawing=false; });
 }
 
 /* ===== Eventos ===== */
@@ -549,6 +565,8 @@ document.addEventListener('click',function(e){
     case 'caa-say': if(CAA_PHRASE.length) speak(CAA_PHRASE.map(p=>p.w).join(' ')); break;
     case 'emo': EMO=el.dataset.w; speak('Me siento '+el.dataset.w); render(); break;
     case 'le-cons': LE_CONS=el.dataset.c; render(); break;
+    case 'le-traz': LE_TRAZ=el.dataset.c; speak(el.dataset.c.toLowerCase()); render(); break;
+    case 'traza-clear': { const cv=document.getElementById('traza'); if(cv&&cv._clear)cv._clear(); break; }
     case 'agenda': { const i=+el.dataset.i; AGENDA_DONE[i]=!AGENDA_DONE[i]; if(AGENDA_DONE[i])speak(el.dataset.w); render(); break; }
     case 'agenda-reset': AGENDA_DONE={}; render(); break;
     case 'age': ASSESSMENT={edad:el.dataset.a,nombre:(document.getElementById('childName')||{}).value||'',marks:{}}; render(); break;
