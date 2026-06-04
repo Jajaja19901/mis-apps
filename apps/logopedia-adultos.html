@@ -25,12 +25,13 @@ p{margin:0 0 .8em} a{color:var(--brand)} .muted{color:var(--ink-soft)}
 .wrap{max-width:780px;margin:0 auto;padding:0 16px}
 .center{text-align:center}
 .top{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
-.nav{display:flex;align-items:center;gap:10px;padding:12px 16px}
-.logo{display:flex;align-items:center;gap:10px;font-weight:800;color:var(--ink);text-decoration:none;font-size:19px}
+.nav{display:flex;align-items:center;gap:8px;padding:12px 16px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;color:var(--ink);text-decoration:none;font-size:19px;min-width:0;flex:1 1 auto}
 .logo .mk{width:36px;height:36px;flex:0 0 auto}
-.sp{flex:1}
+.logo .lname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.sp{display:none}
 .icon-btn{border:1px solid var(--line);background:var(--surface);border-radius:12px;width:42px;height:42px;font-size:20px;cursor:pointer}
-.panel-link{width:42px;height:42px;display:grid;place-items:center;border:1px solid var(--line);border-radius:12px;background:var(--surface);text-decoration:none;font-size:18px}
+.panel-link{width:42px;height:42px;flex:0 0 auto;display:grid;place-items:center;border:1px solid var(--line);border-radius:12px;background:var(--surface);text-decoration:none;font-size:18px;color:var(--ink)}
 section{padding:18px 0}
 .btn{display:inline-flex;align-items:center;gap:8px;border:none;border-radius:14px;padding:14px 20px;font-size:18px;font-weight:700;cursor:pointer;text-decoration:none;font-family:inherit;transition:.12s}
 .btn-primary{background:var(--brand);color:#fff} .btn-primary:hover{background:var(--brand-dk)}
@@ -92,7 +93,7 @@ section{padding:18px 0}
 .flu-big{font-size:64px;font-weight:800;color:var(--brand);line-height:1.1}
 .flu-time{font-size:22px;font-weight:800;color:var(--warm);margin-bottom:4px}
 /* Header racha */
-.streak{display:inline-flex;align-items:center;height:42px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:#fff7ec;color:#9a5a00;font-weight:800;text-decoration:none;font-size:15px}
+.streak{flex:0 0 auto;display:inline-flex;align-items:center;height:42px;padding:0 12px;border:1px solid var(--line);border-radius:12px;background:#fff7ec;color:#9a5a00;font-weight:800;text-decoration:none;font-size:15px}
 /* Biofeedback voz */
 .meter{position:relative;width:90px;height:200px;margin:6px auto 4px;border:2px solid var(--line);border-radius:14px;background:#f6fafb;overflow:hidden}
 .meter-fill{position:absolute;bottom:0;left:0;right:0;background:var(--teal);transition:height .08s linear}
@@ -351,7 +352,7 @@ function setupPWA(){
 }
 
 /* ============ Layout ============ */
-function header(){ const st=loadStats(); const streak=st.streak||0; return `<header class="top"><div class="wrap nav"><a class="logo" href="#/"><span class="mk">${LOGO_SVG}</span>${esc(CONFIG.APP_NAME)}</a><span class="sp"></span>${streak>0?`<a class="streak" href="#/progreso" title="Racha de días" aria-label="Racha de ${streak} días">🔥 ${streak}</a>`:''}<a class="panel-link" href="#/ajustes" aria-label="Ajustes" title="Ajustes">⚙️</a><a class="panel-link" href="#/panel" aria-label="Panel del profesional" title="Panel">🔒</a></div></header>`; }
+function header(){ const st=loadStats(); const streak=st.streak||0; return `<header class="top"><div class="wrap nav"><a class="logo" href="#/"><span class="mk">${LOGO_SVG}</span><span class="lname">${esc(CONFIG.APP_NAME)}</span></a>${streak>0?`<a class="streak" href="#/progreso" title="Racha de días" aria-label="Racha de ${streak} días">🔥 ${streak}</a>`:''}<a class="panel-link" href="#/ajustes" aria-label="Ajustes" title="Ajustes">⚙️</a><a class="panel-link" href="#/panel" aria-label="Panel del profesional" title="Panel">🔒</a></div></header>`; }
 function footer(){ const credit=`Aplicación creada por <b>${esc(CONFIG.STUDIO_AUTHOR)}</b> · ${esc(CONFIG.STUDIO_BRAND)}`; return `<footer><div class="wrap"><button class="fl" data-action="install" id="installBtn" style="display:none">📲 Instalar app</button><a class="fl" href="#/">Inicio</a><a class="fl" href="#/aviso">Contacto y aviso</a><div class="credit">${CONFIG.STUDIO_URL?`<a href="${esc(CONFIG.STUDIO_URL)}" target="_blank" rel="noopener noreferrer" style="color:#90a2aa">${credit}</a>`:credit}</div></div></footer>`; }
 function page(inner){ return header()+'<main id="main" class="wrap">'+inner+'</main>'+footer(); }
 function back(href,txt){ return `<a class="btn btn-ghost btn-sm" href="${href}">← ${esc(txt||'Volver')}</a>`; }
