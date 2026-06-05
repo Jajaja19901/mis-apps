@@ -156,6 +156,16 @@ section{padding:22px 0}
 .perf-b{flex:1;min-width:0} .perf-b b{font-size:17px} .perf-b small{display:block;color:var(--ink-soft);font-size:13px}
 .perf-ck{color:var(--green);font-weight:800;font-size:20px}
 .perf-del{border:1.5px solid var(--line);background:#fff;border-radius:12px;width:46px;height:46px;font-size:18px;cursor:pointer;flex:0 0 auto}
+/* Ficha del paciente */
+.ficha-add{display:flex;gap:8px;margin-bottom:10px} .ficha-add input{flex:1;min-width:0;padding:11px 12px;border:2px solid var(--line);border-radius:12px;font-family:inherit;font-size:14px;background:var(--surface);color:var(--ink)}
+.chk-list{display:grid;gap:6px}
+.chk,.pago{display:flex;align-items:center;gap:8px;background:#f6f9fe;border:1px solid var(--line);border-radius:12px;padding:4px 6px 4px 10px}
+.chk-b{flex:1;min-width:0;display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;font-family:inherit;font-size:14px;text-align:left;color:var(--ink);padding:7px 0}
+.chk.done .chk-b span,.pago.ok .chk-b span{text-decoration:line-through;color:var(--ink-soft)}
+.chk-x{border:none;background:none;cursor:pointer;font-size:16px;padding:6px;flex:0 0 auto;opacity:.6}
+.pago-i{flex:0 0 auto;font-size:14px}
+.pago-tot{display:flex;gap:14px;justify-content:flex-end;margin:0 0 8px;font-weight:800;font-size:13.5px}
+.pt-ok{color:var(--green)} .pt-pend{color:#a8521f}
 .grid{display:grid;gap:14px;grid-template-columns:repeat(2,1fr)}
 @media(min-width:640px){.grid{grid-template-columns:repeat(3,1fr)}}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;cursor:pointer;font-family:inherit;text-align:center;box-shadow:var(--sh);transition:transform .14s,box-shadow .14s;display:flex;flex-direction:column;gap:6px;align-items:center}
@@ -298,6 +308,8 @@ body.calm{font-size:18px} body.calm *{animation:none!important;transition:none!i
     { "goto": "#/progreso" }, { "expectVisible": ".evo" } ]},
   { "name": "Perfiles: separar el progreso por nino", "steps": [
     { "goto": "#/perfiles" }, { "expectVisible": ".perf-row" }, { "expectVisible": "[data-action=\"perf-add\"]" } ]},
+  { "name": "Ficha del paciente protegida", "steps": [
+    { "goto": "#/ficha" }, { "expectVisible": "#gatePass" } ]},
   { "name": "Progreso para familias", "steps": [
     { "goto": "#/progreso" }, { "expectVisible": ".stat-cards" } ]},
   { "name": "Opuestos funciona", "steps": [
@@ -327,7 +339,7 @@ body.calm{font-size:18px} body.calm *{animation:none!important;transition:none!i
 "use strict";
 const CONFIG = { APP_NAME:"Laura M M · Logopeda", ADMIN_PASSWORD:"logo1234", WHATSAPP:"34611773150", EMAIL:"", CITY:"Arucas y zona norte de Gran Canaria", STUDIO_BRAND:"Incuba tu Negocio", STUDIO_AUTHOR:"Jaime M. M.", STUDIO_URL:"" };
 const DB = { get(k,fb){ try{ const v=localStorage.getItem(k); return v==null?fb:JSON.parse(v); }catch(e){ return fb; } }, set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ toast("No se pudo guardar"); return false; } } };
-const K = { stars:"lg_stars", reports:"lg_reports", admin:"lg_admin", calm:"lg_calm", prog:"lg_prog", custom:"lg_custom", plan:"lg_plan", profiles:"lg_profiles", active:"lg_active" };
+const K = { stars:"lg_stars", reports:"lg_reports", admin:"lg_admin", calm:"lg_calm", prog:"lg_prog", custom:"lg_custom", plan:"lg_plan", profiles:"lg_profiles", active:"lg_active", ficha:"lg_ficha" };
 function speak(text){ try{ if(!('speechSynthesis' in window)){ toast('Tu dispositivo no puede leer en voz alta'); return; } window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(String(text)); u.lang='es-ES'; u.rate=.85; u.pitch=1.1; const vs=window.speechSynthesis.getVoices().filter(v=>/es/i.test(v.lang)); if(vs[0])u.voice=vs[0]; window.speechSynthesis.speak(u); }catch(e){} }
 try{ if('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged=()=>{}; }catch(e){}
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -341,7 +353,10 @@ function activeProfile(){ const a=activeId(); return (DB.get(K.profiles,[]).find
 function pk(base){ return base+'_'+activeId(); }
 function addProfile(name,age){ const ps=DB.get(K.profiles,[]); const id='p'+Date.now().toString(36)+Math.floor(Math.random()*90+10); ps.push({id,name:(name||'Peque').slice(0,30),age:(age||'').slice(0,16)}); DB.set(K.profiles,ps); DB.set(K.active,id); return id; }
 function setActive(id){ DB.set(K.active,id); }
-function delProfile(id){ let ps=DB.get(K.profiles,[]); ps=ps.filter(p=>p.id!==id); DB.set(K.profiles,ps); ['lg_stars','lg_prog','lg_plan','lg_custom','lg_reports'].forEach(b=>{try{localStorage.removeItem(b+'_'+id);}catch(e){}}); if(DB.get(K.active,'')===id){ DB.set(K.active, ps.length?ps[0].id:''); } profiles(); }
+function delProfile(id){ let ps=DB.get(K.profiles,[]); ps=ps.filter(p=>p.id!==id); DB.set(K.profiles,ps); ['lg_stars','lg_prog','lg_plan','lg_custom','lg_reports','lg_ficha'].forEach(b=>{try{localStorage.removeItem(b+'_'+id);}catch(e){}}); if(DB.get(K.active,'')===id){ DB.set(K.active, ps.length?ps[0].id:''); } profiles(); }
+function fichaLoad(){ return DB.get(pk(K.ficha),{tel:'',dx:'',pautas:[],pagos:[],materiales:[],notas:''}); }
+function fichaSave(f){ DB.set(pk(K.ficha),f); }
+function fichaText(){ const ap=activeProfile(); const f=fichaLoad(); const l=['Ficha · '+(ap.name||'Peque')+(ap.age?' ('+ap.age+')':'')]; if(f.dx)l.push('Objetivo: '+f.dx); if(f.pautas.length){ l.push('','Tareas para casa:'); f.pautas.forEach(t=>l.push((t.done?'✓':'•')+' '+t.t)); } if(f.materiales.length){ l.push('','Materiales:'); f.materiales.forEach(t=>l.push((t.done?'✓':'•')+' '+t.t)); } l.push('','(Enviado desde la app de Laura M M · Logopeda)'); return l.join('\n'); }
 function stars(){ return DB.get(pk(K.stars),0); } function addStar(n){ DB.set(pk(K.stars), stars()+(n||1)); }
 /* ===== Progreso (mide el aprendizaje) ===== */
 const MOD_LABEL={articulacion:"Articulación",paresmin:"Pares mínimos",voz:"Dilo tú (voz)",vocab:"Vocabulario",rima:"Rimas",silabas:"Sílabas",inicial:"Sonido inicial",discrim:"Discriminación",fichas:"Sonidos (fichas)",orden:"Escucha y toca",leer:"Leer palabras",forma:"Formas",opuesto:"Opuestos",intruso:"El intruso",frases:"Construir frases",cuento:"Cuentos"};
@@ -874,6 +889,37 @@ function reportText(){ const {areas,flags}=computeResult(); const l=['Valoració
 function saveReport(){ const {areas,flags}=computeResult(); const rep={id:uid(),fecha:new Date().toISOString(),nombre:ASSESSMENT.nombre||'',edad:ASSESSMENT.edad,areas:Object.fromEntries(Object.keys(areas).map(a=>[a,Math.round((areas[a].sum/areas[a].max)*100)])),flags}; const all=DB.get(pk(K.reports),[]); all.unshift(rep); DB.set(pk(K.reports),all); toast('Guardada en el panel ✓'); }
 /* ===== Panel ===== */
 function isAdmin(){ return DB.get(K.admin,false)===true; }
+function gate(){ return page(`<section><div class="box" style="max-width:420px"><div class="center" style="font-size:46px">🔒</div><h2 class="center">Solo para la logopeda</h2><p class="muted center">Introduce la contraseña.</p><form id="gateForm"><div class="field"><label for="gatePass">Contraseña</label><input id="gatePass" type="password" autocomplete="current-password"></div><button class="btn btn-primary btn-block" type="submit">Entrar</button></form><p class="muted center" style="font-size:12px;margin-top:10px">Demo: ${esc(CONFIG.ADMIN_PASSWORD)}</p></div></section>`); }
+function viewFicha(){
+  if(!isAdmin()) return gate();
+  const ap=activeProfile(); const f=fichaLoad();
+  const cobrado=f.pagos.filter(p=>p.pagado).reduce((s,p)=>s+(+p.importe||0),0); const pend=f.pagos.filter(p=>!p.pagado).reduce((s,p)=>s+(+p.importe||0),0);
+  return page(`<section>${back('#/panel','Panel')}<div class="center" style="margin:6px 0 12px"><h2>Ficha del paciente 📋</h2><a class="prof-mini" href="#/perfiles">👤 ${esc(ap.name||'Peque')}${ap.age?' · '+esc(ap.age):''} · cambiar</a></div>
+  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">📇 Datos</h3>
+    <div class="field"><label for="fTel">Teléfono / contacto familia</label><input id="fTel" value="${esc(f.tel)}" placeholder="Ej: 600 000 000"></div>
+    <div class="field"><label for="fDx">Diagnóstico / objetivo</label><input id="fDx" value="${esc(f.dx)}" placeholder="Ej: dislalia /r/ · objetivo: rotacismo"></div>
+    <button class="btn btn-primary btn-sm" data-action="ficha-datos">💾 Guardar datos</button></div>
+
+  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">✅ Pautas / tareas para casa</h3>
+    <div class="ficha-add"><input id="fPauta" placeholder="Ej: practicar /r/ 5 min con el espejo"><button class="btn btn-primary btn-sm" data-action="pauta-add">Añadir</button></div>
+    <div class="chk-list">${f.pautas.length?f.pautas.map((t,i)=>`<div class="chk ${t.done?'done':''}"><button class="chk-b" data-action="pauta-toggle" data-i="${i}">${t.done?'✅':'⬜'} <span>${esc(t.t)}</span></button><button class="chk-x" data-action="pauta-del" data-i="${i}" aria-label="Borrar">🗑️</button></div>`).join(''):'<p class="muted" style="font-size:13px">Sin pautas todavía.</p>'}</div></div>
+
+  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">💶 Pagos <span class="muted" style="font-weight:400;font-size:13px">(registro, sin cobro real)</span></h3>
+    <div class="ficha-add"><input id="fPagoC" placeholder="Concepto (Ej: sesión 12 mayo)" style="flex:2"><input id="fPagoI" type="number" inputmode="decimal" placeholder="€" style="flex:1;min-width:60px"><button class="btn btn-primary btn-sm" data-action="pago-add">Añadir</button></div>
+    <div class="pago-tot"><span class="pt-ok">Cobrado: ${cobrado.toFixed(2)} €</span><span class="pt-pend">Pendiente: ${pend.toFixed(2)} €</span></div>
+    <div class="chk-list">${f.pagos.length?f.pagos.map((p,i)=>`<div class="pago ${p.pagado?'ok':'pend'}"><button class="chk-b" data-action="pago-toggle" data-i="${i}">${p.pagado?'✅':'⏳'} <span>${esc(p.concepto)}</span></button><b class="pago-i">${(+p.importe||0).toFixed(2)} €</b><button class="chk-x" data-action="pago-del" data-i="${i}" aria-label="Borrar">🗑️</button></div>`).join(''):'<p class="muted" style="font-size:13px">Sin pagos registrados.</p>'}</div></div>
+
+  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">📦 Materiales</h3>
+    <div class="ficha-add"><input id="fMat" placeholder="Ej: tarjetas de /s/, espejo"><button class="btn btn-primary btn-sm" data-action="mat-add">Añadir</button></div>
+    <div class="chk-list">${f.materiales.length?f.materiales.map((t,i)=>`<div class="chk ${t.done?'done':''}"><button class="chk-b" data-action="mat-toggle" data-i="${i}">${t.done?'✅':'⬜'} <span>${esc(t.t)}</span></button><button class="chk-x" data-action="mat-del" data-i="${i}" aria-label="Borrar">🗑️</button></div>`).join(''):'<p class="muted" style="font-size:13px">Sin materiales.</p>'}</div></div>
+
+  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">📝 Notas de sesión</h3>
+    <textarea id="fNotas" style="width:100%;min-height:110px;border:2px solid var(--line);border-radius:12px;padding:12px;font-family:inherit;font-size:15px" placeholder="Observaciones, evolución, próximos pasos…">${esc(f.notas)}</textarea>
+    <button class="btn btn-primary btn-sm" style="margin-top:8px" data-action="ficha-notas">💾 Guardar notas</button></div>
+
+  <div class="center" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn btn-ghost" data-action="ficha-print">🖨️ Imprimir / PDF</button><button class="btn btn-green" data-action="ficha-wa">📲 Enviar por WhatsApp</button></div>
+  <p class="muted" style="font-size:13px;margin-top:10px;text-align:center">Todo se guarda solo en este dispositivo, por paciente. Sin cobros automáticos: el registro de pagos es para llevar la cuenta.</p></section>`);
+}
 function viewPanel(){
   if(!isAdmin()){ return page(`<section><div class="box" style="max-width:420px"><div class="center" style="font-size:46px">🔒</div><h2 class="center">Panel de la logopeda</h2><p class="muted center">Valoraciones guardadas.</p><form id="gateForm"><div class="field"><label for="gatePass">Contraseña</label><input id="gatePass" type="password" autocomplete="current-password"></div><button class="btn btn-primary btn-block" type="submit">Entrar</button></form><p class="muted center" style="font-size:12px;margin-top:10px">Demo: ${esc(CONFIG.ADMIN_PASSWORD)}</p></div></section>`); }
   const reps=DB.get(pk(K.reports),[]);
@@ -885,7 +931,7 @@ function viewPanel(){
     <button class="btn btn-primary btn-sm" data-action="cus-add">➕ Añadir</button>
     <div class="cus-list" style="margin-top:10px">${c.items.length?c.items.map((it,i)=>`<div class="cus-it">${it.img?`<img class="pic-img" src="${esc(it.img)}" alt="">`:`<span style="font-size:24px">${esc(it.e||'🖼️')}</span>`}<span class="cus-w">${esc(it.w)}</span><button class="btn btn-ghost btn-sm" data-action="cus-del" data-i="${i}">Quitar</button></div>`).join(''):'<p class="muted" style="font-size:13px">Aún no hay nada en «Mis cosas».</p>'}</div></div>`;
   const pl=loadPlan(); const ap=activeProfile();
-  const perfBox=`<div class="box-card" style="margin-bottom:16px"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">👤 Niño/a activo</h3><a class="btn btn-ghost btn-sm" style="margin-left:auto" href="#/perfiles">Cambiar / añadir</a></div><p class="muted" style="font-size:14px;margin:.4em 0 0">Mostrando el plan, el progreso y las valoraciones de <b>${esc(ap.name||'Peque')}</b>${ap.age?' ('+esc(ap.age)+')':''}. Cada niño va por separado.</p></div>`;
+  const perfBox=`<div class="box-card" style="margin-bottom:16px"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">👤 Niño/a activo</h3><a class="btn btn-ghost btn-sm" style="margin-left:auto" href="#/perfiles">Cambiar / añadir</a></div><p class="muted" style="font-size:14px;margin:.4em 0 .7em">Mostrando el plan, el progreso y las valoraciones de <b>${esc(ap.name||'Peque')}</b>${ap.age?' ('+esc(ap.age)+')':''}. Cada niño va por separado.</p><a class="btn btn-primary" href="#/ficha">📋 Abrir ficha del paciente</a></div>`;
   const plan=`<div class="box-card" style="margin-bottom:16px"><h3 style="margin:0 0 6px">🎯 Plan de hoy (deberes)</h3><p class="muted" style="font-size:14px">Elige qué practica el niño en la sesión guiada y cuántas preguntas por actividad.</p>
     <div class="plan-grid">${PLAN_CATALOG.map(it=>{const on=pl.ids.indexOf(it.id)>=0;return `<button class="plan-pick ${on?'on':''}" data-action="plan-toggle" data-id="${it.id}" aria-pressed="${on}"><span aria-hidden="true">${it.e}</span> ${esc(it.label)} ${on?'✓':''}</button>`;}).join('')}</div>
     <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="muted">Preguntas por actividad:</span>${[3,4,5,6].map(n=>`<button class="seg-b ${pl.goal===n?'on':''}" data-action="plan-goal" data-v="${n}">${n}</button>`).join('')}</div>
@@ -914,6 +960,7 @@ function render(){
   else if(a==='caa'){ if(b==='comunicador') html=viewComunicador(); else if(b==='emociones') html=viewEmociones(); else if(b==='agenda') html=viewAgenda(); else html=viewCAA(); }
   else if(a==='paresmin') html=viewParesMin();
   else if(a==='perfiles') html=viewPerfiles();
+  else if(a==='ficha') html=viewFicha();
   else if(a==='sesion') html=viewSesion();
   else if(a==='magico') html=viewMagico();
   else if(a==='familias') html=viewFamilias();
@@ -961,6 +1008,19 @@ document.addEventListener('click',function(e){
       if(ok){ addStar(1); if(fb){fb.textContent='¡Muy bien! ⭐'; fb.className='feedback ok';} speak('¡Muy bien!'); }
       else { if(fb){fb.textContent='Casi… inténtalo otra vez'; fb.className='feedback no';} document.querySelectorAll('[data-correct="1"]').forEach(o=>o.classList.add('good')); }
       setTimeout(()=>{ if(SES){ sesAdvance(ok); } else { QZ=null; render(); } }, ok?1100:1600); break; }
+    case 'ficha-datos': { const f=fichaLoad(); f.tel=(document.getElementById('fTel')||{}).value||''; f.dx=(document.getElementById('fDx')||{}).value||''; fichaSave(f); toast('Datos guardados ✓'); break; }
+    case 'ficha-notas': { const f=fichaLoad(); f.notas=(document.getElementById('fNotas')||{}).value||''; fichaSave(f); toast('Notas guardadas ✓'); break; }
+    case 'pauta-add': { const v=(document.getElementById('fPauta')||{}).value||''; if(!v.trim())break; const f=fichaLoad(); f.pautas.push({t:v.trim(),done:false}); fichaSave(f); render(); break; }
+    case 'pauta-toggle': { const f=fichaLoad(); if(f.pautas[+el.dataset.i])f.pautas[+el.dataset.i].done=!f.pautas[+el.dataset.i].done; fichaSave(f); render(); break; }
+    case 'pauta-del': { const f=fichaLoad(); f.pautas.splice(+el.dataset.i,1); fichaSave(f); render(); break; }
+    case 'pago-add': { const c=(document.getElementById('fPagoC')||{}).value||''; const im=(document.getElementById('fPagoI')||{}).value||''; if(!c.trim())break; const f=fichaLoad(); f.pagos.push({concepto:c.trim(),importe:parseFloat(im)||0,pagado:false,fecha:new Date().toISOString()}); fichaSave(f); render(); break; }
+    case 'pago-toggle': { const f=fichaLoad(); if(f.pagos[+el.dataset.i])f.pagos[+el.dataset.i].pagado=!f.pagos[+el.dataset.i].pagado; fichaSave(f); render(); break; }
+    case 'pago-del': { const f=fichaLoad(); f.pagos.splice(+el.dataset.i,1); fichaSave(f); render(); break; }
+    case 'mat-add': { const v=(document.getElementById('fMat')||{}).value||''; if(!v.trim())break; const f=fichaLoad(); f.materiales.push({t:v.trim(),done:false}); fichaSave(f); render(); break; }
+    case 'mat-toggle': { const f=fichaLoad(); if(f.materiales[+el.dataset.i])f.materiales[+el.dataset.i].done=!f.materiales[+el.dataset.i].done; fichaSave(f); render(); break; }
+    case 'mat-del': { const f=fichaLoad(); f.materiales.splice(+el.dataset.i,1); fichaSave(f); render(); break; }
+    case 'ficha-print': window.print(); break;
+    case 'ficha-wa': window.open('https://wa.me/?text='+encodeURIComponent(fichaText()),'_blank','noopener'); break;
     case 'perf-set': setActive(el.dataset.id); SES=null; toast('Ahora practica '+(activeProfile().name||'')); location.hash='#/'; break;
     case 'perf-add': { const n=(document.getElementById('pfName')||{}).value||''; const ed=(document.getElementById('pfAge')||{}).value||''; if(!n.trim()){ toast('Escribe un nombre'); break; } addProfile(n.trim(),ed.trim()); SES=null; toast('¡Hola, '+n.trim()+'!'); location.hash='#/'; break; }
     case 'perf-del': { const ps=DB.get(K.profiles,[]); const p=ps.find(x=>x.id===el.dataset.id); if(el.dataset.armed==='1'){ delProfile(el.dataset.id); SES=null; render(); toast('Perfil borrado'); } else { el.dataset.armed='1'; el.textContent='⚠️'; setTimeout(()=>{ if(el){el.dataset.armed='0';el.textContent='🗑️';} },3000); } break; }
