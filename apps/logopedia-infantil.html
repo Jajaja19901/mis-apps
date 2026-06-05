@@ -141,6 +141,21 @@ section{padding:22px 0}
 .plan-pick{border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:10px;font-family:inherit;font-weight:700;cursor:pointer;text-align:left;color:var(--ink);font-size:14px}
 .plan-pick.on{background:var(--green-soft);border-color:var(--green);color:#0f7a52}
 .seg-b{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:7px 12px;font-weight:800;cursor:pointer;font-family:inherit;color:var(--ink)} .seg-b.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+/* Perfiles */
+.prof-chip{display:flex;align-items:center;gap:10px;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:10px 14px;text-decoration:none;color:var(--ink);box-shadow:var(--sh)}
+.prof-chip:hover{border-color:var(--brand)}
+.prof-av{width:38px;height:38px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-family:'Fredoka';font-weight:700;font-size:18px;flex:0 0 auto}
+.prof-t{flex:1;min-width:0;line-height:1.2} .prof-t b{font-size:16px} .prof-t small{display:block;color:var(--ink-soft);font-size:12.5px}
+.prof-ar{font-size:18px;color:var(--ink-soft)}
+.prof-mini{display:inline-block;margin-top:4px;color:var(--brand);font-weight:700;text-decoration:none;font-size:14px;background:var(--brand-soft);padding:5px 12px;border-radius:999px}
+.perf-list{display:grid;gap:10px}
+.perf-row{display:flex;align-items:center;gap:8px}
+.perf-pick{flex:1;display:flex;align-items:center;gap:12px;background:var(--surface);border:2px solid var(--line);border-radius:16px;padding:12px 14px;cursor:pointer;font-family:inherit;text-align:left;color:var(--ink)}
+.perf-row.on .perf-pick{border-color:var(--green);background:var(--green-soft)}
+.perf-av{width:42px;height:42px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-family:'Fredoka';font-weight:700;font-size:20px;flex:0 0 auto}
+.perf-b{flex:1;min-width:0} .perf-b b{font-size:17px} .perf-b small{display:block;color:var(--ink-soft);font-size:13px}
+.perf-ck{color:var(--green);font-weight:800;font-size:20px}
+.perf-del{border:1.5px solid var(--line);background:#fff;border-radius:12px;width:46px;height:46px;font-size:18px;cursor:pointer;flex:0 0 auto}
 .grid{display:grid;gap:14px;grid-template-columns:repeat(2,1fr)}
 @media(min-width:640px){.grid{grid-template-columns:repeat(3,1fr)}}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;cursor:pointer;font-family:inherit;text-align:center;box-shadow:var(--sh);transition:transform .14s,box-shadow .14s;display:flex;flex-direction:column;gap:6px;align-items:center}
@@ -281,6 +296,8 @@ body.calm{font-size:18px} body.calm *{animation:none!important;transition:none!i
     { "goto": "#/" }, { "expectVisible": ".plan-card" }, { "click": "[data-action=\"start-session\"]" }, { "expectVisible": ".ses-banner" } ]},
   { "name": "Progreso muestra evolucion por dias", "steps": [
     { "goto": "#/progreso" }, { "expectVisible": ".evo" } ]},
+  { "name": "Perfiles: separar el progreso por nino", "steps": [
+    { "goto": "#/perfiles" }, { "expectVisible": ".perf-row" }, { "expectVisible": "[data-action=\"perf-add\"]" } ]},
   { "name": "Progreso para familias", "steps": [
     { "goto": "#/progreso" }, { "expectVisible": ".stat-cards" } ]},
   { "name": "Opuestos funciona", "steps": [
@@ -310,18 +327,27 @@ body.calm{font-size:18px} body.calm *{animation:none!important;transition:none!i
 "use strict";
 const CONFIG = { APP_NAME:"Laura M M · Logopeda", ADMIN_PASSWORD:"logo1234", WHATSAPP:"34611773150", EMAIL:"", CITY:"Arucas y zona norte de Gran Canaria", STUDIO_BRAND:"Incuba tu Negocio", STUDIO_AUTHOR:"Jaime M. M.", STUDIO_URL:"" };
 const DB = { get(k,fb){ try{ const v=localStorage.getItem(k); return v==null?fb:JSON.parse(v); }catch(e){ return fb; } }, set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ toast("No se pudo guardar"); return false; } } };
-const K = { stars:"lg_stars", reports:"lg_reports", admin:"lg_admin", calm:"lg_calm", prog:"lg_prog", custom:"lg_custom", plan:"lg_plan" };
+const K = { stars:"lg_stars", reports:"lg_reports", admin:"lg_admin", calm:"lg_calm", prog:"lg_prog", custom:"lg_custom", plan:"lg_plan", profiles:"lg_profiles", active:"lg_active" };
 function speak(text){ try{ if(!('speechSynthesis' in window)){ toast('Tu dispositivo no puede leer en voz alta'); return; } window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(String(text)); u.lang='es-ES'; u.rate=.85; u.pitch=1.1; const vs=window.speechSynthesis.getVoices().filter(v=>/es/i.test(v.lang)); if(vs[0])u.voice=vs[0]; window.speechSynthesis.speak(u); }catch(e){} }
 try{ if('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged=()=>{}; }catch(e){}
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 let toastT; function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
-function stars(){ return DB.get(K.stars,0); } function addStar(n){ DB.set(K.stars, stars()+(n||1)); }
+/* ===== Perfiles (cada niño con su propio progreso) ===== */
+function migrateLegacy(id){ ['lg_stars','lg_prog','lg_plan','lg_custom','lg_reports'].forEach(b=>{ try{ const v=localStorage.getItem(b); if(v!=null && localStorage.getItem(b+'_'+id)==null) localStorage.setItem(b+'_'+id,v); }catch(e){} }); }
+function profiles(){ let ps=DB.get(K.profiles,null); if(!ps||!ps.length){ const id='p'+Date.now().toString(36); ps=[{id,name:'Peque',age:''}]; DB.set(K.profiles,ps); DB.set(K.active,id); migrateLegacy(id); } return ps; }
+function activeId(){ const ps=profiles(); let a=DB.get(K.active,''); if(!ps.some(p=>p.id===a)){ a=ps[0].id; DB.set(K.active,a); } return a; }
+function activeProfile(){ const a=activeId(); return (DB.get(K.profiles,[]).find(p=>p.id===a))||{name:'Peque',age:''}; }
+function pk(base){ return base+'_'+activeId(); }
+function addProfile(name,age){ const ps=DB.get(K.profiles,[]); const id='p'+Date.now().toString(36)+Math.floor(Math.random()*90+10); ps.push({id,name:(name||'Peque').slice(0,30),age:(age||'').slice(0,16)}); DB.set(K.profiles,ps); DB.set(K.active,id); return id; }
+function setActive(id){ DB.set(K.active,id); }
+function delProfile(id){ let ps=DB.get(K.profiles,[]); ps=ps.filter(p=>p.id!==id); DB.set(K.profiles,ps); ['lg_stars','lg_prog','lg_plan','lg_custom','lg_reports'].forEach(b=>{try{localStorage.removeItem(b+'_'+id);}catch(e){}}); if(DB.get(K.active,'')===id){ DB.set(K.active, ps.length?ps[0].id:''); } profiles(); }
+function stars(){ return DB.get(pk(K.stars),0); } function addStar(n){ DB.set(pk(K.stars), stars()+(n||1)); }
 /* ===== Progreso (mide el aprendizaje) ===== */
 const MOD_LABEL={articulacion:"Articulación",paresmin:"Pares mínimos",voz:"Dilo tú (voz)",vocab:"Vocabulario",rima:"Rimas",silabas:"Sílabas",inicial:"Sonido inicial",discrim:"Discriminación",fichas:"Sonidos (fichas)",orden:"Escucha y toca",leer:"Leer palabras",forma:"Formas",opuesto:"Opuestos",intruso:"El intruso",frases:"Construir frases",cuento:"Cuentos"};
 function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
-function loadProg(){ return DB.get(K.prog,{mods:{},days:{},streak:0,lastDay:''}); }
-function touchDay(p){ p=p||loadProg(); const t=todayKey(); p.days[t]=(p.days[t]||0)+1; if(p.lastDay!==t){ const y=new Date(); y.setDate(y.getDate()-1); const yk=y.getFullYear()+'-'+(y.getMonth()+1)+'-'+y.getDate(); p.streak=(p.lastDay===yk)?(p.streak||0)+1:1; p.lastDay=t; } DB.set(K.prog,p); return p; }
+function loadProg(){ return DB.get(pk(K.prog),{mods:{},days:{},streak:0,lastDay:''}); }
+function touchDay(p){ p=p||loadProg(); const t=todayKey(); p.days[t]=(p.days[t]||0)+1; if(p.lastDay!==t){ const y=new Date(); y.setDate(y.getDate()-1); const yk=y.getFullYear()+'-'+(y.getMonth()+1)+'-'+y.getDate(); p.streak=(p.lastDay===yk)?(p.streak||0)+1:1; p.lastDay=t; } DB.set(pk(K.prog),p); return p; }
 function recordResult(mod,ok){ if(!mod)return; const p=loadProg(); const m=p.mods[mod]||(p.mods[mod]={c:0,t:0}); m.t++; if(ok)m.c++; const t=todayKey(); p.hist=p.hist||{}; const hd=p.hist[t]||(p.hist[t]={t:0,c:0}); hd.t++; if(ok)hd.c++; touchDay(p); }
 function progHist(){ const p=loadProg(); const h=p.hist||{}; const out=[]; for(let i=13;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); const k=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); const e=h[k]||{t:0,c:0}; out.push({k,dia:['D','L','M','X','J','V','S'][d.getDay()],t:e.t,c:e.c,pct:e.t?Math.round(e.c*100/e.t):0}); } return out; }
 /* ===== Plan de hoy (sesión guiada: dosis + constancia) ===== */
@@ -338,16 +364,16 @@ const PLAN_CATALOG=[
   {id:'intruso',route:'#/aprender/comprension/intruso',e:'🔎',label:'El intruso'}
 ];
 const PLAN_DEFAULT=['vocab','rima','fichas','leer','orden'];
-function loadPlan(){ const p=DB.get(K.plan,null); const valid=(p&&p.ids&&p.ids.length)?p.ids.filter(id=>PLAN_CATALOG.some(x=>x.id===id)):PLAN_DEFAULT; return {ids:valid.length?valid:PLAN_DEFAULT, goal:(p&&p.goal)||4}; }
-function savePlan(pl){ DB.set(K.plan,pl); }
+function loadPlan(){ const p=DB.get(pk(K.plan),null); const valid=(p&&p.ids&&p.ids.length)?p.ids.filter(id=>PLAN_CATALOG.some(x=>x.id===id)):PLAN_DEFAULT; return {ids:valid.length?valid:PLAN_DEFAULT, goal:(p&&p.goal)||4}; }
+function savePlan(pl){ DB.set(pk(K.plan),pl); }
 function planItem(id){ return PLAN_CATALOG.find(x=>x.id===id); }
 let SES=null, SES_SUMMARY=null; /* sesión guiada en curso / resumen */
 function startSession(){ const pl=loadPlan(); if(!pl.ids.length){ toast('Configura el plan en el panel'); return; } SES={ids:pl.ids.slice(),goal:pl.goal,idx:0,count:0,c:0,t:0,startStars:stars()}; QZ=null; location.hash=planItem(SES.ids[0]).route; }
 function finishSession(){ const gained=stars()-SES.startStars; SES_SUMMARY={ex:SES.ids.length,t:SES.t,c:SES.c,stars:gained}; SES=null; QZ=null; location.hash='#/sesion'; }
 function sesAdvance(ok){ if(!SES)return false; SES.t++; if(ok)SES.c++; SES.count++; if(SES.count>=SES.goal){ SES.count=0; SES.idx++; if(SES.idx<SES.ids.length){ QZ=null; location.hash=planItem(SES.ids[SES.idx]).route; } else { finishSession(); } } else { QZ=null; render(); } return true; }
 /* ===== Personalización (la familia sube fotos y palabras del niño) ===== */
-function loadCustom(){ return DB.get(K.custom,{items:[]}); }
-function saveCustom(c){ DB.set(K.custom,c); }
+function loadCustom(){ return DB.get(pk(K.custom),{items:[]}); }
+function saveCustom(c){ DB.set(pk(K.custom),c); }
 function readImageResized(file,cb){ try{ const r=new FileReader(); r.onload=function(){ const img=new Image(); img.onload=function(){ const max=320; let w=img.width,h=img.height; if(w>h&&w>max){h=Math.round(h*max/w);w=max;} else if(h>max){w=Math.round(w*max/h);h=max;} const c=document.createElement('canvas'); c.width=w;c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); cb(c.toDataURL('image/jpeg',0.8)); }; img.onerror=function(){cb('');}; img.src=r.result; }; r.onerror=function(){cb('');}; r.readAsDataURL(file); }catch(e){cb('');} }
 /* ===== Reconocimiento de voz (opcional; "dilo tú" y la app comprueba) ===== */
 function norm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z]/g,''); }
@@ -579,6 +605,7 @@ function tilesHTML(list){ return `<div class="grid">${list.map(t=>`<button class
 /* ===== Home ===== */
 function viewHome(){
   return page(`<section class="hero"><div class="big-emoji">🗣️</div><h1>Enseñar a <span>hablar</span> y a <span>leer</span></h1><p class="muted">Articulación, vocabulario, conciencia fonológica, lectoescritura y comprensión. Todo suena en voz alta. Apoyo para la logopeda.</p></section>
+  <section>${profileChip()}</section>
   ${planTodayCard()}
   <section><div class="choices">
     <button class="choice jugar" data-action="go" data-h="#/aprender"><span class="ce">🎮</span><h2>Aprender a hablar</h2><p>Fonemas, vocabulario, rimas, lectura, comprensión, soplo</p></button>
@@ -589,6 +616,14 @@ function viewHome(){
   <div class="mini-links"><a class="mini-link" href="#/familias">👨‍👩‍👧 Para familias</a><a class="mini-link" href="#/progreso">📈 Mi progreso</a></div></section>`);
 }
 function planTodayCard(){ const pl=loadProg(); const done=(pl.days&&pl.days[todayKey()])||0; const goal=loadPlan().ids.length*loadPlan().goal; const st=pl.streak||0; return `<section><div class="plan-card"><div class="plan-l"><div class="plan-h">🎯 Plan de hoy</div><div class="plan-s">${done>0?('Hoy llevas <b>'+done+'</b> aciertos'):'Una sesión corta cada día'} · 🔥 ${st} ${st===1?'día':'días'}</div></div><button class="btn btn-green" data-action="start-session">▶️ Empezar</button></div></section>`;
+}
+function profileChip(){ const p=activeProfile(); const ini=(p.name||'?').slice(0,1).toUpperCase(); return `<a class="prof-chip" href="#/perfiles"><span class="prof-av">${esc(ini)}</span><span class="prof-t"><b>${esc(p.name||'Peque')}</b><small>${p.age?esc(p.age):'pon la edad'} · cambiar</small></span><span class="prof-ar" aria-hidden="true">▾</span></a>`; }
+function viewPerfiles(){
+  const ps=profiles(); const a=activeId();
+  return page(`<section>${back('#/','Inicio')}<div class="center" style="margin:10px 0 14px"><h2>¿Quién practica? 👤</h2><p class="muted">Cada niño/a tiene su <b>propio progreso, estrellas y plan</b>. Elige o crea uno.</p></div>
+  <div class="perf-list">${ps.map(p=>`<div class="perf-row ${p.id===a?'on':''}"><button class="perf-pick" data-action="perf-set" data-id="${p.id}"><span class="perf-av">${esc((p.name||'?').slice(0,1).toUpperCase())}</span><span class="perf-b"><b>${esc(p.name||'Peque')}</b><small>${p.age?esc(p.age):'edad —'}${p.id===a?' · practicando ahora':''}</small></span>${p.id===a?'<span class="perf-ck" aria-hidden="true">✓</span>':''}</button>${ps.length>1?`<button class="perf-del" data-action="perf-del" data-id="${p.id}" aria-label="Borrar ${esc(p.name||'')}">🗑️</button>`:''}</div>`).join('')}</div>
+  <div class="box-card" style="margin-top:16px"><h3 style="margin:0 0 8px">➕ Añadir niño/a</h3><div class="field"><label for="pfName">Nombre</label><input id="pfName" placeholder="Ej: Martín" autocomplete="off"></div><div class="field"><label for="pfAge">Edad</label><input id="pfAge" placeholder="Ej: 4 años" autocomplete="off"></div><button class="btn btn-primary" data-action="perf-add">Crear y empezar</button></div>
+  <p class="muted" style="font-size:13px;margin-top:12px;text-align:center">Se guarda solo en este dispositivo. Útil para que la logopeda lleve a varios niños sin mezclar el progreso.</p></section>`);
 }
 /* ===== Hub Aprender ===== */
 function viewAprender(){
@@ -671,7 +706,8 @@ function viewProgreso(){
   const bars=keys.length?keys.map(k=>{const m=p.mods[k];const pc=m.t?Math.round(m.c*100/m.t):0;return `<div class="pr-row"><span class="pr-l">${esc(MOD_LABEL[k]||k)}</span><span class="bar"><i class="${pc<50?'low':pc<75?'mid':''}" style="width:${pc}%"></i></span><span class="pr-v">${pc}%</span></div>`;}).join(''):'<p class="muted">Aún no hay ejercicios. ¡Jugad un poco y volved aquí!</p>';
   const hist=progHist(); const maxT=Math.max(1,...hist.map(d=>d.t));
   const chart=`<div class="evo">${hist.map(d=>{const h=d.t?Math.max(8,Math.round(d.t/maxT*100)):2; const cls=d.t?(d.pct<50?'low':d.pct<75?'mid':''):'empty'; return `<div class="evo-col"><div class="evo-bar"><i class="${cls}" style="height:${h}%" title="${d.t} ejercicios · ${d.pct}%"></i></div><span class="evo-d">${d.dia}</span></div>`;}).join('')}</div>`;
-  return page(`<section>${back('#/','Inicio')}<div class="center" style="margin:10px 0 14px"><h2>Mi progreso 📈</h2></div>
+  const ap=activeProfile();
+  return page(`<section>${back('#/','Inicio')}<div class="center" style="margin:10px 0 12px"><h2>Mi progreso 📈</h2><a class="prof-mini" href="#/perfiles">👤 ${esc(ap.name||'Peque')}${ap.age?' · '+esc(ap.age):''} · cambiar</a></div>
   <div class="stat-cards">
     <div class="stat-card"><div class="sc-n">⭐ ${stars()}</div><div class="sc-l">estrellas</div></div>
     <div class="stat-card"><div class="sc-n">🔥 ${p.streak||0}</div><div class="sc-l">días seguidos</div></div>
@@ -696,7 +732,7 @@ function viewSesion(){
   </div>
   <div class="center" style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn btn-green" data-action="start-session">↻ Otra vez</button><a class="btn btn-primary" href="#/progreso">📈 Ver progreso</a><a class="btn btn-ghost" href="#/">Inicio</a></div></div></section>`);
 }
-function progCSV(){ const p=loadProg(); let csv='Actividad,Aciertos,Intentos,Porcentaje\n'; Object.keys(p.mods).forEach(k=>{const m=p.mods[k];csv+=`"${(MOD_LABEL[k]||k)}",${m.c},${m.t},${m.t?Math.round(m.c*100/m.t):0}%\n`;}); csv+=`\nEstrellas,${stars()}\nRacha (días),${p.streak||0}\n`; return csv; }
+function progCSV(){ const p=loadProg(); const ap=activeProfile(); let csv='Niño/a,'+JSON.stringify((ap.name||'')+(ap.age?' ('+ap.age+')':''))+'\n\nActividad,Aciertos,Intentos,Porcentaje\n'; Object.keys(p.mods).forEach(k=>{const m=p.mods[k];csv+=`"${(MOD_LABEL[k]||k)}",${m.c},${m.t},${m.t?Math.round(m.c*100/m.t):0}%\n`;}); csv+=`\nEstrellas,${stars()}\nRacha (días),${p.streak||0}\n`; return csv; }
 function downloadProg(){ try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+progCSV()],{type:'text/csv'})); a.download='progreso-nino.csv'; a.click(); URL.revokeObjectURL(a.href); }catch(e){ toast('No se pudo exportar'); } }
 /* ===== Articulación ===== */
 function viewArticulacion(phonId){
@@ -835,12 +871,12 @@ function computeResult(){ const items=ASSESS[ASSESSMENT.edad],areas={},flags=[];
 function viewResultado(){ const {areas,flags}=computeResult(); const pct=a=>Math.round((areas[a].sum/areas[a].max)*100); const cls=p=>p<50?'low':(p<80?'mid':''); const rec=flags.length>=2;
   return page(`<section><a class="btn btn-ghost btn-sm" href="#/valorar">← Volver</a><div class="box"><div class="center"><div style="font-size:48px">📋</div><h2>Resultado orientativo</h2><p class="muted">${esc(ASSESSMENT.nombre||'Peque')} · ${esc(ASSESSMENT.edad)}</p></div><h3>Por áreas</h3>${Object.keys(areas).map(a=>{const p=pct(a);return `<div class="result-area"><span><b>${esc(a)}</b></span><span class="bar"><i class="${cls(p)}" style="width:${p}%"></i></span><span style="font-weight:800;min-width:42px;text-align:right">${p}%</span></div>`;}).join('')}${flags.length?`<h3 style="margin-top:16px">A reforzar</h3><ul class="flag-list">${flags.map(f=>`<li>${esc(f)}</li>`).join('')}</ul>`:`<p style="margin-top:16px;color:var(--green);font-weight:700">👏 Sin dificultades claras.</p>`}<div class="disclaimer">⚠️ Orientación, no diagnóstico. ${rec?'Conviene una valoración con la logopeda.':'Ante dudas, consulta con la logopeda.'}</div><div class="box-card" style="background:var(--green-soft);border-color:var(--green);text-align:center;margin-bottom:12px"><b>¿Y ahora qué?</b><p class="muted" style="margin:.3em 0 .6em;font-size:14px">Lo mejor es practicar un poco <b>cada día</b>. Empezad por una sesión corta y guiada.</p><button class="btn btn-green" data-action="start-session">▶️ Empezar a practicar</button></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-primary" data-action="save-report">💾 Guardar</button><button class="btn btn-green" data-action="share-report">WhatsApp</button><button class="btn btn-ghost" data-action="valorar-restart">Nueva</button></div></div></section>`); }
 function reportText(){ const {areas,flags}=computeResult(); const l=['Valoración orientativa del lenguaje',(ASSESSMENT.nombre||'Peque')+' · '+ASSESSMENT.edad,'']; Object.keys(areas).forEach(a=>l.push('- '+a+': '+Math.round((areas[a].sum/areas[a].max)*100)+'%')); if(flags.length){ l.push('','A reforzar:'); flags.forEach(f=>l.push('· '+f)); } l.push('','(Orientativo, no es un diagnóstico)'); return l.join('\n'); }
-function saveReport(){ const {areas,flags}=computeResult(); const rep={id:uid(),fecha:new Date().toISOString(),nombre:ASSESSMENT.nombre||'',edad:ASSESSMENT.edad,areas:Object.fromEntries(Object.keys(areas).map(a=>[a,Math.round((areas[a].sum/areas[a].max)*100)])),flags}; const all=DB.get(K.reports,[]); all.unshift(rep); DB.set(K.reports,all); toast('Guardada en el panel ✓'); }
+function saveReport(){ const {areas,flags}=computeResult(); const rep={id:uid(),fecha:new Date().toISOString(),nombre:ASSESSMENT.nombre||'',edad:ASSESSMENT.edad,areas:Object.fromEntries(Object.keys(areas).map(a=>[a,Math.round((areas[a].sum/areas[a].max)*100)])),flags}; const all=DB.get(pk(K.reports),[]); all.unshift(rep); DB.set(pk(K.reports),all); toast('Guardada en el panel ✓'); }
 /* ===== Panel ===== */
 function isAdmin(){ return DB.get(K.admin,false)===true; }
 function viewPanel(){
   if(!isAdmin()){ return page(`<section><div class="box" style="max-width:420px"><div class="center" style="font-size:46px">🔒</div><h2 class="center">Panel de la logopeda</h2><p class="muted center">Valoraciones guardadas.</p><form id="gateForm"><div class="field"><label for="gatePass">Contraseña</label><input id="gatePass" type="password" autocomplete="current-password"></div><button class="btn btn-primary btn-block" type="submit">Entrar</button></form><p class="muted center" style="font-size:12px;margin-top:10px">Demo: ${esc(CONFIG.ADMIN_PASSWORD)}</p></div></section>`); }
-  const reps=DB.get(K.reports,[]);
+  const reps=DB.get(pk(K.reports),[]);
   const body = reps.length ? `<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-ghost btn-sm" data-action="export">⬇️ Exportar CSV</button></div>${reps.map(r=>`<div class="report-card"><div class="rc-top"><b>${esc(r.nombre||'Peque')} · ${esc(r.edad)}</b><span class="muted" style="font-size:12px">${new Date(r.fecha).toLocaleDateString('es-ES')}</span></div><div style="margin:8px 0;display:flex;gap:8px;flex-wrap:wrap">${Object.entries(r.areas).map(([a,p])=>`<span class="stars-bar" style="color:var(--ink-soft);font-size:12px;padding:4px 10px">${esc(a)}: ${p}%</span>`).join('')}</div>${r.flags&&r.flags.length?`<div class="muted" style="font-size:13px"><b>A reforzar:</b> ${esc(r.flags.join(' · '))}</div>`:''}<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" data-action="del-report" data-id="${esc(r.id)}">🗑️ Borrar</button></div></div>`).join('')}` : `<div class="box"><div class="center muted" style="padding:20px"><div style="font-size:44px">📭</div><p>Aún no hay valoraciones guardadas.</p><a class="btn btn-primary" href="#/valorar">Hacer una valoración</a></div></div>`;
   const c=loadCustom();
   const custom=`<div class="box-card" style="margin-bottom:16px"><h3 style="margin:0 0 6px">⭐ Mis cosas (personalizar)</h3><p class="muted" style="font-size:14px">Añade <b>fotos y palabras del niño</b> (sus juguetes, la familia). Aparecen en Comunicar → «Mis cosas».</p>
@@ -848,12 +884,13 @@ function viewPanel(){
     <div class="field"><label for="cusImg">Foto (opcional)</label><input id="cusImg" type="file" accept="image/*"></div>
     <button class="btn btn-primary btn-sm" data-action="cus-add">➕ Añadir</button>
     <div class="cus-list" style="margin-top:10px">${c.items.length?c.items.map((it,i)=>`<div class="cus-it">${it.img?`<img class="pic-img" src="${esc(it.img)}" alt="">`:`<span style="font-size:24px">${esc(it.e||'🖼️')}</span>`}<span class="cus-w">${esc(it.w)}</span><button class="btn btn-ghost btn-sm" data-action="cus-del" data-i="${i}">Quitar</button></div>`).join(''):'<p class="muted" style="font-size:13px">Aún no hay nada en «Mis cosas».</p>'}</div></div>`;
-  const pl=loadPlan();
+  const pl=loadPlan(); const ap=activeProfile();
+  const perfBox=`<div class="box-card" style="margin-bottom:16px"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">👤 Niño/a activo</h3><a class="btn btn-ghost btn-sm" style="margin-left:auto" href="#/perfiles">Cambiar / añadir</a></div><p class="muted" style="font-size:14px;margin:.4em 0 0">Mostrando el plan, el progreso y las valoraciones de <b>${esc(ap.name||'Peque')}</b>${ap.age?' ('+esc(ap.age)+')':''}. Cada niño va por separado.</p></div>`;
   const plan=`<div class="box-card" style="margin-bottom:16px"><h3 style="margin:0 0 6px">🎯 Plan de hoy (deberes)</h3><p class="muted" style="font-size:14px">Elige qué practica el niño en la sesión guiada y cuántas preguntas por actividad.</p>
     <div class="plan-grid">${PLAN_CATALOG.map(it=>{const on=pl.ids.indexOf(it.id)>=0;return `<button class="plan-pick ${on?'on':''}" data-action="plan-toggle" data-id="${it.id}" aria-pressed="${on}"><span aria-hidden="true">${it.e}</span> ${esc(it.label)} ${on?'✓':''}</button>`;}).join('')}</div>
     <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="muted">Preguntas por actividad:</span>${[3,4,5,6].map(n=>`<button class="seg-b ${pl.goal===n?'on':''}" data-action="plan-goal" data-v="${n}">${n}</button>`).join('')}</div>
     <p class="muted" style="font-size:13px;margin-top:8px">Plan actual: <b>${pl.ids.length}</b> actividades · ~${pl.ids.length*pl.goal} preguntas (${Math.ceil(pl.ids.length*pl.goal*0.25)} min aprox).</p></div>`;
-  return page(`<section><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><h2 style="margin:0">Panel de la logopeda</h2><button class="btn btn-ghost btn-sm" style="margin-left:auto" data-action="logout">Salir</button></div>${plan}${custom}${body}</section>`);
+  return page(`<section><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><h2 style="margin:0">Panel de la logopeda</h2><button class="btn btn-ghost btn-sm" style="margin-left:auto" data-action="logout">Salir</button></div>${perfBox}${plan}${custom}${body}</section>`);
 }
 function viewAviso(){ const wa=CONFIG.WHATSAPP.replace(/\D/g,''); return page(`<section>${back('#/','Inicio')}<div class="box" style="max-width:680px;text-align:left"><h2>Contacto y aviso</h2><p><b>${esc(CONFIG.APP_NAME)}</b><br>${esc(CONFIG.CITY)}<br>📞 WhatsApp: <a href="https://wa.me/${wa}" target="_blank" rel="noopener noreferrer" style="color:var(--brand);font-weight:700">${esc(CONFIG.WHATSAPP.replace(/^34/,'+34 '))}</a>${CONFIG.EMAIL?`<br>✉️ <a href="mailto:${esc(CONFIG.EMAIL)}" style="color:var(--brand);font-weight:700">${esc(CONFIG.EMAIL)}</a>`:''}</p><hr style="border:none;border-top:1px solid var(--line);margin:14px 0"><p><b>Herramienta de apoyo.</b> Ayuda a practicar el habla, el lenguaje y la lectoescritura y ofrece una valoración <b>orientativa</b>. No es un diagnóstico ni sustituye a la sesión con la logopeda.</p><p><b>Datos.</b> Todo se guarda solo en este dispositivo (localStorage); no se envía a ningún servidor.</p><p><b>Voz.</b> La pronunciación la genera el navegador; la calidad depende del dispositivo.</p><div class="center" style="margin-top:14px"><a class="btn btn-green" href="https://wa.me/${wa}" target="_blank" rel="noopener noreferrer">Escribir por WhatsApp</a> <a class="btn btn-ghost" href="#/">Volver</a></div></div></section>`); }
 
@@ -876,6 +913,7 @@ function render(){
   }
   else if(a==='caa'){ if(b==='comunicador') html=viewComunicador(); else if(b==='emociones') html=viewEmociones(); else if(b==='agenda') html=viewAgenda(); else html=viewCAA(); }
   else if(a==='paresmin') html=viewParesMin();
+  else if(a==='perfiles') html=viewPerfiles();
   else if(a==='sesion') html=viewSesion();
   else if(a==='magico') html=viewMagico();
   else if(a==='familias') html=viewFamilias();
@@ -923,6 +961,9 @@ document.addEventListener('click',function(e){
       if(ok){ addStar(1); if(fb){fb.textContent='¡Muy bien! ⭐'; fb.className='feedback ok';} speak('¡Muy bien!'); }
       else { if(fb){fb.textContent='Casi… inténtalo otra vez'; fb.className='feedback no';} document.querySelectorAll('[data-correct="1"]').forEach(o=>o.classList.add('good')); }
       setTimeout(()=>{ if(SES){ sesAdvance(ok); } else { QZ=null; render(); } }, ok?1100:1600); break; }
+    case 'perf-set': setActive(el.dataset.id); SES=null; toast('Ahora practica '+(activeProfile().name||'')); location.hash='#/'; break;
+    case 'perf-add': { const n=(document.getElementById('pfName')||{}).value||''; const ed=(document.getElementById('pfAge')||{}).value||''; if(!n.trim()){ toast('Escribe un nombre'); break; } addProfile(n.trim(),ed.trim()); SES=null; toast('¡Hola, '+n.trim()+'!'); location.hash='#/'; break; }
+    case 'perf-del': { const ps=DB.get(K.profiles,[]); const p=ps.find(x=>x.id===el.dataset.id); if(el.dataset.armed==='1'){ delProfile(el.dataset.id); SES=null; render(); toast('Perfil borrado'); } else { el.dataset.armed='1'; el.textContent='⚠️'; setTimeout(()=>{ if(el){el.dataset.armed='0';el.textContent='🗑️';} },3000); } break; }
     case 'start-session': startSession(); break;
     case 'end-session': SES=null; toast('Plan pausado'); location.hash='#/'; break;
     case 'plan-toggle': { const pl=loadPlan(); const id=el.dataset.id; const i=pl.ids.indexOf(id); if(i>=0){ if(pl.ids.length>1)pl.ids.splice(i,1); } else { pl.ids.push(id); } savePlan(pl); render(); break; }
@@ -936,7 +977,7 @@ document.addEventListener('click',function(e){
     case 'rec-play': recPlay(); break;
     case 'print-report': window.print(); break;
     case 'export-prog': downloadProg(); break;
-    case 'reset-prog': if(el.dataset.armed==='1'){ DB.set(K.prog,{mods:{},days:{},streak:0,lastDay:''}); render(); toast('Progreso borrado'); } else { el.dataset.armed='1'; el.textContent='⚠️ Pulsa otra vez'; setTimeout(()=>{ if(el){el.dataset.armed='0';el.textContent='Borrar';} },3000); } break;
+    case 'reset-prog': if(el.dataset.armed==='1'){ DB.set(pk(K.prog),{mods:{},days:{},streak:0,lastDay:''}); render(); toast('Progreso borrado'); } else { el.dataset.armed='1'; el.textContent='⚠️ Pulsa otra vez'; setTimeout(()=>{ if(el){el.dataset.armed='0';el.textContent='Borrar';} },3000); } break;
     case 'caa-cat': CAA_CAT=el.dataset.c; render(); break;
     case 'caa-add': CAA_PHRASE.push({w:el.dataset.w,e:el.dataset.e,img:el.dataset.img||''}); speak(el.dataset.w); render(); break;
     case 'listen': listen(el.dataset.w,'srStatus'); break;
@@ -962,7 +1003,7 @@ document.addEventListener('click',function(e){
     case 'save-report': saveReport(); break;
     case 'share-report': window.open('https://wa.me/'+CONFIG.WHATSAPP.replace(/\D/g,'')+'?text='+encodeURIComponent(reportText()),'_blank','noopener'); break;
     case 'logout': DB.set(K.admin,false); toast('Sesión cerrada'); location.hash='#/'; break;
-    case 'del-report': if(confirm('¿Borrar esta valoración?')){ DB.set(K.reports,DB.get(K.reports,[]).filter(r=>r.id!==el.dataset.id)); render(); } break;
+    case 'del-report': if(confirm('¿Borrar esta valoración?')){ DB.set(pk(K.reports),DB.get(pk(K.reports),[]).filter(r=>r.id!==el.dataset.id)); render(); } break;
     case 'export': exportCSV(); break;
   }
 });
@@ -970,7 +1011,7 @@ document.addEventListener('submit',function(e){ if(e.target.id==='gateForm'){ e.
 window.addEventListener('hashchange',render);
 /* Enlaces internos (#/...): navegar por JS para que funcionen también dentro de un iframe (app combinada) */
 document.addEventListener('click',function(e){ const a=e.target.closest&&e.target.closest('a[href^="#"]'); if(!a) return; const h=a.getAttribute('href'); e.preventDefault(); if(location.hash===h){ try{render();}catch(_){ } } else { location.hash=h; } });
-function exportCSV(){ const reps=DB.get(K.reports,[]); const rows=[['Fecha','Nombre','Edad','Áreas','A reforzar']]; reps.forEach(r=>rows.push([new Date(r.fecha).toLocaleString('es-ES'),r.nombre||'',r.edad,Object.entries(r.areas).map(([a,p])=>a+' '+p+'%').join(' | '),(r.flags||[]).join(' | ')])); const csv=rows.map(row=>row.map(c=>{ c=String(c); if(/^[=+\-@]/.test(c))c="'"+c; return '"'+c.replace(/"/g,'""')+'"'; }).join(',')).join('\n'); try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'})); a.download='valoraciones.csv'; a.click(); URL.revokeObjectURL(a.href); }catch(e){ toast('No se pudo exportar'); } }
+function exportCSV(){ const reps=DB.get(pk(K.reports),[]); const rows=[['Fecha','Nombre','Edad','Áreas','A reforzar']]; reps.forEach(r=>rows.push([new Date(r.fecha).toLocaleString('es-ES'),r.nombre||'',r.edad,Object.entries(r.areas).map(([a,p])=>a+' '+p+'%').join(' | '),(r.flags||[]).join(' | ')])); const csv=rows.map(row=>row.map(c=>{ c=String(c); if(/^[=+\-@]/.test(c))c="'"+c; return '"'+c.replace(/"/g,'""')+'"'; }).join(',')).join('\n'); try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'})); a.download='valoraciones.csv'; a.click(); URL.revokeObjectURL(a.href); }catch(e){ toast('No se pudo exportar'); } }
 
 if(calmOn()) document.body.classList.add('calm');
 setupPWA();
