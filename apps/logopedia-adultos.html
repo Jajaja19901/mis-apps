@@ -176,6 +176,7 @@ section{padding:18px 0}
 .escr-l{width:50px;height:56px;border:2px solid var(--line);background:var(--surface);border-radius:12px;font-size:26px;font-weight:800;cursor:pointer;color:var(--ink);font-family:inherit}
 .escr-l:hover{border-color:var(--brand);transform:translateY(-2px)}
 .hub-h{font-size:15px;font-weight:800;color:var(--brand-dk);text-transform:uppercase;letter-spacing:.03em;margin:0 0 10px 2px}
+.tile .te svg{display:block;margin:0 auto}
 /* Ajustes */
 .set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);width:100%;text-align:left}
 button.as-btn{background:none;border:none;font:inherit;color:inherit;cursor:pointer}
@@ -526,6 +527,16 @@ function footer(){ const credit=`Aplicación creada por <b>${esc(CONFIG.STUDIO_A
 function page(inner){ return header()+'<main id="main" class="wrap">'+inner+'</main>'+footer(); }
 function back(href,txt){ return `<a class="btn btn-ghost btn-sm" href="${href}">← ${esc(txt||'Volver')}</a>`; }
 function tiles(list){ return `<div class="grid">${list.map(t=>`<button class="tile" data-action="go" data-h="${t.h}"><span class="te" aria-hidden="true">${t.e}</span><b>${esc(t.b)}</b><small>${esc(t.s)}</small></button>`).join('')}</div>`; }
+/* ===== Iconos SVG de marca (áreas principales) ===== */
+const ICONS={
+  comunicar:'<path d="M4 5h16v10H10l-4 4v-4H4z"/><circle cx="9" cy="10" r="1"/><circle cx="13" cy="10" r="1"/><circle cx="17" cy="10" r="1"/>',
+  lenguaje:'<path d="M4 5h16v9H10l-4 4v-4H4z"/><path d="M9.5 9.5h5"/>',
+  memoria:'<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9h16M9 3v4M15 3v4"/>',
+  praxias:'<path d="M3.5 12c3.5-4.5 13.5-4.5 17 0-3.5 4.5-13.5 4.5-17 0z"/><path d="M8 12h8"/>',
+  progreso:'<path d="M4 5v15h16"/><path d="M7 15l3.5-4 3 2 4.5-6"/>',
+  misiones:'<path d="M12 3c2.8 2 4 5.5 4 8.5L12 15l-4-3.5C8 8.5 9.2 5 12 3z"/><circle cx="12" cy="9" r="1.5"/><path d="M8.5 13.5 6 18l4-2M15.5 13.5 18 18l-4-2"/>'
+};
+function svgI(id,color){ return `<svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="${color||'#0e7c86'}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[id]||''}</svg>`; }
 
 /* ============ Home ============ */
 function planTodayCard(){ const st=loadStats(); const done=(st.days&&st.days[todayKey()])||0; const sk=st.streak||0; return `<section><div class="plan-card"><div class="plan-l"><div class="plan-h">🎯 Sesión de hoy</div><div class="plan-s">${done>0?('Hoy: <b>'+done+'</b> ejercicios'):'Una sesión corta cada día'} · 🔥 ${sk} ${sk===1?'día':'días'}</div></div><button class="btn" data-action="start-session">▶️ Empezar</button></div></section>`; }
@@ -534,13 +545,13 @@ function viewHome(){
   <section>${profileChip()}</section>
   ${planTodayCard()}
   <section>${tiles([
-    {h:'#/comunicar',e:'🗨️',b:'Comunicar',s:'Tablero para expresar necesidades sin hablar'},
-    {h:'#/lenguaje',e:'🧠',b:'Lenguaje',s:'Afasia: nombrar, comprender, frases y categorías'},
-    {h:'#/memoria',e:'📅',b:'Memoria y cognición',s:'Orientación, memoria, cálculo y atención'},
-    {h:'#/praxias',e:'👄',b:'Praxias y voz',s:'Boca, lengua, respiración y voz alta'},
-    {h:'#/progreso',e:'📈',b:'Mi progreso',s:'Aciertos, racha e informe para la consulta'}
+    {h:'#/comunicar',e:svgI('comunicar'),b:'Comunicar',s:'Tablero para expresar necesidades sin hablar'},
+    {h:'#/lenguaje',e:svgI('lenguaje'),b:'Lenguaje',s:'Afasia: nombrar, comprender, frases y categorías'},
+    {h:'#/memoria',e:svgI('memoria'),b:'Memoria y cognición',s:'Orientación, memoria, cálculo y atención'},
+    {h:'#/praxias',e:svgI('praxias'),b:'Praxias y voz',s:'Boca, lengua, respiración y voz alta'},
+    {h:'#/progreso',e:svgI('progreso'),b:'Mi progreso',s:'Aciertos, racha e informe para la consulta'}
   ])}</section>
-  <section><button class="tile" data-action="go" data-h="#/misiones" style="width:100%;border-color:#0e7c86"><span class="te" aria-hidden="true">🚀</span><b>Misión de la vida real</b><small>Llevar el habla fuera de la pantalla (lo que más ayuda)</small></button></section>
+  <section><button class="tile" data-action="go" data-h="#/misiones" style="width:100%;border-color:#0e7c86"><span class="te" aria-hidden="true">${svgI('misiones')}</span><b>Misión de la vida real</b><small>Llevar el habla fuera de la pantalla (lo que más ayuda)</small></button></section>
   <section><div class="disclaimer">Esta aplicación es un <b>apoyo</b> para practicar; no es un tratamiento ni un diagnóstico y no sustituye las sesiones con la logopeda. Úsela acompañado de un familiar o cuidador si es necesario.</div></section>`);
 }
 
