@@ -129,6 +129,30 @@ section{padding:18px 0}
 .plan-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .plan-pick{border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:10px;font-family:inherit;font-weight:700;cursor:pointer;text-align:left;color:var(--ink);font-size:14px}
 .plan-pick.on{background:var(--green-soft);border-color:var(--green);color:#0a5b63}
+.box-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh);padding:18px}
+.prof-chip{display:flex;align-items:center;gap:10px;background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:10px 14px;text-decoration:none;color:var(--ink);box-shadow:var(--sh)}
+.prof-chip:hover{border-color:var(--brand)}
+.prof-av{width:38px;height:38px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:800;font-size:18px;flex:0 0 auto}
+.prof-t{flex:1;min-width:0;line-height:1.2} .prof-t b{font-size:16px} .prof-t small{display:block;color:var(--soft);font-size:12.5px}
+.prof-ar{font-size:18px;color:var(--soft)}
+.prof-mini{display:inline-block;margin-top:4px;color:var(--brand-dk);font-weight:700;text-decoration:none;font-size:14px;background:var(--brand-soft);padding:5px 12px;border-radius:999px}
+.perf-list{display:grid;gap:10px}
+.perf-row{display:flex;align-items:center;gap:8px}
+.perf-pick{flex:1;display:flex;align-items:center;gap:12px;background:var(--surface);border:2px solid var(--line);border-radius:16px;padding:12px 14px;cursor:pointer;font-family:inherit;text-align:left;color:var(--ink)}
+.perf-row.on .perf-pick{border-color:var(--green);background:var(--green-soft)}
+.perf-av{width:42px;height:42px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:800;font-size:20px;flex:0 0 auto}
+.perf-b{flex:1;min-width:0} .perf-b b{font-size:17px} .perf-b small{display:block;color:var(--soft);font-size:13px}
+.perf-ck{color:var(--green);font-weight:800;font-size:20px}
+.perf-del{border:1.5px solid var(--line);background:#fff;border-radius:12px;width:46px;height:46px;font-size:18px;cursor:pointer;flex:0 0 auto}
+.ficha-add{display:flex;gap:8px;margin-bottom:10px} .ficha-add input{flex:1;min-width:0;padding:11px 12px;border:1.5px solid var(--line);border-radius:12px;font-family:inherit;font-size:14px;background:var(--surface);color:var(--ink)}
+.chk-list{display:grid;gap:6px}
+.chk,.pago{display:flex;align-items:center;gap:8px;background:#f6fafb;border:1px solid var(--line);border-radius:12px;padding:4px 6px 4px 10px}
+.chk-b{flex:1;min-width:0;display:flex;align-items:center;gap:8px;background:none;border:none;cursor:pointer;font-family:inherit;font-size:14px;text-align:left;color:var(--ink);padding:7px 0}
+.chk.done .chk-b span,.pago.ok .chk-b span{text-decoration:line-through;color:var(--soft)}
+.chk-x{border:none;background:none;cursor:pointer;font-size:16px;padding:6px;flex:0 0 auto;opacity:.6}
+.pago-i{flex:0 0 auto;font-size:14px}
+.pago-tot{display:flex;gap:14px;justify-content:flex-end;margin:0 0 8px;font-weight:800;font-size:13.5px}
+.pt-ok{color:var(--green)} .pt-pend{color:#a8521f}
 /* Ajustes */
 .set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);width:100%;text-align:left}
 button.as-btn{background:none;border:none;font:inherit;color:inherit;cursor:pointer}
@@ -212,6 +236,10 @@ footer .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:18p
     { "goto": "#/progreso" }, { "expectVisible": ".evo" } ]},
   { "name": "Sesion de hoy: empieza sesion guiada", "steps": [
     { "goto": "#/" }, { "expectVisible": ".plan-card" }, { "click": "[data-action=\"start-session\"]" }, { "expectVisible": ".ses-banner" } ]},
+  { "name": "Perfiles: separar por paciente", "steps": [
+    { "goto": "#/perfiles" }, { "expectVisible": ".perf-row" }, { "expectVisible": "[data-action=\"perf-add\"]" } ]},
+  { "name": "Ficha del paciente protegida", "steps": [
+    { "goto": "#/ficha" }, { "expectVisible": "#pw" } ]},
   { "name": "Ajustes de accesibilidad", "steps": [
     { "goto": "#/ajustes" }, { "expectVisible": ".set-row" } ]},
   { "name": "Orientacion muestra el dia de hoy", "steps": [
@@ -243,13 +271,25 @@ const CONFIG = {
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const rand=a=>a[Math.floor(Math.random()*a.length)];
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
-const K={notes:'la_notes', stats:'la_stats', custom:'la_custom', settings:'la_settings', plan:'la_plan'};
+const K={notes:'la_notes', stats:'la_stats', custom:'la_custom', settings:'la_settings', plan:'la_plan', profiles:'la_profiles', active:'la_active', ficha:'la_ficha'};
+/* ===== Perfiles (cada paciente con sus datos) ===== */
+function migrateLegacy(id){ ['la_stats','la_plan','la_custom','la_notes','la_ficha'].forEach(b=>{ try{ const v=localStorage.getItem(b); if(v!=null && localStorage.getItem(b+'_'+id)==null) localStorage.setItem(b+'_'+id,v); }catch(e){} }); }
+function profiles(){ let ps=DB.get(K.profiles,null); if(!ps||!ps.length){ const id='p'+Date.now().toString(36); ps=[{id,name:'Paciente',age:''}]; DB.set(K.profiles,ps); DB.set(K.active,id); migrateLegacy(id); } return ps; }
+function activeId(){ const ps=profiles(); let a=DB.get(K.active,''); if(!ps.some(p=>p.id===a)){ a=ps[0].id; DB.set(K.active,a); } return a; }
+function activeProfile(){ const a=activeId(); return (DB.get(K.profiles,[]).find(p=>p.id===a))||{name:'Paciente',age:''}; }
+function pk(base){ return base+'_'+activeId(); }
+function addProfile(name,age){ const ps=DB.get(K.profiles,[]); const id='p'+Date.now().toString(36)+Math.floor(Math.random()*90+10); ps.push({id,name:(name||'Paciente').slice(0,30),age:(age||'').slice(0,30)}); DB.set(K.profiles,ps); DB.set(K.active,id); return id; }
+function setActive(id){ DB.set(K.active,id); }
+function delProfile(id){ let ps=DB.get(K.profiles,[]); ps=ps.filter(p=>p.id!==id); DB.set(K.profiles,ps); ['la_stats','la_plan','la_custom','la_notes','la_ficha'].forEach(b=>{try{localStorage.removeItem(b+'_'+id);}catch(e){}}); if(DB.get(K.active,'')===id){ DB.set(K.active, ps.length?ps[0].id:''); } profiles(); }
+function fichaLoad(){ return DB.get(pk(K.ficha),{tel:'',dx:'',pautas:[],pagos:[],materiales:[],notas:''}); }
+function fichaSave(f){ DB.set(pk(K.ficha),f); }
+function fichaText(){ const ap=activeProfile(); const f=fichaLoad(); const l=['Ficha · '+(ap.name||'Paciente')+(ap.age?' ('+ap.age+')':'')]; if(f.dx)l.push('Objetivo: '+f.dx); if(f.pautas.length){ l.push('','Pautas / ejercicios:'); f.pautas.forEach(t=>l.push((t.done?'✓':'•')+' '+t.t)); } if(f.materiales.length){ l.push('','Materiales:'); f.materiales.forEach(t=>l.push((t.done?'✓':'•')+' '+t.t)); } l.push('','(Enviado desde la app de Laura M M · Logopeda)'); return l.join('\n'); }
 const DB={ get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}}, set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}} };
 /* ----- Progreso ----- */
 const MOD_LABEL={denom:'Nombrar objetos',frase:'Frases hechas',categ:'Categorías',calc:'Cálculo y dinero',atencion:'Atención',comprension:'Comprensión'};
 function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
-function loadStats(){ return DB.get(K.stats,{mods:{},days:{},streak:0,lastDay:''}); }
-function touchDay(s){ s=s||loadStats(); const t=todayKey(); s.days[t]=(s.days[t]||0)+1; if(s.lastDay!==t){ const y=new Date(); y.setDate(y.getDate()-1); const yk=y.getFullYear()+'-'+(y.getMonth()+1)+'-'+y.getDate(); s.streak=(s.lastDay===yk)?(s.streak||0)+1:1; s.lastDay=t; } DB.set(K.stats,s); return s; }
+function loadStats(){ return DB.get(pk(K.stats),{mods:{},days:{},streak:0,lastDay:''}); }
+function touchDay(s){ s=s||loadStats(); const t=todayKey(); s.days[t]=(s.days[t]||0)+1; if(s.lastDay!==t){ const y=new Date(); y.setDate(y.getDate()-1); const yk=y.getFullYear()+'-'+(y.getMonth()+1)+'-'+y.getDate(); s.streak=(s.lastDay===yk)?(s.streak||0)+1:1; s.lastDay=t; } DB.set(pk(K.stats),s); return s; }
 function recordResult(mod,ok){ const s=loadStats(); const m=s.mods[mod]||(s.mods[mod]={c:0,t:0}); m.t++; if(ok)m.c++; const t=todayKey(); s.hist=s.hist||{}; const hd=s.hist[t]||(s.hist[t]={t:0,c:0}); hd.t++; if(ok)hd.c++; touchDay(s); }
 function progHist(){ const s=loadStats(); const h=s.hist||{}; const out=[]; for(let i=13;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); const k=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); const e=h[k]||{t:0,c:0}; out.push({dia:['D','L','M','X','J','V','S'][d.getDay()],t:e.t,c:e.c,pct:e.t?Math.round(e.c*100/e.t):0}); } return out; }
 /* ===== Plan de hoy (sesión guiada) ===== */
@@ -262,8 +302,8 @@ const PLAN_CATALOG=[
   {id:'atencion',route:'#/memoria/atencion',e:'🔎',label:'Atención'}
 ];
 const PLAN_DEFAULT=['denom','comprension','calc','atencion'];
-function loadPlan(){ const p=DB.get(K.plan,null); const valid=(p&&p.ids&&p.ids.length)?p.ids.filter(id=>PLAN_CATALOG.some(x=>x.id===id)):PLAN_DEFAULT; return {ids:valid.length?valid:PLAN_DEFAULT, goal:(p&&p.goal)||4}; }
-function savePlan(pl){ DB.set(K.plan,pl); }
+function loadPlan(){ const p=DB.get(pk(K.plan),null); const valid=(p&&p.ids&&p.ids.length)?p.ids.filter(id=>PLAN_CATALOG.some(x=>x.id===id)):PLAN_DEFAULT; return {ids:valid.length?valid:PLAN_DEFAULT, goal:(p&&p.goal)||4}; }
+function savePlan(pl){ DB.set(pk(K.plan),pl); }
 function planItem(id){ return PLAN_CATALOG.find(x=>x.id===id); }
 let SES=null, SES_SUMMARY=null;
 function startSession(){ const pl=loadPlan(); if(!pl.ids.length){ toast('Configure el plan en el panel'); return; } SES={ids:pl.ids.slice(),goal:pl.goal,idx:0,count:0,c:0,t:0}; QZ=null; location.hash=planItem(SES.ids[0]).route; }
@@ -275,8 +315,8 @@ function loadSet(){ return DB.get(K.settings,{scale:'normal',contrast:false,auto
 function saveSet(s){ DB.set(K.settings,s); }
 function applySettings(){ const s=loadSet(); const b=document.body; if(!b)return; b.classList.toggle('contrast',!!s.contrast); b.classList.remove('scale-grande','scale-enorme'); if(s.scale!=='normal')b.classList.add('scale-'+s.scale); }
 /* ----- Personalización ----- */
-function loadCustom(){ return DB.get(K.custom,{items:[],phrases:[]}); }
-function saveCustom(c){ DB.set(K.custom,c); }
+function loadCustom(){ return DB.get(pk(K.custom),{items:[],phrases:[]}); }
+function saveCustom(c){ DB.set(pk(K.custom),c); }
 function readImageResized(file,cb){ try{ const r=new FileReader(); r.onload=function(){ const img=new Image(); img.onload=function(){ const max=320; let w=img.width,h=img.height; if(w>h&&w>max){h=Math.round(h*max/w);w=max;} else if(h>max){w=Math.round(w*max/h);h=max;} const c=document.createElement('canvas'); c.width=w;c.height=h; c.getContext('2d').drawImage(img,0,0,w,h); cb(c.toDataURL('image/jpeg',0.8)); }; img.onerror=function(){cb('');}; img.src=r.result; }; r.onerror=function(){cb('');}; r.readAsDataURL(file); }catch(e){cb('');} }
 let voices=[];
 function loadVoices(){ try{voices=speechSynthesis.getVoices()||[];}catch(e){voices=[];} }
@@ -401,6 +441,7 @@ function tiles(list){ return `<div class="grid">${list.map(t=>`<button class="ti
 function planTodayCard(){ const st=loadStats(); const done=(st.days&&st.days[todayKey()])||0; const sk=st.streak||0; return `<section><div class="plan-card"><div class="plan-l"><div class="plan-h">🎯 Sesión de hoy</div><div class="plan-s">${done>0?('Hoy: <b>'+done+'</b> ejercicios'):'Una sesión corta cada día'} · 🔥 ${sk} ${sk===1?'día':'días'}</div></div><button class="btn" data-action="start-session">▶️ Empezar</button></div></section>`; }
 function viewHome(){
   return page(`<section class="hero"><div class="big-emoji" aria-hidden="true">🗣️</div><h1>Logopedia para adultos</h1><p class="muted">Apoyo para personas con afasia, ELA o deterioro cognitivo. Para practicar en casa entre sesiones. Todo se lee en voz alta.</p></section>
+  <section>${profileChip()}</section>
   ${planTodayCard()}
   <section>${tiles([
     {h:'#/comunicar',e:'🗨️',b:'Comunicar',s:'Tablero para expresar necesidades sin hablar'},
@@ -616,7 +657,8 @@ function viewProgreso(){
   const bars=mods.length?mods.map(k=>{const m=s.mods[k];const p=m.t?Math.round(m.c*100/m.t):0;return `<div class="pr-row"><span class="pr-l">${esc(MOD_LABEL[k]||k)}</span><span class="bar"><i class="${p<50?'low':p<75?'mid':''}" style="width:${p}%"></i></span><span class="pr-v">${p}% <small class="muted">(${m.c}/${m.t})</small></span></div>`;}).join(''):'<p class="muted">Aún no hay ejercicios registrados. Haga alguno y vuelva aquí.</p>';
   const hist=progHist(); const maxT=Math.max(1,...hist.map(d=>d.t));
   const chart=`<div class="evo">${hist.map(d=>{const h=d.t?Math.max(8,Math.round(d.t/maxT*100)):2; const cls=d.t?(d.pct<50?'low':d.pct<75?'mid':''):'empty'; return `<div class="evo-col"><div class="evo-bar"><i class="${cls}" style="height:${h}%" title="${d.t} ejercicios · ${d.pct}%"></i></div><span class="evo-d">${d.dia}</span></div>`;}).join('')}</div>`;
-  return page(`<section>${back('#/','Inicio')}<div class="center" style="margin:8px 0 14px"><h2>Mi progreso 📈</h2></div>
+  const ap=activeProfile();
+  return page(`<section>${back('#/','Inicio')}<div class="center" style="margin:8px 0 12px"><h2>Mi progreso 📈</h2><a class="prof-mini" href="#/perfiles">👤 ${esc(ap.name||'Paciente')}${ap.age?' · '+esc(ap.age):''} · cambiar</a></div>
   <div class="stat-cards">
     <div class="stat-card"><div class="sc-n">🔥 ${s.streak||0}</div><div class="sc-l">días seguidos</div></div>
     <div class="stat-card"><div class="sc-n">${tot}</div><div class="sc-l">ejercicios</div></div>
@@ -672,8 +714,9 @@ function viewAviso(){
 let PANEL_OK=false;
 function viewPanel(){
   if(!PANEL_OK) return page(`<section>${back('#/','Inicio')}<div class="box" style="max-width:420px"><h2>Panel</h2><p class="muted">Acceso solo para la logopeda.</p><label for="pw">Contraseña</label><input id="pw" type="password" autocomplete="off" placeholder="••••••"><div style="margin-top:14px"><button class="btn btn-primary btn-block" data-action="login">Entrar</button></div></div></section>`);
-  const notes=DB.get(K.notes,''); const c=loadCustom(); const pl=loadPlan();
+  const notes=DB.get(pk(K.notes),''); const c=loadCustom(); const pl=loadPlan(); const ap=activeProfile();
   return page(`<section>${back('#/','Inicio')}<div class="box" style="text-align:left"><h2>Panel de la logopeda</h2>
+  <div class="box-card" style="margin-bottom:16px"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">👤 Paciente activo</h3><a class="btn btn-ghost btn-sm" style="margin-left:auto" href="#/perfiles">Cambiar / añadir</a></div><p class="muted" style="font-size:14px;margin:.4em 0 .7em">Mostrando los datos de <b>${esc(ap.name||'Paciente')}</b>${ap.age?' ('+esc(ap.age)+')':''}. Cada paciente va por separado.</p><a class="btn btn-primary" href="#/ficha">📋 Abrir ficha del paciente</a></div>
   <h3 style="margin:0 0 6px">🎯 Sesión de hoy (deberes)</h3>
   <p class="muted" style="font-size:14px">Elija qué practica el paciente en la sesión guiada y cuántas preguntas por ejercicio.</p>
   <div class="plan-grid">${PLAN_CATALOG.map(it=>{const on=pl.ids.indexOf(it.id)>=0;return `<button class="plan-pick ${on?'on':''}" data-action="plan-toggle" data-id="${it.id}" aria-pressed="${on}"><span aria-hidden="true">${it.e}</span> ${esc(it.label)} ${on?'✓':''}</button>`;}).join('')}</div>
@@ -697,6 +740,40 @@ function viewPanel(){
   <p class="muted" style="font-size:15px;margin-top:12px">Para cambiar el nombre, el WhatsApp o la contraseña, edite la caja <code>CONFIG</code> al principio del archivo HTML.</p></div></section>`);
 }
 
+/* ============ Perfiles y Ficha ============ */
+function profileChip(){ const p=activeProfile(); const ini=(p.name||'?').slice(0,1).toUpperCase(); return `<a class="prof-chip" href="#/perfiles"><span class="prof-av">${esc(ini)}</span><span class="prof-t"><b>${esc(p.name||'Paciente')}</b><small>${p.age?esc(p.age):'pon la edad/diagnóstico'} · cambiar</small></span><span class="prof-ar" aria-hidden="true">▾</span></a>`; }
+function viewPerfiles(){
+  const ps=profiles(); const a=activeId();
+  return page(`<section>${back('#/','Inicio')}<div class="center" style="margin:8px 0 12px"><h2>¿Quién es el paciente? 👤</h2><p class="muted">Cada paciente tiene su <b>propio progreso, plan y ficha</b>. Elija o cree uno.</p></div>
+  <div class="perf-list">${ps.map(p=>`<div class="perf-row ${p.id===a?'on':''}"><button class="perf-pick" data-action="perf-set" data-id="${p.id}"><span class="perf-av">${esc((p.name||'?').slice(0,1).toUpperCase())}</span><span class="perf-b"><b>${esc(p.name||'Paciente')}</b><small>${p.age?esc(p.age):'—'}${p.id===a?' · activo':''}</small></span>${p.id===a?'<span class="perf-ck" aria-hidden="true">✓</span>':''}</button>${ps.length>1?`<button class="perf-del" data-action="perf-del" data-id="${p.id}" aria-label="Borrar">🗑️</button>`:''}</div>`).join('')}</div>
+  <div class="box" style="text-align:left;margin-top:16px"><h3 style="margin:0 0 8px">➕ Añadir paciente</h3><label for="pfName">Nombre</label><input id="pfName" placeholder="Ej: María"><label for="pfAge" style="margin-top:8px">Edad / diagnóstico</label><input id="pfAge" placeholder="Ej: 72 · afasia"><div style="margin-top:12px"><button class="btn btn-primary" data-action="perf-add">Crear y empezar</button></div></div>
+  <p class="muted" style="font-size:13px;margin-top:12px;text-align:center">Se guarda solo en este dispositivo. Para que la logopeda lleve a varios pacientes sin mezclar nada.</p></section>`);
+}
+function viewFicha(){
+  if(!PANEL_OK) return page(`<section>${back('#/','Inicio')}<div class="box" style="max-width:420px"><h2>Ficha del paciente</h2><p class="muted">Acceso solo para la logopeda.</p><label for="pw">Contraseña</label><input id="pw" type="password" autocomplete="off" placeholder="••••••"><div style="margin-top:14px"><button class="btn btn-primary btn-block" data-action="login">Entrar</button></div></div></section>`);
+  const ap=activeProfile(); const f=fichaLoad();
+  const cobrado=f.pagos.filter(p=>p.pagado).reduce((s,p)=>s+(+p.importe||0),0); const pend=f.pagos.filter(p=>!p.pagado).reduce((s,p)=>s+(+p.importe||0),0);
+  return page(`<section>${back('#/panel','Panel')}<div class="center" style="margin:6px 0 12px"><h2>Ficha del paciente 📋</h2><a class="prof-mini" href="#/perfiles">👤 ${esc(ap.name||'Paciente')}${ap.age?' · '+esc(ap.age):''} · cambiar</a></div>
+  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">📇 Datos</h3>
+    <div class="field"><label for="fTel">Teléfono / contacto</label><input id="fTel" value="${esc(f.tel)}" placeholder="Ej: 600 000 000"></div>
+    <div class="field"><label for="fDx">Diagnóstico / objetivo</label><input id="fDx" value="${esc(f.dx)}" placeholder="Ej: afasia de Broca · denominación"></div>
+    <button class="btn btn-primary btn-sm" data-action="ficha-datos">💾 Guardar datos</button></div>
+  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">✅ Pautas / ejercicios para casa</h3>
+    <div class="ficha-add"><input id="fPauta" placeholder="Ej: fluencia verbal 5 min al día"><button class="btn btn-primary btn-sm" data-action="pauta-add">Añadir</button></div>
+    <div class="chk-list">${f.pautas.length?f.pautas.map((t,i)=>`<div class="chk ${t.done?'done':''}"><button class="chk-b" data-action="pauta-toggle" data-i="${i}">${t.done?'✅':'⬜'} <span>${esc(t.t)}</span></button><button class="chk-x" data-action="pauta-del" data-i="${i}" aria-label="Borrar">🗑️</button></div>`).join(''):'<p class="muted" style="font-size:13px">Sin pautas todavía.</p>'}</div></div>
+  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">💶 Pagos <span class="muted" style="font-weight:400;font-size:13px">(registro, sin cobro real)</span></h3>
+    <div class="ficha-add"><input id="fPagoC" placeholder="Concepto (Ej: sesión 12 mayo)" style="flex:2"><input id="fPagoI" type="number" inputmode="decimal" placeholder="€" style="flex:1;min-width:60px"><button class="btn btn-primary btn-sm" data-action="pago-add">Añadir</button></div>
+    <div class="pago-tot"><span class="pt-ok">Cobrado: ${cobrado.toFixed(2)} €</span><span class="pt-pend">Pendiente: ${pend.toFixed(2)} €</span></div>
+    <div class="chk-list">${f.pagos.length?f.pagos.map((p,i)=>`<div class="pago ${p.pagado?'ok':'pend'}"><button class="chk-b" data-action="pago-toggle" data-i="${i}">${p.pagado?'✅':'⏳'} <span>${esc(p.concepto)}</span></button><b class="pago-i">${(+p.importe||0).toFixed(2)} €</b><button class="chk-x" data-action="pago-del" data-i="${i}" aria-label="Borrar">🗑️</button></div>`).join(''):'<p class="muted" style="font-size:13px">Sin pagos registrados.</p>'}</div></div>
+  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">📦 Materiales</h3>
+    <div class="ficha-add"><input id="fMat" placeholder="Ej: tablero de comunicación"><button class="btn btn-primary btn-sm" data-action="mat-add">Añadir</button></div>
+    <div class="chk-list">${f.materiales.length?f.materiales.map((t,i)=>`<div class="chk ${t.done?'done':''}"><button class="chk-b" data-action="mat-toggle" data-i="${i}">${t.done?'✅':'⬜'} <span>${esc(t.t)}</span></button><button class="chk-x" data-action="mat-del" data-i="${i}" aria-label="Borrar">🗑️</button></div>`).join(''):'<p class="muted" style="font-size:13px">Sin materiales.</p>'}</div></div>
+  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">📝 Notas de sesión</h3>
+    <textarea id="fNotas" style="width:100%;min-height:110px;border:1.5px solid var(--line);border-radius:12px;padding:12px;font-family:inherit;font-size:15px" placeholder="Observaciones, evolución, próximos pasos…">${esc(f.notas)}</textarea>
+    <button class="btn btn-primary btn-sm" style="margin-top:8px" data-action="ficha-notas">💾 Guardar notas</button></div>
+  <div class="center" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn btn-ghost" data-action="ficha-print">🖨️ Imprimir / PDF</button><button class="btn btn-green" data-action="ficha-wa">📲 Enviar por WhatsApp</button></div>
+  <p class="muted" style="font-size:13px;margin-top:10px;text-align:center">Todo se guarda solo en este dispositivo, por paciente. El registro de pagos es para llevar la cuenta, sin cobros automáticos.</p></section>`);
+}
 /* ============ Router ============ */
 function parse(){ return location.hash.replace(/^#\/?/,'').split('/'); }
 function stopFluTimer(){ if(FLU_TIMER){ clearInterval(FLU_TIMER); FLU_TIMER=null; } }
@@ -710,6 +787,8 @@ function render(){
   else if(a==='memoria') html=viewMemoria(b);
   else if(a==='praxias') html=viewPraxias();
   else if(a==='voz') html=viewVoz();
+  else if(a==='perfiles') html=viewPerfiles();
+  else if(a==='ficha') html=viewFicha();
   else if(a==='sesion') html=viewSesion();
   else if(a==='progreso') html=viewProgreso();
   else if(a==='ajustes') html=viewAjustes();
@@ -760,10 +839,26 @@ document.addEventListener('click',function(e){
         else { MEM.lock=true; render(); setTimeout(()=>{ f.up=c.up=false; MEM.first=-1; MEM.lock=false; render(); },900); } }
       break; }
     case 'mem-reset': newMem(); render(); break;
+    case 'perf-set': setActive(el.dataset.id); SES=null; toast('Paciente: '+(activeProfile().name||'')); location.hash='#/'; break;
+    case 'perf-add': { const n=(document.getElementById('pfName')||{}).value||''; const ed=(document.getElementById('pfAge')||{}).value||''; if(!n.trim()){ toast('Escriba un nombre'); break; } addProfile(n.trim(),ed.trim()); SES=null; location.hash='#/'; toast('Paciente añadido'); break; }
+    case 'perf-del': { if(el.dataset.armed==='1'){ delProfile(el.dataset.id); SES=null; render(); toast('Paciente borrado'); } else { el.dataset.armed='1'; el.textContent='⚠️'; setTimeout(()=>{ if(el){el.dataset.armed='0';el.textContent='🗑️';} },3000); } break; }
+    case 'ficha-datos': { const f=fichaLoad(); f.tel=(document.getElementById('fTel')||{}).value||''; f.dx=(document.getElementById('fDx')||{}).value||''; fichaSave(f); toast('Datos guardados ✓'); break; }
+    case 'ficha-notas': { const f=fichaLoad(); f.notas=(document.getElementById('fNotas')||{}).value||''; fichaSave(f); toast('Notas guardadas ✓'); break; }
+    case 'pauta-add': { const v=(document.getElementById('fPauta')||{}).value||''; if(!v.trim())break; const f=fichaLoad(); f.pautas.push({t:v.trim(),done:false}); fichaSave(f); render(); break; }
+    case 'pauta-toggle': { const f=fichaLoad(); if(f.pautas[+el.dataset.i])f.pautas[+el.dataset.i].done=!f.pautas[+el.dataset.i].done; fichaSave(f); render(); break; }
+    case 'pauta-del': { const f=fichaLoad(); f.pautas.splice(+el.dataset.i,1); fichaSave(f); render(); break; }
+    case 'pago-add': { const c=(document.getElementById('fPagoC')||{}).value||''; const im=(document.getElementById('fPagoI')||{}).value||''; if(!c.trim())break; const f=fichaLoad(); f.pagos.push({concepto:c.trim(),importe:parseFloat(im)||0,pagado:false,fecha:new Date().toISOString()}); fichaSave(f); render(); break; }
+    case 'pago-toggle': { const f=fichaLoad(); if(f.pagos[+el.dataset.i])f.pagos[+el.dataset.i].pagado=!f.pagos[+el.dataset.i].pagado; fichaSave(f); render(); break; }
+    case 'pago-del': { const f=fichaLoad(); f.pagos.splice(+el.dataset.i,1); fichaSave(f); render(); break; }
+    case 'mat-add': { const v=(document.getElementById('fMat')||{}).value||''; if(!v.trim())break; const f=fichaLoad(); f.materiales.push({t:v.trim(),done:false}); fichaSave(f); render(); break; }
+    case 'mat-toggle': { const f=fichaLoad(); if(f.materiales[+el.dataset.i])f.materiales[+el.dataset.i].done=!f.materiales[+el.dataset.i].done; fichaSave(f); render(); break; }
+    case 'mat-del': { const f=fichaLoad(); f.materiales.splice(+el.dataset.i,1); fichaSave(f); render(); break; }
+    case 'ficha-print': window.print(); break;
+    case 'ficha-wa': window.open('https://wa.me/?text='+encodeURIComponent(fichaText()),'_blank','noopener'); break;
     case 'login':{ const v=(document.getElementById('pw')||{}).value||''; if(v===CONFIG.ADMIN_PASSWORD){ PANEL_OK=true; render(); } else { toast('Contraseña incorrecta'); } break; }
     case 'logout': PANEL_OK=false; location.hash='#/'; break;
-    case 'save-notes':{ const t=(document.getElementById('notes')||{}).value||''; DB.set(K.notes,t); toast('Notas guardadas'); break; }
-    case 'clear-notes': DB.set(K.notes,''); render(); toast('Notas borradas'); break;
+    case 'save-notes':{ const t=(document.getElementById('notes')||{}).value||''; DB.set(pk(K.notes),t); toast('Notas guardadas'); break; }
+    case 'clear-notes': DB.set(pk(K.notes),''); render(); toast('Notas borradas'); break;
     /* Biofeedback de voz */
     case 'voz-on': startVoz(); break;
     case 'voz-off': stopVoz(); { const st=document.getElementById('vozStatus'); if(st)st.textContent='Micrófono parado.'; const f=document.getElementById('vozFill'); if(f)f.style.height='0%'; } break;
@@ -774,7 +869,7 @@ document.addEventListener('click',function(e){
     /* Progreso */
     case 'print-report': window.print(); break;
     case 'export-csv': downloadCSV(); break;
-    case 'reset-stats': if(el.dataset.armed==='1'){ DB.set(K.stats,{mods:{},days:{},streak:0,lastDay:''}); render(); toast('Progreso borrado'); } else { el.dataset.armed='1'; el.textContent='⚠️ Pulse otra vez para borrar'; setTimeout(()=>{ if(el){el.dataset.armed='0';el.textContent='Borrar progreso';} },3000); } break;
+    case 'reset-stats': if(el.dataset.armed==='1'){ DB.set(pk(K.stats),{mods:{},days:{},streak:0,lastDay:''}); render(); toast('Progreso borrado'); } else { el.dataset.armed='1'; el.textContent='⚠️ Pulse otra vez para borrar'; setTimeout(()=>{ if(el){el.dataset.armed='0';el.textContent='Borrar progreso';} },3000); } break;
     /* Personalización */
     case 'cus-add-item':{ const w=(document.getElementById('cusW')||{}).value||''; const f=document.getElementById('cusImg'); if(!w.trim()){ toast('Escriba una palabra'); break; } const file=f&&f.files&&f.files[0]; const done=img=>{ const c=loadCustom(); c.items.push({w:w.trim(),img:img||'',e:'🖼️'}); saveCustom(c); render(); toast('Añadido a «Mis cosas»'); }; if(file) readImageResized(file,done); else done(''); break; }
     case 'cus-del-item':{ const c=loadCustom(); c.items.splice(+el.dataset.i,1); saveCustom(c); render(); break; }
