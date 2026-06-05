@@ -167,6 +167,14 @@ section{padding:18px 0}
 #ondaC{width:100%;height:110px;background:#f1f6f6;border-radius:12px;display:block}
 .onda-meter{height:22px;background:#eef3f4;border-radius:999px;overflow:hidden;margin:12px 0 6px} .onda-meter i{display:block;height:100%;background:var(--brand);border-radius:999px;transition:width .08s}
 .onda-msg{font-weight:800;color:var(--brand-dk);min-height:24px}
+.read-word{font-weight:800;font-size:44px;letter-spacing:.06em;color:var(--brand-dk);margin:6px 0 10px}
+.row-nav{display:flex;gap:10px;justify-content:center;align-items:center;margin-top:8px}
+.escr-slots{display:flex;gap:8px;justify-content:center;margin:6px 0 14px;flex-wrap:wrap}
+.escr-slot{width:46px;height:54px;border:2px dashed var(--line);border-radius:12px;display:grid;place-items:center;font-size:26px;font-weight:800;color:var(--brand-dk);background:var(--surface)}
+.escr-slot.full{border-style:solid;border-color:var(--brand)} .escr-slot.ok{border-color:var(--green);background:var(--green-soft)}
+.escr-pool{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:6px}
+.escr-l{width:50px;height:56px;border:2px solid var(--line);background:var(--surface);border-radius:12px;font-size:26px;font-weight:800;cursor:pointer;color:var(--ink);font-family:inherit}
+.escr-l:hover{border-color:var(--brand);transform:translateY(-2px)}
 /* Ajustes */
 .set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);width:100%;text-align:left}
 button.as-btn{background:none;border:none;font:inherit;color:inherit;cursor:pointer}
@@ -230,6 +238,16 @@ footer .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:18p
     { "goto": "#/lenguaje/frases" }, { "click": "[data-correct=\"1\"]" }, { "expect": "Correcto" } ]},
   { "name": "Categorias semanticas funciona", "steps": [
     { "goto": "#/lenguaje/categorias" }, { "click": "[data-correct=\"1\"]" }, { "expect": "Correcto" } ]},
+  { "name": "Lectura: leer palabra y elegir dibujo", "steps": [
+    { "goto": "#/lenguaje/lectura" }, { "click": "[data-correct=\"1\"]" }, { "expect": "Correcto" } ]},
+  { "name": "Series: completar la serie", "steps": [
+    { "goto": "#/lenguaje/series" }, { "click": "[data-correct=\"1\"]" }, { "expect": "Correcto" } ]},
+  { "name": "Escritura: ordenar letras disponible", "steps": [
+    { "goto": "#/lenguaje/escritura" }, { "expectVisible": ".escr-pool" }, { "expectVisible": ".escr-slots" } ]},
+  { "name": "Repeticion disponible", "steps": [
+    { "goto": "#/lenguaje/repeticion" }, { "expectVisible": "[data-action=\"rep-listen\"]" } ]},
+  { "name": "Ordenes de 2 pasos disponible", "steps": [
+    { "goto": "#/lenguaje/ordenes" }, { "expectVisible": "[data-action=\"ord-tap\"]" } ]},
   { "name": "Encontrar la palabra: pista y revelar (SFA)", "steps": [
     { "goto": "#/lenguaje/encontrar" }, { "click": "[data-action=\"sfa-cue\"]" }, { "expectVisible": ".cue" }, { "click": "[data-action=\"sfa-word\"]" }, { "expectVisible": ".sfa-word" } ]},
   { "name": "Fluencia verbal arranca el cronometro", "steps": [
@@ -295,6 +313,7 @@ const K={notes:'la_notes', stats:'la_stats', custom:'la_custom', settings:'la_se
 let MIS_I=0, CUE={i:0,heard:''}, SR=null, MIC_REC=null, MIC_STREAM=null, MIC_CHUNKS=[];
 const ONDAS=[{id:'alto',label:'📣 Habla ALTO',band:'todo'},{id:'sss',label:'🐍 Sonido /sss/',band:'alta'},{id:'aaa',label:'😮 «aaa» larga',band:'todo'}];
 let ONDA={id:'alto',carga:0,jugando:false};
+let REP={nivel:'silabas',idx:0}, ESCR=null, ORD2=null;
 function misLog(){ return DB.get(pk(K.mislog),[]); }
 function misSave(l){ DB.set(pk(K.mislog),l); }
 function listenCapture(cb,statusId){ const st=statusId&&document.getElementById(statusId); const SRC=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SRC){ if(st)st.textContent='Este navegador no escucha la voz (pruebe en Chrome/Android). Puede leerlo en alto.'; return false; } try{ if(SR)SR.abort(); }catch(e){} SR=new SRC(); SR.lang='es-ES'; SR.interimResults=false; SR.maxAlternatives=1; if(st)st.textContent='🎤 Escuchando…'; SR.onresult=function(ev){ let said=''; for(let i=0;i<ev.results.length;i++)said+=' '+ev.results[i][0].transcript; cb(said.trim()); }; SR.onerror=function(){ if(st)st.textContent='No se oyó bien. Inténtelo otra vez.'; }; try{ SR.start(); return true; }catch(e){ return false; } }
@@ -312,7 +331,7 @@ function fichaSave(f){ DB.set(pk(K.ficha),f); }
 function fichaText(){ const ap=activeProfile(); const f=fichaLoad(); const l=['Ficha · '+(ap.name||'Paciente')+(ap.age?' ('+ap.age+')':'')]; if(f.dx)l.push('Objetivo: '+f.dx); if(f.pautas.length){ l.push('','Pautas / ejercicios:'); f.pautas.forEach(t=>l.push((t.done?'✓':'•')+' '+t.t)); } if(f.materiales.length){ l.push('','Materiales:'); f.materiales.forEach(t=>l.push((t.done?'✓':'•')+' '+t.t)); } l.push('','(Enviado desde la app de Laura M M · Logopeda)'); return l.join('\n'); }
 const DB={ get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}}, set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}} };
 /* ----- Progreso ----- */
-const MOD_LABEL={denom:'Nombrar objetos',frase:'Frases hechas',categ:'Categorías',calc:'Cálculo y dinero',atencion:'Atención',comprension:'Comprensión',mision:'Misiones reales',narrar:'Contar historias',onda:'La onda mágica'};
+const MOD_LABEL={denom:'Nombrar objetos',frase:'Frases hechas',categ:'Categorías',calc:'Cálculo y dinero',atencion:'Atención',comprension:'Comprensión',mision:'Misiones reales',narrar:'Contar historias',onda:'La onda mágica',lectura:'Lectura',serie:'Series',escritura:'Escritura',repeticion:'Repetición',ordenes:'Órdenes 2 pasos'};
 function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
 function loadStats(){ return DB.get(pk(K.stats),{mods:{},days:{},streak:0,lastDay:''}); }
 function touchDay(s){ s=s||loadStats(); const t=todayKey(); s.days[t]=(s.days[t]||0)+1; if(s.lastDay!==t){ const y=new Date(); y.setDate(y.getDate()-1); const yk=y.getFullYear()+'-'+(y.getMonth()+1)+'-'+y.getDate(); s.streak=(s.lastDay===yk)?(s.streak||0)+1:1; s.lastDay=t; } DB.set(pk(K.stats),s); return s; }
@@ -325,7 +344,9 @@ const PLAN_CATALOG=[
   {id:'categ',route:'#/lenguaje/categorias',e:'🗂️',label:'Categorías'},
   {id:'frase',route:'#/lenguaje/frases',e:'💬',label:'Frases hechas'},
   {id:'calc',route:'#/memoria/calculo',e:'🧮',label:'Cálculo y dinero'},
-  {id:'atencion',route:'#/memoria/atencion',e:'🔎',label:'Atención'}
+  {id:'atencion',route:'#/memoria/atencion',e:'🔎',label:'Atención'},
+  {id:'lectura',route:'#/lenguaje/lectura',e:'📖',label:'Lectura'},
+  {id:'serie',route:'#/lenguaje/series',e:'🔢',label:'Series'}
 ];
 const PLAN_DEFAULT=['denom','comprension','calc','atencion'];
 function loadPlan(){ const p=DB.get(pk(K.plan),null); const valid=(p&&p.ids&&p.ids.length)?p.ids.filter(id=>PLAN_CATALOG.some(x=>x.id===id)):PLAN_DEFAULT; return {ids:valid.length?valid:PLAN_DEFAULT, goal:(p&&p.goal)||4}; }
@@ -445,6 +466,22 @@ const MISIONES=[
   {t:'Diga cómo se encuentra: «estoy bien» / «no me encuentro bien».',e:'🙂'},
   {t:'Pida agua: «quiero agua, por favor».',e:'💧'}
 ];
+/* Lectura (alexia): leer palabra y elegir el dibujo */
+const LECTURA=[{w:'casa',e:'🏠'},{w:'reloj',e:'⌚'},{w:'llave',e:'🔑'},{w:'gafas',e:'👓'},{w:'taza',e:'☕'},{w:'silla',e:'🪑'},{w:'libro',e:'📖'},{w:'coche',e:'🚗'},{w:'flor',e:'🌸'},{w:'pan',e:'🍞'},{w:'vaso',e:'🥛'},{w:'zapato',e:'👞'}];
+/* Escritura (agrafia): ordenar las letras de la palabra */
+const ESCRITURA=[{w:'sol',e:'☀️'},{w:'pan',e:'🍞'},{w:'casa',e:'🏠'},{w:'mesa',e:'🍽️'},{w:'flor',e:'🌸'},{w:'gato',e:'🐈'},{w:'vaso',e:'🥛'},{w:'pera',e:'🍐'},{w:'taza',e:'☕'},{w:'luna',e:'🌙'}];
+/* Series / lenguaje automático (afasia) */
+const SERIES=[
+  {nombre:'Números',seq:['uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve','diez']},
+  {nombre:'Días de la semana',seq:['lunes','martes','miércoles','jueves','viernes','sábado','domingo']},
+  {nombre:'Meses',seq:['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre']},
+  {nombre:'Estaciones',seq:['primavera','verano','otoño','invierno']},
+  {nombre:'Abecedario',seq:['a','be','ce','de','e','efe','ge']}
+];
+/* Repetición (apraxia / disartria) */
+const REPET={silabas:['pa','ta','ka','ma','sa','la','pa-ta-ka','to-co-po'],palabras:['casa','pelota','mariposa','escalera','teléfono','ventana'],frases:['Hoy hace sol.','Quiero un café.','Mañana voy al médico.','Me llamo bien.']};
+/* Órdenes de 2 pasos (comprensión) */
+const ORDEN2=[{w:'la taza',e:'☕'},{w:'la llave',e:'🔑'},{w:'el libro',e:'📖'},{w:'las gafas',e:'👓'},{w:'el vaso',e:'🥛'},{w:'la flor',e:'🌸'}];
 /* Cuéntame: narrar una secuencia (discurso / memoria) */
 const CUENTAME=[
   {titulo:'Mi mañana',vinetas:[{e:'🛏️',t:'levantarse'},{e:'🥣',t:'desayunar'},{e:'🚿',t:'ducharse'},{e:'🚶',t:'salir'}],clave:['levant','desayun','duch','sal'],modelo:'Me levanto, desayuno, me ducho y salgo de casa.'},
@@ -516,11 +553,14 @@ function genCateg(){ const cat=rand(CATEGS); const correct=rand(cat.items); cons
 function genCalc(){ const it=rand(CALC); const opts=shuffle([{label:it.a,correct:true},...it.d.map(d=>({label:d,correct:false}))]); return {title:'Cálculo y dinero',prompt:{kind:'text',value:it.q},say:it.q,options:opts.map(o=>({kind:'text',label:o.label,correct:o.correct}))}; }
 function genAtencion(){ const same=rand(ATEN); const diff=rand(ATEN.filter(x=>x!==same)); const opts=shuffle([{emoji:same,correct:false},{emoji:same,correct:false},{emoji:same,correct:false},{emoji:diff,correct:true}]); return {title:'Atención',hideLabels:true,prompt:{kind:'text',value:'Señale el dibujo DIFERENTE'},say:'Señale el dibujo diferente',options:opts.map(o=>({kind:'image',emoji:o.emoji,label:o.correct?'el diferente':'igual',correct:o.correct}))}; }
 function genComprension(){ const correct=rand(OBJETOS); const dist=shuffle(OBJETOS.filter(o=>o.w!==correct.w)).slice(0,2); const opts=shuffle([{...correct,c:true},...dist.map(d=>({...d,c:false}))]); return {title:'Comprensión',hideLabels:true,prompt:{kind:'text',value:'Señale: '+correct.w.toUpperCase()},say:'Señale '+correct.w,options:opts.map(o=>({kind:'image',emoji:o.e,label:o.w,correct:o.c}))}; }
-const GENS={denom:genDenom,frase:genFrase,categ:genCateg,calc:genCalc,atencion:genAtencion,comprension:genComprension};
+function genLectura(){ const correct=rand(LECTURA); const dist=shuffle(LECTURA.filter(o=>o.w!==correct.w)).slice(0,2); const opts=shuffle([{...correct,c:true},...dist.map(d=>({...d,c:false}))]); return {title:'Lectura',hideLabels:true,prompt:{kind:'read',value:correct.w},options:opts.map(o=>({kind:'image',emoji:o.e,label:o.w,correct:o.c}))}; }
+function genSerie(){ const s=rand(SERIES); const i=1+Math.floor(Math.random()*(s.seq.length-1)); const correct=s.seq[i]; const dist=shuffle(s.seq.filter(x=>x!==correct)).slice(0,2); const opts=shuffle([{w:correct,c:true},...dist.map(d=>({w:d,c:false}))]); const antes=s.seq.slice(Math.max(0,i-3),i).join(', '); return {title:s.nombre,prompt:{kind:'text',value:'¿Qué sigue?  '+antes+', ___'},say:antes,options:opts.map(o=>({kind:'text',label:o.w,correct:o.c}))}; }
+const GENS={denom:genDenom,frase:genFrase,categ:genCateg,calc:genCalc,atencion:genAtencion,comprension:genComprension,lectura:genLectura,serie:genSerie};
 function quiz(key){ if(!QZ||QZKEY!==key){ QZ=GENS[key](); QZKEY=key; } return QZ; }
 function renderQuiz(backHref,backTxt,q){
   let promptHTML='';
   if(q.prompt.kind==='image') promptHTML=`<div class="qpic" aria-hidden="true">${esc(q.prompt.value)}</div>`;
+  else if(q.prompt.kind==='read') promptHTML=`<div class="read-word">${esc(q.prompt.value)}</div><div class="qprompt" style="font-size:16px">Lea la palabra y señale el dibujo</div>`;
   else promptHTML=`<div class="qprompt">${esc(q.prompt.value)}</div>`;
   const sayBtn=q.say?`<button class="speak-btn" data-action="say" data-w="${esc(q.say)}">🔊 Escuchar</button>`:'';
   const img=q.options[0]&&q.options[0].kind==='image';
@@ -535,18 +575,59 @@ function viewLenguaje(sub){
     {h:'#/lenguaje/encontrar',e:'⭐',b:'Encontrar la palabra',s:'Método con pistas para cuando "no sale"'},
     {h:'#/lenguaje/denominacion',e:'🖼️',b:'Nombrar objetos',s:'¿Qué es esto?'},
     {h:'#/lenguaje/comprension',e:'👂',b:'Comprensión',s:'Señale lo que oiga'},
+    {h:'#/lenguaje/ordenes',e:'🔢',b:'Órdenes de 2 pasos',s:'Toque primero… y luego…'},
+    {h:'#/lenguaje/lectura',e:'📖',b:'Lectura',s:'Lea la palabra y elija el dibujo'},
+    {h:'#/lenguaje/escritura',e:'✍️',b:'Escritura',s:'Ordene las letras de la palabra'},
+    {h:'#/lenguaje/series',e:'🔢',b:'Series',s:'Números, días, meses…'},
+    {h:'#/lenguaje/repeticion',e:'🔁',b:'Repetición',s:'Repita sílabas y palabras'},
     {h:'#/lenguaje/fluencia',e:'⏱️',b:'Fluencia verbal',s:'Decir muchas palabras en 1 minuto'},
     {h:'#/cuentame',e:'🎤',b:'Contar una historia',s:'Narrar una secuencia (discurso)'},
     {h:'#/lenguaje/frases',e:'💬',b:'Frases hechas',s:'Complete el dicho'},
     {h:'#/lenguaje/categorias',e:'🗂️',b:'Categorías',s:'¿Cuál pertenece a…?'}
   ])}</section>`);
   if(sub==='comprension') return renderQuiz('#/lenguaje','Lenguaje',quiz('comprension'));
+  if(sub==='ordenes') return viewOrdenes2();
+  if(sub==='lectura') return renderQuiz('#/lenguaje','Lenguaje',quiz('lectura'));
+  if(sub==='escritura') return viewEscritura();
+  if(sub==='series') return renderQuiz('#/lenguaje','Lenguaje',quiz('serie'));
+  if(sub==='repeticion') return viewRepeticion();
   if(sub==='encontrar') return viewEncontrar();
   if(sub==='fluencia') return viewFluencia();
   if(sub==='denominacion') return renderQuiz('#/lenguaje','Lenguaje',quiz('denom'));
   if(sub==='frases') return renderQuiz('#/lenguaje','Lenguaje',quiz('frase'));
   if(sub==='categorias') return renderQuiz('#/lenguaje','Lenguaje',quiz('categ'));
   return viewLenguaje();
+}
+/* ===== Escritura (agrafia): ordenar las letras ===== */
+function newEscr(){ const it=rand(ESCRITURA); let pool=shuffle(it.w.split('')); let g=0; while(pool.join('')===it.w && it.w.length>1 && g++<5) pool=shuffle(pool); ESCR={w:it.w,e:it.e,built:[],pool:pool}; }
+function viewEscritura(){
+  if(!ESCR) newEscr(); const cur=ESCR.built.map(b=>b.l).join(''); const done=cur===ESCR.w;
+  return page(`<section>${back('#/lenguaje','Lenguaje')}<div class="center" style="margin:6px 0 8px"><h2>Escritura ✍️</h2><p class="muted">Ordene las letras para escribir la palabra.</p></div>
+  <div class="center"><div class="qpic" style="font-size:72px" aria-hidden="true">${esc(ESCR.e)}</div></div>
+  <div class="escr-slots">${ESCR.w.split('').map((_,i)=>`<span class="escr-slot ${ESCR.built[i]?'full':''} ${done?'ok':''}">${ESCR.built[i]?esc(ESCR.built[i].l):''}</span>`).join('')}</div>
+  ${done?`<p class="center" style="color:var(--green);font-weight:800;font-size:20px">¡Correcto! 👏 «${esc(ESCR.w)}»</p>`:`<div class="escr-pool">${ESCR.pool.map((l,i)=>l===null?'':`<button class="escr-l" data-action="escr-add" data-i="${i}">${esc(l)}</button>`).join('')}</div>`}
+  <div class="row-c"><button class="speak-btn" data-action="say" data-w="${esc(ESCR.w)}">🔊 Oír la palabra</button>${ESCR.built.length&&!done?`<button class="btn btn-ghost btn-sm" data-action="escr-undo">⌫ Quitar</button>`:''}<button class="btn btn-primary btn-sm" data-action="escr-next">${done?'➡️ Otra':'🔄 Otra palabra'}</button></div></section>`);
+}
+/* ===== Repetición (apraxia / disartria) ===== */
+function viewRepeticion(){
+  const lista=REPET[REP.nivel]; const item=lista[REP.idx%lista.length];
+  const niveles=[['silabas','Sílabas'],['palabras','Palabras'],['frases','Frases']];
+  return page(`<section>${back('#/lenguaje','Lenguaje')}<div class="center" style="margin:6px 0 8px"><h2>Repetición 🔁</h2><p class="muted">Escuche y repita. Empiece por sílabas y suba a frases.</p></div>
+  <div class="chips" style="justify-content:center">${niveles.map(n=>`<button class="chip ${REP.nivel===n[0]?'active':''}" data-action="rep-nivel" data-n="${n[0]}">${n[1]}</button>`).join('')}</div>
+  <div class="qbox"><div class="read-word" style="font-size:40px">${esc(item)}</div><button class="speak-btn" data-action="say" data-w="${esc(item)}">🔊 Escuchar</button>
+    <div class="row-c"><button class="btn btn-green" data-action="rep-listen" data-w="${esc(item)}">🎤 Repítalo usted</button></div>
+    <div id="repStatus" class="muted" style="min-height:22px;margin-top:8px"></div>
+    <div class="row-nav" style="margin-top:10px"><button class="btn btn-ghost btn-sm" data-action="rep-prev">◀</button><button class="btn btn-primary btn-sm" data-action="rep-next">▶</button></div></div></section>`);
+}
+/* ===== Órdenes de 2 pasos (comprensión) ===== */
+function newOrd(){ const pick=shuffle(ORDEN2).slice(0,4); const seq=shuffle(pick).slice(0,2); ORD2={items:pick,seq:seq.map(x=>x.w),step:0,err:false}; }
+function viewOrdenes2(){
+  if(!ORD2) newOrd(); const o=ORD2; const orden='Toque primero '+o.seq[0]+' y después '+o.seq[1]+'.';
+  return page(`<section>${back('#/lenguaje','Lenguaje')}<div class="center" style="margin:6px 0 8px"><h2>Órdenes de 2 pasos 👂</h2><p class="muted">Escuche la orden y tóquelo en ese orden.</p></div>
+  <div class="qbox"><div class="qprompt" style="font-size:18px">${esc(orden)}</div><button class="speak-btn" data-action="say" data-w="${esc(orden)}">🔊 Repetir la orden</button>
+    <div class="opt-imgs" style="margin-top:14px">${o.items.map(it=>`<button class="opt-img" data-action="ord-tap" data-w="${esc(it.w)}"><span class="oe" aria-hidden="true">${esc(it.e)}</span><span class="ow">${esc(it.w)}</span></button>`).join('')}</div>
+    <div id="ordStatus" class="feedback" aria-live="polite" style="min-height:26px">${o.step>0?('Bien, ahora «'+esc(o.seq[1])+'»'):''}</div>
+    <div class="center"><button class="btn btn-ghost btn-sm" data-action="ord-next">🔄 Otra orden</button></div></div></section>`);
 }
 /* ===== ELITE: Encontrar la palabra (Análisis de Características Semánticas + jerarquía de pistas) ===== */
 function sfaCues(o){ return [
@@ -946,6 +1027,15 @@ document.addEventListener('click',function(e){
     case 'mis-done': { const m=MISIONES[MIS_I%MISIONES.length]; const log=misLog(); log.unshift({t:m.t,e:m.e,dia:todayKey(),fecha:new Date().toISOString()}); misSave(log); recordResult('mision',true); toast('¡Misión cumplida! ✓'); render(); break; }
     case 'mis-rec': { const st=document.getElementById('misStatus'); if(!navigator.mediaDevices||!window.MediaRecorder){ if(st)st.textContent='Aquí no se puede grabar; marque «Hecho».'; break; } if(MIC_REC&&MIC_REC.state==='recording'){ try{MIC_REC.stop();}catch(e){} break; } navigator.mediaDevices.getUserMedia({audio:true}).then(function(s){ MIC_STREAM=s; MIC_CHUNKS=[]; try{MIC_REC=new MediaRecorder(s);}catch(e){ if(st)st.textContent='No se pudo grabar.'; return; } MIC_REC.ondataavailable=e=>{ if(e.data&&e.data.size)MIC_CHUNKS.push(e.data); }; MIC_REC.onstop=function(){ const r=new FileReader(); r.onload=function(){ const m=MISIONES[MIS_I%MISIONES.length]; const log=misLog(); log.unshift({t:m.t,e:m.e,dia:todayKey(),fecha:new Date().toISOString(),audio:r.result}); misSave(log); recordResult('mision',true); render(); toast('¡Prueba grabada! ✓'); }; r.readAsDataURL(new Blob(MIC_CHUNKS)); if(MIC_STREAM)MIC_STREAM.getTracks().forEach(t=>t.stop()); }; MIC_REC.start(); if(st)st.textContent='🔴 Grabando… diga su frase y pulse otra vez para parar.'; const bb=document.getElementById('misRec'); if(bb)bb.textContent='⏹️ Parar y guardar'; }).catch(function(){ if(st)st.textContent='No se pudo usar el micrófono.'; }); break; }
     case 'mis-play': { const log=misLog(); const it=log[+el.dataset.i]; if(it&&it.audio){ try{ new Audio(it.audio).play(); }catch(e){} } break; }
+    case 'escr-add': { if(!ESCR)break; const i=+el.dataset.i; const l=ESCR.pool[i]; if(l==null)break; ESCR.built.push({l,pi:i}); ESCR.pool[i]=null; if(ESCR.built.map(b=>b.l).join('')===ESCR.w){ recordResult('escritura',true); speak(ESCR.w); toast('¡Correcto! 👏'); } render(); break; }
+    case 'escr-undo': { if(!ESCR||!ESCR.built.length)break; const last=ESCR.built.pop(); ESCR.pool[last.pi]=last.l; render(); break; }
+    case 'escr-next': newEscr(); render(); break;
+    case 'rep-nivel': REP={nivel:el.dataset.n,idx:0}; render(); break;
+    case 'rep-prev': { const l=REPET[REP.nivel]; REP.idx=(REP.idx-1+l.length)%l.length; render(); break; }
+    case 'rep-next': { const l=REPET[REP.nivel]; REP.idx=(REP.idx+1)%l.length; render(); break; }
+    case 'rep-listen': { const target=el.dataset.w; listenCapture(function(txt){ const n=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z]/g,''); const ok=n(txt).indexOf(n(target).slice(0,Math.max(3,n(target).length-1)))>=0||n(txt)===n(target); const st=document.getElementById('repStatus'); if(st)st.textContent= ok?('¡Bien! Dijo «'+target+'» 👏'):('Le oí: «'+txt+'». Inténtelo otra vez.'); if(ok)recordResult('repeticion',true); },'repStatus'); break; }
+    case 'ord-tap': { if(!ORD2)break; const st=document.getElementById('ordStatus'); const w=el.dataset.w; if(w===ORD2.seq[ORD2.step]){ ORD2.step++; if(ORD2.step>=ORD2.seq.length){ recordResult('ordenes',true); if(st){st.textContent='¡Perfecto! 👏';st.className='feedback ok';} speak('Muy bien'); setTimeout(()=>{ newOrd(); render(); },1200); } else { render(); } } else { if(st){st.textContent='Esa no. Escuche otra vez la orden.';st.className='feedback no';} } break; }
+    case 'ord-next': newOrd(); render(); break;
     case 'onda-pick': ONDA.id=el.dataset.id; ONDA.carga=0; render(); break;
     case 'onda-on': startOnda(); break;
     case 'onda-off': stopOnda(); { const m=document.getElementById('ondaMsg'); if(m)m.textContent='Parado.'; const f=document.getElementById('ondaFill'); if(f)f.style.width='0%'; } break;
