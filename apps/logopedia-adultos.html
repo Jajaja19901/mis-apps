@@ -163,6 +163,10 @@ section{padding:18px 0}
 .cm-prompt{background:var(--brand-soft);border-radius:12px;padding:10px 12px;font-size:14px;text-align:center;margin-bottom:12px}
 .cm-keys{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
 .cm-key{background:#eef3f4;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700} .cm-key.ok{background:var(--green-soft);border-color:var(--green);color:#0a5b63}
+.onda-box{background:var(--surface);border:2px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh);padding:16px;text-align:center;max-width:420px;margin:0 auto}
+#ondaC{width:100%;height:110px;background:#f1f6f6;border-radius:12px;display:block}
+.onda-meter{height:22px;background:#eef3f4;border-radius:999px;overflow:hidden;margin:12px 0 6px} .onda-meter i{display:block;height:100%;background:var(--brand);border-radius:999px;transition:width .08s}
+.onda-msg{font-weight:800;color:var(--brand-dk);min-height:24px}
 /* Ajustes */
 .set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);width:100%;text-align:left}
 button.as-btn{background:none;border:none;font:inherit;color:inherit;cursor:pointer}
@@ -254,6 +258,8 @@ footer .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:18p
     { "goto": "#/misiones" }, { "expectVisible": ".mis-card" }, { "click": "[data-action=\"mis-done\"]" }, { "expect": "Misión cumplida" } ]},
   { "name": "Contar una historia (narrador)", "steps": [
     { "goto": "#/cuentame" }, { "expectVisible": ".cm-strip" }, { "expectVisible": "[data-action=\"cue-listen\"]" } ]},
+  { "name": "La onda magica (adultos)", "steps": [
+    { "goto": "#/onda" }, { "expectVisible": "#ondaC" }, { "expectVisible": "[data-action=\"onda-on\"]" } ]},
   { "name": "Ajustes de accesibilidad", "steps": [
     { "goto": "#/ajustes" }, { "expectVisible": ".set-row" } ]},
   { "name": "Orientacion muestra el dia de hoy", "steps": [
@@ -287,6 +293,8 @@ const rand=a=>a[Math.floor(Math.random()*a.length)];
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
 const K={notes:'la_notes', stats:'la_stats', custom:'la_custom', settings:'la_settings', plan:'la_plan', profiles:'la_profiles', active:'la_active', ficha:'la_ficha', mislog:'la_mislog'};
 let MIS_I=0, CUE={i:0,heard:''}, SR=null, MIC_REC=null, MIC_STREAM=null, MIC_CHUNKS=[];
+const ONDAS=[{id:'alto',label:'📣 Habla ALTO',band:'todo'},{id:'sss',label:'🐍 Sonido /sss/',band:'alta'},{id:'aaa',label:'😮 «aaa» larga',band:'todo'}];
+let ONDA={id:'alto',carga:0,jugando:false};
 function misLog(){ return DB.get(pk(K.mislog),[]); }
 function misSave(l){ DB.set(pk(K.mislog),l); }
 function listenCapture(cb,statusId){ const st=statusId&&document.getElementById(statusId); const SRC=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SRC){ if(st)st.textContent='Este navegador no escucha la voz (pruebe en Chrome/Android). Puede leerlo en alto.'; return false; } try{ if(SR)SR.abort(); }catch(e){} SR=new SRC(); SR.lang='es-ES'; SR.interimResults=false; SR.maxAlternatives=1; if(st)st.textContent='🎤 Escuchando…'; SR.onresult=function(ev){ let said=''; for(let i=0;i<ev.results.length;i++)said+=' '+ev.results[i][0].transcript; cb(said.trim()); }; SR.onerror=function(){ if(st)st.textContent='No se oyó bien. Inténtelo otra vez.'; }; try{ SR.start(); return true; }catch(e){ return false; } }
@@ -304,7 +312,7 @@ function fichaSave(f){ DB.set(pk(K.ficha),f); }
 function fichaText(){ const ap=activeProfile(); const f=fichaLoad(); const l=['Ficha · '+(ap.name||'Paciente')+(ap.age?' ('+ap.age+')':'')]; if(f.dx)l.push('Objetivo: '+f.dx); if(f.pautas.length){ l.push('','Pautas / ejercicios:'); f.pautas.forEach(t=>l.push((t.done?'✓':'•')+' '+t.t)); } if(f.materiales.length){ l.push('','Materiales:'); f.materiales.forEach(t=>l.push((t.done?'✓':'•')+' '+t.t)); } l.push('','(Enviado desde la app de Laura M M · Logopeda)'); return l.join('\n'); }
 const DB={ get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}}, set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}} };
 /* ----- Progreso ----- */
-const MOD_LABEL={denom:'Nombrar objetos',frase:'Frases hechas',categ:'Categorías',calc:'Cálculo y dinero',atencion:'Atención',comprension:'Comprensión',mision:'Misiones reales',narrar:'Contar historias'};
+const MOD_LABEL={denom:'Nombrar objetos',frase:'Frases hechas',categ:'Categorías',calc:'Cálculo y dinero',atencion:'Atención',comprension:'Comprensión',mision:'Misiones reales',narrar:'Contar historias',onda:'La onda mágica'};
 function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
 function loadStats(){ return DB.get(pk(K.stats),{mods:{},days:{},streak:0,lastDay:''}); }
 function touchDay(s){ s=s||loadStats(); const t=todayKey(); s.days[t]=(s.days[t]||0)+1; if(s.lastDay!==t){ const y=new Date(); y.setDate(y.getDate()-1); const yk=y.getFullYear()+'-'+(y.getMonth()+1)+'-'+y.getDate(); s.streak=(s.lastDay===yk)?(s.streak||0)+1:1; s.lastDay=t; } DB.set(pk(K.stats),s); return s; }
@@ -631,7 +639,7 @@ function viewPares(){
 function exCard(x){ return `<div class="excard"><span class="ee" aria-hidden="true">${x.e}</span><div class="ex-body"><b>${esc(x.n)}</b><p class="muted" style="margin:.2em 0 0;font-size:16px">${esc(x.t)}</p></div><button class="btn btn-primary btn-sm" data-action="say" data-w="${esc(x.n+'. '+x.t)}" aria-label="Escuchar ${esc(x.n)}">🔊</button></div>`; }
 function viewPraxias(){
   return page(`<section>${back('#/','Inicio')}<div class="center" style="margin:8px 0 14px"><h2>Praxias y voz</h2><p class="muted">Ejercicios de boca, lengua, respiración y voz. Pulse 🔊 para oír la instrucción. Hágalos despacio y sin forzar.</p></div>
-  <button class="btn btn-primary btn-block" data-action="go" data-h="#/voz" style="margin-bottom:16px">🎤 Medir mi voz con el micrófono</button>
+  <div class="row-c" style="margin:0 0 16px"><button class="btn btn-primary" data-action="go" data-h="#/voz">🎤 Medir mi voz</button><button class="btn btn-green" data-action="go" data-h="#/onda">🔊 La onda mágica</button></div>
   <h3 style="margin:6px 0 10px">👄 Boca y lengua</h3>
   <div class="exlist">${PRAXIAS.map(exCard).join('')}</div>
   <h3 style="margin:22px 0 6px">📣 Voz alta y respiración</h3>
@@ -654,7 +662,41 @@ function viewVoz(){
     <p class="muted" style="font-size:14px;margin-top:14px">Consejo del fisio del habla: hable fuerte sin gritar ni tensar el cuello. Repítalo en sesiones cortas.</p>
   </div></section>`);
 }
-function stopVoz(){ try{ if(VOZ_RAF)cancelAnimationFrame(VOZ_RAF); }catch(e){} VOZ_RAF=null; try{ if(VOZ_STREAM)VOZ_STREAM.getTracks().forEach(t=>t.stop()); }catch(e){} VOZ_STREAM=null; try{ if(VOZ_CTX)VOZ_CTX.close(); }catch(e){} VOZ_CTX=null; VOZ_MPT.timing=false; }
+function stopVoz(){ ONDA.jugando=false; try{ if(VOZ_RAF)cancelAnimationFrame(VOZ_RAF); }catch(e){} VOZ_RAF=null; try{ if(VOZ_STREAM)VOZ_STREAM.getTracks().forEach(t=>t.stop()); }catch(e){} VOZ_STREAM=null; try{ if(VOZ_CTX)VOZ_CTX.close(); }catch(e){} VOZ_CTX=null; VOZ_MPT.timing=false; }
+function viewOnda(){
+  const o=ONDAS.find(x=>x.id===ONDA.id)||ONDAS[0];
+  return page(`<section>${back('#/praxias','Praxias y voz')}<div class="center" style="margin:6px 0 8px"><h2>La onda mágica 🔊</h2><p class="muted">Haga el sonido al micrófono y <b>vea subir la onda</b>. Manténgalo para ganar. Ideal para trabajar la voz fuerte.</p></div>
+  <div class="chips" style="justify-content:center">${ONDAS.map(x=>`<button class="chip ${x.id===o.id?'active':''}" data-action="onda-pick" data-id="${x.id}">${esc(x.label)}</button>`).join('')}</div>
+  <div class="onda-box"><canvas id="ondaC" width="320" height="120" aria-hidden="true"></canvas><div class="onda-meter"><i id="ondaFill" style="width:0%"></i></div><div id="ondaMsg" class="onda-msg">Pulse «Empezar» y haga el sonido.</div></div>
+  <div class="row-c"><button class="btn btn-primary" data-action="onda-on">🎙️ Empezar</button><button class="btn btn-ghost" data-action="onda-off">⏹️ Parar</button></div>
+  <p class="muted" style="font-size:13px;margin-top:10px;text-align:center">Hable fuerte sin gritar ni tensar la garganta. Sesiones cortas.</p></section>`);
+}
+function stopOnda(){ ONDA.jugando=false; stopVoz(); }
+function startOnda(){
+  const msg=document.getElementById('ondaMsg'); ONDA.carga=0;
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ if(msg)msg.textContent='Este dispositivo no permite el micrófono. Pruebe en Chrome o en el móvil.'; return; }
+  if(msg)msg.textContent='Pidiendo permiso…';
+  navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+    VOZ_STREAM=stream; const Ctx=window.AudioContext||window.webkitAudioContext; VOZ_CTX=new Ctx();
+    const src=VOZ_CTX.createMediaStreamSource(stream); const an=VOZ_CTX.createAnalyser(); an.fftSize=2048; src.connect(an);
+    const bins=an.frequencyBinCount; const freq=new Uint8Array(bins); const binHz=VOZ_CTX.sampleRate/an.fftSize;
+    const o=ONDAS.find(x=>x.id===ONDA.id)||ONDAS[0]; ONDA.jugando=true;
+    const cv=document.getElementById('ondaC'), ctx=cv&&cv.getContext('2d');
+    if(msg)msg.textContent='¡Haga el sonido! 🎵';
+    function loop(){ if(!ONDA.jugando) return; an.getByteFrequencyData(freq);
+      let lo=0,loN=0,hi=0,hiN=0; for(let i=0;i<bins;i++){ const f=i*binHz; if(f>=4500){hi+=freq[i];hiN++;} else if(f>=150){lo+=freq[i];loN++;} }
+      const hiAvg=hiN?hi/hiN:0, loAvg=loN?lo/loN:0; const val=(o.band==='alta')?hiAvg:loAvg; const lvl=Math.min(100,Math.round(val/120*100));
+      const fill=document.getElementById('ondaFill'); if(!fill){ stopOnda(); return; }
+      fill.style.width=lvl+'%'; fill.style.background=lvl>=45?'var(--green)':lvl>=20?'#e8a300':'var(--brand)';
+      if(ctx){ ctx.clearRect(0,0,cv.width,cv.height); ctx.beginPath(); for(let x=0;x<cv.width;x++){ const i=Math.floor(x/cv.width*bins); const y=cv.height-(freq[i]/255)*cv.height; if(x===0)ctx.moveTo(x,y); else ctx.lineTo(x,y); } ctx.strokeStyle='#0e7c86'; ctx.lineWidth=2; ctx.stroke(); }
+      if(lvl>=45){ ONDA.carga=Math.min(100,ONDA.carga+2.2); } else { ONDA.carga=Math.max(0,ONDA.carga-1); }
+      const m2=document.getElementById('ondaMsg'); if(m2)m2.textContent='Carga: '+Math.round(ONDA.carga)+'%'+(lvl>=45?' ¡así! 💪':'');
+      if(ONDA.carga>=100){ ONDA.carga=0; recordResult('onda',true); if(m2)m2.textContent='¡Conseguido! 👏 Otra vez'; }
+      VOZ_RAF=requestAnimationFrame(loop);
+    }
+    loop();
+  }).catch(function(){ const m3=document.getElementById('ondaMsg'); if(m3)m3.textContent='No se pudo usar el micrófono (permiso denegado).'; });
+}
 function startVoz(){
   const status=document.getElementById('vozStatus');
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){ if(status)status.textContent='Este navegador no permite usar el micrófono. Pruebe en Chrome o en el móvil.'; return; }
@@ -845,6 +887,7 @@ function render(){
   else if(a==='memoria') html=viewMemoria(b);
   else if(a==='praxias') html=viewPraxias();
   else if(a==='voz') html=viewVoz();
+  else if(a==='onda') html=viewOnda();
   else if(a==='misiones') html=viewMisiones();
   else if(a==='cuentame') html=viewCuentame();
   else if(a==='perfiles') html=viewPerfiles();
@@ -903,6 +946,9 @@ document.addEventListener('click',function(e){
     case 'mis-done': { const m=MISIONES[MIS_I%MISIONES.length]; const log=misLog(); log.unshift({t:m.t,e:m.e,dia:todayKey(),fecha:new Date().toISOString()}); misSave(log); recordResult('mision',true); toast('¡Misión cumplida! ✓'); render(); break; }
     case 'mis-rec': { const st=document.getElementById('misStatus'); if(!navigator.mediaDevices||!window.MediaRecorder){ if(st)st.textContent='Aquí no se puede grabar; marque «Hecho».'; break; } if(MIC_REC&&MIC_REC.state==='recording'){ try{MIC_REC.stop();}catch(e){} break; } navigator.mediaDevices.getUserMedia({audio:true}).then(function(s){ MIC_STREAM=s; MIC_CHUNKS=[]; try{MIC_REC=new MediaRecorder(s);}catch(e){ if(st)st.textContent='No se pudo grabar.'; return; } MIC_REC.ondataavailable=e=>{ if(e.data&&e.data.size)MIC_CHUNKS.push(e.data); }; MIC_REC.onstop=function(){ const r=new FileReader(); r.onload=function(){ const m=MISIONES[MIS_I%MISIONES.length]; const log=misLog(); log.unshift({t:m.t,e:m.e,dia:todayKey(),fecha:new Date().toISOString(),audio:r.result}); misSave(log); recordResult('mision',true); render(); toast('¡Prueba grabada! ✓'); }; r.readAsDataURL(new Blob(MIC_CHUNKS)); if(MIC_STREAM)MIC_STREAM.getTracks().forEach(t=>t.stop()); }; MIC_REC.start(); if(st)st.textContent='🔴 Grabando… diga su frase y pulse otra vez para parar.'; const bb=document.getElementById('misRec'); if(bb)bb.textContent='⏹️ Parar y guardar'; }).catch(function(){ if(st)st.textContent='No se pudo usar el micrófono.'; }); break; }
     case 'mis-play': { const log=misLog(); const it=log[+el.dataset.i]; if(it&&it.audio){ try{ new Audio(it.audio).play(); }catch(e){} } break; }
+    case 'onda-pick': ONDA.id=el.dataset.id; ONDA.carga=0; render(); break;
+    case 'onda-on': startOnda(); break;
+    case 'onda-off': stopOnda(); { const m=document.getElementById('ondaMsg'); if(m)m.textContent='Parado.'; const f=document.getElementById('ondaFill'); if(f)f.style.width='0%'; } break;
     case 'cue-listen': listenCapture(function(txt){ CUE.heard=txt; render(); },'cueStatus'); break;
     case 'cue-next': CUE={i:(CUE.i+1)%CUENTAME.length,heard:''}; recordResult('narrar',true); render(); break;
     case 'perf-set': setActive(el.dataset.id); SES=null; toast('Paciente: '+(activeProfile().name||'')); location.hash='#/'; break;
