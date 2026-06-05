@@ -59,6 +59,8 @@ body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-s
 :focus-visible{outline:3px solid var(--brand);outline-offset:2px}
 .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#16202b;color:#fff;padding:11px 16px;border-radius:12px;font-weight:700;z-index:60;opacity:0;transition:.25s;pointer-events:none}
 .toast.show{opacity:1}
+.ch-card:active{transform:scale(.98)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
