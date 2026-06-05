@@ -200,6 +200,7 @@ body.contrast .muted{color:#33414a}
 .feedback.ok{animation:pop .45s ease}
 .optbtn.good,.opt-img.good{animation:pop .5s ease}
 #app section{animation:fadein .22s ease both}
+.empty{text-align:center;padding:24px 12px;color:var(--soft)} .empty .ee{font-size:48px;display:block;margin-bottom:6px} .empty b{display:block;color:var(--ink);font-size:17px;margin-bottom:4px}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 /* Orientación */
 .orient{display:grid;gap:12px;max-width:520px;margin:0 auto}
@@ -826,7 +827,7 @@ function scanStart(){
 /* ============ Progreso ============ */
 function viewProgreso(){
   const s=loadStats(); const mods=Object.keys(s.mods); let tot=0,cor=0; mods.forEach(k=>{tot+=s.mods[k].t;cor+=s.mods[k].c;}); const pct=tot?Math.round(cor*100/tot):0; const dias=Object.keys(s.days).length;
-  const bars=mods.length?mods.map(k=>{const m=s.mods[k];const p=m.t?Math.round(m.c*100/m.t):0;return `<div class="pr-row"><span class="pr-l">${esc(MOD_LABEL[k]||k)}</span><span class="bar"><i class="${p<50?'low':p<75?'mid':''}" style="width:${p}%"></i></span><span class="pr-v">${p}% <small class="muted">(${m.c}/${m.t})</small></span></div>`;}).join(''):'<p class="muted">Aún no hay ejercicios registrados. Haga alguno y vuelva aquí.</p>';
+  const bars=mods.length?mods.map(k=>{const m=s.mods[k];const p=m.t?Math.round(m.c*100/m.t):0;return `<div class="pr-row"><span class="pr-l">${esc(MOD_LABEL[k]||k)}</span><span class="bar"><i class="${p<50?'low':p<75?'mid':''}" style="width:${p}%"></i></span><span class="pr-v">${p}% <small class="muted">(${m.c}/${m.t})</small></span></div>`;}).join(''):'<div class="empty"><span class="ee" aria-hidden="true">🌱</span><b>Aún no hay práctica registrada</b>Haga un ejercicio o la sesión de hoy y aquí verá la evolución.</div>';
   const hist=progHist(); const maxT=Math.max(1,...hist.map(d=>d.t));
   const chart=`<div class="evo">${hist.map(d=>{const h=d.t?Math.max(8,Math.round(d.t/maxT*100)):2; const cls=d.t?(d.pct<50?'low':d.pct<75?'mid':''):'empty'; return `<div class="evo-col"><div class="evo-bar"><i class="${cls}" style="height:${h}%" title="${d.t} ejercicios · ${d.pct}%"></i></div><span class="evo-d">${d.dia}</span></div>`;}).join('')}</div>`;
   const ap=activeProfile();
@@ -920,7 +921,7 @@ function viewMisiones(){
   <div class="row-c" style="margin-top:14px"><button class="btn btn-green" data-action="mis-done">✅ Hecho</button><button class="btn btn-primary" data-action="mis-rec" id="misRec">🎙️ Grabar prueba</button><button class="btn btn-ghost" data-action="mis-next">🔄 Otra misión</button></div>
   <div id="misStatus" class="muted" style="text-align:center;min-height:22px;margin-top:8px"></div>
   <div class="center" style="margin-top:6px"><span class="prof-mini">Hoy: ${hechasHoy} ✓ · Total: ${log.length}</span></div>
-  ${log.length?`<div class="box-card" style="margin-top:14px;text-align:left"><h3 style="margin:0 0 8px">🏅 Misiones logradas</h3>${log.slice(0,8).map((x,i)=>`<div class="mis-log"><span>${esc(x.e||'✅')} ${esc(x.t).slice(0,48)}</span>${x.audio?`<button class="btn btn-ghost btn-sm" data-action="mis-play" data-i="${log.length-1-i}">▶️</button>`:''}</div>`).join('')}</div>`:''}
+  ${log.length?`<div class="box-card" style="margin-top:14px;text-align:left"><h3 style="margin:0 0 8px">🏅 Misiones logradas</h3>${log.slice(0,8).map((x,i)=>`<div class="mis-log"><span>${esc(x.e||'✅')} ${esc(x.t).slice(0,48)}</span>${x.audio?`<button class="btn btn-ghost btn-sm" data-action="mis-play" data-i="${log.length-1-i}">▶️</button>`:''}</div>`).join('')}</div>`:'<div class="box-card" style="margin-top:14px"><div class="empty"><span class="ee" aria-hidden="true">🏅</span><b>Aún no hay misiones hechas</b>Cuando complete una en la vida real, quedará registrada aquí.</div></div>'}
   <p class="muted" style="font-size:13px;margin-top:10px;text-align:center">Truco para casa: cuando lo diga en la vida real, refuércelo con calma.</p></section>`);
 }
 function viewCuentame(){

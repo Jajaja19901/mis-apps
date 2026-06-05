@@ -291,6 +291,7 @@ body.calm{font-size:18px} body.calm *{animation:none!important;transition:none!i
 .feedback.ok{animation:pop .45s ease}
 .optbtn.good,.opt-img.good{animation:pop .5s ease}
 #app section{animation:fadein .22s ease both}
+.empty{text-align:center;padding:24px 12px;color:var(--ink-soft)} .empty .ee{font-size:48px;display:block;margin-bottom:6px} .empty b{display:block;color:var(--ink);font-size:17px;margin-bottom:4px;font-family:'Fredoka'}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -783,7 +784,7 @@ function closeMirror(){ try{ if(CAM_STREAM)CAM_STREAM.getTracks().forEach(t=>t.s
 /* ===== Progreso para familias ===== */
 function viewProgreso(){
   const p=loadProg(); const keys=Object.keys(p.mods); let tot=0,cor=0; keys.forEach(k=>{tot+=p.mods[k].t;cor+=p.mods[k].c;}); const pct=tot?Math.round(cor*100/tot):0; const dias=Object.keys(p.days).length;
-  const bars=keys.length?keys.map(k=>{const m=p.mods[k];const pc=m.t?Math.round(m.c*100/m.t):0;return `<div class="pr-row"><span class="pr-l">${esc(MOD_LABEL[k]||k)}</span><span class="bar"><i class="${pc<50?'low':pc<75?'mid':''}" style="width:${pc}%"></i></span><span class="pr-v">${pc}%</span></div>`;}).join(''):'<p class="muted">Aún no hay ejercicios. ¡Jugad un poco y volved aquí!</p>';
+  const bars=keys.length?keys.map(k=>{const m=p.mods[k];const pc=m.t?Math.round(m.c*100/m.t):0;return `<div class="pr-row"><span class="pr-l">${esc(MOD_LABEL[k]||k)}</span><span class="bar"><i class="${pc<50?'low':pc<75?'mid':''}" style="width:${pc}%"></i></span><span class="pr-v">${pc}%</span></div>`;}).join(''):'<div class="empty"><span class="ee" aria-hidden="true">🌱</span><b>Aún no habéis practicado</b>Haced una actividad o el plan de hoy y aquí veréis cómo mejora.</div>';
   const hist=progHist(); const maxT=Math.max(1,...hist.map(d=>d.t));
   const chart=`<div class="evo">${hist.map(d=>{const h=d.t?Math.max(8,Math.round(d.t/maxT*100)):2; const cls=d.t?(d.pct<50?'low':d.pct<75?'mid':''):'empty'; return `<div class="evo-col"><div class="evo-bar"><i class="${cls}" style="height:${h}%" title="${d.t} ejercicios · ${d.pct}%"></i></div><span class="evo-d">${d.dia}</span></div>`;}).join('')}</div>`;
   const ap=activeProfile();
@@ -860,7 +861,7 @@ function viewMisiones(){
   <div class="row-c" style="margin-top:14px"><button class="btn btn-green" data-action="mis-done">✅ ¡Lo hice!</button><button class="btn btn-primary" data-action="mis-rec" id="misRec">🎙️ Grabar prueba</button><button class="btn btn-ghost" data-action="mis-next">🔄 Otra misión</button></div>
   <div id="misStatus" class="muted" style="text-align:center;min-height:22px;margin-top:8px"></div>
   <div class="center" style="margin-top:6px"><span class="prof-mini" style="background:var(--green-soft);color:#0f7a52">Hoy: ${hechasHoy} ${hechasHoy===1?'misión':'misiones'} ✓ · Total: ${log.length}</span></div>
-  ${log.length?`<div class="box-card" style="margin-top:14px;text-align:left"><h3 style="margin:0 0 8px">🏅 Misiones logradas</h3>${log.slice(0,8).map((x,i)=>`<div class="mis-log"><span>${esc(x.e||'✅')} ${esc(x.t).slice(0,46)}</span>${x.audio?`<button class="btn btn-ghost btn-sm" data-action="mis-play" data-i="${log.length-1-i}">▶️</button>`:''}</div>`).join('')}</div>`:''}
+  ${log.length?`<div class="box-card" style="margin-top:14px;text-align:left"><h3 style="margin:0 0 8px">🏅 Misiones logradas</h3>${log.slice(0,8).map((x,i)=>`<div class="mis-log"><span>${esc(x.e||'✅')} ${esc(x.t).slice(0,46)}</span>${x.audio?`<button class="btn btn-ghost btn-sm" data-action="mis-play" data-i="${log.length-1-i}">▶️</button>`:''}</div>`).join('')}</div>`:'<div class="box-card" style="margin-top:14px"><div class="empty"><span class="ee" aria-hidden="true">🏅</span><b>Tu primera misión te espera</b>Cuando la hagas en la vida real, aparecerá aquí tu medalla.</div></div>'}
   <p class="muted" style="font-size:13px;margin-top:10px;text-align:center">Consejo para casa: cuando lo diga en la vida real, <b>repítelo bien y felicítale</b>.</p></section>`);
 }
 /* ===== Cuéntame (narrar/recontar con voz) ===== */
