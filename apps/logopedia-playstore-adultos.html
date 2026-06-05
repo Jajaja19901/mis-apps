@@ -307,7 +307,6 @@ footer .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:18p
 /* ============ CONFIG (el profesional cambia esto en 1 minuto) ============ */
 const CONFIG = {
   APP_NAME:"Lumen",
-  ADMIN_PASSWORD:"",
   WHATSAPP:"",
   EMAIL:"",
   CITY:"",
@@ -318,7 +317,7 @@ const CONFIG = {
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const rand=a=>a[Math.floor(Math.random()*a.length)];
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
-const K={notes:'la_notes', stats:'la_stats', custom:'la_custom', settings:'la_settings', plan:'la_plan', profiles:'la_profiles', active:'la_active', ficha:'la_ficha', mislog:'la_mislog'};
+const K={stats:'la_stats', custom:'la_custom', settings:'la_settings', plan:'la_plan', profiles:'la_profiles', active:'la_active', mislog:'la_mislog'};
 let MIS_I=0, CUE={i:0,heard:''}, SR=null, MIC_REC=null, MIC_STREAM=null, MIC_CHUNKS=[];
 const ONDAS=[{id:'alto',label:'📣 Habla ALTO',band:'todo'},{id:'sss',label:'🐍 Sonido /sss/',band:'alta'},{id:'aaa',label:'😮 «aaa» larga',band:'todo'}];
 let ONDA={id:'alto',carga:0,jugando:false};
@@ -339,9 +338,6 @@ function collectLS(prefix){ const o={}; for(let i=0;i<localStorage.length;i++){ 
 function exportBackup(){ try{ const obj={app:'logopedia-adultos',v:1,when:new Date().toISOString(),data:collectLS('la_')}; const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(obj)],{type:'application/json'})); const d=new Date(); a.download='copia-logopedia-adultos-'+d.getFullYear()+(d.getMonth()+1)+d.getDate()+'.json'; document.body.appendChild(a); a.click(); setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(a.href);},400); toast('Copia descargada ✓'); }catch(e){ toast('No se pudo exportar'); } }
 function importBackup(file){ const r=new FileReader(); r.onload=function(){ try{ const obj=JSON.parse(r.result); if(!obj||!obj.data){ toast('Archivo no válido'); return; } let n=0; Object.keys(obj.data).forEach(k=>{ if(/^la_/.test(k)){ try{ localStorage.setItem(k,obj.data[k]); n++; }catch(e){} } }); SES=null; toast(n?('Copia restaurada ✓ ('+n+' datos)'):'Esa copia no tenía datos de esta app'); location.hash='#/'; render(); }catch(e){ toast('No se pudo leer el archivo'); } }; r.readAsText(file); }
 function delProfile(id){ let ps=DB.get(K.profiles,[]); ps=ps.filter(p=>p.id!==id); DB.set(K.profiles,ps); ['la_stats','la_plan','la_custom','la_notes','la_ficha'].forEach(b=>{try{localStorage.removeItem(b+'_'+id);}catch(e){}}); if(DB.get(K.active,'')===id){ DB.set(K.active, ps.length?ps[0].id:''); } profiles(); }
-function fichaLoad(){ return DB.get(pk(K.ficha),{tel:'',dx:'',pautas:[],pagos:[],materiales:[],notas:''}); }
-function fichaSave(f){ DB.set(pk(K.ficha),f); }
-function fichaText(){ const ap=activeProfile(); const f=fichaLoad(); const l=['Ficha · '+(ap.name||'Paciente')+(ap.age?' ('+ap.age+')':'')]; if(f.dx)l.push('Objetivo: '+f.dx); if(f.pautas.length){ l.push('','Pautas / ejercicios:'); f.pautas.forEach(t=>l.push((t.done?'✓':'•')+' '+t.t)); } if(f.materiales.length){ l.push('','Materiales:'); f.materiales.forEach(t=>l.push((t.done?'✓':'•')+' '+t.t)); } l.push('','(Enviado desde la app de Laura M M · Logopeda)'); return l.join('\n'); }
 const DB={ get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}}, set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}} };
 /* ----- Progreso ----- */
 const MOD_LABEL={denom:'Nombrar objetos',frase:'Frases hechas',categ:'Categorías',calc:'Cálculo y dinero',atencion:'Atención',comprension:'Comprensión',mision:'Misiones reales',narrar:'Contar historias',onda:'La onda mágica',lectura:'Lectura',serie:'Series',escritura:'Escritura',repeticion:'Repetición',ordenes:'Órdenes 2 pasos'};
@@ -921,42 +917,6 @@ function viewAviso(){
   <div class="center" style="margin-top:16px"><a class="btn btn-ghost" href="#/">Volver</a></div></div></section>`);
 }
 
-/* ============ Panel del profesional ============ */
-let PANEL_OK=false;
-function viewPanel(){
-  if(!PANEL_OK) return page(`<section>${back('#/','Inicio')}<div class="box" style="max-width:420px"><h2>Panel</h2><p class="muted">Acceso solo para la logopeda.</p><label for="pw">Contraseña</label><input id="pw" type="password" autocomplete="off" placeholder="••••••"><div style="margin-top:14px"><button class="btn btn-primary btn-block" data-action="login">Entrar</button></div></div></section>`);
-  const notes=DB.get(pk(K.notes),''); const c=loadCustom(); const pl=loadPlan(); const ap=activeProfile();
-  return page(`<section>${back('#/','Inicio')}<div class="box" style="text-align:left"><h2>Panel de la logopeda</h2>
-  <div class="box-card" style="margin-bottom:16px"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">👤 Paciente activo</h3><a class="btn btn-ghost btn-sm" style="margin-left:auto" href="#/perfiles">Cambiar / añadir</a></div><p class="muted" style="font-size:14px;margin:.4em 0 .7em">Mostrando los datos de <b>${esc(ap.name||'Paciente')}</b>${ap.age?' ('+esc(ap.age)+')':''}. Cada paciente va por separado.</p><a class="btn btn-primary" href="#/ficha">📋 Abrir ficha del paciente</a></div>
-  <h3 style="margin:0 0 6px">🎯 Sesión de hoy (deberes)</h3>
-  <p class="muted" style="font-size:14px">Elija qué practica el paciente en la sesión guiada y cuántas preguntas por ejercicio.</p>
-  <div class="plan-grid">${PLAN_CATALOG.map(it=>{const on=pl.ids.indexOf(it.id)>=0;return `<button class="plan-pick ${on?'on':''}" data-action="plan-toggle" data-id="${it.id}" aria-pressed="${on}"><span aria-hidden="true">${it.e}</span> ${esc(it.label)} ${on?'✓':''}</button>`;}).join('')}</div>
-  <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="muted">Preguntas por ejercicio:</span>${[3,4,5,6].map(n=>`<button class="seg-b ${pl.goal===n?'on':''}" data-action="plan-goal" data-v="${n}">${n}</button>`).join('')}</div>
-  <p class="muted" style="font-size:13px;margin-top:8px">Plan actual: <b>${pl.ids.length}</b> ejercicios.</p>
-  <hr style="border:none;border-top:1px solid var(--line);margin:18px 0">
-  <p class="muted">Notas rápidas de sesión. Se guardan <b>solo en este dispositivo</b>.</p>
-  <label for="notes">Notas</label><textarea id="notes" placeholder="Objetivos, ejercicios recomendados, observaciones…">${esc(notes)}</textarea>
-  <div class="row" style="margin-top:12px"><button class="btn btn-primary" data-action="save-notes">💾 Guardar notas</button><button class="btn btn-ghost" data-action="clear-notes">Borrar notas</button></div>
-  <hr style="border:none;border-top:1px solid var(--line);margin:18px 0">
-  <h3 style="margin:0 0 6px">⭐ Personalizar para el paciente</h3>
-  <p class="muted">Añada palabras y <b>fotos propias</b> (familia, su casa, sus objetos). Aparecen en el comunicador, en «Mis cosas».</p>
-  <label for="cusW">Palabra o nombre</label><input id="cusW" type="text" placeholder="Ej.: María, mi sillón, mi pueblo">
-  <label for="cusImg" style="margin-top:8px">Foto (opcional)</label><input id="cusImg" type="file" accept="image/*">
-  <div style="margin-top:10px"><button class="btn btn-primary" data-action="cus-add-item">➕ Añadir a «Mis cosas»</button></div>
-  <div class="cus-list">${c.items.length?c.items.map((it,i)=>`<div class="cus-it">${it.img?`<img class="pic-img" src="${esc(it.img)}" alt="">`:`<span style="font-size:26px">${esc(it.e||'🖼️')}</span>`}<span class="cus-w">${esc(it.w)}</span><button class="btn btn-ghost btn-sm" data-action="cus-del-item" data-i="${i}">Quitar</button></div>`).join(''):'<p class="muted" style="font-size:14px">Todavía no hay nada en «Mis cosas».</p>'}</div>
-  <label for="cusP" style="margin-top:12px">Frase rápida propia</label><div class="row"><input id="cusP" type="text" placeholder="Ej.: Quiero ver a mis nietos" style="flex:1"><button class="btn btn-primary" data-action="cus-add-phrase">➕</button></div>
-  <div class="cus-list">${c.phrases.length?c.phrases.map((p,i)=>`<div class="cus-it"><span style="font-size:22px">💬</span><span class="cus-w">${esc(p.w)}</span><button class="btn btn-ghost btn-sm" data-action="cus-del-phrase" data-i="${i}">Quitar</button></div>`).join(''):'<p class="muted" style="font-size:14px">Sin frases propias.</p>'}</div>
-  <hr style="border:none;border-top:1px solid var(--line);margin:18px 0">
-  <h3 style="margin:0 0 6px">💾 Copia de seguridad</h3>
-  <p class="muted" style="font-size:14px">Los datos se guardan solo en este dispositivo. Descargue una copia para no perder nada al cambiar de móvil o navegador.</p>
-  <div class="row" style="gap:10px"><button class="btn btn-primary btn-sm" data-action="backup-export">⬇️ Descargar copia</button><button class="btn btn-ghost btn-sm" data-action="backup-pick">⬆️ Restaurar copia</button></div>
-  <input type="file" id="impFile" accept="application/json,.json" style="display:none">
-  <p class="muted" style="font-size:12.5px;margin-top:8px">Incluye pacientes, progreso, plan y fichas. Restaurar reemplaza los datos actuales.</p>
-  <hr style="border:none;border-top:1px solid var(--line);margin:18px 0">
-  <div class="row"><a class="btn btn-ghost" href="#/progreso">📈 Ver progreso</a><button class="btn btn-ghost" data-action="logout">Salir</button></div>
-  <p class="muted" style="font-size:15px;margin-top:12px">Para cambiar el nombre, el WhatsApp o la contraseña, edite la caja <code>CONFIG</code> al principio del archivo HTML.</p></div></section>`);
-}
-
 /* ============ Misiones y Cuéntame ============ */
 function viewMisiones(){
   const m=MISIONES[MIS_I%MISIONES.length]; const log=misLog(); const hoy=todayKey(); const hechasHoy=log.filter(x=>x.dia===hoy).length;
@@ -978,7 +938,7 @@ function viewCuentame(){
   <div id="cueStatus" class="muted" style="text-align:center;min-height:24px;margin-top:10px">${heard?('Le oí: «'+esc(CUE.heard)+'»'):''}</div>
   ${heard?`<div class="cm-keys">${c.clave.map(k=>`<span class="cm-key ${found.indexOf(k)>=0?'ok':''}">${found.indexOf(k)>=0?'✅':'⬜'} ${esc(k)}</span>`).join('')}</div>${found.length>=Math.ceil(c.clave.length/2)?'<p class="center" style="color:var(--green);font-weight:800">¡Muy bien contado! 👏</p>':'<p class="center muted">Inténtelo otra vez incluyendo esos pasos.</p>'}`:''}</section>`);
 }
-/* ============ Perfiles y Ficha ============ */
+/* ============ Perfiles ============ */
 function profileChip(){ const p=activeProfile(); const ini=(p.name||'?').slice(0,1).toUpperCase(); return `<a class="prof-chip" href="#/perfiles"><span class="prof-av">${esc(ini)}</span><span class="prof-t"><b>${esc(p.name||'Paciente')}</b><small>${p.age?esc(p.age):'pon la edad/diagnóstico'} · cambiar</small></span><span class="prof-ar" aria-hidden="true">▾</span></a>`; }
 function viewPerfiles(){
   const ps=profiles(); const a=activeId();
@@ -986,31 +946,6 @@ function viewPerfiles(){
   <div class="perf-list">${ps.map(p=>`<div class="perf-row ${p.id===a?'on':''}"><button class="perf-pick" data-action="perf-set" data-id="${p.id}"><span class="perf-av">${esc((p.name||'?').slice(0,1).toUpperCase())}</span><span class="perf-b"><b>${esc(p.name||'Paciente')}</b><small>${p.age?esc(p.age):'—'}${p.id===a?' · activo':''}</small></span>${p.id===a?'<span class="perf-ck" aria-hidden="true">✓</span>':''}</button>${ps.length>1?`<button class="perf-del" data-action="perf-del" data-id="${p.id}" aria-label="Borrar">🗑️</button>`:''}</div>`).join('')}</div>
   <div class="box" style="text-align:left;margin-top:16px"><h3 style="margin:0 0 8px">➕ Añadir paciente</h3><label for="pfName">Nombre</label><input id="pfName" placeholder="Ej: María"><label for="pfAge" style="margin-top:8px">Edad / diagnóstico</label><input id="pfAge" placeholder="Ej: 72 · afasia"><div style="margin-top:12px"><button class="btn btn-primary" data-action="perf-add">Crear y empezar</button></div></div>
   <p class="muted" style="font-size:13px;margin-top:12px;text-align:center">Se guarda solo en este dispositivo. Para que la logopeda lleve a varios pacientes sin mezclar nada.</p></section>`);
-}
-function viewFicha(){
-  if(!PANEL_OK) return page(`<section>${back('#/','Inicio')}<div class="box" style="max-width:420px"><h2>Ficha del paciente</h2><p class="muted">Acceso solo para la logopeda.</p><label for="pw">Contraseña</label><input id="pw" type="password" autocomplete="off" placeholder="••••••"><div style="margin-top:14px"><button class="btn btn-primary btn-block" data-action="login">Entrar</button></div></div></section>`);
-  const ap=activeProfile(); const f=fichaLoad();
-  const cobrado=f.pagos.filter(p=>p.pagado).reduce((s,p)=>s+(+p.importe||0),0); const pend=f.pagos.filter(p=>!p.pagado).reduce((s,p)=>s+(+p.importe||0),0);
-  return page(`<section>${back('#/panel','Panel')}<div class="center" style="margin:6px 0 12px"><h2>Ficha del paciente 📋</h2><a class="prof-mini" href="#/perfiles">👤 ${esc(ap.name||'Paciente')}${ap.age?' · '+esc(ap.age):''} · cambiar</a></div>
-  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">📇 Datos</h3>
-    <div class="field"><label for="fTel">Teléfono / contacto</label><input id="fTel" value="${esc(f.tel)}" placeholder="Ej: 600 000 000"></div>
-    <div class="field"><label for="fDx">Diagnóstico / objetivo</label><input id="fDx" value="${esc(f.dx)}" placeholder="Ej: afasia de Broca · denominación"></div>
-    <button class="btn btn-primary btn-sm" data-action="ficha-datos">💾 Guardar datos</button></div>
-  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">✅ Pautas / ejercicios para casa</h3>
-    <div class="ficha-add"><input id="fPauta" placeholder="Ej: fluencia verbal 5 min al día"><button class="btn btn-primary btn-sm" data-action="pauta-add">Añadir</button></div>
-    <div class="chk-list">${f.pautas.length?f.pautas.map((t,i)=>`<div class="chk ${t.done?'done':''}"><button class="chk-b" data-action="pauta-toggle" data-i="${i}">${t.done?'✅':'⬜'} <span>${esc(t.t)}</span></button><button class="chk-x" data-action="pauta-del" data-i="${i}" aria-label="Borrar">🗑️</button></div>`).join(''):'<p class="muted" style="font-size:13px">Sin pautas todavía.</p>'}</div></div>
-  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">💶 Pagos <span class="muted" style="font-weight:400;font-size:13px">(registro, sin cobro real)</span></h3>
-    <div class="ficha-add"><input id="fPagoC" placeholder="Concepto (Ej: sesión 12 mayo)" style="flex:2"><input id="fPagoI" type="number" inputmode="decimal" placeholder="€" style="flex:1;min-width:60px"><button class="btn btn-primary btn-sm" data-action="pago-add">Añadir</button></div>
-    <div class="pago-tot"><span class="pt-ok">Cobrado: ${cobrado.toFixed(2)} €</span><span class="pt-pend">Pendiente: ${pend.toFixed(2)} €</span></div>
-    <div class="chk-list">${f.pagos.length?f.pagos.map((p,i)=>`<div class="pago ${p.pagado?'ok':'pend'}"><button class="chk-b" data-action="pago-toggle" data-i="${i}">${p.pagado?'✅':'⏳'} <span>${esc(p.concepto)}</span></button><b class="pago-i">${(+p.importe||0).toFixed(2)} €</b><button class="chk-x" data-action="pago-del" data-i="${i}" aria-label="Borrar">🗑️</button></div>`).join(''):'<p class="muted" style="font-size:13px">Sin pagos registrados.</p>'}</div></div>
-  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">📦 Materiales</h3>
-    <div class="ficha-add"><input id="fMat" placeholder="Ej: tablero de comunicación"><button class="btn btn-primary btn-sm" data-action="mat-add">Añadir</button></div>
-    <div class="chk-list">${f.materiales.length?f.materiales.map((t,i)=>`<div class="chk ${t.done?'done':''}"><button class="chk-b" data-action="mat-toggle" data-i="${i}">${t.done?'✅':'⬜'} <span>${esc(t.t)}</span></button><button class="chk-x" data-action="mat-del" data-i="${i}" aria-label="Borrar">🗑️</button></div>`).join(''):'<p class="muted" style="font-size:13px">Sin materiales.</p>'}</div></div>
-  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">📝 Notas de sesión</h3>
-    <textarea id="fNotas" style="width:100%;min-height:110px;border:1.5px solid var(--line);border-radius:12px;padding:12px;font-family:inherit;font-size:15px" placeholder="Observaciones, evolución, próximos pasos…">${esc(f.notas)}</textarea>
-    <button class="btn btn-primary btn-sm" style="margin-top:8px" data-action="ficha-notas">💾 Guardar notas</button></div>
-  <div class="center" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn btn-ghost" data-action="ficha-print">🖨️ Imprimir / PDF</button><button class="btn btn-green" data-action="ficha-wa">📲 Enviar por WhatsApp</button></div>
-  <p class="muted" style="font-size:13px;margin-top:10px;text-align:center">Todo se guarda solo en este dispositivo, por paciente. El registro de pagos es para llevar la cuenta, sin cobros automáticos.</p></section>`);
 }
 /* ============ Router ============ */
 function parse(){ return location.hash.replace(/^#\/?/,'').split('/'); }
@@ -1101,23 +1036,6 @@ document.addEventListener('click',function(e){
     case 'perf-set': setActive(el.dataset.id); SES=null; toast('Paciente: '+(activeProfile().name||'')); location.hash='#/'; break;
     case 'perf-add': { const n=(document.getElementById('pfName')||{}).value||''; const ed=(document.getElementById('pfAge')||{}).value||''; if(!n.trim()){ toast('Escriba un nombre'); break; } addProfile(n.trim(),ed.trim()); SES=null; location.hash='#/'; toast('Paciente añadido'); break; }
     case 'perf-del': { if(el.dataset.armed==='1'){ delProfile(el.dataset.id); SES=null; render(); toast('Paciente borrado'); } else { el.dataset.armed='1'; el.textContent='⚠️'; setTimeout(()=>{ if(el){el.dataset.armed='0';el.textContent='🗑️';} },3000); } break; }
-    case 'ficha-datos': { const f=fichaLoad(); f.tel=(document.getElementById('fTel')||{}).value||''; f.dx=(document.getElementById('fDx')||{}).value||''; fichaSave(f); toast('Datos guardados ✓'); break; }
-    case 'ficha-notas': { const f=fichaLoad(); f.notas=(document.getElementById('fNotas')||{}).value||''; fichaSave(f); toast('Notas guardadas ✓'); break; }
-    case 'pauta-add': { const v=(document.getElementById('fPauta')||{}).value||''; if(!v.trim())break; const f=fichaLoad(); f.pautas.push({t:v.trim(),done:false}); fichaSave(f); render(); break; }
-    case 'pauta-toggle': { const f=fichaLoad(); if(f.pautas[+el.dataset.i])f.pautas[+el.dataset.i].done=!f.pautas[+el.dataset.i].done; fichaSave(f); render(); break; }
-    case 'pauta-del': { const f=fichaLoad(); f.pautas.splice(+el.dataset.i,1); fichaSave(f); render(); break; }
-    case 'pago-add': { const c=(document.getElementById('fPagoC')||{}).value||''; const im=(document.getElementById('fPagoI')||{}).value||''; if(!c.trim())break; const f=fichaLoad(); f.pagos.push({concepto:c.trim(),importe:parseFloat(im)||0,pagado:false,fecha:new Date().toISOString()}); fichaSave(f); render(); break; }
-    case 'pago-toggle': { const f=fichaLoad(); if(f.pagos[+el.dataset.i])f.pagos[+el.dataset.i].pagado=!f.pagos[+el.dataset.i].pagado; fichaSave(f); render(); break; }
-    case 'pago-del': { const f=fichaLoad(); f.pagos.splice(+el.dataset.i,1); fichaSave(f); render(); break; }
-    case 'mat-add': { const v=(document.getElementById('fMat')||{}).value||''; if(!v.trim())break; const f=fichaLoad(); f.materiales.push({t:v.trim(),done:false}); fichaSave(f); render(); break; }
-    case 'mat-toggle': { const f=fichaLoad(); if(f.materiales[+el.dataset.i])f.materiales[+el.dataset.i].done=!f.materiales[+el.dataset.i].done; fichaSave(f); render(); break; }
-    case 'mat-del': { const f=fichaLoad(); f.materiales.splice(+el.dataset.i,1); fichaSave(f); render(); break; }
-    case 'ficha-print': window.print(); break;
-    case 'ficha-wa': window.open('https://wa.me/?text='+encodeURIComponent(fichaText()),'_blank','noopener'); break;
-    case 'login':{ const v=(document.getElementById('pw')||{}).value||''; if(v===CONFIG.ADMIN_PASSWORD){ PANEL_OK=true; render(); } else { toast('Contraseña incorrecta'); } break; }
-    case 'logout': PANEL_OK=false; location.hash='#/'; break;
-    case 'save-notes':{ const t=(document.getElementById('notes')||{}).value||''; DB.set(pk(K.notes),t); toast('Notas guardadas'); break; }
-    case 'clear-notes': DB.set(pk(K.notes),''); render(); toast('Notas borradas'); break;
     /* Biofeedback de voz */
     case 'voz-on': startVoz(); break;
     case 'voz-off': stopVoz(); { const st=document.getElementById('vozStatus'); if(st)st.textContent='Micrófono parado.'; const f=document.getElementById('vozFill'); if(f)f.style.height='0%'; } break;

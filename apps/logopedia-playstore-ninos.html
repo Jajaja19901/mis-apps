@@ -369,9 +369,9 @@ body.calm{font-size:18px} body.calm *{animation:none!important;transition:none!i
 
 <script>
 "use strict";
-const CONFIG = { APP_NAME:"Pío", ADMIN_PASSWORD:"", WHATSAPP:"", EMAIL:"", CITY:"", STUDIO_BRAND:"Incuba tu Negocio", STUDIO_AUTHOR:"Jaime M. M.", STUDIO_URL:"" };
+const CONFIG = { APP_NAME:"Pío", WHATSAPP:"", EMAIL:"", CITY:"", STUDIO_BRAND:"Incuba tu Negocio", STUDIO_AUTHOR:"Jaime M. M.", STUDIO_URL:"" };
 const DB = { get(k,fb){ try{ const v=localStorage.getItem(k); return v==null?fb:JSON.parse(v); }catch(e){ return fb; } }, set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ toast("No se pudo guardar"); return false; } } };
-const K = { stars:"lg_stars", reports:"lg_reports", admin:"lg_admin", calm:"lg_calm", prog:"lg_prog", custom:"lg_custom", plan:"lg_plan", profiles:"lg_profiles", active:"lg_active", ficha:"lg_ficha", mislog:"lg_mislog" };
+const K = { stars:"lg_stars", reports:"lg_reports", calm:"lg_calm", prog:"lg_prog", custom:"lg_custom", plan:"lg_plan", profiles:"lg_profiles", active:"lg_active", mislog:"lg_mislog" };
 function speak(text){ try{ if(!('speechSynthesis' in window)){ toast('Tu dispositivo no puede leer en voz alta'); return; } window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(String(text)); u.lang='es-ES'; u.rate=.85; u.pitch=1.1; const vs=window.speechSynthesis.getVoices().filter(v=>/es/i.test(v.lang)); if(vs[0])u.voice=vs[0]; window.speechSynthesis.speak(u); }catch(e){} }
 try{ if('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged=()=>{}; }catch(e){}
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -390,9 +390,6 @@ function collectLS(prefix){ const o={}; for(let i=0;i<localStorage.length;i++){ 
 function exportBackup(){ try{ const obj={app:'logopedia-infantil',v:1,when:new Date().toISOString(),data:collectLS('lg_')}; const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(obj)],{type:'application/json'})); const d=new Date(); a.download='copia-logopedia-ninos-'+d.getFullYear()+(d.getMonth()+1)+d.getDate()+'.json'; a.click(); URL.revokeObjectURL(a.href); toast('Copia descargada ✓'); }catch(e){ toast('No se pudo exportar'); } }
 function importBackup(file){ const r=new FileReader(); r.onload=function(){ try{ const obj=JSON.parse(r.result); if(!obj||!obj.data){ toast('Archivo no válido'); return; } let n=0; Object.keys(obj.data).forEach(k=>{ if(/^lg_/.test(k)){ try{ localStorage.setItem(k,obj.data[k]); n++; }catch(e){} } }); ASSESSMENT=null; SES=null; toast(n?('Copia restaurada ✓ ('+n+' datos)'):'Esa copia no tenía datos de esta app'); location.hash='#/'; render(); }catch(e){ toast('No se pudo leer el archivo'); } }; r.readAsText(file); }
 function delProfile(id){ let ps=DB.get(K.profiles,[]); ps=ps.filter(p=>p.id!==id); DB.set(K.profiles,ps); ['lg_stars','lg_prog','lg_plan','lg_custom','lg_reports','lg_ficha'].forEach(b=>{try{localStorage.removeItem(b+'_'+id);}catch(e){}}); if(DB.get(K.active,'')===id){ DB.set(K.active, ps.length?ps[0].id:''); } profiles(); }
-function fichaLoad(){ return DB.get(pk(K.ficha),{tel:'',dx:'',pautas:[],pagos:[],materiales:[],notas:''}); }
-function fichaSave(f){ DB.set(pk(K.ficha),f); }
-function fichaText(){ const ap=activeProfile(); const f=fichaLoad(); const l=['Ficha · '+(ap.name||'Peque')+(ap.age?' ('+ap.age+')':'')]; if(f.dx)l.push('Objetivo: '+f.dx); if(f.pautas.length){ l.push('','Tareas para casa:'); f.pautas.forEach(t=>l.push((t.done?'✓':'•')+' '+t.t)); } if(f.materiales.length){ l.push('','Materiales:'); f.materiales.forEach(t=>l.push((t.done?'✓':'•')+' '+t.t)); } l.push('','(Enviado desde la app de Laura M M · Logopeda)'); return l.join('\n'); }
 function stars(){ return DB.get(pk(K.stars),0); } function addStar(n){ DB.set(pk(K.stars), stars()+(n||1)); }
 /* ===== Progreso (mide el aprendizaje) ===== */
 const MOD_LABEL={articulacion:"Articulación",paresmin:"Pares mínimos",voz:"Dilo tú (voz)",onda:"La onda mágica",mision:"Misiones reales",narrar:"Cuéntame",vocab:"Vocabulario",rima:"Rimas",silabas:"Sílabas",inicial:"Sonido inicial",discrim:"Discriminación",fichas:"Sonidos (fichas)",orden:"Escucha y toca",leer:"Leer palabras",forma:"Formas",opuesto:"Opuestos",intruso:"El intruso",frases:"Construir frases",cuento:"Cuentos"};
@@ -1056,39 +1053,7 @@ function viewResultado(){ const {areas,flags}=computeResult(); const pct=a=>Math
   return page(`<section><a class="btn btn-ghost btn-sm" href="#/valorar">← Volver</a><div class="box"><div class="center"><div style="font-size:48px">📋</div><h2>Resultado orientativo</h2><p class="muted">${esc(ASSESSMENT.nombre||'Peque')} · ${esc(ASSESSMENT.edad)}</p></div><h3>Por áreas</h3>${Object.keys(areas).map(a=>{const p=pct(a);return `<div class="result-area"><span><b>${esc(a)}</b></span><span class="bar"><i class="${cls(p)}" style="width:${p}%"></i></span><span style="font-weight:800;min-width:42px;text-align:right">${p}%</span></div>`;}).join('')}${flags.length?`<h3 style="margin-top:16px">A reforzar</h3><ul class="flag-list">${flags.map(f=>`<li>${esc(f)}</li>`).join('')}</ul>`:`<p style="margin-top:16px;color:var(--green);font-weight:700">👏 Sin dificultades claras.</p>`}<div class="disclaimer">⚠️ Orientación, no diagnóstico. ${rec?'Conviene una valoración con la logopeda.':'Ante dudas, consulta con la logopeda.'}</div><div class="box-card" style="background:var(--green-soft);border-color:var(--green);text-align:center;margin-bottom:12px"><b>¿Y ahora qué?</b><p class="muted" style="margin:.3em 0 .6em;font-size:14px">Lo mejor es practicar un poco <b>cada día</b>. Empezad por una sesión corta y guiada.</p><button class="btn btn-green" data-action="start-session">▶️ Empezar a practicar</button></div><div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-green" data-action="share-report">📲 Compartir</button><button class="btn btn-ghost" data-action="valorar-restart">Nueva</button></div></div></section>`); }
 function reportText(){ const {areas,flags}=computeResult(); const l=['Valoración orientativa del lenguaje',(ASSESSMENT.nombre||'Peque')+' · '+ASSESSMENT.edad,'']; Object.keys(areas).forEach(a=>l.push('- '+a+': '+Math.round((areas[a].sum/areas[a].max)*100)+'%')); if(flags.length){ l.push('','A reforzar:'); flags.forEach(f=>l.push('· '+f)); } l.push('','(Orientativo, no es un diagnóstico)'); return l.join('\n'); }
 function saveReport(){ const {areas,flags}=computeResult(); const rep={id:uid(),fecha:new Date().toISOString(),nombre:ASSESSMENT.nombre||'',edad:ASSESSMENT.edad,areas:Object.fromEntries(Object.keys(areas).map(a=>[a,Math.round((areas[a].sum/areas[a].max)*100)])),flags}; const all=DB.get(pk(K.reports),[]); all.unshift(rep); DB.set(pk(K.reports),all); toast('Guardada en el panel ✓'); }
-/* ===== Panel ===== */
-function isAdmin(){ return DB.get(K.admin,false)===true; }
-function gate(){ return page(`<section><div class="box" style="max-width:420px"><div class="center" style="font-size:46px">🔒</div><h2 class="center">Solo para la logopeda</h2><p class="muted center">Introduce la contraseña.</p><form id="gateForm"><div class="field"><label for="gatePass">Contraseña</label><input id="gatePass" type="password" autocomplete="current-password"></div><button class="btn btn-primary btn-block" type="submit">Entrar</button></form><p class="muted center" style="font-size:12px;margin-top:10px">Demo: ${esc(CONFIG.ADMIN_PASSWORD)}</p></div></section>`); }
-function viewFicha(){
-  if(!isAdmin()) return gate();
-  const ap=activeProfile(); const f=fichaLoad();
-  const cobrado=f.pagos.filter(p=>p.pagado).reduce((s,p)=>s+(+p.importe||0),0); const pend=f.pagos.filter(p=>!p.pagado).reduce((s,p)=>s+(+p.importe||0),0);
-  return page(`<section>${back('#/panel','Panel')}<div class="center" style="margin:6px 0 12px"><h2>Ficha del paciente 📋</h2><a class="prof-mini" href="#/perfiles">👤 ${esc(ap.name||'Peque')}${ap.age?' · '+esc(ap.age):''} · cambiar</a></div>
-  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">📇 Datos</h3>
-    <div class="field"><label for="fTel">Teléfono / contacto familia</label><input id="fTel" value="${esc(f.tel)}" placeholder="Ej: 600 000 000"></div>
-    <div class="field"><label for="fDx">Diagnóstico / objetivo</label><input id="fDx" value="${esc(f.dx)}" placeholder="Ej: dislalia /r/ · objetivo: rotacismo"></div>
-    <button class="btn btn-primary btn-sm" data-action="ficha-datos">💾 Guardar datos</button></div>
-
-  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">✅ Pautas / tareas para casa</h3>
-    <div class="ficha-add"><input id="fPauta" placeholder="Ej: practicar /r/ 5 min con el espejo"><button class="btn btn-primary btn-sm" data-action="pauta-add">Añadir</button></div>
-    <div class="chk-list">${f.pautas.length?f.pautas.map((t,i)=>`<div class="chk ${t.done?'done':''}"><button class="chk-b" data-action="pauta-toggle" data-i="${i}">${t.done?'✅':'⬜'} <span>${esc(t.t)}</span></button><button class="chk-x" data-action="pauta-del" data-i="${i}" aria-label="Borrar">🗑️</button></div>`).join(''):'<p class="muted" style="font-size:13px">Sin pautas todavía.</p>'}</div></div>
-
-  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">💶 Pagos <span class="muted" style="font-weight:400;font-size:13px">(registro, sin cobro real)</span></h3>
-    <div class="ficha-add"><input id="fPagoC" placeholder="Concepto (Ej: sesión 12 mayo)" style="flex:2"><input id="fPagoI" type="number" inputmode="decimal" placeholder="€" style="flex:1;min-width:60px"><button class="btn btn-primary btn-sm" data-action="pago-add">Añadir</button></div>
-    <div class="pago-tot"><span class="pt-ok">Cobrado: ${cobrado.toFixed(2)} €</span><span class="pt-pend">Pendiente: ${pend.toFixed(2)} €</span></div>
-    <div class="chk-list">${f.pagos.length?f.pagos.map((p,i)=>`<div class="pago ${p.pagado?'ok':'pend'}"><button class="chk-b" data-action="pago-toggle" data-i="${i}">${p.pagado?'✅':'⏳'} <span>${esc(p.concepto)}</span></button><b class="pago-i">${(+p.importe||0).toFixed(2)} €</b><button class="chk-x" data-action="pago-del" data-i="${i}" aria-label="Borrar">🗑️</button></div>`).join(''):'<p class="muted" style="font-size:13px">Sin pagos registrados.</p>'}</div></div>
-
-  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">📦 Materiales</h3>
-    <div class="ficha-add"><input id="fMat" placeholder="Ej: tarjetas de /s/, espejo"><button class="btn btn-primary btn-sm" data-action="mat-add">Añadir</button></div>
-    <div class="chk-list">${f.materiales.length?f.materiales.map((t,i)=>`<div class="chk ${t.done?'done':''}"><button class="chk-b" data-action="mat-toggle" data-i="${i}">${t.done?'✅':'⬜'} <span>${esc(t.t)}</span></button><button class="chk-x" data-action="mat-del" data-i="${i}" aria-label="Borrar">🗑️</button></div>`).join(''):'<p class="muted" style="font-size:13px">Sin materiales.</p>'}</div></div>
-
-  <div class="box-card" style="margin-bottom:14px"><h3 style="margin:0 0 8px">📝 Notas de sesión</h3>
-    <textarea id="fNotas" style="width:100%;min-height:110px;border:2px solid var(--line);border-radius:12px;padding:12px;font-family:inherit;font-size:15px" placeholder="Observaciones, evolución, próximos pasos…">${esc(f.notas)}</textarea>
-    <button class="btn btn-primary btn-sm" style="margin-top:8px" data-action="ficha-notas">💾 Guardar notas</button></div>
-
-  <div class="center" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn btn-ghost" data-action="ficha-print">🖨️ Imprimir / PDF</button><button class="btn btn-green" data-action="ficha-wa">📲 Enviar por WhatsApp</button></div>
-  <p class="muted" style="font-size:13px;margin-top:10px;text-align:center">Todo se guarda solo en este dispositivo, por paciente. Sin cobros automáticos: el registro de pagos es para llevar la cuenta.</p></section>`);
-}
+/* ===== Ajustes ===== */
 function viewPanel(){
   const c=loadCustom();
   const custom=`<div class="box-card" style="margin-bottom:16px"><h3 style="margin:0 0 6px">⭐ Mis cosas (personalizar)</h3><p class="muted" style="font-size:14px">Añade <b>fotos y palabras del niño</b> (sus juguetes, la familia). Aparecen en Comunicar → «Mis cosas».</p>
@@ -1178,19 +1143,6 @@ document.addEventListener('click',function(e){
       if(ok){ addStar(1); if(fb){fb.textContent='¡Muy bien! ⭐'; fb.className='feedback ok';} speak('¡Muy bien!'); }
       else { if(fb){fb.textContent='Casi… inténtalo otra vez'; fb.className='feedback no';} document.querySelectorAll('[data-correct="1"]').forEach(o=>o.classList.add('good')); }
       setTimeout(()=>{ if(SES){ sesAdvance(ok); } else { QZ=null; render(); } }, ok?1100:1600); break; }
-    case 'ficha-datos': { const f=fichaLoad(); f.tel=(document.getElementById('fTel')||{}).value||''; f.dx=(document.getElementById('fDx')||{}).value||''; fichaSave(f); toast('Datos guardados ✓'); break; }
-    case 'ficha-notas': { const f=fichaLoad(); f.notas=(document.getElementById('fNotas')||{}).value||''; fichaSave(f); toast('Notas guardadas ✓'); break; }
-    case 'pauta-add': { const v=(document.getElementById('fPauta')||{}).value||''; if(!v.trim())break; const f=fichaLoad(); f.pautas.push({t:v.trim(),done:false}); fichaSave(f); render(); break; }
-    case 'pauta-toggle': { const f=fichaLoad(); if(f.pautas[+el.dataset.i])f.pautas[+el.dataset.i].done=!f.pautas[+el.dataset.i].done; fichaSave(f); render(); break; }
-    case 'pauta-del': { const f=fichaLoad(); f.pautas.splice(+el.dataset.i,1); fichaSave(f); render(); break; }
-    case 'pago-add': { const c=(document.getElementById('fPagoC')||{}).value||''; const im=(document.getElementById('fPagoI')||{}).value||''; if(!c.trim())break; const f=fichaLoad(); f.pagos.push({concepto:c.trim(),importe:parseFloat(im)||0,pagado:false,fecha:new Date().toISOString()}); fichaSave(f); render(); break; }
-    case 'pago-toggle': { const f=fichaLoad(); if(f.pagos[+el.dataset.i])f.pagos[+el.dataset.i].pagado=!f.pagos[+el.dataset.i].pagado; fichaSave(f); render(); break; }
-    case 'pago-del': { const f=fichaLoad(); f.pagos.splice(+el.dataset.i,1); fichaSave(f); render(); break; }
-    case 'mat-add': { const v=(document.getElementById('fMat')||{}).value||''; if(!v.trim())break; const f=fichaLoad(); f.materiales.push({t:v.trim(),done:false}); fichaSave(f); render(); break; }
-    case 'mat-toggle': { const f=fichaLoad(); if(f.materiales[+el.dataset.i])f.materiales[+el.dataset.i].done=!f.materiales[+el.dataset.i].done; fichaSave(f); render(); break; }
-    case 'mat-del': { const f=fichaLoad(); f.materiales.splice(+el.dataset.i,1); fichaSave(f); render(); break; }
-    case 'ficha-print': window.print(); break;
-    case 'ficha-wa': window.open('https://wa.me/?text='+encodeURIComponent(fichaText()),'_blank','noopener'); break;
     case 'perf-set': setActive(el.dataset.id); SES=null; toast('Ahora practica '+(activeProfile().name||'')); location.hash='#/'; break;
     case 'perf-add': { const n=(document.getElementById('pfName')||{}).value||''; const ed=(document.getElementById('pfAge')||{}).value||''; if(!n.trim()){ toast('Escribe un nombre'); break; } addProfile(n.trim(),ed.trim()); SES=null; toast('¡Hola, '+n.trim()+'!'); location.hash='#/'; break; }
     case 'perf-del': { const ps=DB.get(K.profiles,[]); const p=ps.find(x=>x.id===el.dataset.id); if(el.dataset.armed==='1'){ delProfile(el.dataset.id); SES=null; render(); toast('Perfil borrado'); } else { el.dataset.armed='1'; el.textContent='⚠️'; setTimeout(()=>{ if(el){el.dataset.armed='0';el.textContent='🗑️';} },3000); } break; }
@@ -1241,14 +1193,9 @@ document.addEventListener('click',function(e){
     case 'mark': if(ASSESSMENT){ ASSESSMENT.marks[+el.dataset.i]=+el.dataset.v; el.parentElement.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed','false')); el.setAttribute('aria-pressed','true'); } break;
     case 'result': location.hash='#/resultado'; break;
     case 'valorar-restart': ASSESSMENT=null; if(location.hash==='#/valorar'){ render(); } else { location.hash='#/valorar'; } break;
-    case 'save-report': saveReport(); break;
     case 'share-report': window.open('https://wa.me/'+CONFIG.WHATSAPP.replace(/\D/g,'')+'?text='+encodeURIComponent(reportText()),'_blank','noopener'); break;
-    case 'logout': DB.set(K.admin,false); toast('Sesión cerrada'); location.hash='#/'; break;
-    case 'del-report': if(confirm('¿Borrar esta valoración?')){ DB.set(pk(K.reports),DB.get(pk(K.reports),[]).filter(r=>r.id!==el.dataset.id)); render(); } break;
-    case 'export': exportCSV(); break;
   }
 });
-document.addEventListener('submit',function(e){ if(e.target.id==='gateForm'){ e.preventDefault(); const v=document.getElementById('gatePass').value; if(v===CONFIG.ADMIN_PASSWORD){ DB.set(K.admin,true); render(); toast('¡Hola! 👋'); } else { toast('Contraseña incorrecta'); } } });
 document.addEventListener('change',function(e){ if(e.target&&e.target.id==='impFile'){ const f=e.target.files&&e.target.files[0]; if(f) importBackup(f); } });
 window.addEventListener('hashchange',render);
 /* Enlaces internos (#/...): navegar por JS para que funcionen también dentro de un iframe (app combinada) */
