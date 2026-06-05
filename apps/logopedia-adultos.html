@@ -113,6 +113,22 @@ section{padding:18px 0}
 .pr-l{flex:0 0 38%;font-weight:700;font-size:15px} .pr-v{flex:0 0 auto;font-weight:800;font-size:15px}
 .bar{flex:1;height:12px;border-radius:999px;background:var(--line);overflow:hidden}
 .bar i{display:block;height:100%;border-radius:999px;background:var(--green)} .bar i.low{background:var(--red)} .bar i.mid{background:#e8a300}
+.plan-card{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#0e7c86,#0a5b63);color:#fff;border-radius:var(--r-lg);padding:18px 20px;box-shadow:var(--sh)}
+.plan-card .plan-l{flex:1;min-width:0} .plan-card .plan-h{font-weight:800;font-size:20px} .plan-card .plan-s{font-size:14px;opacity:.95}
+.plan-card .btn{flex:0 0 auto;background:#fff;color:#0a5b63}
+.ses-banner{background:var(--brand-soft);border:1.5px solid #bfe3e6;border-radius:14px;padding:10px 14px;margin:0 0 14px}
+.ses-top{display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:800;color:var(--brand-dk);font-size:15px}
+.ses-exit{border:none;background:#fff;border-radius:8px;width:30px;height:30px;cursor:pointer;font-weight:800;color:var(--soft)}
+.ses-bar{height:10px;background:#fff;border-radius:999px;overflow:hidden;margin:8px 0 4px} .ses-bar i{display:block;height:100%;background:var(--green);border-radius:999px;transition:width .3s}
+.ses-step{font-size:13px;color:var(--soft);font-weight:700}
+.evo{display:flex;align-items:flex-end;gap:5px;height:120px}
+.evo-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%}
+.evo-bar{flex:1;width:100%;display:flex;align-items:flex-end;background:#eef3f4;border-radius:6px;overflow:hidden}
+.evo-bar i{width:100%;border-radius:6px 6px 0 0;background:var(--green)} .evo-bar i.low{background:var(--red)} .evo-bar i.mid{background:#e8a300} .evo-bar i.empty{background:#dde6e8}
+.evo-d{font-size:11px;color:var(--soft);font-weight:700}
+.plan-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.plan-pick{border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:10px;font-family:inherit;font-weight:700;cursor:pointer;text-align:left;color:var(--ink);font-size:14px}
+.plan-pick.on{background:var(--green-soft);border-color:var(--green);color:#0a5b63}
 /* Ajustes */
 .set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);width:100%;text-align:left}
 button.as-btn{background:none;border:none;font:inherit;color:inherit;cursor:pointer}
@@ -192,6 +208,10 @@ footer .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:18p
     { "goto": "#/voz" }, { "expectVisible": "[data-action=\"voz-on\"]" } ]},
   { "name": "Pantalla de progreso", "steps": [
     { "goto": "#/progreso" }, { "expectVisible": ".stat-cards" } ]},
+  { "name": "Progreso muestra evolucion por dias", "steps": [
+    { "goto": "#/progreso" }, { "expectVisible": ".evo" } ]},
+  { "name": "Sesion de hoy: empieza sesion guiada", "steps": [
+    { "goto": "#/" }, { "expectVisible": ".plan-card" }, { "click": "[data-action=\"start-session\"]" }, { "expectVisible": ".ses-banner" } ]},
   { "name": "Ajustes de accesibilidad", "steps": [
     { "goto": "#/ajustes" }, { "expectVisible": ".set-row" } ]},
   { "name": "Orientacion muestra el dia de hoy", "steps": [
@@ -223,14 +243,33 @@ const CONFIG = {
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const rand=a=>a[Math.floor(Math.random()*a.length)];
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
-const K={notes:'la_notes', stats:'la_stats', custom:'la_custom', settings:'la_settings'};
+const K={notes:'la_notes', stats:'la_stats', custom:'la_custom', settings:'la_settings', plan:'la_plan'};
 const DB={ get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}}, set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}} };
 /* ----- Progreso ----- */
 const MOD_LABEL={denom:'Nombrar objetos',frase:'Frases hechas',categ:'Categorías',calc:'Cálculo y dinero',atencion:'Atención',comprension:'Comprensión'};
 function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
 function loadStats(){ return DB.get(K.stats,{mods:{},days:{},streak:0,lastDay:''}); }
 function touchDay(s){ s=s||loadStats(); const t=todayKey(); s.days[t]=(s.days[t]||0)+1; if(s.lastDay!==t){ const y=new Date(); y.setDate(y.getDate()-1); const yk=y.getFullYear()+'-'+(y.getMonth()+1)+'-'+y.getDate(); s.streak=(s.lastDay===yk)?(s.streak||0)+1:1; s.lastDay=t; } DB.set(K.stats,s); return s; }
-function recordResult(mod,ok){ const s=loadStats(); const m=s.mods[mod]||(s.mods[mod]={c:0,t:0}); m.t++; if(ok)m.c++; touchDay(s); }
+function recordResult(mod,ok){ const s=loadStats(); const m=s.mods[mod]||(s.mods[mod]={c:0,t:0}); m.t++; if(ok)m.c++; const t=todayKey(); s.hist=s.hist||{}; const hd=s.hist[t]||(s.hist[t]={t:0,c:0}); hd.t++; if(ok)hd.c++; touchDay(s); }
+function progHist(){ const s=loadStats(); const h=s.hist||{}; const out=[]; for(let i=13;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); const k=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); const e=h[k]||{t:0,c:0}; out.push({dia:['D','L','M','X','J','V','S'][d.getDay()],t:e.t,c:e.c,pct:e.t?Math.round(e.c*100/e.t):0}); } return out; }
+/* ===== Plan de hoy (sesión guiada) ===== */
+const PLAN_CATALOG=[
+  {id:'denom',route:'#/lenguaje/denominacion',e:'🖼️',label:'Nombrar objetos'},
+  {id:'comprension',route:'#/lenguaje/comprension',e:'👂',label:'Comprensión'},
+  {id:'categ',route:'#/lenguaje/categorias',e:'🗂️',label:'Categorías'},
+  {id:'frase',route:'#/lenguaje/frases',e:'💬',label:'Frases hechas'},
+  {id:'calc',route:'#/memoria/calculo',e:'🧮',label:'Cálculo y dinero'},
+  {id:'atencion',route:'#/memoria/atencion',e:'🔎',label:'Atención'}
+];
+const PLAN_DEFAULT=['denom','comprension','calc','atencion'];
+function loadPlan(){ const p=DB.get(K.plan,null); const valid=(p&&p.ids&&p.ids.length)?p.ids.filter(id=>PLAN_CATALOG.some(x=>x.id===id)):PLAN_DEFAULT; return {ids:valid.length?valid:PLAN_DEFAULT, goal:(p&&p.goal)||4}; }
+function savePlan(pl){ DB.set(K.plan,pl); }
+function planItem(id){ return PLAN_CATALOG.find(x=>x.id===id); }
+let SES=null, SES_SUMMARY=null;
+function startSession(){ const pl=loadPlan(); if(!pl.ids.length){ toast('Configure el plan en el panel'); return; } SES={ids:pl.ids.slice(),goal:pl.goal,idx:0,count:0,c:0,t:0}; QZ=null; location.hash=planItem(SES.ids[0]).route; }
+function finishSession(){ SES_SUMMARY={ex:SES.ids.length,t:SES.t,c:SES.c}; SES=null; QZ=null; location.hash='#/sesion'; }
+function sesAdvance(ok){ if(!SES)return false; SES.t++; if(ok)SES.c++; SES.count++; if(SES.count>=SES.goal){ SES.count=0; SES.idx++; if(SES.idx<SES.ids.length){ QZ=null; location.hash=planItem(SES.ids[SES.idx]).route; } else { finishSession(); } } else { QZ=null; render(); } return true; }
+function sesBanner(){ if(!SES)return ''; const tot=SES.ids.length,done=SES.idx; const pct=Math.round(((done+SES.count/SES.goal)/tot)*100); const it=planItem(SES.ids[SES.idx]); return `<div class="ses-banner"><div class="ses-top"><span>🎯 Plan de hoy · ${esc(it.e)} ${esc(it.label)}</span><button class="ses-exit" data-action="end-session" aria-label="Salir del plan">✕</button></div><div class="ses-bar"><i style="width:${pct}%"></i></div><div class="ses-step">Actividad ${done+1} de ${tot}</div></div>`; }
 /* ----- Ajustes / accesibilidad ----- */
 function loadSet(){ return DB.get(K.settings,{scale:'normal',contrast:false,autoread:false,scan:false}); }
 function saveSet(s){ DB.set(K.settings,s); }
@@ -359,8 +398,10 @@ function back(href,txt){ return `<a class="btn btn-ghost btn-sm" href="${href}">
 function tiles(list){ return `<div class="grid">${list.map(t=>`<button class="tile" data-action="go" data-h="${t.h}"><span class="te" aria-hidden="true">${t.e}</span><b>${esc(t.b)}</b><small>${esc(t.s)}</small></button>`).join('')}</div>`; }
 
 /* ============ Home ============ */
+function planTodayCard(){ const st=loadStats(); const done=(st.days&&st.days[todayKey()])||0; const sk=st.streak||0; return `<section><div class="plan-card"><div class="plan-l"><div class="plan-h">🎯 Sesión de hoy</div><div class="plan-s">${done>0?('Hoy: <b>'+done+'</b> ejercicios'):'Una sesión corta cada día'} · 🔥 ${sk} ${sk===1?'día':'días'}</div></div><button class="btn" data-action="start-session">▶️ Empezar</button></div></section>`; }
 function viewHome(){
   return page(`<section class="hero"><div class="big-emoji" aria-hidden="true">🗣️</div><h1>Logopedia para adultos</h1><p class="muted">Apoyo para personas con afasia, ELA o deterioro cognitivo. Para practicar en casa entre sesiones. Todo se lee en voz alta.</p></section>
+  ${planTodayCard()}
   <section>${tiles([
     {h:'#/comunicar',e:'🗨️',b:'Comunicar',s:'Tablero para expresar necesidades sin hablar'},
     {h:'#/lenguaje',e:'🧠',b:'Lenguaje',s:'Afasia: nombrar, comprender, frases y categorías'},
@@ -401,7 +442,8 @@ function renderQuiz(backHref,backTxt,q){
   const opts=img
     ? `<div class="opt-imgs">${q.options.map(o=>`<button class="opt-img" data-action="answer" data-correct="${o.correct?1:0}" aria-label="${esc(o.label)}"><span class="oe" aria-hidden="true">${esc(o.emoji)}</span>${q.hideLabels?'':`<span class="ow">${esc(o.label)}</span>`}</button>`).join('')}</div>`
     : `<div class="opts">${q.options.map(o=>`<button class="optbtn" data-action="answer" data-correct="${o.correct?1:0}">${esc(o.label)}</button>`).join('')}</div>`;
-  return page(`<section>${back(backHref,backTxt)}<div class="qbox"><h2>${esc(q.title)}</h2>${promptHTML}${sayBtn}<div class="feedback" id="fb" aria-live="polite"></div>${opts}</div></section>`);
+  const backBtn = SES ? '' : back(backHref,backTxt);
+  return page(`<section>${backBtn}${SES?sesBanner():''}<div class="qbox"><h2>${esc(q.title)}</h2>${promptHTML}${sayBtn}<div class="feedback" id="fb" aria-live="polite"></div>${opts}</div></section>`);
 }
 function viewLenguaje(sub){
   if(!sub) return page(`<section>${back('#/','Inicio')}<div class="center" style="margin:8px 0 14px"><h2>Lenguaje</h2><p class="muted">Ejercicios para recuperar y mantener las palabras (afasia).</p></div>${tiles([
@@ -572,6 +614,8 @@ function scanStart(){
 function viewProgreso(){
   const s=loadStats(); const mods=Object.keys(s.mods); let tot=0,cor=0; mods.forEach(k=>{tot+=s.mods[k].t;cor+=s.mods[k].c;}); const pct=tot?Math.round(cor*100/tot):0; const dias=Object.keys(s.days).length;
   const bars=mods.length?mods.map(k=>{const m=s.mods[k];const p=m.t?Math.round(m.c*100/m.t):0;return `<div class="pr-row"><span class="pr-l">${esc(MOD_LABEL[k]||k)}</span><span class="bar"><i class="${p<50?'low':p<75?'mid':''}" style="width:${p}%"></i></span><span class="pr-v">${p}% <small class="muted">(${m.c}/${m.t})</small></span></div>`;}).join(''):'<p class="muted">Aún no hay ejercicios registrados. Haga alguno y vuelva aquí.</p>';
+  const hist=progHist(); const maxT=Math.max(1,...hist.map(d=>d.t));
+  const chart=`<div class="evo">${hist.map(d=>{const h=d.t?Math.max(8,Math.round(d.t/maxT*100)):2; const cls=d.t?(d.pct<50?'low':d.pct<75?'mid':''):'empty'; return `<div class="evo-col"><div class="evo-bar"><i class="${cls}" style="height:${h}%" title="${d.t} ejercicios · ${d.pct}%"></i></div><span class="evo-d">${d.dia}</span></div>`;}).join('')}</div>`;
   return page(`<section>${back('#/','Inicio')}<div class="center" style="margin:8px 0 14px"><h2>Mi progreso 📈</h2></div>
   <div class="stat-cards">
     <div class="stat-card"><div class="sc-n">🔥 ${s.streak||0}</div><div class="sc-l">días seguidos</div></div>
@@ -579,12 +623,25 @@ function viewProgreso(){
     <div class="stat-card"><div class="sc-n">${pct}%</div><div class="sc-l">aciertos</div></div>
     <div class="stat-card"><div class="sc-n">${dias}</div><div class="sc-l">días activos</div></div>
   </div>
-  <div class="box" style="text-align:left;margin-top:16px"><h3 style="margin:0 0 12px">Aciertos por ejercicio</h3>${bars}</div>
+  <div class="box" style="text-align:left;margin-top:16px"><h3 style="margin:0 0 4px">Evolución (últimos 14 días)</h3><p class="muted" style="font-size:13px;margin:0 0 8px">Altura = cuánto practicó · color = aciertos</p>${chart}</div>
+  <div class="center" style="margin:14px 0"><button class="btn btn-primary" data-action="start-session">▶️ Empezar la sesión de hoy</button></div>
+  <div class="box" style="text-align:left"><h3 style="margin:0 0 12px">Aciertos por ejercicio</h3>${bars}</div>
   <div class="sfa-actions" style="margin-top:16px"><button class="btn btn-primary" data-action="print-report">🖨️ Imprimir / Guardar PDF</button><button class="btn btn-ghost" data-action="export-csv">⬇️ Descargar CSV</button><button class="btn btn-ghost" data-action="reset-stats">Borrar progreso</button></div>
   <p class="muted" style="font-size:14px;margin-top:12px">El progreso se guarda solo en este dispositivo. Lleve el informe (PDF) a la consulta con Laura.</p></section>`);
 }
 function statsCSV(){ const s=loadStats(); let csv='Ejercicio,Aciertos,Intentos,Porcentaje\n'; Object.keys(s.mods).forEach(k=>{const m=s.mods[k];csv+=`"${(MOD_LABEL[k]||k)}",${m.c},${m.t},${m.t?Math.round(m.c*100/m.t):0}%\n`;}); csv+=`\nRacha (días),${s.streak||0}\nDías activos,${Object.keys(s.days).length}\n`; return csv; }
 function downloadCSV(){ const blob=new Blob([statsCSV()],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='progreso-logopedia.csv'; document.body.appendChild(a); a.click(); setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(a.href);},500); }
+function viewSesion(){
+  const s=SES_SUMMARY; if(!s) return page(`<section>${back('#/','Inicio')}<div class="box"><div class="center"><div style="font-size:48px">🎯</div><h2>Sesión de hoy</h2><p class="muted">Empiece una sesión corta desde Inicio.</p><button class="btn btn-primary" data-action="start-session">▶️ Empezar</button></div></div></section>`);
+  const pct=s.t?Math.round(s.c*100/s.t):0;
+  return page(`<section><div class="box" style="max-width:480px"><div class="center"><div style="font-size:56px">✅</div><h2>¡Sesión terminada!</h2><p class="muted">Ha completado la sesión de hoy. La constancia es lo que más ayuda.</p></div>
+  <div class="stat-cards" style="margin-top:12px">
+    <div class="stat-card"><div class="sc-n">${s.ex}</div><div class="sc-l">ejercicios</div></div>
+    <div class="stat-card"><div class="sc-n">${pct}%</div><div class="sc-l">aciertos</div></div>
+    <div class="stat-card"><div class="sc-n">${s.c}/${s.t}</div><div class="sc-l">correctas</div></div>
+  </div>
+  <div class="sfa-actions" style="margin-top:16px"><button class="btn btn-primary" data-action="start-session">↻ Otra vez</button><a class="btn btn-ghost" href="#/progreso">📈 Progreso</a><a class="btn btn-ghost" href="#/">Inicio</a></div></div></section>`);
+}
 /* ============ Ajustes / accesibilidad ============ */
 function tog(on){ return `<span class="sw ${on?'on':''}" aria-hidden="true"><span class="kn"></span></span>`; }
 function viewAjustes(){
@@ -615,8 +672,14 @@ function viewAviso(){
 let PANEL_OK=false;
 function viewPanel(){
   if(!PANEL_OK) return page(`<section>${back('#/','Inicio')}<div class="box" style="max-width:420px"><h2>Panel</h2><p class="muted">Acceso solo para la logopeda.</p><label for="pw">Contraseña</label><input id="pw" type="password" autocomplete="off" placeholder="••••••"><div style="margin-top:14px"><button class="btn btn-primary btn-block" data-action="login">Entrar</button></div></div></section>`);
-  const notes=DB.get(K.notes,''); const c=loadCustom();
+  const notes=DB.get(K.notes,''); const c=loadCustom(); const pl=loadPlan();
   return page(`<section>${back('#/','Inicio')}<div class="box" style="text-align:left"><h2>Panel de la logopeda</h2>
+  <h3 style="margin:0 0 6px">🎯 Sesión de hoy (deberes)</h3>
+  <p class="muted" style="font-size:14px">Elija qué practica el paciente en la sesión guiada y cuántas preguntas por ejercicio.</p>
+  <div class="plan-grid">${PLAN_CATALOG.map(it=>{const on=pl.ids.indexOf(it.id)>=0;return `<button class="plan-pick ${on?'on':''}" data-action="plan-toggle" data-id="${it.id}" aria-pressed="${on}"><span aria-hidden="true">${it.e}</span> ${esc(it.label)} ${on?'✓':''}</button>`;}).join('')}</div>
+  <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="muted">Preguntas por ejercicio:</span>${[3,4,5,6].map(n=>`<button class="seg-b ${pl.goal===n?'on':''}" data-action="plan-goal" data-v="${n}">${n}</button>`).join('')}</div>
+  <p class="muted" style="font-size:13px;margin-top:8px">Plan actual: <b>${pl.ids.length}</b> ejercicios.</p>
+  <hr style="border:none;border-top:1px solid var(--line);margin:18px 0">
   <p class="muted">Notas rápidas de sesión. Se guardan <b>solo en este dispositivo</b>.</p>
   <label for="notes">Notas</label><textarea id="notes" placeholder="Objetivos, ejercicios recomendados, observaciones…">${esc(notes)}</textarea>
   <div class="row" style="margin-top:12px"><button class="btn btn-primary" data-action="save-notes">💾 Guardar notas</button><button class="btn btn-ghost" data-action="clear-notes">Borrar notas</button></div>
@@ -647,6 +710,7 @@ function render(){
   else if(a==='memoria') html=viewMemoria(b);
   else if(a==='praxias') html=viewPraxias();
   else if(a==='voz') html=viewVoz();
+  else if(a==='sesion') html=viewSesion();
   else if(a==='progreso') html=viewProgreso();
   else if(a==='ajustes') html=viewAjustes();
   else if(a==='aviso') html=viewAviso();
@@ -683,7 +747,11 @@ document.addEventListener('click',function(e){
       document.querySelectorAll('[data-action="answer"]').forEach(o=>o.disabled=true); el.classList.add(ok?'good':'bad');
       if(ok){ if(fb){fb.textContent='¡Correcto! 👏'; fb.className='feedback ok';} speak('Correcto'); }
       else { if(fb){fb.textContent='No es esa. Inténtelo otra vez.'; fb.className='feedback no';} document.querySelectorAll('[data-correct="1"]').forEach(o=>o.classList.add('good')); }
-      setTimeout(()=>{ QZ=null; render(); }, ok?1200:1700); break; }
+      setTimeout(()=>{ if(SES){ sesAdvance(ok); } else { QZ=null; render(); } }, ok?1200:1700); break; }
+    case 'start-session': startSession(); break;
+    case 'end-session': SES=null; toast('Plan pausado'); location.hash='#/'; break;
+    case 'plan-toggle': { const pl=loadPlan(); const id=el.dataset.id; const i=pl.ids.indexOf(id); if(i>=0){ if(pl.ids.length>1)pl.ids.splice(i,1); } else { pl.ids.push(id); } savePlan(pl); render(); break; }
+    case 'plan-goal': { const pl=loadPlan(); pl.goal=Math.max(2,Math.min(8,+el.dataset.v||4)); savePlan(pl); render(); break; }
     case 'flip':{ if(!MEM||MEM.lock) break; const i=+el.dataset.i; const c=MEM.cards[i]; if(c.up||c.done) break;
       c.up=true; speak('');
       if(MEM.first===-1){ MEM.first=i; render(); }

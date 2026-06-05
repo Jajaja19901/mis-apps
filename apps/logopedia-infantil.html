@@ -121,6 +121,26 @@ section{padding:22px 0}
 .sp-item .pic-img{width:30px;height:30px}
 .cus-list{display:grid;gap:8px}
 .cus-it{display:flex;align-items:center;gap:10px;background:#f6f9fe;border:1px solid var(--line);border-radius:12px;padding:8px 10px} .cus-it .cus-w{flex:1;font-weight:700}
+/* Plan de hoy */
+.plan-card{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#0f7a52,#1ba573);color:#fff;border-radius:var(--r-lg);padding:18px 20px;box-shadow:var(--sh)}
+.plan-card .plan-l{flex:1;min-width:0} .plan-card .plan-h{font-family:'Fredoka';font-weight:700;font-size:20px} .plan-card .plan-s{font-size:14px;opacity:.95}
+.plan-card .btn{flex:0 0 auto;background:#fff;color:#0f7a52}
+.ses-banner{background:var(--brand-soft);border:1.5px solid #bcd6f5;border-radius:14px;padding:10px 14px;margin:0 0 14px}
+.ses-top{display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:800;color:var(--brand);font-size:15px}
+.ses-exit{border:none;background:#fff;border-radius:8px;width:30px;height:30px;cursor:pointer;font-weight:800;color:var(--ink-soft)}
+.ses-bar{height:10px;background:#fff;border-radius:999px;overflow:hidden;margin:8px 0 4px} .ses-bar i{display:block;height:100%;background:var(--green);border-radius:999px;transition:width .3s}
+.ses-step{font-size:13px;color:var(--ink-soft);font-weight:700}
+/* Evolución */
+.evo{display:flex;align-items:flex-end;gap:5px;height:120px}
+.evo-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%}
+.evo-bar{flex:1;width:100%;display:flex;align-items:flex-end;background:#f1f5fb;border-radius:6px;overflow:hidden}
+.evo-bar i{width:100%;border-radius:6px 6px 0 0;background:#1ba573} .evo-bar i.low{background:#e0593a} .evo-bar i.mid{background:#e8a300} .evo-bar i.empty{background:#dde6f2}
+.evo-d{font-size:11px;color:var(--ink-soft);font-weight:700}
+/* Selector de plan */
+.plan-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.plan-pick{border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:10px;font-family:inherit;font-weight:700;cursor:pointer;text-align:left;color:var(--ink);font-size:14px}
+.plan-pick.on{background:var(--green-soft);border-color:var(--green);color:#0f7a52}
+.seg-b{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:7px 12px;font-weight:800;cursor:pointer;font-family:inherit;color:var(--ink)} .seg-b.on{background:var(--brand);color:#fff;border-color:var(--brand)}
 .grid{display:grid;gap:14px;grid-template-columns:repeat(2,1fr)}
 @media(min-width:640px){.grid{grid-template-columns:repeat(3,1fr)}}
 .tile{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px;cursor:pointer;font-family:inherit;text-align:center;box-shadow:var(--sh);transition:transform .14s,box-shadow .14s;display:flex;flex-direction:column;gap:6px;align-items:center}
@@ -257,6 +277,10 @@ body.calm{font-size:18px} body.calm *{animation:none!important;transition:none!i
     { "goto": "#/aprender/comprension/frases" }, { "click": "[data-action=\"frase-add\"]" }, { "expectVisible": "#fbItems .sp-item" } ]},
   { "name": "Pares minimos de produccion", "steps": [
     { "goto": "#/paresmin" }, { "expectVisible": ".par-card" }, { "click": "[data-action=\"par-star\"]" }, { "expect": "¡Muy bien!" } ]},
+  { "name": "Plan de hoy: empieza sesion guiada", "steps": [
+    { "goto": "#/" }, { "expectVisible": ".plan-card" }, { "click": "[data-action=\"start-session\"]" }, { "expectVisible": ".ses-banner" } ]},
+  { "name": "Progreso muestra evolucion por dias", "steps": [
+    { "goto": "#/progreso" }, { "expectVisible": ".evo" } ]},
   { "name": "Progreso para familias", "steps": [
     { "goto": "#/progreso" }, { "expectVisible": ".stat-cards" } ]},
   { "name": "Opuestos funciona", "steps": [
@@ -286,7 +310,7 @@ body.calm{font-size:18px} body.calm *{animation:none!important;transition:none!i
 "use strict";
 const CONFIG = { APP_NAME:"Laura M M · Logopeda", ADMIN_PASSWORD:"logo1234", WHATSAPP:"34611773150", EMAIL:"", CITY:"Arucas y zona norte de Gran Canaria", STUDIO_BRAND:"Incuba tu Negocio", STUDIO_AUTHOR:"Jaime M. M.", STUDIO_URL:"" };
 const DB = { get(k,fb){ try{ const v=localStorage.getItem(k); return v==null?fb:JSON.parse(v); }catch(e){ return fb; } }, set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ toast("No se pudo guardar"); return false; } } };
-const K = { stars:"lg_stars", reports:"lg_reports", admin:"lg_admin", calm:"lg_calm", prog:"lg_prog", custom:"lg_custom" };
+const K = { stars:"lg_stars", reports:"lg_reports", admin:"lg_admin", calm:"lg_calm", prog:"lg_prog", custom:"lg_custom", plan:"lg_plan" };
 function speak(text){ try{ if(!('speechSynthesis' in window)){ toast('Tu dispositivo no puede leer en voz alta'); return; } window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(String(text)); u.lang='es-ES'; u.rate=.85; u.pitch=1.1; const vs=window.speechSynthesis.getVoices().filter(v=>/es/i.test(v.lang)); if(vs[0])u.voice=vs[0]; window.speechSynthesis.speak(u); }catch(e){} }
 try{ if('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged=()=>{}; }catch(e){}
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -298,7 +322,29 @@ const MOD_LABEL={articulacion:"Articulación",paresmin:"Pares mínimos",voz:"Dil
 function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
 function loadProg(){ return DB.get(K.prog,{mods:{},days:{},streak:0,lastDay:''}); }
 function touchDay(p){ p=p||loadProg(); const t=todayKey(); p.days[t]=(p.days[t]||0)+1; if(p.lastDay!==t){ const y=new Date(); y.setDate(y.getDate()-1); const yk=y.getFullYear()+'-'+(y.getMonth()+1)+'-'+y.getDate(); p.streak=(p.lastDay===yk)?(p.streak||0)+1:1; p.lastDay=t; } DB.set(K.prog,p); return p; }
-function recordResult(mod,ok){ if(!mod)return; const p=loadProg(); const m=p.mods[mod]||(p.mods[mod]={c:0,t:0}); m.t++; if(ok)m.c++; touchDay(p); }
+function recordResult(mod,ok){ if(!mod)return; const p=loadProg(); const m=p.mods[mod]||(p.mods[mod]={c:0,t:0}); m.t++; if(ok)m.c++; const t=todayKey(); p.hist=p.hist||{}; const hd=p.hist[t]||(p.hist[t]={t:0,c:0}); hd.t++; if(ok)hd.c++; touchDay(p); }
+function progHist(){ const p=loadProg(); const h=p.hist||{}; const out=[]; for(let i=13;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); const k=d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); const e=h[k]||{t:0,c:0}; out.push({k,dia:['D','L','M','X','J','V','S'][d.getDay()],t:e.t,c:e.c,pct:e.t?Math.round(e.c*100/e.t):0}); } return out; }
+/* ===== Plan de hoy (sesión guiada: dosis + constancia) ===== */
+const PLAN_CATALOG=[
+  {id:'vocab',route:'#/aprender/vocabulario/animales',e:'🖼️',label:'Vocabulario'},
+  {id:'rima',route:'#/aprender/fonologica/rimas',e:'🎵',label:'Rimas'},
+  {id:'silabas',route:'#/aprender/fonologica/silabas',e:'👏',label:'Sílabas'},
+  {id:'inicial',route:'#/aprender/fonologica/inicial',e:'🔠',label:'Sonido inicial'},
+  {id:'fichas',route:'#/aprender/fonologica/fichas',e:'🧩',label:'Sonidos (fichas)'},
+  {id:'leer',route:'#/aprender/lectoescritura/palabras',e:'📕',label:'Leer palabras'},
+  {id:'forma',route:'#/aprender/lectoescritura/formas',e:'🔺',label:'Formas'},
+  {id:'orden',route:'#/aprender/comprension/ordenes',e:'👂',label:'Escucha y toca'},
+  {id:'opuesto',route:'#/aprender/comprension/opuestos',e:'↔️',label:'Opuestos'},
+  {id:'intruso',route:'#/aprender/comprension/intruso',e:'🔎',label:'El intruso'}
+];
+const PLAN_DEFAULT=['vocab','rima','fichas','leer','orden'];
+function loadPlan(){ const p=DB.get(K.plan,null); const valid=(p&&p.ids&&p.ids.length)?p.ids.filter(id=>PLAN_CATALOG.some(x=>x.id===id)):PLAN_DEFAULT; return {ids:valid.length?valid:PLAN_DEFAULT, goal:(p&&p.goal)||4}; }
+function savePlan(pl){ DB.set(K.plan,pl); }
+function planItem(id){ return PLAN_CATALOG.find(x=>x.id===id); }
+let SES=null, SES_SUMMARY=null; /* sesión guiada en curso / resumen */
+function startSession(){ const pl=loadPlan(); if(!pl.ids.length){ toast('Configura el plan en el panel'); return; } SES={ids:pl.ids.slice(),goal:pl.goal,idx:0,count:0,c:0,t:0,startStars:stars()}; QZ=null; location.hash=planItem(SES.ids[0]).route; }
+function finishSession(){ const gained=stars()-SES.startStars; SES_SUMMARY={ex:SES.ids.length,t:SES.t,c:SES.c,stars:gained}; SES=null; QZ=null; location.hash='#/sesion'; }
+function sesAdvance(ok){ if(!SES)return false; SES.t++; if(ok)SES.c++; SES.count++; if(SES.count>=SES.goal){ SES.count=0; SES.idx++; if(SES.idx<SES.ids.length){ QZ=null; location.hash=planItem(SES.ids[SES.idx]).route; } else { finishSession(); } } else { QZ=null; render(); } return true; }
 /* ===== Personalización (la familia sube fotos y palabras del niño) ===== */
 function loadCustom(){ return DB.get(K.custom,{items:[]}); }
 function saveCustom(c){ DB.set(K.custom,c); }
@@ -533,6 +579,7 @@ function tilesHTML(list){ return `<div class="grid">${list.map(t=>`<button class
 /* ===== Home ===== */
 function viewHome(){
   return page(`<section class="hero"><div class="big-emoji">🗣️</div><h1>Enseñar a <span>hablar</span> y a <span>leer</span></h1><p class="muted">Articulación, vocabulario, conciencia fonológica, lectoescritura y comprensión. Todo suena en voz alta. Apoyo para la logopeda.</p></section>
+  ${planTodayCard()}
   <section><div class="choices">
     <button class="choice jugar" data-action="go" data-h="#/aprender"><span class="ce">🎮</span><h2>Aprender a hablar</h2><p>Fonemas, vocabulario, rimas, lectura, comprensión, soplo</p></button>
     <button class="choice cuentos" data-action="go" data-h="#/aprender/cuentos"><span class="ce">📚</span><h2>Cuentos</h2><p>Mirar, nombrar y contar con la familia</p></button>
@@ -540,6 +587,8 @@ function viewHome(){
     <button class="choice valorar" data-action="go" data-h="#/valorar"><span class="ce">📋</span><h2>Valoración</h2><p>Lenguaje por edad (orientativa)</p></button>
   </div>
   <div class="mini-links"><a class="mini-link" href="#/familias">👨‍👩‍👧 Para familias</a><a class="mini-link" href="#/progreso">📈 Mi progreso</a></div></section>`);
+}
+function planTodayCard(){ const pl=loadProg(); const done=(pl.days&&pl.days[todayKey()])||0; const goal=loadPlan().ids.length*loadPlan().goal; const st=pl.streak||0; return `<section><div class="plan-card"><div class="plan-l"><div class="plan-h">🎯 Plan de hoy</div><div class="plan-s">${done>0?('Hoy llevas <b>'+done+'</b> aciertos'):'Una sesión corta cada día'} · 🔥 ${st} ${st===1?'día':'días'}</div></div><button class="btn btn-green" data-action="start-session">▶️ Empezar</button></div></section>`;
 }
 /* ===== Hub Aprender ===== */
 function viewAprender(){
@@ -620,6 +669,8 @@ function closeMirror(){ try{ if(CAM_STREAM)CAM_STREAM.getTracks().forEach(t=>t.s
 function viewProgreso(){
   const p=loadProg(); const keys=Object.keys(p.mods); let tot=0,cor=0; keys.forEach(k=>{tot+=p.mods[k].t;cor+=p.mods[k].c;}); const pct=tot?Math.round(cor*100/tot):0; const dias=Object.keys(p.days).length;
   const bars=keys.length?keys.map(k=>{const m=p.mods[k];const pc=m.t?Math.round(m.c*100/m.t):0;return `<div class="pr-row"><span class="pr-l">${esc(MOD_LABEL[k]||k)}</span><span class="bar"><i class="${pc<50?'low':pc<75?'mid':''}" style="width:${pc}%"></i></span><span class="pr-v">${pc}%</span></div>`;}).join(''):'<p class="muted">Aún no hay ejercicios. ¡Jugad un poco y volved aquí!</p>';
+  const hist=progHist(); const maxT=Math.max(1,...hist.map(d=>d.t));
+  const chart=`<div class="evo">${hist.map(d=>{const h=d.t?Math.max(8,Math.round(d.t/maxT*100)):2; const cls=d.t?(d.pct<50?'low':d.pct<75?'mid':''):'empty'; return `<div class="evo-col"><div class="evo-bar"><i class="${cls}" style="height:${h}%" title="${d.t} ejercicios · ${d.pct}%"></i></div><span class="evo-d">${d.dia}</span></div>`;}).join('')}</div>`;
   return page(`<section>${back('#/','Inicio')}<div class="center" style="margin:10px 0 14px"><h2>Mi progreso 📈</h2></div>
   <div class="stat-cards">
     <div class="stat-card"><div class="sc-n">⭐ ${stars()}</div><div class="sc-l">estrellas</div></div>
@@ -627,9 +678,23 @@ function viewProgreso(){
     <div class="stat-card"><div class="sc-n">${tot}</div><div class="sc-l">ejercicios</div></div>
     <div class="stat-card"><div class="sc-n">${pct}%</div><div class="sc-l">aciertos</div></div>
   </div>
-  <div class="box-card" style="margin-top:16px"><h3 style="margin:0 0 12px">Aciertos por actividad</h3>${bars}</div>
+  <div class="box-card" style="margin-top:16px"><h3 style="margin:0 0 4px">Evolución (últimos 14 días)</h3><p class="muted" style="font-size:13px;margin:0 0 8px">Altura = cuánto practicó · color = aciertos (🟢 bien 🟠 medio 🔴 flojo)</p>${chart}</div>
+  <div class="center" style="margin:14px 0"><button class="btn btn-green" data-action="start-session">▶️ Empezar el plan de hoy</button></div>
+  <div class="box-card" style="margin-top:6px"><h3 style="margin:0 0 12px">Aciertos por actividad</h3>${bars}</div>
   <div class="center" style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn btn-primary" data-action="print-report">🖨️ Imprimir / PDF</button><button class="btn btn-ghost" data-action="export-prog">⬇️ CSV</button><button class="btn btn-ghost" data-action="reset-prog" id="resetProg">Borrar</button></div>
   <p class="muted" style="font-size:13.5px;margin-top:12px;text-align:center">Se guarda solo en este dispositivo. Enseña el informe a la logopeda.</p></section>`);
+}
+/* ===== Fin de sesión del plan ===== */
+function viewSesion(){
+  const s=SES_SUMMARY; if(!s) return page(`<section>${back('#/','Inicio')}<div class="box"><div class="center"><div style="font-size:48px">🎯</div><h2>Plan de hoy</h2><p class="muted">Empieza una sesión corta desde Inicio.</p><button class="btn btn-green" data-action="start-session">▶️ Empezar</button></div></div></section>`);
+  const pct=s.t?Math.round(s.c*100/s.t):0;
+  return page(`<section><div class="box" style="max-width:480px"><div class="center"><div style="font-size:60px">🎉</div><h2>¡Sesión terminada!</h2><p class="muted">¡Muy bien! Has completado el plan de hoy.</p></div>
+  <div class="stat-cards" style="margin-top:12px">
+    <div class="stat-card"><div class="sc-n">${s.ex}</div><div class="sc-l">actividades</div></div>
+    <div class="stat-card"><div class="sc-n">${pct}%</div><div class="sc-l">aciertos</div></div>
+    <div class="stat-card"><div class="sc-n">⭐ +${s.stars}</div><div class="sc-l">estrellas</div></div>
+  </div>
+  <div class="center" style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap"><button class="btn btn-green" data-action="start-session">↻ Otra vez</button><a class="btn btn-primary" href="#/progreso">📈 Ver progreso</a><a class="btn btn-ghost" href="#/">Inicio</a></div></div></section>`);
 }
 function progCSV(){ const p=loadProg(); let csv='Actividad,Aciertos,Intentos,Porcentaje\n'; Object.keys(p.mods).forEach(k=>{const m=p.mods[k];csv+=`"${(MOD_LABEL[k]||k)}",${m.c},${m.t},${m.t?Math.round(m.c*100/m.t):0}%\n`;}); csv+=`\nEstrellas,${stars()}\nRacha (días),${p.streak||0}\n`; return csv; }
 function downloadProg(){ try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+progCSV()],{type:'text/csv'})); a.download='progreso-nino.csv'; a.click(); URL.revokeObjectURL(a.href); }catch(e){ toast('No se pudo exportar'); } }
@@ -696,8 +761,11 @@ function renderQuiz(backHref,backTxt,q){
   const optsHTML = imgOpts
     ? `<div class="opt-imgs">${q.options.map(o=>`<button class="opt-img" data-action="answer" data-correct="${o.correct?1:0}" aria-label="${esc(o.label)}"><span class="oe" aria-hidden="true">${o.kind==='shape'?`<span class="shape-opt">${shapeSVG(o.shapeId,'#2563b8','#1c4d92')}</span>`:esc(o.emoji)}</span>${q.hideLabels?'':`<span class="ow">${esc(o.label)}</span>`}</button>`).join('')}</div>`
     : `<div class="opts">${q.options.map(o=>`<button class="optbtn" data-action="answer" data-correct="${o.correct?1:0}">${esc(o.label)}</button>`).join('')}</div>`;
-  return page(`<section>${back(backHref,backTxt)}<div class="qbox"><div class="center"><h2>${esc(q.title)}</h2></div>${promptHTML}<div class="feedback" id="fb" aria-live="polite"></div>${optsHTML}</div></section>`);
+  const banner = SES ? sesBanner() : '';
+  const backBtn = SES ? '' : back(backHref,backTxt);
+  return page(`<section>${backBtn}${banner}<div class="qbox"><div class="center"><h2>${esc(q.title)}</h2></div>${promptHTML}<div class="feedback" id="fb" aria-live="polite"></div>${optsHTML}</div></section>`);
 }
+function sesBanner(){ if(!SES)return ''; const tot=SES.ids.length; const done=SES.idx; const pct=Math.round(((done+SES.count/SES.goal)/tot)*100); const it=planItem(SES.ids[SES.idx]); return `<div class="ses-banner"><div class="ses-top"><span>🎯 Plan de hoy · ${esc(it.e)} ${esc(it.label)}</span><button class="ses-exit" data-action="end-session" aria-label="Salir del plan">✕</button></div><div class="ses-bar"><i style="width:${pct}%"></i></div><div class="ses-step">Actividad ${done+1} de ${tot}</div></div>`; }
 function viewVocabulario(catId){
   if(!catId){ return page(`<section>${back('#/aprender','Aprender')}<div class="center" style="margin:10px 0 16px"><h2>Vocabulario</h2><p class="muted">Elige una categoría.</p></div>${tilesHTML(VOCAB_CATS.map(c=>({h:"#/aprender/vocabulario/"+c.id,e:c.e,b:c.label,s:c.items.length+" palabras"})))}</section>`); }
   return renderQuiz('#/aprender/vocabulario','Vocabulario',quiz('vocab',catId));
@@ -780,7 +848,12 @@ function viewPanel(){
     <div class="field"><label for="cusImg">Foto (opcional)</label><input id="cusImg" type="file" accept="image/*"></div>
     <button class="btn btn-primary btn-sm" data-action="cus-add">➕ Añadir</button>
     <div class="cus-list" style="margin-top:10px">${c.items.length?c.items.map((it,i)=>`<div class="cus-it">${it.img?`<img class="pic-img" src="${esc(it.img)}" alt="">`:`<span style="font-size:24px">${esc(it.e||'🖼️')}</span>`}<span class="cus-w">${esc(it.w)}</span><button class="btn btn-ghost btn-sm" data-action="cus-del" data-i="${i}">Quitar</button></div>`).join(''):'<p class="muted" style="font-size:13px">Aún no hay nada en «Mis cosas».</p>'}</div></div>`;
-  return page(`<section><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><h2 style="margin:0">Panel de la logopeda</h2><button class="btn btn-ghost btn-sm" style="margin-left:auto" data-action="logout">Salir</button></div>${custom}${body}</section>`);
+  const pl=loadPlan();
+  const plan=`<div class="box-card" style="margin-bottom:16px"><h3 style="margin:0 0 6px">🎯 Plan de hoy (deberes)</h3><p class="muted" style="font-size:14px">Elige qué practica el niño en la sesión guiada y cuántas preguntas por actividad.</p>
+    <div class="plan-grid">${PLAN_CATALOG.map(it=>{const on=pl.ids.indexOf(it.id)>=0;return `<button class="plan-pick ${on?'on':''}" data-action="plan-toggle" data-id="${it.id}" aria-pressed="${on}"><span aria-hidden="true">${it.e}</span> ${esc(it.label)} ${on?'✓':''}</button>`;}).join('')}</div>
+    <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="muted">Preguntas por actividad:</span>${[3,4,5,6].map(n=>`<button class="seg-b ${pl.goal===n?'on':''}" data-action="plan-goal" data-v="${n}">${n}</button>`).join('')}</div>
+    <p class="muted" style="font-size:13px;margin-top:8px">Plan actual: <b>${pl.ids.length}</b> actividades · ~${pl.ids.length*pl.goal} preguntas (${Math.ceil(pl.ids.length*pl.goal*0.25)} min aprox).</p></div>`;
+  return page(`<section><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><h2 style="margin:0">Panel de la logopeda</h2><button class="btn btn-ghost btn-sm" style="margin-left:auto" data-action="logout">Salir</button></div>${plan}${custom}${body}</section>`);
 }
 function viewAviso(){ const wa=CONFIG.WHATSAPP.replace(/\D/g,''); return page(`<section>${back('#/','Inicio')}<div class="box" style="max-width:680px;text-align:left"><h2>Contacto y aviso</h2><p><b>${esc(CONFIG.APP_NAME)}</b><br>${esc(CONFIG.CITY)}<br>📞 WhatsApp: <a href="https://wa.me/${wa}" target="_blank" rel="noopener noreferrer" style="color:var(--brand);font-weight:700">${esc(CONFIG.WHATSAPP.replace(/^34/,'+34 '))}</a>${CONFIG.EMAIL?`<br>✉️ <a href="mailto:${esc(CONFIG.EMAIL)}" style="color:var(--brand);font-weight:700">${esc(CONFIG.EMAIL)}</a>`:''}</p><hr style="border:none;border-top:1px solid var(--line);margin:14px 0"><p><b>Herramienta de apoyo.</b> Ayuda a practicar el habla, el lenguaje y la lectoescritura y ofrece una valoración <b>orientativa</b>. No es un diagnóstico ni sustituye a la sesión con la logopeda.</p><p><b>Datos.</b> Todo se guarda solo en este dispositivo (localStorage); no se envía a ningún servidor.</p><p><b>Voz.</b> La pronunciación la genera el navegador; la calidad depende del dispositivo.</p><div class="center" style="margin-top:14px"><a class="btn btn-green" href="https://wa.me/${wa}" target="_blank" rel="noopener noreferrer">Escribir por WhatsApp</a> <a class="btn btn-ghost" href="#/">Volver</a></div></div></section>`); }
 
@@ -803,6 +876,7 @@ function render(){
   }
   else if(a==='caa'){ if(b==='comunicador') html=viewComunicador(); else if(b==='emociones') html=viewEmociones(); else if(b==='agenda') html=viewAgenda(); else html=viewCAA(); }
   else if(a==='paresmin') html=viewParesMin();
+  else if(a==='sesion') html=viewSesion();
   else if(a==='magico') html=viewMagico();
   else if(a==='familias') html=viewFamilias();
   else if(a==='progreso') html=viewProgreso();
@@ -848,7 +922,11 @@ document.addEventListener('click',function(e){
       document.querySelectorAll('[data-action="answer"]').forEach(o=>o.disabled=true); el.classList.add(ok?'good':'bad');
       if(ok){ addStar(1); if(fb){fb.textContent='¡Muy bien! ⭐'; fb.className='feedback ok';} speak('¡Muy bien!'); }
       else { if(fb){fb.textContent='Casi… inténtalo otra vez'; fb.className='feedback no';} document.querySelectorAll('[data-correct="1"]').forEach(o=>o.classList.add('good')); }
-      setTimeout(()=>{ QZ=null; render(); }, ok?1100:1600); break; }
+      setTimeout(()=>{ if(SES){ sesAdvance(ok); } else { QZ=null; render(); } }, ok?1100:1600); break; }
+    case 'start-session': startSession(); break;
+    case 'end-session': SES=null; toast('Plan pausado'); location.hash='#/'; break;
+    case 'plan-toggle': { const pl=loadPlan(); const id=el.dataset.id; const i=pl.ids.indexOf(id); if(i>=0){ if(pl.ids.length>1)pl.ids.splice(i,1); } else { pl.ids.push(id); } savePlan(pl); render(); break; }
+    case 'plan-goal': { const pl=loadPlan(); pl.goal=Math.max(2,Math.min(8,+el.dataset.v||4)); savePlan(pl); render(); break; }
     case 'scene-item': speak(el.dataset.w); el.classList.add('si-pop'); setTimeout(()=>el.classList.remove&&el.classList.remove('si-pop'),350); break;
     case 'cuento-read': speak(el.dataset.w); addStar(1); recordResult('cuento',true); { const t=document.getElementById('cuentoTxt'); if(t)t.classList.add('reading'); } toast('¡Bien leído! ⭐'); break;
     case 'mic-on': startBalloon(); break;
