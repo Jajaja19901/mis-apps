@@ -1200,7 +1200,7 @@ document.addEventListener('click',function(e){
 document.addEventListener('submit',function(e){ if(e.target.id==='gateForm'){ e.preventDefault(); const v=document.getElementById('gatePass').value; if(v===CONFIG.ADMIN_PASSWORD){ DB.set(K.admin,true); render(); toast('¡Hola! 👋'); } else { toast('Contraseña incorrecta'); } } });
 window.addEventListener('hashchange',render);
 /* Enlaces internos (#/...): navegar por JS para que funcionen también dentro de un iframe (app combinada) */
-document.addEventListener('click',function(e){ const a=e.target.closest&&e.target.closest('a[href^="#"]'); if(!a) return; const h=a.getAttribute('href'); e.preventDefault(); if(location.hash===h){ try{render();}catch(_){ } } else { location.hash=h; } });
+document.addEventListener('click',function(e){ const a=e.target.closest&&e.target.closest('a[href^="#/"]'); if(!a) return; const h=a.getAttribute('href'); e.preventDefault(); if(location.hash===h){ try{render();}catch(_){ } } else { location.hash=h; } });
 function exportCSV(){ const reps=DB.get(pk(K.reports),[]); const rows=[['Fecha','Nombre','Edad','Áreas','A reforzar']]; reps.forEach(r=>rows.push([new Date(r.fecha).toLocaleString('es-ES'),r.nombre||'',r.edad,Object.entries(r.areas).map(([a,p])=>a+' '+p+'%').join(' | '),(r.flags||[]).join(' | ')])); const csv=rows.map(row=>row.map(c=>{ c=String(c); if(/^[=+\-@]/.test(c))c="'"+c; return '"'+c.replace(/"/g,'""')+'"'; }).join(',')).join('\n'); try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'})); a.download='valoraciones.csv'; a.click(); URL.revokeObjectURL(a.href); }catch(e){ toast('No se pudo exportar'); } }
 
 if(calmOn()) document.body.classList.add('calm');
