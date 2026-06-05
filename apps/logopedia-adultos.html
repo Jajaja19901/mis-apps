@@ -336,6 +336,10 @@ function activeProfile(){ const a=activeId(); return (DB.get(K.profiles,[]).find
 function pk(base){ return base+'_'+activeId(); }
 function addProfile(name,age){ const ps=DB.get(K.profiles,[]); const id='p'+Date.now().toString(36)+Math.floor(Math.random()*90+10); ps.push({id,name:(name||'Paciente').slice(0,30),age:(age||'').slice(0,30)}); DB.set(K.profiles,ps); DB.set(K.active,id); return id; }
 function setActive(id){ DB.set(K.active,id); }
+/* ===== Copia de seguridad ===== */
+function collectLS(prefix){ const o={}; for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k&&k.indexOf(prefix)===0) o[k]=localStorage.getItem(k); } return o; }
+function exportBackup(){ try{ const obj={app:'logopedia-adultos',v:1,when:new Date().toISOString(),data:collectLS('la_')}; const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(obj)],{type:'application/json'})); const d=new Date(); a.download='copia-logopedia-adultos-'+d.getFullYear()+(d.getMonth()+1)+d.getDate()+'.json'; document.body.appendChild(a); a.click(); setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(a.href);},400); toast('Copia descargada ✓'); }catch(e){ toast('No se pudo exportar'); } }
+function importBackup(file){ const r=new FileReader(); r.onload=function(){ try{ const obj=JSON.parse(r.result); if(!obj||!obj.data){ toast('Archivo no válido'); return; } let n=0; Object.keys(obj.data).forEach(k=>{ if(/^la_/.test(k)){ try{ localStorage.setItem(k,obj.data[k]); n++; }catch(e){} } }); SES=null; toast(n?('Copia restaurada ✓ ('+n+' datos)'):'Esa copia no tenía datos de esta app'); location.hash='#/'; render(); }catch(e){ toast('No se pudo leer el archivo'); } }; r.readAsText(file); }
 function delProfile(id){ let ps=DB.get(K.profiles,[]); ps=ps.filter(p=>p.id!==id); DB.set(K.profiles,ps); ['la_stats','la_plan','la_custom','la_notes','la_ficha'].forEach(b=>{try{localStorage.removeItem(b+'_'+id);}catch(e){}}); if(DB.get(K.active,'')===id){ DB.set(K.active, ps.length?ps[0].id:''); } profiles(); }
 function fichaLoad(){ return DB.get(pk(K.ficha),{tel:'',dx:'',pautas:[],pagos:[],materiales:[],notas:''}); }
 function fichaSave(f){ DB.set(pk(K.ficha),f); }
@@ -936,6 +940,12 @@ function viewPanel(){
   <label for="cusP" style="margin-top:12px">Frase rápida propia</label><div class="row"><input id="cusP" type="text" placeholder="Ej.: Quiero ver a mis nietos" style="flex:1"><button class="btn btn-primary" data-action="cus-add-phrase">➕</button></div>
   <div class="cus-list">${c.phrases.length?c.phrases.map((p,i)=>`<div class="cus-it"><span style="font-size:22px">💬</span><span class="cus-w">${esc(p.w)}</span><button class="btn btn-ghost btn-sm" data-action="cus-del-phrase" data-i="${i}">Quitar</button></div>`).join(''):'<p class="muted" style="font-size:14px">Sin frases propias.</p>'}</div>
   <hr style="border:none;border-top:1px solid var(--line);margin:18px 0">
+  <h3 style="margin:0 0 6px">💾 Copia de seguridad</h3>
+  <p class="muted" style="font-size:14px">Los datos se guardan solo en este dispositivo. Descargue una copia para no perder nada al cambiar de móvil o navegador.</p>
+  <div class="row" style="gap:10px"><button class="btn btn-primary btn-sm" data-action="backup-export">⬇️ Descargar copia</button><button class="btn btn-ghost btn-sm" data-action="backup-pick">⬆️ Restaurar copia</button></div>
+  <input type="file" id="impFile" accept="application/json,.json" style="display:none">
+  <p class="muted" style="font-size:12.5px;margin-top:8px">Incluye pacientes, progreso, plan y fichas. Restaurar reemplaza los datos actuales.</p>
+  <hr style="border:none;border-top:1px solid var(--line);margin:18px 0">
   <div class="row"><a class="btn btn-ghost" href="#/progreso">📈 Ver progreso</a><button class="btn btn-ghost" data-action="logout">Salir</button></div>
   <p class="muted" style="font-size:15px;margin-top:12px">Para cambiar el nombre, el WhatsApp o la contraseña, edite la caja <code>CONFIG</code> al principio del archivo HTML.</p></div></section>`);
 }
@@ -1117,11 +1127,14 @@ document.addEventListener('click',function(e){
     case 'cus-del-item':{ const c=loadCustom(); c.items.splice(+el.dataset.i,1); saveCustom(c); render(); break; }
     case 'cus-add-phrase':{ const p=(document.getElementById('cusP')||{}).value||''; if(!p.trim()){ toast('Escriba una frase'); break; } const c=loadCustom(); c.phrases.push({w:p.trim()}); saveCustom(c); render(); toast('Frase añadida'); break; }
     case 'cus-del-phrase':{ const c=loadCustom(); c.phrases.splice(+el.dataset.i,1); saveCustom(c); render(); break; }
+    case 'backup-export': exportBackup(); break;
+    case 'backup-pick': { const f=document.getElementById('impFile'); if(f)f.click(); break; }
   }
 });
 
 /* ============ Init ============ */
 window.addEventListener('hashchange',render);
+document.addEventListener('change',function(e){ if(e.target&&e.target.id==='impFile'){ const f=e.target.files&&e.target.files[0]; if(f) importBackup(f); } });
 /* Enlaces internos (#/...): navegar por JS para que funcionen también dentro de un iframe (app combinada) */
 document.addEventListener('click',function(e){ const a=e.target.closest&&e.target.closest('a[href^="#/"]'); if(!a) return; const h=a.getAttribute('href'); e.preventDefault(); if(location.hash===h){ try{render();}catch(_){ } } else { location.hash=h; } });
 try{ MIS_I=Math.floor(Math.random()*MISIONES.length); }catch(e){}
