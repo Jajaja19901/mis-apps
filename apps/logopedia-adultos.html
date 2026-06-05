@@ -153,6 +153,16 @@ section{padding:18px 0}
 .pago-i{flex:0 0 auto;font-size:14px}
 .pago-tot{display:flex;gap:14px;justify-content:flex-end;margin:0 0 8px;font-weight:800;font-size:13.5px}
 .pt-ok{color:var(--green)} .pt-pend{color:#a8521f}
+.row-c{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.mis-card{background:var(--surface);border:2px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh);padding:22px;text-align:center;max-width:480px;margin:0 auto}
+.mis-e{font-size:56px} .mis-t{font-size:20px;font-weight:800;margin:6px 0 12px;line-height:1.35}
+.mis-log{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px;padding:6px 0;border-bottom:1px solid var(--line)}
+.cm-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 0 12px}
+.cm-v{background:var(--surface);border:2px solid var(--line);border-radius:14px;padding:10px 4px;text-align:center;position:relative}
+.cm-n{position:absolute;top:4px;left:6px;font-size:11px;font-weight:800;color:var(--brand)} .cm-e{font-size:32px;display:block} .cm-t{font-size:11.5px;font-weight:700;color:var(--soft)}
+.cm-prompt{background:var(--brand-soft);border-radius:12px;padding:10px 12px;font-size:14px;text-align:center;margin-bottom:12px}
+.cm-keys{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px}
+.cm-key{background:#eef3f4;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700} .cm-key.ok{background:var(--green-soft);border-color:var(--green);color:#0a5b63}
 /* Ajustes */
 .set-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line);width:100%;text-align:left}
 button.as-btn{background:none;border:none;font:inherit;color:inherit;cursor:pointer}
@@ -240,6 +250,10 @@ footer .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:18p
     { "goto": "#/perfiles" }, { "expectVisible": ".perf-row" }, { "expectVisible": "[data-action=\"perf-add\"]" } ]},
   { "name": "Ficha del paciente protegida", "steps": [
     { "goto": "#/ficha" }, { "expectVisible": "#pw" } ]},
+  { "name": "Misiones de la vida real", "steps": [
+    { "goto": "#/misiones" }, { "expectVisible": ".mis-card" }, { "click": "[data-action=\"mis-done\"]" }, { "expect": "Misión cumplida" } ]},
+  { "name": "Contar una historia (narrador)", "steps": [
+    { "goto": "#/cuentame" }, { "expectVisible": ".cm-strip" }, { "expectVisible": "[data-action=\"cue-listen\"]" } ]},
   { "name": "Ajustes de accesibilidad", "steps": [
     { "goto": "#/ajustes" }, { "expectVisible": ".set-row" } ]},
   { "name": "Orientacion muestra el dia de hoy", "steps": [
@@ -271,7 +285,11 @@ const CONFIG = {
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const rand=a=>a[Math.floor(Math.random()*a.length)];
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
-const K={notes:'la_notes', stats:'la_stats', custom:'la_custom', settings:'la_settings', plan:'la_plan', profiles:'la_profiles', active:'la_active', ficha:'la_ficha'};
+const K={notes:'la_notes', stats:'la_stats', custom:'la_custom', settings:'la_settings', plan:'la_plan', profiles:'la_profiles', active:'la_active', ficha:'la_ficha', mislog:'la_mislog'};
+let MIS_I=0, CUE={i:0,heard:''}, SR=null, MIC_REC=null, MIC_STREAM=null, MIC_CHUNKS=[];
+function misLog(){ return DB.get(pk(K.mislog),[]); }
+function misSave(l){ DB.set(pk(K.mislog),l); }
+function listenCapture(cb,statusId){ const st=statusId&&document.getElementById(statusId); const SRC=window.SpeechRecognition||window.webkitSpeechRecognition; if(!SRC){ if(st)st.textContent='Este navegador no escucha la voz (pruebe en Chrome/Android). Puede leerlo en alto.'; return false; } try{ if(SR)SR.abort(); }catch(e){} SR=new SRC(); SR.lang='es-ES'; SR.interimResults=false; SR.maxAlternatives=1; if(st)st.textContent='🎤 Escuchando…'; SR.onresult=function(ev){ let said=''; for(let i=0;i<ev.results.length;i++)said+=' '+ev.results[i][0].transcript; cb(said.trim()); }; SR.onerror=function(){ if(st)st.textContent='No se oyó bien. Inténtelo otra vez.'; }; try{ SR.start(); return true; }catch(e){ return false; } }
 /* ===== Perfiles (cada paciente con sus datos) ===== */
 function migrateLegacy(id){ ['la_stats','la_plan','la_custom','la_notes','la_ficha'].forEach(b=>{ try{ const v=localStorage.getItem(b); if(v!=null && localStorage.getItem(b+'_'+id)==null) localStorage.setItem(b+'_'+id,v); }catch(e){} }); }
 function profiles(){ let ps=DB.get(K.profiles,null); if(!ps||!ps.length){ const id='p'+Date.now().toString(36); ps=[{id,name:'Paciente',age:''}]; DB.set(K.profiles,ps); DB.set(K.active,id); migrateLegacy(id); } return ps; }
@@ -286,7 +304,7 @@ function fichaSave(f){ DB.set(pk(K.ficha),f); }
 function fichaText(){ const ap=activeProfile(); const f=fichaLoad(); const l=['Ficha · '+(ap.name||'Paciente')+(ap.age?' ('+ap.age+')':'')]; if(f.dx)l.push('Objetivo: '+f.dx); if(f.pautas.length){ l.push('','Pautas / ejercicios:'); f.pautas.forEach(t=>l.push((t.done?'✓':'•')+' '+t.t)); } if(f.materiales.length){ l.push('','Materiales:'); f.materiales.forEach(t=>l.push((t.done?'✓':'•')+' '+t.t)); } l.push('','(Enviado desde la app de Laura M M · Logopeda)'); return l.join('\n'); }
 const DB={ get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v);}catch(e){return d;}}, set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}} };
 /* ----- Progreso ----- */
-const MOD_LABEL={denom:'Nombrar objetos',frase:'Frases hechas',categ:'Categorías',calc:'Cálculo y dinero',atencion:'Atención',comprension:'Comprensión'};
+const MOD_LABEL={denom:'Nombrar objetos',frase:'Frases hechas',categ:'Categorías',calc:'Cálculo y dinero',atencion:'Atención',comprension:'Comprensión',mision:'Misiones reales',narrar:'Contar historias'};
 function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
 function loadStats(){ return DB.get(pk(K.stats),{mods:{},days:{},streak:0,lastDay:''}); }
 function touchDay(s){ s=s||loadStats(); const t=todayKey(); s.days[t]=(s.days[t]||0)+1; if(s.lastDay!==t){ const y=new Date(); y.setDate(y.getDate()-1); const yk=y.getFullYear()+'-'+(y.getMonth()+1)+'-'+y.getDate(); s.streak=(s.lastDay===yk)?(s.streak||0)+1:1; s.lastDay=t; } DB.set(pk(K.stats),s); return s; }
@@ -408,6 +426,23 @@ const CALC=[
   {q:'Tiene 3 monedas de 2 €. ¿Cuánto dinero tiene?',a:'6 €',d:['5 €','3 €']}
 ];
 const ATEN=['🍎','⭐','🔑','🌷','🔔','🚗','🏠','🐶','☂️','✂️','☕','🎈'];
+/* Misiones de la vida real (generalización) */
+const MISIONES=[
+  {t:'Salude a alguien hoy: «hola, buenos días».',e:'👋'},
+  {t:'Pida algo en una tienda o bar: «un café, por favor».',e:'☕'},
+  {t:'Conteste el teléfono y diga su nombre.',e:'📞'},
+  {t:'Pida ayuda si la necesita: «¿me ayuda, por favor?».',e:'🤝'},
+  {t:'Cuente a un familiar qué ha comido hoy.',e:'🗣️'},
+  {t:'Dé las gracias: «muchas gracias».',e:'🙏'},
+  {t:'Diga cómo se encuentra: «estoy bien» / «no me encuentro bien».',e:'🙂'},
+  {t:'Pida agua: «quiero agua, por favor».',e:'💧'}
+];
+/* Cuéntame: narrar una secuencia (discurso / memoria) */
+const CUENTAME=[
+  {titulo:'Mi mañana',vinetas:[{e:'🛏️',t:'levantarse'},{e:'🥣',t:'desayunar'},{e:'🚿',t:'ducharse'},{e:'🚶',t:'salir'}],clave:['levant','desayun','duch','sal'],modelo:'Me levanto, desayuno, me ducho y salgo de casa.'},
+  {titulo:'Hacer un café',vinetas:[{e:'💧',t:'agua'},{e:'☕',t:'café'},{e:'🔥',t:'calentar'},{e:'🥛',t:'leche'}],clave:['agua','café','calent','leche'],modelo:'Pongo agua, echo el café, lo caliento y le añado leche.'},
+  {titulo:'Ir a comprar',vinetas:[{e:'📝',t:'la lista'},{e:'🏪',t:'la tienda'},{e:'🛒',t:'el carro'},{e:'💶',t:'pagar'}],clave:['lista','tienda','carro','pag'],modelo:'Hago la lista, voy a la tienda, lleno el carro y pago en la caja.'}
+];
 
 /* ============ Estado ============ */
 let COMM_CAT=COMM[0].id, PHRASE=[];
@@ -450,6 +485,7 @@ function viewHome(){
     {h:'#/praxias',e:'👄',b:'Praxias y voz',s:'Boca, lengua, respiración y voz alta'},
     {h:'#/progreso',e:'📈',b:'Mi progreso',s:'Aciertos, racha e informe para la consulta'}
   ])}</section>
+  <section><button class="tile" data-action="go" data-h="#/misiones" style="width:100%;border-color:#0e7c86"><span class="te" aria-hidden="true">🚀</span><b>Misión de la vida real</b><small>Llevar el habla fuera de la pantalla (lo que más ayuda)</small></button></section>
   <section><div class="disclaimer">Esta aplicación es un <b>apoyo</b> para practicar; no es un tratamiento ni un diagnóstico y no sustituye las sesiones con la logopeda. Úsela acompañado de un familiar o cuidador si es necesario.</div></section>`);
 }
 
@@ -492,6 +528,7 @@ function viewLenguaje(sub){
     {h:'#/lenguaje/denominacion',e:'🖼️',b:'Nombrar objetos',s:'¿Qué es esto?'},
     {h:'#/lenguaje/comprension',e:'👂',b:'Comprensión',s:'Señale lo que oiga'},
     {h:'#/lenguaje/fluencia',e:'⏱️',b:'Fluencia verbal',s:'Decir muchas palabras en 1 minuto'},
+    {h:'#/cuentame',e:'🎤',b:'Contar una historia',s:'Narrar una secuencia (discurso)'},
     {h:'#/lenguaje/frases',e:'💬',b:'Frases hechas',s:'Complete el dicho'},
     {h:'#/lenguaje/categorias',e:'🗂️',b:'Categorías',s:'¿Cuál pertenece a…?'}
   ])}</section>`);
@@ -740,6 +777,27 @@ function viewPanel(){
   <p class="muted" style="font-size:15px;margin-top:12px">Para cambiar el nombre, el WhatsApp o la contraseña, edite la caja <code>CONFIG</code> al principio del archivo HTML.</p></div></section>`);
 }
 
+/* ============ Misiones y Cuéntame ============ */
+function viewMisiones(){
+  const m=MISIONES[MIS_I%MISIONES.length]; const log=misLog(); const hoy=todayKey(); const hechasHoy=log.filter(x=>x.dia===hoy).length;
+  return page(`<section>${back('#/','Inicio')}<div class="center" style="margin:8px 0 6px"><h2>Misión de la vida real 🚀</h2><p class="muted">Lo que de verdad ayuda es <b>usar el habla fuera de la pantalla</b>. Haga esta misión hoy.</p></div>
+  <div class="mis-card"><div class="mis-e" aria-hidden="true">${esc(m.e)}</div><div class="mis-t">${esc(m.t)}</div><button class="speak-btn" data-action="say" data-w="${esc(m.t)}">🔊 Escuchar</button></div>
+  <div class="row-c" style="margin-top:14px"><button class="btn btn-green" data-action="mis-done">✅ Hecho</button><button class="btn btn-primary" data-action="mis-rec" id="misRec">🎙️ Grabar prueba</button><button class="btn btn-ghost" data-action="mis-next">🔄 Otra misión</button></div>
+  <div id="misStatus" class="muted" style="text-align:center;min-height:22px;margin-top:8px"></div>
+  <div class="center" style="margin-top:6px"><span class="prof-mini">Hoy: ${hechasHoy} ✓ · Total: ${log.length}</span></div>
+  ${log.length?`<div class="box-card" style="margin-top:14px;text-align:left"><h3 style="margin:0 0 8px">🏅 Misiones logradas</h3>${log.slice(0,8).map((x,i)=>`<div class="mis-log"><span>${esc(x.e||'✅')} ${esc(x.t).slice(0,48)}</span>${x.audio?`<button class="btn btn-ghost btn-sm" data-action="mis-play" data-i="${log.length-1-i}">▶️</button>`:''}</div>`).join('')}</div>`:''}
+  <p class="muted" style="font-size:13px;margin-top:10px;text-align:center">Truco para casa: cuando lo diga en la vida real, refuércelo con calma.</p></section>`);
+}
+function viewCuentame(){
+  const c=CUENTAME[CUE.i%CUENTAME.length]; const heard=(CUE.heard||'').toLowerCase(); const found=c.clave.filter(k=>heard.indexOf(k.toLowerCase())>=0);
+  return page(`<section>${back('#/lenguaje','Lenguaje')}<div class="center" style="margin:6px 0 8px"><h2>Contar una historia 🎤</h2><p class="muted">Mire la secuencia y <b>cuéntela en voz alta</b>. La app le escucha.</p></div>
+  <div class="center" style="font-weight:800;font-size:18px;margin-bottom:8px">${esc(c.titulo)}</div>
+  <div class="cm-strip">${c.vinetas.map((v,i)=>`<div class="cm-v"><span class="cm-n">${i+1}</span><span class="cm-e" aria-hidden="true">${esc(v.e)}</span><span class="cm-t">${esc(v.t)}</span></div>`).join('')}</div>
+  <div class="cm-prompt">Cuente con sus palabras: ¿qué hace primero?, ¿luego?, ¿y al final?</div>
+  <div class="row-c"><button class="btn btn-green" data-action="cue-listen">🎤 Contar</button><button class="speak-btn" data-action="say" data-w="${esc(c.modelo)}">🔊 Oír el ejemplo</button><button class="btn btn-ghost" data-action="cue-next">🔄 Otra</button></div>
+  <div id="cueStatus" class="muted" style="text-align:center;min-height:24px;margin-top:10px">${heard?('Le oí: «'+esc(CUE.heard)+'»'):''}</div>
+  ${heard?`<div class="cm-keys">${c.clave.map(k=>`<span class="cm-key ${found.indexOf(k)>=0?'ok':''}">${found.indexOf(k)>=0?'✅':'⬜'} ${esc(k)}</span>`).join('')}</div>${found.length>=Math.ceil(c.clave.length/2)?'<p class="center" style="color:var(--green);font-weight:800">¡Muy bien contado! 👏</p>':'<p class="center muted">Inténtelo otra vez incluyendo esos pasos.</p>'}`:''}</section>`);
+}
 /* ============ Perfiles y Ficha ============ */
 function profileChip(){ const p=activeProfile(); const ini=(p.name||'?').slice(0,1).toUpperCase(); return `<a class="prof-chip" href="#/perfiles"><span class="prof-av">${esc(ini)}</span><span class="prof-t"><b>${esc(p.name||'Paciente')}</b><small>${p.age?esc(p.age):'pon la edad/diagnóstico'} · cambiar</small></span><span class="prof-ar" aria-hidden="true">▾</span></a>`; }
 function viewPerfiles(){
@@ -779,7 +837,7 @@ function parse(){ return location.hash.replace(/^#\/?/,'').split('/'); }
 function stopFluTimer(){ if(FLU_TIMER){ clearInterval(FLU_TIMER); FLU_TIMER=null; } }
 function startFluTimer(){ stopFluTimer(); FLU_TIMER=setInterval(function(){ const t=document.getElementById('fluTime'); if(!t){ stopFluTimer(); return; } FLU.secs--; t.textContent=FLU.secs+' s'; if(FLU.secs<=0){ stopFluTimer(); FLU.running=false; FLU.done=true; render(); } },1000); }
 function render(){
-  stopFluTimer(); stopVoz(); scanStop();
+  stopFluTimer(); stopVoz(); scanStop(); try{ if(SR)SR.abort(); }catch(e){}
   const p=parse(), a=p[0], b=p[1]; let html;
   if(a===''||a==null) html=viewHome();
   else if(a==='comunicar') html=viewComunicar();
@@ -787,6 +845,8 @@ function render(){
   else if(a==='memoria') html=viewMemoria(b);
   else if(a==='praxias') html=viewPraxias();
   else if(a==='voz') html=viewVoz();
+  else if(a==='misiones') html=viewMisiones();
+  else if(a==='cuentame') html=viewCuentame();
   else if(a==='perfiles') html=viewPerfiles();
   else if(a==='ficha') html=viewFicha();
   else if(a==='sesion') html=viewSesion();
@@ -839,6 +899,12 @@ document.addEventListener('click',function(e){
         else { MEM.lock=true; render(); setTimeout(()=>{ f.up=c.up=false; MEM.first=-1; MEM.lock=false; render(); },900); } }
       break; }
     case 'mem-reset': newMem(); render(); break;
+    case 'mis-next': MIS_I=(MIS_I+1)%MISIONES.length; render(); break;
+    case 'mis-done': { const m=MISIONES[MIS_I%MISIONES.length]; const log=misLog(); log.unshift({t:m.t,e:m.e,dia:todayKey(),fecha:new Date().toISOString()}); misSave(log); recordResult('mision',true); toast('¡Misión cumplida! ✓'); render(); break; }
+    case 'mis-rec': { const st=document.getElementById('misStatus'); if(!navigator.mediaDevices||!window.MediaRecorder){ if(st)st.textContent='Aquí no se puede grabar; marque «Hecho».'; break; } if(MIC_REC&&MIC_REC.state==='recording'){ try{MIC_REC.stop();}catch(e){} break; } navigator.mediaDevices.getUserMedia({audio:true}).then(function(s){ MIC_STREAM=s; MIC_CHUNKS=[]; try{MIC_REC=new MediaRecorder(s);}catch(e){ if(st)st.textContent='No se pudo grabar.'; return; } MIC_REC.ondataavailable=e=>{ if(e.data&&e.data.size)MIC_CHUNKS.push(e.data); }; MIC_REC.onstop=function(){ const r=new FileReader(); r.onload=function(){ const m=MISIONES[MIS_I%MISIONES.length]; const log=misLog(); log.unshift({t:m.t,e:m.e,dia:todayKey(),fecha:new Date().toISOString(),audio:r.result}); misSave(log); recordResult('mision',true); render(); toast('¡Prueba grabada! ✓'); }; r.readAsDataURL(new Blob(MIC_CHUNKS)); if(MIC_STREAM)MIC_STREAM.getTracks().forEach(t=>t.stop()); }; MIC_REC.start(); if(st)st.textContent='🔴 Grabando… diga su frase y pulse otra vez para parar.'; const bb=document.getElementById('misRec'); if(bb)bb.textContent='⏹️ Parar y guardar'; }).catch(function(){ if(st)st.textContent='No se pudo usar el micrófono.'; }); break; }
+    case 'mis-play': { const log=misLog(); const it=log[+el.dataset.i]; if(it&&it.audio){ try{ new Audio(it.audio).play(); }catch(e){} } break; }
+    case 'cue-listen': listenCapture(function(txt){ CUE.heard=txt; render(); },'cueStatus'); break;
+    case 'cue-next': CUE={i:(CUE.i+1)%CUENTAME.length,heard:''}; recordResult('narrar',true); render(); break;
     case 'perf-set': setActive(el.dataset.id); SES=null; toast('Paciente: '+(activeProfile().name||'')); location.hash='#/'; break;
     case 'perf-add': { const n=(document.getElementById('pfName')||{}).value||''; const ed=(document.getElementById('pfAge')||{}).value||''; if(!n.trim()){ toast('Escriba un nombre'); break; } addProfile(n.trim(),ed.trim()); SES=null; location.hash='#/'; toast('Paciente añadido'); break; }
     case 'perf-del': { if(el.dataset.armed==='1'){ delProfile(el.dataset.id); SES=null; render(); toast('Paciente borrado'); } else { el.dataset.armed='1'; el.textContent='⚠️'; setTimeout(()=>{ if(el){el.dataset.armed='0';el.textContent='🗑️';} },3000); } break; }
@@ -882,6 +948,7 @@ document.addEventListener('click',function(e){
 window.addEventListener('hashchange',render);
 /* Enlaces internos (#/...): navegar por JS para que funcionen también dentro de un iframe (app combinada) */
 document.addEventListener('click',function(e){ const a=e.target.closest&&e.target.closest('a[href^="#"]'); if(!a) return; const h=a.getAttribute('href'); e.preventDefault(); if(location.hash===h){ try{render();}catch(_){ } } else { location.hash=h; } });
+try{ MIS_I=Math.floor(Math.random()*MISIONES.length); }catch(e){}
 setupPWA();
 render();
 </script>
