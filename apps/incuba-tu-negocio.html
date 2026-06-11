@@ -176,6 +176,16 @@
 
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--neo);color:#04221a;padding:12px 20px;border-radius:999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:.3s;z-index:100;max-width:90%}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .acc-sec{padding:6px 0!important;opacity:1!important;transform:none!important}
+  .acc-btn{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 18px;font-family:var(--sg);font-size:17px;font-weight:700;color:#fff;cursor:pointer;text-align:left;transition:.15s}
+  .acc-btn:hover{border-color:var(--neo)}
+  .acc-btn .acc-t{display:flex;gap:10px;align-items:center}
+  .acc-btn .chev{color:var(--neo);font-size:20px;transition:transform .2s;flex:0 0 auto}
+  .acc-sec:not(.collapsed) .acc-btn{border-color:var(--neo);border-bottom-left-radius:0;border-bottom-right-radius:0}
+  .acc-sec:not(.collapsed) .acc-btn .chev{transform:rotate(90deg)}
+  .acc-sec.collapsed .acc-body{display:none}
+  .acc-sec .acc-body{padding:16px 2px 4px;animation:accIn .2s ease}
+  @keyframes accIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 
   .gracias{text-align:center;max-width:560px;margin:0 auto;padding:34px 0}
   .gracias .egg{font-size:64px;animation:breathe 2.6s ease-in-out infinite;display:inline-block}
@@ -265,7 +275,7 @@ function route(){
   if(h==="#/admin"){ stopIncu(); view="admin"; renderAdmin(); window.scrollTo(0,0); return; }
   if(h==="#/gracias"){ stopIncu(); view="gracias"; renderGracias(); window.scrollTo(0,0); return; }
   if(h==="#/legal"){ stopIncu(); view="legal"; renderLegal(); window.scrollTo(0,0); return; }
-  if(view!=="landing"){ view="landing"; renderLanding(); startIncubator(); }
+  if(view!=="landing"){ view="landing"; renderLanding(); startIncubator(); makeAccordions(); }
   if(h && h.length>1 && h[1]!=="/"){ const el=document.getElementById(h.slice(1)); const r=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches; if(el) setTimeout(()=>el.scrollIntoView({behavior:r?"auto":"smooth",block:"start"}),30); }
   else window.scrollTo(0,0);
 }
@@ -274,6 +284,35 @@ window.addEventListener("hashchange",route);
 /* ==================================================================
    LANDING
    ================================================================== */
+function accIcon(s){ var id=s.id||''; var t=((s.querySelector('h2')||{}).textContent||'').toLowerCase();
+  if(id==='proceso'||t.indexOf('incubamos')>=0)return'⚙️';
+  if(id==='niveles'||t.indexOf('crecer')>=0)return'💲';
+  if(id==='demos'||t.indexOf('enseñamos')>=0)return'👀';
+  if(id==='incubar'||t.indexOf('empieza')>=0)return'🥚';
+  if(t.indexOf('sea lo que sea')>=0)return'🧩';
+  if(t.indexOf('calidad')>=0)return'✨';
+  if(t.indexOf('gano')>=0)return'🤝';
+  if(t.indexOf('pregunt')>=0)return'❓';
+  return'🌱'; }
+function makeAccordions(){ var main=document.getElementById('main'); if(!main) return;
+  var secs=main.querySelectorAll('section');
+  for(var i=0;i<secs.length;i++){ (function(s){
+    if(s.classList.contains('hero')||s.getAttribute('data-acc')) return;
+    var wrap=s.querySelector('.wrap'); if(!wrap||wrap.parentNode!==s) return;
+    s.setAttribute('data-acc','1'); s.classList.add('acc-sec','collapsed','in');
+    var h2=s.querySelector('h2'); var title=(h2?h2.textContent:'Ver más').trim(); var icon=accIcon(s);
+    var body=document.createElement('div'); body.className='acc-body';
+    while(wrap.firstChild) body.appendChild(wrap.firstChild);
+    var btn=document.createElement('button'); btn.type='button'; btn.className='acc-btn';
+    var ts=document.createElement('span'); ts.className='acc-t'; ts.textContent=icon+' '+title;
+    var ch=document.createElement('span'); ch.className='chev'; ch.textContent='▸';
+    btn.appendChild(ts); btn.appendChild(ch);
+    btn.addEventListener('click',function(){ s.classList.toggle('collapsed'); });
+    wrap.appendChild(btn); wrap.appendChild(body);
+  })(secs[i]); }
+  var hh=location.hash.replace('#',''); if(hh && hh.charAt(0)!=='/'){ var elx=document.getElementById(hh); if(elx&&elx.classList.contains('acc-sec')) elx.classList.remove('collapsed'); }
+  if(!window.__accNav){ window.__accNav=1; document.addEventListener('click',function(e){ var a=e.target&&e.target.closest?e.target.closest('a[href^="#"]'):null; if(!a)return; var href=a.getAttribute('href')||''; if(href.length>1 && href.charAt(1)!=='/'){ var el=document.getElementById(href.slice(1)); if(el&&el.classList.contains('acc-sec')) el.classList.remove('collapsed'); } }); }
+}
 function renderLanding(){
   const C=CONFIG;
   document.getElementById("app").innerHTML=`
