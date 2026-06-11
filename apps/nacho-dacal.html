@@ -225,6 +225,17 @@ footer a:hover{color:#fff}
 .timeline .dot{position:absolute;left:0;top:0;width:36px;height:36px;border-radius:50%;background:var(--leaf-soft);border:2px solid #cfe3bf;display:grid;place-items:center;font-size:17px}
 .timeline b{display:block;font-size:14.5px;color:var(--text)}
 .timeline span{font-size:13px;color:var(--muted)}
+.timeline .cre-shot{display:block;width:100%;max-width:260px;border-radius:13px;margin-top:9px;aspect-ratio:16/10;object-fit:cover;box-shadow:var(--sh-sm)}
+/* editor de fases (admin) */
+.cre-row{display:flex;gap:11px;background:var(--soft);border:1px solid var(--line);border-radius:14px;padding:10px;margin-bottom:9px}
+.cre-ph{width:60px;height:60px;border-radius:12px;overflow:hidden;flex:0 0 auto;display:grid;place-items:center;background:#fff;border:1px solid var(--line)}
+.cre-ph img{width:100%;height:100%;object-fit:cover}.cre-ph span{font-size:25px}
+.cre-fields{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.cre-fields input{border:1.5px solid var(--line-2);border-radius:10px;padding:9px 10px;font-size:14px;font-family:inherit;background:#fff;width:100%}
+.cre-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.cre-up{font-size:12.5px;font-weight:800;color:var(--green-d);background:#fff;border:1.5px solid var(--line-2);border-radius:9px;padding:7px 11px;cursor:pointer}
+.cre-rmimg{font-size:12px;font-weight:700;color:var(--earth);background:none;border:0;cursor:pointer}
+.cre-del{margin-left:auto;background:none;border:0;font-size:16px;cursor:pointer}
 .stock-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;padding:4px 10px;border-radius:999px}
 .stock-tag.low{background:var(--earth-soft);color:#8a521f}
 .stock-tag.ok{background:var(--leaf-soft);color:var(--green-d)}
@@ -452,7 +463,7 @@ function openDetalle(id){
   const lim=p.stock!=null&&p.stock!=="", out=lim&&Number(p.stock)<=0, low=lim&&Number(p.stock)>0&&Number(p.stock)<=5;
   const avail = out?`<span class="stock-tag out">Agotado</span>`:(low?`<span class="stock-tag low">¡Solo quedan ${esc(p.stock)}!</span>`:(lim?`<span class="stock-tag ok">Disponible · ${esc(p.stock)} uds</span>`:""));
   const cre = Array.isArray(p.crecimiento)?p.crecimiento:[];
-  const growHTML = cre.length?`<div class="grow"><h4>🌱 Proceso de cultivo</h4><ol class="timeline">${cre.map(s=>`<li><span class="dot">${faseIcon(s.fase)}</span><div><b>${esc(s.fase)}</b>${s.nota?`<span>${esc(s.nota)}</span>`:""}</div></li>`).join("")}</ol></div>`:"";
+  const growHTML = cre.length?`<div class="grow"><h4>🌱 La vida de este producto</h4><ol class="timeline">${cre.map(s=>`<li><span class="dot">${faseIcon(s.fase)}</span><div><b>${esc(s.fase)}</b>${s.nota?`<span>${esc(s.nota)}</span>`:""}${s.img?`<img class="cre-shot" src="${esc(s.img)}" alt="${esc(s.fase)}" loading="lazy">`:""}</div></li>`).join("")}</ol></div>`:"";
   $("#sheet").innerHTML=`
     <div class="sh-ph">${phHTML(p)}
       <button class="sh-close" data-action="closeSheet" aria-label="Cerrar" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
@@ -573,6 +584,25 @@ function viewLegal(){
 
 /* ===================== Admin ===================== */
 let ADMIN_OK=false, ADMIN_TAB="prod", EDIT_ID=null;
+let CRE_DRAFT=[], CRE_KEY=null;  /* editor del proceso de cultivo (con fotos por fase) */
+function creRowsHTML(){
+  if(!CRE_DRAFT.length) return `<p class="muted" style="font-size:13px;margin:0 0 8px">Aún no hay fases. Pulsa «Añadir fase».</p>`;
+  return CRE_DRAFT.map((s,i)=>`
+    <div class="cre-row" data-i="${i}">
+      <div class="cre-ph">${s.img?`<img src="${esc(s.img)}" alt="">`:`<span>${faseIcon(s.fase)}</span>`}</div>
+      <div class="cre-fields">
+        <input class="cre-fase" data-i="${i}" type="text" value="${esc(s.fase)}" placeholder="Fase (ej. Siembra)">
+        <input class="cre-nota" data-i="${i}" type="text" value="${esc(s.nota)}" placeholder="Descripción corta">
+        <div class="cre-actions">
+          <label class="cre-up">📷 ${s.img?"Cambiar foto":"Subir foto"}<input class="cre-file" data-i="${i}" type="file" accept="image/*" hidden></label>
+          ${s.img?`<button class="cre-rmimg" data-action="creImgDel" data-i="${i}" type="button">Quitar foto</button>`:""}
+          <button class="cre-del" data-action="creDel" data-i="${i}" type="button" aria-label="Borrar fase">🗑</button>
+        </div>
+      </div>
+    </div>`).join("");
+}
+function renderCreEditor(){ const el=document.getElementById("creEditor"); if(el) el.innerHTML=creRowsHTML(); }
+function syncCreInputs(){ document.querySelectorAll("#creEditor .cre-row").forEach(row=>{ const i=+row.dataset.i; if(CRE_DRAFT[i]){ const fa=row.querySelector(".cre-fase"), no=row.querySelector(".cre-nota"); if(fa)CRE_DRAFT[i].fase=fa.value; if(no)CRE_DRAFT[i].nota=no.value; } }); }
 function viewAdmin(){
   if(!ADMIN_OK){
     return `<div class="page"><div class="wrap" style="max-width:420px">
@@ -605,7 +635,8 @@ function adminProd(){
   const P=getProducts();
   const ed = EDIT_ID ? P.find(x=>x.id===EDIT_ID) : null;
   const f = ed||{nombre:"",cat:"Verduras",desc:"",precio:"",antes:"",unidad:"",emoji:"🥗",img:null,activo:true,stock:"",crecimiento:[]};
-  const creText = (f.crecimiento||[]).map(s=>s.fase+(s.nota?(" | "+s.nota):"")).join("\n");
+  const key = EDIT_ID||"new";
+  if(CRE_KEY!==key){ CRE_KEY=key; const src=(ed&&Array.isArray(ed.crecimiento)&&ed.crecimiento.length)?ed.crecimiento:defaultCrecimiento(ed?ed.cat:"Verduras"); CRE_DRAFT=src.map(s=>({fase:s.fase||"",nota:s.nota||"",img:s.img||null})); }
   return `
   <div class="form-card" style="margin-bottom:22px">
     <h3 style="margin-bottom:12px">${ed?"Editar producto":"Añadir producto"}</h3>
@@ -623,7 +654,11 @@ function adminProd(){
         <div class="field" style="flex:1;min-width:110px"><label for="pUnidad">Unidad</label><input id="pUnidad" type="text" value="${esc(f.unidad||"")}" placeholder="por kg"></div>
         <div class="field" style="flex:1;min-width:110px"><label for="pStock">Cantidad / stock</label><input id="pStock" type="number" min="0" step="1" value="${esc(f.stock==null?"":f.stock)}" placeholder="Sin límite"></div>
       </div>
-      <div class="field"><label for="pCre">Proceso de crecimiento</label><textarea id="pCre" placeholder="Una fase por línea:  Siembra | Semilla en la tierra">${esc(creText)}</textarea><p class="note">Una fase por línea, con el formato <b>Fase | descripción</b>. Se muestra como línea de tiempo en el producto. Déjalo vacío para usar el proceso por defecto de la categoría.</p></div>
+      <div class="field"><label>Proceso de crecimiento · la vida del producto</label>
+        <div id="creEditor">${creRowsHTML()}</div>
+        <button class="btn btn-ghost" data-action="creAdd" type="button" style="margin-top:4px">+ Añadir fase</button>
+        <p class="note">Cada fase puede llevar su <b>foto real</b> del proceso (siembra, crecimiento, cosecha…). Se mostrará como «la vida del producto» en la ficha.</p>
+      </div>
       <div class="field"><label for="pImg">Foto del producto</label><input id="pImg" type="file" accept="image/*"><p class="note">La foto se guarda en este dispositivo. Recomendado: cuadrada y ligera.</p></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-primary" type="submit">${ed?"Guardar cambios":"Añadir producto"}</button>
@@ -740,10 +775,13 @@ document.addEventListener("click",e=>{
     case "scrollValores": e.preventDefault(); if(location.hash!=="#/"&&location.hash!==""){location.hash="#/";} setTimeout(()=>{const el=$("#valores");if(el)el.scrollIntoView({behavior:"smooth"});},60); break;
     case "install": installApp(); break;
     /* admin */
-    case "logout": ADMIN_OK=false; render(); break;
-    case "tab": ADMIN_TAB=t.dataset.tab; EDIT_ID=null; render(); break;
-    case "editP": EDIT_ID=id; ADMIN_TAB="prod"; render(); window.scrollTo(0,0); break;
-    case "cancelEdit": EDIT_ID=null; render(); break;
+    case "logout": ADMIN_OK=false; CRE_KEY=null; render(); break;
+    case "tab": ADMIN_TAB=t.dataset.tab; EDIT_ID=null; CRE_KEY=null; render(); break;
+    case "editP": EDIT_ID=id; ADMIN_TAB="prod"; CRE_KEY=null; render(); window.scrollTo(0,0); break;
+    case "cancelEdit": EDIT_ID=null; CRE_KEY=null; render(); break;
+    case "creAdd": syncCreInputs(); CRE_DRAFT.push({fase:"",nota:"",img:null}); renderCreEditor(); break;
+    case "creDel": syncCreInputs(); CRE_DRAFT.splice(+t.dataset.i,1); renderCreEditor(); break;
+    case "creImgDel": syncCreInputs(); if(CRE_DRAFT[+t.dataset.i])CRE_DRAFT[+t.dataset.i].img=null; renderCreEditor(); break;
     case "delP": if(confirm("¿Borrar este producto?")){ setProducts(getProducts().filter(p=>p.id!==id)); if(EDIT_ID===id)EDIT_ID=null; render(); } break;
     case "toggleP": { const P=getProducts(); const p=P.find(x=>x.id===id); if(p){p.activo=p.activo===false;} setProducts(P); render(); } break;
     case "toggleOrder": { const O=load("nd_orders",[]); const o=O.find(x=>x.id===id); if(o)o.estado=o.estado==="servido"?"pendiente":"servido"; save("nd_orders",O); render(); } break;
@@ -757,6 +795,13 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeOverlay(); })
 /* inputs (delegados por re-render) */
 document.addEventListener("input",e=>{
   if(e.target.id==="q"){ QUERY=e.target.value; rerenderGrid(); }
+});
+/* foto por fase del proceso */
+document.addEventListener("change",e=>{
+  if(e.target.classList&&e.target.classList.contains("cre-file")){
+    const i=+e.target.dataset.i, file=e.target.files&&e.target.files[0]; if(!file) return;
+    const r=new FileReader(); r.onload=()=>{ syncCreInputs(); if(CRE_DRAFT[i])CRE_DRAFT[i].img=r.result; renderCreEditor(); }; r.readAsDataURL(file);
+  }
 });
 document.addEventListener("click",e=>{
   const c=e.target.closest(".chip"); if(c&&c.dataset.cat){ FILTER=c.dataset.cat;
@@ -775,7 +820,8 @@ function saveProduct(){
   const idv=$("#pId").value;
   const file=$("#pImg").files&&$("#pImg").files[0];
   const stockRaw=$("#pStock").value.trim();
-  const cre=$("#pCre").value.split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{ const i=l.indexOf("|"); return i>=0?{fase:l.slice(0,i).trim(),nota:l.slice(i+1).trim()}:{fase:l,nota:""}; });
+  syncCreInputs();
+  const cre=CRE_DRAFT.filter(s=>(s.fase||"").trim()).map(s=>({fase:s.fase.trim(),nota:(s.nota||"").trim(),img:s.img||null}));
   const cat=($("#pCat").value||"").trim()||"Verduras";
   const base={ nombre:$("#pNombre").value.trim(), cat, emoji:$("#pEmoji").value.trim()||"🥗",
     desc:$("#pDesc").value.trim(), precio:parseFloat($("#pPrecio").value)||0,
@@ -787,7 +833,7 @@ function saveProduct(){
     const P=getProducts();
     if(idv){ const p=P.find(x=>x.id===idv); if(p){ Object.assign(p,base); if(img!==undefined)p.img=img; } }
     else { P.unshift({id:uid(),activo:true,img:img||null,color:"#eef1e2",...base}); }
-    setProducts(P); EDIT_ID=null; ADMIN_TAB="prod"; render(); toast("Producto guardado ✅"); window.scrollTo(0,0);
+    setProducts(P); EDIT_ID=null; CRE_KEY=null; ADMIN_TAB="prod"; render(); toast("Producto guardado ✅"); window.scrollTo(0,0);
   };
   if(file){ const r=new FileReader(); r.onload=()=>finish(r.result); r.readAsDataURL(file); }
   else finish(undefined);
