@@ -20,6 +20,10 @@ const SOURCES = {
   "huerta-natural-ejemplo.html": "apps/huerta-natural-ejemplo.html",
   "restaurante-ejemplo.html": "apps/restaurante-ejemplo.html",
   "restaurante-qr-ejemplo.html": "apps/restaurante-qr-ejemplo.html",
+  "cafeteria-ejemplo.html": "apps/cafeteria-ejemplo.html",
+  "fontanero-ejemplo.html": "apps/fontanero-ejemplo.html",
+  "floristeria-ejemplo.html": "apps/floristeria-ejemplo.html",
+  "veterinario-ejemplo.html": "apps/veterinario-ejemplo.html",
 };
 
 if (!fs.existsSync(COMPLETA)) { console.error("No existe " + COMPLETA); process.exit(1); }
