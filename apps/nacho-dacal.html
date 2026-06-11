@@ -432,6 +432,14 @@ function getSettings(){ const d={entregaModo:"ambas", domicilioInfo:"Entrega en 
 function cestaProduct(){ const c=getSettings().cesta||{}; return {id:"__cesta__", nombre:c.titulo||"Cesta de la semana", precio:Number(c.precio)||0, unidad:"pack", emoji:"🧺", img:c.img||null, desc:c.incluye||c.desc||"", cat:"Cesta"}; }
 function cartProduct(id){ if(id==="__cesta__") return cestaProduct(); return getProducts().find(x=>x.id===id)||null; }
 function setSettings(s){ save("nd_settings",Object.assign(getSettings(),s)); }
+/* Datos del negocio: lo que ponga el dueño en el panel manda; si no, lo de CONFIG */
+function B(){ const s=load("nd_settings",{})||{}; return {
+  nombre: s.bizNombre!=null&&s.bizNombre!==""?s.bizNombre:CONFIG.BUSINESS_NAME,
+  city:   s.bizCity!=null&&s.bizCity!==""?s.bizCity:CONFIG.CITY,
+  whatsapp: s.bizWhatsapp!=null?s.bizWhatsapp:CONFIG.WHATSAPP,
+  email:  s.bizEmail!=null&&s.bizEmail!==""?s.bizEmail:CONFIG.EMAIL,
+  pass:   s.bizPass!=null&&s.bizPass!==""?s.bizPass:CONFIG.ADMIN_PASSWORD
+}; }
 function envioDe(metodo){ const s=getSettings(); if(metodo!=="Servicio a domicilio") return 0; const coste=Number(s.envioCoste)||0; if(coste<=0) return 0; const free=s.envioGratisDesde; if(free!=null&&free!==""&&cartTotal()>=Number(free)) return 0; return coste; }
 function defaultMetodo(){ return getSettings().entregaModo==="recogida"?"Recogida en el lugar":"Servicio a domicilio"; }
 function pedSummaryHTML(metodo){ const sub=cartTotal(), env=envioDe(metodo), s=getSettings(); const min=(metodo==="Servicio a domicilio"&&s.pedidoMin!=="")?Number(s.pedidoMin):0; const falta=min&&sub<min?(min-sub):0;
@@ -757,9 +765,9 @@ function viewLegal(){
     <a class="back" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Volver</a>
     <h1 class="ptitle">Privacidad y aviso legal</h1>
     <h3 style="margin-top:18px">Política de privacidad</h3>
-    <p class="muted">En <b>${esc(CONFIG.BUSINESS_NAME)}</b> tratamos tus datos (nombre, teléfono y dirección) <b>solo para gestionar tu pedido</b>. No los cedemos a terceros ni los usamos para publicidad. No utilizamos cookies de seguimiento; la cesta se guarda únicamente en tu dispositivo.</p>
+    <p class="muted">En <b>${esc(B().nombre)}</b> tratamos tus datos (nombre, teléfono y dirección) <b>solo para gestionar tu pedido</b>. No los cedemos a terceros ni los usamos para publicidad. No utilizamos cookies de seguimiento; la cesta se guarda únicamente en tu dispositivo.</p>
     <h3 style="margin-top:16px">Responsable</h3>
-    <p class="muted">${esc(CONFIG.BUSINESS_NAME)} · ${esc(CONFIG.CITY)} · ${esc(CONFIG.EMAIL)}. Puedes ejercer tus derechos de acceso, rectificación y supresión escribiendo a ese correo.</p>
+    <p class="muted">${esc(B().nombre)} · ${esc(B().city)} · ${esc(B().email)}. Puedes ejercer tus derechos de acceso, rectificación y supresión escribiendo a ese correo.</p>
     <h3 style="margin-top:16px">Aviso legal</h3>
     <p class="muted">Precios y disponibilidad de los productos a título informativo, sujetos a la cosecha del día y a confirmación por WhatsApp. Productos de cultivo natural; las imágenes pueden variar respecto al producto final por ser un alimento fresco.</p>
     <p class="note">Texto base con marcadores [ ]. Sustitúyelo por tus datos fiscales reales antes de publicar.</p>
@@ -797,7 +805,7 @@ function viewAdmin(){
         <div id="loginErr"></div>
         <div class="field"><label for="apass">Contraseña</label><input id="apass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
         <button class="btn btn-primary btn-block" type="submit">Entrar</button>
-        <p class="note">Acceso local en este dispositivo. Cambia la clave en <b>CONFIG.ADMIN_PASSWORD</b>.</p>
+        <p class="note">Acceso local en este dispositivo. La clave se cambia dentro, en <b>Mis datos</b>.</p>
       </form>
     </div></div>`;
   }
@@ -815,9 +823,10 @@ function viewAdmin(){
       <button data-action="tab" data-tab="tienda" aria-pressed="${ADMIN_TAB==="tienda"}" type="button">Tienda</button>
       <button data-action="tab" data-tab="pagos" aria-pressed="${ADMIN_TAB==="pagos"}" type="button">Pagos</button>
       <button data-action="tab" data-tab="sobre" aria-pressed="${ADMIN_TAB==="sobre"}" type="button">Sobre mí</button>
+      <button data-action="tab" data-tab="datos" aria-pressed="${ADMIN_TAB==="datos"}" type="button">Mis datos</button>
       <button data-action="tab" data-tab="info" aria-pressed="${ADMIN_TAB==="info"}" type="button">Ayuda</button>
     </div>
-    <div id="adminBody">${ADMIN_TAB==="prod"?adminProd():ADMIN_TAB==="ped"?adminPed():ADMIN_TAB==="avisos"?adminAvisos():ADMIN_TAB==="tienda"?adminTienda():ADMIN_TAB==="entrega"?adminEntrega():ADMIN_TAB==="pagos"?adminPagos():ADMIN_TAB==="sobre"?adminSobre():adminInfo()}</div>
+    <div id="adminBody">${ADMIN_TAB==="prod"?adminProd():ADMIN_TAB==="ped"?adminPed():ADMIN_TAB==="avisos"?adminAvisos():ADMIN_TAB==="tienda"?adminTienda():ADMIN_TAB==="entrega"?adminEntrega():ADMIN_TAB==="pagos"?adminPagos():ADMIN_TAB==="sobre"?adminSobre():ADMIN_TAB==="datos"?adminDatos():adminInfo()}</div>
   </div></div>`;
 }
 function adminProd(){
@@ -959,6 +968,22 @@ function adminAvisos(){
       <button class="btn btn-ghost" data-action="delAviso" data-id="${esc(a.id)}" type="button" style="color:var(--tomato)">Borrar</button>
     </div></div>`).join("")}`;
 }
+function adminDatos(){
+  const b=B();
+  return `<div class="form-card">
+    <h3 style="margin-bottom:6px">Mis datos</h3>
+    <p class="muted" style="margin-top:0;font-size:14px">Tu contacto. Es lo que usa la tienda para enviar los pedidos y los avisos por WhatsApp. Sin tocar código.</p>
+    <form id="datosForm">
+      <div class="field"><label for="dNom">Nombre del negocio</label><input id="dNom" type="text" value="${esc(b.nombre)}" placeholder="Nacho Dacal"></div>
+      <div class="field"><label for="dWa">WhatsApp (con prefijo del país, sin +)</label><input id="dWa" type="tel" value="${esc(b.whatsapp)}" placeholder="34600112233"><p class="note">España: <b>34</b> + tu número (ej. 34600112233). Aquí recibes pedidos y avisos.</p></div>
+      <div class="field"><label for="dMail">Email</label><input id="dMail" type="email" value="${esc(b.email)}" placeholder="hola@tucorreo.com"></div>
+      <div class="field"><label for="dCity">Zona / ciudad</label><input id="dCity" type="text" value="${esc(b.city)}" placeholder="Tu zona"></div>
+      <div class="field"><label for="dPass">Contraseña del panel</label><input id="dPass" type="text" value="${esc(b.pass)}" placeholder="tu contraseña"><p class="note">Con esta clave entras a este panel. Ponla difícil y apúntala.</p></div>
+      <button class="btn btn-primary" type="submit">Guardar mis datos</button>
+      <p class="note">El Bizum lo configuras en la pestaña <b>Pagos</b>.</p>
+    </form>
+  </div>`;
+}
 function adminSobre(){
   const s=getSettings();
   const foto = s.sobreFoto ? `<img src="${esc(s.sobreFoto)}" alt="" style="width:90px;height:90px;border-radius:14px;object-fit:cover;border:1px solid var(--line)">` : `<div style="width:90px;height:90px;border-radius:14px;background:var(--soft);display:grid;place-items:center;color:var(--muted-2)">sin foto</div>`;
@@ -998,7 +1023,7 @@ function adminInfo(){
     <ul class="muted" style="font-size:14.5px;line-height:1.7;padding-left:18px">
       <li><b>Productos:</b> añade, edita, oculta o borra. Sube la foto real de cada producto desde tu móvil.</li>
       <li><b>Pedidos:</b> cuando un cliente envía el pedido por WhatsApp, queda guardado aquí. Cuando lo tengas preparado, pulsa <b>«📲 Avisar: ¡pedido listo!»</b> y se le manda un WhatsApp automático al cliente. También puedes marcarlo como servido o exportar a CSV.</li>
-      <li><b>Tus datos:</b> cambia nombre, WhatsApp, Bizum y zona en la caja <b>CONFIG</b>, arriba del código.</li>
+      <li><b>Tus datos:</b> cambia nombre, WhatsApp, email, zona y contraseña en la pestaña <b>Mis datos</b> (Bizum, en Pagos). Sin tocar código.</li>
       <li><b>Copia de seguridad:</b> los datos se guardan en este dispositivo. Si cambias de móvil, vuelve a subir los productos.</li>
     </ul>
   </div>`;
@@ -1040,7 +1065,7 @@ function avisarListo(id){
   const O=load("nd_orders",[]); const o=O.find(x=>x.id===id); if(!o) return;
   const d=telToWa(o.tel); if(!d){ toast("Este pedido no tiene un teléfono válido."); return; }
   const s=getSettings();
-  let m=`¡Hola ${o.nombre}! 🌿 Tu pedido de ${CONFIG.BUSINESS_NAME} ya está LISTO.\n`;
+  let m=`¡Hola ${o.nombre}! 🌿 Tu pedido de ${B().nombre} ya está LISTO.\n`;
   if(o.entrega==="Servicio a domicilio"){ m+= o.dir?`Te lo llevamos a: ${o.dir}.\n`:`Te lo llevamos a tu dirección.\n`; }
   else { m+= s.recogidaInfo?`Puedes pasar a recogerlo. ${s.recogidaInfo}\n`:`Ya puedes pasar a recogerlo.\n`; }
   m+=`Total: ${money(o.total)}. ¡Gracias por comprar natural! 🥗`;
@@ -1058,7 +1083,7 @@ function submitAvisame(form){
   if(!tel){ $("#avisameErr").innerHTML='<div class="alert">Pon tu WhatsApp.</div>'; return; }
   if(!$("#aConsent").checked){ $("#avisameErr").innerHTML='<div class="alert">Acepta la política de privacidad.</div>'; return; }
   const A=load("nd_avisos",[]); A.push({id:uid(), fecha:new Date().toLocaleDateString("es-ES"), nombre, tel, interes}); save("nd_avisos",A);
-  if(CONFIG.WHATSAPP){ const m=`Hola Nacho, soy ${nombre||"un cliente"}. Avísame cuando tengas`+(interes?`: ${interes}`:" novedades")+`. Mi WhatsApp: ${tel}.`; try{ window.open("https://wa.me/"+CONFIG.WHATSAPP+"?text="+encodeURIComponent(m),"_blank","noopener"); }catch(e){} }
+  const wa=B().whatsapp; if(wa){ const m=`Hola Nacho, soy ${nombre||"un cliente"}. Avísame cuando tengas`+(interes?`: ${interes}`:" novedades")+`. Mi WhatsApp: ${tel}.`; try{ window.open("https://wa.me/"+wa+"?text="+encodeURIComponent(m),"_blank","noopener"); }catch(e){} }
   form.reset(); toast("¡Hecho! Te avisaré de las novedades 🔔");
 }
 function placeOrder(form){
@@ -1077,8 +1102,8 @@ function placeOrder(form){
     subtotal:sub, envio:env, total:sub+env, estado:"pendiente" };
   const O=load("nd_orders",[]); O.push(o); save("nd_orders",O);
   const msg=buildWaMessage(o);
-  if(CONFIG.WHATSAPP){ try{ window.open("https://wa.me/"+CONFIG.WHATSAPP+"?text="+encodeURIComponent(msg),"_blank","noopener"); }catch(e){} }
-  else { toast("Pedido guardado. Configura tu WhatsApp en CONFIG para enviarlo."); }
+  const wa=B().whatsapp; if(wa){ try{ window.open("https://wa.me/"+wa+"?text="+encodeURIComponent(msg),"_blank","noopener"); }catch(e){} }
+  else { toast("Pedido guardado. Configura tu WhatsApp en el panel → Mis datos para enviarlo."); }
   setCart({});
   location.hash="#/gracias";
 }
@@ -1153,12 +1178,16 @@ document.addEventListener("click",e=>{
 document.addEventListener("submit",e=>{
   if(e.target.id==="orderForm"){ e.preventDefault(); placeOrder(e.target); }
   else if(e.target.id==="adminLogin"){ e.preventDefault();
-    if($("#apass").value===CONFIG.ADMIN_PASSWORD){ ADMIN_OK=true; render(); }
+    if($("#apass").value===B().pass){ ADMIN_OK=true; render(); }
     else { $("#loginErr").innerHTML='<div class="alert">Contraseña incorrecta.</div>'; }
   }
   else if(e.target.id==="prodForm"){ e.preventDefault(); saveProduct(); }
   else if(e.target.id==="sobreForm"){ e.preventDefault();
     setSettings({ sobreTitulo:$("#sTit").value.trim(), sobreTexto:$("#sTxt").value.trim() }); render(); toast("Tu historia guardada ✅");
+  }
+  else if(e.target.id==="datosForm"){ e.preventDefault();
+    setSettings({ bizNombre:$("#dNom").value.trim(), bizWhatsapp:$("#dWa").value.replace(/[^0-9]/g,""), bizEmail:$("#dMail").value.trim(), bizCity:$("#dCity").value.trim(), bizPass:$("#dPass").value.trim() });
+    const fc=$("#footCity"); if(fc) fc.textContent=B().city; render(); toast("Datos guardados ✅");
   }
   else if(e.target.id==="cestaForm"){ e.preventDefault(); setSettings({cesta:readCesta()}); render(); toast("Cesta guardada ✅"); }
   else if(e.target.id==="opinForm"){ e.preventDefault(); const txt=$("#oTxt").value.trim(); if(!txt){ toast("Escribe la opinión"); return; } const ops=getSettings().opiniones||[]; ops.push({nombre:$("#oNom").value.trim()||"Cliente", estrellas:+$("#oEst").value||5, texto:txt}); setSettings({opiniones:ops}); render(); toast("Opinión añadida ✅"); }
@@ -1210,8 +1239,8 @@ function exportCSV(){
 }
 
 /* contacto */
-function goWa(){ const u=CONFIG.WHATSAPP?("https://wa.me/"+CONFIG.WHATSAPP+"?text="+encodeURIComponent("Hola Nacho, quiero hacer un pedido de la huerta.")):null;
-  if(u) window.open(u,"_blank","noopener"); else toast("Configura tu número en CONFIG.WHATSAPP"); }
+function goWa(){ const wa=B().whatsapp; const u=wa?("https://wa.me/"+wa+"?text="+encodeURIComponent("Hola Nacho, quiero hacer un pedido de la huerta.")):null;
+  if(u) window.open(u,"_blank","noopener"); else toast("Configura tu WhatsApp en el panel → Mis datos"); }
 
 /* ===================== PWA ===================== */
 let deferredPrompt=null;
@@ -1221,13 +1250,13 @@ function installApp(){ if(deferredPrompt){ deferredPrompt.prompt(); try{deferred
 function setupPWA(){
   const ic=logoURI(); const f=$("#favicon"), ap=$("#appleIcon"); if(f)f.href=ic; if(ap)ap.href=ic;
   const m=$("#manifest");
-  if(m){ const man={name:CONFIG.BUSINESS_NAME+" · Productos de la huerta",short_name:CONFIG.BUSINESS_NAME,description:"Verduras y frutas naturales de la huerta.",theme_color:"#2f6b30",background_color:"#f5f3e8",display:"standalone",start_url:".",scope:".",icons:[{src:ic,sizes:"any",type:"image/svg+xml",purpose:"any maskable"}]};
+  if(m){ const man={name:B().nombre+" · Productos de la huerta",short_name:B().nombre,description:"Verduras y frutas naturales de la huerta.",theme_color:"#2f6b30",background_color:"#f5f3e8",display:"standalone",start_url:".",scope:".",icons:[{src:ic,sizes:"any",type:"image/svg+xml",purpose:"any maskable"}]};
     try{ if(m._u)URL.revokeObjectURL(m._u); const u=URL.createObjectURL(new Blob([JSON.stringify(man)],{type:"application/manifest+json"})); m.href=u; m._u=u; }catch(e){} }
 }
 
 /* ===================== Init ===================== */
 $("#year").textContent=new Date().getFullYear();
-$("#footCity").textContent=CONFIG.CITY;
+$("#footCity").textContent=B().city;
 getProducts(); setupPWA(); render();
 </script>
 
