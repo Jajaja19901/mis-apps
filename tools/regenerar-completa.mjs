@@ -17,6 +17,7 @@ const SOURCES = {
   "peluqueria-aurora.html": "apps/peluqueria-aurora.html",
   "reformas-presupuestador.html": "apps/reformas-presupuestador.html",
   "tienda-arte-ejemplo.html": "apps/tienda-arte-ejemplo.html",
+  "huerta-natural-ejemplo.html": "apps/huerta-natural-ejemplo.html",
 };
 
 if (!fs.existsSync(COMPLETA)) { console.error("No existe " + COMPLETA); process.exit(1); }
