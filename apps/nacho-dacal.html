@@ -184,7 +184,7 @@ header.top{position:sticky;top:0;z-index:40;background:rgba(251,250,243,.9);back
 .order-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px}
 .order-card .oc-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .order-card .st{font-size:11.5px;font-weight:800;padding:4px 9px;border-radius:999px}
-.st.pend{background:var(--earth-soft);color:#8a521f}.st.done{background:var(--leaf-soft);color:var(--green-d)}
+.st.pend{background:var(--earth-soft);color:#8a521f}.st.done{background:var(--leaf-soft);color:var(--green-d)}.st.listo{background:#dbeedd;color:#1d6f2b}
 
 /* ===================== Footer ===================== */
 footer{background:var(--ink);color:#b9c6ab;padding:46px 0 24px}
@@ -713,12 +713,13 @@ function adminPed(){
     <div class="order-card">
       <div class="oc-top">
         <b>${esc(o.nombre)} · ${money(o.total)}</b>
-        <span class="st ${o.estado==="servido"?"done":"pend"}">${o.estado==="servido"?"Servido":"Pendiente"}</span>
+        <span class="st ${o.avisado?"listo":(o.estado==="servido"?"done":"pend")}">${o.avisado?"Avisado ✓":(o.estado==="servido"?"Servido":"Pendiente")}</span>
       </div>
       <div class="muted" style="font-size:13.5px;margin:6px 0">${esc(o.fecha)} · ${esc(o.tel)} · ${esc(o.entrega)}${o.dir?(" · "+esc(o.dir)):""}${o.envio>0?(" · envío "+money(o.envio)):""}</div>
       <div style="font-size:14px">${o.items.map(i=>`${esc(i.nombre)} ×${i.qty}`).join(", ")}</div>
       ${o.notas?`<div class="muted" style="font-size:13px;margin-top:6px">📝 ${esc(o.notas)}</div>`:""}
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-wa" data-action="avisarListo" data-id="${esc(o.id)}" type="button">📲 ${o.avisado?"Volver a avisar":"Avisar: ¡pedido listo!"}</button>
         <button class="btn btn-ghost" data-action="toggleOrder" data-id="${esc(o.id)}" type="button">${o.estado==="servido"?"Marcar pendiente":"Marcar servido"}</button>
         <button class="btn btn-ghost" data-action="delOrder" data-id="${esc(o.id)}" type="button" style="color:var(--tomato)">Borrar</button>
       </div>
@@ -756,7 +757,7 @@ function adminInfo(){
     <h3 style="margin-bottom:8px">Cómo usar tu tienda</h3>
     <ul class="muted" style="font-size:14.5px;line-height:1.7;padding-left:18px">
       <li><b>Productos:</b> añade, edita, oculta o borra. Sube la foto real de cada producto desde tu móvil.</li>
-      <li><b>Pedidos:</b> cuando un cliente envía el pedido por WhatsApp, queda guardado aquí. Márcalo como servido o expórtalo a CSV.</li>
+      <li><b>Pedidos:</b> cuando un cliente envía el pedido por WhatsApp, queda guardado aquí. Cuando lo tengas preparado, pulsa <b>«📲 Avisar: ¡pedido listo!»</b> y se le manda un WhatsApp automático al cliente. También puedes marcarlo como servido o exportar a CSV.</li>
       <li><b>Tus datos:</b> cambia nombre, WhatsApp, Bizum y zona en la caja <b>CONFIG</b>, arriba del código.</li>
       <li><b>Copia de seguridad:</b> los datos se guardan en este dispositivo. Si cambias de móvil, vuelve a subir los productos.</li>
     </ul>
@@ -792,6 +793,19 @@ function buildWaMessage(o){
   if(o.dir) m+=`\nDirección: ${o.dir}`;
   if(o.notas) m+=`\nNotas: ${o.notas}`;
   return m;
+}
+function telToWa(tel){ let d=String(tel||"").replace(/[^0-9]/g,""); if(d.indexOf("00")===0)d=d.slice(2); if(d.length===9)d="34"+d; return d; }
+function avisarListo(id){
+  const O=load("nd_orders",[]); const o=O.find(x=>x.id===id); if(!o) return;
+  const d=telToWa(o.tel); if(!d){ toast("Este pedido no tiene un teléfono válido."); return; }
+  const s=getSettings();
+  let m=`¡Hola ${o.nombre}! 🌿 Tu pedido de ${CONFIG.BUSINESS_NAME} ya está LISTO.\n`;
+  if(o.entrega==="Servicio a domicilio"){ m+= o.dir?`Te lo llevamos a: ${o.dir}.\n`:`Te lo llevamos a tu dirección.\n`; }
+  else { m+= s.recogidaInfo?`Puedes pasar a recogerlo. ${s.recogidaInfo}\n`:`Ya puedes pasar a recogerlo.\n`; }
+  m+=`Total: ${money(o.total)}. ¡Gracias por comprar natural! 🥗`;
+  o.avisado=true; save("nd_orders",O);
+  try{ window.open("https://wa.me/"+d+"?text="+encodeURIComponent(m),"_blank","noopener"); }catch(e){}
+  render(); toast("Abriendo WhatsApp para avisar al cliente…");
 }
 function placeOrder(form){
   const fd=new FormData(form);
@@ -844,6 +858,7 @@ document.addEventListener("click",e=>{
     case "creImgDel": syncCreInputs(); if(CRE_DRAFT[+t.dataset.i])CRE_DRAFT[+t.dataset.i].img=null; renderCreEditor(); break;
     case "delP": if(confirm("¿Borrar este producto?")){ setProducts(getProducts().filter(p=>p.id!==id)); if(EDIT_ID===id)EDIT_ID=null; render(); } break;
     case "toggleP": { const P=getProducts(); const p=P.find(x=>x.id===id); if(p){p.activo=p.activo===false;} setProducts(P); render(); } break;
+    case "avisarListo": avisarListo(id); break;
     case "toggleOrder": { const O=load("nd_orders",[]); const o=O.find(x=>x.id===id); if(o)o.estado=o.estado==="servido"?"pendiente":"servido"; save("nd_orders",O); render(); } break;
     case "delOrder": if(confirm("¿Borrar este pedido?")){ save("nd_orders",load("nd_orders",[]).filter(o=>o.id!==id)); render(); } break;
     case "csv": exportCSV(); break;
