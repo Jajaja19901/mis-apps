@@ -359,8 +359,19 @@ function faseIcon(f){ const s=(f||"").toLowerCase(); if(s.includes("siemb")||s.i
 function getProducts(){ let p=load("nd_products",null); if(!p){ const ST=[8,5,10,6,12,3,4,9,7,15,6,5,20]; p=SEED.map((x,i)=>({id:uid(),activo:true,img:null,stock:ST[i]==null?8:ST[i],crecimiento:defaultCrecimiento(x.cat),...x})); save("nd_products",p); } return p; }
 function setProducts(p){ save("nd_products",p); }
 /* Ajustes de entrega del dueño */
-function getSettings(){ const d={entregaModo:"ambas", domicilioInfo:"Entrega en la zona. Te confirmamos día y hora por WhatsApp.", recogidaInfo:"Recogida en la huerta. Te pasamos la dirección por WhatsApp."}; return Object.assign(d, load("nd_settings",{})); }
+function getSettings(){ const d={entregaModo:"ambas", domicilioInfo:"Entrega en la zona. Te confirmamos día y hora por WhatsApp.", recogidaInfo:"Recogida en la huerta. Te pasamos la dirección por WhatsApp.", envioCoste:0, envioGratisDesde:"", pedidoMin:"", horario:""}; return Object.assign(d, load("nd_settings",{})); }
 function setSettings(s){ save("nd_settings",Object.assign(getSettings(),s)); }
+function envioDe(metodo){ const s=getSettings(); if(metodo!=="Servicio a domicilio") return 0; const coste=Number(s.envioCoste)||0; if(coste<=0) return 0; const free=s.envioGratisDesde; if(free!=null&&free!==""&&cartTotal()>=Number(free)) return 0; return coste; }
+function defaultMetodo(){ return getSettings().entregaModo==="recogida"?"Recogida en el lugar":"Servicio a domicilio"; }
+function pedSummaryHTML(metodo){ const sub=cartTotal(), env=envioDe(metodo), s=getSettings(); const min=(metodo==="Servicio a domicilio"&&s.pedidoMin!=="")?Number(s.pedidoMin):0; const falta=min&&sub<min?(min-sub):0;
+  return `<div class="summary" style="position:static;margin:6px 0 14px">
+    <div class="row"><span>Subtotal</span><b>${money(sub)}</b></div>
+    ${metodo==="Servicio a domicilio"?`<div class="row"><span>Envío</span><b>${env>0?money(env):"Gratis"}</b></div>`:""}
+    <div class="row total"><span>Total</span><span>${money(sub+env)}</span></div>
+    ${falta>0?`<div class="alert" style="margin:10px 0 0">Para envío a domicilio el pedido mínimo es ${money(min)}. Te faltan ${money(falta)}.</div>`:""}
+    ${s.horario?`<p class="note" style="margin-top:8px">🕒 ${esc(s.horario)}</p>`:""}
+  </div>`; }
+function compressImage(file,maxDim,quality){ return new Promise(resolve=>{ if(!file||!/^image\//.test(file.type||"")){ resolve(null); return; } const r=new FileReader(); r.onload=()=>{ const img=new Image(); img.onload=()=>{ let w=img.width,h=img.height; const m=maxDim||1000; if(w>m||h>m){ if(w>=h){ h=Math.round(h*m/w); w=m; } else { w=Math.round(w*m/h); h=m; } } try{ const cv=document.createElement("canvas"); cv.width=w; cv.height=h; cv.getContext("2d").drawImage(img,0,0,w,h); resolve(cv.toDataURL("image/jpeg",quality||0.8)); }catch(e){ resolve(r.result); } }; img.onerror=()=>resolve(r.result); img.src=r.result; }; r.onerror=()=>resolve(null); r.readAsDataURL(file); }); }
 function entregaResumen(){ const s=getSettings(); if(s.entregaModo==="domicilio") return "Servicio a domicilio. "+(s.domicilioInfo||""); if(s.entregaModo==="recogida") return "Recogida en el lugar. "+(s.recogidaInfo||""); return "Servicio a domicilio o recogida en el lugar (lo eliges al finalizar)."; }
 function entregaFieldsHTML(){
   const s=getSettings();
@@ -551,13 +562,14 @@ function viewPedido(){
   return `<div class="page"><div class="wrap" style="max-width:680px">
     <a class="back" href="#/carrito"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Volver a la cesta</a>
     <h1 class="ptitle">Finalizar pedido</h1>
-    <p class="muted" style="margin-top:0">Rellena tus datos y enviamos el pedido por WhatsApp para confirmarlo. <b>Total: ${money(cartTotal())}</b></p>
+    <p class="muted" style="margin-top:0">Rellena tus datos y enviamos el pedido por WhatsApp para confirmarlo.</p>
     <form class="form-card" id="orderForm" autocomplete="on">
       <div id="orderErr"></div>
       <div class="field"><label for="oNombre">Nombre y apellidos *</label><input id="oNombre" name="nombre" type="text" required placeholder="Tu nombre"></div>
       <div class="field"><label for="oTel">Teléfono / WhatsApp *</label><input id="oTel" name="tel" type="tel" required placeholder="600 00 00 00"></div>
       ${entregaFieldsHTML()}
       <div class="field"><label for="oNotas">Notas del pedido</label><textarea id="oNotas" name="notas" placeholder="Ej. prefiero la lechuga pequeña, llamar antes de llegar…"></textarea></div>
+      <div id="pedSummary">${pedSummaryHTML(defaultMetodo())}</div>
       <label class="consent"><input type="checkbox" id="oConsent"> Acepto la <a href="#/legal" style="color:var(--green-d);font-weight:700">política de privacidad</a> y que me contacten para gestionar este pedido.</label>
       <button class="btn btn-wa btn-block" type="submit">
         <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><path d="M.5 23.5l1.6-5.9A11.4 11.4 0 1 1 12 23.4a11.4 11.4 0 0 1-5.5-1.4zM12 2.5a9.5 9.5 0 0 0-8.1 14.5l.2.4-1 3.5 3.6-.9.3.2A9.5 9.5 0 1 0 12 2.5z"/></svg>
@@ -703,7 +715,7 @@ function adminPed(){
         <b>${esc(o.nombre)} · ${money(o.total)}</b>
         <span class="st ${o.estado==="servido"?"done":"pend"}">${o.estado==="servido"?"Servido":"Pendiente"}</span>
       </div>
-      <div class="muted" style="font-size:13.5px;margin:6px 0">${esc(o.fecha)} · ${esc(o.tel)} · ${esc(o.entrega)}${o.dir?(" · "+esc(o.dir)):""}</div>
+      <div class="muted" style="font-size:13.5px;margin:6px 0">${esc(o.fecha)} · ${esc(o.tel)} · ${esc(o.entrega)}${o.dir?(" · "+esc(o.dir)):""}${o.envio>0?(" · envío "+money(o.envio)):""}</div>
       <div style="font-size:14px">${o.items.map(i=>`${esc(i.nombre)} ×${i.qty}`).join(", ")}</div>
       ${o.notas?`<div class="muted" style="font-size:13px;margin-top:6px">📝 ${esc(o.notas)}</div>`:""}
       <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
@@ -728,6 +740,12 @@ function adminEntrega(){
       </div>
       <div class="field"><label for="eDom">Texto del servicio a domicilio</label><input id="eDom" type="text" value="${esc(s.domicilioInfo)}" placeholder="Ej. Entrega en la zona; confirmamos por WhatsApp"></div>
       <div class="field"><label for="eRec">Texto / lugar de recogida</label><input id="eRec" type="text" value="${esc(s.recogidaInfo)}" placeholder="Ej. Recogida en la huerta: [dirección]"></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div class="field" style="flex:1;min-width:130px"><label for="eCoste">Coste de envío (€)</label><input id="eCoste" type="number" min="0" step="0.01" value="${esc(s.envioCoste||"")}" placeholder="0 = gratis"></div>
+        <div class="field" style="flex:1;min-width:130px"><label for="eFree">Envío gratis desde (€)</label><input id="eFree" type="number" min="0" step="0.01" value="${esc(s.envioGratisDesde)}" placeholder="Ej. 20"></div>
+        <div class="field" style="flex:1;min-width:130px"><label for="eMin">Pedido mínimo a domicilio (€)</label><input id="eMin" type="number" min="0" step="0.01" value="${esc(s.pedidoMin)}" placeholder="Sin mínimo"></div>
+      </div>
+      <div class="field"><label for="eHorario">Días / horario de reparto</label><input id="eHorario" type="text" value="${esc(s.horario)}" placeholder="Ej. Reparto martes y viernes por la tarde"></div>
       <button class="btn btn-primary" type="submit">Guardar opciones de entrega</button>
       <p class="note">Lo que elijas aquí es lo único que verá el cliente al pedir. El pago se sigue cerrando por WhatsApp.</p>
     </form>
@@ -767,7 +785,9 @@ window.addEventListener("hashchange",render);
 function buildWaMessage(o){
   let m="*Nuevo pedido · Nacho Dacal*\n\n";
   o.items.forEach(i=>{ m+=`• ${i.nombre} ×${i.qty} — ${money(i.precio*i.qty)}\n`; });
-  m+=`\n*Total: ${money(o.total)}*\n\n`;
+  m+=`\nSubtotal: ${money(o.subtotal!=null?o.subtotal:o.total)}\n`;
+  if(o.envio>0) m+=`Envío: ${money(o.envio)}\n`;
+  m+=`*Total: ${money(o.total)}*\n\n`;
   m+=`Nombre: ${o.nombre}\nTel: ${o.tel}\n${o.entrega}`;
   if(o.dir) m+=`\nDirección: ${o.dir}`;
   if(o.notas) m+=`\nNotas: ${o.notas}`;
@@ -779,10 +799,14 @@ function placeOrder(form){
   const tel=(fd.get("tel")||"").toString().trim();
   if(!nombre||!tel){ $("#orderErr").innerHTML='<div class="alert">Pon tu nombre y tu teléfono.</div>'; return; }
   if(!$("#oConsent").checked){ $("#orderErr").innerHTML='<div class="alert">Tienes que aceptar la política de privacidad.</div>'; return; }
+  const metodo=(fd.get("entrega")||"").toString();
+  const sub=cartTotal(), env=envioDe(metodo), s=getSettings();
+  const min=(metodo==="Servicio a domicilio"&&s.pedidoMin!=="")?Number(s.pedidoMin):0;
+  if(min&&sub<min){ $("#orderErr").innerHTML='<div class="alert">Para envío a domicilio el pedido mínimo es '+money(min)+'. Añade '+money(min-sub)+' más o elige recogida.</div>'; return; }
   const o={ id:uid(), fecha:new Date().toLocaleString("es-ES"), nombre, tel,
-    entrega:(fd.get("entrega")||"").toString(), dir:(fd.get("dir")||"").toString().trim(),
+    entrega:metodo, dir:(fd.get("dir")||"").toString().trim(),
     notas:(fd.get("notas")||"").toString().trim(), items:cartItems().map(i=>({nombre:i.nombre,qty:i.qty,precio:i.precio})),
-    total:cartTotal(), estado:"pendiente" };
+    subtotal:sub, envio:env, total:sub+env, estado:"pendiente" };
   const O=load("nd_orders",[]); O.push(o); save("nd_orders",O);
   const msg=buildWaMessage(o);
   if(CONFIG.WHATSAPP){ try{ window.open("https://wa.me/"+CONFIG.WHATSAPP+"?text="+encodeURIComponent(msg),"_blank","noopener"); }catch(e){} }
@@ -836,8 +860,9 @@ document.addEventListener("input",e=>{
 document.addEventListener("change",e=>{
   if(e.target.classList&&e.target.classList.contains("cre-file")){
     const i=+e.target.dataset.i, file=e.target.files&&e.target.files[0]; if(!file) return;
-    const r=new FileReader(); r.onload=()=>{ syncCreInputs(); if(CRE_DRAFT[i])CRE_DRAFT[i].img=r.result; renderCreEditor(); }; r.readAsDataURL(file);
+    compressImage(file,1000,0.8).then(d=>{ syncCreInputs(); if(CRE_DRAFT[i]&&d)CRE_DRAFT[i].img=d; renderCreEditor(); });
   }
+  else if(e.target.name==="entrega"){ const el=document.getElementById("pedSummary"); if(el) el.innerHTML=pedSummaryHTML(e.target.value); }
 });
 document.addEventListener("click",e=>{
   const c=e.target.closest(".chip"); if(c&&c.dataset.cat){ FILTER=c.dataset.cat;
@@ -852,7 +877,9 @@ document.addEventListener("submit",e=>{
   else if(e.target.id==="prodForm"){ e.preventDefault(); saveProduct(); }
   else if(e.target.id==="entregaForm"){ e.preventDefault();
     const modo=(document.querySelector('input[name="emodo"]:checked')||{}).value||"ambas";
-    setSettings({ entregaModo:modo, domicilioInfo:$("#eDom").value.trim(), recogidaInfo:$("#eRec").value.trim() });
+    const num=v=>v.trim()===""?"":(parseFloat(v)||0);
+    setSettings({ entregaModo:modo, domicilioInfo:$("#eDom").value.trim(), recogidaInfo:$("#eRec").value.trim(),
+      envioCoste:parseFloat($("#eCoste").value)||0, envioGratisDesde:num($("#eFree").value), pedidoMin:num($("#eMin").value), horario:$("#eHorario").value.trim() });
     render(); toast("Opciones de entrega guardadas ✅");
   }
 });
@@ -876,7 +903,7 @@ function saveProduct(){
     else { P.unshift({id:uid(),activo:true,img:img||null,color:"#eef1e2",...base}); }
     setProducts(P); EDIT_ID=null; CRE_KEY=null; ADMIN_TAB="prod"; render(); toast("Producto guardado ✅"); window.scrollTo(0,0);
   };
-  if(file){ const r=new FileReader(); r.onload=()=>finish(r.result); r.readAsDataURL(file); }
+  if(file){ compressImage(file,1000,0.8).then(d=>finish(d||undefined)); }
   else finish(undefined);
 }
 function exportCSV(){
