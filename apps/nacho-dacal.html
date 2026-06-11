@@ -358,6 +358,27 @@ function defaultCrecimiento(cat){
 function faseIcon(f){ const s=(f||"").toLowerCase(); if(s.includes("siemb")||s.includes("semill")||s.includes("plant"))return"🌱"; if(s.includes("germ")||s.includes("brot"))return"🌿"; if(s.includes("flor"))return"🌼"; if(s.includes("fruto")||s.includes("madur")||s.includes("cuaj"))return"🍅"; if(s.includes("cosech")||s.includes("corte")||s.includes("recog"))return"🧺"; if(s.includes("crec"))return"☀️"; return"🌿"; }
 function getProducts(){ let p=load("nd_products",null); if(!p){ const ST=[8,5,10,6,12,3,4,9,7,15,6,5,20]; p=SEED.map((x,i)=>({id:uid(),activo:true,img:null,stock:ST[i]==null?8:ST[i],crecimiento:defaultCrecimiento(x.cat),...x})); save("nd_products",p); } return p; }
 function setProducts(p){ save("nd_products",p); }
+/* Ajustes de entrega del dueño */
+function getSettings(){ const d={entregaModo:"ambas", domicilioInfo:"Entrega en la zona. Te confirmamos día y hora por WhatsApp.", recogidaInfo:"Recogida en la huerta. Te pasamos la dirección por WhatsApp."}; return Object.assign(d, load("nd_settings",{})); }
+function setSettings(s){ save("nd_settings",Object.assign(getSettings(),s)); }
+function entregaResumen(){ const s=getSettings(); if(s.entregaModo==="domicilio") return "Servicio a domicilio. "+(s.domicilioInfo||""); if(s.entregaModo==="recogida") return "Recogida en el lugar. "+(s.recogidaInfo||""); return "Servicio a domicilio o recogida en el lugar (lo eliges al finalizar)."; }
+function entregaFieldsHTML(){
+  const s=getSettings();
+  if(s.entregaModo==="domicilio"){
+    return `<input type="hidden" name="entrega" value="Servicio a domicilio">
+      <div class="field"><label>Entrega *</label><div class="radios"><label style="cursor:default;border-color:var(--green)">🚚 Servicio a domicilio</label></div>${s.domicilioInfo?`<p class="note">${esc(s.domicilioInfo)}</p>`:""}</div>
+      <div class="field"><label for="oDir">Dirección *</label><input id="oDir" name="dir" type="text" placeholder="Calle, número, localidad"></div>`;
+  }
+  if(s.entregaModo==="recogida"){
+    return `<input type="hidden" name="entrega" value="Recogida en el lugar">
+      <div class="field"><label>Recogida *</label><div class="radios"><label style="cursor:default;border-color:var(--green)">🧺 Recogida en el lugar</label></div>${s.recogidaInfo?`<p class="note">${esc(s.recogidaInfo)}</p>`:""}</div>`;
+  }
+  return `<div class="field"><label>¿Cómo lo quieres recibir? *</label><div class="radios">
+      <label><input type="radio" name="entrega" value="Servicio a domicilio" checked> 🚚 Servicio a domicilio</label>
+      <label><input type="radio" name="entrega" value="Recogida en el lugar"> 🧺 Recogida en el lugar</label>
+    </div>${(s.domicilioInfo||s.recogidaInfo)?`<p class="note">🚚 ${esc(s.domicilioInfo||"")}${(s.domicilioInfo&&s.recogidaInfo)?" · ":""}🧺 ${esc(s.recogidaInfo||"")}</p>`:""}</div>
+    <div class="field"><label for="oDir">Dirección (si es a domicilio)</label><input id="oDir" name="dir" type="text" placeholder="Calle, número, localidad"></div>`;
+}
 const CATS_BASE = ["Verduras","Hortalizas","Frutas","Hierbas"];
 function getCats(){ const set=[...CATS_BASE]; getProducts().forEach(p=>{ if(p.cat&&!set.includes(p.cat)) set.push(p.cat); }); return set; }
 
@@ -518,7 +539,7 @@ function viewCarrito(){
         <div class="row"><span>Subtotal</span><b>${money(cartTotal())}</b></div>
         <div class="row total"><span>Total</span><span>${money(cartTotal())}</span></div>
         <a class="btn btn-primary btn-block" href="#/pedido" style="margin-top:8px">Tramitar pedido</a>
-        <p class="note">${esc(CONFIG.DELIVERY_NOTE)}</p>
+        <p class="note">${esc(entregaResumen())}</p>
       </div>
     </div>
   </div></div>`;
@@ -535,14 +556,7 @@ function viewPedido(){
       <div id="orderErr"></div>
       <div class="field"><label for="oNombre">Nombre y apellidos *</label><input id="oNombre" name="nombre" type="text" required placeholder="Tu nombre"></div>
       <div class="field"><label for="oTel">Teléfono / WhatsApp *</label><input id="oTel" name="tel" type="tel" required placeholder="600 00 00 00"></div>
-      <div class="field">
-        <label>¿Cómo lo quieres recibir? *</label>
-        <div class="radios">
-          <label><input type="radio" name="entrega" value="Entrega en mi zona" checked> Entrega en mi zona</label>
-          <label><input type="radio" name="entrega" value="Recojo en la huerta"> Recojo en la huerta</label>
-        </div>
-      </div>
-      <div class="field"><label for="oDir">Dirección (si es entrega)</label><input id="oDir" name="dir" type="text" placeholder="Calle, número, localidad"></div>
+      ${entregaFieldsHTML()}
       <div class="field"><label for="oNotas">Notas del pedido</label><textarea id="oNotas" name="notas" placeholder="Ej. prefiero la lechuga pequeña, llamar antes de llegar…"></textarea></div>
       <label class="consent"><input type="checkbox" id="oConsent"> Acepto la <a href="#/legal" style="color:var(--green-d);font-weight:700">política de privacidad</a> y que me contacten para gestionar este pedido.</label>
       <button class="btn btn-wa btn-block" type="submit">
@@ -626,9 +640,10 @@ function viewAdmin(){
     <div class="admin-tabs">
       <button data-action="tab" data-tab="prod" aria-pressed="${ADMIN_TAB==="prod"}" type="button">Productos</button>
       <button data-action="tab" data-tab="ped" aria-pressed="${ADMIN_TAB==="ped"}" type="button">Pedidos</button>
+      <button data-action="tab" data-tab="entrega" aria-pressed="${ADMIN_TAB==="entrega"}" type="button">Entrega</button>
       <button data-action="tab" data-tab="info" aria-pressed="${ADMIN_TAB==="info"}" type="button">Ayuda</button>
     </div>
-    <div id="adminBody">${ADMIN_TAB==="prod"?adminProd():ADMIN_TAB==="ped"?adminPed():adminInfo()}</div>
+    <div id="adminBody">${ADMIN_TAB==="prod"?adminProd():ADMIN_TAB==="ped"?adminPed():ADMIN_TAB==="entrega"?adminEntrega():adminInfo()}</div>
   </div></div>`;
 }
 function adminProd(){
@@ -696,6 +711,27 @@ function adminPed(){
         <button class="btn btn-ghost" data-action="delOrder" data-id="${esc(o.id)}" type="button" style="color:var(--tomato)">Borrar</button>
       </div>
     </div>`).join("")}`;
+}
+function adminEntrega(){
+  const s=getSettings();
+  const r=(v,lab)=>`<label style="${s.entregaModo===v?'border-color:var(--green);background:var(--leaf-soft)':''}"><input type="radio" name="emodo" value="${v}" ${s.entregaModo===v?"checked":""}> ${lab}</label>`;
+  return `<div class="form-card">
+    <h3 style="margin-bottom:6px">¿Cómo entregas los pedidos?</h3>
+    <p class="muted" style="margin-top:0;font-size:14px">Elige qué opciones verá el cliente al finalizar el pedido. Cámbialo cuando quieras.</p>
+    <form id="entregaForm">
+      <div class="field"><label>Modo de entrega</label>
+        <div class="radios" style="flex-direction:column;align-items:stretch">
+          ${r("ambas","🚚🧺 Ambas — a domicilio y recogida")}
+          ${r("domicilio","🚚 Solo servicio a domicilio")}
+          ${r("recogida","🧺 Solo recogida en el lugar")}
+        </div>
+      </div>
+      <div class="field"><label for="eDom">Texto del servicio a domicilio</label><input id="eDom" type="text" value="${esc(s.domicilioInfo)}" placeholder="Ej. Entrega en la zona; confirmamos por WhatsApp"></div>
+      <div class="field"><label for="eRec">Texto / lugar de recogida</label><input id="eRec" type="text" value="${esc(s.recogidaInfo)}" placeholder="Ej. Recogida en la huerta: [dirección]"></div>
+      <button class="btn btn-primary" type="submit">Guardar opciones de entrega</button>
+      <p class="note">Lo que elijas aquí es lo único que verá el cliente al pedir. El pago se sigue cerrando por WhatsApp.</p>
+    </form>
+  </div>`;
 }
 function adminInfo(){
   return `<div class="form-card">
@@ -814,6 +850,11 @@ document.addEventListener("submit",e=>{
     else { $("#loginErr").innerHTML='<div class="alert">Contraseña incorrecta.</div>'; }
   }
   else if(e.target.id==="prodForm"){ e.preventDefault(); saveProduct(); }
+  else if(e.target.id==="entregaForm"){ e.preventDefault();
+    const modo=(document.querySelector('input[name="emodo"]:checked')||{}).value||"ambas";
+    setSettings({ entregaModo:modo, domicilioInfo:$("#eDom").value.trim(), recogidaInfo:$("#eRec").value.trim() });
+    render(); toast("Opciones de entrega guardadas ✅");
+  }
 });
 
 function saveProduct(){
