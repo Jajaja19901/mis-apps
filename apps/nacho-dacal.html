@@ -236,6 +236,12 @@ footer a:hover{color:#fff}
 .cre-up{font-size:12.5px;font-weight:800;color:var(--green-d);background:#fff;border:1.5px solid var(--line-2);border-radius:9px;padding:7px 11px;cursor:pointer}
 .cre-rmimg{font-size:12px;font-weight:700;color:var(--earth);background:none;border:0;cursor:pointer}
 .cre-del{margin-left:auto;background:none;border:0;font-size:16px;cursor:pointer}
+.closed-banner{background:#fdecea;color:#a3271b;border-bottom:1px solid #f3c6c0;padding:12px 18px;text-align:center;font-size:14.5px;font-weight:600}
+.adm-stats{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 18px}
+.adm-stat{flex:1;min-width:120px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:var(--sh-sm)}
+.adm-stat b{display:block;font-size:24px;font-weight:900;color:var(--green-d);line-height:1.1}
+.adm-stat span{font-size:12.5px;color:var(--muted);font-weight:700}
+.adm-prod .ap-act{flex-wrap:wrap;justify-content:flex-end;max-width:172px}
 .hist{background:var(--leaf-soft);border:1px solid #cfe3bf;border-radius:14px;padding:13px 15px;margin-top:16px}
 .hist b{color:var(--green-d);font-size:14px;display:block;margin-bottom:5px}
 .hist p{margin:0;font-size:13.8px;color:#3c4a33;line-height:1.5}
@@ -384,8 +390,10 @@ const LOGO = `<svg viewBox="0 0 48 48" width="100%" height="100%" xmlns="http://
   <path d="M24 36c0-8 1-12 7-16-1.2 7.5-3.6 11-7 16z" fill="#8fcf6a"/>
   <path d="M24 36v-9" stroke="#cdeeb6" stroke-width="2" stroke-linecap="round"/>
 </svg>`;
-function logoURI(){ const s='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="11" fill="#2f6b30"/><path d="M24 38c0-8 0-12-5-16 6 .5 9 4 9.5 8.5C29.5 25 33 21.5 38 21c-6 4-7 8-7 17z" fill="#bfe3a6"/></svg>'; return "data:image/svg+xml,"+encodeURIComponent(s); }
-["brandLogo","footLogo"].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=LOGO; });
+function logoURI(){ try{ const c=(load("nd_settings",{})||{}).logo; if(c) return c; }catch(e){} const s='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="11" fill="#2f6b30"/><path d="M24 38c0-8 0-12-5-16 6 .5 9 4 9.5 8.5C29.5 25 33 21.5 38 21c-6 4-7 8-7 17z" fill="#bfe3a6"/></svg>'; return "data:image/svg+xml,"+encodeURIComponent(s); }
+function logoMarkup(){ try{ const c=(load("nd_settings",{})||{}).logo; if(c) return '<img src="'+esc(c)+'" alt="Nacho Dacal" style="width:100%;height:100%;object-fit:cover;border-radius:10px">'; }catch(e){} return LOGO; }
+function applyLogo(){ ["brandLogo","footLogo"].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=logoMarkup(); }); }
+applyLogo();
 
 /* ===================== Datos semilla (inspirado en la huerta de la referencia) ===================== */
 const SEED = [
@@ -428,7 +436,7 @@ function getProducts(){ let p=load("nd_products",null); if(!p){ const ST=[8,5,10
 function setProducts(p){ save("nd_products",p); }
 /* Ajustes de entrega del dueño */
 const SOBRE_DEF = "Soy un chico joven que, por las vueltas que da la vida, acabó volviendo a la tierra. Donde otros veían un campo olvidado, yo vi una huerta. Hoy cultivo cada verdura y cada fruta con mis propias manos, sin químicos ni prisas: solo agua, sol y paciencia. Esto no es un supermercado, es mi huerta; y cuando pides aquí, comes lo mismo que como yo. Gracias por confiar en lo natural.";
-function getSettings(){ const d={entregaModo:"ambas", domicilioInfo:"Entrega en la zona. Te confirmamos día y hora por WhatsApp.", recogidaInfo:"Recogida en la huerta. Te pasamos la dirección por WhatsApp.", envioCoste:0, envioGratisDesde:"", pedidoMin:"", horario:"", pagos:{efectivo:true,bizum:true,transferencia:false,paypal:false,tarjeta:false,cripto:false}, pagosInfo:{bizum:"",transferencia:"",paypal:"",cripto:""}, sobreTitulo:"Hola, soy Nacho", sobreTexto:SOBRE_DEF, sobreFoto:null, cesta:{activa:false,titulo:"Cesta de la semana",desc:"Una selección de lo mejor de la huerta esta semana, a precio cerrado.",incluye:"",precio:"",img:null}, opiniones:[]}; return Object.assign(d, load("nd_settings",{})); }
+function getSettings(){ const d={entregaModo:"ambas", domicilioInfo:"Entrega en la zona. Te confirmamos día y hora por WhatsApp.", recogidaInfo:"Recogida en la huerta. Te pasamos la dirección por WhatsApp.", envioCoste:0, envioGratisDesde:"", pedidoMin:"", horario:"", pagos:{efectivo:true,bizum:true,transferencia:false,paypal:false,tarjeta:false,cripto:false}, pagosInfo:{bizum:"",transferencia:"",paypal:"",cripto:""}, sobreTitulo:"Hola, soy Nacho", sobreTexto:SOBRE_DEF, sobreFoto:null, cesta:{activa:false,titulo:"Cesta de la semana",desc:"Una selección de lo mejor de la huerta esta semana, a precio cerrado.",incluye:"",precio:"",img:null}, opiniones:[], abierta:true, cerradoMsg:"", logo:null}; return Object.assign(d, load("nd_settings",{})); }
 function cestaProduct(){ const c=getSettings().cesta||{}; return {id:"__cesta__", nombre:c.titulo||"Cesta de la semana", precio:Number(c.precio)||0, unidad:"pack", emoji:"🧺", img:c.img||null, desc:c.incluye||c.desc||"", cat:"Cesta"}; }
 function cartProduct(id){ if(id==="__cesta__") return cestaProduct(); return getProducts().find(x=>x.id===id)||null; }
 function setSettings(s){ save("nd_settings",Object.assign(getSettings(),s)); }
@@ -508,6 +516,7 @@ let FILTER="Todas", QUERY="";
 function viewCatalogo(){
   const P=getProducts().filter(p=>p.activo!==false);
   return `
+  ${cerradaBanner()}
   <section class="hero">
     <div class="wrap">
       <span class="seal"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3C7 7 7 12 7 16a5 5 0 0 0 10 0c0-4 0-9-5-13z"/><path d="M12 21v-7"/></svg> 100% natural · sin químicos</span>
@@ -551,6 +560,7 @@ function viewCatalogo(){
   ${opinionesHTML()}
   ${avisameHTML()}`;
 }
+function cerradaBanner(){ const s=getSettings(); if(s.abierta!==false) return ""; return `<div class="closed-banner">🚫 <b>Tienda cerrada ahora.</b>${s.cerradoMsg?(" "+esc(s.cerradoMsg)):""} Puedes mirar el catálogo; los pedidos están en pausa.</div>`; }
 function destHTML(){
   if(FILTER!=="Todas"||QUERY.trim()) return "";
   const D=getProducts().filter(p=>p.activo!==false&&p.destacado);
@@ -714,7 +724,7 @@ function viewCarrito(){
         <div class="row"><span>Productos</span><b>${cartCount()}</b></div>
         <div class="row"><span>Subtotal</span><b>${money(cartTotal())}</b></div>
         <div class="row total"><span>Total</span><span>${money(cartTotal())}</span></div>
-        <a class="btn btn-primary btn-block" href="#/pedido" style="margin-top:8px">Tramitar pedido</a>
+        ${getSettings().abierta===false?`<div class="alert" style="margin-top:8px">🚫 Tienda cerrada ahora. ${esc(getSettings().cerradoMsg||"")} Vuelve pronto para hacer el pedido.</div>`:`<a class="btn btn-primary btn-block" href="#/pedido" style="margin-top:8px">Tramitar pedido</a>`}
         <p class="note">${esc(entregaResumen())}</p>
       </div>
     </div>
@@ -812,9 +822,10 @@ function viewAdmin(){
   return `<div class="page"><div class="wrap">
     <a class="back" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Ver tienda</a>
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-      <h1 class="ptitle">Panel · Nacho Dacal</h1>
+      <h1 class="ptitle">Panel · ${esc(B().nombre)}</h1>
       <button class="btn btn-ghost" data-action="logout" type="button">Salir</button>
     </div>
+    ${adminStats()}
     <div class="admin-tabs">
       <button data-action="tab" data-tab="prod" aria-pressed="${ADMIN_TAB==="prod"}" type="button">Productos</button>
       <button data-action="tab" data-tab="ped" aria-pressed="${ADMIN_TAB==="ped"}" type="button">Pedidos</button>
@@ -823,7 +834,7 @@ function viewAdmin(){
       <button data-action="tab" data-tab="tienda" aria-pressed="${ADMIN_TAB==="tienda"}" type="button">Tienda</button>
       <button data-action="tab" data-tab="pagos" aria-pressed="${ADMIN_TAB==="pagos"}" type="button">Pagos</button>
       <button data-action="tab" data-tab="sobre" aria-pressed="${ADMIN_TAB==="sobre"}" type="button">Sobre mí</button>
-      <button data-action="tab" data-tab="datos" aria-pressed="${ADMIN_TAB==="datos"}" type="button">Mis datos</button>
+      <button data-action="tab" data-tab="datos" aria-pressed="${ADMIN_TAB==="datos"}" type="button">Ajustes</button>
       <button data-action="tab" data-tab="info" aria-pressed="${ADMIN_TAB==="info"}" type="button">Ayuda</button>
     </div>
     <div id="adminBody">${ADMIN_TAB==="prod"?adminProd():ADMIN_TAB==="ped"?adminPed():ADMIN_TAB==="avisos"?adminAvisos():ADMIN_TAB==="tienda"?adminTienda():ADMIN_TAB==="entrega"?adminEntrega():ADMIN_TAB==="pagos"?adminPagos():ADMIN_TAB==="sobre"?adminSobre():ADMIN_TAB==="datos"?adminDatos():adminInfo()}</div>
@@ -867,16 +878,20 @@ function adminProd(){
     </form>
   </div>
   <h3 style="margin-bottom:12px">Tus productos (${P.length})</h3>
-  ${P.map(p=>`
+  ${P.map((p,i)=>{ const ago=p.stock!=null&&p.stock!==""&&Number(p.stock)<=0; return `
     <div class="adm-prod">
       <div class="ap-ph">${phHTML(p)}</div>
-      <div class="ap-info"><b>${esc(p.nombre)}</b> ${p.activo===false?'<span style="color:var(--tomato);font-size:12px">(oculto)</span>':''}<br><span>${money(p.precio)} · ${esc(p.cat)} · ${p.stock==null||p.stock===""?"sin límite":(Number(p.stock)<=0?"agotado":esc(p.stock)+" uds")}</span></div>
+      <div class="ap-info"><b>${esc(p.nombre)}</b> ${p.activo===false?'<span style="color:var(--tomato);font-size:12px">(oculto)</span>':''}${p.destacado?' <span style="color:var(--wheat);font-size:12px">★</span>':''}<br><span>${money(p.precio)} · ${esc(p.cat)} · ${p.stock==null||p.stock===""?"sin límite":(ago?"agotado":esc(p.stock)+" uds")}</span></div>
       <div class="ap-act">
+        <button class="mini" data-action="moveP" data-id="${esc(p.id)}" data-dir="-1" title="Subir" type="button" ${i===0?"disabled":""}>↑</button>
+        <button class="mini" data-action="moveP" data-id="${esc(p.id)}" data-dir="1" title="Bajar" type="button" ${i===P.length-1?"disabled":""}>↓</button>
+        <button class="mini" data-action="agotadoP" data-id="${esc(p.id)}" title="${ago?"Marcar disponible":"Marcar agotado"}" type="button">${ago?'🔴':'🟢'}</button>
         <button class="mini" data-action="toggleP" data-id="${esc(p.id)}" title="${p.activo===false?"Mostrar":"Ocultar"}" type="button">${p.activo===false?'👁️':'🚫'}</button>
+        <button class="mini" data-action="dupP" data-id="${esc(p.id)}" title="Duplicar" type="button">⧉</button>
         <button class="mini" data-action="editP" data-id="${esc(p.id)}" aria-label="Editar" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
         <button class="mini del" data-action="delP" data-id="${esc(p.id)}" aria-label="Borrar" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
       </div>
-    </div>`).join("")}`;
+    </div>`; }).join("")}`;
 }
 function adminPed(){
   const O=load("nd_orders",[]);
@@ -968,9 +983,21 @@ function adminAvisos(){
       <button class="btn btn-ghost" data-action="delAviso" data-id="${esc(a.id)}" type="button" style="color:var(--tomato)">Borrar</button>
     </div></div>`).join("")}`;
 }
+function adminStats(){
+  const P=getProducts(), O=load("nd_orders",[]), A=load("nd_avisos",[]), s=getSettings();
+  const pend=O.filter(o=>o.estado!=="servido").length, ventas=O.reduce((a,o)=>a+(o.total||0),0);
+  return `<div class="adm-stats">
+    <div class="adm-stat"><b>${P.filter(p=>p.activo!==false).length}</b><span>productos activos</span></div>
+    <div class="adm-stat"><b>${pend}</b><span>pedidos pendientes</span></div>
+    <div class="adm-stat"><b>${A.length}</b><span>avisos</span></div>
+    <div class="adm-stat"><b style="font-size:19px">${money(ventas)}</b><span>ventas registradas</span></div>
+    <div class="adm-stat" style="background:${s.abierta===false?'#fdecea':'var(--leaf-soft)'}"><b style="font-size:17px;color:${s.abierta===false?'#a3271b':'var(--green-d)'}">${s.abierta===false?'Cerrada':'Abierta'}</b><span>estado de la tienda</span></div>
+  </div>`;
+}
 function adminDatos(){
-  const b=B();
-  return `<div class="form-card">
+  const b=B(); const s=getSettings();
+  const logoPrev = s.logo?`<img src="${esc(s.logo)}" alt="" style="width:64px;height:64px;border-radius:12px;object-fit:cover;border:1px solid var(--line)">`:`<div style="width:64px;height:64px;border-radius:12px;overflow:hidden">${LOGO}</div>`;
+  return `<div class="form-card" style="margin-bottom:22px">
     <h3 style="margin-bottom:6px">Mis datos</h3>
     <p class="muted" style="margin-top:0;font-size:14px">Tu contacto. Es lo que usa la tienda para enviar los pedidos y los avisos por WhatsApp. Sin tocar código.</p>
     <form id="datosForm">
@@ -982,6 +1009,29 @@ function adminDatos(){
       <button class="btn btn-primary" type="submit">Guardar mis datos</button>
       <p class="note">El Bizum lo configuras en la pestaña <b>Pagos</b>.</p>
     </form>
+  </div>
+  <div class="form-card" style="margin-bottom:22px">
+    <h3 style="margin-bottom:6px">Estado de la tienda</h3>
+    <p class="muted" style="margin-top:0;font-size:14px">Si la cierras, los clientes pueden mirar pero NO hacer pedidos (ideal para vacaciones o días sin reparto).</p>
+    <form id="estadoForm">
+      <label class="consent" style="background:var(--leaf-soft)"><input type="checkbox" id="eAbierta" ${s.abierta!==false?"checked":""}> Tienda <b>abierta</b> (aceptando pedidos)</label>
+      <div class="field"><label for="eMsg">Mensaje cuando está cerrada</label><input id="eMsg" type="text" value="${esc(s.cerradoMsg||"")}" placeholder="Ej. Volvemos el lunes · Cerrado por vacaciones"></div>
+      <button class="btn btn-primary" type="submit">Guardar estado</button>
+    </form>
+  </div>
+  <div class="form-card" style="margin-bottom:22px">
+    <h3 style="margin-bottom:6px">Logo de la tienda</h3>
+    <p class="muted" style="margin-top:0;font-size:14px">Sube tu logo y sustituye al de por defecto (cabecera, pie e icono de la app).</p>
+    <div style="display:flex;gap:14px;align-items:center">${logoPrev}<label class="cre-up">📷 Subir/cambiar logo<input id="logoFile" type="file" accept="image/*" hidden></label>${s.logo?`<button class="cre-rmimg" data-action="logoDel" type="button">Quitar</button>`:""}</div>
+  </div>
+  <div class="form-card">
+    <h3 style="margin-bottom:6px">Copia de seguridad</h3>
+    <p class="muted" style="margin-top:0;font-size:14px"><b>Importante:</b> todo se guarda en este dispositivo. Si cambias de móvil o limpias el navegador, lo pierdes. Descarga una copia de vez en cuando.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-primary" data-action="backupExport" type="button">⬇️ Guardar copia</button>
+      <label class="btn btn-ghost" style="cursor:pointer">⬆️ Restaurar copia<input id="backupFile" type="file" accept="application/json,.json" hidden></label>
+    </div>
+    <p class="note">Restaurar reemplaza los datos actuales por los de la copia.</p>
   </div>`;
 }
 function adminSobre(){
@@ -1087,6 +1137,7 @@ function submitAvisame(form){
   form.reset(); toast("¡Hecho! Te avisaré de las novedades 🔔");
 }
 function placeOrder(form){
+  if(getSettings().abierta===false){ $("#orderErr").innerHTML='<div class="alert">🚫 La tienda está cerrada ahora. '+esc(getSettings().cerradoMsg||"")+' Inténtalo cuando vuelva a abrir.</div>'; return; }
   const fd=new FormData(form);
   const nombre=(fd.get("nombre")||"").toString().trim();
   const tel=(fd.get("tel")||"").toString().trim();
@@ -1138,6 +1189,11 @@ document.addEventListener("click",e=>{
     case "sobreFotoDel": setSettings({sobreTitulo:($("#sTit")||{}).value||getSettings().sobreTitulo, sobreTexto:($("#sTxt")||{}).value||getSettings().sobreTexto, sobreFoto:null}); render(); break;
     case "delP": if(confirm("¿Borrar este producto?")){ setProducts(getProducts().filter(p=>p.id!==id)); if(EDIT_ID===id)EDIT_ID=null; render(); } break;
     case "toggleP": { const P=getProducts(); const p=P.find(x=>x.id===id); if(p){p.activo=p.activo===false;} setProducts(P); render(); } break;
+    case "agotadoP": { const P=getProducts(); const p=P.find(x=>x.id===id); if(p){ const ago=p.stock!=null&&p.stock!==""&&Number(p.stock)<=0; p.stock=ago?null:0; } setProducts(P); render(); toast("Producto actualizado"); } break;
+    case "moveP": { const P=getProducts(); const i=P.findIndex(x=>x.id===id); const j=i+(+t.dataset.dir); if(i>=0&&j>=0&&j<P.length){ const tmp=P[i]; P[i]=P[j]; P[j]=tmp; setProducts(P); render(); } } break;
+    case "dupP": { const P=getProducts(); const i=P.findIndex(x=>x.id===id); if(i>=0){ const copy=Object.assign({},P[i],{id:uid(),nombre:P[i].nombre+" (copia)",destacado:false}); P.splice(i+1,0,copy); setProducts(P); render(); toast("Producto duplicado"); } } break;
+    case "logoDel": setSettings({logo:null}); applyLogo(); setupPWA(); render(); break;
+    case "backupExport": backupExport(); break;
     case "avisarListo": avisarListo(id); break;
     case "addCesta": addToCart("__cesta__",1); toast("Cesta añadida 🧺"); break;
     case "cestaFotoDel": { const c=readCesta(); c.img=null; setSettings({cesta:c}); render(); break; }
@@ -1166,6 +1222,10 @@ document.addEventListener("change",e=>{
     const tit=$("#sTit").value.trim(), txt=$("#sTxt").value.trim();
     compressImage(file,900,0.82).then(d=>{ setSettings({sobreTitulo:tit, sobreTexto:txt, sobreFoto:d||null}); render(); toast("Foto actualizada ✅"); });
   }
+  else if(e.target.id==="logoFile"){ const file=e.target.files&&e.target.files[0]; if(!file) return;
+    compressImage(file,512,0.85).then(d=>{ if(d){ setSettings({logo:d}); applyLogo(); setupPWA(); render(); toast("Logo actualizado ✅"); } });
+  }
+  else if(e.target.id==="backupFile"){ const file=e.target.files&&e.target.files[0]; if(!file) return; backupImport(file); }
   else if(e.target.id==="cFoto"){ const file=e.target.files&&e.target.files[0]; if(!file) return;
     compressImage(file,1000,0.8).then(d=>{ const c=readCesta(); c.img=d||null; setSettings({cesta:c}); render(); toast("Foto de la cesta actualizada ✅"); });
   }
@@ -1184,6 +1244,9 @@ document.addEventListener("submit",e=>{
   else if(e.target.id==="prodForm"){ e.preventDefault(); saveProduct(); }
   else if(e.target.id==="sobreForm"){ e.preventDefault();
     setSettings({ sobreTitulo:$("#sTit").value.trim(), sobreTexto:$("#sTxt").value.trim() }); render(); toast("Tu historia guardada ✅");
+  }
+  else if(e.target.id==="estadoForm"){ e.preventDefault();
+    setSettings({ abierta:$("#eAbierta").checked, cerradoMsg:$("#eMsg").value.trim() }); render(); toast("Estado guardado ✅");
   }
   else if(e.target.id==="datosForm"){ e.preventDefault();
     setSettings({ bizNombre:$("#dNom").value.trim(), bizWhatsapp:$("#dWa").value.replace(/[^0-9]/g,""), bizEmail:$("#dMail").value.trim(), bizCity:$("#dCity").value.trim(), bizPass:$("#dPass").value.trim() });
@@ -1228,6 +1291,22 @@ function saveProduct(){
   };
   if(file){ compressImage(file,1000,0.8).then(d=>finish(d||undefined)); }
   else finish(undefined);
+}
+function backupExport(){
+  const data={ _app:"nacho-dacal", _fecha:new Date().toISOString(),
+    products:load("nd_products",[]), settings:load("nd_settings",{}), orders:load("nd_orders",[]), avisos:load("nd_avisos",[]) };
+  try{ const b=new Blob([JSON.stringify(data,null,2)],{type:"application/json"}); const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="nacho-dacal-copia-"+new Date().toISOString().slice(0,10)+".json"; document.body.appendChild(a); a.click(); setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(a.href);},400); toast("Copia descargada ✅"); }catch(e){ toast("No se pudo descargar"); }
+}
+function backupImport(file){
+  const r=new FileReader();
+  r.onload=()=>{ let d; try{ d=JSON.parse(r.result); }catch(e){ toast("El archivo no es una copia válida"); return; }
+    if(!d||d._app!=="nacho-dacal"){ toast("Esa copia no es de esta app"); return; }
+    if(!confirm("Esto reemplazará tus productos, ajustes, pedidos y avisos por los de la copia. ¿Seguir?")) return;
+    if(d.products) save("nd_products",d.products); if(d.settings) save("nd_settings",d.settings);
+    if(d.orders) save("nd_orders",d.orders); if(d.avisos) save("nd_avisos",d.avisos);
+    applyLogo(); setupPWA(); render(); toast("Copia restaurada ✅");
+  };
+  r.onerror=()=>toast("No se pudo leer el archivo"); r.readAsText(file);
 }
 function exportCSV(){
   const O=load("nd_orders",[]);
