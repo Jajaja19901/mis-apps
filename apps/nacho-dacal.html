@@ -215,6 +215,22 @@ footer a:hover{color:#fff}
 .sheet .sh-row{display:flex;align-items:center;gap:14px;margin-top:18px}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(18px);background:var(--ink);color:#fff;padding:13px 19px;border-radius:13px;font-weight:700;z-index:100;box-shadow:var(--sh-lg);opacity:0;pointer-events:none;transition:.26s var(--ease);max-width:90vw}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* proceso de cultivo + stock */
+.grow{margin-top:18px;border-top:1px dashed var(--line-2);padding-top:16px}
+.grow h4{font-size:15px;color:var(--green-d);margin:0 0 14px;display:flex;align-items:center;gap:7px}
+.timeline{list-style:none;margin:0;padding:0;position:relative}
+.timeline:before{content:"";position:absolute;left:17px;top:8px;bottom:14px;width:2px;background:linear-gradient(var(--leaf),var(--line-2))}
+.timeline li{position:relative;padding:0 0 16px 48px;min-height:36px}
+.timeline li:last-child{padding-bottom:0}
+.timeline .dot{position:absolute;left:0;top:0;width:36px;height:36px;border-radius:50%;background:var(--leaf-soft);border:2px solid #cfe3bf;display:grid;place-items:center;font-size:17px}
+.timeline b{display:block;font-size:14.5px;color:var(--text)}
+.timeline span{font-size:13px;color:var(--muted)}
+.stock-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;padding:4px 10px;border-radius:999px}
+.stock-tag.low{background:var(--earth-soft);color:#8a521f}
+.stock-tag.ok{background:var(--leaf-soft);color:var(--green-d)}
+.stock-tag.out{background:#fdecea;color:#a3271b}
+.ph .agotado{position:absolute;inset:0;background:rgba(20,30,12,.5);display:grid;place-items:center;color:#fff;font-weight:800;font-size:18px;letter-spacing:.04em}
+.pcard .add[disabled]{background:var(--line-2);box-shadow:none}
 :focus-visible{outline:3px solid var(--green);outline-offset:2px;border-radius:6px}
 
 /* ===================== Responsive ===================== */
@@ -323,9 +339,16 @@ const SEED = [
   {nombre:"Pimiento morado", cat:"Hortalizas", desc:"Exclusivo pimiento morado de la huerta.", precio:3.00, antes:3.50, unidad:"por kg", emoji:"🫑", color:"#e6dcef"},
   {nombre:"Lechuga gigante de Batavia", cat:"Verduras", desc:"Lechuga Batavia de hoja rizada. Pedido mínimo 3 unidades.", precio:1.50, antes:2.00, unidad:"la unidad", emoji:"🥬", color:"#e4f1d4"}
 ];
-function getProducts(){ let p=load("nd_products",null); if(!p){ p=SEED.map(x=>({id:uid(),activo:true,img:null,...x})); save("nd_products",p); } return p; }
+function defaultCrecimiento(cat){
+  if(cat==="Frutas") return [{fase:"Siembra",nota:"Plantamos la semilla en tierra natural."},{fase:"Floración",nota:"La planta florece sin químicos."},{fase:"Cuaja el fruto",nota:"Nace y engorda el fruto."},{fase:"Madura al sol",nota:"Madura en la mata hasta su punto."},{fase:"Cosecha",nota:"Se recoge el día del pedido."}];
+  if(cat==="Hierbas") return [{fase:"Siembra",nota:"Semilla en semillero natural."},{fase:"Germina",nota:"Brota la plántula."},{fase:"Crece",nota:"Crece aromática, sin pesticidas."},{fase:"Corte fresco",nota:"Cortamos el manojo al momento."}];
+  return [{fase:"Siembra",nota:"Semilla en la tierra de la huerta."},{fase:"Germina",nota:"Brota sin químicos."},{fase:"Crece",nota:"Riego natural y cuidado diario."},{fase:"Cosecha",nota:"Se recoge el día del pedido."}];
+}
+function faseIcon(f){ const s=(f||"").toLowerCase(); if(s.includes("siemb")||s.includes("semill")||s.includes("plant"))return"🌱"; if(s.includes("germ")||s.includes("brot"))return"🌿"; if(s.includes("flor"))return"🌼"; if(s.includes("fruto")||s.includes("madur")||s.includes("cuaj"))return"🍅"; if(s.includes("cosech")||s.includes("corte")||s.includes("recog"))return"🧺"; if(s.includes("crec"))return"☀️"; return"🌿"; }
+function getProducts(){ let p=load("nd_products",null); if(!p){ const ST=[8,5,10,6,12,3,4,9,7,15,6,5,20]; p=SEED.map((x,i)=>({id:uid(),activo:true,img:null,stock:ST[i]==null?8:ST[i],crecimiento:defaultCrecimiento(x.cat),...x})); save("nd_products",p); } return p; }
 function setProducts(p){ save("nd_products",p); }
-const CATS = ["Verduras","Hortalizas","Frutas","Hierbas"];
+const CATS_BASE = ["Verduras","Hortalizas","Frutas","Hierbas"];
+function getCats(){ const set=[...CATS_BASE]; getProducts().forEach(p=>{ if(p.cat&&!set.includes(p.cat)) set.push(p.cat); }); return set; }
 
 /* ===================== Carrito ===================== */
 function getCart(){ return load("nd_cart",{}); }      // {id:qty}
@@ -370,7 +393,7 @@ function viewCatalogo(){
         <input id="q" type="search" placeholder="Buscar tomate, lechuga, menta…" value="${esc(QUERY)}" aria-label="Buscar productos">
       </div>
       <div class="chips" id="chips">
-        ${["Todas",...CATS].map(c=>`<button class="chip" data-cat="${esc(c)}" aria-pressed="${FILTER===c}" type="button">${esc(c)}</button>`).join("")}
+        ${["Todas",...getCats()].map(c=>`<button class="chip" data-cat="${esc(c)}" aria-pressed="${FILTER===c}" type="button">${esc(c)}</button>`).join("")}
       </div>
     </div>
   </div>
@@ -392,22 +415,28 @@ function gridHTML(P){
   if(!list.length) return `<div class="empty"><div class="big">🧺</div><b style="color:var(--text);font-size:18px">No hay productos con ese filtro</b><br>Prueba con otra categoría o búsqueda.</div>`;
   return list.map(p=>{
     const off = p.antes&&p.antes>p.precio ? `<span class="off">-${Math.round((1-p.precio/p.antes)*100)}%</span>` : "";
+    const lim = p.stock!=null && p.stock!=="";
+    const out = lim && Number(p.stock)<=0;
+    const low = lim && Number(p.stock)>0 && Number(p.stock)<=5;
+    const stockTag = out?`<span class="stock-tag out">Agotado</span>`:(low?`<span class="stock-tag low">¡Solo quedan ${esc(p.stock)}!</span>`:(lim?`<span class="stock-tag ok">Disponible</span>`:""));
     return `<article class="pcard">
       <div class="ph" data-action="detalle" data-id="${esc(p.id)}">
         ${off}
         <span class="natural"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3C7 7 7 12 7 16a5 5 0 0 0 10 0c0-4 0-9-5-13z"/></svg>Natural</span>
         ${phHTML(p)}
+        ${out?'<div class="agotado">Agotado</div>':''}
       </div>
       <div class="body">
         <span class="cat">${esc(p.cat)}</span>
         <h3>${esc(p.nombre)}</h3>
         <p class="desc">${esc(p.desc)}</p>
+        ${stockTag?`<div style="margin-bottom:11px">${stockTag}</div>`:""}
         <div class="foot">
           <div>
             <div class="price">${money(p.precio)}${p.antes&&p.antes>p.precio?` <s>${money(p.antes)}</s>`:""}</div>
             <span class="unit">${esc(p.unidad||"")}</span>
           </div>
-          <button class="add" data-action="add" data-id="${esc(p.id)}" aria-label="Añadir ${esc(p.nombre)} a la cesta" type="button">
+          <button class="add" data-action="add" data-id="${esc(p.id)}" ${out?"disabled":""} aria-label="Añadir ${esc(p.nombre)} a la cesta" type="button">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
         </div>
@@ -420,22 +449,28 @@ function rerenderGrid(){ const g=$("#grid"); if(g) g.innerHTML=gridHTML(getProdu
 /* detalle (sheet) */
 function openDetalle(id){
   const p=getProducts().find(x=>x.id===id); if(!p) return;
+  const lim=p.stock!=null&&p.stock!=="", out=lim&&Number(p.stock)<=0, low=lim&&Number(p.stock)>0&&Number(p.stock)<=5;
+  const avail = out?`<span class="stock-tag out">Agotado</span>`:(low?`<span class="stock-tag low">¡Solo quedan ${esc(p.stock)}!</span>`:(lim?`<span class="stock-tag ok">Disponible · ${esc(p.stock)} uds</span>`:""));
+  const cre = Array.isArray(p.crecimiento)?p.crecimiento:[];
+  const growHTML = cre.length?`<div class="grow"><h4>🌱 Proceso de cultivo</h4><ol class="timeline">${cre.map(s=>`<li><span class="dot">${faseIcon(s.fase)}</span><div><b>${esc(s.fase)}</b>${s.nota?`<span>${esc(s.nota)}</span>`:""}</div></li>`).join("")}</ol></div>`:"";
   $("#sheet").innerHTML=`
     <div class="sh-ph">${phHTML(p)}
       <button class="sh-close" data-action="closeSheet" aria-label="Cerrar" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+      ${out?'<div class="agotado">Agotado</div>':''}
     </div>
     <div class="sh-body">
       <span class="cat" style="color:var(--leaf);font-weight:800;font-size:11.5px;letter-spacing:.08em;text-transform:uppercase">${esc(p.cat)} · Natural</span>
       <h3 style="margin:5px 0 0">${esc(p.nombre)}</h3>
       <div class="sh-price">${money(p.precio)}${p.antes&&p.antes>p.precio?` <s>${money(p.antes)}</s>`:""} <span style="font-size:13px;color:var(--muted-2);font-weight:700">${esc(p.unidad||"")}</span></div>
+      ${avail?`<div style="margin:2px 0 10px">${avail}</div>`:""}
       <p class="muted" style="font-size:15px">${esc(p.desc)}</p>
       <p class="muted" style="font-size:13.5px;display:flex;gap:8px;align-items:center"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2f6b30" stroke-width="2"><path d="M12 3C7 7 7 12 7 16a5 5 0 0 0 10 0c0-4 0-9-5-13z"/></svg> Cultivado sin químicos, recogido de la huerta.</p>
+      ${growHTML}
       <div class="sh-row">
         <div class="qty"><button data-action="sheetMinus" type="button" aria-label="Menos">−</button><span id="shQty">1</span><button data-action="sheetPlus" type="button" aria-label="Más">+</button></div>
-        <button class="btn btn-primary" style="flex:1" data-action="sheetAdd" data-id="${esc(p.id)}" type="button">Añadir a la cesta</button>
+        <button class="btn btn-primary" style="flex:1" data-action="sheetAdd" data-id="${esc(p.id)}" ${out?"disabled":""} type="button">${out?"Agotado":"Añadir a la cesta"}</button>
       </div>
     </div>`;
-  let q=1; $("#overlay").dataset.q="1";
   showOverlay();
 }
 let SHQ=1;
@@ -569,7 +604,8 @@ function viewAdmin(){
 function adminProd(){
   const P=getProducts();
   const ed = EDIT_ID ? P.find(x=>x.id===EDIT_ID) : null;
-  const f = ed||{nombre:"",cat:"Verduras",desc:"",precio:"",antes:"",unidad:"",emoji:"🥗",img:null,activo:true};
+  const f = ed||{nombre:"",cat:"Verduras",desc:"",precio:"",antes:"",unidad:"",emoji:"🥗",img:null,activo:true,stock:"",crecimiento:[]};
+  const creText = (f.crecimiento||[]).map(s=>s.fase+(s.nota?(" | "+s.nota):"")).join("\n");
   return `
   <div class="form-card" style="margin-bottom:22px">
     <h3 style="margin-bottom:12px">${ed?"Editar producto":"Añadir producto"}</h3>
@@ -577,7 +613,7 @@ function adminProd(){
       <input type="hidden" id="pId" value="${esc(ed?ed.id:"")}">
       <div class="field"><label for="pNombre">Nombre *</label><input id="pNombre" type="text" required value="${esc(f.nombre)}" placeholder="Ej. Tomate de huerta"></div>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
-        <div class="field" style="flex:1;min-width:150px"><label for="pCat">Categoría</label><select id="pCat">${CATS.map(c=>`<option ${f.cat===c?"selected":""}>${esc(c)}</option>`).join("")}</select></div>
+        <div class="field" style="flex:1;min-width:150px"><label for="pCat">Categoría</label><input id="pCat" list="catList" value="${esc(f.cat||"Verduras")}" placeholder="Verduras o una nueva"><datalist id="catList">${getCats().map(c=>`<option value="${esc(c)}"></option>`).join("")}</datalist></div>
         <div class="field" style="flex:1;min-width:120px"><label for="pEmoji">Icono (emoji)</label><input id="pEmoji" type="text" maxlength="4" value="${esc(f.emoji||"🥗")}" placeholder="🍅"></div>
       </div>
       <div class="field"><label for="pDesc">Descripción</label><textarea id="pDesc" placeholder="Fresco de la huerta…">${esc(f.desc)}</textarea></div>
@@ -585,7 +621,9 @@ function adminProd(){
         <div class="field" style="flex:1;min-width:110px"><label for="pPrecio">Precio (€) *</label><input id="pPrecio" type="number" step="0.01" min="0" required value="${esc(f.precio)}" placeholder="1.90"></div>
         <div class="field" style="flex:1;min-width:110px"><label for="pAntes">Antes (€)</label><input id="pAntes" type="number" step="0.01" min="0" value="${esc(f.antes||"")}" placeholder="2.00"></div>
         <div class="field" style="flex:1;min-width:110px"><label for="pUnidad">Unidad</label><input id="pUnidad" type="text" value="${esc(f.unidad||"")}" placeholder="por kg"></div>
+        <div class="field" style="flex:1;min-width:110px"><label for="pStock">Cantidad / stock</label><input id="pStock" type="number" min="0" step="1" value="${esc(f.stock==null?"":f.stock)}" placeholder="Sin límite"></div>
       </div>
+      <div class="field"><label for="pCre">Proceso de crecimiento</label><textarea id="pCre" placeholder="Una fase por línea:  Siembra | Semilla en la tierra">${esc(creText)}</textarea><p class="note">Una fase por línea, con el formato <b>Fase | descripción</b>. Se muestra como línea de tiempo en el producto. Déjalo vacío para usar el proceso por defecto de la categoría.</p></div>
       <div class="field"><label for="pImg">Foto del producto</label><input id="pImg" type="file" accept="image/*"><p class="note">La foto se guarda en este dispositivo. Recomendado: cuadrada y ligera.</p></div>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-primary" type="submit">${ed?"Guardar cambios":"Añadir producto"}</button>
@@ -597,7 +635,7 @@ function adminProd(){
   ${P.map(p=>`
     <div class="adm-prod">
       <div class="ap-ph">${phHTML(p)}</div>
-      <div class="ap-info"><b>${esc(p.nombre)}</b> ${p.activo===false?'<span style="color:var(--tomato);font-size:12px">(oculto)</span>':''}<br><span>${money(p.precio)} · ${esc(p.cat)}</span></div>
+      <div class="ap-info"><b>${esc(p.nombre)}</b> ${p.activo===false?'<span style="color:var(--tomato);font-size:12px">(oculto)</span>':''}<br><span>${money(p.precio)} · ${esc(p.cat)} · ${p.stock==null||p.stock===""?"sin límite":(Number(p.stock)<=0?"agotado":esc(p.stock)+" uds")}</span></div>
       <div class="ap-act">
         <button class="mini" data-action="toggleP" data-id="${esc(p.id)}" title="${p.activo===false?"Mostrar":"Ocultar"}" type="button">${p.activo===false?'👁️':'🚫'}</button>
         <button class="mini" data-action="editP" data-id="${esc(p.id)}" aria-label="Editar" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
@@ -736,9 +774,14 @@ document.addEventListener("submit",e=>{
 function saveProduct(){
   const idv=$("#pId").value;
   const file=$("#pImg").files&&$("#pImg").files[0];
-  const base={ nombre:$("#pNombre").value.trim(), cat:$("#pCat").value, emoji:$("#pEmoji").value.trim()||"🥗",
+  const stockRaw=$("#pStock").value.trim();
+  const cre=$("#pCre").value.split("\n").map(l=>l.trim()).filter(Boolean).map(l=>{ const i=l.indexOf("|"); return i>=0?{fase:l.slice(0,i).trim(),nota:l.slice(i+1).trim()}:{fase:l,nota:""}; });
+  const cat=($("#pCat").value||"").trim()||"Verduras";
+  const base={ nombre:$("#pNombre").value.trim(), cat, emoji:$("#pEmoji").value.trim()||"🥗",
     desc:$("#pDesc").value.trim(), precio:parseFloat($("#pPrecio").value)||0,
-    antes: $("#pAntes").value?parseFloat($("#pAntes").value):null, unidad:$("#pUnidad").value.trim() };
+    antes: $("#pAntes").value?parseFloat($("#pAntes").value):null, unidad:$("#pUnidad").value.trim(),
+    stock: stockRaw===""?null:Math.max(0,parseInt(stockRaw,10)||0),
+    crecimiento: cre.length?cre:defaultCrecimiento(cat) };
   if(!base.nombre||!base.precio){ toast("Pon al menos nombre y precio"); return; }
   const finish=(img)=>{
     const P=getProducts();
@@ -785,6 +828,7 @@ getProducts(); setupPWA(); render();
   { "name": "El catálogo muestra productos", "steps": [ { "goto": "/" }, { "expectVisible": "#grid .pcard" } ] },
   { "name": "Filtrar por Frutas funciona", "steps": [ { "goto": "/" }, { "click": "[data-cat=\"Frutas\"]" }, { "expectVisible": "#grid .pcard" } ] },
   { "name": "Abrir la ficha de un producto", "steps": [ { "goto": "/" }, { "click": "[data-action=\"detalle\"]" }, { "expectVisible": "#sheet .sh-body" } ] },
+  { "name": "La ficha muestra el proceso de cultivo", "steps": [ { "goto": "/" }, { "click": "[data-action=\"detalle\"]" }, { "expectVisible": "#sheet .timeline" } ] },
   { "name": "Añadir a la cesta y verla", "steps": [ { "goto": "/" }, { "click": "[data-action=\"add\"]" }, { "goto": "/carrito" }, { "expectVisible": ".citem" } ] },
   { "name": "El checkout pide aceptar privacidad", "steps": [ { "goto": "/" }, { "click": "[data-action=\"add\"]" }, { "goto": "/pedido" }, { "fill": { "sel": "#oNombre", "value": "Ana" } }, { "fill": { "sel": "#oTel", "value": "600000000" } }, { "submit": "#orderForm" }, { "expectVisible": ".alert" } ] },
   { "name": "Aviso legal y privacidad disponible", "steps": [ { "goto": "/legal" }, { "expect": "privacidad" } ] },
