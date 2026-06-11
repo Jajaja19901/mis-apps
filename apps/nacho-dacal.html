@@ -248,6 +248,47 @@ footer a:hover{color:#fff}
 .about-txt h2{font-size:clamp(24px,3.6vw,34px);margin:6px 0 12px;color:var(--ink)}
 .about-txt p{color:var(--muted);font-size:16.5px;line-height:1.6;margin:0 0 18px}
 @media(max-width:760px){.about-grid{grid-template-columns:1fr;gap:22px}.about-img{max-width:260px;margin:0 auto}}
+/* destacados "recién cogido hoy" */
+.dest{margin:4px 0 26px}
+.hub-h{font-size:19px;color:var(--green-d);margin:0 0 14px}
+.dest-strip{display:flex;gap:14px;overflow-x:auto;padding:4px 2px 10px;scrollbar-width:none}
+.dest-strip::-webkit-scrollbar{display:none}
+.dest-card{flex:0 0 150px;background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:var(--sh-sm)}
+.dest-ph{aspect-ratio:1/1;position:relative;display:grid;place-items:center;cursor:pointer;overflow:hidden}
+.dest-ph img{width:100%;height:100%;object-fit:cover}
+.dest-card b{display:block;font-size:14.5px;padding:9px 11px 0;line-height:1.2}
+.dest-row{display:flex;align-items:center;justify-content:space-between;padding:6px 11px 11px}
+.dest-row .price{font-weight:900;color:var(--green-d);font-size:15px}
+.dest-row .add{width:38px;height:38px;border-radius:11px}.dest-row .add svg{width:19px;height:19px}
+/* cesta semanal */
+.cesta{display:flex;gap:18px;align-items:center;background:linear-gradient(150deg,#234f24,#2f6b30);color:#fff;border-radius:var(--radius-lg);padding:18px;margin:0 0 26px;box-shadow:var(--sh)}
+.cesta-ph{width:120px;height:120px;flex:0 0 auto;border-radius:16px;overflow:hidden;background:rgba(255,255,255,.12);display:grid;place-items:center}
+.cesta-ph img{width:100%;height:100%;object-fit:cover}.cesta-ph .emoji{font-size:56px}
+.cesta-body{flex:1;min-width:0}
+.cesta-tag{display:inline-block;background:rgba(255,255,255,.16);color:#eaf4e3;font-size:11.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:5px 11px;border-radius:999px}
+.cesta-body h3{color:#fff;font-size:22px;margin:8px 0 4px}
+.cesta-body p{color:#cfe0c0;font-size:14px;margin:0 0 4px}
+.cesta-incl{color:#eaf4e3!important;font-weight:600}
+.cesta-foot{display:flex;align-items:center;gap:14px;margin-top:12px;flex-wrap:wrap}
+.cesta-foot .price{font-size:26px;font-weight:900;color:#fff}
+@media(max-width:560px){.cesta{flex-direction:column;text-align:center}.cesta-foot{justify-content:center}}
+/* opiniones */
+.opin{background:var(--paper);border-top:1px solid var(--line)}
+.opin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.opin-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--sh-sm)}
+.opin-stars{color:var(--wheat);letter-spacing:2px;font-size:16px;margin-bottom:8px}
+.opin-card p{font-size:14.5px;margin:0 0 12px;color:var(--text)}
+.opin-card b{color:var(--green-d);font-size:14px}
+@media(max-width:760px){.opin-grid{grid-template-columns:1fr}}
+/* avísame */
+.avisame{background:linear-gradient(160deg,#0f3a1c,#1f5f2c)}
+.avisame .wrap{padding:46px 18px}
+.avisame-box{display:grid;grid-template-columns:1fr 1fr;gap:30px;align-items:center;color:#fff}
+.avisame-box h2{font-size:clamp(22px,3.4vw,30px);color:#fff}
+.avisame-box p{color:#cfe0c0;font-size:15.5px;margin-top:10px}
+.avisame-form{display:flex;flex-direction:column;gap:10px}
+.avisame-form input[type=text],.avisame-form input[type=tel]{border:1.5px solid rgba(255,255,255,.25);background:rgba(255,255,255,.95);border-radius:12px;padding:13px;font-size:15px;font-family:inherit;color:var(--text)}
+@media(max-width:760px){.avisame-box{grid-template-columns:1fr;gap:18px}}
 .stock-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;padding:4px 10px;border-radius:999px}
 .stock-tag.low{background:var(--earth-soft);color:#8a521f}
 .stock-tag.ok{background:var(--leaf-soft);color:var(--green-d)}
@@ -383,11 +424,13 @@ const HIST = {
   "Pimiento morado":"El pimiento morado debe su color a las antocianinas, los mismos antioxidantes de los arándanos. Al cocinarlo suele volverse verde.",
   "Lechuga gigante de Batavia":"La Batavia es una lechuga de hoja rizada y crujiente que aguanta bien el calor. Se recoge entera y se mantiene fresca varios días."
 };
-function getProducts(){ let p=load("nd_products",null); if(!p){ const ST=[8,5,10,6,12,3,4,9,7,15,6,5,20]; p=SEED.map((x,i)=>({id:uid(),activo:true,img:null,stock:ST[i]==null?8:ST[i],historia:HIST[x.nombre]||"",crecimiento:defaultCrecimiento(x.cat),...x})); save("nd_products",p); } return p; }
+function getProducts(){ let p=load("nd_products",null); if(!p){ const ST=[8,5,10,6,12,3,4,9,7,15,6,5,20]; const DEST=["Pepino natural","Sandía orgánica","Albahaca fresca"]; p=SEED.map((x,i)=>({id:uid(),activo:true,img:null,stock:ST[i]==null?8:ST[i],historia:HIST[x.nombre]||"",destacado:DEST.includes(x.nombre),crecimiento:defaultCrecimiento(x.cat),...x})); save("nd_products",p); } return p; }
 function setProducts(p){ save("nd_products",p); }
 /* Ajustes de entrega del dueño */
 const SOBRE_DEF = "Soy un chico joven que, por las vueltas que da la vida, acabó volviendo a la tierra. Donde otros veían un campo olvidado, yo vi una huerta. Hoy cultivo cada verdura y cada fruta con mis propias manos, sin químicos ni prisas: solo agua, sol y paciencia. Esto no es un supermercado, es mi huerta; y cuando pides aquí, comes lo mismo que como yo. Gracias por confiar en lo natural.";
-function getSettings(){ const d={entregaModo:"ambas", domicilioInfo:"Entrega en la zona. Te confirmamos día y hora por WhatsApp.", recogidaInfo:"Recogida en la huerta. Te pasamos la dirección por WhatsApp.", envioCoste:0, envioGratisDesde:"", pedidoMin:"", horario:"", pagos:{efectivo:true,bizum:true,transferencia:false,paypal:false,tarjeta:false,cripto:false}, pagosInfo:{bizum:"",transferencia:"",paypal:"",cripto:""}, sobreTitulo:"Hola, soy Nacho", sobreTexto:SOBRE_DEF, sobreFoto:null}; return Object.assign(d, load("nd_settings",{})); }
+function getSettings(){ const d={entregaModo:"ambas", domicilioInfo:"Entrega en la zona. Te confirmamos día y hora por WhatsApp.", recogidaInfo:"Recogida en la huerta. Te pasamos la dirección por WhatsApp.", envioCoste:0, envioGratisDesde:"", pedidoMin:"", horario:"", pagos:{efectivo:true,bizum:true,transferencia:false,paypal:false,tarjeta:false,cripto:false}, pagosInfo:{bizum:"",transferencia:"",paypal:"",cripto:""}, sobreTitulo:"Hola, soy Nacho", sobreTexto:SOBRE_DEF, sobreFoto:null, cesta:{activa:false,titulo:"Cesta de la semana",desc:"Una selección de lo mejor de la huerta esta semana, a precio cerrado.",incluye:"",precio:"",img:null}, opiniones:[]}; return Object.assign(d, load("nd_settings",{})); }
+function cestaProduct(){ const c=getSettings().cesta||{}; return {id:"__cesta__", nombre:c.titulo||"Cesta de la semana", precio:Number(c.precio)||0, unidad:"pack", emoji:"🧺", img:c.img||null, desc:c.incluye||c.desc||"", cat:"Cesta"}; }
+function cartProduct(id){ if(id==="__cesta__") return cestaProduct(); return getProducts().find(x=>x.id===id)||null; }
 function setSettings(s){ save("nd_settings",Object.assign(getSettings(),s)); }
 function envioDe(metodo){ const s=getSettings(); if(metodo!=="Servicio a domicilio") return 0; const coste=Number(s.envioCoste)||0; if(coste<=0) return 0; const free=s.envioGratisDesde; if(free!=null&&free!==""&&cartTotal()>=Number(free)) return 0; return coste; }
 function defaultMetodo(){ return getSettings().entregaModo==="recogida"?"Recogida en el lugar":"Servicio a domicilio"; }
@@ -443,7 +486,7 @@ function getCats(){ const set=[...CATS_BASE]; getProducts().forEach(p=>{ if(p.ca
 function getCart(){ return load("nd_cart",{}); }      // {id:qty}
 function setCart(c){ save("nd_cart",c); refreshCart(); }
 function cartCount(){ const c=getCart(); return Object.values(c).reduce((a,b)=>a+b,0); }
-function cartItems(){ const c=getCart(), P=getProducts(); return Object.keys(c).map(id=>{ const p=P.find(x=>x.id===id); return p?{...p,qty:c[id]}:null; }).filter(Boolean); }
+function cartItems(){ const c=getCart(); return Object.keys(c).map(id=>{ const p=cartProduct(id); return p?{...p,qty:c[id]}:null; }).filter(Boolean); }
 function cartTotal(){ return cartItems().reduce((a,i)=>a+i.precio*i.qty,0); }
 function addToCart(id,q){ const c=getCart(); c[id]=(c[id]||0)+(q||1); if(c[id]<1)delete c[id]; setCart(c); }
 function setQty(id,q){ const c=getCart(); if(q<1)delete c[id]; else c[id]=q; setCart(c); }
@@ -487,7 +530,7 @@ function viewCatalogo(){
     </div>
   </div>
 
-  <div class="catwrap"><div class="wrap"><div class="grid" id="grid">${gridHTML(P)}</div></div></div>
+  <div class="catwrap"><div class="wrap">${cestaHTML()}${destHTML()}<div class="grid" id="grid">${gridHTML(P)}</div></div></div>
 
   <section class="values" id="valores">
     <div class="wrap">
@@ -496,7 +539,59 @@ function viewCatalogo(){
       <div class="v"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13l2-5h14l2 5"/><path d="M2 16h20v-3H2z"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg><div><b>Cerca de ti</b><span>Entrega en la zona o recogida en la huerta.</span></div></div>
     </div>
   </section>
-  ${sobreHTML()}`;
+  ${sobreHTML()}
+  ${opinionesHTML()}
+  ${avisameHTML()}`;
+}
+function destHTML(){
+  if(FILTER!=="Todas"||QUERY.trim()) return "";
+  const D=getProducts().filter(p=>p.activo!==false&&p.destacado);
+  if(!D.length) return "";
+  return `<div class="dest"><h3 class="hub-h">🌅 Recién cogido hoy</h3><div class="dest-strip">${D.map(p=>{
+    const out=p.stock!=null&&p.stock!==""&&Number(p.stock)<=0;
+    return `<div class="dest-card">
+      <div class="dest-ph" data-action="detalle" data-id="${esc(p.id)}">${phHTML(p)}${out?'<div class="agotado">Agotado</div>':''}</div>
+      <b>${esc(p.nombre)}</b>
+      <div class="dest-row"><span class="price">${money(p.precio)}</span>
+      <button class="add" data-action="add" data-id="${esc(p.id)}" ${out?"disabled":""} aria-label="Añadir ${esc(p.nombre)}" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button></div>
+    </div>`;
+  }).join("")}</div></div>`;
+}
+function cestaHTML(){
+  const c=getSettings().cesta||{}; if(!c.activa) return "";
+  const foto = c.img?`<img src="${esc(c.img)}" alt="${esc(c.titulo)}">`:`<span class="emoji">🧺</span>`;
+  return `<div class="cesta">
+    <div class="cesta-ph">${foto}</div>
+    <div class="cesta-body">
+      <span class="cesta-tag">Pack de la semana</span>
+      <h3>${esc(c.titulo||"Cesta de la semana")}</h3>
+      ${c.desc?`<p>${esc(c.desc)}</p>`:""}
+      ${c.incluye?`<p class="cesta-incl">🥬 ${esc(c.incluye)}</p>`:""}
+      <div class="cesta-foot"><span class="price">${c.precio!==""&&c.precio!=null?money(c.precio):""}</span>
+        <button class="btn btn-primary" data-action="addCesta" type="button">Añadir la cesta 🧺</button></div>
+    </div>
+  </div>`;
+}
+function opinionesHTML(){
+  const ops=getSettings().opiniones||[]; if(!ops.length) return "";
+  const stars=n=>"★★★★★".slice(0,Math.max(1,Math.min(5,n||5)));
+  return `<section class="opin" id="opiniones"><div class="wrap">
+    <div class="sec-head" style="text-align:center;margin:0 auto 22px"><span class="eyebrow">Lo que dicen</span><h2 style="font-size:clamp(22px,3.4vw,30px);margin-top:4px">Clientes contentos</h2></div>
+    <div class="opin-grid">${ops.map(o=>`<div class="opin-card"><div class="opin-stars">${stars(o.estrellas)}</div><p>${esc(o.texto)}</p><b>${esc(o.nombre||"Cliente")}</b></div>`).join("")}</div>
+  </div></section>`;
+}
+function avisameHTML(){
+  return `<section class="avisame" id="avisame"><div class="wrap"><div class="avisame-box">
+    <div><span class="eyebrow" style="color:#bfe3a6">No te lo pierdas</span><h2>¿Quieres que te avise de las novedades?</h2><p>Déjame tu WhatsApp y te aviso cuando recoja algo nuevo (tomates, fresas, lo que esperes…).</p></div>
+    <form id="avisameForm" class="avisame-form" autocomplete="on">
+      <div id="avisameErr"></div>
+      <input name="anombre" type="text" placeholder="Tu nombre" aria-label="Tu nombre">
+      <input name="atel" type="tel" required placeholder="Tu WhatsApp *" aria-label="Tu WhatsApp">
+      <input name="ainteres" type="text" placeholder="¿Qué te interesa? (ej. tomates)" aria-label="Qué te interesa">
+      <label class="consent" style="background:rgba(255,255,255,.1);color:#dCe8d0"><input type="checkbox" id="aConsent"> Acepto la <a href="#/legal" style="color:#fff;font-weight:700">política de privacidad</a>.</label>
+      <button class="btn btn-primary btn-block" type="submit">Avísame 🔔</button>
+    </form>
+  </div></div></section>`;
 }
 function sobreHTML(){
   const s=getSettings(); if(!s.sobreTexto) return "";
@@ -716,11 +811,13 @@ function viewAdmin(){
       <button data-action="tab" data-tab="prod" aria-pressed="${ADMIN_TAB==="prod"}" type="button">Productos</button>
       <button data-action="tab" data-tab="ped" aria-pressed="${ADMIN_TAB==="ped"}" type="button">Pedidos</button>
       <button data-action="tab" data-tab="entrega" aria-pressed="${ADMIN_TAB==="entrega"}" type="button">Entrega</button>
+      <button data-action="tab" data-tab="avisos" aria-pressed="${ADMIN_TAB==="avisos"}" type="button">Avisos</button>
+      <button data-action="tab" data-tab="tienda" aria-pressed="${ADMIN_TAB==="tienda"}" type="button">Tienda</button>
       <button data-action="tab" data-tab="pagos" aria-pressed="${ADMIN_TAB==="pagos"}" type="button">Pagos</button>
       <button data-action="tab" data-tab="sobre" aria-pressed="${ADMIN_TAB==="sobre"}" type="button">Sobre mí</button>
       <button data-action="tab" data-tab="info" aria-pressed="${ADMIN_TAB==="info"}" type="button">Ayuda</button>
     </div>
-    <div id="adminBody">${ADMIN_TAB==="prod"?adminProd():ADMIN_TAB==="ped"?adminPed():ADMIN_TAB==="entrega"?adminEntrega():ADMIN_TAB==="pagos"?adminPagos():ADMIN_TAB==="sobre"?adminSobre():adminInfo()}</div>
+    <div id="adminBody">${ADMIN_TAB==="prod"?adminProd():ADMIN_TAB==="ped"?adminPed():ADMIN_TAB==="avisos"?adminAvisos():ADMIN_TAB==="tienda"?adminTienda():ADMIN_TAB==="entrega"?adminEntrega():ADMIN_TAB==="pagos"?adminPagos():ADMIN_TAB==="sobre"?adminSobre():adminInfo()}</div>
   </div></div>`;
 }
 function adminProd(){
@@ -753,6 +850,7 @@ function adminProd(){
         <p class="note">Cada fase puede llevar su <b>foto real</b> del proceso (siembra, crecimiento, cosecha…). Se mostrará como «la vida del producto» en la ficha.</p>
       </div>
       <div class="field"><label for="pImg">Foto del producto</label><input id="pImg" type="file" accept="image/*"><p class="note">La foto se guarda en este dispositivo. Recomendado: cuadrada y ligera.</p></div>
+      <label class="consent" style="background:var(--leaf-soft)"><input type="checkbox" id="pDest" ${f.destacado?"checked":""}> 🌅 Destacar como <b>«recién cogido hoy»</b> (aparece arriba del catálogo).</label>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn btn-primary" type="submit">${ed?"Guardar cambios":"Añadir producto"}</button>
         ${ed?`<button class="btn btn-ghost" data-action="cancelEdit" type="button">Cancelar</button>`:""}
@@ -817,6 +915,49 @@ function adminEntrega(){
       <p class="note">Lo que elijas aquí es lo único que verá el cliente al pedir. El pago se sigue cerrando por WhatsApp.</p>
     </form>
   </div>`;
+}
+function adminTienda(){
+  const s=getSettings(); const c=s.cesta||{}; const ops=s.opiniones||[];
+  const foto = c.img?`<img src="${esc(c.img)}" alt="" style="width:80px;height:80px;border-radius:12px;object-fit:cover;border:1px solid var(--line)">`:`<div style="width:80px;height:80px;border-radius:12px;background:var(--soft);display:grid;place-items:center;font-size:34px">🧺</div>`;
+  return `<div class="form-card" style="margin-bottom:22px">
+    <h3 style="margin-bottom:6px">Cesta de la semana</h3>
+    <p class="muted" style="margin-top:0;font-size:14px">Un pack de temporada a precio cerrado. Si la activas, aparece destacada arriba en la tienda.</p>
+    <form id="cestaForm">
+      <label class="consent" style="background:var(--leaf-soft)"><input type="checkbox" id="cAct" ${c.activa?"checked":""}> Mostrar la cesta de la semana en la tienda</label>
+      <div class="field"><label for="cTit">Título</label><input id="cTit" type="text" value="${esc(c.titulo||"")}" placeholder="Cesta de la semana"></div>
+      <div class="field"><label for="cDesc">Descripción corta</label><input id="cDesc" type="text" value="${esc(c.desc||"")}" placeholder="Lo mejor de la huerta esta semana"></div>
+      <div class="field"><label for="cIncl">Qué incluye</label><textarea id="cIncl" placeholder="Ej. 2 lechugas, 1 kg tomate, pepinos, zanahorias, un manojo de menta…">${esc(c.incluye||"")}</textarea></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+        <div class="field" style="flex:1;min-width:120px"><label for="cPre">Precio (€)</label><input id="cPre" type="number" step="0.01" min="0" value="${esc(c.precio)}" placeholder="15"></div>
+        <div class="field" style="flex:2;min-width:160px"><label>Foto de la cesta</label><div style="display:flex;gap:12px;align-items:center">${foto}<label class="cre-up">📷 Subir/cambiar<input id="cFoto" type="file" accept="image/*" hidden></label>${c.img?`<button class="cre-rmimg" data-action="cestaFotoDel" type="button">Quitar</button>`:""}</div></div>
+      </div>
+      <button class="btn btn-primary" type="submit">Guardar la cesta</button>
+    </form>
+  </div>
+  <div class="form-card">
+    <h3 style="margin-bottom:6px">Opiniones de clientes</h3>
+    <p class="muted" style="margin-top:0;font-size:14px">Añade reseñas reales de tus clientes. Aparecen en la tienda. (Pon solo opiniones de verdad.)</p>
+    <form id="opinForm">
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <div class="field" style="flex:2;min-width:150px"><label for="oNom">Nombre</label><input id="oNom" type="text" placeholder="María R."></div>
+        <div class="field" style="flex:1;min-width:110px"><label for="oEst">Estrellas</label><select id="oEst"><option value="5">★★★★★</option><option value="4">★★★★</option><option value="3">★★★</option></select></div>
+      </div>
+      <div class="field"><label for="oTxt">Opinión</label><textarea id="oTxt" placeholder="Lo que dijo el cliente…"></textarea></div>
+      <button class="btn btn-primary" type="submit">Añadir opinión</button>
+    </form>
+    <div style="margin-top:16px">${ops.length?ops.map((o,i)=>`<div class="adm-prod"><div class="ap-info"><b>${esc(o.nombre||"Cliente")}</b> <span style="color:var(--wheat)">${"★".repeat(Math.max(1,Math.min(5,o.estrellas||5)))}</span><br><span>${esc(o.texto)}</span></div><div class="ap-act"><button class="mini del" data-action="opinDel" data-i="${i}" aria-label="Borrar" type="button">🗑</button></div></div>`).join(""):'<p class="muted" style="font-size:13.5px">Aún no hay opiniones.</p>'}</div>
+  </div>`;
+}
+function adminAvisos(){
+  const A=load("nd_avisos",[]);
+  if(!A.length) return `<div class="empty" style="padding:50px"><div class="big">🔔</div><b style="color:var(--text)">Aún no hay avisos</b><br><span class="muted">Cuando un cliente pida que le avises de novedades, aparecerá aquí (y te llega su WhatsApp).</span></div>`;
+  return `${A.slice().reverse().map(a=>`<div class="order-card">
+    <div class="oc-top"><b>${esc(a.nombre||"Cliente")} · ${esc(a.tel)}</b><span class="st pend">${esc(a.fecha)}</span></div>
+    ${a.interes?`<div style="font-size:14px;margin-top:6px">Le interesa: <b>${esc(a.interes)}</b></div>`:""}
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-wa" data-action="avisarNov" data-id="${esc(a.id)}" type="button">📲 Avisar por WhatsApp</button>
+      <button class="btn btn-ghost" data-action="delAviso" data-id="${esc(a.id)}" type="button" style="color:var(--tomato)">Borrar</button>
+    </div></div>`).join("")}`;
 }
 function adminSobre(){
   const s=getSettings();
@@ -907,6 +1048,19 @@ function avisarListo(id){
   try{ window.open("https://wa.me/"+d+"?text="+encodeURIComponent(m),"_blank","noopener"); }catch(e){}
   render(); toast("Abriendo WhatsApp para avisar al cliente…");
 }
+function readCesta(){ const cur=getSettings().cesta||{}; return {activa:!!($("#cAct")&&$("#cAct").checked), titulo:($("#cTit")||{}).value?$("#cTit").value.trim():(cur.titulo||""), desc:($("#cDesc")||{}).value!=null?$("#cDesc").value.trim():(cur.desc||""), incluye:($("#cIncl")||{}).value!=null?$("#cIncl").value.trim():(cur.incluye||""), precio:($("#cPre")&&$("#cPre").value.trim()!=="")?(parseFloat($("#cPre").value)||0):"", img:cur.img||null}; }
+function avisarNovedad(id){ const A=load("nd_avisos",[]); const a=A.find(x=>x.id===id); if(!a) return; const d=telToWa(a.tel); if(!d){ toast("Teléfono no válido."); return; }
+  let m=`¡Hola ${a.nombre||""}! 🌿 Soy Nacho, de la huerta. Ya tengo novedades`+(a.interes?` (${a.interes})`:"")+`. Pásate por la tienda cuando quieras. ¡Gracias!`;
+  try{ window.open("https://wa.me/"+d+"?text="+encodeURIComponent(m),"_blank","noopener"); }catch(e){} toast("Abriendo WhatsApp…"); }
+function submitAvisame(form){
+  const fd=new FormData(form);
+  const nombre=(fd.get("anombre")||"").toString().trim(), tel=(fd.get("atel")||"").toString().trim(), interes=(fd.get("ainteres")||"").toString().trim();
+  if(!tel){ $("#avisameErr").innerHTML='<div class="alert">Pon tu WhatsApp.</div>'; return; }
+  if(!$("#aConsent").checked){ $("#avisameErr").innerHTML='<div class="alert">Acepta la política de privacidad.</div>'; return; }
+  const A=load("nd_avisos",[]); A.push({id:uid(), fecha:new Date().toLocaleDateString("es-ES"), nombre, tel, interes}); save("nd_avisos",A);
+  if(CONFIG.WHATSAPP){ const m=`Hola Nacho, soy ${nombre||"un cliente"}. Avísame cuando tengas`+(interes?`: ${interes}`:" novedades")+`. Mi WhatsApp: ${tel}.`; try{ window.open("https://wa.me/"+CONFIG.WHATSAPP+"?text="+encodeURIComponent(m),"_blank","noopener"); }catch(e){} }
+  form.reset(); toast("¡Hecho! Te avisaré de las novedades 🔔");
+}
 function placeOrder(form){
   const fd=new FormData(form);
   const nombre=(fd.get("nombre")||"").toString().trim();
@@ -960,6 +1114,11 @@ document.addEventListener("click",e=>{
     case "delP": if(confirm("¿Borrar este producto?")){ setProducts(getProducts().filter(p=>p.id!==id)); if(EDIT_ID===id)EDIT_ID=null; render(); } break;
     case "toggleP": { const P=getProducts(); const p=P.find(x=>x.id===id); if(p){p.activo=p.activo===false;} setProducts(P); render(); } break;
     case "avisarListo": avisarListo(id); break;
+    case "addCesta": addToCart("__cesta__",1); toast("Cesta añadida 🧺"); break;
+    case "cestaFotoDel": { const c=readCesta(); c.img=null; setSettings({cesta:c}); render(); break; }
+    case "opinDel": { const ops=getSettings().opiniones||[]; ops.splice(+t.dataset.i,1); setSettings({opiniones:ops}); render(); break; }
+    case "avisarNov": avisarNovedad(id); break;
+    case "delAviso": if(confirm("¿Borrar este aviso?")){ save("nd_avisos",load("nd_avisos",[]).filter(a=>a.id!==id)); render(); } break;
     case "toggleOrder": { const O=load("nd_orders",[]); const o=O.find(x=>x.id===id); if(o)o.estado=o.estado==="servido"?"pendiente":"servido"; save("nd_orders",O); render(); } break;
     case "delOrder": if(confirm("¿Borrar este pedido?")){ save("nd_orders",load("nd_orders",[]).filter(o=>o.id!==id)); render(); } break;
     case "csv": exportCSV(); break;
@@ -982,6 +1141,9 @@ document.addEventListener("change",e=>{
     const tit=$("#sTit").value.trim(), txt=$("#sTxt").value.trim();
     compressImage(file,900,0.82).then(d=>{ setSettings({sobreTitulo:tit, sobreTexto:txt, sobreFoto:d||null}); render(); toast("Foto actualizada ✅"); });
   }
+  else if(e.target.id==="cFoto"){ const file=e.target.files&&e.target.files[0]; if(!file) return;
+    compressImage(file,1000,0.8).then(d=>{ const c=readCesta(); c.img=d||null; setSettings({cesta:c}); render(); toast("Foto de la cesta actualizada ✅"); });
+  }
   else if(e.target.name==="entrega"){ const el=document.getElementById("pedSummary"); if(el) el.innerHTML=pedSummaryHTML(e.target.value); }
 });
 document.addEventListener("click",e=>{
@@ -998,6 +1160,9 @@ document.addEventListener("submit",e=>{
   else if(e.target.id==="sobreForm"){ e.preventDefault();
     setSettings({ sobreTitulo:$("#sTit").value.trim(), sobreTexto:$("#sTxt").value.trim() }); render(); toast("Tu historia guardada ✅");
   }
+  else if(e.target.id==="cestaForm"){ e.preventDefault(); setSettings({cesta:readCesta()}); render(); toast("Cesta guardada ✅"); }
+  else if(e.target.id==="opinForm"){ e.preventDefault(); const txt=$("#oTxt").value.trim(); if(!txt){ toast("Escribe la opinión"); return; } const ops=getSettings().opiniones||[]; ops.push({nombre:$("#oNom").value.trim()||"Cliente", estrellas:+$("#oEst").value||5, texto:txt}); setSettings({opiniones:ops}); render(); toast("Opinión añadida ✅"); }
+  else if(e.target.id==="avisameForm"){ e.preventDefault(); submitAvisame(e.target); }
   else if(e.target.id==="pagosForm"){ e.preventDefault();
     const pagos={}, info={};
     PAGOS.forEach(p=>{ const chk=e.target.querySelector('[name="pago_'+p.id+'"]'); pagos[p.id]=!!(chk&&chk.checked); if(p.campo){ const el=document.getElementById("pi_"+p.id); info[p.id]=el?el.value.trim():""; } });
@@ -1023,6 +1188,7 @@ function saveProduct(){
     desc:$("#pDesc").value.trim(), historia:$("#pHist").value.trim(), precio:parseFloat($("#pPrecio").value)||0,
     antes: $("#pAntes").value?parseFloat($("#pAntes").value):null, unidad:$("#pUnidad").value.trim(),
     stock: stockRaw===""?null:Math.max(0,parseInt(stockRaw,10)||0),
+    destacado: !!($("#pDest")&&$("#pDest").checked),
     crecimiento: cre.length?cre:defaultCrecimiento(cat) };
   if(!base.nombre||!base.precio){ toast("Pon al menos nombre y precio"); return; }
   const finish=(img)=>{
