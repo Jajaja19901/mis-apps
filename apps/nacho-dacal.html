@@ -753,7 +753,8 @@ function exportCSV(){
   const O=load("nd_orders",[]);
   const rows=[["Fecha","Nombre","Tel","Entrega","Direccion","Productos","Total","Estado"]];
   O.forEach(o=>rows.push([o.fecha,o.nombre,o.tel,o.entrega,o.dir||"",o.items.map(i=>i.nombre+" x"+i.qty).join(" | "),String(o.total).replace(".",","),o.estado]));
-  const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(";")).join("\n");
+  const safe=c=>{ let s=String(c); if(/^[=+\-@\t\r]/.test(s)) s="'"+s; return '"'+s.replace(/"/g,'""')+'"'; };
+  const csv=rows.map(r=>r.map(safe).join(";")).join("\n");
   try{ const b=new Blob(["﻿"+csv],{type:"text/csv"}); const a=document.createElement("a"); a.href=URL.createObjectURL(b); a.download="pedidos-nacho-dacal.csv"; document.body.appendChild(a); a.click(); setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(a.href);},400);}catch(e){ toast("No se pudo exportar"); }
 }
 
