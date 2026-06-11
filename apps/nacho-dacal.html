@@ -236,6 +236,18 @@ footer a:hover{color:#fff}
 .cre-up{font-size:12.5px;font-weight:800;color:var(--green-d);background:#fff;border:1.5px solid var(--line-2);border-radius:9px;padding:7px 11px;cursor:pointer}
 .cre-rmimg{font-size:12px;font-weight:700;color:var(--earth);background:none;border:0;cursor:pointer}
 .cre-del{margin-left:auto;background:none;border:0;font-size:16px;cursor:pointer}
+.hist{background:var(--leaf-soft);border:1px solid #cfe3bf;border-radius:14px;padding:13px 15px;margin-top:16px}
+.hist b{color:var(--green-d);font-size:14px;display:block;margin-bottom:5px}
+.hist p{margin:0;font-size:13.8px;color:#3c4a33;line-height:1.5}
+.about{background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.about .wrap{padding:54px 18px}
+.about-grid{display:grid;grid-template-columns:300px 1fr;gap:34px;align-items:center}
+.about-img{border-radius:22px;overflow:hidden;aspect-ratio:1/1;background:linear-gradient(160deg,#eaf3e0,#d8e8c8);box-shadow:var(--sh);display:grid;place-items:center}
+.about-img img{width:100%;height:100%;object-fit:cover}
+.about-ph{width:55%;opacity:.9}
+.about-txt h2{font-size:clamp(24px,3.6vw,34px);margin:6px 0 12px;color:var(--ink)}
+.about-txt p{color:var(--muted);font-size:16.5px;line-height:1.6;margin:0 0 18px}
+@media(max-width:760px){.about-grid{grid-template-columns:1fr;gap:22px}.about-img{max-width:260px;margin:0 auto}}
 .stock-tag{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:800;padding:4px 10px;border-radius:999px}
 .stock-tag.low{background:var(--earth-soft);color:#8a521f}
 .stock-tag.ok{background:var(--leaf-soft);color:var(--green-d)}
@@ -356,10 +368,26 @@ function defaultCrecimiento(cat){
   return [{fase:"Siembra",nota:"Semilla en la tierra de la huerta."},{fase:"Germina",nota:"Brota sin químicos."},{fase:"Crece",nota:"Riego natural y cuidado diario."},{fase:"Cosecha",nota:"Se recoge el día del pedido."}];
 }
 function faseIcon(f){ const s=(f||"").toLowerCase(); if(s.includes("siemb")||s.includes("semill")||s.includes("plant"))return"🌱"; if(s.includes("germ")||s.includes("brot"))return"🌿"; if(s.includes("flor"))return"🌼"; if(s.includes("fruto")||s.includes("madur")||s.includes("cuaj"))return"🍅"; if(s.includes("cosech")||s.includes("corte")||s.includes("recog"))return"🧺"; if(s.includes("crec"))return"☀️"; return"🌿"; }
-function getProducts(){ let p=load("nd_products",null); if(!p){ const ST=[8,5,10,6,12,3,4,9,7,15,6,5,20]; p=SEED.map((x,i)=>({id:uid(),activo:true,img:null,stock:ST[i]==null?8:ST[i],crecimiento:defaultCrecimiento(x.cat),...x})); save("nd_products",p); } return p; }
+const HIST = {
+  "Pepino natural":"El pepino es una hortaliza de la familia de la calabaza. Tiene más de un 95% de agua, por eso hidrata y refresca. Se cultiva desde hace más de 3.000 años.",
+  "Verdolaga":"La verdolaga es una planta silvestre comestible muy rica en omega-3, difícil de encontrar en el mercado. En los pueblos se ha comido siempre en ensalada o guisada.",
+  "Acelgas":"La acelga es pariente de la remolacha. Se aprovecha la hoja y la penca; es rica en hierro y vitaminas, y aguanta bien el frío de la huerta.",
+  "Calabacín amarillo":"El calabacín amarillo es una variedad de piel dorada, sabor suave y muy digestivo. Se recoge tierno, antes de madurar del todo.",
+  "Zanahoria natural":"La zanahoria es famosa por su betacaroteno, bueno para la vista. Curiosamente, las primeras zanahorias eran moradas; la naranja se popularizó después.",
+  "Sandía orgánica":"La sandía es de la familia del melón y tiene más de un 90% de agua. Madurada al sol en la propia mata, concentra todo su dulzor.",
+  "Melón piel de sapo":"El melón piel de sapo, muy típico de España, debe su nombre a la piel verde moteada. Cuanto más aroma desprende, más maduro y dulce está.",
+  "Menta fresca":"La menta es una aromática que crece con fuerza en la huerta. La variedad 'chocolate' tiene un aroma dulce especial; va genial en infusiones y postres.",
+  "Remolacha":"La remolacha tiñe de rojo por la betanina y es dulce porque acumula azúcares naturales. Se aprovecha la raíz y también sus hojas.",
+  "Cebolla blanca":"La cebolla blanca es más suave y jugosa que la amarilla, ideal en crudo. Se cultiva en el Mediterráneo desde la antigüedad.",
+  "Albahaca fresca":"La albahaca es la reina del huerto aromático y la base del pesto. Su olor ahuyenta algunos insectos, por eso se planta junto a los tomates.",
+  "Pimiento morado":"El pimiento morado debe su color a las antocianinas, los mismos antioxidantes de los arándanos. Al cocinarlo suele volverse verde.",
+  "Lechuga gigante de Batavia":"La Batavia es una lechuga de hoja rizada y crujiente que aguanta bien el calor. Se recoge entera y se mantiene fresca varios días."
+};
+function getProducts(){ let p=load("nd_products",null); if(!p){ const ST=[8,5,10,6,12,3,4,9,7,15,6,5,20]; p=SEED.map((x,i)=>({id:uid(),activo:true,img:null,stock:ST[i]==null?8:ST[i],historia:HIST[x.nombre]||"",crecimiento:defaultCrecimiento(x.cat),...x})); save("nd_products",p); } return p; }
 function setProducts(p){ save("nd_products",p); }
 /* Ajustes de entrega del dueño */
-function getSettings(){ const d={entregaModo:"ambas", domicilioInfo:"Entrega en la zona. Te confirmamos día y hora por WhatsApp.", recogidaInfo:"Recogida en la huerta. Te pasamos la dirección por WhatsApp.", envioCoste:0, envioGratisDesde:"", pedidoMin:"", horario:"", pagos:{efectivo:true,bizum:true,transferencia:false,paypal:false,tarjeta:false,cripto:false}, pagosInfo:{bizum:"",transferencia:"",paypal:"",cripto:""}}; return Object.assign(d, load("nd_settings",{})); }
+const SOBRE_DEF = "Soy un chico joven que, por las vueltas que da la vida, acabó volviendo a la tierra. Donde otros veían un campo olvidado, yo vi una huerta. Hoy cultivo cada verdura y cada fruta con mis propias manos, sin químicos ni prisas: solo agua, sol y paciencia. Esto no es un supermercado, es mi huerta; y cuando pides aquí, comes lo mismo que como yo. Gracias por confiar en lo natural.";
+function getSettings(){ const d={entregaModo:"ambas", domicilioInfo:"Entrega en la zona. Te confirmamos día y hora por WhatsApp.", recogidaInfo:"Recogida en la huerta. Te pasamos la dirección por WhatsApp.", envioCoste:0, envioGratisDesde:"", pedidoMin:"", horario:"", pagos:{efectivo:true,bizum:true,transferencia:false,paypal:false,tarjeta:false,cripto:false}, pagosInfo:{bizum:"",transferencia:"",paypal:"",cripto:""}, sobreTitulo:"Hola, soy Nacho", sobreTexto:SOBRE_DEF, sobreFoto:null}; return Object.assign(d, load("nd_settings",{})); }
 function setSettings(s){ save("nd_settings",Object.assign(getSettings(),s)); }
 function envioDe(metodo){ const s=getSettings(); if(metodo!=="Servicio a domicilio") return 0; const coste=Number(s.envioCoste)||0; if(coste<=0) return 0; const free=s.envioGratisDesde; if(free!=null&&free!==""&&cartTotal()>=Number(free)) return 0; return coste; }
 function defaultMetodo(){ return getSettings().entregaModo==="recogida"?"Recogida en el lugar":"Servicio a domicilio"; }
@@ -467,7 +495,21 @@ function viewCatalogo(){
       <div class="v"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v8l9 4 9-4V7"/></svg><div><b>De temporada</b><span>Lo que da la huerta en cada época, en su punto.</span></div></div>
       <div class="v"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13l2-5h14l2 5"/><path d="M2 16h20v-3H2z"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg><div><b>Cerca de ti</b><span>Entrega en la zona o recogida en la huerta.</span></div></div>
     </div>
-  </section>`;
+  </section>
+  ${sobreHTML()}`;
+}
+function sobreHTML(){
+  const s=getSettings(); if(!s.sobreTexto) return "";
+  const foto = s.sobreFoto ? `<img src="${esc(s.sobreFoto)}" alt="Nacho">` : `<div class="about-ph">${LOGO}</div>`;
+  return `<section class="about" id="sobre"><div class="wrap"><div class="about-grid">
+    <div class="about-img">${foto}</div>
+    <div class="about-txt">
+      <span class="eyebrow">Quién está detrás</span>
+      <h2>${esc(s.sobreTitulo||"Hola, soy Nacho")}</h2>
+      <p>${esc(s.sobreTexto)}</p>
+      <a class="btn btn-primary" href="#/" data-action="scrollCat" style="margin-top:6px">Ver la huerta 🌱</a>
+    </div>
+  </div></div></section>`;
 }
 function gridHTML(P){
   let list=P;
@@ -514,6 +556,7 @@ function openDetalle(id){
   const avail = out?`<span class="stock-tag out">Agotado</span>`:(low?`<span class="stock-tag low">¡Solo quedan ${esc(p.stock)}!</span>`:(lim?`<span class="stock-tag ok">Disponible · ${esc(p.stock)} uds</span>`:""));
   const cre = Array.isArray(p.crecimiento)?p.crecimiento:[];
   const growHTML = cre.length?`<div class="grow"><h4>🌱 La vida de este producto</h4><ol class="timeline">${cre.map(s=>`<li><span class="dot">${faseIcon(s.fase)}</span><div><b>${esc(s.fase)}</b>${s.nota?`<span>${esc(s.nota)}</span>`:""}${s.img?`<img class="cre-shot" src="${esc(s.img)}" alt="${esc(s.fase)}" loading="lazy">`:""}</div></li>`).join("")}</ol></div>`:"";
+  const histHTML = p.historia?`<div class="hist"><b>🌿 Sobre este alimento</b><p>${esc(p.historia)}</p></div>`:"";
   $("#sheet").innerHTML=`
     <div class="sh-ph">${phHTML(p)}
       <button class="sh-close" data-action="closeSheet" aria-label="Cerrar" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
@@ -526,6 +569,7 @@ function openDetalle(id){
       ${avail?`<div style="margin:2px 0 10px">${avail}</div>`:""}
       <p class="muted" style="font-size:15px">${esc(p.desc)}</p>
       <p class="muted" style="font-size:13.5px;display:flex;gap:8px;align-items:center"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2f6b30" stroke-width="2"><path d="M12 3C7 7 7 12 7 16a5 5 0 0 0 10 0c0-4 0-9-5-13z"/></svg> Cultivado sin químicos, recogido de la huerta.</p>
+      ${histHTML}
       ${growHTML}
       <div class="sh-row">
         <div class="qty"><button data-action="sheetMinus" type="button" aria-label="Menos">−</button><span id="shQty">1</span><button data-action="sheetPlus" type="button" aria-label="Más">+</button></div>
@@ -673,9 +717,10 @@ function viewAdmin(){
       <button data-action="tab" data-tab="ped" aria-pressed="${ADMIN_TAB==="ped"}" type="button">Pedidos</button>
       <button data-action="tab" data-tab="entrega" aria-pressed="${ADMIN_TAB==="entrega"}" type="button">Entrega</button>
       <button data-action="tab" data-tab="pagos" aria-pressed="${ADMIN_TAB==="pagos"}" type="button">Pagos</button>
+      <button data-action="tab" data-tab="sobre" aria-pressed="${ADMIN_TAB==="sobre"}" type="button">Sobre mí</button>
       <button data-action="tab" data-tab="info" aria-pressed="${ADMIN_TAB==="info"}" type="button">Ayuda</button>
     </div>
-    <div id="adminBody">${ADMIN_TAB==="prod"?adminProd():ADMIN_TAB==="ped"?adminPed():ADMIN_TAB==="entrega"?adminEntrega():ADMIN_TAB==="pagos"?adminPagos():adminInfo()}</div>
+    <div id="adminBody">${ADMIN_TAB==="prod"?adminProd():ADMIN_TAB==="ped"?adminPed():ADMIN_TAB==="entrega"?adminEntrega():ADMIN_TAB==="pagos"?adminPagos():ADMIN_TAB==="sobre"?adminSobre():adminInfo()}</div>
   </div></div>`;
 }
 function adminProd(){
@@ -695,6 +740,7 @@ function adminProd(){
         <div class="field" style="flex:1;min-width:120px"><label for="pEmoji">Icono (emoji)</label><input id="pEmoji" type="text" maxlength="4" value="${esc(f.emoji||"🥗")}" placeholder="🍅"></div>
       </div>
       <div class="field"><label for="pDesc">Descripción</label><textarea id="pDesc" placeholder="Fresco de la huerta…">${esc(f.desc)}</textarea></div>
+      <div class="field"><label for="pHist">Definición / historia del alimento</label><textarea id="pHist" placeholder="Ej. dato curioso, origen, beneficios… (le da vida a la ficha)">${esc(f.historia||"")}</textarea><p class="note">Se muestra en la ficha como «Sobre este alimento». Déjalo vacío si no quieres.</p></div>
       <div style="display:flex;gap:12px;flex-wrap:wrap">
         <div class="field" style="flex:1;min-width:110px"><label for="pPrecio">Precio (€) *</label><input id="pPrecio" type="number" step="0.01" min="0" required value="${esc(f.precio)}" placeholder="1.90"></div>
         <div class="field" style="flex:1;min-width:110px"><label for="pAntes">Antes (€)</label><input id="pAntes" type="number" step="0.01" min="0" value="${esc(f.antes||"")}" placeholder="2.00"></div>
@@ -769,6 +815,22 @@ function adminEntrega(){
       <div class="field"><label for="eHorario">Días / horario de reparto</label><input id="eHorario" type="text" value="${esc(s.horario)}" placeholder="Ej. Reparto martes y viernes por la tarde"></div>
       <button class="btn btn-primary" type="submit">Guardar opciones de entrega</button>
       <p class="note">Lo que elijas aquí es lo único que verá el cliente al pedir. El pago se sigue cerrando por WhatsApp.</p>
+    </form>
+  </div>`;
+}
+function adminSobre(){
+  const s=getSettings();
+  const foto = s.sobreFoto ? `<img src="${esc(s.sobreFoto)}" alt="" style="width:90px;height:90px;border-radius:14px;object-fit:cover;border:1px solid var(--line)">` : `<div style="width:90px;height:90px;border-radius:14px;background:var(--soft);display:grid;place-items:center;color:var(--muted-2)">sin foto</div>`;
+  return `<div class="form-card">
+    <h3 style="margin-bottom:6px">Tu historia (se muestra en el inicio)</h3>
+    <p class="muted" style="margin-top:0;font-size:14px">Cuenta quién eres en pocas líneas. Es lo que más conecta con el cliente. Cambia el texto de ejemplo por el tuyo real.</p>
+    <form id="sobreForm">
+      <div class="field"><label for="sTit">Título</label><input id="sTit" type="text" value="${esc(s.sobreTitulo||"")}" placeholder="Hola, soy Nacho"></div>
+      <div class="field"><label for="sTxt">Tu historia</label><textarea id="sTxt" style="min-height:140px" placeholder="Cuéntate…">${esc(s.sobreTexto||"")}</textarea></div>
+      <div class="field"><label>Foto tuya (opcional)</label>
+        <div style="display:flex;gap:14px;align-items:center">${foto}<label class="cre-up">📷 Subir/cambiar foto<input id="sFoto" type="file" accept="image/*" hidden></label>${s.sobreFoto?`<button class="cre-rmimg" data-action="sobreFotoDel" type="button">Quitar</button>`:""}</div>
+      </div>
+      <button class="btn btn-primary" type="submit">Guardar mi historia</button>
     </form>
   </div>`;
 }
@@ -894,6 +956,7 @@ document.addEventListener("click",e=>{
     case "creAdd": syncCreInputs(); CRE_DRAFT.push({fase:"",nota:"",img:null}); renderCreEditor(); break;
     case "creDel": syncCreInputs(); CRE_DRAFT.splice(+t.dataset.i,1); renderCreEditor(); break;
     case "creImgDel": syncCreInputs(); if(CRE_DRAFT[+t.dataset.i])CRE_DRAFT[+t.dataset.i].img=null; renderCreEditor(); break;
+    case "sobreFotoDel": setSettings({sobreTitulo:($("#sTit")||{}).value||getSettings().sobreTitulo, sobreTexto:($("#sTxt")||{}).value||getSettings().sobreTexto, sobreFoto:null}); render(); break;
     case "delP": if(confirm("¿Borrar este producto?")){ setProducts(getProducts().filter(p=>p.id!==id)); if(EDIT_ID===id)EDIT_ID=null; render(); } break;
     case "toggleP": { const P=getProducts(); const p=P.find(x=>x.id===id); if(p){p.activo=p.activo===false;} setProducts(P); render(); } break;
     case "avisarListo": avisarListo(id); break;
@@ -915,6 +978,10 @@ document.addEventListener("change",e=>{
     const i=+e.target.dataset.i, file=e.target.files&&e.target.files[0]; if(!file) return;
     compressImage(file,1000,0.8).then(d=>{ syncCreInputs(); if(CRE_DRAFT[i]&&d)CRE_DRAFT[i].img=d; renderCreEditor(); });
   }
+  else if(e.target.id==="sFoto"){ const file=e.target.files&&e.target.files[0]; if(!file) return;
+    const tit=$("#sTit").value.trim(), txt=$("#sTxt").value.trim();
+    compressImage(file,900,0.82).then(d=>{ setSettings({sobreTitulo:tit, sobreTexto:txt, sobreFoto:d||null}); render(); toast("Foto actualizada ✅"); });
+  }
   else if(e.target.name==="entrega"){ const el=document.getElementById("pedSummary"); if(el) el.innerHTML=pedSummaryHTML(e.target.value); }
 });
 document.addEventListener("click",e=>{
@@ -928,6 +995,9 @@ document.addEventListener("submit",e=>{
     else { $("#loginErr").innerHTML='<div class="alert">Contraseña incorrecta.</div>'; }
   }
   else if(e.target.id==="prodForm"){ e.preventDefault(); saveProduct(); }
+  else if(e.target.id==="sobreForm"){ e.preventDefault();
+    setSettings({ sobreTitulo:$("#sTit").value.trim(), sobreTexto:$("#sTxt").value.trim() }); render(); toast("Tu historia guardada ✅");
+  }
   else if(e.target.id==="pagosForm"){ e.preventDefault();
     const pagos={}, info={};
     PAGOS.forEach(p=>{ const chk=e.target.querySelector('[name="pago_'+p.id+'"]'); pagos[p.id]=!!(chk&&chk.checked); if(p.campo){ const el=document.getElementById("pi_"+p.id); info[p.id]=el?el.value.trim():""; } });
@@ -950,7 +1020,7 @@ function saveProduct(){
   const cre=CRE_DRAFT.filter(s=>(s.fase||"").trim()).map(s=>({fase:s.fase.trim(),nota:(s.nota||"").trim(),img:s.img||null}));
   const cat=($("#pCat").value||"").trim()||"Verduras";
   const base={ nombre:$("#pNombre").value.trim(), cat, emoji:$("#pEmoji").value.trim()||"🥗",
-    desc:$("#pDesc").value.trim(), precio:parseFloat($("#pPrecio").value)||0,
+    desc:$("#pDesc").value.trim(), historia:$("#pHist").value.trim(), precio:parseFloat($("#pPrecio").value)||0,
     antes: $("#pAntes").value?parseFloat($("#pAntes").value):null, unidad:$("#pUnidad").value.trim(),
     stock: stockRaw===""?null:Math.max(0,parseInt(stockRaw,10)||0),
     crecimiento: cre.length?cre:defaultCrecimiento(cat) };
