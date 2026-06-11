@@ -359,7 +359,7 @@ function faseIcon(f){ const s=(f||"").toLowerCase(); if(s.includes("siemb")||s.i
 function getProducts(){ let p=load("nd_products",null); if(!p){ const ST=[8,5,10,6,12,3,4,9,7,15,6,5,20]; p=SEED.map((x,i)=>({id:uid(),activo:true,img:null,stock:ST[i]==null?8:ST[i],crecimiento:defaultCrecimiento(x.cat),...x})); save("nd_products",p); } return p; }
 function setProducts(p){ save("nd_products",p); }
 /* Ajustes de entrega del dueño */
-function getSettings(){ const d={entregaModo:"ambas", domicilioInfo:"Entrega en la zona. Te confirmamos día y hora por WhatsApp.", recogidaInfo:"Recogida en la huerta. Te pasamos la dirección por WhatsApp.", envioCoste:0, envioGratisDesde:"", pedidoMin:"", horario:""}; return Object.assign(d, load("nd_settings",{})); }
+function getSettings(){ const d={entregaModo:"ambas", domicilioInfo:"Entrega en la zona. Te confirmamos día y hora por WhatsApp.", recogidaInfo:"Recogida en la huerta. Te pasamos la dirección por WhatsApp.", envioCoste:0, envioGratisDesde:"", pedidoMin:"", horario:"", pagos:{efectivo:true,bizum:true,transferencia:false,paypal:false,tarjeta:false,cripto:false}, pagosInfo:{bizum:"",transferencia:"",paypal:"",cripto:""}}; return Object.assign(d, load("nd_settings",{})); }
 function setSettings(s){ save("nd_settings",Object.assign(getSettings(),s)); }
 function envioDe(metodo){ const s=getSettings(); if(metodo!=="Servicio a domicilio") return 0; const coste=Number(s.envioCoste)||0; if(coste<=0) return 0; const free=s.envioGratisDesde; if(free!=null&&free!==""&&cartTotal()>=Number(free)) return 0; return coste; }
 function defaultMetodo(){ return getSettings().entregaModo==="recogida"?"Recogida en el lugar":"Servicio a domicilio"; }
@@ -389,6 +389,24 @@ function entregaFieldsHTML(){
       <label><input type="radio" name="entrega" value="Recogida en el lugar"> 🧺 Recogida en el lugar</label>
     </div>${(s.domicilioInfo||s.recogidaInfo)?`<p class="note">🚚 ${esc(s.domicilioInfo||"")}${(s.domicilioInfo&&s.recogidaInfo)?" · ":""}🧺 ${esc(s.recogidaInfo||"")}</p>`:""}</div>
     <div class="field"><label for="oDir">Dirección (si es a domicilio)</label><input id="oDir" name="dir" type="text" placeholder="Calle, número, localidad"></div>`;
+}
+const PAGOS = [
+  {id:"efectivo", lab:"Efectivo", emoji:"💶"},
+  {id:"bizum", lab:"Bizum", emoji:"📲", campo:"Número de Bizum"},
+  {id:"transferencia", lab:"Transferencia", emoji:"🏦", campo:"IBAN para la transferencia"},
+  {id:"paypal", lab:"PayPal", emoji:"🅿️", campo:"Correo o enlace de PayPal"},
+  {id:"tarjeta", lab:"Tarjeta (datáfono al entregar)", emoji:"💳"},
+  {id:"cripto", lab:"Criptomonedas", emoji:"₿", campo:"Wallet / monedas que aceptas"}
+];
+function pagoBlockHTML(){
+  const s=getSettings(); const en=PAGOS.filter(p=>s.pagos&&s.pagos[p.id]);
+  if(!en.length) return "";
+  const det=en.filter(p=>p.campo&&s.pagosInfo&&s.pagosInfo[p.id]).map(p=>`${p.emoji} <b>${esc(p.lab)}:</b> ${esc(s.pagosInfo[p.id])}`);
+  return `<div class="field"><label for="oPago">¿Cómo prefieres pagar?</label>
+    <select name="pago" id="oPago">${en.map(p=>`<option value="${esc(p.lab)}">${p.emoji} ${esc(p.lab)}</option>`).join("")}</select>
+    ${det.length?`<p class="note">Datos para pagar: ${det.join(" · ")}</p>`:""}
+    <p class="note">💡 No se cobra ahora: el pago se cuadra al recoger o entregar el pedido.</p>
+  </div>`;
 }
 const CATS_BASE = ["Verduras","Hortalizas","Frutas","Hierbas"];
 function getCats(){ const set=[...CATS_BASE]; getProducts().forEach(p=>{ if(p.cat&&!set.includes(p.cat)) set.push(p.cat); }); return set; }
@@ -568,6 +586,7 @@ function viewPedido(){
       <div class="field"><label for="oNombre">Nombre y apellidos *</label><input id="oNombre" name="nombre" type="text" required placeholder="Tu nombre"></div>
       <div class="field"><label for="oTel">Teléfono / WhatsApp *</label><input id="oTel" name="tel" type="tel" required placeholder="600 00 00 00"></div>
       ${entregaFieldsHTML()}
+      ${pagoBlockHTML()}
       <div class="field"><label for="oNotas">Notas del pedido</label><textarea id="oNotas" name="notas" placeholder="Ej. prefiero la lechuga pequeña, llamar antes de llegar…"></textarea></div>
       <div id="pedSummary">${pedSummaryHTML(defaultMetodo())}</div>
       <label class="consent"><input type="checkbox" id="oConsent"> Acepto la <a href="#/legal" style="color:var(--green-d);font-weight:700">política de privacidad</a> y que me contacten para gestionar este pedido.</label>
@@ -653,9 +672,10 @@ function viewAdmin(){
       <button data-action="tab" data-tab="prod" aria-pressed="${ADMIN_TAB==="prod"}" type="button">Productos</button>
       <button data-action="tab" data-tab="ped" aria-pressed="${ADMIN_TAB==="ped"}" type="button">Pedidos</button>
       <button data-action="tab" data-tab="entrega" aria-pressed="${ADMIN_TAB==="entrega"}" type="button">Entrega</button>
+      <button data-action="tab" data-tab="pagos" aria-pressed="${ADMIN_TAB==="pagos"}" type="button">Pagos</button>
       <button data-action="tab" data-tab="info" aria-pressed="${ADMIN_TAB==="info"}" type="button">Ayuda</button>
     </div>
-    <div id="adminBody">${ADMIN_TAB==="prod"?adminProd():ADMIN_TAB==="ped"?adminPed():ADMIN_TAB==="entrega"?adminEntrega():adminInfo()}</div>
+    <div id="adminBody">${ADMIN_TAB==="prod"?adminProd():ADMIN_TAB==="ped"?adminPed():ADMIN_TAB==="entrega"?adminEntrega():ADMIN_TAB==="pagos"?adminPagos():adminInfo()}</div>
   </div></div>`;
 }
 function adminProd(){
@@ -752,6 +772,23 @@ function adminEntrega(){
     </form>
   </div>`;
 }
+function adminPagos(){
+  const s=getSettings();
+  return `<div class="form-card">
+    <h3 style="margin-bottom:6px">Métodos de pago que aceptas</h3>
+    <p class="muted" style="margin-top:0;font-size:14px">Marca los que aceptas. No se cobra online: el cliente los ve y el pago se cuadra al recoger o entregar el pedido.</p>
+    <form id="pagosForm">
+      <div class="field"><label>Aceptas estos pagos</label>
+        <div class="radios" style="flex-direction:column;align-items:stretch">
+          ${PAGOS.map(p=>`<label style="${s.pagos&&s.pagos[p.id]?'border-color:var(--green);background:var(--leaf-soft)':''}"><input type="checkbox" name="pago_${p.id}" ${s.pagos&&s.pagos[p.id]?"checked":""}> ${p.emoji} ${esc(p.lab)}</label>`).join("")}
+        </div>
+      </div>
+      ${PAGOS.filter(p=>p.campo).map(p=>`<div class="field"><label for="pi_${p.id}">${p.emoji} ${esc(p.campo)}</label><input id="pi_${p.id}" type="text" value="${esc((s.pagosInfo&&s.pagosInfo[p.id])||"")}" placeholder="${esc(p.campo)}"></div>`).join("")}
+      <button class="btn btn-primary" type="submit">Guardar métodos de pago</button>
+      <p class="note">Los datos que pongas (Bizum, IBAN, PayPal, wallet) se le muestran al cliente para que pueda pagar; el cobro lo cierras tú al entregar.</p>
+    </form>
+  </div>`;
+}
 function adminInfo(){
   return `<div class="form-card">
     <h3 style="margin-bottom:8px">Cómo usar tu tienda</h3>
@@ -791,6 +828,7 @@ function buildWaMessage(o){
   m+=`*Total: ${money(o.total)}*\n\n`;
   m+=`Nombre: ${o.nombre}\nTel: ${o.tel}\n${o.entrega}`;
   if(o.dir) m+=`\nDirección: ${o.dir}`;
+  if(o.pago) m+=`\nPago: ${o.pago} (se cuadra al entregar)`;
   if(o.notas) m+=`\nNotas: ${o.notas}`;
   return m;
 }
@@ -818,7 +856,7 @@ function placeOrder(form){
   const min=(metodo==="Servicio a domicilio"&&s.pedidoMin!=="")?Number(s.pedidoMin):0;
   if(min&&sub<min){ $("#orderErr").innerHTML='<div class="alert">Para envío a domicilio el pedido mínimo es '+money(min)+'. Añade '+money(min-sub)+' más o elige recogida.</div>'; return; }
   const o={ id:uid(), fecha:new Date().toLocaleString("es-ES"), nombre, tel,
-    entrega:metodo, dir:(fd.get("dir")||"").toString().trim(),
+    entrega:metodo, dir:(fd.get("dir")||"").toString().trim(), pago:(fd.get("pago")||"").toString(),
     notas:(fd.get("notas")||"").toString().trim(), items:cartItems().map(i=>({nombre:i.nombre,qty:i.qty,precio:i.precio})),
     subtotal:sub, envio:env, total:sub+env, estado:"pendiente" };
   const O=load("nd_orders",[]); O.push(o); save("nd_orders",O);
@@ -890,6 +928,11 @@ document.addEventListener("submit",e=>{
     else { $("#loginErr").innerHTML='<div class="alert">Contraseña incorrecta.</div>'; }
   }
   else if(e.target.id==="prodForm"){ e.preventDefault(); saveProduct(); }
+  else if(e.target.id==="pagosForm"){ e.preventDefault();
+    const pagos={}, info={};
+    PAGOS.forEach(p=>{ const chk=e.target.querySelector('[name="pago_'+p.id+'"]'); pagos[p.id]=!!(chk&&chk.checked); if(p.campo){ const el=document.getElementById("pi_"+p.id); info[p.id]=el?el.value.trim():""; } });
+    setSettings({ pagos, pagosInfo:info }); render(); toast("Métodos de pago guardados ✅");
+  }
   else if(e.target.id==="entregaForm"){ e.preventDefault();
     const modo=(document.querySelector('input[name="emodo"]:checked')||{}).value||"ambas";
     const num=v=>v.trim()===""?"":(parseFloat(v)||0);
