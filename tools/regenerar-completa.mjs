@@ -19,6 +19,7 @@ const SOURCES = {
   "tienda-arte-ejemplo.html": "apps/tienda-arte-ejemplo.html",
   "huerta-natural-ejemplo.html": "apps/huerta-natural-ejemplo.html",
   "restaurante-ejemplo.html": "apps/restaurante-ejemplo.html",
+  "restaurante-qr-ejemplo.html": "apps/restaurante-qr-ejemplo.html",
 };
 
 if (!fs.existsSync(COMPLETA)) { console.error("No existe " + COMPLETA); process.exit(1); }
