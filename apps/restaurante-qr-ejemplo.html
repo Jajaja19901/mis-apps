@@ -204,6 +204,12 @@ button.mchip.ocupada{background:var(--brand);border-color:var(--brand);color:#ff
 .rbtn{width:42px;height:42px;border-radius:12px;border:1.5px solid var(--line-2);background:#fff;font-size:22px;font-weight:800;cursor:pointer;color:var(--text)}
 .cuenta-pp{margin-top:14px;text-align:center;font-size:30px;font-weight:900;color:var(--brand-d)}
 .cuenta-pp span{display:block;font-size:13px;font-weight:600;color:var(--muted)}
+.lang-btn{font-size:12px;font-weight:900;letter-spacing:.05em;width:auto;padding:0 10px}
+.sellos-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;justify-items:center;margin:6px 0 4px}
+.sello{width:58px;height:58px;border-radius:50%;border:2px dashed var(--line-2);display:grid;place-items:center;font-size:15px;font-weight:800;color:var(--muted-2);background:var(--soft)}
+.sello.on{border:2px solid var(--brand);background:#fff;font-size:24px;box-shadow:var(--sh-sm)}
+.premio{text-align:center;margin-top:14px;padding:14px;border-radius:14px;background:var(--soft);border:1.5px solid var(--brand)}
+.premio .pq{font-size:20px;font-weight:900;color:var(--brand-d);margin-top:4px}
 .dish .pers{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--brand-d);font-weight:700;background:var(--soft);border-radius:6px;padding:2px 7px;margin-top:4px}
 .qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
 .qrbox{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center;box-shadow:var(--sh-sm)}
@@ -234,6 +240,7 @@ footer a:hover{color:#fff}
   <a class="brand" href="#/" aria-label="La Tasca, inicio"><span class="logo" id="brandLogo"></span><span>La Tasca<span class="tag">Pide desde tu mesa</span></span></a>
   <div class="nav-sp"></div>
   <span class="mesa-pill" id="mesaPill" style="display:none"></span>
+  <button class="icon-btn lang-btn" id="langBtn" data-action="lang" aria-label="Cambiar idioma / Change language" type="button">EN</button>
   <button class="icon-btn" id="installBtn" data-action="install" aria-label="Instalar" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></button>
 </div></header>
 
@@ -2637,45 +2644,85 @@ function phHTML(p){ return p.img?`<img src="${esc(p.img)}" alt="${esc(p.nombre)}
 
 let FILTER="Para picar"; let RATED=false;
 let CUENTA={personas:1,tip:0};
+/* ── Idiomas: el interfaz del cliente en ES/EN. Los platos quedan como los escribió el bar. ── */
+let LANG=load("lt_lang","es");
+const TREN={
+  "Pide desde tu":"Order from your","mesa":"table",
+  "Escaneas el QR de tu mesa, eliges del móvil y tu comanda llega directa a la barra. Sin esperar al camarero.":"Scan your table's QR, choose from your phone and your order goes straight to the bar. No waiting for the waiter.",
+  "¿En qué mesa estás?":"Which table are you at?","Elige tu mesa para empezar":"Pick your table to start","Pedir en la mesa":"Order at table",
+  "En el local, el QR de cada mesa te trae aquí con tu número ya puesto.":"At the venue, each table's QR brings you here with your number already set.",
+  "Sin esperas":"No waiting","Pides cuando quieras, sin levantar la mano.":"Order whenever you want, no hand-raising.",
+  "Directo a barra":"Straight to the bar","Tu comanda llega al instante al personal.":"Your order reaches the staff instantly.",
+  "Tu cuenta clara":"A clear bill","Ves lo que llevas pedido en todo momento.":"See what you've ordered at any time.",
+  "Inicio":"Home","La carta":"The menu","Elige y añade a tu comanda":"Choose and add to your order",
+  "Estás pidiendo en la":"You are ordering at","cambiar mesa":"change table","Elige tu mesa para pedir":"Pick your table to order","elegir":"pick","Mesa":"Table",
+  "Alérgenos":"Allergens","Nada por aquí.":"Nothing here.","⚙ Toca para personalizar":"⚙ Tap to customise","Agotado":"Sold out",
+  "⭐ Los más pedidos":"⭐ Most popular","¿Y de beber?":"Something to drink?","Ver mi comanda →":"View my order →","art.":"items",
+  "¿Quitar algo?":"Remove anything?","Sin":"No","Extras":"Extras","Nota para la cocina":"Note for the kitchen","Ej. muy frío, poco picante…":"E.g. very cold, mild…","Añadir":"Add",
+  "Volver a la carta":"Back to the menu","Tu comanda está vacía":"Your order is empty","Añade algo de la carta.":"Add something from the menu.","Ver la carta":"View the menu",
+  "Seguir pidiendo":"Keep ordering","Tu comanda":"Your order","Revisa y envíala a la barra. Puedes pedir más rondas cuando quieras.":"Check it and send it to the bar. You can order more rounds anytime.",
+  "Quitar":"Remove","Total":"Total","🔔 Enviar comanda a la barra":"🔔 Send order to the bar","🙋 Llamar al camarero":"🙋 Call the waiter","🧾 Pedir la cuenta":"🧾 Ask for the bill",
+  "El pago se hace en la barra o con el camarero (efectivo, tarjeta o Bizum). La comanda llega al personal por WhatsApp.":"You pay at the bar or with the waiter (cash or card). The order reaches the staff.",
+  "¡Comanda enviada!":"Order sent!","Tu pedido ha llegado a la barra. Te lo llevamos a la mesa enseguida. ¿Quieres pedir algo más?":"Your order has reached the bar. We'll bring it to your table right away. Anything else?",
+  "¿Qué tal la experiencia?":"How was the experience?","¡Gracias por tu valoración! ⭐":"Thanks for your rating! ⭐","🚦 Seguir mi pedido":"🚦 Track my order",
+  "Sigue tu pedido":"Track your order","Se actualiza solo. Te avisamos cuando esté en camino a tu mesa.":"Updates by itself. We'll let you know when it's on its way.",
+  "Recibido":"Received","En cocina":"Cooking","En camino":"On its way","¡Servido! Que aproveche":"Served! Enjoy",
+  "Aún no tienes pedidos":"No orders yet","Cuando envíes una comanda, podrás seguir su estado aquí.":"Once you send an order, you can track it here.",
+  "💳 Pedir la cuenta":"💳 Ask for the bill","🔄 Actualizar":"🔄 Refresh","Mi pedido":"My order",
+  "Tu cuenta":"Your bill","Consumo":"Subtotal","Propina":"Tip","Sin propina":"No tip","Otra":"Other","Dividir entre":"Split between","persona":"person","personas":"people","por persona":"per person",
+  "🙋 Avisar al camarero que pido la cuenta":"🙋 Tell the waiter I want the bill","El pago se hace en el local (efectivo, tarjeta o Bizum). Esto solo avisa al personal.":"You pay at the venue (cash or card). This only notifies the staff.",
+  "⭐ Déjanos 5★ en Google":"⭐ Leave us 5★ on Google","Aún no hay consumo":"Nothing ordered yet","Cuando pidas, aquí verás el total para dividirlo y dejar propina.":"Once you order, you'll see the total here to split it and tip.",
+  "Mis sellos":"My stamps","Tu tarjeta de sellos":"Your stamp card","Cada día que pidas, un sello. Al completarla, premio. 🎁":"One stamp per day you order. Fill the card, get a prize. 🎁",
+  "¡Tarjeta completa! 🎉":"Card complete! 🎉","Enséñale esta pantalla al camarero para canjearlo.":"Show this screen to the waiter to redeem it.",
+  "✅ Canjear (lo pulsa el camarero)":"✅ Redeem (waiter taps this)","Los sellos se guardan en este móvil.":"Stamps are stored on this phone.",
+  "Te faltan":"You need","sellos para tu premio":"more stamps for your prize","sello para tu premio":"more stamp for your prize",
+  "El bar aún no tiene programa de sellos.":"This venue has no stamp program yet.","⭐ +1 sello en tu tarjeta":"⭐ +1 stamp on your card",
+  "Añadido a la comanda 🔔":"Added to your order 🔔","premios canjeados":"prizes redeemed"
+};
+function T(s){ return (LANG==="en"&&TREN[s])||s; }
+function syncLangBtn(){ const b=$("#langBtn"); if(b) b.textContent=LANG==="es"?"EN":"ES"; try{ document.documentElement.lang=LANG; }catch(e){} }
+/* ── Fidelización: un sello por día con comanda; tarjeta llena = premio ── */
+function getFid(){ const f=getSettings().fidelidad; return Object.assign({on:true,n:8,premio:"Café o postre gratis"},f||{}); }
+function addSello(){ const f=getFid(); if(!f.on) return; const hoy=new Date().toISOString().slice(0,10); const S=load("lt_sellos",{d:[],canjeados:0}); if(S.d.includes(hoy)) return; S.d.push(hoy); save("lt_sellos",S); setTimeout(()=>toast(T("⭐ +1 sello en tu tarjeta")),900); }
 function viewHome(){
   const m=getMesa();
   return `<section class="hero"><div class="wrap">
     <div class="qr">${qrArt()}</div>
-    <h1>Pide desde tu <span>mesa</span></h1>
-    <p class="lead">Escaneas el QR de tu mesa, eliges del móvil y tu comanda llega directa a la barra. Sin esperar al camarero.</p>
+    <h1>${T("Pide desde tu")} <span>${T("mesa")}</span></h1>
+    <p class="lead">${T("Escaneas el QR de tu mesa, eliges del móvil y tu comanda llega directa a la barra. Sin esperar al camarero.")}</p>
     <div class="mesa-box">
       ${(function(){ const est=getSettings().qrEstricto;
         if(est&&!m) return `<h3>📷 Escanea el QR de tu mesa</h3><p class="muted" style="font-size:14px;margin:0 0 12px">Cada mesa tiene su código. Escanéalo con la cámara del móvil y entrarás con tu mesa ya puesta.</p><a class="btn btn-ghost btn-block" href="#/carta">Ver la carta (solo mirar)</a>`;
         if(est&&m) return `<h3>🍽️ Estás en la Mesa ${esc(m)}</h3><p class="muted" style="font-size:13.5px;margin:0 0 12px">Mesa fijada por el QR que escaneaste.</p><a class="btn btn-primary btn-block" href="#/carta">Pedir en la mesa ${esc(m)}</a>`;
-        return `<h3>¿En qué mesa estás?</h3><div class="mesa-grid" id="mesaGrid">${Array.from({length:Math.min(B().mesas,15)},(_,i)=>i+1).map(n=>`<button data-action="pickMesa" data-n="${n}" aria-pressed="${String(m)===String(n)}" type="button">${n}</button>`).join("")}</div><a class="btn btn-primary btn-block" href="#/carta" data-action="empezar">${m?("Pedir en la mesa "+esc(m)):"Elige tu mesa para empezar"}</a>`;
+        return `<h3>${T("¿En qué mesa estás?")}</h3><div class="mesa-grid" id="mesaGrid">${Array.from({length:Math.min(B().mesas,15)},(_,i)=>i+1).map(n=>`<button data-action="pickMesa" data-n="${n}" aria-pressed="${String(m)===String(n)}" type="button">${n}</button>`).join("")}</div><a class="btn btn-primary btn-block" href="#/carta" data-action="empezar">${m?(T("Pedir en la mesa")+" "+esc(m)):T("Elige tu mesa para empezar")}</a>`;
       })()}
-      <p class="note">En el local, el QR de cada mesa te trae aquí con tu número ya puesto.</p>
+      <p class="note">${T("En el local, el QR de cada mesa te trae aquí con tu número ya puesto.")}</p>
     </div>
     <div class="feat" style="margin-top:26px">
-      <div class="f"><div class="ic">📱</div><b>Sin esperas</b><span>Pides cuando quieras, sin levantar la mano.</span></div>
-      <div class="f"><div class="ic">🔔</div><b>Directo a barra</b><span>Tu comanda llega al instante al personal.</span></div>
-      <div class="f"><div class="ic">🧾</div><b>Tu cuenta clara</b><span>Ves lo que llevas pedido en todo momento.</span></div>
+      <div class="f"><div class="ic">📱</div><b>${T("Sin esperas")}</b><span>${T("Pides cuando quieras, sin levantar la mano.")}</span></div>
+      <div class="f"><div class="ic">🔔</div><b>${T("Directo a barra")}</b><span>${T("Tu comanda llega al instante al personal.")}</span></div>
+      <div class="f"><div class="ic">🧾</div><b>${T("Tu cuenta clara")}</b><span>${T("Ves lo que llevas pedido en todo momento.")}</span></div>
     </div>
   </div></section>`;
 }
-function dishHTML(p){ const ag=p.agotado===true; const md=hasMods(p)&&!ag; return `<article class="dish${ag?" agot-card":""}"${md?` data-action="dish" data-id="${esc(p.id)}" style="cursor:pointer"`:""}><div class="ph">${phHTML(p)}</div><div class="info"><h3>${esc(p.nombre)}</h3><p class="d">${esc(p.desc||"")}</p>${algHTML(p)}${md?'<div class="pers">⚙ Toca para personalizar</div>':""}<div class="row"><span class="price">${money(p.precio)}</span>${ag?'<span class="agot">Agotado</span>':`<button class="add" data-action="add" data-id="${esc(p.id)}" aria-label="Añadir ${esc(p.nombre)}" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>`}</div></div></article>`; }
-function recoHTML(P){ const d=P.filter(p=>p.dest); if(!d.length) return ""; return `<div class="reco"><h3>⭐ Los más pedidos</h3><div class="reco-strip">${d.map(p=>`<button class="reco-card" data-action="add" data-id="${esc(p.id)}" type="button"><span class="re">${esc(p.emoji||"🍽️")}</span><b>${esc(p.nombre)}</b><span class="rp">${money(p.precio)} +</span></button>`).join("")}</div></div>`; }
+function dishHTML(p){ const ag=p.agotado===true; const md=hasMods(p)&&!ag; return `<article class="dish${ag?" agot-card":""}"${md?` data-action="dish" data-id="${esc(p.id)}" style="cursor:pointer"`:""}><div class="ph">${phHTML(p)}</div><div class="info"><h3>${esc(p.nombre)}</h3><p class="d">${esc(p.desc||"")}</p>${algHTML(p)}${md?`<div class="pers">${T("⚙ Toca para personalizar")}</div>`:""}<div class="row"><span class="price">${money(p.precio)}</span>${ag?`<span class="agot">${T("Agotado")}</span>`:`<button class="add" data-action="add" data-id="${esc(p.id)}" aria-label="${T("Añadir")} ${esc(p.nombre)}" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>`}</div></div></article>`; }
+function recoHTML(P){ const d=P.filter(p=>p.dest); if(!d.length) return ""; return `<div class="reco"><h3>${T("⭐ Los más pedidos")}</h3><div class="reco-strip">${d.map(p=>`<button class="reco-card" data-action="add" data-id="${esc(p.id)}" type="button"><span class="re">${esc(p.emoji||"🍽️")}</span><b>${esc(p.nombre)}</b><span class="rp">${money(p.precio)} +</span></button>`).join("")}</div></div>`; }
 function viewCarta(){
   const m=getMesa(); const P=getPlatos().filter(p=>p.activo!==false);
   return `<div class="page"><div class="wrap">
-    <a class="back" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Inicio</a>
-    ${(function(){ const cam=getCam(); const est=getSettings().qrEstricto; if(cam&&m) return `<div class="mbanner" style="background:#fdeede;border-color:#e7c9a0">👤 <b>${esc(cam.nombre)}</b> · Mesa <b>${esc(m)}</b><a href="#/camarero">cambiar</a></div>`; if(m) return `<div class="mbanner">🍽️ Estás pidiendo en la <b>Mesa ${esc(m)}</b>${est?"":`<a href="#/" data-action="cambiarMesa">cambiar mesa</a>`}</div>`; return est?`<div class="mbanner">📷 Escanea el QR de tu mesa para pedir<a href="#/">cómo</a></div>`:`<div class="mbanner">Elige tu mesa para pedir<a href="#/">elegir</a></div>`; })()}
+    <a class="back" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> ${T("Inicio")}</a>
+    ${(function(){ const cam=getCam(); const est=getSettings().qrEstricto; if(cam&&m) return `<div class="mbanner" style="background:#fdeede;border-color:#e7c9a0">👤 <b>${esc(cam.nombre)}</b> · ${T("Mesa")} <b>${esc(m)}</b><a href="#/camarero">cambiar</a></div>`; if(m) return `<div class="mbanner">🍽️ ${T("Estás pidiendo en la")} <b>${T("Mesa")} ${esc(m)}</b>${est?"":`<a href="#/" data-action="cambiarMesa">${T("cambiar mesa")}</a>`}</div>`; return est?`<div class="mbanner">📷 Escanea el QR de tu mesa para pedir<a href="#/">cómo</a></div>`:`<div class="mbanner">${T("Elige tu mesa para pedir")}<a href="#/">${T("elegir")}</a></div>`; })()}
     ${recoHTML(P)}
-    <div class="sec-head"><span class="eyebrow">La carta</span><h2>Elige y añade a tu comanda</h2></div>
+    <div class="sec-head"><span class="eyebrow">${T("La carta")}</span><h2>${T("Elige y añade a tu comanda")}</h2></div>
     <div class="chips" id="chips">${CATS.map(c=>`<button class="chip" data-cat="${esc(c)}" aria-pressed="${FILTER===c}" type="button">${esc(c)}</button>`).join("")}</div>
     <div class="menu-list" id="grid">${gridHTML(P)}</div>
-    <p class="alg-ley">Alérgenos: ${Object.values(ALG).join(" · ")}</p>
+    <p class="alg-ley">${T("Alérgenos")}: ${Object.values(ALG).join(" · ")}</p>
   </div></div>
   ${barFix()}`;
 }
-function gridHTML(P){ const l=P.filter(p=>p.cat===FILTER); return l.length?l.map(dishHTML).join(""):'<p class="muted" style="grid-column:1/-1">Nada por aquí.</p>'; }
+function gridHTML(P){ const l=P.filter(p=>p.cat===FILTER); return l.length?l.map(dishHTML).join(""):`<p class="muted" style="grid-column:1/-1">${T("Nada por aquí.")}</p>`; }
 function rerenderGrid(){ const g=$("#grid"); if(g) g.innerHTML=gridHTML(getPlatos().filter(p=>p.activo!==false)); }
-function barFix(){ const n=cartCount(); if(!n) return ""; const hasBeb=cartItems().some(i=>i.cat==="Bebidas"); const sug=hasBeb?"":`<button class="sug" data-action="goBebidas" type="button">🍺 ¿Y de beber?</button>`; return `<div class="barfix"><div class="in"><div><b>${money(cartTotal())}</b> <span class="muted" style="font-size:13px">· ${n} art.</span>${sug}</div><a class="btn btn-primary" href="#/comanda">Ver mi comanda →</a></div></div>`; }
+function barFix(){ const n=cartCount(); if(!n) return ""; const hasBeb=cartItems().some(i=>i.cat==="Bebidas"); const sug=hasBeb?"":`<button class="sug" data-action="goBebidas" type="button">🍺 ${T("¿Y de beber?")}</button>`; return `<div class="barfix"><div class="in"><div><b>${money(cartTotal())}</b> <span class="muted" style="font-size:13px">· ${n} ${T("art.")}</span>${sug}</div><a class="btn btn-primary" href="#/comanda">${T("Ver mi comanda →")}</a></div></div>`; }
 
 let DSEL=null;
 function openDish(pid){ const p=getPlatos().find(x=>x.id===pid); if(!p){ return; } if(p.agotado){ toast("Ese plato está agotado 😕"); return; } if(!getMesa()){ toast(getSettings().qrEstricto?"📷 Escanea el QR de tu mesa":"Elige tu mesa primero"); location.hash="#/"; return; }
@@ -2684,29 +2731,29 @@ function closeDish(){ $("#ov").classList.remove("show"); document.body.style.ove
 function renderDish(){ if(!DSEL) return; const p=getPlatos().find(x=>x.id===DSEL.pid); if(!p) return; const m=p.mods||{};
   const unit=(Number(p.precio)||0)+DSEL.extras.reduce((a,e)=>a+(Number(e.p)||0),0);
   let body="";
-  if(m.quitar&&m.quitar.length){ body+=`<div class="modg"><div class="mt">¿Quitar algo?</div>${m.quitar.map(x=>`<button class="modopt" data-action="dquit" data-x="${esc(x)}" aria-pressed="${DSEL.quitar.includes(x)}" type="button"><span class="ck">${DSEL.quitar.includes(x)?"✓":""}</span> Sin ${esc(x)}</button>`).join("")}</div>`; }
+  if(m.quitar&&m.quitar.length){ body+=`<div class="modg"><div class="mt">${T("¿Quitar algo?")}</div>${m.quitar.map(x=>`<button class="modopt" data-action="dquit" data-x="${esc(x)}" aria-pressed="${DSEL.quitar.includes(x)}" type="button"><span class="ck">${DSEL.quitar.includes(x)?"✓":""}</span> ${T("Sin")} ${esc(x)}</button>`).join("")}</div>`; }
   (m.elige||[]).forEach(g=>{ body+=`<div class="modg"><div class="mt">${esc(g.t)}</div>${g.o.map(o=>`<button class="modopt rad" data-action="delige" data-t="${esc(g.t)}" data-o="${esc(o)}" aria-pressed="${DSEL.elige[g.t]===o}" type="button"><span class="ck">${DSEL.elige[g.t]===o?"●":""}</span> ${esc(o)}</button>`).join("")}</div>`; });
-  if(m.extras&&m.extras.length){ body+=`<div class="modg"><div class="mt">Extras</div>${m.extras.map(e=>{ const on=DSEL.extras.some(x=>x.n===e.n); return `<button class="modopt" data-action="dextra" data-n="${esc(e.n)}" data-p="${esc(e.p)}" aria-pressed="${on}" type="button"><span class="ck">${on?"✓":""}</span> ${esc(e.n)} <span class="pr">+${money(e.p)}</span></button>`; }).join("")}</div>`; }
-  body+=`<div class="modg ovnota"><div class="mt">Nota para la cocina</div><input id="dNota" type="text" placeholder="Ej. muy frío, poco picante…" value="${esc(DSEL.nota)}"></div>`;
-  $("#ovsheet").innerHTML=`<div class="ovh"><span class="e">${esc(p.emoji||"🍽️")}</span><div><h3>${esc(p.nombre)}</h3><div class="d">${esc(p.desc||"")}</div></div><button class="ovx" data-action="closeDish" type="button" aria-label="Cerrar">✕</button></div><div class="ovb">${body}<div class="ovfoot"><div class="qty"><button data-action="dqty" data-d="-1" type="button" aria-label="Menos">−</button><span>${DSEL.qty}</span><button data-action="dqty" data-d="1" type="button" aria-label="Más">+</button></div><button class="btn btn-primary" style="flex:1" data-action="dadd" type="button">Añadir · ${money(unit*DSEL.qty)}</button></div></div>`;
+  if(m.extras&&m.extras.length){ body+=`<div class="modg"><div class="mt">${T("Extras")}</div>${m.extras.map(e=>{ const on=DSEL.extras.some(x=>x.n===e.n); return `<button class="modopt" data-action="dextra" data-n="${esc(e.n)}" data-p="${esc(e.p)}" aria-pressed="${on}" type="button"><span class="ck">${on?"✓":""}</span> ${esc(e.n)} <span class="pr">+${money(e.p)}</span></button>`; }).join("")}</div>`; }
+  body+=`<div class="modg ovnota"><div class="mt">${T("Nota para la cocina")}</div><input id="dNota" type="text" placeholder="${T("Ej. muy frío, poco picante…")}" value="${esc(DSEL.nota)}"></div>`;
+  $("#ovsheet").innerHTML=`<div class="ovh"><span class="e">${esc(p.emoji||"🍽️")}</span><div><h3>${esc(p.nombre)}</h3><div class="d">${esc(p.desc||"")}</div></div><button class="ovx" data-action="closeDish" type="button" aria-label="Cerrar">✕</button></div><div class="ovb">${body}<div class="ovfoot"><div class="qty"><button data-action="dqty" data-d="-1" type="button" aria-label="Menos">−</button><span>${DSEL.qty}</span><button data-action="dqty" data-d="1" type="button" aria-label="Más">+</button></div><button class="btn btn-primary" style="flex:1" data-action="dadd" type="button">${T("Añadir")} · ${money(unit*DSEL.qty)}</button></div></div>`;
 }
 function syncNota(){ const el=$("#dNota"); if(el&&DSEL) DSEL.nota=el.value; }
 function viewComanda(){
   const items=cartItems(), m=getMesa();
-  if(!items.length) return `<div class="page"><div class="wrap"><a class="back" href="#/carta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Volver a la carta</a><div class="empty"><div class="big">🧾</div><b style="font-size:20px;color:var(--text)">Tu comanda está vacía</b><br><span class="muted">Añade algo de la carta.</span><br><br><a class="btn btn-primary" href="#/carta">Ver la carta</a></div></div></div>`;
+  if(!items.length) return `<div class="page"><div class="wrap"><a class="back" href="#/carta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> ${T("Volver a la carta")}</a><div class="empty"><div class="big">🧾</div><b style="font-size:20px;color:var(--text)">${T("Tu comanda está vacía")}</b><br><span class="muted">${T("Añade algo de la carta.")}</span><br><br><a class="btn btn-primary" href="#/carta">${T("Ver la carta")}</a></div></div></div>`;
   return `<div class="page"><div class="wrap" style="max-width:620px">
-    <a class="back" href="#/carta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Seguir pidiendo</a>
-    <h1 class="ptitle">Tu comanda${m?` · Mesa ${esc(m)}`:""}</h1>
-    <p class="muted" style="margin-top:0">Revisa y envíala a la barra. Puedes pedir más rondas cuando quieras.</p>
-    ${items.map(i=>{ const mt=modsText(i); return `<div class="citem"><div class="cph">${phHTML(i)}</div><div class="ci"><b>${esc(i.nombre)}</b>${mt?`<div class="mods">${esc(mt)}</div>`:""}<div class="p">${money(i.unit)}</div><button class="ci-rm" data-action="rm" data-id="${esc(i.lid)}" type="button">Quitar</button></div><div style="text-align:right"><div class="qty"><button data-action="dec" data-id="${esc(i.lid)}" type="button" aria-label="Menos">−</button><span>${i.qty}</span><button data-action="inc" data-id="${esc(i.lid)}" type="button" aria-label="Más">+</button></div><div style="font-weight:800;color:var(--brand-d);margin-top:8px">${money(i.unit*i.qty)}</div></div></div>`; }).join("")}
-    <div class="form-card" style="margin-top:8px"><div style="display:flex;justify-content:space-between;font-size:20px;font-weight:900;color:var(--char)"><span>Total</span><span>${money(cartTotal())}</span></div>
-      <button class="btn btn-primary btn-block" data-action="enviarComanda" type="button" style="margin-top:14px">🔔 Enviar comanda a la barra</button>
-      <div style="display:flex;gap:10px;margin-top:10px"><button class="btn btn-ghost" style="flex:1" data-action="camarero" type="button">🙋 Llamar al camarero</button><button class="btn btn-ghost" style="flex:1" data-action="cuenta" type="button">🧾 Pedir la cuenta</button></div>
-      <p class="note">El pago se hace en la barra o con el camarero (efectivo, tarjeta o Bizum). La comanda llega al personal por WhatsApp.</p>
+    <a class="back" href="#/carta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> ${T("Seguir pidiendo")}</a>
+    <h1 class="ptitle">${T("Tu comanda")}${m?` · ${T("Mesa")} ${esc(m)}`:""}</h1>
+    <p class="muted" style="margin-top:0">${T("Revisa y envíala a la barra. Puedes pedir más rondas cuando quieras.")}</p>
+    ${items.map(i=>{ const mt=modsText(i); return `<div class="citem"><div class="cph">${phHTML(i)}</div><div class="ci"><b>${esc(i.nombre)}</b>${mt?`<div class="mods">${esc(mt)}</div>`:""}<div class="p">${money(i.unit)}</div><button class="ci-rm" data-action="rm" data-id="${esc(i.lid)}" type="button">${T("Quitar")}</button></div><div style="text-align:right"><div class="qty"><button data-action="dec" data-id="${esc(i.lid)}" type="button" aria-label="Menos">−</button><span>${i.qty}</span><button data-action="inc" data-id="${esc(i.lid)}" type="button" aria-label="Más">+</button></div><div style="font-weight:800;color:var(--brand-d);margin-top:8px">${money(i.unit*i.qty)}</div></div></div>`; }).join("")}
+    <div class="form-card" style="margin-top:8px"><div style="display:flex;justify-content:space-between;font-size:20px;font-weight:900;color:var(--char)"><span>${T("Total")}</span><span>${money(cartTotal())}</span></div>
+      <button class="btn btn-primary btn-block" data-action="enviarComanda" type="button" style="margin-top:14px">${T("🔔 Enviar comanda a la barra")}</button>
+      <div style="display:flex;gap:10px;margin-top:10px"><button class="btn btn-ghost" style="flex:1" data-action="camarero" type="button">${T("🙋 Llamar al camarero")}</button><button class="btn btn-ghost" style="flex:1" data-action="cuenta" type="button">${T("🧾 Pedir la cuenta")}</button></div>
+      <p class="note">${T("El pago se hace en la barra o con el camarero (efectivo, tarjeta o Bizum). La comanda llega al personal por WhatsApp.")}</p>
     </div>
   </div></div>`;
 }
-function viewGracias(){ const rateHTML=RATED?`<p class="muted" style="margin-top:14px">¡Gracias por tu valoración! ⭐</p>`:`<div class="rate" style="margin-top:14px"><p class="muted" style="margin:0 0 4px">¿Qué tal la experiencia?</p>${[1,2,3,4,5].map(n=>`<button class="star" data-action="rate" data-n="${n}" type="button" aria-label="${n} estrellas">★</button>`).join("")}</div>`; return `<div class="page"><div class="wrap" style="max-width:540px;text-align:center"><div style="font-size:64px">🔔</div><h1 class="ptitle" style="margin-top:8px">¡Comanda enviada!</h1><p class="muted">Tu pedido ha llegado a la barra. Te lo llevamos a la mesa enseguida. ¿Quieres pedir algo más?</p>${rateHTML}<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px"><a class="btn btn-primary" href="#/mipedido">🚦 Seguir mi pedido</a><a class="btn btn-ghost" href="#/carta">Seguir pidiendo</a></div></div></div>`; }
+function viewGracias(){ const rateHTML=RATED?`<p class="muted" style="margin-top:14px">${T("¡Gracias por tu valoración! ⭐")}</p>`:`<div class="rate" style="margin-top:14px"><p class="muted" style="margin:0 0 4px">${T("¿Qué tal la experiencia?")}</p>${[1,2,3,4,5].map(n=>`<button class="star" data-action="rate" data-n="${n}" type="button" aria-label="${n} estrellas">★</button>`).join("")}</div>`; return `<div class="page"><div class="wrap" style="max-width:540px;text-align:center"><div style="font-size:64px">🔔</div><h1 class="ptitle" style="margin-top:8px">${T("¡Comanda enviada!")}</h1><p class="muted">${T("Tu pedido ha llegado a la barra. Te lo llevamos a la mesa enseguida. ¿Quieres pedir algo más?")}</p>${rateHTML}<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px"><a class="btn btn-primary" href="#/mipedido">${T("🚦 Seguir mi pedido")}</a><a class="btn btn-ghost" href="#/sellos">⭐ ${T("Mis sellos")}</a><a class="btn btn-ghost" href="#/carta">${T("Seguir pidiendo")}</a></div></div></div>`; }
 function viewLegal(){ return `<div class="page"><div class="wrap" style="max-width:760px"><a class="back" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Volver</a><h1 class="ptitle">Privacidad y aviso legal</h1><h3 style="margin-top:16px">Política de privacidad</h3><p class="muted">En <b>${esc(B().nombre)}</b> no recogemos datos personales para pedir: solo el número de mesa y tu comanda, que se envía a la barra. No usamos cookies de seguimiento; la comanda se guarda solo en tu dispositivo.</p><h3 style="margin-top:16px">Responsable</h3><p class="muted">${esc(B().nombre)} · ${esc(B().city)} · ${esc(B().email)}.</p><h3 style="margin-top:16px">Aviso legal</h3><p class="muted">Precios y disponibilidad a título informativo, sujetos a la carta del día.</p><p class="note">Texto base con marcadores [ ]. Sustitúyelo por tus datos reales.</p></div></div>`; }
 
 /* ====== Admin ====== */
@@ -2829,6 +2876,8 @@ function admAjustes(){
     <div class="field"><label for="dMail">Email</label><input id="dMail" type="email" value="${esc(b.email)}"></div>
     <div class="field"><label for="dPass">Contraseña del panel</label><input id="dPass" type="text" value="${esc(b.pass)}"></div>
     <div class="field"><label for="dGoogle">Enlace de reseñas de Google (opcional)</label><input id="dGoogle" type="url" value="${esc(s.googleReview||"")}" placeholder="https://g.page/r/..."><p class="note">Al terminar, el cliente verá un botón "Déjanos 5★ en Google". Cópialo desde tu ficha de Google → Pedir reseñas.</p></div>
+    ${(function(){ const f=getFid(); return `<label class="consent" style="background:var(--soft)"><input type="checkbox" id="dFid" ${f.on?"checked":""}> ⭐ <b>Programa de sellos:</b> un sello por día que el cliente pide; tarjeta llena = premio.</label>
+    <div style="display:flex;gap:12px;flex-wrap:wrap"><div class="field" style="flex:1;min-width:110px"><label for="dFidN">Sellos para premio</label><input id="dFidN" type="number" min="2" max="20" value="${esc(f.n)}"></div><div class="field" style="flex:2;min-width:160px"><label for="dFidP">El premio</label><input id="dFidP" type="text" value="${esc(f.premio)}" placeholder="Ej. Café o postre gratis"></div></div>`; })()}
     <label class="consent" style="background:var(--soft)"><input type="checkbox" id="dQR" ${s.qrEstricto?"checked":""}> 📷 <b>Modo QR estricto:</b> la mesa solo se fija escaneando el QR de la mesa (actívalo en el local; así nadie puede pedir para otra mesa).</label>
     <button class="btn btn-primary" type="submit">Guardar</button></form></div>
   <div class="form-card" style="margin-top:18px"><h3 style="margin-bottom:6px">☁️ Modo nube (tiempo real)</h3><p class="muted" style="margin-top:0;font-size:14px">${cloudOn()?"<b style='color:var(--green)'>Activado.</b> Las comandas de los móviles de los clientes llegan SOLAS a la pantalla de barra.":"Sin configurar: las comandas de los móviles llegan por WhatsApp. Para que entren solas en la pantalla de barra, rellena <b>CLOUD_URL, CLOUD_KEY y BAR_ID</b> en la caja CONFIG del archivo (guía incluida: GUIA-SERVIDOR-BARES.md)."}</p></div>`;
@@ -2836,18 +2885,18 @@ function admAjustes(){
 
 function viewMiPedido(){
   const mis=load("lt_mis",[]).slice().reverse(); const all=comandasAll();
-  if(!mis.length) return `<div class="page"><div class="wrap" style="max-width:560px"><a class="back" href="#/carta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Carta</a><div class="empty"><div class="big">🚦</div><b style="font-size:19px;color:var(--text)">Aún no tienes pedidos</b><br><span class="muted">Cuando envíes una comanda, podrás seguir su estado aquí.</span><br><br><a class="btn btn-primary" href="#/carta">Ver la carta</a></div></div></div>`;
-  const STEPS=[["pendiente","Recibido","📝"],["cocina","En cocina","👨‍🍳"],["listo","En camino","🍽️"]];
+  if(!mis.length) return `<div class="page"><div class="wrap" style="max-width:560px"><a class="back" href="#/carta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> ${T("La carta")}</a><div class="empty"><div class="big">🚦</div><b style="font-size:19px;color:var(--text)">${T("Aún no tienes pedidos")}</b><br><span class="muted">${T("Cuando envíes una comanda, podrás seguir su estado aquí.")}</span><br><br><a class="btn btn-primary" href="#/carta">${T("Ver la carta")}</a></div></div></div>`;
+  const STEPS=[["pendiente",T("Recibido"),"📝"],["cocina",T("En cocina"),"👨‍🍳"],["listo",T("En camino"),"🍽️"]];
   const idx={pendiente:0,cocina:1,listo:2,servido:3,cerrada:3};
   return `<div class="page"><div class="wrap" style="max-width:560px">
-    <a class="back" href="#/carta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Seguir pidiendo</a>
-    <h1 class="ptitle">Sigue tu pedido</h1>
-    <p class="muted" style="margin-top:0">Se actualiza solo. Te avisamos cuando esté en camino a tu mesa.</p>
+    <a class="back" href="#/carta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> ${T("Seguir pidiendo")}</a>
+    <h1 class="ptitle">${T("Sigue tu pedido")}</h1>
+    <p class="muted" style="margin-top:0">${T("Se actualiza solo. Te avisamos cuando esté en camino a tu mesa.")}</p>
     ${mis.map(mp=>{ const c=all.find(x=>String(x.id)===String(mp.id)); const est=c?c.estado:"pendiente"; const ci=idx[est]==null?0:idx[est]; const done=est==="servido"||est==="cerrada";
       return `<div class="form-card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;font-size:14px;color:var(--muted)"><span>🕐 ${esc(mp.hora)}</span><span>${money(mp.total)}</span></div>
-        ${done?`<div style="text-align:center;padding:14px 0"><div style="font-size:34px">✅</div><b style="font-size:17px;color:var(--green)">¡Servido! Que aproveche</b></div>`:`<div class="track">${STEPS.map((s,i)=>`<div class="tstep ${i<=ci?"on":""} ${i===ci?"now":""}"><div class="tdot">${i<ci?"✓":s[2]}</div><span>${s[1]}</span></div>`).join('<div class="tline"></div>')}</div>`}
+        ${done?`<div style="text-align:center;padding:14px 0"><div style="font-size:34px">✅</div><b style="font-size:17px;color:var(--green)">${T("¡Servido! Que aproveche")}</b></div>`:`<div class="track">${STEPS.map((s,i)=>`<div class="tstep ${i<=ci?"on":""} ${i===ci?"now":""}"><div class="tdot">${i<ci?"✓":s[2]}</div><span>${s[1]}</span></div>`).join('<div class="tline"></div>')}</div>`}
       </div>`; }).join("")}
-    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px"><a class="btn btn-primary" href="#/cuenta">💳 Pedir la cuenta</a><a class="btn btn-ghost" data-action="refreshMis" href="#/mipedido">🔄 Actualizar</a></div>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px"><a class="btn btn-primary" href="#/cuenta">${T("💳 Pedir la cuenta")}</a><a class="btn btn-ghost" data-action="refreshMis" href="#/mipedido">${T("🔄 Actualizar")}</a></div>
   </div></div>`;
 }
 function viewCuenta(){
@@ -2856,26 +2905,43 @@ function viewCuenta(){
   const propina=total*tip/100, conTip=total+propina, porPersona=conTip/n;
   const m=getMesa();
   const g=getSettings().googleReview;
-  const tipChips=[0,5,10].map(t=>`<button class="tipchip${tip===t?" on":""}" data-action="setTip" data-t="${t}" type="button">${t===0?"Sin propina":t+"%"}</button>`).join("")+`<button class="tipchip${![0,5,10].includes(tip)?" on":""}" data-action="setTipCustom" type="button">Otra</button>`;
+  const tipChips=[0,5,10].map(t=>`<button class="tipchip${tip===t?" on":""}" data-action="setTip" data-t="${t}" type="button">${t===0?T("Sin propina"):t+"%"}</button>`).join("")+`<button class="tipchip${![0,5,10].includes(tip)?" on":""}" data-action="setTipCustom" type="button">${T("Otra")}</button>`;
   return `<div class="page"><div class="wrap" style="max-width:520px">
-    <a class="back" href="#/mipedido"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Mi pedido</a>
-    <h1 class="ptitle">Tu cuenta${m?` · Mesa ${esc(m)}`:""}</h1>
-    ${!total?`<div class="empty"><div class="big">🧾</div><b style="color:var(--text)">Aún no hay consumo</b><br><span class="muted">Cuando pidas, aquí verás el total para dividirlo y dejar propina.</span></div>`:`
+    <a class="back" href="#/mipedido"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> ${T("Mi pedido")}</a>
+    <h1 class="ptitle">${T("Tu cuenta")}${m?` · ${T("Mesa")} ${esc(m)}`:""}</h1>
+    ${!total?`<div class="empty"><div class="big">🧾</div><b style="color:var(--text)">${T("Aún no hay consumo")}</b><br><span class="muted">${T("Cuando pidas, aquí verás el total para dividirlo y dejar propina.")}</span></div>`:`
     <div class="form-card">
-      <div class="cuenta-line"><span>Consumo</span><b>${money(total)}</b></div>
-      <div class="cuenta-line"><span>Propina (${tip}%)</span><b>${money(propina)}</b></div>
-      <div class="cuenta-line tot"><span>Total</span><b>${money(conTip)}</b></div>
-      <div style="margin:12px 0 4px;font-weight:800;font-size:14px">Propina</div>
+      <div class="cuenta-line"><span>${T("Consumo")}</span><b>${money(total)}</b></div>
+      <div class="cuenta-line"><span>${T("Propina")} (${tip}%)</span><b>${money(propina)}</b></div>
+      <div class="cuenta-line tot"><span>${T("Total")}</span><b>${money(conTip)}</b></div>
+      <div style="margin:12px 0 4px;font-weight:800;font-size:14px">${T("Propina")}</div>
       <div class="tipchips">${tipChips}</div>
-      <div style="margin:14px 0 4px;font-weight:800;font-size:14px">Dividir entre</div>
-      <div class="splitrow"><button class="rbtn" data-action="personas" data-d="-1" type="button" aria-label="menos">−</button><b style="min-width:40px;text-align:center;font-size:20px">${n}</b><button class="rbtn" data-action="personas" data-d="1" type="button" aria-label="más">+</button><span class="muted" style="margin-left:8px">persona${n>1?"s":""}</span></div>
-      <div class="cuenta-pp">${money(porPersona)} <span>por persona</span></div>
+      <div style="margin:14px 0 4px;font-weight:800;font-size:14px">${T("Dividir entre")}</div>
+      <div class="splitrow"><button class="rbtn" data-action="personas" data-d="-1" type="button" aria-label="menos">−</button><b style="min-width:40px;text-align:center;font-size:20px">${n}</b><button class="rbtn" data-action="personas" data-d="1" type="button" aria-label="más">+</button><span class="muted" style="margin-left:8px">${n>1?T("personas"):T("persona")}</span></div>
+      <div class="cuenta-pp">${money(porPersona)} <span>${T("por persona")}</span></div>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
-      <button class="btn btn-primary btn-block" data-action="pedirCuenta" type="button">🙋 Avisar al camarero que pido la cuenta</button>
-      <p class="note" style="text-align:center;margin:0">El pago se hace en el local (efectivo, tarjeta o Bizum). Esto solo avisa al personal.</p>
-      ${g?`<a class="btn btn-dark btn-block" href="${esc(g)}" target="_blank" rel="noopener">⭐ Déjanos 5★ en Google</a>`:""}
+      <button class="btn btn-primary btn-block" data-action="pedirCuenta" type="button">${T("🙋 Avisar al camarero que pido la cuenta")}</button>
+      <p class="note" style="text-align:center;margin:0">${T("El pago se hace en el local (efectivo, tarjeta o Bizum). Esto solo avisa al personal.")}</p>
+      ${g?`<a class="btn btn-dark btn-block" href="${esc(g)}" target="_blank" rel="noopener">${T("⭐ Déjanos 5★ en Google")}</a>`:""}
     </div>`}
+  </div></div>`;
+}
+function viewSellos(){
+  const f=getFid();
+  if(!f.on) return `<div class="page"><div class="wrap" style="max-width:520px"><a class="back" href="#/carta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> ${T("La carta")}</a><div class="empty"><div class="big">⭐</div><b style="color:var(--text)">${T("El bar aún no tiene programa de sellos.")}</b></div></div></div>`;
+  const S=load("lt_sellos",{d:[],canjeados:0}); const n=Math.max(2,Number(f.n)||8); const have=Math.min(S.d.length,n); const full=S.d.length>=n; const falta=n-have;
+  return `<div class="page"><div class="wrap" style="max-width:520px">
+    <a class="back" href="#/carta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> ${T("La carta")}</a>
+    <h1 class="ptitle">⭐ ${T("Tu tarjeta de sellos")}</h1>
+    <p class="muted" style="margin-top:0">${T("Cada día que pidas, un sello. Al completarla, premio. 🎁")}</p>
+    <div class="form-card sellos-card">
+      <div class="sellos-grid">${Array.from({length:n},(_,i)=>`<div class="sello${i<have?" on":""}">${i<have?"⭐":(i+1)}</div>`).join("")}</div>
+      ${full?`<div class="premio"><div style="font-size:40px">🎁</div><b>${T("¡Tarjeta completa! 🎉")}</b><div class="pq">${esc(f.premio)}</div><p class="muted" style="font-size:13.5px;margin:8px 0 12px">${T("Enséñale esta pantalla al camarero para canjearlo.")}</p><button class="btn btn-primary btn-block" data-action="canjearSello" type="button">${T("✅ Canjear (lo pulsa el camarero)")}</button></div>`
+      :`<p style="text-align:center;font-weight:700;margin:14px 0 4px">${T("Te faltan")} <b style="color:var(--brand-d)">${falta}</b> ${falta===1?T("sello para tu premio"):T("sellos para tu premio")}: <b>${esc(f.premio)}</b></p>`}
+      ${S.canjeados?`<p class="muted" style="text-align:center;font-size:13px;margin:10px 0 0">🏆 ${S.canjeados} ${T("premios canjeados")}</p>`:""}
+    </div>
+    <p class="note" style="text-align:center">${T("Los sellos se guardan en este móvil.")}</p>
   </div></div>`;
 }
 function viewCamarero(){
@@ -2921,6 +2987,7 @@ function render(){
   else if(r==="camarero") html=viewCamarero();
   else if(r==="mipedido") html=viewMiPedido();
   else if(r==="cuenta") html=viewCuenta();
+  else if(r==="sellos") html=viewSellos();
   else if(r==="comanda") html=viewComanda();
   else if(r==="gracias") html=viewGracias();
   else if(r==="legal") html=viewLegal();
@@ -2944,8 +3011,8 @@ function enviarComanda(){
   const finLocal=()=>{ const C=load("lt_comandas",[]); C.push(c); save("lt_comandas",C);
     let msg="*Comanda · Mesa "+m+"*"+(camN?(" · "+camN):"")+"\n\n"; c.items.forEach(i=>{ msg+="• "+i.nombre+" ×"+i.qty+(i.mods?(" ("+i.mods+")"):"")+"\n"; }); msg+="\nTotal: "+money(c.total);
     if(!waOpen(msg)) toast(cam?"Comanda enviada 🔔":"Comanda guardada. Configura tu WhatsApp en Ajustes.");
-    if(!cam) pushMis(c,c.id); RATED=false; setCart([]); location.hash=dest; if(cam)render(); };
-  if(cloudOn()){ api("comandas",{method:"POST",body:JSON.stringify({bar_id:CONFIG.BAR_ID,mesa:String(c.mesa),camarero:camN,dia:c.dia,hora:c.hora,items:c.items,total:c.total,estado:"pendiente"})}).then(rows=>{ if(!cam) pushMis(c,(rows&&rows[0]&&rows[0].id)); RATED=false; setCart([]); location.hash=dest; if(cam)render(); toast("Comanda enviada a la barra 🔔"); }).catch(finLocal); return; }
+    if(!cam){ pushMis(c,c.id); addSello(); } RATED=false; setCart([]); location.hash=dest; if(cam)render(); };
+  if(cloudOn()){ api("comandas",{method:"POST",body:JSON.stringify({bar_id:CONFIG.BAR_ID,mesa:String(c.mesa),camarero:camN,dia:c.dia,hora:c.hora,items:c.items,total:c.total,estado:"pendiente"})}).then(rows=>{ if(!cam){ pushMis(c,(rows&&rows[0]&&rows[0].id)); addSello(); } RATED=false; setCart([]); location.hash=dest; if(cam)render(); toast("Comanda enviada a la barra 🔔"); }).catch(finLocal); return; }
   finLocal();
 }
 
@@ -2956,7 +3023,7 @@ document.addEventListener("click",e=>{
     case "pickMesa": { setMesa(+t2.dataset.n); document.querySelectorAll("#mesaGrid button").forEach(b=>b.setAttribute("aria-pressed",b===t2?"true":"false")); const cta=document.querySelector('[data-action="empezar"]'); if(cta)cta.textContent="Pedir en la mesa "+t2.dataset.n; updateMesaPill(); break; }
     case "empezar": if(!getMesa()){ e.preventDefault(); toast("Elige primero tu mesa 🍽️"); } break;
     case "cambiarMesa": e.preventDefault(); setMesa(null); location.hash="#/"; render(); break;
-    case "add": e.preventDefault(); if(!getMesa()){ toast(getSettings().qrEstricto?"📷 Escanea el QR de tu mesa para pedir":"Elige tu mesa primero"); location.hash="#/"; break; } addQuick(id); toast("Añadido a la comanda 🔔"); render(); break;
+    case "add": e.preventDefault(); if(!getMesa()){ toast(getSettings().qrEstricto?"📷 Escanea el QR de tu mesa para pedir":"Elige tu mesa primero"); location.hash="#/"; break; } addQuick(id); toast(T("Añadido a la comanda 🔔")); render(); break;
     case "dish": openDish(id); break;
     case "closeDish": closeDish(); break;
     case "dquit": { const x=t2.dataset.x; const i=DSEL.quitar.indexOf(x); if(i>=0)DSEL.quitar.splice(i,1); else DSEL.quitar.push(x); renderDish(); break; }
@@ -2992,6 +3059,8 @@ document.addEventListener("click",e=>{
     case "agotarP": { const P=getPlatos(); const p=P.find(x=>x.id===id); if(p)p.agotado=!p.agotado; setPlatos(P); render(); toast(p&&p.agotado?"Marcado agotado 🔴":"Reactivado 🟢"); break; }
     case "exportCaja": { const cell=v=>{ let s=String(v==null?"":v); if(/^[=+\-@\t\r]/.test(s)) s="'"+s; if(/[",;\n]/.test(s)) s='"'+s.replace(/"/g,'""')+'"'; return s; }; const C=comandasAll(); const rows=[["Dia","Hora","Mesa","Camarero","Estado","Articulos","Total"]]; C.forEach(c=>{ rows.push([c.dia,c.hora,c.mesa,c.camarero||"Cliente",ESTLAB[c.estado]||c.estado,(c.items||[]).map(i=>i.nombre+" x"+i.qty).join(" / "),(c.total||0).toFixed(2)]); }); const csv="﻿"+rows.map(r=>r.map(cell).join(";")).join("\n"); const u=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})); const a=document.createElement("a"); a.href=u; a.download="ventas-"+B().nombre.toLowerCase().replace(/[^a-z0-9]+/g,"-")+".csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),1000); toast("CSV descargado ⬇️"); break; }
     case "refreshMis": e.preventDefault(); if(cloudOn()) refreshComandas(render); else render(); toast("Actualizado 🔄"); break;
+    case "lang": LANG=LANG==="es"?"en":"es"; save("lt_lang",LANG); syncLangBtn(); render(); break;
+    case "canjearSello": { if(confirm(LANG==="en"?"Redeem the prize? (the waiter taps this)":"¿Canjear el premio? (esto lo pulsa el camarero)")){ const f=getFid(); const S=load("lt_sellos",{d:[],canjeados:0}); S.d=S.d.slice(Math.max(2,Number(f.n)||8)); S.canjeados=(S.canjeados||0)+1; save("lt_sellos",S); render(); toast("🎁 ✓"); } break; }
     case "setTip": CUENTA.tip=+t2.dataset.t; render(); break;
     case "setTipCustom": { const v=prompt("Propina (%)","12"); if(v!=null){ const p=Math.max(0,Math.min(100,parseFloat(v)||0)); CUENTA.tip=p; render(); } break; }
     case "personas": CUENTA.personas=Math.max(1,CUENTA.personas+(+t2.dataset.d)); render(); break;
@@ -3012,7 +3081,7 @@ document.addEventListener("submit",e=>{
   else if(e.target.id==="camLogin"){ e.preventDefault(); const pin=($("#cpin").value||"").trim(); const cam=(getSettings().camareros||[]).find(x=>String(x.pin)===pin); if(cam){ setCam({id:cam.id,nombre:cam.nombre}); render(); toast("¡Hola, "+cam.nombre+"! 👋"); } else $("#camErr").innerHTML='<div class="alert">PIN incorrecto.</div>'; }
   else if(e.target.id==="camForm"){ e.preventDefault(); const nom=($("#cnom").value||"").trim(), pin=($("#cpin2").value||"").trim(); if(!nom||!pin){ toast("Pon nombre y PIN"); return; } const s=getSettings(); const cams=s.camareros||[]; if(cams.some(x=>String(x.pin)===pin)){ toast("Ese PIN ya está en uso"); return; } cams.push({id:uid(),nombre:nom,pin:pin}); setSettings({camareros:cams}); render(); toast("Camarero añadido ✅"); }
   else if(e.target.id==="mesasForm"){ e.preventDefault(); setSettings({mesas:Math.max(1,parseInt($("#mNum").value,10)||12)}); render(); toast("Mesas guardadas ✅"); }
-  else if(e.target.id==="datosForm"){ e.preventDefault(); setSettings({ bizNombre:$("#dNom").value.trim(), bizWhatsapp:$("#dWa").value.replace(/[^0-9]/g,""), bizCity:$("#dCity").value.trim(), bizEmail:$("#dMail").value.trim(), bizPass:$("#dPass").value.trim(), googleReview:($("#dGoogle")?$("#dGoogle").value.trim():""), qrEstricto: !!($("#dQR")&&$("#dQR").checked) }); const fc=$("#footCity"); if(fc)fc.textContent=B().city; render(); toast("Datos guardados ✅"); }
+  else if(e.target.id==="datosForm"){ e.preventDefault(); setSettings({ bizNombre:$("#dNom").value.trim(), bizWhatsapp:$("#dWa").value.replace(/[^0-9]/g,""), bizCity:$("#dCity").value.trim(), bizEmail:$("#dMail").value.trim(), bizPass:$("#dPass").value.trim(), googleReview:($("#dGoogle")?$("#dGoogle").value.trim():""), qrEstricto: !!($("#dQR")&&$("#dQR").checked), fidelidad:{ on: !!($("#dFid")&&$("#dFid").checked), n: Math.max(2,Math.min(20,parseInt($("#dFidN")&&$("#dFidN").value)||8)), premio: (($("#dFidP")&&$("#dFidP").value.trim())||"Café o postre gratis") } }); const fc=$("#footCity"); if(fc)fc.textContent=B().city; render(); toast("Datos guardados ✅"); }
 });
 function savePlato(){
   const idv=$("#pId").value, file=$("#pImg").files&&$("#pImg").files[0];
@@ -3036,7 +3105,7 @@ function setupPWA(){ const ic=logoURI(); const f=$("#favicon"),ap=$("#appleIcon"
 try{ const q=new URLSearchParams(location.search); const mz=q.get("mesa"); if(mz&&/^\d+$/.test(mz)) setMesa(+mz); }catch(e){}
 $("#year").textContent=new Date().getFullYear();
 $("#footCity").textContent=B().city;
-getPlatos(); applyLogo(); setupPWA(); render();
+getPlatos(); applyLogo(); setupPWA(); syncLangBtn(); render();
 </script>
 
 <script type="application/json" id="acceptance-tests">
@@ -3052,7 +3121,8 @@ getPlatos(); applyLogo(); setupPWA(); render();
   { "name": "El acceso de camareros pide PIN", "steps": [ { "goto": "/camarero" }, { "expectVisible": "#camLogin" } ] },
   { "name": "Seguir mi pedido funciona", "steps": [ { "goto": "/" }, { "click": "[data-action=\"pickMesa\"][data-n=\"2\"]" }, { "goto": "/carta" }, { "click": "[data-action=\"add\"]" }, { "goto": "/comanda" }, { "click": "[data-action=\"enviarComanda\"]" }, { "goto": "/mipedido" }, { "expectVisible": ".track" } ] },
   { "name": "El panel de caja muestra las ventas", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"caja\"]" }, { "expectVisible": ".caja-kpis" } ] },
-  { "name": "Dividir cuenta y propina funciona", "steps": [ { "goto": "/" }, { "click": "[data-action=\"pickMesa\"][data-n=\"4\"]" }, { "goto": "/carta" }, { "click": "[data-action=\"add\"]" }, { "goto": "/comanda" }, { "click": "[data-action=\"enviarComanda\"]" }, { "goto": "/cuenta" }, { "expectVisible": ".cuenta-pp" }, { "click": "[data-action=\"personas\"][data-d=\"1\"]" }, { "click": "[data-action=\"setTip\"][data-t=\"10\"]" }, { "expectVisible": ".tipchip.on" } ] }
+  { "name": "Dividir cuenta y propina funciona", "steps": [ { "goto": "/" }, { "click": "[data-action=\"pickMesa\"][data-n=\"4\"]" }, { "goto": "/carta" }, { "click": "[data-action=\"add\"]" }, { "goto": "/comanda" }, { "click": "[data-action=\"enviarComanda\"]" }, { "goto": "/cuenta" }, { "expectVisible": ".cuenta-pp" }, { "click": "[data-action=\"personas\"][data-d=\"1\"]" }, { "click": "[data-action=\"setTip\"][data-t=\"10\"]" }, { "expectVisible": ".tipchip.on" } ] },
+  { "name": "La tarjeta de sellos funciona", "steps": [ { "goto": "/sellos" }, { "expectVisible": ".sellos-grid" } ] }
 ]
 </script>
 </body>

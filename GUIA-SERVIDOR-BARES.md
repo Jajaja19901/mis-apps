@@ -84,6 +84,32 @@ Cliente escanea QR de su mesa → pide desde SU móvil → comanda a la base de 
 - **50 €/mes** (hosting, base de datos, soporte y cambios de carta).
 - Coste para ti: Supabase gratis hasta mucho volumen; Netlify gratis. **Margen ≈ todo.**
 
+## 🧾 Cómo convive con el TPV del bar (argumento de venta)
+
+**La app toma comandas. El TPV del bar cobra.** No se pisan ni hace falta integrarlos:
+
+```
+Mesa con QR ──┐
+              ├──→ Pantalla de barra (la app) ──→ se sirve
+Camarero ─────┘                                      │
+                                                     ▼
+                                El bar COBRA con SU TPV de siempre
+```
+
+- El cobro, el ticket y la factura los hace **su sistema de siempre**. La app solo
+  enseña el total de cada mesa para cuadrar.
+- **VeriFactu / Ley Antifraude:** el software que emite tickets debe estar
+  certificado en España. Como esta app **no cobra ni factura**, no le aplica.
+  Frase para vender: *"no sustituye tu TPV, lo alimenta"*.
+- **¿Y quien no use la app?** El camarero toma nota con el **modo camarero**
+  (#/camarero, su PIN) y la comanda entra igual en barra; o esa mesa funciona a la
+  vieja usanza y solo existe en el TPV. El cartelito QR debe decir:
+  *"Escanea y pide — o llama al camarero, como prefieras"*.
+- **Integración real con TPVs** (Glop, Ágora, Revo…): la mayoría son cerrados; los
+  que tienen API exigen servidor intermedio. No compensa hasta tener decenas de
+  bares. En el día a día, el camarero teclea la comanda en su TPV al cobrar (10 s)
+  o cobra solo el total.
+
 ## Notas honestas
 - La política de la base de datos es abierta con la anon key (suficiente para
   empezar: una comanda no lleva datos sensibles). Cuando tengas decenas de bares,
