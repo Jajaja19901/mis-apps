@@ -27,6 +27,14 @@ alter table comandas enable row level security;
 create policy "acceso comandas" on comandas for all using (true) with check (true);
 create index comandas_bar on comandas (bar_id, estado);
 
+create table cartas (
+  bar_id text primary key,
+  platos jsonb,
+  updated_at timestamptz default now()
+);
+alter table cartas enable row level security;
+create policy "acceso cartas" on cartas for all using (true) with check (true);
+
 create table valoraciones (
   id bigint generated always as identity primary key,
   bar_id text, n int, dia text,
@@ -58,6 +66,11 @@ BAR_ID:"tasca-centro-1"                     // ÚNICO por bar (cambia en cada cl
 > `tasca-maria-2`.
 
 Si los 3 campos están vacíos, la app funciona como siempre (WhatsApp). No rompe nada.
+
+> 🍽️ **La carta también viaja por la nube:** cuando el dueño guarda un plato, cambia
+> un precio o marca un "agotado" en su panel, se sube a la base de datos y **los móviles
+> de los clientes la bajan solos** (al abrir la app y al entrar en la carta). Sin nube,
+> la carta solo vive en cada aparato.
 
 ---
 

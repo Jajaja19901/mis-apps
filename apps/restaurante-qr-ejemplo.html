@@ -210,6 +210,12 @@ button.mchip.ocupada{background:var(--brand);border-color:var(--brand);color:#ff
 .sello.on{border:2px solid var(--brand);background:#fff;font-size:24px;box-shadow:var(--sh-sm)}
 .premio{text-align:center;margin-top:14px;padding:14px;border-radius:14px;background:var(--soft);border:1.5px solid var(--brand)}
 .premio .pq{font-size:20px;font-weight:900;color:var(--brand-d);margin-top:4px}
+.kban{background:#fdf2e3;border:1.5px solid #e7c9a0;border-radius:12px;padding:10px 14px;font-size:14px;margin-bottom:14px;color:#7a4d09}
+.algfil{margin:0 0 14px}
+.algfil summary{cursor:pointer;font-weight:800;font-size:13.5px;color:var(--muted);padding:6px 0;user-select:none}
+.algrow{display:flex;flex-wrap:wrap;gap:8px;padding:8px 0 2px}
+.algopt2{border:1.5px solid var(--line-2);background:#fff;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700;cursor:pointer;color:var(--text)}
+.algopt2[aria-pressed="true"]{background:var(--char);border-color:var(--char);color:#fff}
 .dish .pers{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--brand-d);font-weight:700;background:var(--soft);border-radius:6px;padding:2px 7px;margin-top:4px}
 .qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
 .qrbox{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center;box-shadow:var(--sh-sm)}
@@ -2589,7 +2595,7 @@ function applyLogo(){ ["brandLogo","footLogo"].forEach(id=>{ const el=document.g
 function qrSvg(text){ try{ const q=qrcode(0,"M"); q.addData(text); q.make(); return q.createSvgTag({cellSize:4,margin:2,scalable:true}); }catch(e){ return '<span class="muted" style="font-size:11px">QR n/d</span>'; } }
 
 function B(){ const s=load("lt_settings",{})||{}; return { nombre:s.bizNombre||CONFIG.BUSINESS_NAME, city:s.bizCity||CONFIG.CITY, whatsapp:(s.bizWhatsapp!=null?s.bizWhatsapp:CONFIG.WHATSAPP), email:s.bizEmail||CONFIG.EMAIL, pass:s.bizPass||CONFIG.ADMIN_PASSWORD, mesas:Number(s.mesas)||12 }; }
-function getSettings(){ return Object.assign({bizNombre:CONFIG.BUSINESS_NAME,bizCity:CONFIG.CITY,bizWhatsapp:CONFIG.WHATSAPP,bizEmail:CONFIG.EMAIL,bizPass:CONFIG.ADMIN_PASSWORD,mesas:12,logo:null,qrEstricto:false,googleReview:"",camareros:[]}, load("lt_settings",{})); }
+function getSettings(){ return Object.assign({bizNombre:CONFIG.BUSINESS_NAME,bizCity:CONFIG.CITY,bizWhatsapp:CONFIG.WHATSAPP,bizEmail:CONFIG.EMAIL,bizPass:CONFIG.ADMIN_PASSWORD,mesas:12,logo:null,qrEstricto:false,googleReview:"",horario:"",camareros:[]}, load("lt_settings",{})); }
 function setSettings(o){ save("lt_settings",Object.assign(getSettings(),o)); }
 
 /* mesa actual */
@@ -2622,7 +2628,12 @@ const SEED=[
   {cat:"Postres",nombre:"Torrija caramelizada",desc:"Con helado de vainilla.",precio:5.00,emoji:"🍮",al:["gluten","lactosa","huevo"]}
 ];
 function getPlatos(){ let p=load("lt_platos",null); if(!p){ p=SEED.map(x=>({id:uid(),activo:true,img:null,...x})); save("lt_platos",p); } return p; }
-function setPlatos(p){ save("lt_platos",p); }
+function setPlatos(p){ save("lt_platos",p); pushCarta(p); }
+/* ── Carta en la nube: el panel la sube; los móviles de los clientes la bajan ── */
+let CARTA_TS=0;
+function pushCarta(p){ if(!cloudOn()||!ADMIN_OK) return; api("cartas?on_conflict=bar_id",{method:"POST",headers:{"Prefer":"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({bar_id:CONFIG.BAR_ID,platos:p,updated_at:new Date().toISOString()})}).catch(()=>toast("⚠ Sin nube: la carta se guardó solo en este aparato")); }
+function pullCarta(then){ if(!cloudOn()||ADMIN_OK){ if(then)then(); return; } if(Date.now()-CARTA_TS<60000){ if(then)then(); return; } CARTA_TS=Date.now();
+  api("cartas?bar_id=eq."+encodeURIComponent(CONFIG.BAR_ID)+"&select=platos").then(rows=>{ if(rows&&rows[0]&&Array.isArray(rows[0].platos)&&rows[0].platos.length) save("lt_platos",rows[0].platos); if(then)then(); }).catch(()=>{ if(then)then(); }); }
 
 /* comanda en curso (lo que el cliente va pidiendo en su mesa) */
 function getCart(){ const c=load("lt_cart",[]); return Array.isArray(c)?c:[]; }
@@ -2644,6 +2655,7 @@ function phHTML(p){ return p.img?`<img src="${esc(p.img)}" alt="${esc(p.nombre)}
 
 let FILTER="Para picar"; let RATED=false;
 let CUENTA={personas:1,tip:0};
+let ALGOFF=load("lt_algoff",[]);
 /* ── Idiomas: el interfaz del cliente en ES/EN. Los platos quedan como los escribió el bar. ── */
 let LANG=load("lt_lang","es");
 const TREN={
@@ -2677,10 +2689,25 @@ const TREN={
   "✅ Canjear (lo pulsa el camarero)":"✅ Redeem (waiter taps this)","Los sellos se guardan en este móvil.":"Stamps are stored on this phone.",
   "Te faltan":"You need","sellos para tu premio":"more stamps for your prize","sello para tu premio":"more stamp for your prize",
   "El bar aún no tiene programa de sellos.":"This venue has no stamp program yet.","⭐ +1 sello en tu tarjeta":"⭐ +1 stamp on your card",
-  "Añadido a la comanda 🔔":"Added to your order 🔔","premios canjeados":"prizes redeemed"
+  "Añadido a la comanda 🔔":"Added to your order 🔔","premios canjeados":"prizes redeemed",
+  "Cocina cerrada ahora":"Kitchen closed right now","Abre a las":"Opens at","Puedes mirar la carta y pedir cuando abra.":"You can browse the menu and order when it opens.",
+  "⏰ La cocina abre a las":"⏰ The kitchen opens at","mañana":"tomorrow",
+  "Evitar alérgenos":"Avoid allergens","Según lo marcado por el local.":"Based on what the venue marked.","platos ocultos por tu filtro de alérgenos":"dishes hidden by your allergen filter"
 };
 function T(s){ return (LANG==="en"&&TREN[s])||s; }
 function syncLangBtn(){ const b=$("#langBtn"); if(b) b.textContent=LANG==="es"?"EN":"ES"; try{ document.documentElement.lang=LANG; }catch(e){} }
+/* ── Horario de cocina: vacío = siempre abierta. Formato "13:00-16:00, 20:00-23:30" ── */
+function cocinaInfo(){
+  const h=(getSettings().horario||"").trim(); if(!h) return {open:true};
+  const now=new Date(); const cur=now.getHours()*60+now.getMinutes();
+  const fmt=mn=>String(Math.floor(mn/60)).padStart(2,"0")+":"+String(mn%60).padStart(2,"0");
+  const ranges=h.split(",").map(s=>s.trim()).filter(Boolean).map(r=>{ const m=r.match(/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/); return m?[(+m[1])*60+(+m[2]),(+m[3])*60+(+m[4])]:null; }).filter(Boolean);
+  if(!ranges.length) return {open:true};
+  for(const r of ranges){ if(cur>=r[0]&&cur<r[1]) return {open:true}; }
+  const nexts=ranges.map(r=>r[0]).filter(a=>a>cur).sort((a,b)=>a-b);
+  return {open:false, next: nexts.length?fmt(nexts[0]):(fmt(Math.min(...ranges.map(r=>r[0])))+" ("+T("mañana")+")")};
+}
+function puedePedir(){ if(getCam()) return true; const k=cocinaInfo(); if(!k.open){ toast(T("⏰ La cocina abre a las")+" "+k.next); return false; } return true; }
 /* ── Fidelización: un sello por día con comanda; tarjeta llena = premio ── */
 function getFid(){ const f=getSettings().fidelidad; return Object.assign({on:false,n:8,premio:"Café o postre gratis"},f||{}); }
 function addSello(){ const f=getFid(); if(!f.on) return; const hoy=new Date().toISOString().slice(0,10); const S=load("lt_sellos",{d:[],canjeados:0}); if(S.d.includes(hoy)) return; S.d.push(hoy); save("lt_sellos",S); setTimeout(()=>toast(T("⭐ +1 sello en tu tarjeta")),900); }
@@ -2712,20 +2739,23 @@ function viewCarta(){
   return `<div class="page"><div class="wrap">
     <a class="back" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> ${T("Inicio")}</a>
     ${(function(){ const cam=getCam(); const est=getSettings().qrEstricto; if(cam&&m) return `<div class="mbanner" style="background:#fdeede;border-color:#e7c9a0">👤 <b>${esc(cam.nombre)}</b> · ${T("Mesa")} <b>${esc(m)}</b><a href="#/camarero">cambiar</a></div>`; if(m) return `<div class="mbanner">🍽️ ${T("Estás pidiendo en la")} <b>${T("Mesa")} ${esc(m)}</b>${est?"":`<a href="#/" data-action="cambiarMesa">${T("cambiar mesa")}</a>`}</div>`; return est?`<div class="mbanner">📷 Escanea el QR de tu mesa para pedir<a href="#/">cómo</a></div>`:`<div class="mbanner">${T("Elige tu mesa para pedir")}<a href="#/">${T("elegir")}</a></div>`; })()}
+    ${(function(){ const k=cocinaInfo(); return k.open?"":`<div class="kban">⏰ <b>${T("Cocina cerrada ahora")}.</b> ${T("Abre a las")} <b>${esc(k.next)}</b>. ${T("Puedes mirar la carta y pedir cuando abra.")}</div>`; })()}
     ${recoHTML(P)}
     <div class="sec-head"><span class="eyebrow">${T("La carta")}</span><h2>${T("Elige y añade a tu comanda")}</h2></div>
     <div class="chips" id="chips">${CATS.map(c=>`<button class="chip" data-cat="${esc(c)}" aria-pressed="${FILTER===c}" type="button">${esc(c)}</button>`).join("")}</div>
+    <details class="algfil"${ALGOFF.length?" open":""}><summary>🚫 ${T("Evitar alérgenos")}${ALGOFF.length?` <b>(${ALGOFF.length})</b>`:""}</summary><div class="algrow">${Object.keys(ALG).map(k=>`<button class="algopt2" data-action="algTog" data-k="${k}" aria-pressed="${ALGOFF.includes(k)}" type="button">${ALGOFF.includes(k)?"✓ ":""}${esc(ALG[k])}</button>`).join("")}<p class="note" style="flex-basis:100%;margin:6px 0 0">${T("Según lo marcado por el local.")}</p></div></details>
     <div class="menu-list" id="grid">${gridHTML(P)}</div>
     <p class="alg-ley">${T("Alérgenos")}: ${Object.values(ALG).join(" · ")}</p>
   </div></div>
   ${barFix()}`;
 }
-function gridHTML(P){ const l=P.filter(p=>p.cat===FILTER); return l.length?l.map(dishHTML).join(""):`<p class="muted" style="grid-column:1/-1">${T("Nada por aquí.")}</p>`; }
+function gridHTML(P){ let l=P.filter(p=>p.cat===FILTER); const pre=l.length; if(ALGOFF.length) l=l.filter(p=>!(p.al||[]).some(k=>ALGOFF.includes(k))); const hid=pre-l.length;
+  return (l.length?l.map(dishHTML).join(""):`<p class="muted" style="grid-column:1/-1">${T("Nada por aquí.")}</p>`)+(hid?`<p class="muted" style="grid-column:1/-1;font-size:13px">🚫 ${hid} ${T("platos ocultos por tu filtro de alérgenos")}</p>`:""); }
 function rerenderGrid(){ const g=$("#grid"); if(g) g.innerHTML=gridHTML(getPlatos().filter(p=>p.activo!==false)); }
 function barFix(){ const n=cartCount(); if(!n) return ""; const hasBeb=cartItems().some(i=>i.cat==="Bebidas"); const sug=hasBeb?"":`<button class="sug" data-action="goBebidas" type="button">🍺 ${T("¿Y de beber?")}</button>`; return `<div class="barfix"><div class="in"><div><b>${money(cartTotal())}</b> <span class="muted" style="font-size:13px">· ${n} ${T("art.")}</span>${sug}</div><a class="btn btn-primary" href="#/comanda">${T("Ver mi comanda →")}</a></div></div>`; }
 
 let DSEL=null;
-function openDish(pid){ const p=getPlatos().find(x=>x.id===pid); if(!p){ return; } if(p.agotado){ toast("Ese plato está agotado 😕"); return; } if(!getMesa()){ toast(getSettings().qrEstricto?"📷 Escanea el QR de tu mesa":"Elige tu mesa primero"); location.hash="#/"; return; }
+function openDish(pid){ const p=getPlatos().find(x=>x.id===pid); if(!p){ return; } if(p.agotado){ toast("Ese plato está agotado 😕"); return; } if(!puedePedir()) return; if(!getMesa()){ toast(getSettings().qrEstricto?"📷 Escanea el QR de tu mesa":"Elige tu mesa primero"); location.hash="#/"; return; }
   DSEL={pid:pid, qty:1, quitar:[], elige:defaultElige(p), extras:[], nota:""}; renderDish(); $("#ov").classList.add("show"); document.body.style.overflow="hidden"; }
 function closeDish(){ $("#ov").classList.remove("show"); document.body.style.overflow=""; DSEL=null; }
 function renderDish(){ if(!DSEL) return; const p=getPlatos().find(x=>x.id===DSEL.pid); if(!p) return; const m=p.mods||{};
@@ -2875,6 +2905,7 @@ function admAjustes(){
     <div class="field"><label for="dCity">Ciudad</label><input id="dCity" type="text" value="${esc(b.city)}"></div>
     <div class="field"><label for="dMail">Email</label><input id="dMail" type="email" value="${esc(b.email)}"></div>
     <div class="field"><label for="dPass">Contraseña del panel</label><input id="dPass" type="text" value="${esc(b.pass)}"></div>
+    <div class="field"><label for="dHor">Horario de cocina (vacío = siempre abierta)</label><input id="dHor" type="text" value="${esc(s.horario||"")}" placeholder="13:00-16:00, 20:00-23:30"><p class="note">Fuera del horario, el cliente ve la carta pero no puede enviar comandas (le sale a qué hora abrís). Los camareros pueden pedir siempre.</p></div>
     <div class="field"><label for="dGoogle">Enlace de reseñas de Google (opcional)</label><input id="dGoogle" type="url" value="${esc(s.googleReview||"")}" placeholder="https://g.page/r/..."><p class="note">Al terminar, el cliente verá un botón "Déjanos 5★ en Google". Cópialo desde tu ficha de Google → Pedir reseñas.</p></div>
     ${(function(){ const f=getFid(); return `<label class="consent" style="background:var(--soft)"><input type="checkbox" id="dFid" ${f.on?"checked":""}> ⭐ <b>Programa de sellos:</b> un sello por día que el cliente pide; tarjeta llena = premio.</label>
     <div style="display:flex;gap:12px;flex-wrap:wrap"><div class="field" style="flex:1;min-width:110px"><label for="dFidN">Sellos para premio</label><input id="dFidN" type="number" min="2" max="20" value="${esc(f.n)}"></div><div class="field" style="flex:2;min-width:160px"><label for="dFidP">El premio</label><input id="dFidP" type="text" value="${esc(f.premio)}" placeholder="Ej. Café o postre gratis"></div></div>`; })()}
@@ -2994,6 +3025,7 @@ function render(){
   else if(r==="admin") html=viewAdmin();
   else html=viewHome();
   $("#app").innerHTML=html; window.scrollTo(0,0); refreshCart();
+  if(r==="carta") pullCarta(()=>rerenderGrid());
   if(cloudOn()&&!CTRIED&&(ADMIN_OK||BARRA_OK)&&((location.hash||"").indexOf("admin")!==-1||(location.hash||"").indexOf("barra")!==-1)){ CTRIED=true; refreshComandas(()=>render()); }
 }
 window.addEventListener("hashchange",render);
@@ -3004,6 +3036,7 @@ document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeDish(); });
 function telWa(t){ let d=String(t||"").replace(/[^0-9]/g,""); if(d.indexOf("00")===0)d=d.slice(2); if(d.length===9)d="34"+d; return d; }
 function waOpen(msg){ const num=B().whatsapp; if(num){ try{ window.open("https://wa.me/"+num+"?text="+encodeURIComponent(msg),"_blank","noopener"); }catch(e){} return true; } return false; }
 function enviarComanda(){
+  if(!puedePedir()) return;
   const items=cartItems(); if(!items.length) return; const m=getMesa()||"-";
   const cam=getCam(); const camN=cam?cam.nombre:"";
   const dest=cam?"#/camarero":"#/gracias";
@@ -3023,7 +3056,7 @@ document.addEventListener("click",e=>{
     case "pickMesa": { setMesa(+t2.dataset.n); document.querySelectorAll("#mesaGrid button").forEach(b=>b.setAttribute("aria-pressed",b===t2?"true":"false")); const cta=document.querySelector('[data-action="empezar"]'); if(cta)cta.textContent="Pedir en la mesa "+t2.dataset.n; updateMesaPill(); break; }
     case "empezar": if(!getMesa()){ e.preventDefault(); toast("Elige primero tu mesa 🍽️"); } break;
     case "cambiarMesa": e.preventDefault(); setMesa(null); location.hash="#/"; render(); break;
-    case "add": e.preventDefault(); if(!getMesa()){ toast(getSettings().qrEstricto?"📷 Escanea el QR de tu mesa para pedir":"Elige tu mesa primero"); location.hash="#/"; break; } addQuick(id); toast(T("Añadido a la comanda 🔔")); render(); break;
+    case "add": e.preventDefault(); if(!getMesa()){ toast(getSettings().qrEstricto?"📷 Escanea el QR de tu mesa para pedir":"Elige tu mesa primero"); location.hash="#/"; break; } if(!puedePedir()) break; addQuick(id); toast(T("Añadido a la comanda 🔔")); render(); break;
     case "dish": openDish(id); break;
     case "closeDish": closeDish(); break;
     case "dquit": { const x=t2.dataset.x; const i=DSEL.quitar.indexOf(x); if(i>=0)DSEL.quitar.splice(i,1); else DSEL.quitar.push(x); renderDish(); break; }
@@ -3060,6 +3093,7 @@ document.addEventListener("click",e=>{
     case "exportCaja": { const cell=v=>{ let s=String(v==null?"":v); if(/^[=+\-@\t\r]/.test(s)) s="'"+s; if(/[",;\n]/.test(s)) s='"'+s.replace(/"/g,'""')+'"'; return s; }; const C=comandasAll(); const rows=[["Dia","Hora","Mesa","Camarero","Estado","Articulos","Total"]]; C.forEach(c=>{ rows.push([c.dia,c.hora,c.mesa,c.camarero||"Cliente",ESTLAB[c.estado]||c.estado,(c.items||[]).map(i=>i.nombre+" x"+i.qty).join(" / "),(c.total||0).toFixed(2)]); }); const csv="﻿"+rows.map(r=>r.map(cell).join(";")).join("\n"); const u=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})); const a=document.createElement("a"); a.href=u; a.download="ventas-"+B().nombre.toLowerCase().replace(/[^a-z0-9]+/g,"-")+".csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),1000); toast("CSV descargado ⬇️"); break; }
     case "refreshMis": e.preventDefault(); if(cloudOn()) refreshComandas(render); else render(); toast("Actualizado 🔄"); break;
     case "lang": LANG=LANG==="es"?"en":"es"; save("lt_lang",LANG); syncLangBtn(); render(); break;
+    case "algTog": { const k=t2.dataset.k; ALGOFF=ALGOFF.includes(k)?ALGOFF.filter(x=>x!==k):ALGOFF.concat([k]); save("lt_algoff",ALGOFF); render(); break; }
     case "canjearSello": { if(confirm(LANG==="en"?"Redeem the prize? (the waiter taps this)":"¿Canjear el premio? (esto lo pulsa el camarero)")){ const f=getFid(); const S=load("lt_sellos",{d:[],canjeados:0}); S.d=S.d.slice(Math.max(2,Number(f.n)||8)); S.canjeados=(S.canjeados||0)+1; save("lt_sellos",S); render(); toast("🎁 ✓"); } break; }
     case "setTip": CUENTA.tip=+t2.dataset.t; render(); break;
     case "setTipCustom": { const v=prompt("Propina (%)","12"); if(v!=null){ const p=Math.max(0,Math.min(100,parseFloat(v)||0)); CUENTA.tip=p; render(); } break; }
@@ -3084,7 +3118,7 @@ document.addEventListener("submit",e=>{
   else if(e.target.id==="camLogin"){ e.preventDefault(); const pin=($("#cpin").value||"").trim(); const cam=(getSettings().camareros||[]).find(x=>String(x.pin)===pin); if(cam){ setCam({id:cam.id,nombre:cam.nombre}); render(); toast("¡Hola, "+cam.nombre+"! 👋"); } else $("#camErr").innerHTML='<div class="alert">PIN incorrecto.</div>'; }
   else if(e.target.id==="camForm"){ e.preventDefault(); const nom=($("#cnom").value||"").trim(), pin=($("#cpin2").value||"").trim(); if(!nom||!pin){ toast("Pon nombre y PIN"); return; } const s=getSettings(); const cams=s.camareros||[]; if(cams.some(x=>String(x.pin)===pin)){ toast("Ese PIN ya está en uso"); return; } cams.push({id:uid(),nombre:nom,pin:pin}); setSettings({camareros:cams}); render(); toast("Camarero añadido ✅"); }
   else if(e.target.id==="mesasForm"){ e.preventDefault(); setSettings({mesas:Math.max(1,parseInt($("#mNum").value,10)||12)}); render(); toast("Mesas guardadas ✅"); }
-  else if(e.target.id==="datosForm"){ e.preventDefault(); setSettings({ bizNombre:$("#dNom").value.trim(), bizWhatsapp:$("#dWa").value.replace(/[^0-9]/g,""), bizCity:$("#dCity").value.trim(), bizEmail:$("#dMail").value.trim(), bizPass:$("#dPass").value.trim(), googleReview:($("#dGoogle")?$("#dGoogle").value.trim():""), qrEstricto: !!($("#dQR")&&$("#dQR").checked), fidelidad:{ on: !!($("#dFid")&&$("#dFid").checked), n: Math.max(2,Math.min(20,parseInt($("#dFidN")&&$("#dFidN").value)||8)), premio: (($("#dFidP")&&$("#dFidP").value.trim())||"Café o postre gratis") } }); const fc=$("#footCity"); if(fc)fc.textContent=B().city; render(); toast("Datos guardados ✅"); }
+  else if(e.target.id==="datosForm"){ e.preventDefault(); setSettings({ bizNombre:$("#dNom").value.trim(), bizWhatsapp:$("#dWa").value.replace(/[^0-9]/g,""), bizCity:$("#dCity").value.trim(), bizEmail:$("#dMail").value.trim(), bizPass:$("#dPass").value.trim(), horario:($("#dHor")?$("#dHor").value.trim():""), googleReview:($("#dGoogle")?$("#dGoogle").value.trim():""), qrEstricto: !!($("#dQR")&&$("#dQR").checked), fidelidad:{ on: !!($("#dFid")&&$("#dFid").checked), n: Math.max(2,Math.min(20,parseInt($("#dFidN")&&$("#dFidN").value)||8)), premio: (($("#dFidP")&&$("#dFidP").value.trim())||"Café o postre gratis") } }); const fc=$("#footCity"); if(fc)fc.textContent=B().city; render(); toast("Datos guardados ✅"); }
 });
 function savePlato(){
   const idv=$("#pId").value, file=$("#pImg").files&&$("#pImg").files[0];
@@ -3108,7 +3142,7 @@ function setupPWA(){ const ic=logoURI(); const f=$("#favicon"),ap=$("#appleIcon"
 try{ const q=new URLSearchParams(location.search); const mz=q.get("mesa"); if(mz&&/^\d+$/.test(mz)) setMesa(+mz); }catch(e){}
 $("#year").textContent=new Date().getFullYear();
 $("#footCity").textContent=B().city;
-getPlatos(); applyLogo(); setupPWA(); syncLangBtn(); render();
+getPlatos(); applyLogo(); setupPWA(); syncLangBtn(); render(); pullCarta(()=>render());
 </script>
 
 <script type="application/json" id="acceptance-tests">
@@ -3126,7 +3160,9 @@ getPlatos(); applyLogo(); setupPWA(); syncLangBtn(); render();
   { "name": "El panel de caja muestra las ventas", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"caja\"]" }, { "expectVisible": ".caja-kpis" } ] },
   { "name": "Dividir cuenta y propina funciona", "steps": [ { "goto": "/" }, { "click": "[data-action=\"pickMesa\"][data-n=\"4\"]" }, { "goto": "/carta" }, { "click": "[data-action=\"add\"]" }, { "goto": "/comanda" }, { "click": "[data-action=\"enviarComanda\"]" }, { "goto": "/cuenta" }, { "expectVisible": ".cuenta-pp" }, { "click": "[data-action=\"personas\"][data-d=\"1\"]" }, { "click": "[data-action=\"setTip\"][data-t=\"10\"]" }, { "expectVisible": ".tipchip.on" } ] },
   { "name": "El local activa los sellos y el cliente ve su tarjeta", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"ajustes\"]" }, { "click": "#dFid" }, { "submit": "#datosForm" }, { "goto": "/sellos" }, { "expectVisible": ".sellos-grid" } ] },
-  { "name": "El PIN de camarero abre la barra pero no el panel", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"cam\"]" }, { "fill": { "sel": "#cnom", "value": "Marta" } }, { "fill": { "sel": "#cpin2", "value": "4321" } }, { "submit": "#camForm" }, { "click": "[data-action=\"logout\"]" }, { "goto": "/barra" }, { "fill": { "sel": "#apass", "value": "4321" } }, { "submit": "#adminLogin" }, { "expectVisible": ".mesas-board" } ] }
+  { "name": "El PIN de camarero abre la barra pero no el panel", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"cam\"]" }, { "fill": { "sel": "#cnom", "value": "Marta" } }, { "fill": { "sel": "#cpin2", "value": "4321" } }, { "submit": "#camForm" }, { "click": "[data-action=\"logout\"]" }, { "goto": "/barra" }, { "fill": { "sel": "#apass", "value": "4321" } }, { "submit": "#adminLogin" }, { "expectVisible": ".mesas-board" } ] },
+  { "name": "El filtro de alérgenos oculta platos", "steps": [ { "goto": "/carta" }, { "click": ".algfil summary" }, { "click": "[data-action=\"algTog\"][data-k=\"lactosa\"]" }, { "expectVisible": ".algopt2[aria-pressed=\"true\"]" }, { "click": "[data-action=\"algTog\"][data-k=\"lactosa\"]" } ] },
+  { "name": "Fuera de horario la cocina avisa de cuándo abre", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"ajustes\"]" }, { "fill": { "sel": "#dHor", "value": "00:00-00:01" } }, { "submit": "#datosForm" }, { "goto": "/carta" }, { "expectVisible": ".kban" }, { "goto": "/admin" }, { "click": "[data-tab=\"ajustes\"]" }, { "fill": { "sel": "#dHor", "value": "" } }, { "submit": "#datosForm" } ] }
 ]
 </script>
 </body>
