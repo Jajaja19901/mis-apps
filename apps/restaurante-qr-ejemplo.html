@@ -252,7 +252,7 @@ footer a:hover{color:#fff}
 </head>
 <body>
 <header class="top"><div class="wrap nav">
-  <a class="brand" href="#/" aria-label="La Tasca, inicio"><span class="logo" id="brandLogo"></span><span>La Tasca<span class="tag">Pide desde tu mesa</span></span></a>
+  <a class="brand" href="#/" aria-label="Inicio"><span class="logo" id="brandLogo"></span><span><span id="brandName">La Tasca</span><span class="tag">Pide desde tu mesa</span></span></a>
   <div class="nav-sp"></div>
   <span class="mesa-pill" id="mesaPill" style="display:none"></span>
   <button class="icon-btn lang-btn" id="langBtn" data-action="lang" aria-label="Cambiar idioma / Change language" type="button">EN</button>
@@ -262,10 +262,10 @@ footer a:hover{color:#fff}
 <main id="app" role="main"></main>
 
 <footer><div class="wrap"><div class="footwrap">
-  <div><span class="brand" style="display:inline-flex;align-items:center;gap:10px;font-weight:900;font-size:19px"><span class="logo" id="footLogo" style="width:36px;height:36px"></span> La Tasca</span><p class="desc">Escanea, pide y disfruta. Tu comanda llega directa a la barra, sin esperar al camarero.</p></div>
+  <div><span class="brand" style="display:inline-flex;align-items:center;gap:10px;font-weight:900;font-size:19px"><span class="logo" id="footLogo" style="width:36px;height:36px"></span> <span id="footName">La Tasca</span></span><p class="desc">Escanea, pide y disfruta. Tu comanda llega directa a la barra, sin esperar al camarero.</p></div>
   <div style="font-size:14px"><a href="#/legal">Privacidad y aviso legal</a><br><a href="#/camarero">Acceso camareros</a><br><a href="#/admin" style="color:#857f74">Acceso del dueño</a></div>
 </div>
-<div class="fbottom"><span>© <span id="year"></span> La Tasca · <span id="footCity">[Tu ciudad]</span></span><span class="studio">Diseñado por <a href="#/" data-action="studio">Incuba tu Negocio</a> · por Jaime M. M.</span></div>
+<div class="fbottom"><span>© <span id="year"></span> <span id="footName2">La Tasca</span> · <span id="footCity">[Tu ciudad]</span></span><span class="studio">Diseñado por <a href="#/" data-action="studio">Incuba tu Negocio</a> · por Jaime M. M.</span></div>
 </div></footer>
 
 <div class="ov" id="ov" role="dialog" aria-modal="true" aria-label="Personalizar"><div class="ovsheet" id="ovsheet"></div></div>
@@ -2575,11 +2575,15 @@ var qrcode = function() {
 <script>
 "use strict";
 const CONFIG={ BUSINESS_NAME:"La Tasca", CITY:"[Tu ciudad]", WHATSAPP:"", EMAIL:"hola@latasca.example", ADMIN_PASSWORD:"tasca2024",
+  MESAS:12,        // nº de mesas de fábrica (el dueño lo cambia en el panel)
+  HORARIO:"",      // horario de cocina de fábrica, ej. "13:00-16:00, 20:00-23:30"
   /* ── MODO NUBE (opcional): rellena esto y las comandas de los móviles llegan SOLAS a la pantalla de barra ── */
   CLOUD_URL:"",   // ej. https://xxxx.supabase.co  (proyecto Supabase, gratis)
   CLOUD_KEY:"",   // la "anon key" del proyecto
   BAR_ID:""       // identificador único de este bar, ej. "tasca-centro-1"
 };
+/* PRESET_CARTA: el generador de altas lo rellena con la carta del bar. null = usa la de muestra. */
+const PRESET_CARTA=null;
 /* ── Nube: helpers (si CLOUD_* está vacío, todo funciona en local como siempre) ── */
 function cloudOn(){ return !!(CONFIG.CLOUD_URL&&CONFIG.CLOUD_KEY&&CONFIG.BAR_ID); }
 function api(path,opts){ opts=opts||{}; opts.headers=Object.assign({"apikey":CONFIG.CLOUD_KEY,"Authorization":"Bearer "+CONFIG.CLOUD_KEY,"Content-Type":"application/json","Prefer":"return=representation"},opts.headers||{}); return fetch(CONFIG.CLOUD_URL+"/rest/v1/"+path,opts).then(r=>{ if(!r.ok) throw new Error("cloud "+r.status); return r.status===204?null:r.json(); }); }
@@ -2614,10 +2618,11 @@ function qrArt(){ return `<svg viewBox="0 0 100 100" fill="none" xmlns="http://w
 function logoURI(){ const c=(load("lt_settings",{})||{}).logo; if(c) return c; const s='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" rx="11" fill="#23262c"/><rect x="13" y="13" width="9" height="9" rx="2" fill="#e0871a"/><rect x="26" y="13" width="9" height="9" rx="2" fill="#fff"/><rect x="13" y="26" width="9" height="9" rx="2" fill="#fff"/></svg>'; return "data:image/svg+xml,"+encodeURIComponent(s); }
 function logoMarkup(){ const c=(load("lt_settings",{})||{}).logo; if(c) return '<img src="'+esc(c)+'" alt="La Tasca" style="width:100%;height:100%;object-fit:cover;border-radius:10px">'; return LOGO; }
 function applyLogo(){ ["brandLogo","footLogo"].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=logoMarkup(); }); }
+function applyName(){ const n=B().nombre; ["brandName","footName","footName2"].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent=n; }); try{ document.title=n+" · Pide desde tu mesa"; }catch(e){} const fc=$("#footCity"); if(fc)fc.textContent=B().city; }
 function qrSvg(text){ try{ const q=qrcode(0,"M"); q.addData(text); q.make(); return q.createSvgTag({cellSize:4,margin:2,scalable:true}); }catch(e){ return '<span class="muted" style="font-size:11px">QR n/d</span>'; } }
 
-function B(){ const s=load("lt_settings",{})||{}; return { nombre:s.bizNombre||CONFIG.BUSINESS_NAME, city:s.bizCity||CONFIG.CITY, whatsapp:(s.bizWhatsapp!=null?s.bizWhatsapp:CONFIG.WHATSAPP), email:s.bizEmail||CONFIG.EMAIL, pass:s.bizPass||CONFIG.ADMIN_PASSWORD, mesas:Number(s.mesas)||12 }; }
-function getSettings(){ return Object.assign({bizNombre:CONFIG.BUSINESS_NAME,bizCity:CONFIG.CITY,bizWhatsapp:CONFIG.WHATSAPP,bizEmail:CONFIG.EMAIL,bizPass:CONFIG.ADMIN_PASSWORD,mesas:12,logo:null,qrEstricto:false,googleReview:"",horario:"",camareros:[]}, load("lt_settings",{})); }
+function B(){ const s=load("lt_settings",{})||{}; return { nombre:s.bizNombre||CONFIG.BUSINESS_NAME, city:s.bizCity||CONFIG.CITY, whatsapp:(s.bizWhatsapp!=null?s.bizWhatsapp:CONFIG.WHATSAPP), email:s.bizEmail||CONFIG.EMAIL, pass:s.bizPass||CONFIG.ADMIN_PASSWORD, mesas:Number(s.mesas)||Number(CONFIG.MESAS)||12 }; }
+function getSettings(){ return Object.assign({bizNombre:CONFIG.BUSINESS_NAME,bizCity:CONFIG.CITY,bizWhatsapp:CONFIG.WHATSAPP,bizEmail:CONFIG.EMAIL,bizPass:CONFIG.ADMIN_PASSWORD,mesas:Number(CONFIG.MESAS)||12,logo:null,qrEstricto:false,googleReview:"",horario:CONFIG.HORARIO||"",camareros:[]}, load("lt_settings",{})); }
 function setSettings(o){ save("lt_settings",Object.assign(getSettings(),o)); }
 
 /* mesa actual */
@@ -2649,7 +2654,7 @@ const SEED=[
   {cat:"Postres",nombre:"Tarta de queso",desc:"Cremosa, con frutos rojos.",precio:5.00,emoji:"🍰",al:["lactosa","huevo","gluten"]},
   {cat:"Postres",nombre:"Torrija caramelizada",desc:"Con helado de vainilla.",precio:5.00,emoji:"🍮",al:["gluten","lactosa","huevo"]}
 ];
-function getPlatos(){ let p=load("lt_platos",null); if(!p){ p=SEED.map(x=>({id:uid(),activo:true,img:null,...x})); save("lt_platos",p); } return p; }
+function getPlatos(){ let p=load("lt_platos",null); if(!p){ const base=(Array.isArray(PRESET_CARTA)&&PRESET_CARTA.length)?PRESET_CARTA:SEED; p=base.map(x=>({id:uid(),activo:true,img:null,...x})); save("lt_platos",p); } return p; }
 function setPlatos(p){ save("lt_platos",p); pushCarta(p); }
 /* ── Carta en la nube: el panel la sube; los móviles de los clientes la bajan ── */
 let CARTA_TS=0;
@@ -3161,7 +3166,7 @@ document.addEventListener("submit",e=>{
   else if(e.target.id==="msgForm"){ e.preventDefault(); const v=$("#msgIn"); if(v){ enviarMsg(v.value); v.value=""; v.focus(); } }
   else if(e.target.id==="camForm"){ e.preventDefault(); const nom=($("#cnom").value||"").trim(), pin=($("#cpin2").value||"").trim(); if(!nom||!pin){ toast("Pon nombre y PIN"); return; } const s=getSettings(); const cams=s.camareros||[]; if(cams.some(x=>String(x.pin)===pin)){ toast("Ese PIN ya está en uso"); return; } cams.push({id:uid(),nombre:nom,pin:pin}); setSettings({camareros:cams}); render(); toast("Camarero añadido ✅"); }
   else if(e.target.id==="mesasForm"){ e.preventDefault(); setSettings({mesas:Math.max(1,parseInt($("#mNum").value,10)||12)}); render(); toast("Mesas guardadas ✅"); }
-  else if(e.target.id==="datosForm"){ e.preventDefault(); setSettings({ bizNombre:$("#dNom").value.trim(), bizWhatsapp:$("#dWa").value.replace(/[^0-9]/g,""), bizCity:$("#dCity").value.trim(), bizEmail:$("#dMail").value.trim(), bizPass:$("#dPass").value.trim(), horario:($("#dHor")?$("#dHor").value.trim():""), googleReview:($("#dGoogle")?$("#dGoogle").value.trim():""), qrEstricto: !!($("#dQR")&&$("#dQR").checked), fidelidad:{ on: !!($("#dFid")&&$("#dFid").checked), n: Math.max(2,Math.min(20,parseInt($("#dFidN")&&$("#dFidN").value)||8)), premio: (($("#dFidP")&&$("#dFidP").value.trim())||"Café o postre gratis") } }); const fc=$("#footCity"); if(fc)fc.textContent=B().city; render(); toast("Datos guardados ✅"); }
+  else if(e.target.id==="datosForm"){ e.preventDefault(); setSettings({ bizNombre:$("#dNom").value.trim(), bizWhatsapp:$("#dWa").value.replace(/[^0-9]/g,""), bizCity:$("#dCity").value.trim(), bizEmail:$("#dMail").value.trim(), bizPass:$("#dPass").value.trim(), horario:($("#dHor")?$("#dHor").value.trim():""), googleReview:($("#dGoogle")?$("#dGoogle").value.trim():""), qrEstricto: !!($("#dQR")&&$("#dQR").checked), fidelidad:{ on: !!($("#dFid")&&$("#dFid").checked), n: Math.max(2,Math.min(20,parseInt($("#dFidN")&&$("#dFidN").value)||8)), premio: (($("#dFidP")&&$("#dFidP").value.trim())||"Café o postre gratis") } }); applyName(); applyLogo(); setupPWA(); render(); toast("Datos guardados ✅"); }
 });
 function savePlato(){
   const idv=$("#pId").value, file=$("#pImg").files&&$("#pImg").files[0];
@@ -3185,7 +3190,7 @@ function setupPWA(){ const ic=logoURI(); const f=$("#favicon"),ap=$("#appleIcon"
 try{ const q=new URLSearchParams(location.search); const mz=q.get("mesa"); if(mz&&/^\d+$/.test(mz)) setMesa(+mz); }catch(e){}
 $("#year").textContent=new Date().getFullYear();
 $("#footCity").textContent=B().city;
-getPlatos(); applyLogo(); setupPWA(); syncLangBtn(); render(); pullCarta(()=>render());
+getPlatos(); applyLogo(); applyName(); setupPWA(); syncLangBtn(); render(); pullCarta(()=>render());
 </script>
 
 <script type="application/json" id="acceptance-tests">
