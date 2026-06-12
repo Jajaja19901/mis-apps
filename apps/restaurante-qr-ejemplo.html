@@ -183,7 +183,20 @@ footer a:hover{color:#fff}
 
 <script>
 "use strict";
-const CONFIG={ BUSINESS_NAME:"La Tasca", CITY:"[Tu ciudad]", WHATSAPP:"", EMAIL:"hola@latasca.example", ADMIN_PASSWORD:"tasca2024" };
+const CONFIG={ BUSINESS_NAME:"La Tasca", CITY:"[Tu ciudad]", WHATSAPP:"", EMAIL:"hola@latasca.example", ADMIN_PASSWORD:"tasca2024",
+  /* ── MODO NUBE (opcional): rellena esto y las comandas de los móviles llegan SOLAS a la pantalla de barra ── */
+  CLOUD_URL:"",   // ej. https://xxxx.supabase.co  (proyecto Supabase, gratis)
+  CLOUD_KEY:"",   // la "anon key" del proyecto
+  BAR_ID:""       // identificador único de este bar, ej. "tasca-centro-1"
+};
+/* ── Nube: helpers (si CLOUD_* está vacío, todo funciona en local como siempre) ── */
+function cloudOn(){ return !!(CONFIG.CLOUD_URL&&CONFIG.CLOUD_KEY&&CONFIG.BAR_ID); }
+function api(path,opts){ opts=opts||{}; opts.headers=Object.assign({"apikey":CONFIG.CLOUD_KEY,"Authorization":"Bearer "+CONFIG.CLOUD_KEY,"Content-Type":"application/json","Prefer":"return=representation"},opts.headers||{}); return fetch(CONFIG.CLOUD_URL+"/rest/v1/"+path,opts).then(r=>{ if(!r.ok) throw new Error("cloud "+r.status); return r.status===204?null:r.json(); }); }
+let CCACHE=null, CTRIED=false;
+function comandasAll(){ return cloudOn() ? (CCACHE||[]) : load("lt_comandas",[]); }
+function refreshComandas(then){ if(!cloudOn()){ if(then)then(); return; }
+  api("comandas?bar_id=eq."+encodeURIComponent(CONFIG.BAR_ID)+"&select=*&order=id.asc&limit=200").then(rows=>{ CCACHE=rows.map(r=>({id:String(r.id),mesa:r.mesa,dia:r.dia,hora:r.hora,items:(typeof r.items==="string"?JSON.parse(r.items):r.items)||[],total:Number(r.total)||0,estado:r.estado||"pendiente"})); if(then)then(); }).catch(()=>{ if(then)then(); });
+}
 const $=s=>document.querySelector(s);
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function money(n){ return (Number(n)||0).toFixed(2).replace(".",",")+" €"; }
@@ -301,7 +314,7 @@ function viewLegal(){ return `<div class="page"><div class="wrap" style="max-wid
 let ADMIN_OK=false, ADMIN_TAB="com", EDIT_ID=null;
 function viewAdmin(){
   if(!ADMIN_OK) return `<div class="page"><div class="wrap" style="max-width:420px"><a class="back" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Volver</a><h1 class="ptitle">Acceso del dueño</h1><form class="form-card" id="adminLogin"><div id="loginErr"></div><div class="field"><label for="apass">Contraseña</label><input id="apass" type="password" placeholder="••••••••"></div><button class="btn btn-primary btn-block" type="submit">Entrar</button><p class="note">Acceso local. La clave se cambia dentro, en Ajustes.</p></form></div></div>`;
-  const C=load("lt_comandas",[]);
+  const C=comandasAll();
   const pend=C.filter(c=>c.estado!=="servido").length;
   const hoyISO=new Date().toISOString().slice(0,10);
   const ventasHoy=C.filter(x=>x.dia===hoyISO).reduce((a,x)=>a+(x.total||0),0);
@@ -318,8 +331,10 @@ function viewAdmin(){
   </div></div>`;
 }
 function admCom(){
-  const C=load("lt_comandas",[]); if(!C.length) return `<div class="empty" style="padding:46px"><div class="big">🔔</div><b style="color:var(--text)">Sin comandas</b><br><span class="muted">Las comandas que envíen las mesas aparecerán aquí.</span></div>`;
-  return C.slice().reverse().map(c=>`<div class="com"><div class="top"><span class="mz">Mesa ${esc(c.mesa)}</span><span class="st ${c.estado==="servido"?"ok":"pend"}">${c.estado==="servido"?"Servida":"Pendiente"}</span></div>
+  const C=comandasAll();
+  const refr=`<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-ghost" data-action="refreshCom" type="button">🔄 Actualizar</button></div>`;
+  if(!C.length) return refr+ `<div class="empty" style="padding:46px"><div class="big">🔔</div><b style="color:var(--text)">Sin comandas</b><br><span class="muted">Las comandas que envíen las mesas aparecerán aquí.</span></div>`;
+  return refr+C.slice().reverse().map(c=>`<div class="com"><div class="top"><span class="mz">Mesa ${esc(c.mesa)}</span><span class="st ${c.estado==="servido"?"ok":"pend"}">${c.estado==="servido"?"Servida":"Pendiente"}</span></div>
     <div class="muted" style="font-size:13px;margin:6px 0">${esc(c.hora)} · ${money(c.total)}</div>
     <div style="font-size:14px">${c.items.map(i=>esc(i.nombre)+" ×"+i.qty).join(", ")}</div>
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" data-action="toggleCom" data-id="${esc(c.id)}" type="button">${c.estado==="servido"?"Marcar pendiente":"Marcar servida"}</button><button class="btn btn-ghost" data-action="delCom" data-id="${esc(c.id)}" type="button" style="color:var(--brand)">Borrar</button></div></div>`).join("");
@@ -354,12 +369,13 @@ function admAjustes(){
     <div class="field"><label for="dCity">Ciudad</label><input id="dCity" type="text" value="${esc(b.city)}"></div>
     <div class="field"><label for="dMail">Email</label><input id="dMail" type="email" value="${esc(b.email)}"></div>
     <div class="field"><label for="dPass">Contraseña del panel</label><input id="dPass" type="text" value="${esc(b.pass)}"></div>
-    <button class="btn btn-primary" type="submit">Guardar</button></form></div>`;
+    <button class="btn btn-primary" type="submit">Guardar</button></form></div>
+  <div class="form-card" style="margin-top:18px"><h3 style="margin-bottom:6px">☁️ Modo nube (tiempo real)</h3><p class="muted" style="margin-top:0;font-size:14px">${cloudOn()?"<b style='color:var(--green)'>Activado.</b> Las comandas de los móviles de los clientes llegan SOLAS a la pantalla de barra.":"Sin configurar: las comandas de los móviles llegan por WhatsApp. Para que entren solas en la pantalla de barra, rellena <b>CLOUD_URL, CLOUD_KEY y BAR_ID</b> en la caja CONFIG del archivo (guía incluida: GUIA-SERVIDOR-BARES.md)."}</p></div>`;
 }
 
 function viewBarra(){
   if(!ADMIN_OK) return `<div class="page"><div class="wrap" style="max-width:420px"><a class="back" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Volver</a><h1 class="ptitle">🖥️ Pantalla de barra</h1><p class="muted" style="margin-top:0">Acceso del personal.</p><form class="form-card" id="adminLogin"><div id="loginErr"></div><div class="field"><label for="apass">Contraseña</label><input id="apass" type="password" placeholder="••••••••"></div><button class="btn btn-primary btn-block" type="submit">Entrar</button></form></div></div>`;
-  const pendC=load("lt_comandas",[]).filter(c=>c.estado!=="servido").slice().reverse();
+  const pendC=comandasAll().filter(c=>c.estado!=="servido").slice().reverse();
   return `<div class="page"><div class="wrap">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h1 class="ptitle">🖥️ Barra · comandas</h1><a class="btn btn-ghost" href="#/admin">Panel</a></div>
     <p class="muted" style="margin-top:0">Se actualiza sola y suena al entrar una comanda nueva. Las del comandero de la casa entran al instante; las de los móviles llegan al WhatsApp.</p>
@@ -368,7 +384,10 @@ function viewBarra(){
 }
 function beep(){ try{ const ctx=new (window.AudioContext||window.webkitAudioContext)(); const o=ctx.createOscillator(), g=ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.frequency.value=880; g.gain.value=.15; o.start(); o.stop(ctx.currentTime+.25); }catch(e){} }
 let LASTP=-1;
-function barraCheck(){ try{ if((location.hash||"").indexOf("barra")===-1||!ADMIN_OK) return; const n=load("lt_comandas",[]).filter(c=>c.estado!=="servido").length; if(LASTP===-1){ LASTP=n; return; } if(n!==LASTP){ if(n>LASTP) beep(); LASTP=n; render(); } }catch(e){} }
+function barraCheck(){ try{ if((location.hash||"").indexOf("barra")===-1||!ADMIN_OK) return;
+  const fin=()=>{ const n=comandasAll().filter(c=>c.estado!=="servido").length; if(LASTP===-1){ LASTP=n; render(); return; } if(n!==LASTP){ if(n>LASTP) beep(); LASTP=n; render(); } };
+  if(cloudOn()) refreshComandas(fin); else fin();
+}catch(e){} }
 setInterval(barraCheck,4000);
 window.addEventListener("storage",barraCheck);
 
@@ -384,6 +403,7 @@ function render(){
   else if(r==="admin") html=viewAdmin();
   else html=viewHome();
   $("#app").innerHTML=html; window.scrollTo(0,0); refreshCart();
+  if(cloudOn()&&!CTRIED&&ADMIN_OK&&((location.hash||"").indexOf("admin")!==-1||(location.hash||"").indexOf("barra")!==-1)){ CTRIED=true; refreshComandas(()=>render()); }
 }
 window.addEventListener("hashchange",render);
 
@@ -393,10 +413,12 @@ function waOpen(msg){ const num=B().whatsapp; if(num){ try{ window.open("https:/
 function enviarComanda(){
   const items=cartItems(); if(!items.length) return; const m=getMesa()||"-";
   const c={ id:uid(), mesa:m, dia:new Date().toISOString().slice(0,10), hora:new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}), items:items.map(i=>({nombre:i.nombre,qty:i.qty,precio:i.precio})), total:cartTotal(), estado:"pendiente" };
-  const C=load("lt_comandas",[]); C.push(c); save("lt_comandas",C);
-  let msg="*Comanda · Mesa "+m+"*\n\n"; c.items.forEach(i=>{ msg+="• "+i.nombre+" ×"+i.qty+"\n"; }); msg+="\nTotal: "+money(c.total);
-  if(!waOpen(msg)) toast("Comanda guardada. Configura tu WhatsApp en Ajustes.");
-  RATED=false; setCart({}); location.hash="#/gracias";
+  const finLocal=()=>{ const C=load("lt_comandas",[]); C.push(c); save("lt_comandas",C);
+    let msg="*Comanda · Mesa "+m+"*\n\n"; c.items.forEach(i=>{ msg+="• "+i.nombre+" ×"+i.qty+"\n"; }); msg+="\nTotal: "+money(c.total);
+    if(!waOpen(msg)) toast("Comanda guardada. Configura tu WhatsApp en Ajustes.");
+    RATED=false; setCart({}); location.hash="#/gracias"; };
+  if(cloudOn()){ api("comandas",{method:"POST",body:JSON.stringify({bar_id:CONFIG.BAR_ID,mesa:c.mesa,dia:c.dia,hora:c.hora,items:c.items,total:c.total,estado:"pendiente"})}).then(()=>{ RATED=false; setCart({}); location.hash="#/gracias"; toast("Comanda enviada a la barra 🔔"); }).catch(finLocal); return; }
+  finLocal();
 }
 
 /* ====== Eventos ====== */
@@ -414,7 +436,7 @@ document.addEventListener("click",e=>{
     case "camarero": { const m=getMesa()||"-"; if(!waOpen("🙋 La Mesa "+m+" llama al camarero.")) toast("Avisando al camarero (demo). Configura WhatsApp en Ajustes."); else toast("Camarero avisado 🙋"); break; }
     case "cuenta": { const m=getMesa()||"-"; if(!waOpen("🧾 La Mesa "+m+" pide la cuenta.")) toast("Pidiendo la cuenta (demo). Configura WhatsApp en Ajustes."); else toast("Cuenta pedida 🧾"); break; }
     case "goBebidas": FILTER="Bebidas"; render(); break;
-    case "rate": { const V=load("lt_valor",[]); V.push({n:+t.dataset.n,dia:new Date().toISOString().slice(0,10)}); save("lt_valor",V); RATED=true; render(); toast("¡Gracias por tu valoración! ⭐"); break; }
+    case "rate": { const V=load("lt_valor",[]); V.push({n:+t.dataset.n,dia:new Date().toISOString().slice(0,10)}); save("lt_valor",V); if(cloudOn()){ try{ api("valoraciones",{method:"POST",body:JSON.stringify({bar_id:CONFIG.BAR_ID,n:+t.dataset.n,dia:new Date().toISOString().slice(0,10)})}).catch(()=>{}); }catch(e){} } RATED=true; render(); toast("¡Gracias por tu valoración! ⭐"); break; }
     case "printCards": { const nM=B().mesas; const base=location.href.split("#")[0].split("?")[0]; let elp=document.getElementById("printArea"); if(!elp){ elp=document.createElement("div"); elp.id="printArea"; elp.className="print-area"; document.body.appendChild(elp); } elp.innerHTML=Array.from({length:Math.min(nM,50)},(_,i)=>i+1).map(mm=>`<div class="pcard"><div class="pbrand">${esc(B().nombre)}</div><div class="pmesa">MESA ${mm}</div><div class="pqr">Pega aquí tu QR</div><div class="purl">${esc(base)}?mesa=${mm}</div><div class="pp">📱 Escanea y pide desde el móvil</div></div>`).join(""); try{ window.print(); }catch(e){} toast("Preparando impresión…"); break; }
     case "studio": e.preventDefault(); toast("Diseñado por Incuba tu Negocio · Jaime M. M."); break;
     case "install": installApp(); break;
@@ -424,8 +446,9 @@ document.addEventListener("click",e=>{
     case "cancelEdit": EDIT_ID=null; render(); break;
     case "delP": if(confirm("¿Borrar este plato?")){ setPlatos(getPlatos().filter(p=>p.id!==id)); if(EDIT_ID===id)EDIT_ID=null; render(); } break;
     case "toggleP": { const P=getPlatos(); const p=P.find(x=>x.id===id); if(p)p.activo=p.activo===false; setPlatos(P); render(); } break;
-    case "toggleCom": { const C=load("lt_comandas",[]); const c=C.find(x=>x.id===id); if(c)c.estado=c.estado==="servido"?"pendiente":"servido"; save("lt_comandas",C); render(); } break;
-    case "delCom": if(confirm("¿Borrar esta comanda?")){ save("lt_comandas",load("lt_comandas",[]).filter(x=>x.id!==id)); render(); } break;
+    case "toggleCom": { if(cloudOn()){ const c=comandasAll().find(x=>String(x.id)===String(id)); const nuevo=(c&&c.estado==="servido")?"pendiente":"servido"; api("comandas?id=eq."+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({estado:nuevo})}).then(()=>refreshComandas(render)).catch(()=>toast("Sin conexión con la nube")); } else { const C=load("lt_comandas",[]); const c=C.find(x=>x.id===id); if(c)c.estado=c.estado==="servido"?"pendiente":"servido"; save("lt_comandas",C); render(); } } break;
+    case "delCom": if(confirm("¿Borrar esta comanda?")){ if(cloudOn()){ api("comandas?id=eq."+encodeURIComponent(id),{method:"DELETE"}).then(()=>refreshComandas(render)).catch(()=>toast("Sin conexión con la nube")); } else { save("lt_comandas",load("lt_comandas",[]).filter(x=>x.id!==id)); render(); } } break;
+    case "refreshCom": refreshComandas(render); toast("Actualizado 🔄"); break;
     case "copyMesa": { const link=t.dataset.link; try{ navigator.clipboard.writeText(link); toast("Enlace copiado 📋"); }catch(e){ toast(link); } break; }
   }
 });
