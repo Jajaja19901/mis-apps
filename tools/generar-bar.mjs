@@ -29,6 +29,7 @@ export function generarBar(tpl, d){
   if(d.whatsapp!=null) set(/WHATSAPP:"[^"]*"/, 'WHATSAPP:"'+jsStr(String(d.whatsapp).replace(/[^0-9]/g,""))+'"');
   if(d.email)    set(/EMAIL:"[^"]*"/,         'EMAIL:"'+jsStr(d.email)+'"');
   if(d.password) set(/ADMIN_PASSWORD:"[^"]*"/,'ADMIN_PASSWORD:"'+jsStr(d.password)+'"');
+  if(d.plan&&["basico","medio","top"].includes(d.plan)) set(/PLAN:"[^"]*"/, 'PLAN:"'+d.plan+'"');
   if(d.mesas)    set(/MESAS:\d+/,             'MESAS:'+intOr(d.mesas,12));
   if(d.horario!=null) set(/HORARIO:"[^"]*"/,  'HORARIO:"'+jsStr(d.horario)+'"');
   // — CONFIG: modo nube —

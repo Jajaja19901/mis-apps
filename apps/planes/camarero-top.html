@@ -2580,14 +2580,14 @@ var qrcode = function() {
 "use strict";
 /* ADMIN_PASSWORD: protección básica sin backend (la clave viaja en el archivo). Suficiente para
    separar roles en el local; el dueño la cambia en Ajustes. Los datos sensibles no existen aquí. */
-const CONFIG={ BUSINESS_NAME:"La Tasca", CITY:"[Tu ciudad]", WHATSAPP:"", EMAIL:"hola@latasca.example", ADMIN_PASSWORD:"tasca2024",
+const CONFIG={ BUSINESS_NAME:"Bar Demo (top)", CITY:"Tu ciudad", WHATSAPP:"", EMAIL:"hola@latasca.example", ADMIN_PASSWORD:"demo2026",
   PLAN:"top",      // nivel del producto: "basico" | "medio" | "top"
   MESAS:12,        // nº de mesas de fábrica (el dueño lo cambia en el panel)
   HORARIO:"",      // horario de cocina de fábrica, ej. "13:00-16:00, 20:00-23:30"
   /* ── MODO NUBE (opcional): rellena esto y las comandas de los móviles llegan SOLAS a la pantalla de barra ── */
   CLOUD_URL:"",   // ej. https://xxxx.supabase.co  (proyecto Supabase, gratis)
   CLOUD_KEY:"",   // la "anon key" del proyecto
-  BAR_ID:"",      // identificador único de este bar, ej. "tasca-centro-1"
+  BAR_ID:"demo-top",      // identificador único de este bar, ej. "tasca-centro-1"
   PUSH_KEY:""     // clave pública VAPID (avisos con el móvil bloqueado; ver GUIA-SERVIDOR-BARES.md)
 };
 /* PRESET_CARTA: el generador de altas lo rellena con la carta del bar. null = usa la de muestra. */
@@ -3272,28 +3272,6 @@ $("#footCity").textContent=B().city;
 getPlatos(); applyLogo(); applyName(); setupPWA(); syncLangBtn(); render(); pullCarta(()=>render());
 </script>
 
-<script type="application/json" id="acceptance-tests">
-[
-  { "name": "La carta muestra platos", "steps": [ { "goto": "/carta" }, { "expectVisible": "#grid .dish" } ] },
-  { "name": "Filtrar por Bebidas funciona", "steps": [ { "goto": "/carta" }, { "click": "[data-cat=\"Bebidas\"]" }, { "expectVisible": "#grid .dish" } ] },
-  { "name": "Elegir mesa y añadir a la comanda", "steps": [ { "goto": "/" }, { "click": "[data-action=\"pickMesa\"][data-n=\"3\"]" }, { "goto": "/carta" }, { "click": "[data-action=\"add\"]" }, { "goto": "/comanda" }, { "expectVisible": ".citem" } ] },
-  { "name": "Aviso legal disponible", "steps": [ { "goto": "/legal" }, { "expect": "privacidad" } ] },
-  { "name": "El panel del dueño pide contraseña", "steps": [ { "goto": "/admin" }, { "expectVisible": "#adminLogin" } ] },
-  { "name": "Los recomendados aparecen en la carta", "steps": [ { "goto": "/carta" }, { "expectVisible": ".reco-card" } ] },
-  { "name": "La pantalla de barra pide contraseña", "steps": [ { "goto": "/barra" }, { "expectVisible": "#adminLogin" } ] },
-  { "name": "El panel genera los QR de las mesas", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"mesas\"]" }, { "expectVisible": ".qrbox" } ] },
-  { "name": "El acceso de camareros pide PIN", "steps": [ { "goto": "/camarero" }, { "expectVisible": "#camLogin" } ] },
-  { "name": "Seguir mi pedido funciona", "steps": [ { "goto": "/" }, { "click": "[data-action=\"pickMesa\"][data-n=\"2\"]" }, { "goto": "/carta" }, { "click": "[data-action=\"add\"]" }, { "goto": "/comanda" }, { "click": "[data-action=\"enviarComanda\"]" }, { "goto": "/mipedido" }, { "expectVisible": ".track" } ] },
-  { "name": "El panel de caja muestra las ventas", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"caja\"]" }, { "expectVisible": ".caja-kpis" } ] },
-  { "name": "La barra separa cocina y barra", "steps": [ { "goto": "/barra" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-action=\"zonaBarra\"][data-z=\"cocina\"]" }, { "expectVisible": "[data-action=\"zonaBarra\"][data-z=\"cocina\"][aria-pressed=\"true\"]" } ] },
-  { "name": "Pedir para llevar funciona", "steps": [ { "goto": "/" }, { "click": "[data-action=\"modoLlevar\"]" }, { "goto": "/carta" }, { "click": "[data-action=\"add\"]" }, { "goto": "/comanda" }, { "expectVisible": "#llNom" }, { "fill": { "sel": "#llNom", "value": "Juan" } }, { "fill": { "sel": "#llHora", "value": "14:30" } }, { "click": "[data-action=\"enviarComanda\"]" }, { "goto": "/mipedido" }, { "expectVisible": ".track" } ] },
-  { "name": "Dividir cuenta y propina funciona", "steps": [ { "goto": "/" }, { "click": "[data-action=\"pickMesa\"][data-n=\"4\"]" }, { "goto": "/carta" }, { "click": "[data-action=\"add\"]" }, { "goto": "/comanda" }, { "click": "[data-action=\"enviarComanda\"]" }, { "goto": "/cuenta" }, { "expectVisible": ".cuenta-pp" }, { "click": "[data-action=\"personas\"][data-d=\"1\"]" }, { "click": "[data-action=\"setTip\"][data-t=\"10\"]" }, { "expectVisible": ".tipchip.on" } ] },
-  { "name": "El local activa los sellos y el cliente ve su tarjeta", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"ajustes\"]" }, { "click": "#dFid" }, { "submit": "#datosForm" }, { "goto": "/sellos" }, { "expectVisible": ".sellos-grid" } ] },
-  { "name": "El PIN de camarero abre la barra pero no el panel", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"cam\"]" }, { "fill": { "sel": "#cnom", "value": "Marta" } }, { "fill": { "sel": "#cpin2", "value": "4321" } }, { "submit": "#camForm" }, { "click": "[data-action=\"logout\"]" }, { "goto": "/barra" }, { "fill": { "sel": "#apass", "value": "4321" } }, { "submit": "#adminLogin" }, { "expectVisible": ".mesas-board" } ] },
-  { "name": "El filtro de alérgenos oculta platos", "steps": [ { "goto": "/carta" }, { "click": ".algfil summary" }, { "click": "[data-action=\"algTog\"][data-k=\"lactosa\"]" }, { "expectVisible": ".algopt2[aria-pressed=\"true\"]" }, { "click": "[data-action=\"algTog\"][data-k=\"lactosa\"]" } ] },
-  { "name": "Fuera de horario la cocina avisa de cuándo abre", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"ajustes\"]" }, { "fill": { "sel": "#dHor", "value": "00:00-00:01" } }, { "submit": "#datosForm" }, { "goto": "/carta" }, { "expectVisible": ".kban" }, { "goto": "/admin" }, { "click": "[data-tab=\"ajustes\"]" }, { "fill": { "sel": "#dHor", "value": "" } }, { "submit": "#datosForm" } ] },
-  { "name": "El tablón del personal envía mensajes", "steps": [ { "goto": "/barra" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "goto": "/personal" }, { "fill": { "sel": "#msgIn", "value": "Mesa 5 lista para servir" } }, { "submit": "#msgForm" }, { "expectVisible": ".chatbox .msg" } ] }
-]
-</script>
+
 </body>
 </html>
