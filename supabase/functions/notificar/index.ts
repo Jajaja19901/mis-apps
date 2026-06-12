@@ -38,9 +38,13 @@ Deno.serve(async (req) => {
     // ¿Es un aviso de mesa (cuenta/camarero) o una comanda normal?
     const items = Array.isArray(rec.items) ? rec.items : [];
     const esAviso = items.some((i: { nombre?: string }) => String(i?.nombre || "").includes("⚑"));
+    const mesaStr = String(rec.mesa || "");
+    const mesaLbl = mesaStr.startsWith("LLEVAR")
+      ? "🥡 Para llevar" + mesaStr.split("|").slice(1).map((x) => " · " + x).join("")
+      : `Mesa ${mesaStr}`;
     const title = esAviso
-      ? `🙋 Mesa ${rec.mesa} llama`
-      : `🔔 Comanda nueva · Mesa ${rec.mesa}`;
+      ? `🙋 ${mesaLbl} llama`
+      : `🔔 Comanda nueva · ${mesaLbl}`;
     const body = esAviso
       ? String(items[0]?.nombre || "Aviso de mesa").replace("⚑", "").trim()
       : `${items.reduce((a: number, i: { qty?: number }) => a + (Number(i?.qty) || 1), 0)} artículos · ${Number(rec.total || 0).toFixed(2)} €`;
