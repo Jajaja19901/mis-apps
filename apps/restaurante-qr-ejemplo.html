@@ -143,6 +143,9 @@ section{padding:34px 0}
 .bcard ul{list-style:none;margin:0 0 10px;padding:0;font-size:15px}
 .bcard li{padding:3px 0;border-bottom:1px dashed var(--line)}
 .bcard .btot{font-weight:900;color:var(--brand-d);margin-bottom:10px}
+.mesas-board{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 16px}
+.mchip{font-size:12.5px;font-weight:800;border-radius:999px;padding:7px 12px;background:#fff;border:1.5px solid var(--line-2);color:var(--muted)}
+button.mchip.ocupada{background:var(--brand);border-color:var(--brand);color:#fff;cursor:pointer}
 .algpick{display:flex;gap:8px;flex-wrap:wrap}
 .algopt{display:inline-flex;align-items:center;gap:5px;font-size:13px;border:1.5px solid var(--line-2);border-radius:9px;padding:6px 9px;background:#fff}
 .print-area{display:none}
@@ -212,7 +215,7 @@ function logoMarkup(){ const c=(load("lt_settings",{})||{}).logo; if(c) return '
 function applyLogo(){ ["brandLogo","footLogo"].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=logoMarkup(); }); }
 
 function B(){ const s=load("lt_settings",{})||{}; return { nombre:s.bizNombre||CONFIG.BUSINESS_NAME, city:s.bizCity||CONFIG.CITY, whatsapp:(s.bizWhatsapp!=null?s.bizWhatsapp:CONFIG.WHATSAPP), email:s.bizEmail||CONFIG.EMAIL, pass:s.bizPass||CONFIG.ADMIN_PASSWORD, mesas:Number(s.mesas)||12 }; }
-function getSettings(){ return Object.assign({bizNombre:CONFIG.BUSINESS_NAME,bizCity:CONFIG.CITY,bizWhatsapp:CONFIG.WHATSAPP,bizEmail:CONFIG.EMAIL,bizPass:CONFIG.ADMIN_PASSWORD,mesas:12,logo:null}, load("lt_settings",{})); }
+function getSettings(){ return Object.assign({bizNombre:CONFIG.BUSINESS_NAME,bizCity:CONFIG.CITY,bizWhatsapp:CONFIG.WHATSAPP,bizEmail:CONFIG.EMAIL,bizPass:CONFIG.ADMIN_PASSWORD,mesas:12,logo:null,qrEstricto:false}, load("lt_settings",{})); }
 function setSettings(o){ save("lt_settings",Object.assign(getSettings(),o)); }
 
 /* mesa actual */
@@ -250,7 +253,7 @@ function cartTotal(){ return cartItems().reduce((a,i)=>a+i.precio*i.qty,0); }
 function addToCart(id,q){ const c=getCart(); c[id]=(c[id]||0)+(q||1); if(c[id]<1)delete c[id]; setCart(c); }
 function setQty(id,q){ const c=getCart(); if(q<1)delete c[id]; else c[id]=q; setCart(c); }
 function refreshCart(){ const n=cartCount(),b=$("#cartCount"); if(b){ b.textContent=n; b.classList.toggle("hide",n===0); } updateMesaPill(); }
-function updateMesaPill(){ const el=$("#mesaPill"); if(!el) return; const m=getMesa(); if(m){ el.style.display="inline-flex"; el.innerHTML='🍽️ Mesa '+esc(m)+' <a href="#/" data-action="cambiarMesa">cambiar</a>'; } else el.style.display="none"; }
+function updateMesaPill(){ const el=$("#mesaPill"); if(!el) return; const m=getMesa(); if(m){ el.style.display="inline-flex"; el.innerHTML='🍽️ Mesa '+esc(m)+(getSettings().qrEstricto?'':' <a href="#/" data-action="cambiarMesa">cambiar</a>'); } else el.style.display="none"; }
 function phHTML(p){ return p.img?`<img src="${esc(p.img)}" alt="${esc(p.nombre)}">`:`<span>${esc(p.emoji||"🍽️")}</span>`; }
 
 let FILTER="Para picar"; let RATED=false;
@@ -261,9 +264,11 @@ function viewHome(){
     <h1>Pide desde tu <span>mesa</span></h1>
     <p class="lead">Escaneas el QR de tu mesa, eliges del móvil y tu comanda llega directa a la barra. Sin esperar al camarero.</p>
     <div class="mesa-box">
-      <h3>¿En qué mesa estás?</h3>
-      <div class="mesa-grid" id="mesaGrid">${Array.from({length:Math.min(B().mesas,15)},(_,i)=>i+1).map(n=>`<button data-action="pickMesa" data-n="${n}" aria-pressed="${String(m)===String(n)}" type="button">${n}</button>`).join("")}</div>
-      <a class="btn btn-primary btn-block" href="#/carta" data-action="empezar">${m?("Pedir en la mesa "+esc(m)):"Elige tu mesa para empezar"}</a>
+      ${(function(){ const est=getSettings().qrEstricto;
+        if(est&&!m) return `<h3>📷 Escanea el QR de tu mesa</h3><p class="muted" style="font-size:14px;margin:0 0 12px">Cada mesa tiene su código. Escanéalo con la cámara del móvil y entrarás con tu mesa ya puesta.</p><a class="btn btn-ghost btn-block" href="#/carta">Ver la carta (solo mirar)</a>`;
+        if(est&&m) return `<h3>🍽️ Estás en la Mesa ${esc(m)}</h3><p class="muted" style="font-size:13.5px;margin:0 0 12px">Mesa fijada por el QR que escaneaste.</p><a class="btn btn-primary btn-block" href="#/carta">Pedir en la mesa ${esc(m)}</a>`;
+        return `<h3>¿En qué mesa estás?</h3><div class="mesa-grid" id="mesaGrid">${Array.from({length:Math.min(B().mesas,15)},(_,i)=>i+1).map(n=>`<button data-action="pickMesa" data-n="${n}" aria-pressed="${String(m)===String(n)}" type="button">${n}</button>`).join("")}</div><a class="btn btn-primary btn-block" href="#/carta" data-action="empezar">${m?("Pedir en la mesa "+esc(m)):"Elige tu mesa para empezar"}</a>`;
+      })()}
       <p class="note">En el local, el QR de cada mesa te trae aquí con tu número ya puesto.</p>
     </div>
     <div class="feat" style="margin-top:26px">
@@ -279,7 +284,7 @@ function viewCarta(){
   const m=getMesa(); const P=getPlatos().filter(p=>p.activo!==false);
   return `<div class="page"><div class="wrap">
     <a class="back" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Inicio</a>
-    ${m?`<div class="mbanner">🍽️ Estás pidiendo en la <b>Mesa ${esc(m)}</b><a href="#/" data-action="cambiarMesa">cambiar mesa</a></div>`:`<div class="mbanner">Elige tu mesa para pedir<a href="#/">elegir</a></div>`}
+    ${(function(){ const est=getSettings().qrEstricto; if(m) return `<div class="mbanner">🍽️ Estás pidiendo en la <b>Mesa ${esc(m)}</b>${est?"":`<a href="#/" data-action="cambiarMesa">cambiar mesa</a>`}</div>`; return est?`<div class="mbanner">📷 Escanea el QR de tu mesa para pedir<a href="#/">cómo</a></div>`:`<div class="mbanner">Elige tu mesa para pedir<a href="#/">elegir</a></div>`; })()}
     ${recoHTML(P)}
     <div class="sec-head"><span class="eyebrow">La carta</span><h2>Elige y añade a tu comanda</h2></div>
     <div class="chips" id="chips">${CATS.map(c=>`<button class="chip" data-cat="${esc(c)}" aria-pressed="${FILTER===c}" type="button">${esc(c)}</button>`).join("")}</div>
@@ -315,7 +320,7 @@ let ADMIN_OK=false, ADMIN_TAB="com", EDIT_ID=null;
 function viewAdmin(){
   if(!ADMIN_OK) return `<div class="page"><div class="wrap" style="max-width:420px"><a class="back" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Volver</a><h1 class="ptitle">Acceso del dueño</h1><form class="form-card" id="adminLogin"><div id="loginErr"></div><div class="field"><label for="apass">Contraseña</label><input id="apass" type="password" placeholder="••••••••"></div><button class="btn btn-primary btn-block" type="submit">Entrar</button><p class="note">Acceso local. La clave se cambia dentro, en Ajustes.</p></form></div></div>`;
   const C=comandasAll();
-  const pend=C.filter(c=>c.estado!=="servido").length;
+  const pend=C.filter(c=>c.estado==="pendiente").length;
   const hoyISO=new Date().toISOString().slice(0,10);
   const ventasHoy=C.filter(x=>x.dia===hoyISO).reduce((a,x)=>a+(x.total||0),0);
   const cnt={}; C.forEach(x=>(x.items||[]).forEach(i=>{cnt[i.nombre]=(cnt[i.nombre]||0)+i.qty;}));
@@ -334,7 +339,7 @@ function admCom(){
   const C=comandasAll();
   const refr=`<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-ghost" data-action="refreshCom" type="button">🔄 Actualizar</button></div>`;
   if(!C.length) return refr+ `<div class="empty" style="padding:46px"><div class="big">🔔</div><b style="color:var(--text)">Sin comandas</b><br><span class="muted">Las comandas que envíen las mesas aparecerán aquí.</span></div>`;
-  return refr+C.slice().reverse().map(c=>`<div class="com"><div class="top"><span class="mz">Mesa ${esc(c.mesa)}</span><span class="st ${c.estado==="servido"?"ok":"pend"}">${c.estado==="servido"?"Servida":"Pendiente"}</span></div>
+  return refr+C.slice().reverse().map(c=>`<div class="com"><div class="top"><span class="mz">Mesa ${esc(c.mesa)}</span><span class="st ${c.estado==="pendiente"?"pend":"ok"}">${c.estado==="servido"?"Servida":(c.estado==="cerrada"?"Cerrada 💶":"Pendiente")}</span></div>
     <div class="muted" style="font-size:13px;margin:6px 0">${esc(c.hora)} · ${money(c.total)}</div>
     <div style="font-size:14px">${c.items.map(i=>esc(i.nombre)+" ×"+i.qty).join(", ")}</div>
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" data-action="toggleCom" data-id="${esc(c.id)}" type="button">${c.estado==="servido"?"Marcar pendiente":"Marcar servida"}</button><button class="btn btn-ghost" data-action="delCom" data-id="${esc(c.id)}" type="button" style="color:var(--brand)">Borrar</button></div></div>`).join("");
@@ -362,30 +367,32 @@ function admMesas(){
   ${Array.from({length:Math.min(n,30)},(_,i)=>i+1).map(m=>`<div class="mesalink"><span>Mesa <b>${m}</b></span><code>${esc(base)}?mesa=${m}</code><button class="mini" data-action="copyMesa" data-link="${esc(base)}?mesa=${m}" title="Copiar" type="button">📋</button></div>`).join("")}`;
 }
 function admAjustes(){
-  const b=B();
+  const b=B(), s=getSettings();
   return `<div class="form-card"><h3 style="margin-bottom:6px">Mis datos</h3><p class="muted" style="margin-top:0;font-size:14px">Tu contacto. Las comandas llegan a este WhatsApp.</p><form id="datosForm">
     <div class="field"><label for="dNom">Nombre del local</label><input id="dNom" type="text" value="${esc(b.nombre)}"></div>
     <div class="field"><label for="dWa">WhatsApp (con prefijo, sin +)</label><input id="dWa" type="tel" value="${esc(b.whatsapp)}" placeholder="34600112233"><p class="note">España: 34 + tu número. Aquí llegan las comandas de las mesas.</p></div>
     <div class="field"><label for="dCity">Ciudad</label><input id="dCity" type="text" value="${esc(b.city)}"></div>
     <div class="field"><label for="dMail">Email</label><input id="dMail" type="email" value="${esc(b.email)}"></div>
     <div class="field"><label for="dPass">Contraseña del panel</label><input id="dPass" type="text" value="${esc(b.pass)}"></div>
+    <label class="consent" style="background:var(--soft)"><input type="checkbox" id="dQR" ${s.qrEstricto?"checked":""}> 📷 <b>Modo QR estricto:</b> la mesa solo se fija escaneando el QR de la mesa (actívalo en el local; así nadie puede pedir para otra mesa).</label>
     <button class="btn btn-primary" type="submit">Guardar</button></form></div>
   <div class="form-card" style="margin-top:18px"><h3 style="margin-bottom:6px">☁️ Modo nube (tiempo real)</h3><p class="muted" style="margin-top:0;font-size:14px">${cloudOn()?"<b style='color:var(--green)'>Activado.</b> Las comandas de los móviles de los clientes llegan SOLAS a la pantalla de barra.":"Sin configurar: las comandas de los móviles llegan por WhatsApp. Para que entren solas en la pantalla de barra, rellena <b>CLOUD_URL, CLOUD_KEY y BAR_ID</b> en la caja CONFIG del archivo (guía incluida: GUIA-SERVIDOR-BARES.md)."}</p></div>`;
 }
 
 function viewBarra(){
   if(!ADMIN_OK) return `<div class="page"><div class="wrap" style="max-width:420px"><a class="back" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Volver</a><h1 class="ptitle">🖥️ Pantalla de barra</h1><p class="muted" style="margin-top:0">Acceso del personal.</p><form class="form-card" id="adminLogin"><div id="loginErr"></div><div class="field"><label for="apass">Contraseña</label><input id="apass" type="password" placeholder="••••••••"></div><button class="btn btn-primary btn-block" type="submit">Entrar</button></form></div></div>`;
-  const pendC=comandasAll().filter(c=>c.estado!=="servido").slice().reverse();
+  const pendC=comandasAll().filter(c=>c.estado==="pendiente").slice().reverse();
   return `<div class="page"><div class="wrap">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h1 class="ptitle">🖥️ Barra · comandas</h1><a class="btn btn-ghost" href="#/admin">Panel</a></div>
-    <p class="muted" style="margin-top:0">Se actualiza sola y suena al entrar una comanda nueva. Las del comandero de la casa entran al instante; las de los móviles llegan al WhatsApp.</p>
+    <p class="muted" style="margin-top:0">Se actualiza sola y suena al entrar una comanda nueva.</p>
+    ${(function(){ const hoy=new Date().toISOString().slice(0,10); const ab={}; comandasAll().forEach(c=>{ if(c.estado!=="cerrada"&&c.dia===hoy) ab[String(c.mesa)]=(ab[String(c.mesa)]||0)+1; }); const N=Math.min(B().mesas,30); return `<div class="mesas-board">${Array.from({length:N},(_,i)=>String(i+1)).map(mm=>{ const oc=ab[mm]; return oc?`<button class="mchip ocupada" data-action="cerrarMesa" data-id="${mm}" title="Cerrar mesa (cobrada)" type="button">M${mm} · ${oc} ✕</button>`:`<span class="mchip">M${mm}</span>`; }).join("")}</div>`; })()}
     ${pendC.length?`<div class="barra-grid">${pendC.map(c=>`<div class="bcard"><div class="bmesa">MESA ${esc(c.mesa)}</div><div class="bhora">${esc(c.hora)}</div><ul>${c.items.map(i=>`<li><b>${i.qty}×</b> ${esc(i.nombre)}</li>`).join("")}</ul><div class="btot">${money(c.total)}</div><button class="btn btn-primary btn-block" data-action="toggleCom" data-id="${esc(c.id)}" type="button">✔ Servida</button></div>`).join("")}</div>`:`<div class="empty"><div class="big">🖥️</div><b style="color:var(--text)">Sin comandas pendientes</b><br><span class="muted">Cuando entre una, sonará el aviso.</span></div>`}
   </div></div>`;
 }
 function beep(){ try{ const ctx=new (window.AudioContext||window.webkitAudioContext)(); const o=ctx.createOscillator(), g=ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.frequency.value=880; g.gain.value=.15; o.start(); o.stop(ctx.currentTime+.25); }catch(e){} }
 let LASTP=-1;
 function barraCheck(){ try{ if((location.hash||"").indexOf("barra")===-1||!ADMIN_OK) return;
-  const fin=()=>{ const n=comandasAll().filter(c=>c.estado!=="servido").length; if(LASTP===-1){ LASTP=n; render(); return; } if(n!==LASTP){ if(n>LASTP) beep(); LASTP=n; render(); } };
+  const fin=()=>{ const n=comandasAll().filter(c=>c.estado==="pendiente").length; if(LASTP===-1){ LASTP=n; render(); return; } if(n!==LASTP){ if(n>LASTP) beep(); LASTP=n; render(); } };
   if(cloudOn()) refreshComandas(fin); else fin();
 }catch(e){} }
 setInterval(barraCheck,4000);
@@ -417,7 +424,7 @@ function enviarComanda(){
     let msg="*Comanda · Mesa "+m+"*\n\n"; c.items.forEach(i=>{ msg+="• "+i.nombre+" ×"+i.qty+"\n"; }); msg+="\nTotal: "+money(c.total);
     if(!waOpen(msg)) toast("Comanda guardada. Configura tu WhatsApp en Ajustes.");
     RATED=false; setCart({}); location.hash="#/gracias"; };
-  if(cloudOn()){ api("comandas",{method:"POST",body:JSON.stringify({bar_id:CONFIG.BAR_ID,mesa:c.mesa,dia:c.dia,hora:c.hora,items:c.items,total:c.total,estado:"pendiente"})}).then(()=>{ RATED=false; setCart({}); location.hash="#/gracias"; toast("Comanda enviada a la barra 🔔"); }).catch(finLocal); return; }
+  if(cloudOn()){ api("comandas",{method:"POST",body:JSON.stringify({bar_id:CONFIG.BAR_ID,mesa:String(c.mesa),dia:c.dia,hora:c.hora,items:c.items,total:c.total,estado:"pendiente"})}).then(()=>{ RATED=false; setCart({}); location.hash="#/gracias"; toast("Comanda enviada a la barra 🔔"); }).catch(finLocal); return; }
   finLocal();
 }
 
@@ -428,7 +435,7 @@ document.addEventListener("click",e=>{
     case "pickMesa": { setMesa(+t.dataset.n); document.querySelectorAll("#mesaGrid button").forEach(b=>b.setAttribute("aria-pressed",b===t?"true":"false")); const cta=document.querySelector('[data-action="empezar"]'); if(cta)cta.textContent="Pedir en la mesa "+t.dataset.n; updateMesaPill(); break; }
     case "empezar": if(!getMesa()){ e.preventDefault(); toast("Elige primero tu mesa 🍽️"); } break;
     case "cambiarMesa": e.preventDefault(); setMesa(null); location.hash="#/"; render(); break;
-    case "add": e.preventDefault(); if(!getMesa()){ toast("Elige tu mesa primero"); location.hash="#/"; break; } addToCart(id,1); toast("Añadido a la comanda"); { const bf=document.querySelector('.barfix'); if(!bf && location.hash.includes('carta')) render(); else { const b=document.querySelector('.barfix .in b'); if(b)render(); } } break;
+    case "add": e.preventDefault(); if(!getMesa()){ toast(getSettings().qrEstricto?"📷 Escanea el QR de tu mesa para pedir":"Elige tu mesa primero"); location.hash="#/"; break; } addToCart(id,1); toast("Añadido a la comanda"); { const bf=document.querySelector('.barfix'); if(!bf && location.hash.includes('carta')) render(); else { const b=document.querySelector('.barfix .in b'); if(b)render(); } } break;
     case "inc": addToCart(id,1); render(); break;
     case "dec": addToCart(id,-1); render(); break;
     case "rm": setQty(id,0); render(); break;
@@ -449,6 +456,10 @@ document.addEventListener("click",e=>{
     case "toggleCom": { if(cloudOn()){ const c=comandasAll().find(x=>String(x.id)===String(id)); const nuevo=(c&&c.estado==="servido")?"pendiente":"servido"; api("comandas?id=eq."+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({estado:nuevo})}).then(()=>refreshComandas(render)).catch(()=>toast("Sin conexión con la nube")); } else { const C=load("lt_comandas",[]); const c=C.find(x=>x.id===id); if(c)c.estado=c.estado==="servido"?"pendiente":"servido"; save("lt_comandas",C); render(); } } break;
     case "delCom": if(confirm("¿Borrar esta comanda?")){ if(cloudOn()){ api("comandas?id=eq."+encodeURIComponent(id),{method:"DELETE"}).then(()=>refreshComandas(render)).catch(()=>toast("Sin conexión con la nube")); } else { save("lt_comandas",load("lt_comandas",[]).filter(x=>x.id!==id)); render(); } } break;
     case "refreshCom": refreshComandas(render); toast("Actualizado 🔄"); break;
+    case "cerrarMesa": { const mm=String(t.dataset.id); if(!confirm("¿Cerrar la Mesa "+mm+" (cobrada)? Quedará libre.")) break;
+      if(cloudOn()){ api("comandas?bar_id=eq."+encodeURIComponent(CONFIG.BAR_ID)+"&mesa=eq."+encodeURIComponent(mm)+"&estado=neq.cerrada",{method:"PATCH",body:JSON.stringify({estado:"cerrada"})}).then(()=>refreshComandas(render)).catch(()=>toast("Sin conexión con la nube")); }
+      else { const C=load("lt_comandas",[]); C.forEach(c=>{ if(String(c.mesa)===mm&&c.estado!=="cerrada") c.estado="cerrada"; }); save("lt_comandas",C); render(); }
+      toast("Mesa "+mm+" cerrada 💶"); break; }
     case "copyMesa": { const link=t.dataset.link; try{ navigator.clipboard.writeText(link); toast("Enlace copiado 📋"); }catch(e){ toast(link); } break; }
   }
 });
@@ -457,7 +468,7 @@ document.addEventListener("submit",e=>{
   if(e.target.id==="adminLogin"){ e.preventDefault(); if($("#apass").value===B().pass){ ADMIN_OK=true; render(); } else $("#loginErr").innerHTML='<div class="alert">Contraseña incorrecta.</div>'; }
   else if(e.target.id==="platoForm"){ e.preventDefault(); savePlato(); }
   else if(e.target.id==="mesasForm"){ e.preventDefault(); setSettings({mesas:Math.max(1,parseInt($("#mNum").value,10)||12)}); render(); toast("Mesas guardadas ✅"); }
-  else if(e.target.id==="datosForm"){ e.preventDefault(); setSettings({ bizNombre:$("#dNom").value.trim(), bizWhatsapp:$("#dWa").value.replace(/[^0-9]/g,""), bizCity:$("#dCity").value.trim(), bizEmail:$("#dMail").value.trim(), bizPass:$("#dPass").value.trim() }); const fc=$("#footCity"); if(fc)fc.textContent=B().city; render(); toast("Datos guardados ✅"); }
+  else if(e.target.id==="datosForm"){ e.preventDefault(); setSettings({ bizNombre:$("#dNom").value.trim(), bizWhatsapp:$("#dWa").value.replace(/[^0-9]/g,""), bizCity:$("#dCity").value.trim(), bizEmail:$("#dMail").value.trim(), bizPass:$("#dPass").value.trim(), qrEstricto: !!($("#dQR")&&$("#dQR").checked) }); const fc=$("#footCity"); if(fc)fc.textContent=B().city; render(); toast("Datos guardados ✅"); }
 });
 function savePlato(){
   const idv=$("#pId").value, file=$("#pImg").files&&$("#pImg").files[0];
