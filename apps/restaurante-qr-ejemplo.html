@@ -2709,7 +2709,7 @@ const TREN={
   "¡Comanda enviada!":"Order sent!","Tu pedido ha llegado a la barra. Te lo llevamos a la mesa enseguida. ¿Quieres pedir algo más?":"Your order has reached the bar. We'll bring it to your table right away. Anything else?",
   "¿Qué tal la experiencia?":"How was the experience?","¡Gracias por tu valoración! ⭐":"Thanks for your rating! ⭐","🚦 Seguir mi pedido":"🚦 Track my order",
   "Sigue tu pedido":"Track your order","Se actualiza solo. Te avisamos cuando esté en camino a tu mesa.":"Updates by itself. We'll let you know when it's on its way.",
-  "Recibido":"Received","En cocina":"Cooking","En camino":"On its way","¡Servido! Que aproveche":"Served! Enjoy",
+  "Recibido":"Received","En cocina":"Cooking","En camino":"On its way","¡Listo! En camino":"Ready! On its way","¡Servido! Que aproveche":"Served! Enjoy",
   "Aún no tienes pedidos":"No orders yet","Cuando envíes una comanda, podrás seguir su estado aquí.":"Once you send an order, you can track it here.",
   "💳 Pedir la cuenta":"💳 Ask for the bill","🔄 Actualizar":"🔄 Refresh","Mi pedido":"My order",
   "Tu cuenta":"Your bill","Consumo":"Subtotal","Propina":"Tip","Sin propina":"No tip","Otra":"Other","Dividir entre":"Split between","persona":"person","personas":"people","por persona":"per person",
@@ -3055,9 +3055,13 @@ function viewBarra(){
   </div></div>`;
 }
 function beep(){ try{ const ctx=new (window.AudioContext||window.webkitAudioContext)(); const o=ctx.createOscillator(), g=ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.frequency.value=880; g.gain.value=.15; o.start(); o.stop(ctx.currentTime+.25); }catch(e){} }
-let LASTP=-1;
-function barraCheck(){ try{ const h=location.hash||""; if(h.indexOf("personal")!==-1){ if(cloudOn()) refreshMsgs(paintChat); return; } if(h.indexOf("mipedido")!==-1){ if(cloudOn()) refreshComandas(render); return; } if(h.indexOf("barra")===-1||!(ADMIN_OK||BARRA_OK)) return;
-  const fin=()=>{ const n=comandasAll().filter(c=>c.estado==="pendiente").length; if(LASTP===-1){ LASTP=n; render(); return; } if(n!==LASTP){ if(n>LASTP) beep(); LASTP=n; render(); } };
+function vibrar(p){ try{ if(navigator.vibrate) navigator.vibrate(p||[180,90,180]); }catch(e){} }
+let LASTP=-1, MIPED_EST={};
+function notifyMiPedido(){ try{ const all=comandasAll(); load("lt_mis",[]).forEach(m=>{ const c=all.find(x=>String(x.id)===String(m.id)); if(!c) return; const prev=MIPED_EST[m.id]; MIPED_EST[m.id]=c.estado; if(prev&&prev!==c.estado){ beep(); vibrar(); if(c.estado==="listo") toast(T("¡Listo! En camino")+" 🍽️"); } }); }catch(e){} }
+function barraCheck(){ try{ const h=location.hash||""; if(h.indexOf("personal")!==-1){ if(cloudOn()) refreshMsgs(paintChat); return; } if(h.indexOf("mipedido")!==-1){ if(cloudOn()) refreshComandas(()=>{ notifyMiPedido(); render(); }); return; }
+  const esBarra=h.indexOf("barra")!==-1&&(ADMIN_OK||BARRA_OK); const esCam=h.indexOf("camarero")!==-1&&!!getCam();
+  if(!esBarra&&!esCam) return;
+  const fin=()=>{ const n=comandasAll().filter(c=>c.estado==="pendiente").length; if(LASTP===-1){ LASTP=n; render(); return; } if(n!==LASTP){ if(n>LASTP){ beep(); vibrar(); } LASTP=n; render(); } };
   if(cloudOn()) refreshComandas(fin); else fin();
 }catch(e){} }
 setInterval(barraCheck,4000);
