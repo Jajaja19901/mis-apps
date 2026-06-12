@@ -94,7 +94,13 @@ async function mensajeIA(l){
     "\nValoración en Google: "+(l.rating?(l.rating+"★ con "+(l.n||0)+" reseñas"):"desconocida")+
     "\nPlan que le ofrezco: "+planLbl(l.plan)+" ("+pr.alta+"€ de alta + "+pr.cuota+"€/mes)"+
     "\nEnlace a su demo: "+(l.demoUrl||"(aún no generada)");
-  const sys="Eres un comercial cercano y honesto que escribe un mensaje de WhatsApp para ofrecer a un bar/cafetería una app de pedidos por QR: el cliente escanea en la mesa, pide desde su móvil y la comanda llega sola a la barra; el bar sigue cobrando como siempre con su caja. Escribe en español de España, tono humano y de tú a tú, MÁXIMO 4 frases, sin sonar a anuncio ni a robot, sin emojis excesivos (uno o ninguno). Personaliza con los datos del bar (engancha con algo suyo). El objetivo NO es vender en el mensaje, sino que prueben la demo. Menciona el enlace de la demo si lo hay, y el precio con naturalidad. Devuelve SOLO el texto del mensaje, sin comillas ni markdown.";
+  const estilos=[
+    "Empieza directo con lo que viste de su local, sin saludo largo.",
+    "Empieza con un saludo corto y natural (ej: 'buenas') y ve al grano.",
+    "Empieza presentándote en plan cercano, una sola frase, y luego el motivo.",
+    "Empieza con una pregunta corta sobre su día a día (ej: las horas punta) y luego el motivo."
+  ];
+  const sys="Escribes mensajes de WhatsApp como una persona real, no como una IA ni un comercial. Eres del equipo de Incuba tu Negocio, un estudio pequeño que hace apps de pedidos por QR para bares: el cliente escanea en la mesa, pide desde su movil y la comanda llega sola a la barra; el bar cobra como siempre con su caja. REGLAS DE ESTILO (importantes): espanol de Espana, coloquial y natural; frases cortas; 3-4 frases maximo; CERO lenguaje de marketing (nada de 'descubre', 'revoluciona', 'no te lo pierdas', 'imagina'); sin listas, sin guiones largos, sin negritas, sin estructura perfecta; maximo un emoji o ninguno; sin despedida formal (nada de 'un cordial saludo'); puede haber alguna construccion imperfecta como la de un humano escribiendo rapido, pero sin faltas graves. "+estilos[Math.floor(Math.random()*estilos.length)]+" El objetivo NO es vender: es que le pique la curiosidad y pruebe la demo (menciona el enlace si lo hay) o conteste. Menciona el precio solo de pasada y con naturalidad. Devuelve SOLO el texto del mensaje, sin comillas ni markdown.";
   const usr="Escribe el mensaje para este local:\n"+datos;
   if(/^sk-ant/i.test(key)){
     const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
@@ -228,7 +234,7 @@ function vPipeline(){
         ${l.demoUrl?`<br><a href="${esc(l.demoUrl)}" target="_blank" rel="noopener" style="font-size:11px">🔗 su demo</a>`:""}</td>
       <td><select data-est="${l.id}" style="padding:5px"><option value="nuevo"${l.estado==="nuevo"?" selected":""}>Nuevo</option><option value="contactado"${l.estado==="contactado"?" selected":""}>Contactado</option><option value="interesado"${l.estado==="interesado"?" selected":""}>Interesado</option><option value="cliente"${l.estado==="cliente"?" selected":""}>CLIENTE 🎉</option><option value="no"${l.estado==="no"?" selected":""}>No</option></select>
         ${l.ultimo?`<br><span class="muted" style="font-size:10.5px">hace ${dias(l.ultimo)}d · ${l.toques||0} toque(s)</span>`:""}</td>
-      <td>${tq?`<span class="alerta">↻ toca ${tq}º toque</span>`:l.estado==="interesado"?'<span class="alerta" style="background:#fde8f0;border-color:#a3164f;color:#a3164f">🔥 ¡cerrar!</span>':"—"}</td>
+      <td>${l.estado==="contactado"?`<div style="display:flex;gap:4px;flex-wrap:wrap"><button class="mini" data-resp="${l.id}" type="button" title="Me ha contestado" style="border-color:#3f9d52;color:#1d6f2b">✅ Respondió</button><button class="mini" data-norep="${l.id}" type="button" title="No le interesa" style="color:#b32424">❌ No</button></div>${tq?`<span class="alerta">↻ toca ${tq}º toque</span>`:""}`:tq?`<span class="alerta">↻ toca ${tq}º toque</span>`:l.estado==="interesado"?'<span class="alerta" style="background:#fde8f0;border-color:#a3164f;color:#a3164f">🔥 ¡cerrar!</span>':"—"}</td>
       <td>${waNum?`<button class="btn btn-wa" data-wa="${l.id}" type="button">💬 WhatsApp</button>`:`<button class="mini" data-copy="${l.id}" type="button">📋 Copiar msj</button>`}
         <button class="mini" data-ia="${l.id}" type="button" title="Mensaje escrito por IA">✨ IA</button>
         <button class="mini" data-mail="${l.id}" type="button" title="Copiar email">✉️</button></td>
@@ -321,6 +327,8 @@ document.addEventListener("click",async e=>{
     return; }
   if(t.id==="addTodos"){ let n=0; RES.forEach(d=>{ if(addLead(leadDe(d))) n++; }); const rep=RES.length-n; toast(rep?(n+" nuevos añadidos · "+rep+" ya estaban en el pipeline (saltados para no repetir)"):(n+" añadidos al pipeline")); render(); return; }
   if(t.dataset.add!=null){ const d=RES[+t.dataset.add]; toast(addLead(leadDe(d))?"Añadido al pipeline ✓":"Ya estaba en el pipeline"); return; }
+  if(t.dataset.resp){ upLead(t.dataset.resp,{estado:"interesado"}); render(); toast("Marcado: respondió 🔥 ¡A cerrar!"); return; }
+  if(t.dataset.norep){ upLead(t.dataset.norep,{estado:"no"}); render(); toast("Marcado: no interesa. No se le insistirá más."); return; }
   if(t.dataset.filtro!=null){ save("filtro",t.dataset.filtro); render(); return; }
   if(t.id==="mAdd"){ const nom=$("#mNom").value.trim(); if(nom.length<2){ toast("Pon el nombre"); return; }
     addLead({ nombre:nom, ciudad:$("#mCiu").value.trim(), tel:$("#mTel").value.trim(), whatsapp:$("#mWa").value.replace(/[^0-9]/g,"") })?toast("Añadido ✓"):toast("Ya existía"); render(); return; }
