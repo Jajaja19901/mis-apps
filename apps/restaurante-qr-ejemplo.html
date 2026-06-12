@@ -169,6 +169,18 @@ button.mchip.ocupada{background:var(--brand);border-color:var(--brand);color:#ff
 .ovfoot .qty{flex:0 0 auto}
 .ci .mods{font-size:12.5px;color:var(--brand-d);margin-top:2px;line-height:1.3}
 .bm{color:var(--brand-d);font-weight:700;font-size:12.5px}
+.est-badge{font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;background:var(--soft);color:var(--muted)}
+.est-badge.pendiente{background:#f6e6cf;color:#8a5a08}.est-badge.cocina{background:#ffe0b0;color:#a35a00}.est-badge.listo{background:#cdeccf;color:#1d6f2b}
+.bcard.est-cocina{border-color:#f0a942}.bcard.est-listo{border-color:#56b65f}
+.agot{font-size:12px;font-weight:800;color:var(--brand);background:#fdecea;border:1px solid #f3c6c0;border-radius:8px;padding:5px 10px}
+.agot-card{opacity:.62}
+.track{display:flex;align-items:center;margin-top:6px}
+.tstep{display:flex;flex-direction:column;align-items:center;gap:4px;flex:0 0 auto;color:var(--muted-2);font-size:11.5px;font-weight:700;text-align:center;width:74px}
+.tstep .tdot{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:18px;background:var(--soft);border:2px solid var(--line-2)}
+.tstep.on{color:var(--brand-d)}.tstep.on .tdot{background:var(--soft);border-color:var(--brand);color:var(--brand-d)}
+.tstep.now .tdot{background:var(--brand);border-color:var(--brand);color:#fff;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.tline{flex:1;height:3px;background:var(--line-2);border-radius:2px;margin-top:-18px}
 .dish .pers{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--brand-d);font-weight:700;background:var(--soft);border-radius:6px;padding:2px 7px;margin-top:4px}
 .qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
 .qrbox{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center;box-shadow:var(--sh-sm)}
@@ -2553,6 +2565,10 @@ function setSettings(o){ save("lt_settings",Object.assign(getSettings(),o)); }
 /* mesa actual */
 function getMesa(){ return load("lt_mesa",null); }
 function setMesa(n){ save("lt_mesa",n); }
+const ESTLAB={pendiente:"Recibido",cocina:"En cocina",listo:"¡Listo! En camino",servido:"Servido",cerrada:"Cobrada"};
+const ESTNEXT={pendiente:"cocina",cocina:"listo",listo:"servido"};
+function setComEstado(id,nuevo){ if(cloudOn()){ api("comandas?id=eq."+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({estado:nuevo})}).then(()=>refreshComandas(render)).catch(()=>toast("Sin conexión con la nube")); } else { const C=load("lt_comandas",[]); const c=C.find(x=>String(x.id)===String(id)); if(c)c.estado=nuevo; save("lt_comandas",C); render(); } }
+function pushMis(c,id){ const m=load("lt_mis",[]); m.push({id:String(id||c.id),mesa:c.mesa,hora:c.hora,total:c.total}); save("lt_mis",m.slice(-12)); }
 function getCam(){ return load("lt_cam",null); }
 function setCam(c){ if(c)save("lt_cam",c); else { try{ localStorage.removeItem("lt_cam"); }catch(e){} } }
 
@@ -2588,7 +2604,7 @@ function cartItems(){ const P=getPlatos(); return getCart().map(l=>{ const p=P.f
 function cartTotal(){ return cartItems().reduce((a,i)=>a+i.unit*i.qty,0); }
 function modsText(i){ const a=[]; (i.quitar||[]).forEach(x=>a.push("sin "+x)); const el=i.elige||{}; Object.keys(el).forEach(k=>a.push(el[k])); (i.extras||[]).forEach(e=>a.push("+"+e.n)); if(i.nota)a.push("✎ "+i.nota); return a.join(", "); }
 function defaultElige(p){ const o={}; ((p.mods&&p.mods.elige)||[]).forEach(g=>{ o[g.t]=(g.o&&g.o[0])||""; }); return o; }
-function addQuick(pid){ const p=getPlatos().find(x=>x.id===pid); if(!p) return; const a=getCart(); a.push({lid:uid(),pid:pid,qty:1,quitar:[],elige:defaultElige(p),extras:[],nota:""}); setCart(a); }
+function addQuick(pid){ const p=getPlatos().find(x=>x.id===pid); if(!p) return; if(p.agotado){ toast("Ese plato está agotado 😕"); return; } const a=getCart(); a.push({lid:uid(),pid:pid,qty:1,quitar:[],elige:defaultElige(p),extras:[],nota:""}); setCart(a); }
 function addLine(line){ const a=getCart(); a.push(line); setCart(a); }
 function incLine(lid,d){ const a=getCart(); const l=a.find(x=>x.lid===lid); if(!l) return; l.qty+=d; if(l.qty<1){ setCart(a.filter(x=>x.lid!==lid)); } else setCart(a); }
 function rmLine(lid){ setCart(getCart().filter(x=>x.lid!==lid)); }
@@ -2618,7 +2634,7 @@ function viewHome(){
     </div>
   </div></section>`;
 }
-function dishHTML(p){ const md=hasMods(p); return `<article class="dish"${md?` data-action="dish" data-id="${esc(p.id)}" style="cursor:pointer"`:""}><div class="ph">${phHTML(p)}</div><div class="info"><h3>${esc(p.nombre)}</h3><p class="d">${esc(p.desc||"")}</p>${algHTML(p)}${md?'<div class="pers">⚙ Toca para personalizar</div>':""}<div class="row"><span class="price">${money(p.precio)}</span><button class="add" data-action="add" data-id="${esc(p.id)}" aria-label="Añadir ${esc(p.nombre)}" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button></div></div></article>`; }
+function dishHTML(p){ const ag=p.agotado===true; const md=hasMods(p)&&!ag; return `<article class="dish${ag?" agot-card":""}"${md?` data-action="dish" data-id="${esc(p.id)}" style="cursor:pointer"`:""}><div class="ph">${phHTML(p)}</div><div class="info"><h3>${esc(p.nombre)}</h3><p class="d">${esc(p.desc||"")}</p>${algHTML(p)}${md?'<div class="pers">⚙ Toca para personalizar</div>':""}<div class="row"><span class="price">${money(p.precio)}</span>${ag?'<span class="agot">Agotado</span>':`<button class="add" data-action="add" data-id="${esc(p.id)}" aria-label="Añadir ${esc(p.nombre)}" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>`}</div></div></article>`; }
 function recoHTML(P){ const d=P.filter(p=>p.dest); if(!d.length) return ""; return `<div class="reco"><h3>⭐ Los más pedidos</h3><div class="reco-strip">${d.map(p=>`<button class="reco-card" data-action="add" data-id="${esc(p.id)}" type="button"><span class="re">${esc(p.emoji||"🍽️")}</span><b>${esc(p.nombre)}</b><span class="rp">${money(p.precio)} +</span></button>`).join("")}</div></div>`; }
 function viewCarta(){
   const m=getMesa(); const P=getPlatos().filter(p=>p.activo!==false);
@@ -2638,7 +2654,7 @@ function rerenderGrid(){ const g=$("#grid"); if(g) g.innerHTML=gridHTML(getPlato
 function barFix(){ const n=cartCount(); if(!n) return ""; const hasBeb=cartItems().some(i=>i.cat==="Bebidas"); const sug=hasBeb?"":`<button class="sug" data-action="goBebidas" type="button">🍺 ¿Y de beber?</button>`; return `<div class="barfix"><div class="in"><div><b>${money(cartTotal())}</b> <span class="muted" style="font-size:13px">· ${n} art.</span>${sug}</div><a class="btn btn-primary" href="#/comanda">Ver mi comanda →</a></div></div>`; }
 
 let DSEL=null;
-function openDish(pid){ const p=getPlatos().find(x=>x.id===pid); if(!p){ return; } if(!getMesa()){ toast(getSettings().qrEstricto?"📷 Escanea el QR de tu mesa":"Elige tu mesa primero"); location.hash="#/"; return; }
+function openDish(pid){ const p=getPlatos().find(x=>x.id===pid); if(!p){ return; } if(p.agotado){ toast("Ese plato está agotado 😕"); return; } if(!getMesa()){ toast(getSettings().qrEstricto?"📷 Escanea el QR de tu mesa":"Elige tu mesa primero"); location.hash="#/"; return; }
   DSEL={pid:pid, qty:1, quitar:[], elige:defaultElige(p), extras:[], nota:""}; renderDish(); $("#ov").classList.add("show"); document.body.style.overflow="hidden"; }
 function closeDish(){ $("#ov").classList.remove("show"); document.body.style.overflow=""; DSEL=null; }
 function renderDish(){ if(!DSEL) return; const p=getPlatos().find(x=>x.id===DSEL.pid); if(!p) return; const m=p.mods||{};
@@ -2666,7 +2682,7 @@ function viewComanda(){
     </div>
   </div></div>`;
 }
-function viewGracias(){ const rateHTML=RATED?`<p class="muted" style="margin-top:14px">¡Gracias por tu valoración! ⭐</p>`:`<div class="rate" style="margin-top:14px"><p class="muted" style="margin:0 0 4px">¿Qué tal la experiencia?</p>${[1,2,3,4,5].map(n=>`<button class="star" data-action="rate" data-n="${n}" type="button" aria-label="${n} estrellas">★</button>`).join("")}</div>`; return `<div class="page"><div class="wrap" style="max-width:540px;text-align:center"><div style="font-size:64px">🔔</div><h1 class="ptitle" style="margin-top:8px">¡Comanda enviada!</h1><p class="muted">Tu pedido ha llegado a la barra. Te lo llevamos a la mesa enseguida. ¿Quieres pedir algo más?</p>${rateHTML}<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px"><a class="btn btn-primary" href="#/carta">Seguir pidiendo</a><a class="btn btn-ghost" href="#/">Inicio</a></div></div></div>`; }
+function viewGracias(){ const rateHTML=RATED?`<p class="muted" style="margin-top:14px">¡Gracias por tu valoración! ⭐</p>`:`<div class="rate" style="margin-top:14px"><p class="muted" style="margin:0 0 4px">¿Qué tal la experiencia?</p>${[1,2,3,4,5].map(n=>`<button class="star" data-action="rate" data-n="${n}" type="button" aria-label="${n} estrellas">★</button>`).join("")}</div>`; return `<div class="page"><div class="wrap" style="max-width:540px;text-align:center"><div style="font-size:64px">🔔</div><h1 class="ptitle" style="margin-top:8px">¡Comanda enviada!</h1><p class="muted">Tu pedido ha llegado a la barra. Te lo llevamos a la mesa enseguida. ¿Quieres pedir algo más?</p>${rateHTML}<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px"><a class="btn btn-primary" href="#/mipedido">🚦 Seguir mi pedido</a><a class="btn btn-ghost" href="#/carta">Seguir pidiendo</a></div></div></div>`; }
 function viewLegal(){ return `<div class="page"><div class="wrap" style="max-width:760px"><a class="back" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Volver</a><h1 class="ptitle">Privacidad y aviso legal</h1><h3 style="margin-top:16px">Política de privacidad</h3><p class="muted">En <b>${esc(B().nombre)}</b> no recogemos datos personales para pedir: solo el número de mesa y tu comanda, que se envía a la barra. No usamos cookies de seguimiento; la comanda se guarda solo en tu dispositivo.</p><h3 style="margin-top:16px">Responsable</h3><p class="muted">${esc(B().nombre)} · ${esc(B().city)} · ${esc(B().email)}.</p><h3 style="margin-top:16px">Aviso legal</h3><p class="muted">Precios y disponibilidad a título informativo, sujetos a la carta del día.</p><p class="note">Texto base con marcadores [ ]. Sustitúyelo por tus datos reales.</p></div></div>`; }
 
 /* ====== Admin ====== */
@@ -2693,7 +2709,7 @@ function admCom(){
   const C=comandasAll();
   const refr=`<div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button class="btn btn-ghost" data-action="refreshCom" type="button">🔄 Actualizar</button></div>`;
   if(!C.length) return refr+ `<div class="empty" style="padding:46px"><div class="big">🔔</div><b style="color:var(--text)">Sin comandas</b><br><span class="muted">Las comandas que envíen las mesas aparecerán aquí.</span></div>`;
-  return refr+C.slice().reverse().map(c=>`<div class="com"><div class="top"><span class="mz">Mesa ${esc(c.mesa)}</span><span class="st ${c.estado==="pendiente"?"pend":"ok"}">${c.estado==="servido"?"Servida":(c.estado==="cerrada"?"Cerrada 💶":"Pendiente")}</span></div>
+  return refr+C.slice().reverse().map(c=>`<div class="com"><div class="top"><span class="mz">Mesa ${esc(c.mesa)}</span><span class="st ${c.estado==="pendiente"?"pend":"ok"}">${esc(ESTLAB[c.estado]||c.estado)}</span></div>
     <div class="muted" style="font-size:13px;margin:6px 0">${esc(c.hora)} · ${money(c.total)} · ${c.camarero?("👤 "+esc(c.camarero)):"📱 Cliente"}</div>
     <div style="font-size:14px">${c.items.map(i=>esc(i.nombre)+" ×"+i.qty).join(", ")}</div>
     <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-ghost" data-action="toggleCom" data-id="${esc(c.id)}" type="button">${c.estado==="servido"?"Marcar pendiente":"Marcar servida"}</button><button class="btn btn-ghost" data-action="delCom" data-id="${esc(c.id)}" type="button" style="color:var(--brand)">Borrar</button></div></div>`).join("");
@@ -2714,7 +2730,7 @@ function admCarta(){
     <div style="display:flex;gap:12px;flex-wrap:wrap"><div class="field" style="flex:1;min-width:110px"><label for="pPrecio">Precio (€) *</label><input id="pPrecio" type="number" step="0.01" min="0" required value="${esc(f.precio)}"></div><div class="field" style="flex:2;min-width:150px"><label for="pImg">Foto</label><input id="pImg" type="file" accept="image/*"></div></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-primary" type="submit">${ed?"Guardar":"Añadir"}</button>${ed?`<button class="btn btn-ghost" data-action="cancelEdit" type="button">Cancelar</button>`:""}</div></form></div>
     <h3 style="margin-bottom:12px">Tu carta (${P.length})</h3>
-    ${P.map(p=>`<div class="adm-row"><div class="aph">${phHTML(p)}</div><div class="ainfo"><b>${esc(p.nombre)}</b> ${p.activo===false?'<span style="color:var(--brand);font-size:12px">(oculto)</span>':''}<br><span>${money(p.precio)} · ${esc(p.cat)}</span></div><div class="adm-act"><button class="mini" data-action="toggleP" data-id="${esc(p.id)}" type="button">${p.activo===false?'👁️':'🚫'}</button><button class="mini" data-action="editP" data-id="${esc(p.id)}" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button><button class="mini del" data-action="delP" data-id="${esc(p.id)}" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div></div>`).join("")}`;
+    ${P.map(p=>`<div class="adm-row"><div class="aph">${phHTML(p)}</div><div class="ainfo"><b>${esc(p.nombre)}</b> ${p.activo===false?'<span style="color:var(--brand);font-size:12px">(oculto)</span>':''}${p.agotado?' <span style="color:var(--brand);font-size:12px">(agotado)</span>':''}<br><span>${money(p.precio)} · ${esc(p.cat)}</span></div><div class="adm-act"><button class="mini" data-action="agotarP" data-id="${esc(p.id)}" title="${p.agotado?'Reactivar':'Agotar (86)'}" type="button">${p.agotado?'🔴':'🟢'}</button><button class="mini" data-action="toggleP" data-id="${esc(p.id)}" title="Ocultar/mostrar" type="button">${p.activo===false?'👁️':'🚫'}</button><button class="mini" data-action="editP" data-id="${esc(p.id)}" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button><button class="mini del" data-action="delP" data-id="${esc(p.id)}" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button></div></div>`).join("")}`;
 }
 function admCamareros(){
   const cams=getSettings().camareros||[]; const hoy=new Date().toISOString().slice(0,10);
@@ -2750,6 +2766,22 @@ function admAjustes(){
   <div class="form-card" style="margin-top:18px"><h3 style="margin-bottom:6px">☁️ Modo nube (tiempo real)</h3><p class="muted" style="margin-top:0;font-size:14px">${cloudOn()?"<b style='color:var(--green)'>Activado.</b> Las comandas de los móviles de los clientes llegan SOLAS a la pantalla de barra.":"Sin configurar: las comandas de los móviles llegan por WhatsApp. Para que entren solas en la pantalla de barra, rellena <b>CLOUD_URL, CLOUD_KEY y BAR_ID</b> en la caja CONFIG del archivo (guía incluida: GUIA-SERVIDOR-BARES.md)."}</p></div>`;
 }
 
+function viewMiPedido(){
+  const mis=load("lt_mis",[]).slice().reverse(); const all=comandasAll();
+  if(!mis.length) return `<div class="page"><div class="wrap" style="max-width:560px"><a class="back" href="#/carta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Carta</a><div class="empty"><div class="big">🚦</div><b style="font-size:19px;color:var(--text)">Aún no tienes pedidos</b><br><span class="muted">Cuando envíes una comanda, podrás seguir su estado aquí.</span><br><br><a class="btn btn-primary" href="#/carta">Ver la carta</a></div></div></div>`;
+  const STEPS=[["pendiente","Recibido","📝"],["cocina","En cocina","👨‍🍳"],["listo","En camino","🍽️"]];
+  const idx={pendiente:0,cocina:1,listo:2,servido:3,cerrada:3};
+  return `<div class="page"><div class="wrap" style="max-width:560px">
+    <a class="back" href="#/carta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Seguir pidiendo</a>
+    <h1 class="ptitle">Sigue tu pedido</h1>
+    <p class="muted" style="margin-top:0">Se actualiza solo. Te avisamos cuando esté en camino a tu mesa.</p>
+    ${mis.map(mp=>{ const c=all.find(x=>String(x.id)===String(mp.id)); const est=c?c.estado:"pendiente"; const ci=idx[est]==null?0:idx[est]; const done=est==="servido"||est==="cerrada";
+      return `<div class="form-card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;font-size:14px;color:var(--muted)"><span>🕐 ${esc(mp.hora)}</span><span>${money(mp.total)}</span></div>
+        ${done?`<div style="text-align:center;padding:14px 0"><div style="font-size:34px">✅</div><b style="font-size:17px;color:var(--green)">¡Servido! Que aproveche</b></div>`:`<div class="track">${STEPS.map((s,i)=>`<div class="tstep ${i<=ci?"on":""} ${i===ci?"now":""}"><div class="tdot">${i<ci?"✓":s[2]}</div><span>${s[1]}</span></div>`).join('<div class="tline"></div>')}</div>`}
+      </div>`; }).join("")}
+    <div style="text-align:center;margin-top:10px"><a class="btn btn-ghost" data-action="refreshMis" href="#/mipedido">🔄 Actualizar</a></div>
+  </div></div>`;
+}
 function viewCamarero(){
   const cam=getCam(), cams=getSettings().camareros||[];
   if(!cam){
@@ -2767,17 +2799,17 @@ function viewCamarero(){
 }
 function viewBarra(){
   if(!ADMIN_OK) return `<div class="page"><div class="wrap" style="max-width:420px"><a class="back" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Volver</a><h1 class="ptitle">🖥️ Pantalla de barra</h1><p class="muted" style="margin-top:0">Acceso del personal.</p><form class="form-card" id="adminLogin"><div id="loginErr"></div><div class="field"><label for="apass">Contraseña</label><input id="apass" type="password" placeholder="••••••••"></div><button class="btn btn-primary btn-block" type="submit">Entrar</button></form></div></div>`;
-  const pendC=comandasAll().filter(c=>c.estado==="pendiente").slice().reverse();
+  const pendC=comandasAll().filter(c=>["pendiente","cocina","listo"].includes(c.estado)).slice().reverse();
   return `<div class="page"><div class="wrap">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h1 class="ptitle">🖥️ Barra · comandas</h1><a class="btn btn-ghost" href="#/admin">Panel</a></div>
     <p class="muted" style="margin-top:0">Se actualiza sola y suena al entrar una comanda nueva.</p>
     ${(function(){ const hoy=new Date().toISOString().slice(0,10); const ab={}; comandasAll().forEach(c=>{ if(c.estado!=="cerrada"&&c.dia===hoy) ab[String(c.mesa)]=(ab[String(c.mesa)]||0)+1; }); const N=Math.min(B().mesas,30); return `<div class="mesas-board">${Array.from({length:N},(_,i)=>String(i+1)).map(mm=>{ const oc=ab[mm]; return oc?`<button class="mchip ocupada" data-action="cerrarMesa" data-id="${mm}" title="Cerrar mesa (cobrada)" type="button">M${mm} · ${oc} ✕</button>`:`<span class="mchip">M${mm}</span>`; }).join("")}</div>`; })()}
-    ${pendC.length?`<div class="barra-grid">${pendC.map(c=>`<div class="bcard"><div class="bmesa">MESA ${esc(c.mesa)}</div><div class="bhora">${esc(c.hora)} · ${c.camarero?("👤 "+esc(c.camarero)):"📱 Cliente"}</div><ul>${c.items.map(i=>`<li><b>${i.qty}×</b> ${esc(i.nombre)}${i.mods?`<span class="bm"> · ${esc(i.mods)}</span>`:""}</li>`).join("")}</ul><div class="btot">${money(c.total)}</div><button class="btn btn-primary btn-block" data-action="toggleCom" data-id="${esc(c.id)}" type="button">✔ Servida</button></div>`).join("")}</div>`:`<div class="empty"><div class="big">🖥️</div><b style="color:var(--text)">Sin comandas pendientes</b><br><span class="muted">Cuando entre una, sonará el aviso.</span></div>`}
+    ${pendC.length?`<div class="barra-grid">${pendC.map(c=>`<div class="bcard est-${esc(c.estado)}"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="bmesa">MESA ${esc(c.mesa)}</div><span class="est-badge ${esc(c.estado)}">${esc(ESTLAB[c.estado]||c.estado)}</span></div><div class="bhora">${esc(c.hora)} · ${c.camarero?("👤 "+esc(c.camarero)):"📱 Cliente"}</div><ul>${c.items.map(i=>`<li><b>${i.qty}×</b> ${esc(i.nombre)}${i.mods?`<span class="bm"> · ${esc(i.mods)}</span>`:""}</li>`).join("")}</ul><div class="btot">${money(c.total)}</div>${ESTNEXT[c.estado]?`<button class="btn btn-primary btn-block" data-action="advanceCom" data-id="${esc(c.id)}" type="button">${c.estado==="pendiente"?"👨‍🍳 Pasar a cocina":c.estado==="cocina"?"✅ Marcar listo":"🍽️ Marcar servida"}</button>`:""}</div>`).join("")}</div>`:`<div class="empty"><div class="big">🖥️</div><b style="color:var(--text)">Sin comandas pendientes</b><br><span class="muted">Cuando entre una, sonará el aviso.</span></div>`}
   </div></div>`;
 }
 function beep(){ try{ const ctx=new (window.AudioContext||window.webkitAudioContext)(); const o=ctx.createOscillator(), g=ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.frequency.value=880; g.gain.value=.15; o.start(); o.stop(ctx.currentTime+.25); }catch(e){} }
 let LASTP=-1;
-function barraCheck(){ try{ if((location.hash||"").indexOf("barra")===-1||!ADMIN_OK) return;
+function barraCheck(){ try{ const h=location.hash||""; if(h.indexOf("mipedido")!==-1){ if(cloudOn()) refreshComandas(render); return; } if(h.indexOf("barra")===-1||!ADMIN_OK) return;
   const fin=()=>{ const n=comandasAll().filter(c=>c.estado==="pendiente").length; if(LASTP===-1){ LASTP=n; render(); return; } if(n!==LASTP){ if(n>LASTP) beep(); LASTP=n; render(); } };
   if(cloudOn()) refreshComandas(fin); else fin();
 }catch(e){} }
@@ -2791,6 +2823,7 @@ function render(){
   if(r==="carta") html=viewCarta();
   else if(r==="barra") html=viewBarra();
   else if(r==="camarero") html=viewCamarero();
+  else if(r==="mipedido") html=viewMiPedido();
   else if(r==="comanda") html=viewComanda();
   else if(r==="gracias") html=viewGracias();
   else if(r==="legal") html=viewLegal();
@@ -2814,8 +2847,8 @@ function enviarComanda(){
   const finLocal=()=>{ const C=load("lt_comandas",[]); C.push(c); save("lt_comandas",C);
     let msg="*Comanda · Mesa "+m+"*"+(camN?(" · "+camN):"")+"\n\n"; c.items.forEach(i=>{ msg+="• "+i.nombre+" ×"+i.qty+(i.mods?(" ("+i.mods+")"):"")+"\n"; }); msg+="\nTotal: "+money(c.total);
     if(!waOpen(msg)) toast(cam?"Comanda enviada 🔔":"Comanda guardada. Configura tu WhatsApp en Ajustes.");
-    RATED=false; setCart([]); location.hash=dest; if(cam)render(); };
-  if(cloudOn()){ api("comandas",{method:"POST",body:JSON.stringify({bar_id:CONFIG.BAR_ID,mesa:String(c.mesa),camarero:camN,dia:c.dia,hora:c.hora,items:c.items,total:c.total,estado:"pendiente"})}).then(()=>{ RATED=false; setCart([]); location.hash=dest; if(cam)render(); toast("Comanda enviada a la barra 🔔"); }).catch(finLocal); return; }
+    if(!cam) pushMis(c,c.id); RATED=false; setCart([]); location.hash=dest; if(cam)render(); };
+  if(cloudOn()){ api("comandas",{method:"POST",body:JSON.stringify({bar_id:CONFIG.BAR_ID,mesa:String(c.mesa),camarero:camN,dia:c.dia,hora:c.hora,items:c.items,total:c.total,estado:"pendiente"})}).then(rows=>{ if(!cam) pushMis(c,(rows&&rows[0]&&rows[0].id)); RATED=false; setCart([]); location.hash=dest; if(cam)render(); toast("Comanda enviada a la barra 🔔"); }).catch(finLocal); return; }
   finLocal();
 }
 
@@ -2858,6 +2891,9 @@ document.addEventListener("click",e=>{
     case "delCom": if(confirm("¿Borrar esta comanda?")){ if(cloudOn()){ api("comandas?id=eq."+encodeURIComponent(id),{method:"DELETE"}).then(()=>refreshComandas(render)).catch(()=>toast("Sin conexión con la nube")); } else { save("lt_comandas",load("lt_comandas",[]).filter(x=>x.id!==id)); render(); } } break;
     case "refreshCom": refreshComandas(render); toast("Actualizado 🔄"); break;
     case "camLogout": setCam(null); render(); break;
+    case "advanceCom": { const c=comandasAll().find(x=>String(x.id)===String(id)); const nx=c?ESTNEXT[c.estado]:null; if(nx) setComEstado(id,nx); break; }
+    case "agotarP": { const P=getPlatos(); const p=P.find(x=>x.id===id); if(p)p.agotado=!p.agotado; setPlatos(P); render(); toast(p&&p.agotado?"Marcado agotado 🔴":"Reactivado 🟢"); break; }
+    case "refreshMis": e.preventDefault(); if(cloudOn()) refreshComandas(render); else render(); toast("Actualizado 🔄"); break;
     case "camPick": setMesa(+t2.dataset.n); location.hash="#/carta"; break;
     case "delCam": if(confirm("¿Borrar este camarero?")){ const s=getSettings(); s.camareros=(s.camareros||[]).filter(x=>x.id!==id); setSettings({camareros:s.camareros}); render(); } break;
     case "cerrarMesa": { const mm=String(t2.dataset.id); if(!confirm("¿Cerrar la Mesa "+mm+" (cobrada)? Quedará libre.")) break;
@@ -2911,7 +2947,8 @@ getPlatos(); applyLogo(); setupPWA(); render();
   { "name": "Los recomendados aparecen en la carta", "steps": [ { "goto": "/carta" }, { "expectVisible": ".reco-card" } ] },
   { "name": "La pantalla de barra pide contraseña", "steps": [ { "goto": "/barra" }, { "expectVisible": "#adminLogin" } ] },
   { "name": "El panel genera los QR de las mesas", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"mesas\"]" }, { "expectVisible": ".qrbox" } ] },
-  { "name": "El acceso de camareros pide PIN", "steps": [ { "goto": "/camarero" }, { "expectVisible": "#camLogin" } ] }
+  { "name": "El acceso de camareros pide PIN", "steps": [ { "goto": "/camarero" }, { "expectVisible": "#camLogin" } ] },
+  { "name": "Seguir mi pedido funciona", "steps": [ { "goto": "/" }, { "click": "[data-action=\"pickMesa\"][data-n=\"2\"]" }, { "goto": "/carta" }, { "click": "[data-action=\"add\"]" }, { "goto": "/comanda" }, { "click": "[data-action=\"enviarComanda\"]" }, { "goto": "/mipedido" }, { "expectVisible": ".track" } ] }
 ]
 </script>
 </body>
