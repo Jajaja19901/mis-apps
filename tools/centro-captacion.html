@@ -140,9 +140,10 @@ function vBuscar(){
     <div class="row">
       <div><label for="bq">Tipo</label><input id="bq" value="${esc(load("bq","cafeterías y bares"))}"></div>
       <div><label for="bz">Zona / ciudad</label><input id="bz" value="${esc(load("bz",""))}" placeholder="Las Palmas de Gran Canaria"></div>
-      <div style="flex:0 0 auto;display:flex;align-items:flex-end"><button class="btn btn-p" id="go" type="button">Buscar</button></div>
+      <div style="flex:0 0 auto;display:flex;align-items:flex-end"><button class="btn btn-g" id="go" type="button">Google</button></div>
     </div>
-    <p class="note">Usa tu clave de Google de la pestaña ⚙️ Ajustes. Resultados ordenados por probabilidad de compra (🔥).</p>
+    <div style="margin-top:8px"><button class="btn btn-p" id="goosm" type="button" style="width:100%">🌍 Buscar GRATIS (sin Google, sin clave)</button></div>
+    <p class="note">El botón GRATIS no necesita NADA: te saca nombres y direcciones de bares al instante (algunos con teléfono). El de Google necesita tu clave (pestaña ⚙️). Ordenados por quién pica más (🔥).</p>
     <div class="err" id="berr"></div></div>
   <div class="card" id="bres" style="display:${RES.length?"":"none"}">
     <h2>Resultados (${RES.length}) <button class="btn btn-g" id="addTodos" type="button" style="float:right">+ Añadir todos al pipeline</button></h2>
@@ -250,6 +251,7 @@ document.getElementById("tabs").addEventListener("click",e=>{ const b=e.target.c
 document.addEventListener("click",async e=>{
   const t=e.target.closest("button"); if(!t) return;
   if(t.id==="go"){ await buscar(); return; }
+  if(t.id==="goosm"){ await buscarOSM(); return; }
   if(t.id==="addTodos"){ let n=0; RES.forEach(d=>{ if(addLead(leadDe(d))) n++; }); toast(n+" añadidos al pipeline"); render(); return; }
   if(t.dataset.add!=null){ const d=RES[+t.dataset.add]; toast(addLead(leadDe(d))?"Añadido al pipeline ✓":"Ya estaba en el pipeline"); return; }
   if(t.dataset.filtro!=null){ save("filtro",t.dataset.filtro); render(); return; }
@@ -295,6 +297,38 @@ function importarEmbudo(id,silencio){ let E=[]; try{ E=JSON.parse(localStorage.g
   const plan=/Digital/i.test(l.nivel||"")?"top":/B..sica/i.test(l.nivel||"")?"basico":"medio";
   addLead({ nombre:l.negocio||l.nombre, ciudad:"", tel:l.telefono, whatsapp:(l.telefono||"").replace(/[^0-9]/g,"").replace(/^(?!34)/,"34"), plan, estado:"interesado", notas:"Del embudo: "+(l.nombre||""), embudoId:id, origen:"embudo" });
   if(!silencio){ toast("Importado como INTERESADO 🔥"); render(); } }
+
+// Búsqueda GRATIS con OpenStreetMap (sin clave, sin Google). Funciona en el navegador.
+async function buscarOSM(){
+  const err=$("#berr"); err.style.display="none";
+  const z=$("#bz").value.trim(); save("bz",z); save("bq",$("#bq").value.trim());
+  if(!z){ err.textContent="Pon la zona o ciudad."; err.style.display="block"; return; }
+  const btn=$("#goosm"); btn.textContent="Buscando… (puede tardar 10-20s)"; btn.disabled=true;
+  try{
+    // 1) localizar la ciudad (Nominatim, gratis)
+    const g=await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q="+encodeURIComponent(z),{headers:{"Accept":"application/json"}});
+    const gj=await g.json();
+    if(!gj||!gj.length) throw new Error("No encuentro esa ciudad. Prueba a escribirla más completa.");
+    const lat=gj[0].lat, lon=gj[0].lon;
+    // 2) bares/cafés/restaurantes alrededor (Overpass, gratis)
+    const oq='[out:json][timeout:30];(node["amenity"~"^(cafe|bar|restaurant|fast_food|pub)$"](around:4000,'+lat+','+lon+');way["amenity"~"^(cafe|bar|restaurant|fast_food|pub)$"](around:4000,'+lat+','+lon+'););out center tags 120;';
+    let j=null;
+    for(const ep of ["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"]){
+      try{ const r=await fetch(ep,{method:"POST",body:"data="+encodeURIComponent(oq)}); if(r.ok){ j=await r.json(); break; } }catch(e){}
+    }
+    if(!j) throw new Error("Los servidores de OpenStreetMap están ocupados. Prueba otra vez en un minuto.");
+    const seen={};
+    RES=(j.elements||[]).filter(e=>e.tags&&e.tags.name).map(e=>{ const t=e.tags;
+      const dir=[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ")||t["addr:suburb"]||t["addr:city"]||z;
+      const tel=t.phone||t["contact:phone"]||t["contact:mobile"]||"";
+      return { nombre:t.name, dir, tel, inter:tel, web:t.website||t["contact:website"]||"", rating:"", n:0 }; })
+      .filter(d=>{ const k=d.nombre.toLowerCase(); if(seen[k])return false; seen[k]=1; return true; });
+    RES.forEach(d=>{ const sc=score(d); d.score=sc.v; d.motivo=sc.m; });
+    RES.sort((a,b)=>b.score-a.score);
+    render();
+    if(!RES.length){ const e2=$("#berr"); if(e2){ e2.textContent="No salió ningún bar en esa zona. Prueba con una ciudad más grande cerca."; e2.style.display="block"; } }
+  }catch(e){ render(); const e2=$("#berr"); if(e2){ e2.textContent="No se pudo buscar gratis: "+e.message; e2.style.display="block"; } }
+}
 
 async function buscar(){
   const err=$("#berr"); err.style.display="none";
