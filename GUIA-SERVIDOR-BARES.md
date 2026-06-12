@@ -45,6 +45,17 @@ alter table mensajes enable row level security;
 create policy "acceso mensajes" on mensajes for all using (true) with check (true);
 create index mensajes_bar on mensajes (bar_id, id);
 
+create table push_subs (
+  endpoint text primary key,
+  bar_id text not null,
+  rol text default 'staff',
+  sub jsonb,
+  created_at timestamptz default now()
+);
+alter table push_subs enable row level security;
+create policy "acceso push" on push_subs for all using (true) with check (true);
+create index push_bar on push_subs (bar_id, rol);
+
 create table valoraciones (
   id bigint generated always as identity primary key,
   bar_id text, n int, dia text,
@@ -110,6 +121,40 @@ Cliente escanea QR de su mesa → pide desde SU móvil → comanda a la base de 
 - **150 € de alta** (montaje: su carta, sus QR, su pantalla, su subdominio).
 - **50 €/mes** (hosting, base de datos, soporte y cambios de carta).
 - Coste para ti: Supabase gratis hasta mucho volumen; Netlify gratis. **Margen ≈ todo.**
+
+## 📲 Avisos con el móvil bloqueado (notificaciones push)
+
+Con esto, cuando un cliente pide, **al personal le llega una notificación como un
+WhatsApp aunque el móvil esté bloqueado en el bolsillo**. Se monta UNA vez y vale
+para todos tus bares.
+
+**Paso A — Generar las llaves de avisos (una vez):**
+```bash
+npx web-push generate-vapid-keys
+```
+Te da una **Public Key** y una **Private Key**. Guárdalas.
+
+**Paso B — Desplegar el cañón de avisos (una vez):**
+```bash
+supabase functions deploy notificar --no-verify-jwt
+supabase secrets set VAPID_PUBLIC_KEY=LA_PUBLICA VAPID_PRIVATE_KEY=LA_PRIVADA VAPID_EMAIL=tu@correo.com
+```
+(El código ya está en `supabase/functions/notificar/index.ts` del repo.)
+
+**Paso C — El disparador automático (una vez):**
+En Supabase → **Database → Webhooks → Create**: tabla `comandas`, evento **INSERT**,
+tipo **Supabase Edge Function** → `notificar`. Guardar.
+
+**Paso D — Por cada bar:**
+1. En la caja CONFIG del HTML, pon la Public Key en `PUSH_KEY:"..."`.
+2. Al subir el bar a Netlify, **sube TAMBIÉN `tools/sw.js`** junto al HTML
+   (mismo sitio, mismo nombre `sw.js`). Truco: mete los dos archivos en una
+   carpeta y arrastra la carpeta entera a Netlify Drop.
+3. El personal pulsa **"🔔 Activar avisos"** en su pantalla → listo.
+
+**Cobertura:** Android → notificación en pantalla de bloqueo directamente desde el
+navegador. iPhone → requiere tener la app **instalada en la pantalla de inicio**
+(iOS 16.4 o más nuevo); instalada, recibe igual que Android.
 
 ## 🧾 Cómo convive con el TPV del bar (argumento de venta)
 

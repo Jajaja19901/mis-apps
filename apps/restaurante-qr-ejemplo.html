@@ -2583,7 +2583,8 @@ const CONFIG={ BUSINESS_NAME:"La Tasca", CITY:"[Tu ciudad]", WHATSAPP:"", EMAIL:
   /* ── MODO NUBE (opcional): rellena esto y las comandas de los móviles llegan SOLAS a la pantalla de barra ── */
   CLOUD_URL:"",   // ej. https://xxxx.supabase.co  (proyecto Supabase, gratis)
   CLOUD_KEY:"",   // la "anon key" del proyecto
-  BAR_ID:""       // identificador único de este bar, ej. "tasca-centro-1"
+  BAR_ID:"",      // identificador único de este bar, ej. "tasca-centro-1"
+  PUSH_KEY:""     // clave pública VAPID (avisos con el móvil bloqueado; ver GUIA-SERVIDOR-BARES.md)
 };
 /* PRESET_CARTA: el generador de altas lo rellena con la carta del bar. null = usa la de muestra. */
 const PRESET_CARTA=null;
@@ -3064,6 +3065,12 @@ function beepFuerte(){ try{ const ctx=new (window.AudioContext||window.webkitAud
 function flash(){ try{ const d=document.createElement("div"); d.className="flashav"; document.body.appendChild(d); setTimeout(()=>{ try{d.remove();}catch(e){} },1400); }catch(e){} }
 function notiSistema(tit,txt){ try{ if(!("Notification" in window)||Notification.permission!=="granted"||!document.hidden) return; const n=new Notification(tit,{body:txt,icon:(typeof logoURI==="function"?logoURI():undefined),tag:"lt-aviso"}); setTimeout(()=>{ try{n.close();}catch(e){} },8000); }catch(e){} }
 function avisoFuerte(tit,txt){ beepFuerte(); vibrar([220,100,220,100,220]); flash(); notiSistema(tit,txt); }
+/* Push: avisos con el móvil bloqueado (necesita servidor + sw.js subido junto a la app, ver guía) */
+function pushOn(){ return cloudOn()&&!!CONFIG.PUSH_KEY&&("serviceWorker" in navigator)&&("PushManager" in window)&&location.protocol==="https:"; }
+function b64aU8(b){ const p="=".repeat((4-b.length%4)%4); const s=(b+p).replace(/-/g,"+").replace(/_/g,"/"); const r=atob(s); const a=new Uint8Array(r.length); for(let i=0;i<r.length;i++)a[i]=r.charCodeAt(i); return a; }
+function suscribirPush(rol){ try{ if(!pushOn()||Notification.permission!=="granted") return;
+  navigator.serviceWorker.register("sw.js").then(reg=>reg.pushManager.getSubscription().then(s=>s||reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64aU8(CONFIG.PUSH_KEY)}))).then(sub=>api("push_subs?on_conflict=endpoint",{method:"POST",headers:{"Prefer":"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({bar_id:CONFIG.BAR_ID,endpoint:sub.endpoint,sub:sub,rol:rol||"staff"})})).then(()=>toast("Avisos con el móvil bloqueado activados 🔔📲")).catch(()=>{});
+}catch(e){} }
 /* Mantener encendida la pantalla de barra (tablet del local) */
 let WLOCK=null;
 function mantenerPantalla(){ try{ if(!("wakeLock" in navigator)) return; navigator.wakeLock.request("screen").then(l=>{ WLOCK=l; }).catch(()=>{}); }catch(e){} }
@@ -3152,7 +3159,7 @@ document.addEventListener("click",e=>{
     case "studio": e.preventDefault(); toast("Diseñado por Incuba tu Negocio · Jaime M. M."); break;
     case "install": installApp(); break;
     case "logout": ADMIN_OK=false; BARRA_OK=false; render(); break;
-    case "pedirAvisos": { beepFuerte(); try{ if("Notification" in window) Notification.requestPermission().then(p=>{ toast(p==="granted"?"Avisos del sistema activados 🔔":"Sonará y vibrará con la app abierta 🔔"); render(); }); }catch(e){} break; }
+    case "pedirAvisos": { beepFuerte(); try{ if("Notification" in window) Notification.requestPermission().then(p=>{ if(p==="granted") suscribirPush("staff"); toast(p==="granted"?"Avisos del sistema activados 🔔":"Sonará y vibrará con la app abierta 🔔"); render(); }); }catch(e){} break; }
     case "tab": ADMIN_TAB=t2.dataset.tab; EDIT_ID=null; render(); break;
     case "editP": EDIT_ID=id; ADMIN_TAB="carta"; render(); window.scrollTo(0,0); break;
     case "cancelEdit": EDIT_ID=null; render(); break;
@@ -3187,11 +3194,11 @@ document.addEventListener("click",e=>{
 document.addEventListener("click",e=>{ const c=e.target.closest(".chip"); if(c&&c.dataset.cat){ FILTER=c.dataset.cat; document.querySelectorAll("#chips .chip").forEach(x=>x.setAttribute("aria-pressed",x===c?"true":"false")); rerenderGrid(); } });
 document.addEventListener("submit",e=>{
   if(e.target.id==="adminLogin"){ e.preventDefault(); const v=$("#apass").value; const rr=(location.hash||"").indexOf("barra")!==-1;
-    if(v===B().pass){ ADMIN_OK=true; BARRA_OK=true; render(); }
-    else if(rr&&(getSettings().camareros||[]).some(x=>String(x.pin)===v.trim())){ BARRA_OK=true; render(); toast("Modo personal: solo pantalla de barra 👤"); }
+    if(v===B().pass){ ADMIN_OK=true; BARRA_OK=true; render(); try{ if(rr&&("Notification" in window)&&Notification.permission==="granted") suscribirPush("staff"); }catch(e2){} }
+    else if(rr&&(getSettings().camareros||[]).some(x=>String(x.pin)===v.trim())){ BARRA_OK=true; render(); toast("Modo personal: solo pantalla de barra 👤"); try{ if(("Notification" in window)&&Notification.permission==="granted") suscribirPush("staff"); }catch(e2){} }
     else $("#loginErr").innerHTML='<div class="alert">Contraseña incorrecta.</div>'; }
   else if(e.target.id==="platoForm"){ e.preventDefault(); savePlato(); }
-  else if(e.target.id==="camLogin"){ e.preventDefault(); const pin=($("#cpin").value||"").trim(); const cam=(getSettings().camareros||[]).find(x=>String(x.pin)===pin); if(cam){ setCam({id:cam.id,nombre:cam.nombre}); render(); toast("¡Hola, "+cam.nombre+"! 👋"); } else $("#camErr").innerHTML='<div class="alert">PIN incorrecto.</div>'; }
+  else if(e.target.id==="camLogin"){ e.preventDefault(); const pin=($("#cpin").value||"").trim(); const cam=(getSettings().camareros||[]).find(x=>String(x.pin)===pin); if(cam){ setCam({id:cam.id,nombre:cam.nombre}); render(); toast("¡Hola, "+cam.nombre+"! 👋"); try{ if(("Notification" in window)&&Notification.permission==="granted") suscribirPush("staff"); }catch(e2){} } else $("#camErr").innerHTML='<div class="alert">PIN incorrecto.</div>'; }
   else if(e.target.id==="msgForm"){ e.preventDefault(); const v=$("#msgIn"); if(v){ enviarMsg(v.value); v.value=""; v.focus(); } }
   else if(e.target.id==="camForm"){ e.preventDefault(); const nom=($("#cnom").value||"").trim(), pin=($("#cpin2").value||"").trim(); if(!nom||!pin){ toast("Pon nombre y PIN"); return; } const s=getSettings(); const cams=s.camareros||[]; if(cams.some(x=>String(x.pin)===pin)){ toast("Ese PIN ya está en uso"); return; } cams.push({id:uid(),nombre:nom,pin:pin}); setSettings({camareros:cams}); render(); toast("Camarero añadido ✅"); }
   else if(e.target.id==="mesasForm"){ e.preventDefault(); setSettings({mesas:Math.max(1,parseInt($("#mNum").value,10)||12)}); render(); toast("Mesas guardadas ✅"); }

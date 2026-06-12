@@ -35,6 +35,7 @@ export function generarBar(tpl, d){
   if(d.cloudUrl!=null) set(/CLOUD_URL:"[^"]*"/,'CLOUD_URL:"'+jsStr(d.cloudUrl)+'"');
   if(d.cloudKey!=null) set(/CLOUD_KEY:"[^"]*"/,'CLOUD_KEY:"'+jsStr(d.cloudKey)+'"');
   if(d.id)       set(/BAR_ID:"[^"]*"/,        'BAR_ID:"'+jsStr(d.id)+'"');
+  if(d.pushKey!=null) set(/PUSH_KEY:"[^"]*"/, 'PUSH_KEY:"'+jsStr(d.pushKey)+'"');
   // — Carta de fábrica (opcional) —
   if(Array.isArray(d.carta)&&d.carta.length){
     const limpia=d.carta.map(p=>({
@@ -65,5 +66,8 @@ if(isMain){
   const dir=join(root,"apps","bares"); mkdirSync(dir,{recursive:true});
   const file=join(dir, datos.id.replace(/[^a-z0-9\-]/gi,"-").toLowerCase()+".html");
   writeFileSync(file,html);
+  // El avisador de notificaciones va SIEMPRE junto a la app del bar
+  try{ writeFileSync(join(dir,"sw.js"), readFileSync(join(root,"tools","sw.js"),"utf8")); }catch(e){}
   console.log("✅ App generada:", file.replace(root+"/",""));
+  console.log("   (sw.js copiado al lado: súbelo junto al HTML para los avisos con móvil bloqueado)");
 }
