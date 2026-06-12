@@ -146,6 +146,30 @@ section{padding:34px 0}
 .mesas-board{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 16px}
 .mchip{font-size:12.5px;font-weight:800;border-radius:999px;padding:7px 12px;background:#fff;border:1.5px solid var(--line-2);color:var(--muted)}
 button.mchip.ocupada{background:var(--brand);border-color:var(--brand);color:#fff;cursor:pointer}
+.ov{position:fixed;inset:0;z-index:90;background:rgba(20,18,15,.55);backdrop-filter:blur(3px);display:none;align-items:flex-end;justify-content:center}
+.ov.show{display:flex}
+@media(min-width:560px){.ov{align-items:center;padding:18px}}
+.ovsheet{background:#fff;border-radius:22px 22px 0 0;width:100%;max-width:520px;max-height:92vh;overflow:auto;box-shadow:var(--sh-lg)}
+@media(min-width:560px){.ovsheet{border-radius:22px}}
+.ovh{padding:18px 18px 0;display:flex;gap:12px;align-items:flex-start}
+.ovh .e{font-size:40px;flex:0 0 auto}
+.ovh h3{font-size:20px;margin:0}.ovh .d{font-size:13px;color:var(--muted);margin-top:2px}
+.ovx{margin-left:auto;width:38px;height:38px;border-radius:11px;border:1.5px solid var(--line-2);background:#fff;font-size:17px;flex:0 0 auto;cursor:pointer}
+.ovb{padding:14px 18px 18px}
+.modg{margin-bottom:15px}
+.modg .mt{font-size:12.5px;font-weight:800;color:var(--brand-d);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
+.modopt{display:flex;align-items:center;gap:9px;padding:10px 12px;border:1.5px solid var(--line-2);border-radius:11px;margin-bottom:7px;font-size:14.5px;cursor:pointer;background:#fff;width:100%;text-align:left}
+.modopt[aria-pressed="true"]{border-color:var(--brand);background:var(--soft);color:var(--brand-d);font-weight:700}
+.modopt .ck{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--line-2);display:grid;place-items:center;flex:0 0 auto;font-size:13px}
+.modopt[aria-pressed="true"] .ck{background:var(--brand);border-color:var(--brand);color:#fff}
+.modopt.rad .ck{border-radius:50%}
+.modopt .pr{margin-left:auto;font-weight:800;color:var(--brand-d);font-size:13px}
+.ovnota input{width:100%;border:1.5px solid var(--line-2);border-radius:11px;padding:11px;font-size:14px;font-family:inherit}
+.ovfoot{display:flex;gap:12px;align-items:center;margin-top:8px;position:sticky;bottom:0;background:#fff;padding-top:8px}
+.ovfoot .qty{flex:0 0 auto}
+.ci .mods{font-size:12.5px;color:var(--brand-d);margin-top:2px;line-height:1.3}
+.bm{color:var(--brand-d);font-weight:700;font-size:12.5px}
+.dish .pers{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--brand-d);font-weight:700;background:var(--soft);border-radius:6px;padding:2px 7px;margin-top:4px}
 .qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
 .qrbox{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center;box-shadow:var(--sh-sm)}
 .qrbox .qrimg{width:110px;height:110px;margin:0 auto 8px}
@@ -187,6 +211,7 @@ footer a:hover{color:#fff}
 <div class="fbottom"><span>© <span id="year"></span> La Tasca · <span id="footCity">[Tu ciudad]</span></span><span class="studio">Diseñado por <a href="#/" data-action="studio">Incuba tu Negocio</a> · por Jaime M. M.</span></div>
 </div></footer>
 
+<div class="ov" id="ov" role="dialog" aria-modal="true" aria-label="Personalizar"><div class="ovsheet" id="ovsheet"></div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -2533,18 +2558,18 @@ const CATS=["Para picar","Raciones","Bebidas","Postres"];
 const ALG={gluten:"🌾 Gluten",lactosa:"🥛 Lácteos",huevo:"🥚 Huevo",pescado:"🐟 Pescado",marisco:"🦐 Marisco",frutos:"🥜 Frutos secos",soja:"🌿 Soja",sulfitos:"🍷 Sulfitos"};
 function algHTML(p){ const a=Array.isArray(p.al)?p.al:[]; if(!a.length) return ""; return `<div class="algs">${a.map(k=>ALG[k]?`<span class="alg" title="${esc(ALG[k])}">${esc(ALG[k].split(" ")[0])}</span>`:"").join("")}</div>`; }
 const SEED=[
-  {cat:"Para picar",nombre:"Patatas bravas",desc:"Con salsa brava de la casa y alioli.",precio:5.50,emoji:"🥔",dest:true,al:["huevo","lactosa"]},
+  {cat:"Para picar",nombre:"Patatas bravas",desc:"Con salsa brava de la casa y alioli.",precio:5.50,emoji:"🥔",dest:true,al:["huevo","lactosa"],mods:{quitar:["alioli","salsa brava"],extras:[{n:"Doble ración",p:3.0}]}},
   {cat:"Para picar",nombre:"Croquetas (6 uds)",desc:"De jamón, cremosas.",precio:7.00,emoji:"🥟",al:["gluten","lactosa","huevo"]},
-  {cat:"Para picar",nombre:"Nachos con guacamole",desc:"Con pico de gallo y queso fundido.",precio:6.50,emoji:"🌮",al:["lactosa"]},
+  {cat:"Para picar",nombre:"Nachos con guacamole",desc:"Con pico de gallo y queso fundido.",precio:6.50,emoji:"🌮",al:["lactosa"],mods:{extras:[{n:"Extra queso",p:1.2},{n:"Jalapeños",p:0.8}]}},
   {cat:"Para picar",nombre:"Aceitunas y altramuces",desc:"Para abrir boca.",precio:3.00,emoji:"🫒",al:[]},
   {cat:"Raciones",nombre:"Pulpo a la brasa",desc:"Con cachelos y pimentón.",precio:15.00,emoji:"🐙",dest:true,al:["marisco"]},
   {cat:"Raciones",nombre:"Tortilla de patata",desc:"Jugosa, con o sin cebolla.",precio:8.00,emoji:"🍳",al:["huevo"]},
   {cat:"Raciones",nombre:"Tabla de quesos",desc:"Selección con membrillo y picos.",precio:12.00,emoji:"🧀",al:["lactosa","gluten","frutos"]},
-  {cat:"Raciones",nombre:"Pincho moruno",desc:"Brocheta de cerdo adobado con pan.",precio:6.50,emoji:"🍢",al:["gluten"]},
+  {cat:"Raciones",nombre:"Pincho moruno",desc:"Brocheta de cerdo adobado con pan.",precio:6.50,emoji:"🍢",al:["gluten"],mods:{elige:[{t:"Punto",o:["Al punto","Poco hecho","Muy hecho"]}]}},
   {cat:"Bebidas",nombre:"Caña",desc:"Bien fría.",precio:1.80,emoji:"🍺",dest:true,al:["gluten"]},
-  {cat:"Bebidas",nombre:"Copa de vino",desc:"Tinto, blanco o rosado.",precio:2.80,emoji:"🍷",al:["sulfitos"]},
+  {cat:"Bebidas",nombre:"Copa de vino",desc:"Tinto, blanco o rosado.",precio:2.80,emoji:"🍷",al:["sulfitos"],mods:{elige:[{t:"Tipo",o:["Tinto","Blanco","Rosado"]}]}},
   {cat:"Bebidas",nombre:"Vermut de grifo",desc:"Con su naranja y aceituna.",precio:3.20,emoji:"🍹",al:["sulfitos"]},
-  {cat:"Bebidas",nombre:"Refresco / Agua",desc:"Cola, naranja, limón, agua.",precio:2.20,emoji:"🥤",al:[]},
+  {cat:"Bebidas",nombre:"Refresco / Agua",desc:"Cola, naranja, limón, agua.",precio:2.20,emoji:"🥤",al:[],mods:{elige:[{t:"Bebida",o:["Cola","Cola zero","Naranja","Limón","Agua","Agua con gas"]},{t:"Hielo",o:["Con hielo","Sin hielo"]}]}},
   {cat:"Postres",nombre:"Tarta de queso",desc:"Cremosa, con frutos rojos.",precio:5.00,emoji:"🍰",al:["lactosa","huevo","gluten"]},
   {cat:"Postres",nombre:"Torrija caramelizada",desc:"Con helado de vainilla.",precio:5.00,emoji:"🍮",al:["gluten","lactosa","huevo"]}
 ];
@@ -2552,13 +2577,19 @@ function getPlatos(){ let p=load("lt_platos",null); if(!p){ p=SEED.map(x=>({id:u
 function setPlatos(p){ save("lt_platos",p); }
 
 /* comanda en curso (lo que el cliente va pidiendo en su mesa) */
-function getCart(){ return load("lt_cart",{}); }
-function setCart(c){ save("lt_cart",c); refreshCart(); }
-function cartCount(){ return Object.values(getCart()).reduce((a,b)=>a+b,0); }
-function cartItems(){ const c=getCart(),P=getPlatos(); return Object.keys(c).map(id=>{ const p=P.find(x=>x.id===id); return p?{...p,qty:c[id]}:null; }).filter(Boolean); }
-function cartTotal(){ return cartItems().reduce((a,i)=>a+i.precio*i.qty,0); }
-function addToCart(id,q){ const c=getCart(); c[id]=(c[id]||0)+(q||1); if(c[id]<1)delete c[id]; setCart(c); }
-function setQty(id,q){ const c=getCart(); if(q<1)delete c[id]; else c[id]=q; setCart(c); }
+function getCart(){ const c=load("lt_cart",[]); return Array.isArray(c)?c:[]; }
+function setCart(a){ save("lt_cart",Array.isArray(a)?a:[]); refreshCart(); }
+function hasMods(p){ const m=p&&p.mods; return !!(m&&((m.quitar&&m.quitar.length)||(m.elige&&m.elige.length)||(m.extras&&m.extras.length))); }
+function lineUnit(p,l){ return (Number(p.precio)||0)+((l.extras||[]).reduce((a,e)=>a+(Number(e.p)||0),0)); }
+function cartCount(){ return getCart().reduce((a,l)=>a+(l.qty||0),0); }
+function cartItems(){ const P=getPlatos(); return getCart().map(l=>{ const p=P.find(x=>x.id===l.pid); return p?{...p, lid:l.lid, qty:l.qty, quitar:l.quitar||[], elige:l.elige||{}, extras:l.extras||[], nota:l.nota||"", unit:lineUnit(p,l)}:null; }).filter(Boolean); }
+function cartTotal(){ return cartItems().reduce((a,i)=>a+i.unit*i.qty,0); }
+function modsText(i){ const a=[]; (i.quitar||[]).forEach(x=>a.push("sin "+x)); const el=i.elige||{}; Object.keys(el).forEach(k=>a.push(el[k])); (i.extras||[]).forEach(e=>a.push("+"+e.n)); if(i.nota)a.push("✎ "+i.nota); return a.join(", "); }
+function defaultElige(p){ const o={}; ((p.mods&&p.mods.elige)||[]).forEach(g=>{ o[g.t]=(g.o&&g.o[0])||""; }); return o; }
+function addQuick(pid){ const p=getPlatos().find(x=>x.id===pid); if(!p) return; const a=getCart(); a.push({lid:uid(),pid:pid,qty:1,quitar:[],elige:defaultElige(p),extras:[],nota:""}); setCart(a); }
+function addLine(line){ const a=getCart(); a.push(line); setCart(a); }
+function incLine(lid,d){ const a=getCart(); const l=a.find(x=>x.lid===lid); if(!l) return; l.qty+=d; if(l.qty<1){ setCart(a.filter(x=>x.lid!==lid)); } else setCart(a); }
+function rmLine(lid){ setCart(getCart().filter(x=>x.lid!==lid)); }
 function refreshCart(){ const n=cartCount(),b=$("#cartCount"); if(b){ b.textContent=n; b.classList.toggle("hide",n===0); } updateMesaPill(); }
 function updateMesaPill(){ const el=$("#mesaPill"); if(!el) return; const m=getMesa(); if(m){ el.style.display="inline-flex"; el.innerHTML='🍽️ Mesa '+esc(m)+(getSettings().qrEstricto?'':' <a href="#/" data-action="cambiarMesa">cambiar</a>'); } else el.style.display="none"; }
 function phHTML(p){ return p.img?`<img src="${esc(p.img)}" alt="${esc(p.nombre)}">`:`<span>${esc(p.emoji||"🍽️")}</span>`; }
@@ -2585,7 +2616,7 @@ function viewHome(){
     </div>
   </div></section>`;
 }
-function dishHTML(p){ return `<article class="dish"><div class="ph">${phHTML(p)}</div><div class="info"><h3>${esc(p.nombre)}</h3><p class="d">${esc(p.desc||"")}</p>${algHTML(p)}<div class="row"><span class="price">${money(p.precio)}</span><button class="add" data-action="add" data-id="${esc(p.id)}" aria-label="Añadir ${esc(p.nombre)}" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button></div></div></article>`; }
+function dishHTML(p){ const md=hasMods(p); return `<article class="dish"${md?` data-action="dish" data-id="${esc(p.id)}" style="cursor:pointer"`:""}><div class="ph">${phHTML(p)}</div><div class="info"><h3>${esc(p.nombre)}</h3><p class="d">${esc(p.desc||"")}</p>${algHTML(p)}${md?'<div class="pers">⚙ Toca para personalizar</div>':""}<div class="row"><span class="price">${money(p.precio)}</span><button class="add" data-action="add" data-id="${esc(p.id)}" aria-label="Añadir ${esc(p.nombre)}" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button></div></div></article>`; }
 function recoHTML(P){ const d=P.filter(p=>p.dest); if(!d.length) return ""; return `<div class="reco"><h3>⭐ Los más pedidos</h3><div class="reco-strip">${d.map(p=>`<button class="reco-card" data-action="add" data-id="${esc(p.id)}" type="button"><span class="re">${esc(p.emoji||"🍽️")}</span><b>${esc(p.nombre)}</b><span class="rp">${money(p.precio)} +</span></button>`).join("")}</div></div>`; }
 function viewCarta(){
   const m=getMesa(); const P=getPlatos().filter(p=>p.activo!==false);
@@ -2604,6 +2635,20 @@ function gridHTML(P){ const l=P.filter(p=>p.cat===FILTER); return l.length?l.map
 function rerenderGrid(){ const g=$("#grid"); if(g) g.innerHTML=gridHTML(getPlatos().filter(p=>p.activo!==false)); }
 function barFix(){ const n=cartCount(); if(!n) return ""; const hasBeb=cartItems().some(i=>i.cat==="Bebidas"); const sug=hasBeb?"":`<button class="sug" data-action="goBebidas" type="button">🍺 ¿Y de beber?</button>`; return `<div class="barfix"><div class="in"><div><b>${money(cartTotal())}</b> <span class="muted" style="font-size:13px">· ${n} art.</span>${sug}</div><a class="btn btn-primary" href="#/comanda">Ver mi comanda →</a></div></div>`; }
 
+let DSEL=null;
+function openDish(pid){ const p=getPlatos().find(x=>x.id===pid); if(!p){ return; } if(!getMesa()){ toast(getSettings().qrEstricto?"📷 Escanea el QR de tu mesa":"Elige tu mesa primero"); location.hash="#/"; return; }
+  DSEL={pid:pid, qty:1, quitar:[], elige:defaultElige(p), extras:[], nota:""}; renderDish(); $("#ov").classList.add("show"); document.body.style.overflow="hidden"; }
+function closeDish(){ $("#ov").classList.remove("show"); document.body.style.overflow=""; DSEL=null; }
+function renderDish(){ if(!DSEL) return; const p=getPlatos().find(x=>x.id===DSEL.pid); if(!p) return; const m=p.mods||{};
+  const unit=(Number(p.precio)||0)+DSEL.extras.reduce((a,e)=>a+(Number(e.p)||0),0);
+  let body="";
+  if(m.quitar&&m.quitar.length){ body+=`<div class="modg"><div class="mt">¿Quitar algo?</div>${m.quitar.map(x=>`<button class="modopt" data-action="dquit" data-x="${esc(x)}" aria-pressed="${DSEL.quitar.includes(x)}" type="button"><span class="ck">${DSEL.quitar.includes(x)?"✓":""}</span> Sin ${esc(x)}</button>`).join("")}</div>`; }
+  (m.elige||[]).forEach(g=>{ body+=`<div class="modg"><div class="mt">${esc(g.t)}</div>${g.o.map(o=>`<button class="modopt rad" data-action="delige" data-t="${esc(g.t)}" data-o="${esc(o)}" aria-pressed="${DSEL.elige[g.t]===o}" type="button"><span class="ck">${DSEL.elige[g.t]===o?"●":""}</span> ${esc(o)}</button>`).join("")}</div>`; });
+  if(m.extras&&m.extras.length){ body+=`<div class="modg"><div class="mt">Extras</div>${m.extras.map(e=>{ const on=DSEL.extras.some(x=>x.n===e.n); return `<button class="modopt" data-action="dextra" data-n="${esc(e.n)}" data-p="${esc(e.p)}" aria-pressed="${on}" type="button"><span class="ck">${on?"✓":""}</span> ${esc(e.n)} <span class="pr">+${money(e.p)}</span></button>`; }).join("")}</div>`; }
+  body+=`<div class="modg ovnota"><div class="mt">Nota para la cocina</div><input id="dNota" type="text" placeholder="Ej. muy frío, poco picante…" value="${esc(DSEL.nota)}"></div>`;
+  $("#ovsheet").innerHTML=`<div class="ovh"><span class="e">${esc(p.emoji||"🍽️")}</span><div><h3>${esc(p.nombre)}</h3><div class="d">${esc(p.desc||"")}</div></div><button class="ovx" data-action="closeDish" type="button" aria-label="Cerrar">✕</button></div><div class="ovb">${body}<div class="ovfoot"><div class="qty"><button data-action="dqty" data-d="-1" type="button" aria-label="Menos">−</button><span>${DSEL.qty}</span><button data-action="dqty" data-d="1" type="button" aria-label="Más">+</button></div><button class="btn btn-primary" style="flex:1" data-action="dadd" type="button">Añadir · ${money(unit*DSEL.qty)}</button></div></div>`;
+}
+function syncNota(){ const el=$("#dNota"); if(el&&DSEL) DSEL.nota=el.value; }
 function viewComanda(){
   const items=cartItems(), m=getMesa();
   if(!items.length) return `<div class="page"><div class="wrap"><a class="back" href="#/carta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Volver a la carta</a><div class="empty"><div class="big">🧾</div><b style="font-size:20px;color:var(--text)">Tu comanda está vacía</b><br><span class="muted">Añade algo de la carta.</span><br><br><a class="btn btn-primary" href="#/carta">Ver la carta</a></div></div></div>`;
@@ -2611,7 +2656,7 @@ function viewComanda(){
     <a class="back" href="#/carta"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Seguir pidiendo</a>
     <h1 class="ptitle">Tu comanda${m?` · Mesa ${esc(m)}`:""}</h1>
     <p class="muted" style="margin-top:0">Revisa y envíala a la barra. Puedes pedir más rondas cuando quieras.</p>
-    ${items.map(i=>`<div class="citem"><div class="cph">${phHTML(i)}</div><div class="ci"><b>${esc(i.nombre)}</b><div class="p">${money(i.precio)}</div><button class="ci-rm" data-action="rm" data-id="${esc(i.id)}" type="button">Quitar</button></div><div style="text-align:right"><div class="qty"><button data-action="dec" data-id="${esc(i.id)}" type="button" aria-label="Menos">−</button><span>${i.qty}</span><button data-action="inc" data-id="${esc(i.id)}" type="button" aria-label="Más">+</button></div><div style="font-weight:800;color:var(--brand-d);margin-top:8px">${money(i.precio*i.qty)}</div></div></div>`).join("")}
+    ${items.map(i=>{ const mt=modsText(i); return `<div class="citem"><div class="cph">${phHTML(i)}</div><div class="ci"><b>${esc(i.nombre)}</b>${mt?`<div class="mods">${esc(mt)}</div>`:""}<div class="p">${money(i.unit)}</div><button class="ci-rm" data-action="rm" data-id="${esc(i.lid)}" type="button">Quitar</button></div><div style="text-align:right"><div class="qty"><button data-action="dec" data-id="${esc(i.lid)}" type="button" aria-label="Menos">−</button><span>${i.qty}</span><button data-action="inc" data-id="${esc(i.lid)}" type="button" aria-label="Más">+</button></div><div style="font-weight:800;color:var(--brand-d);margin-top:8px">${money(i.unit*i.qty)}</div></div></div>`; }).join("")}
     <div class="form-card" style="margin-top:8px"><div style="display:flex;justify-content:space-between;font-size:20px;font-weight:900;color:var(--char)"><span>Total</span><span>${money(cartTotal())}</span></div>
       <button class="btn btn-primary btn-block" data-action="enviarComanda" type="button" style="margin-top:14px">🔔 Enviar comanda a la barra</button>
       <div style="display:flex;gap:10px;margin-top:10px"><button class="btn btn-ghost" style="flex:1" data-action="camarero" type="button">🙋 Llamar al camarero</button><button class="btn btn-ghost" style="flex:1" data-action="cuenta" type="button">🧾 Pedir la cuenta</button></div>
@@ -2659,6 +2704,11 @@ function admCarta(){
     <div style="display:flex;gap:12px;flex-wrap:wrap"><div class="field" style="flex:2;min-width:150px"><label for="pCat">Categoría</label><select id="pCat">${CATS.map(c=>`<option ${f.cat===c?"selected":""}>${esc(c)}</option>`).join("")}</select></div><div class="field" style="flex:1;min-width:90px"><label for="pEmoji">Icono</label><input id="pEmoji" type="text" maxlength="4" value="${esc(f.emoji||"🍽️")}"></div></div>
     <div class="field"><label for="pDesc">Descripción</label><textarea id="pDesc">${esc(f.desc)}</textarea></div>
     <div class="field"><label>Alérgenos</label><div class="algpick">${Object.keys(ALG).map(k=>`<label class="algopt"><input type="checkbox" name="alg_${k}" ${(f.al||[]).includes(k)?"checked":""}> ${esc(ALG[k])}</label>`).join("")}</div></div>
+    <details style="margin-bottom:14px"><summary style="cursor:pointer;font-weight:800;color:var(--brand-d);font-size:14px;padding:6px 0">🎛️ Personalización del cliente (opcional)</summary>
+      <div class="field"><label for="pQuitar">Ingredientes que se pueden quitar</label><textarea id="pQuitar" placeholder="Uno por línea: cebolla, alioli…">${esc(((f.mods&&f.mods.quitar)||[]).join("\n"))}</textarea><p class="note">El cliente verá "Sin cebolla", etc.</p></div>
+      <div class="field"><label for="pElige">Opciones a elegir</label><textarea id="pElige" placeholder="Una por línea:  Punto: Al punto, Poco hecho, Muy hecho">${esc(((f.mods&&f.mods.elige)||[]).map(g=>g.t+": "+g.o.join(", ")).join("\n"))}</textarea><p class="note">Formato <b>Título: op1, op2, op3</b>. El cliente elige una.</p></div>
+      <div class="field"><label for="pExtras">Extras con precio</label><textarea id="pExtras" placeholder="Uno por línea:  Extra queso | 1.20">${esc(((f.mods&&f.mods.extras)||[]).map(e=>e.n+" | "+e.p).join("\n"))}</textarea><p class="note">Formato <b>Nombre | precio</b>.</p></div>
+    </details>
     <div style="display:flex;gap:12px;flex-wrap:wrap"><div class="field" style="flex:1;min-width:110px"><label for="pPrecio">Precio (€) *</label><input id="pPrecio" type="number" step="0.01" min="0" required value="${esc(f.precio)}"></div><div class="field" style="flex:2;min-width:150px"><label for="pImg">Foto</label><input id="pImg" type="file" accept="image/*"></div></div>
     <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn btn-primary" type="submit">${ed?"Guardar":"Añadir"}</button>${ed?`<button class="btn btn-ghost" data-action="cancelEdit" type="button">Cancelar</button>`:""}</div></form></div>
     <h3 style="margin-bottom:12px">Tu carta (${P.length})</h3>
@@ -2693,7 +2743,7 @@ function viewBarra(){
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h1 class="ptitle">🖥️ Barra · comandas</h1><a class="btn btn-ghost" href="#/admin">Panel</a></div>
     <p class="muted" style="margin-top:0">Se actualiza sola y suena al entrar una comanda nueva.</p>
     ${(function(){ const hoy=new Date().toISOString().slice(0,10); const ab={}; comandasAll().forEach(c=>{ if(c.estado!=="cerrada"&&c.dia===hoy) ab[String(c.mesa)]=(ab[String(c.mesa)]||0)+1; }); const N=Math.min(B().mesas,30); return `<div class="mesas-board">${Array.from({length:N},(_,i)=>String(i+1)).map(mm=>{ const oc=ab[mm]; return oc?`<button class="mchip ocupada" data-action="cerrarMesa" data-id="${mm}" title="Cerrar mesa (cobrada)" type="button">M${mm} · ${oc} ✕</button>`:`<span class="mchip">M${mm}</span>`; }).join("")}</div>`; })()}
-    ${pendC.length?`<div class="barra-grid">${pendC.map(c=>`<div class="bcard"><div class="bmesa">MESA ${esc(c.mesa)}</div><div class="bhora">${esc(c.hora)}</div><ul>${c.items.map(i=>`<li><b>${i.qty}×</b> ${esc(i.nombre)}</li>`).join("")}</ul><div class="btot">${money(c.total)}</div><button class="btn btn-primary btn-block" data-action="toggleCom" data-id="${esc(c.id)}" type="button">✔ Servida</button></div>`).join("")}</div>`:`<div class="empty"><div class="big">🖥️</div><b style="color:var(--text)">Sin comandas pendientes</b><br><span class="muted">Cuando entre una, sonará el aviso.</span></div>`}
+    ${pendC.length?`<div class="barra-grid">${pendC.map(c=>`<div class="bcard"><div class="bmesa">MESA ${esc(c.mesa)}</div><div class="bhora">${esc(c.hora)}</div><ul>${c.items.map(i=>`<li><b>${i.qty}×</b> ${esc(i.nombre)}${i.mods?`<span class="bm"> · ${esc(i.mods)}</span>`:""}</li>`).join("")}</ul><div class="btot">${money(c.total)}</div><button class="btn btn-primary btn-block" data-action="toggleCom" data-id="${esc(c.id)}" type="button">✔ Servida</button></div>`).join("")}</div>`:`<div class="empty"><div class="big">🖥️</div><b style="color:var(--text)">Sin comandas pendientes</b><br><span class="muted">Cuando entre una, sonará el aviso.</span></div>`}
   </div></div>`;
 }
 function beep(){ try{ const ctx=new (window.AudioContext||window.webkitAudioContext)(); const o=ctx.createOscillator(), g=ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.frequency.value=880; g.gain.value=.15; o.start(); o.stop(ctx.currentTime+.25); }catch(e){} }
@@ -2720,29 +2770,41 @@ function render(){
   if(cloudOn()&&!CTRIED&&ADMIN_OK&&((location.hash||"").indexOf("admin")!==-1||(location.hash||"").indexOf("barra")!==-1)){ CTRIED=true; refreshComandas(()=>render()); }
 }
 window.addEventListener("hashchange",render);
+document.addEventListener("click",e=>{ if(e.target&&e.target.id==="ov") closeDish(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closeDish(); });
 
 /* ====== Comanda → barra (WhatsApp) ====== */
 function telWa(t){ let d=String(t||"").replace(/[^0-9]/g,""); if(d.indexOf("00")===0)d=d.slice(2); if(d.length===9)d="34"+d; return d; }
 function waOpen(msg){ const num=B().whatsapp; if(num){ try{ window.open("https://wa.me/"+num+"?text="+encodeURIComponent(msg),"_blank","noopener"); }catch(e){} return true; } return false; }
 function enviarComanda(){
   const items=cartItems(); if(!items.length) return; const m=getMesa()||"-";
-  const c={ id:uid(), mesa:m, dia:new Date().toISOString().slice(0,10), hora:new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}), items:items.map(i=>({nombre:i.nombre,qty:i.qty,precio:i.precio})), total:cartTotal(), estado:"pendiente" };
+  const c={ id:uid(), mesa:m, dia:new Date().toISOString().slice(0,10), hora:new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}), items:items.map(i=>({nombre:i.nombre,qty:i.qty,precio:i.unit,mods:modsText(i)})), total:cartTotal(), estado:"pendiente" };
   const finLocal=()=>{ const C=load("lt_comandas",[]); C.push(c); save("lt_comandas",C);
-    let msg="*Comanda · Mesa "+m+"*\n\n"; c.items.forEach(i=>{ msg+="• "+i.nombre+" ×"+i.qty+"\n"; }); msg+="\nTotal: "+money(c.total);
+    let msg="*Comanda · Mesa "+m+"*\n\n"; c.items.forEach(i=>{ msg+="• "+i.nombre+" ×"+i.qty+(i.mods?(" ("+i.mods+")"):"")+"\n"; }); msg+="\nTotal: "+money(c.total);
     if(!waOpen(msg)) toast("Comanda guardada. Configura tu WhatsApp en Ajustes.");
-    RATED=false; setCart({}); location.hash="#/gracias"; };
-  if(cloudOn()){ api("comandas",{method:"POST",body:JSON.stringify({bar_id:CONFIG.BAR_ID,mesa:String(c.mesa),dia:c.dia,hora:c.hora,items:c.items,total:c.total,estado:"pendiente"})}).then(()=>{ RATED=false; setCart({}); location.hash="#/gracias"; toast("Comanda enviada a la barra 🔔"); }).catch(finLocal); return; }
+    RATED=false; setCart([]); location.hash="#/gracias"; };
+  if(cloudOn()){ api("comandas",{method:"POST",body:JSON.stringify({bar_id:CONFIG.BAR_ID,mesa:String(c.mesa),dia:c.dia,hora:c.hora,items:c.items,total:c.total,estado:"pendiente"})}).then(()=>{ RATED=false; setCart([]); location.hash="#/gracias"; toast("Comanda enviada a la barra 🔔"); }).catch(finLocal); return; }
   finLocal();
 }
 
 /* ====== Eventos ====== */
 document.addEventListener("click",e=>{
-  const t=e.target.closest("[data-action]"); if(!t) return; const a=t.dataset.action, id=t.dataset.id;
+  const t2=e.target.closest("[data-action]"); if(!t2) return; const a=t2.dataset.action, id=t2.dataset.id;
   switch(a){
-    case "pickMesa": { setMesa(+t.dataset.n); document.querySelectorAll("#mesaGrid button").forEach(b=>b.setAttribute("aria-pressed",b===t?"true":"false")); const cta=document.querySelector('[data-action="empezar"]'); if(cta)cta.textContent="Pedir en la mesa "+t.dataset.n; updateMesaPill(); break; }
+    case "pickMesa": { setMesa(+t2.dataset.n); document.querySelectorAll("#mesaGrid button").forEach(b=>b.setAttribute("aria-pressed",b===t2?"true":"false")); const cta=document.querySelector('[data-action="empezar"]'); if(cta)cta.textContent="Pedir en la mesa "+t2.dataset.n; updateMesaPill(); break; }
     case "empezar": if(!getMesa()){ e.preventDefault(); toast("Elige primero tu mesa 🍽️"); } break;
     case "cambiarMesa": e.preventDefault(); setMesa(null); location.hash="#/"; render(); break;
-    case "add": e.preventDefault(); if(!getMesa()){ toast(getSettings().qrEstricto?"📷 Escanea el QR de tu mesa para pedir":"Elige tu mesa primero"); location.hash="#/"; break; } addToCart(id,1); toast("Añadido a la comanda"); { const bf=document.querySelector('.barfix'); if(!bf && location.hash.includes('carta')) render(); else { const b=document.querySelector('.barfix .in b'); if(b)render(); } } break;
+    case "add": e.preventDefault(); if(!getMesa()){ toast(getSettings().qrEstricto?"📷 Escanea el QR de tu mesa para pedir":"Elige tu mesa primero"); location.hash="#/"; break; } addQuick(id); toast("Añadido a la comanda 🔔"); render(); break;
+    case "dish": openDish(id); break;
+    case "closeDish": closeDish(); break;
+    case "dquit": { const x=t2.dataset.x; const i=DSEL.quitar.indexOf(x); if(i>=0)DSEL.quitar.splice(i,1); else DSEL.quitar.push(x); renderDish(); break; }
+    case "delige": DSEL.elige[t2.dataset.t]=t2.dataset.o; renderDish(); break;
+    case "dextra": { const n=t2.dataset.n, p=+t2.dataset.p; const i=DSEL.extras.findIndex(x=>x.n===n); if(i>=0)DSEL.extras.splice(i,1); else DSEL.extras.push({n:n,p:p}); renderDish(); break; }
+    case "dqty": syncNota(); DSEL.qty=Math.max(1,DSEL.qty+(+t2.dataset.d)); renderDish(); break;
+    case "dadd": { syncNota(); const p=getPlatos().find(x=>x.id===DSEL.pid); addLine({lid:uid(),pid:DSEL.pid,qty:DSEL.qty,quitar:DSEL.quitar.slice(),elige:Object.assign({},DSEL.elige),extras:DSEL.extras.slice(),nota:DSEL.nota}); closeDish(); toast("Añadido a la comanda 🔔"); render(); break; }
+    case "inc": incLine(id,1); render(); break;
+    case "dec": incLine(id,-1); render(); break;
+    case "rm": rmLine(id); render(); break;
     case "inc": addToCart(id,1); render(); break;
     case "dec": addToCart(id,-1); render(); break;
     case "rm": setQty(id,0); render(); break;
@@ -2750,12 +2812,12 @@ document.addEventListener("click",e=>{
     case "camarero": { const m=getMesa()||"-"; if(!waOpen("🙋 La Mesa "+m+" llama al camarero.")) toast("Avisando al camarero (demo). Configura WhatsApp en Ajustes."); else toast("Camarero avisado 🙋"); break; }
     case "cuenta": { const m=getMesa()||"-"; if(!waOpen("🧾 La Mesa "+m+" pide la cuenta.")) toast("Pidiendo la cuenta (demo). Configura WhatsApp en Ajustes."); else toast("Cuenta pedida 🧾"); break; }
     case "goBebidas": FILTER="Bebidas"; render(); break;
-    case "rate": { const V=load("lt_valor",[]); V.push({n:+t.dataset.n,dia:new Date().toISOString().slice(0,10)}); save("lt_valor",V); if(cloudOn()){ try{ api("valoraciones",{method:"POST",body:JSON.stringify({bar_id:CONFIG.BAR_ID,n:+t.dataset.n,dia:new Date().toISOString().slice(0,10)})}).catch(()=>{}); }catch(e){} } RATED=true; render(); toast("¡Gracias por tu valoración! ⭐"); break; }
+    case "rate": { const V=load("lt_valor",[]); V.push({n:+t2.dataset.n,dia:new Date().toISOString().slice(0,10)}); save("lt_valor",V); if(cloudOn()){ try{ api("valoraciones",{method:"POST",body:JSON.stringify({bar_id:CONFIG.BAR_ID,n:+t2.dataset.n,dia:new Date().toISOString().slice(0,10)})}).catch(()=>{}); }catch(e){} } RATED=true; render(); toast("¡Gracias por tu valoración! ⭐"); break; }
     case "printCards": { const nM=B().mesas; const base=location.href.split("#")[0].split("?")[0]; let elp=document.getElementById("printArea"); if(!elp){ elp=document.createElement("div"); elp.id="printArea"; elp.className="print-area"; document.body.appendChild(elp); } elp.innerHTML=Array.from({length:Math.min(nM,50)},(_,i)=>i+1).map(mm=>`<div class="pcard"><div class="pbrand">${esc(B().nombre)}</div><div class="pmesa">MESA ${mm}</div><div class="pqr">${qrSvg(base+"?mesa="+mm)}</div><div class="purl">${esc(base)}?mesa=${mm}</div><div class="pp">📱 Escanea y pide desde el móvil</div></div>`).join(""); try{ window.print(); }catch(e){} toast("Preparando impresión…"); break; }
     case "studio": e.preventDefault(); toast("Diseñado por Incuba tu Negocio · Jaime M. M."); break;
     case "install": installApp(); break;
     case "logout": ADMIN_OK=false; render(); break;
-    case "tab": ADMIN_TAB=t.dataset.tab; EDIT_ID=null; render(); break;
+    case "tab": ADMIN_TAB=t2.dataset.tab; EDIT_ID=null; render(); break;
     case "editP": EDIT_ID=id; ADMIN_TAB="carta"; render(); window.scrollTo(0,0); break;
     case "cancelEdit": EDIT_ID=null; render(); break;
     case "delP": if(confirm("¿Borrar este plato?")){ setPlatos(getPlatos().filter(p=>p.id!==id)); if(EDIT_ID===id)EDIT_ID=null; render(); } break;
@@ -2763,11 +2825,11 @@ document.addEventListener("click",e=>{
     case "toggleCom": { if(cloudOn()){ const c=comandasAll().find(x=>String(x.id)===String(id)); const nuevo=(c&&c.estado==="servido")?"pendiente":"servido"; api("comandas?id=eq."+encodeURIComponent(id),{method:"PATCH",body:JSON.stringify({estado:nuevo})}).then(()=>refreshComandas(render)).catch(()=>toast("Sin conexión con la nube")); } else { const C=load("lt_comandas",[]); const c=C.find(x=>x.id===id); if(c)c.estado=c.estado==="servido"?"pendiente":"servido"; save("lt_comandas",C); render(); } } break;
     case "delCom": if(confirm("¿Borrar esta comanda?")){ if(cloudOn()){ api("comandas?id=eq."+encodeURIComponent(id),{method:"DELETE"}).then(()=>refreshComandas(render)).catch(()=>toast("Sin conexión con la nube")); } else { save("lt_comandas",load("lt_comandas",[]).filter(x=>x.id!==id)); render(); } } break;
     case "refreshCom": refreshComandas(render); toast("Actualizado 🔄"); break;
-    case "cerrarMesa": { const mm=String(t.dataset.id); if(!confirm("¿Cerrar la Mesa "+mm+" (cobrada)? Quedará libre.")) break;
+    case "cerrarMesa": { const mm=String(t2.dataset.id); if(!confirm("¿Cerrar la Mesa "+mm+" (cobrada)? Quedará libre.")) break;
       if(cloudOn()){ api("comandas?bar_id=eq."+encodeURIComponent(CONFIG.BAR_ID)+"&mesa=eq."+encodeURIComponent(mm)+"&estado=neq.cerrada",{method:"PATCH",body:JSON.stringify({estado:"cerrada"})}).then(()=>refreshComandas(render)).catch(()=>toast("Sin conexión con la nube")); }
       else { const C=load("lt_comandas",[]); C.forEach(c=>{ if(String(c.mesa)===mm&&c.estado!=="cerrada") c.estado="cerrada"; }); save("lt_comandas",C); render(); }
       toast("Mesa "+mm+" cerrada 💶"); break; }
-    case "copyMesa": { const link=t.dataset.link; try{ navigator.clipboard.writeText(link); toast("Enlace copiado 📋"); }catch(e){ toast(link); } break; }
+    case "copyMesa": { const link=t2.dataset.link; try{ navigator.clipboard.writeText(link); toast("Enlace copiado 📋"); }catch(e){ toast(link); } break; }
   }
 });
 document.addEventListener("click",e=>{ const c=e.target.closest(".chip"); if(c&&c.dataset.cat){ FILTER=c.dataset.cat; document.querySelectorAll("#chips .chip").forEach(x=>x.setAttribute("aria-pressed",x===c?"true":"false")); rerenderGrid(); } });
@@ -2779,7 +2841,10 @@ document.addEventListener("submit",e=>{
 });
 function savePlato(){
   const idv=$("#pId").value, file=$("#pImg").files&&$("#pImg").files[0];
-  const base={ nombre:$("#pNom").value.trim(), cat:$("#pCat").value, emoji:$("#pEmoji").value.trim()||"🍽️", desc:$("#pDesc").value.trim(), precio:parseFloat($("#pPrecio").value)||0, al:Object.keys(ALG).filter(k=>{const el=document.querySelector('[name="alg_'+k+'"]'); return el&&el.checked;}) };
+  const quitar=($("#pQuitar")?$("#pQuitar").value:"").split("\n").map(s=>s.trim()).filter(Boolean);
+  const elige=($("#pElige")?$("#pElige").value:"").split("\n").map(s=>s.trim()).filter(Boolean).map(l=>{ const i=l.indexOf(":"); if(i<0) return null; const tt=l.slice(0,i).trim(), oo=l.slice(i+1).split(",").map(x=>x.trim()).filter(Boolean); return (tt&&oo.length)?{t:tt,o:oo}:null; }).filter(Boolean);
+  const extras=($("#pExtras")?$("#pExtras").value:"").split("\n").map(s=>s.trim()).filter(Boolean).map(l=>{ const i=l.indexOf("|"); const nn=(i>=0?l.slice(0,i):l).trim(), pp=i>=0?parseFloat(l.slice(i+1))||0:0; return nn?{n:nn,p:pp}:null; }).filter(Boolean);
+  const base={ nombre:$("#pNom").value.trim(), cat:$("#pCat").value, emoji:$("#pEmoji").value.trim()||"🍽️", desc:$("#pDesc").value.trim(), precio:parseFloat($("#pPrecio").value)||0, al:Object.keys(ALG).filter(k=>{const el=document.querySelector('[name="alg_'+k+'"]'); return el&&el.checked;}), mods:{quitar:quitar,elige:elige,extras:extras} };
   if(!base.nombre||!base.precio){ toast("Pon nombre y precio"); return; }
   const finish=img=>{ const P=getPlatos(); if(idv){ const p=P.find(x=>x.id===idv); if(p){ Object.assign(p,base); if(img!==undefined)p.img=img; } } else { P.unshift({id:uid(),activo:true,img:img||null,...base}); } setPlatos(P); EDIT_ID=null; render(); toast("Plato guardado ✅"); window.scrollTo(0,0); };
   if(file){ compressImage(file,900,0.8).then(d=>finish(d||undefined)); } else finish(undefined);
