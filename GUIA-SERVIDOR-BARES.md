@@ -64,8 +64,9 @@ Si los 3 campos están vacíos, la app funciona como siempre (WhatsApp). No romp
 ## Paso 3 — Subir la app del bar a internet
 
 1. **app.netlify.com/drop** → arrastra el HTML del bar → te da una URL `https://...`.
-2. En el panel del bar → pestaña **Mesas/QR** → imprime los cartelitos y genera
-   los QR de cada mesa con esa URL (`...?mesa=1`, `...?mesa=2`, …).
+2. En el panel del bar → pestaña **Mesas/QR** → pon cuántas mesas tiene el bar
+   y **la app genera los QR de todas las mesas automáticamente**. Pulsa
+   "Imprimir cartelitos": salen con su QR puesto, listos para recortar y pegar.
 3. En la barra del local: abre `https://.../#/barra` en una **tablet o portátil**,
    mete la contraseña y déjala encendida. Las comandas entran solas y **suenan**. 🔔
 
