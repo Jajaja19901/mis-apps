@@ -2701,7 +2701,11 @@ const TREN={
   "Volver a la carta":"Back to the menu","Tu comanda está vacía":"Your order is empty","Añade algo de la carta.":"Add something from the menu.","Ver la carta":"View the menu",
   "Seguir pidiendo":"Keep ordering","Tu comanda":"Your order","Revisa y envíala a la barra. Puedes pedir más rondas cuando quieras.":"Check it and send it to the bar. You can order more rounds anytime.",
   "Quitar":"Remove","Total":"Total","🔔 Enviar comanda a la barra":"🔔 Send order to the bar","🙋 Llamar al camarero":"🙋 Call the waiter","🧾 Pedir la cuenta":"🧾 Ask for the bill",
-  "El pago se hace en la barra o con el camarero (efectivo, tarjeta o Bizum). La comanda llega al personal por WhatsApp.":"You pay at the bar or with the waiter (cash or card). The order reaches the staff.",
+  "El pago se hace en la barra o con el camarero (efectivo, tarjeta o Bizum).":"You pay at the bar or with the waiter (cash or card).",
+  "Tu comanda llega al instante a la pantalla de la barra.":"Your order reaches the bar screen instantly.",
+  "La comanda llega al personal por WhatsApp.":"The order reaches the staff via WhatsApp.",
+  "Demo: sin servidor conectado, la comanda solo se guarda en este aparato.":"Demo: without a connected server, the order is only saved on this device.",
+  "Comanda guardada solo en este aparato (sin conexión con la barra).":"Order saved on this device only (no connection to the bar).",
   "¡Comanda enviada!":"Order sent!","Tu pedido ha llegado a la barra. Te lo llevamos a la mesa enseguida. ¿Quieres pedir algo más?":"Your order has reached the bar. We'll bring it to your table right away. Anything else?",
   "¿Qué tal la experiencia?":"How was the experience?","¡Gracias por tu valoración! ⭐":"Thanks for your rating! ⭐","🚦 Seguir mi pedido":"🚦 Track my order",
   "Sigue tu pedido":"Track your order","Se actualiza solo. Te avisamos cuando esté en camino a tu mesa.":"Updates by itself. We'll let you know when it's on its way.",
@@ -2806,7 +2810,7 @@ function viewComanda(){
     <div class="form-card" style="margin-top:8px"><div style="display:flex;justify-content:space-between;font-size:20px;font-weight:900;color:var(--char)"><span>${T("Total")}</span><span>${money(cartTotal())}</span></div>
       <button class="btn btn-primary btn-block" data-action="enviarComanda" type="button" style="margin-top:14px">${T("🔔 Enviar comanda a la barra")}</button>
       <div style="display:flex;gap:10px;margin-top:10px"><button class="btn btn-ghost" style="flex:1" data-action="camarero" type="button">${T("🙋 Llamar al camarero")}</button><button class="btn btn-ghost" style="flex:1" data-action="cuenta" type="button">${T("🧾 Pedir la cuenta")}</button></div>
-      <p class="note">${T("El pago se hace en la barra o con el camarero (efectivo, tarjeta o Bizum). La comanda llega al personal por WhatsApp.")}</p>
+      <p class="note">${T("El pago se hace en la barra o con el camarero (efectivo, tarjeta o Bizum).")} ${cloudOn()?T("Tu comanda llega al instante a la pantalla de la barra."):(B().whatsapp?T("La comanda llega al personal por WhatsApp."):T("Demo: sin servidor conectado, la comanda solo se guarda en este aparato."))}</p>
     </div>
   </div></div>`;
 }
@@ -2917,7 +2921,7 @@ function admCaja(){
 }
 function admMesas(){
   const n=B().mesas; const base=location.href.split("#")[0].split("?")[0];
-  return `<div class="form-card" style="margin-bottom:20px"><h3 style="margin-bottom:6px">Mesas y códigos QR</h3><p class="muted" style="margin-top:0;font-size:14px">Indica cuántas mesas tienes y <b>la app genera el QR de cada una automáticamente</b>. Imprime los cartelitos (salen con su QR puesto), recórtalos y pégalos en las mesas. Al escanearlo, el cliente entra con su mesa ya fijada. <b>Modo camarero:</b> el personal también puede tomar comandas desde la tablet del local y aparecen al instante en la <a href="#/barra" style="color:var(--brand-d);font-weight:700">pantalla de barra</a>; las de los móviles de los clientes llegan al WhatsApp.</p>
+  return `<div class="form-card" style="margin-bottom:20px"><h3 style="margin-bottom:6px">Mesas y códigos QR</h3><p class="muted" style="margin-top:0;font-size:14px">Indica cuántas mesas tienes y <b>la app genera el QR de cada una automáticamente</b>. Imprime los cartelitos (salen con su QR puesto), recórtalos y pégalos en las mesas. Al escanearlo, el cliente entra con su mesa ya fijada. <b>Modo camarero:</b> el personal también puede tomar comandas desde la tablet del local y aparecen al instante en la <a href="#/barra" style="color:var(--brand-d);font-weight:700">pantalla de barra</a>. ${cloudOn()?"Las de los móviles de los clientes entran solas (servidor conectado).":"Las de los móviles de los clientes necesitan el servidor conectado (modo nube)."}</p>
     <form id="mesasForm"><div class="field"><label for="mNum">Número de mesas</label><input id="mNum" type="number" min="1" max="50" value="${n}"></div><button class="btn btn-primary" type="submit">Guardar</button></form>
     <div style="margin-top:12px"><button class="btn btn-dark" data-action="printCards" type="button">🖨️ Imprimir cartelitos para las mesas</button><p class="note">Cada cartelito sale con su QR ya impreso: recortar y pegar. (El QR usa la dirección donde esté publicada la app: al subirla a internet salen con su dirección real.)</p></div>
   </div>
@@ -2926,9 +2930,9 @@ function admMesas(){
 }
 function admAjustes(){
   const b=B(), s=getSettings();
-  return `<div class="form-card"><h3 style="margin-bottom:6px">Mis datos</h3><p class="muted" style="margin-top:0;font-size:14px">Tu contacto. Las comandas llegan a este WhatsApp.</p><form id="datosForm">
+  return `<div class="form-card"><h3 style="margin-bottom:6px">Mis datos</h3><p class="muted" style="margin-top:0;font-size:14px">Tu contacto. ${cloudOn()?"Las comandas entran solas en la pantalla de barra (servidor conectado).":"Sin servidor conectado, los avisos salen por WhatsApp (necesita un móvil con WhatsApp)."}</p><form id="datosForm">
     <div class="field"><label for="dNom">Nombre del local</label><input id="dNom" type="text" value="${esc(b.nombre)}"></div>
-    <div class="field"><label for="dWa">WhatsApp (con prefijo, sin +)</label><input id="dWa" type="tel" value="${esc(b.whatsapp)}" placeholder="34600112233"><p class="note">España: 34 + tu número. Aquí llegan las comandas de las mesas.</p></div>
+    <div class="field"><label for="dWa">WhatsApp (con prefijo, sin +)</label><input id="dWa" type="tel" value="${esc(b.whatsapp)}" placeholder="34600112233"><p class="note">España: 34 + tu número de MÓVIL con WhatsApp (los fijos no valen). Solo se usa si el servidor no está conectado.</p></div>
     <div class="field"><label for="dCity">Ciudad</label><input id="dCity" type="text" value="${esc(b.city)}"></div>
     <div class="field"><label for="dMail">Email</label><input id="dMail" type="email" value="${esc(b.email)}"></div>
     <div class="field"><label for="dPass">Contraseña del panel</label><input id="dPass" type="text" value="${esc(b.pass)}"></div>
@@ -3095,7 +3099,7 @@ function enviarComanda(){
   const c={ id:uid(), mesa:m, camarero:camN, dia:new Date().toISOString().slice(0,10), hora:new Date().toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}), items:items.map(i=>({nombre:i.nombre,qty:i.qty,precio:i.unit,mods:modsText(i)})), total:cartTotal(), estado:"pendiente" };
   const finLocal=()=>{ const C=load("lt_comandas",[]); C.push(c); save("lt_comandas",C);
     let msg="*Comanda · Mesa "+m+"*"+(camN?(" · "+camN):"")+"\n\n"; c.items.forEach(i=>{ msg+="• "+i.nombre+" ×"+i.qty+(i.mods?(" ("+i.mods+")"):"")+"\n"; }); msg+="\nTotal: "+money(c.total);
-    if(!waOpen(msg)) toast(cam?"Comanda enviada 🔔":"Comanda guardada. Configura tu WhatsApp en Ajustes.");
+    if(!waOpen(msg)) toast(cam?"Comanda enviada 🔔":T("Comanda guardada solo en este aparato (sin conexión con la barra)."));
     if(!cam){ pushMis(c,c.id); addSello(); } RATED=false; setCart([]); location.hash=dest; if(cam)render(); };
   if(cloudOn()){ api("comandas",{method:"POST",body:JSON.stringify({bar_id:CONFIG.BAR_ID,mesa:String(c.mesa),camarero:camN,dia:c.dia,hora:c.hora,items:c.items,total:c.total,estado:"pendiente"})}).then(rows=>{ if(!cam){ pushMis(c,(rows&&rows[0]&&rows[0].id)); addSello(); } RATED=false; setCart([]); location.hash=dest; if(cam)render(); toast("Comanda enviada a la barra 🔔"); }).catch(finLocal); return; }
   finLocal();
