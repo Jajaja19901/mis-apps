@@ -2623,8 +2623,11 @@ function msgsNuevos(){ const seen=load("lt_msgseen",0); return Math.max(0,getMsg
 function paintChat(){ const cb=$("#chatbox"); if(!cb) return; const M=getMsgs(); const yo=autorActual(); cb.innerHTML=M.length?M.map(mm=>`<div class="msg ${mm.autor===yo?"mine":""}"><div class="mhead"><b>${esc(mm.autor)}</b> · ${esc(mm.hora)}</div><div class="mtxt">${esc(mm.texto)}</div></div>`).join(""):'<div class="empty" style="padding:30px"><div class="big">💬</div><span class="muted">Aún no hay mensajes. Escribe el primero.</span></div>'; cb.scrollTop=cb.scrollHeight; msgsSeen(); }
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function money(n){ return (Number(n)||0).toFixed(2).replace(".",",")+" €"; }
-function load(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } }
-function save(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+/* Cada app guarda en SU propio espacio (prefijo por bar): así no se pisan entre ellas
+   aunque se abran como archivos en el mismo móvil. */
+const LS=(CONFIG.BAR_ID||CONFIG.BUSINESS_NAME||"app").replace(/[^a-z0-9]/gi,"").toLowerCase().slice(0,24)+"_";
+function load(k,d){ try{ const v=localStorage.getItem(LS+k); return v?JSON.parse(v):d; }catch(e){ return d; } }
+function save(k,v){ try{ localStorage.setItem(LS+k,JSON.stringify(v)); }catch(e){} }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 let toastT=null; function toast(m){ const t=$("#toast"); t.textContent=m; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),3000); }
 
