@@ -194,6 +194,16 @@ button.mchip.ocupada{background:var(--brand);border-color:var(--brand);color:#ff
 .bars .bcol{flex:1;width:100%;display:flex;align-items:flex-end}
 .bars .bfill{width:100%;min-height:3px;background:linear-gradient(180deg,var(--brand),var(--brand-d));border-radius:6px 6px 0 0;transition:height .3s}
 .bars .blbl{font-size:11px;color:var(--muted)}.bars .blbl.hoy{color:var(--brand-d);font-weight:800}
+.cuenta-line{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:15px}
+.cuenta-line.tot{border-top:2px solid var(--line-2);margin-top:4px;padding-top:10px;font-size:18px}
+.cuenta-line.tot b{color:var(--brand-d)}
+.tipchips,.tipchip{display:inline-block}.tipchips{display:flex;gap:8px;flex-wrap:wrap}
+.tipchip{border:1.5px solid var(--line-2);background:#fff;border-radius:999px;padding:8px 14px;font-weight:700;font-size:14px;cursor:pointer;color:var(--text)}
+.tipchip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.splitrow{display:flex;align-items:center;gap:10px}
+.rbtn{width:42px;height:42px;border-radius:12px;border:1.5px solid var(--line-2);background:#fff;font-size:22px;font-weight:800;cursor:pointer;color:var(--text)}
+.cuenta-pp{margin-top:14px;text-align:center;font-size:30px;font-weight:900;color:var(--brand-d)}
+.cuenta-pp span{display:block;font-size:13px;font-weight:600;color:var(--muted)}
 .dish .pers{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--brand-d);font-weight:700;background:var(--soft);border-radius:6px;padding:2px 7px;margin-top:4px}
 .qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
 .qrbox{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center;box-shadow:var(--sh-sm)}
@@ -2572,7 +2582,7 @@ function applyLogo(){ ["brandLogo","footLogo"].forEach(id=>{ const el=document.g
 function qrSvg(text){ try{ const q=qrcode(0,"M"); q.addData(text); q.make(); return q.createSvgTag({cellSize:4,margin:2,scalable:true}); }catch(e){ return '<span class="muted" style="font-size:11px">QR n/d</span>'; } }
 
 function B(){ const s=load("lt_settings",{})||{}; return { nombre:s.bizNombre||CONFIG.BUSINESS_NAME, city:s.bizCity||CONFIG.CITY, whatsapp:(s.bizWhatsapp!=null?s.bizWhatsapp:CONFIG.WHATSAPP), email:s.bizEmail||CONFIG.EMAIL, pass:s.bizPass||CONFIG.ADMIN_PASSWORD, mesas:Number(s.mesas)||12 }; }
-function getSettings(){ return Object.assign({bizNombre:CONFIG.BUSINESS_NAME,bizCity:CONFIG.CITY,bizWhatsapp:CONFIG.WHATSAPP,bizEmail:CONFIG.EMAIL,bizPass:CONFIG.ADMIN_PASSWORD,mesas:12,logo:null,qrEstricto:false,camareros:[]}, load("lt_settings",{})); }
+function getSettings(){ return Object.assign({bizNombre:CONFIG.BUSINESS_NAME,bizCity:CONFIG.CITY,bizWhatsapp:CONFIG.WHATSAPP,bizEmail:CONFIG.EMAIL,bizPass:CONFIG.ADMIN_PASSWORD,mesas:12,logo:null,qrEstricto:false,googleReview:"",camareros:[]}, load("lt_settings",{})); }
 function setSettings(o){ save("lt_settings",Object.assign(getSettings(),o)); }
 
 /* mesa actual */
@@ -2626,6 +2636,7 @@ function updateMesaPill(){ const el=$("#mesaPill"); if(!el) return; const m=getM
 function phHTML(p){ return p.img?`<img src="${esc(p.img)}" alt="${esc(p.nombre)}">`:`<span>${esc(p.emoji||"🍽️")}</span>`; }
 
 let FILTER="Para picar"; let RATED=false;
+let CUENTA={personas:1,tip:0};
 function viewHome(){
   const m=getMesa();
   return `<section class="hero"><div class="wrap">
@@ -2817,6 +2828,7 @@ function admAjustes(){
     <div class="field"><label for="dCity">Ciudad</label><input id="dCity" type="text" value="${esc(b.city)}"></div>
     <div class="field"><label for="dMail">Email</label><input id="dMail" type="email" value="${esc(b.email)}"></div>
     <div class="field"><label for="dPass">Contraseña del panel</label><input id="dPass" type="text" value="${esc(b.pass)}"></div>
+    <div class="field"><label for="dGoogle">Enlace de reseñas de Google (opcional)</label><input id="dGoogle" type="url" value="${esc(s.googleReview||"")}" placeholder="https://g.page/r/..."><p class="note">Al terminar, el cliente verá un botón "Déjanos 5★ en Google". Cópialo desde tu ficha de Google → Pedir reseñas.</p></div>
     <label class="consent" style="background:var(--soft)"><input type="checkbox" id="dQR" ${s.qrEstricto?"checked":""}> 📷 <b>Modo QR estricto:</b> la mesa solo se fija escaneando el QR de la mesa (actívalo en el local; así nadie puede pedir para otra mesa).</label>
     <button class="btn btn-primary" type="submit">Guardar</button></form></div>
   <div class="form-card" style="margin-top:18px"><h3 style="margin-bottom:6px">☁️ Modo nube (tiempo real)</h3><p class="muted" style="margin-top:0;font-size:14px">${cloudOn()?"<b style='color:var(--green)'>Activado.</b> Las comandas de los móviles de los clientes llegan SOLAS a la pantalla de barra.":"Sin configurar: las comandas de los móviles llegan por WhatsApp. Para que entren solas en la pantalla de barra, rellena <b>CLOUD_URL, CLOUD_KEY y BAR_ID</b> en la caja CONFIG del archivo (guía incluida: GUIA-SERVIDOR-BARES.md)."}</p></div>`;
@@ -2835,7 +2847,35 @@ function viewMiPedido(){
       return `<div class="form-card" style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;font-size:14px;color:var(--muted)"><span>🕐 ${esc(mp.hora)}</span><span>${money(mp.total)}</span></div>
         ${done?`<div style="text-align:center;padding:14px 0"><div style="font-size:34px">✅</div><b style="font-size:17px;color:var(--green)">¡Servido! Que aproveche</b></div>`:`<div class="track">${STEPS.map((s,i)=>`<div class="tstep ${i<=ci?"on":""} ${i===ci?"now":""}"><div class="tdot">${i<ci?"✓":s[2]}</div><span>${s[1]}</span></div>`).join('<div class="tline"></div>')}</div>`}
       </div>`; }).join("")}
-    <div style="text-align:center;margin-top:10px"><a class="btn btn-ghost" data-action="refreshMis" href="#/mipedido">🔄 Actualizar</a></div>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px"><a class="btn btn-primary" href="#/cuenta">💳 Pedir la cuenta</a><a class="btn btn-ghost" data-action="refreshMis" href="#/mipedido">🔄 Actualizar</a></div>
+  </div></div>`;
+}
+function viewCuenta(){
+  const mis=load("lt_mis",[]); const total=mis.reduce((a,m)=>a+(m.total||0),0);
+  const n=Math.max(1,CUENTA.personas), tip=CUENTA.tip;
+  const propina=total*tip/100, conTip=total+propina, porPersona=conTip/n;
+  const m=getMesa();
+  const g=getSettings().googleReview;
+  const tipChips=[0,5,10].map(t=>`<button class="tipchip${tip===t?" on":""}" data-action="setTip" data-t="${t}" type="button">${t===0?"Sin propina":t+"%"}</button>`).join("")+`<button class="tipchip${![0,5,10].includes(tip)?" on":""}" data-action="setTipCustom" type="button">Otra</button>`;
+  return `<div class="page"><div class="wrap" style="max-width:520px">
+    <a class="back" href="#/mipedido"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Mi pedido</a>
+    <h1 class="ptitle">Tu cuenta${m?` · Mesa ${esc(m)}`:""}</h1>
+    ${!total?`<div class="empty"><div class="big">🧾</div><b style="color:var(--text)">Aún no hay consumo</b><br><span class="muted">Cuando pidas, aquí verás el total para dividirlo y dejar propina.</span></div>`:`
+    <div class="form-card">
+      <div class="cuenta-line"><span>Consumo</span><b>${money(total)}</b></div>
+      <div class="cuenta-line"><span>Propina (${tip}%)</span><b>${money(propina)}</b></div>
+      <div class="cuenta-line tot"><span>Total</span><b>${money(conTip)}</b></div>
+      <div style="margin:12px 0 4px;font-weight:800;font-size:14px">Propina</div>
+      <div class="tipchips">${tipChips}</div>
+      <div style="margin:14px 0 4px;font-weight:800;font-size:14px">Dividir entre</div>
+      <div class="splitrow"><button class="rbtn" data-action="personas" data-d="-1" type="button" aria-label="menos">−</button><b style="min-width:40px;text-align:center;font-size:20px">${n}</b><button class="rbtn" data-action="personas" data-d="1" type="button" aria-label="más">+</button><span class="muted" style="margin-left:8px">persona${n>1?"s":""}</span></div>
+      <div class="cuenta-pp">${money(porPersona)} <span>por persona</span></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px">
+      <button class="btn btn-primary btn-block" data-action="pedirCuenta" type="button">🙋 Avisar al camarero que pido la cuenta</button>
+      <p class="note" style="text-align:center;margin:0">El pago se hace en el local (efectivo, tarjeta o Bizum). Esto solo avisa al personal.</p>
+      ${g?`<a class="btn btn-dark btn-block" href="${esc(g)}" target="_blank" rel="noopener">⭐ Déjanos 5★ en Google</a>`:""}
+    </div>`}
   </div></div>`;
 }
 function viewCamarero(){
@@ -2880,6 +2920,7 @@ function render(){
   else if(r==="barra") html=viewBarra();
   else if(r==="camarero") html=viewCamarero();
   else if(r==="mipedido") html=viewMiPedido();
+  else if(r==="cuenta") html=viewCuenta();
   else if(r==="comanda") html=viewComanda();
   else if(r==="gracias") html=viewGracias();
   else if(r==="legal") html=viewLegal();
@@ -2951,6 +2992,10 @@ document.addEventListener("click",e=>{
     case "agotarP": { const P=getPlatos(); const p=P.find(x=>x.id===id); if(p)p.agotado=!p.agotado; setPlatos(P); render(); toast(p&&p.agotado?"Marcado agotado 🔴":"Reactivado 🟢"); break; }
     case "exportCaja": { const cell=v=>{ let s=String(v==null?"":v); if(/^[=+\-@\t\r]/.test(s)) s="'"+s; if(/[",;\n]/.test(s)) s='"'+s.replace(/"/g,'""')+'"'; return s; }; const C=comandasAll(); const rows=[["Dia","Hora","Mesa","Camarero","Estado","Articulos","Total"]]; C.forEach(c=>{ rows.push([c.dia,c.hora,c.mesa,c.camarero||"Cliente",ESTLAB[c.estado]||c.estado,(c.items||[]).map(i=>i.nombre+" x"+i.qty).join(" / "),(c.total||0).toFixed(2)]); }); const csv="﻿"+rows.map(r=>r.map(cell).join(";")).join("\n"); const u=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})); const a=document.createElement("a"); a.href=u; a.download="ventas-"+B().nombre.toLowerCase().replace(/[^a-z0-9]+/g,"-")+".csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),1000); toast("CSV descargado ⬇️"); break; }
     case "refreshMis": e.preventDefault(); if(cloudOn()) refreshComandas(render); else render(); toast("Actualizado 🔄"); break;
+    case "setTip": CUENTA.tip=+t2.dataset.t; render(); break;
+    case "setTipCustom": { const v=prompt("Propina (%)","12"); if(v!=null){ const p=Math.max(0,Math.min(100,parseFloat(v)||0)); CUENTA.tip=p; render(); } break; }
+    case "personas": CUENTA.personas=Math.max(1,CUENTA.personas+(+t2.dataset.d)); render(); break;
+    case "pedirCuenta": { const m=getMesa()||"—"; const total=load("lt_mis",[]).reduce((a,x)=>a+(x.total||0),0); const txt="🙋 Mesa "+m+" pide la cuenta"+(total?" ("+money(total)+")":""); if(cloudOn()){ const hora=new Date().toTimeString().slice(0,5); api("comandas",{method:"POST",body:JSON.stringify({bar_id:CONFIG.BAR_ID,mesa:String(m),camarero:null,dia:new Date().toISOString().slice(0,10),hora,items:[{nombre:"⚑ Pide la cuenta",qty:1,precio:0}],total:0,estado:"pendiente"})}).then(()=>{ beep&&0; toast("Avisado. El camarero va para tu mesa 🙋"); }).catch(()=>toast("Sin conexión: avisa al personal de viva voz")); } else if(B().whatsapp){ window.open("https://wa.me/"+B().whatsapp+"?text="+encodeURIComponent(txt),"_blank"); toast("Avisando al local 🙋"); } else { toast("Avisa al personal: pides la cuenta 🙋"); } break; }
     case "camPick": setMesa(+t2.dataset.n); location.hash="#/carta"; break;
     case "delCam": if(confirm("¿Borrar este camarero?")){ const s=getSettings(); s.camareros=(s.camareros||[]).filter(x=>x.id!==id); setSettings({camareros:s.camareros}); render(); } break;
     case "cerrarMesa": { const mm=String(t2.dataset.id); if(!confirm("¿Cerrar la Mesa "+mm+" (cobrada)? Quedará libre.")) break;
@@ -2967,7 +3012,7 @@ document.addEventListener("submit",e=>{
   else if(e.target.id==="camLogin"){ e.preventDefault(); const pin=($("#cpin").value||"").trim(); const cam=(getSettings().camareros||[]).find(x=>String(x.pin)===pin); if(cam){ setCam({id:cam.id,nombre:cam.nombre}); render(); toast("¡Hola, "+cam.nombre+"! 👋"); } else $("#camErr").innerHTML='<div class="alert">PIN incorrecto.</div>'; }
   else if(e.target.id==="camForm"){ e.preventDefault(); const nom=($("#cnom").value||"").trim(), pin=($("#cpin2").value||"").trim(); if(!nom||!pin){ toast("Pon nombre y PIN"); return; } const s=getSettings(); const cams=s.camareros||[]; if(cams.some(x=>String(x.pin)===pin)){ toast("Ese PIN ya está en uso"); return; } cams.push({id:uid(),nombre:nom,pin:pin}); setSettings({camareros:cams}); render(); toast("Camarero añadido ✅"); }
   else if(e.target.id==="mesasForm"){ e.preventDefault(); setSettings({mesas:Math.max(1,parseInt($("#mNum").value,10)||12)}); render(); toast("Mesas guardadas ✅"); }
-  else if(e.target.id==="datosForm"){ e.preventDefault(); setSettings({ bizNombre:$("#dNom").value.trim(), bizWhatsapp:$("#dWa").value.replace(/[^0-9]/g,""), bizCity:$("#dCity").value.trim(), bizEmail:$("#dMail").value.trim(), bizPass:$("#dPass").value.trim(), qrEstricto: !!($("#dQR")&&$("#dQR").checked) }); const fc=$("#footCity"); if(fc)fc.textContent=B().city; render(); toast("Datos guardados ✅"); }
+  else if(e.target.id==="datosForm"){ e.preventDefault(); setSettings({ bizNombre:$("#dNom").value.trim(), bizWhatsapp:$("#dWa").value.replace(/[^0-9]/g,""), bizCity:$("#dCity").value.trim(), bizEmail:$("#dMail").value.trim(), bizPass:$("#dPass").value.trim(), googleReview:($("#dGoogle")?$("#dGoogle").value.trim():""), qrEstricto: !!($("#dQR")&&$("#dQR").checked) }); const fc=$("#footCity"); if(fc)fc.textContent=B().city; render(); toast("Datos guardados ✅"); }
 });
 function savePlato(){
   const idv=$("#pId").value, file=$("#pImg").files&&$("#pImg").files[0];
@@ -3006,7 +3051,8 @@ getPlatos(); applyLogo(); setupPWA(); render();
   { "name": "El panel genera los QR de las mesas", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"mesas\"]" }, { "expectVisible": ".qrbox" } ] },
   { "name": "El acceso de camareros pide PIN", "steps": [ { "goto": "/camarero" }, { "expectVisible": "#camLogin" } ] },
   { "name": "Seguir mi pedido funciona", "steps": [ { "goto": "/" }, { "click": "[data-action=\"pickMesa\"][data-n=\"2\"]" }, { "goto": "/carta" }, { "click": "[data-action=\"add\"]" }, { "goto": "/comanda" }, { "click": "[data-action=\"enviarComanda\"]" }, { "goto": "/mipedido" }, { "expectVisible": ".track" } ] },
-  { "name": "El panel de caja muestra las ventas", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"caja\"]" }, { "expectVisible": ".caja-kpis" } ] }
+  { "name": "El panel de caja muestra las ventas", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"caja\"]" }, { "expectVisible": ".caja-kpis" } ] },
+  { "name": "Dividir cuenta y propina funciona", "steps": [ { "goto": "/" }, { "click": "[data-action=\"pickMesa\"][data-n=\"4\"]" }, { "goto": "/carta" }, { "click": "[data-action=\"add\"]" }, { "goto": "/comanda" }, { "click": "[data-action=\"enviarComanda\"]" }, { "goto": "/cuenta" }, { "expectVisible": ".cuenta-pp" }, { "click": "[data-action=\"personas\"][data-d=\"1\"]" }, { "click": "[data-action=\"setTip\"][data-t=\"10\"]" }, { "expectVisible": ".tipchip.on" } ] }
 ]
 </script>
 </body>
