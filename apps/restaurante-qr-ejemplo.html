@@ -3033,6 +3033,13 @@ function viewCamarero(){
     <div class="mesas-board">${Array.from({length:N},(_,i)=>String(i+1)).map(mm=>{ const oc=ab[mm]; return `<button class="mchip ${oc?"ocupada":""}" data-action="camPick" data-n="${mm}" type="button">M${mm}${oc?(" · "+oc):""}</button>`; }).join("")}</div>
   </div></div>`;
 }
+/* Aviso al bar: con nube va a la pantalla de barra; sin nube, a WhatsApp; si no hay ni eso, mensaje en pantalla. */
+function avisarBarra(item, txtWa, total){
+  const m=getMesa()||"-";
+  if(cloudOn()){ const hora=new Date().toTimeString().slice(0,5); api("comandas",{method:"POST",body:JSON.stringify({bar_id:CONFIG.BAR_ID,mesa:String(m),camarero:null,dia:new Date().toISOString().slice(0,10),hora,items:[{nombre:item,qty:1,precio:0}],total:Number(total)||0,estado:"pendiente"})}).then(()=>toast("Avisado. El camarero va para tu mesa 🙋")).catch(()=>toast("Sin conexión: avisa al personal de viva voz")); return; }
+  if(B().whatsapp){ window.open("https://wa.me/"+B().whatsapp+"?text="+encodeURIComponent(txtWa),"_blank"); toast("Avisando al local 🙋"); return; }
+  toast("Avisa al personal 🙋");
+}
 function viewBarra(){
   if(!ADMIN_OK&&!BARRA_OK) return `<div class="page"><div class="wrap" style="max-width:420px"><a class="back" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Volver</a><h1 class="ptitle">🖥️ Pantalla de barra</h1><p class="muted" style="margin-top:0">Acceso del personal.</p><form class="form-card" id="adminLogin"><div id="loginErr"></div><div class="field"><label for="apass">Contraseña del dueño <b>o tu PIN de camarero</b></label><input id="apass" type="password" placeholder="••••••••"></div><button class="btn btn-primary btn-block" type="submit">Entrar</button><p class="note">Con PIN de camarero se ve SOLO esta pantalla; el panel del dueño queda cerrado.</p></form></div></div>`;
   const pendC=comandasAll().filter(c=>["pendiente","cocina","listo"].includes(c.estado)).slice().reverse();
@@ -3116,8 +3123,8 @@ document.addEventListener("click",e=>{
     case "dec": addToCart(id,-1); render(); break;
     case "rm": setQty(id,0); render(); break;
     case "enviarComanda": enviarComanda(); break;
-    case "camarero": { const m=getMesa()||"-"; if(!waOpen("🙋 La Mesa "+m+" llama al camarero.")) toast("Avisando al camarero (demo). Configura WhatsApp en Ajustes."); else toast("Camarero avisado 🙋"); break; }
-    case "cuenta": { const m=getMesa()||"-"; if(!waOpen("🧾 La Mesa "+m+" pide la cuenta.")) toast("Pidiendo la cuenta (demo). Configura WhatsApp en Ajustes."); else toast("Cuenta pedida 🧾"); break; }
+    case "camarero": { const m=getMesa()||"-"; avisarBarra("⚑ Llama al camarero","🙋 La Mesa "+m+" llama al camarero."); break; }
+    case "cuenta": location.hash="#/cuenta"; break;
     case "goBebidas": FILTER="Bebidas"; render(); break;
     case "rate": { const V=load("lt_valor",[]); V.push({n:+t2.dataset.n,dia:new Date().toISOString().slice(0,10)}); save("lt_valor",V); if(cloudOn()){ try{ api("valoraciones",{method:"POST",body:JSON.stringify({bar_id:CONFIG.BAR_ID,n:+t2.dataset.n,dia:new Date().toISOString().slice(0,10)})}).catch(()=>{}); }catch(e){} } RATED=true; render(); toast("¡Gracias por tu valoración! ⭐"); break; }
     case "printCards": { const nM=B().mesas; const base=location.href.split("#")[0].split("?")[0]; let elp=document.getElementById("printArea"); if(!elp){ elp=document.createElement("div"); elp.id="printArea"; elp.className="print-area"; document.body.appendChild(elp); } elp.innerHTML=Array.from({length:Math.min(nM,50)},(_,i)=>i+1).map(mm=>`<div class="pcard"><div class="pbrand">${esc(B().nombre)}</div><div class="pmesa">MESA ${mm}</div><div class="pqr">${qrSvg(base+"?mesa="+mm)}</div><div class="purl">${esc(base)}?mesa=${mm}</div><div class="pp">📱 Escanea y pide desde el móvil</div></div>`).join(""); try{ window.print(); }catch(e){} toast("Preparando impresión…"); break; }
@@ -3145,7 +3152,7 @@ document.addEventListener("click",e=>{
     case "setTip": CUENTA.tip=+t2.dataset.t; render(); break;
     case "setTipCustom": { const v=prompt("Propina (%)","12"); if(v!=null){ const p=Math.max(0,Math.min(100,parseFloat(v)||0)); CUENTA.tip=p; render(); } break; }
     case "personas": CUENTA.personas=Math.max(1,CUENTA.personas+(+t2.dataset.d)); render(); break;
-    case "pedirCuenta": { const m=getMesa()||"—"; const total=load("lt_mis",[]).reduce((a,x)=>a+(x.total||0),0); const txt="🙋 Mesa "+m+" pide la cuenta"+(total?" ("+money(total)+")":""); if(cloudOn()){ const hora=new Date().toTimeString().slice(0,5); api("comandas",{method:"POST",body:JSON.stringify({bar_id:CONFIG.BAR_ID,mesa:String(m),camarero:null,dia:new Date().toISOString().slice(0,10),hora,items:[{nombre:"⚑ Pide la cuenta",qty:1,precio:0}],total:0,estado:"pendiente"})}).then(()=>{ beep&&0; toast("Avisado. El camarero va para tu mesa 🙋"); }).catch(()=>toast("Sin conexión: avisa al personal de viva voz")); } else if(B().whatsapp){ window.open("https://wa.me/"+B().whatsapp+"?text="+encodeURIComponent(txt),"_blank"); toast("Avisando al local 🙋"); } else { toast("Avisa al personal: pides la cuenta 🙋"); } break; }
+    case "pedirCuenta": { const m=getMesa()||"—"; const total=load("lt_mis",[]).reduce((a,x)=>a+(x.total||0),0); avisarBarra("⚑ Pide la cuenta","🧾 Mesa "+m+" pide la cuenta"+(total?" ("+money(total)+")":""),0); break; }
     case "camPick": setMesa(+t2.dataset.n); location.hash="#/carta"; break;
     case "delCam": if(confirm("¿Borrar este camarero?")){ const s=getSettings(); s.camareros=(s.camareros||[]).filter(x=>x.id!==id); setSettings({camareros:s.camareros}); render(); } break;
     case "cerrarMesa": { const mm=String(t2.dataset.id); if(!confirm("¿Cerrar la Mesa "+mm+" (cobrada)? Quedará libre.")) break;
