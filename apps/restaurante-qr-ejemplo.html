@@ -181,6 +181,19 @@ button.mchip.ocupada{background:var(--brand);border-color:var(--brand);color:#ff
 .tstep.now .tdot{background:var(--brand);border-color:var(--brand);color:#fff;animation:pulse 1.4s ease-in-out infinite}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
 .tline{flex:1;height:3px;background:var(--line-2);border-radius:2px;margin-top:-18px}
+.caja-kpis{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.caja-kpi{flex:1;min-width:120px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;box-shadow:var(--sh-sm)}
+.caja-kpi b{display:block;font-size:20px;color:var(--text)}.caja-kpi span{font-size:12px;color:var(--muted)}
+.caja-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:14px;box-shadow:var(--sh-sm)}
+.caja-card h3{margin:0 0 10px;font-size:15px}
+.caja-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line)}
+.caja-row:last-child{border-bottom:0}
+.caja-row .cn{flex:1;font-weight:600;font-size:14px}.caja-row .cq{color:var(--muted);font-size:13px}.caja-row .cv{font-weight:800;color:var(--brand-d);min-width:62px;text-align:right}
+.bars{display:flex;align-items:flex-end;gap:6px;height:120px}
+.bars .bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%}
+.bars .bcol{flex:1;width:100%;display:flex;align-items:flex-end}
+.bars .bfill{width:100%;min-height:3px;background:linear-gradient(180deg,var(--brand),var(--brand-d));border-radius:6px 6px 0 0;transition:height .3s}
+.bars .blbl{font-size:11px;color:var(--muted)}.bars .blbl.hoy{color:var(--brand-d);font-weight:800}
 .dish .pers{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--brand-d);font-weight:700;background:var(--soft);border-radius:6px;padding:2px 7px;margin-top:4px}
 .qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
 .qrbox{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center;box-shadow:var(--sh-sm)}
@@ -2701,8 +2714,8 @@ function viewAdmin(){
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 class="ptitle">Panel · ${esc(B().nombre)}</h1><button class="btn btn-ghost" data-action="logout" type="button">Salir</button></div>
     <div class="adm-stats"><div class="adm-stat"><b>${pend}</b><span>comandas pendientes</span></div><div class="adm-stat"><b style="font-size:19px">${money(ventasHoy)}</b><span>ventas de hoy</span></div><div class="adm-stat"><b style="font-size:15px">${top?esc(top[0])+" ×"+top[1]:"—"}</b><span>plato top</span></div><div class="adm-stat"><b>${avg?avg+" ★":"—"}</b><span>valoración media (${V.length})</span></div></div>
     <div style="margin:-4px 0 16px"><a class="btn btn-dark" href="#/barra">🖥️ Abrir pantalla de barra</a></div>
-    <div class="admin-tabs"><button data-action="tab" data-tab="com" aria-pressed="${ADMIN_TAB==="com"}" type="button">Comandas</button><button data-action="tab" data-tab="carta" aria-pressed="${ADMIN_TAB==="carta"}" type="button">Carta</button><button data-action="tab" data-tab="mesas" aria-pressed="${ADMIN_TAB==="mesas"}" type="button">Mesas / QR</button><button data-action="tab" data-tab="cam" aria-pressed="${ADMIN_TAB==="cam"}" type="button">Camareros</button><button data-action="tab" data-tab="ajustes" aria-pressed="${ADMIN_TAB==="ajustes"}" type="button">Ajustes</button></div>
-    <div id="adminBody">${ADMIN_TAB==="com"?admCom():ADMIN_TAB==="carta"?admCarta():ADMIN_TAB==="mesas"?admMesas():ADMIN_TAB==="cam"?admCamareros():admAjustes()}</div>
+    <div class="admin-tabs"><button data-action="tab" data-tab="com" aria-pressed="${ADMIN_TAB==="com"}" type="button">Comandas</button><button data-action="tab" data-tab="carta" aria-pressed="${ADMIN_TAB==="carta"}" type="button">Carta</button><button data-action="tab" data-tab="mesas" aria-pressed="${ADMIN_TAB==="mesas"}" type="button">Mesas / QR</button><button data-action="tab" data-tab="cam" aria-pressed="${ADMIN_TAB==="cam"}" type="button">Camareros</button><button data-action="tab" data-tab="caja" aria-pressed="${ADMIN_TAB==="caja"}" type="button">Caja</button><button data-action="tab" data-tab="ajustes" aria-pressed="${ADMIN_TAB==="ajustes"}" type="button">Ajustes</button></div>
+    <div id="adminBody">${ADMIN_TAB==="com"?admCom():ADMIN_TAB==="carta"?admCarta():ADMIN_TAB==="mesas"?admMesas():ADMIN_TAB==="cam"?admCamareros():ADMIN_TAB==="caja"?admCaja():admAjustes()}</div>
   </div></div>`;
 }
 function admCom(){
@@ -2743,6 +2756,49 @@ function admCamareros(){
     </form></div>
     ${cams.length?cams.map(cm=>{ const s=st[cm.nombre]||{n:0,v:0}; return `<div class="adm-row"><div class="aph" style="font-size:24px">👤</div><div class="ainfo"><b>${esc(cm.nombre)}</b><br><span>PIN ${esc(cm.pin)} · hoy: ${s.n} comandas · ${money(s.v)}</span></div><div class="adm-act"><button class="mini del" data-action="delCam" data-id="${esc(cm.id)}" aria-label="Borrar" type="button">🗑</button></div></div>`; }).join(""):'<div class="empty" style="padding:40px"><div class="big">👤</div><b style="color:var(--text)">Aún no hay camareros</b><br><span class="muted">Añade el primero arriba.</span></div>'}
     <p class="note" style="margin-top:12px">Enlace para los camareros: <code style="background:var(--soft);padding:3px 7px;border-radius:6px">${esc(location.href.split("#")[0].split("?")[0])}#/camarero</code></p>`;
+}
+function admCaja(){
+  const C=comandasAll().filter(c=>c.estado!=="cancelada");
+  const hoy=new Date().toISOString().slice(0,10);
+  const d=new Date(); d.setDate(d.getDate()-6); const semIni=d.toISOString().slice(0,10);
+  const ch=C.filter(c=>c.dia===hoy);
+  const cs=C.filter(c=>c.dia>=semIni);
+  const vHoy=ch.reduce((a,c)=>a+(c.total||0),0);
+  const vSem=cs.reduce((a,c)=>a+(c.total||0),0);
+  const ticket=ch.length?vHoy/ch.length:0;
+  // top platos (hoy)
+  const cnt={};
+  ch.forEach(c=>(c.items||[]).forEach(i=>{ if(!cnt[i.nombre])cnt[i.nombre]={q:0,v:0}; cnt[i.nombre].q+=i.qty; cnt[i.nombre].v+=(i.precio||0)*i.qty; }));
+  const top=Object.entries(cnt).sort((a,b)=>b[1].q-a[1].q).slice(0,6);
+  // por camarero (hoy)
+  const cam={}; ch.forEach(c=>{ const k=c.camarero||"📱 Clientes"; if(!cam[k])cam[k]={n:0,v:0}; cam[k].n++; cam[k].v+=(c.total||0); });
+  const cams=Object.entries(cam).sort((a,b)=>b[1].v-a[1].v);
+  // por hora (hoy)
+  const hr={}; ch.forEach(c=>{ const h=(c.hora||"").slice(0,2); if(h)hr[h]=(hr[h]||0)+(c.total||0); });
+  const horas=Object.keys(hr).sort();
+  const maxH=Math.max(1,...Object.values(hr));
+  // ventas por día (semana)
+  const dias=[]; for(let i=6;i>=0;i--){ const dd=new Date(); dd.setDate(dd.getDate()-i); const k=dd.toISOString().slice(0,10); dias.push({k,lbl:["D","L","M","X","J","V","S"][dd.getDay()],v:C.filter(c=>c.dia===k).reduce((a,c)=>a+(c.total||0),0)}); }
+  const maxD=Math.max(1,...dias.map(x=>x.v));
+  return `<div class="caja-kpis">
+    <div class="caja-kpi"><b>${money(vHoy)}</b><span>ventas de hoy</span></div>
+    <div class="caja-kpi"><b>${ch.length}</b><span>comandas hoy</span></div>
+    <div class="caja-kpi"><b>${money(ticket)}</b><span>ticket medio</span></div>
+    <div class="caja-kpi"><b>${money(vSem)}</b><span>últimos 7 días</span></div>
+  </div>
+  <div class="caja-card"><h3>Ventas de la semana</h3>
+    <div class="bars">${dias.map(x=>`<div class="bar"><div class="bcol"><div class="bfill" style="height:${Math.round(x.v/maxD*100)}%" title="${money(x.v)}"></div></div><span class="blbl${x.k===hoy?" hoy":""}">${x.lbl}</span></div>`).join("")}</div>
+  </div>
+  <div class="caja-card"><h3>Platos más vendidos (hoy)</h3>
+    ${top.length?top.map(([n,o])=>`<div class="caja-row"><span class="cn">${esc(n)}</span><span class="cq">×${o.q}</span><span class="cv">${money(o.v)}</span></div>`).join(""):'<p class="muted" style="margin:6px 0">Aún no hay ventas hoy.</p>'}
+  </div>
+  <div class="caja-card"><h3>Ventas por camarero (hoy)</h3>
+    ${cams.length?cams.map(([n,o])=>`<div class="caja-row"><span class="cn">${esc(n)}</span><span class="cq">${o.n} com.</span><span class="cv">${money(o.v)}</span></div>`).join(""):'<p class="muted" style="margin:6px 0">Sin datos hoy.</p>'}
+  </div>
+  <div class="caja-card"><h3>Ventas por hora (hoy)</h3>
+    ${horas.length?`<div class="bars">${horas.map(h=>`<div class="bar"><div class="bcol"><div class="bfill" style="height:${Math.round(hr[h]/maxH*100)}%" title="${money(hr[h])}"></div></div><span class="blbl">${esc(h)}h</span></div>`).join("")}</div>`:'<p class="muted" style="margin:6px 0">Sin datos hoy.</p>'}
+  </div>
+  <div style="margin-top:14px"><button class="btn btn-dark" data-action="exportCaja" type="button">⬇️ Exportar ventas (CSV)</button><p class="note">Descarga todas las comandas para tu gestoría o Excel.</p></div>`;
 }
 function admMesas(){
   const n=B().mesas; const base=location.href.split("#")[0].split("?")[0];
@@ -2893,6 +2949,7 @@ document.addEventListener("click",e=>{
     case "camLogout": setCam(null); render(); break;
     case "advanceCom": { const c=comandasAll().find(x=>String(x.id)===String(id)); const nx=c?ESTNEXT[c.estado]:null; if(nx) setComEstado(id,nx); break; }
     case "agotarP": { const P=getPlatos(); const p=P.find(x=>x.id===id); if(p)p.agotado=!p.agotado; setPlatos(P); render(); toast(p&&p.agotado?"Marcado agotado 🔴":"Reactivado 🟢"); break; }
+    case "exportCaja": { const cell=v=>{ let s=String(v==null?"":v); if(/^[=+\-@\t\r]/.test(s)) s="'"+s; if(/[",;\n]/.test(s)) s='"'+s.replace(/"/g,'""')+'"'; return s; }; const C=comandasAll(); const rows=[["Dia","Hora","Mesa","Camarero","Estado","Articulos","Total"]]; C.forEach(c=>{ rows.push([c.dia,c.hora,c.mesa,c.camarero||"Cliente",ESTLAB[c.estado]||c.estado,(c.items||[]).map(i=>i.nombre+" x"+i.qty).join(" / "),(c.total||0).toFixed(2)]); }); const csv="﻿"+rows.map(r=>r.map(cell).join(";")).join("\n"); const u=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"})); const a=document.createElement("a"); a.href=u; a.download="ventas-"+B().nombre.toLowerCase().replace(/[^a-z0-9]+/g,"-")+".csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),1000); toast("CSV descargado ⬇️"); break; }
     case "refreshMis": e.preventDefault(); if(cloudOn()) refreshComandas(render); else render(); toast("Actualizado 🔄"); break;
     case "camPick": setMesa(+t2.dataset.n); location.hash="#/carta"; break;
     case "delCam": if(confirm("¿Borrar este camarero?")){ const s=getSettings(); s.camareros=(s.camareros||[]).filter(x=>x.id!==id); setSettings({camareros:s.camareros}); render(); } break;
@@ -2948,7 +3005,8 @@ getPlatos(); applyLogo(); setupPWA(); render();
   { "name": "La pantalla de barra pide contraseña", "steps": [ { "goto": "/barra" }, { "expectVisible": "#adminLogin" } ] },
   { "name": "El panel genera los QR de las mesas", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"mesas\"]" }, { "expectVisible": ".qrbox" } ] },
   { "name": "El acceso de camareros pide PIN", "steps": [ { "goto": "/camarero" }, { "expectVisible": "#camLogin" } ] },
-  { "name": "Seguir mi pedido funciona", "steps": [ { "goto": "/" }, { "click": "[data-action=\"pickMesa\"][data-n=\"2\"]" }, { "goto": "/carta" }, { "click": "[data-action=\"add\"]" }, { "goto": "/comanda" }, { "click": "[data-action=\"enviarComanda\"]" }, { "goto": "/mipedido" }, { "expectVisible": ".track" } ] }
+  { "name": "Seguir mi pedido funciona", "steps": [ { "goto": "/" }, { "click": "[data-action=\"pickMesa\"][data-n=\"2\"]" }, { "goto": "/carta" }, { "click": "[data-action=\"add\"]" }, { "goto": "/comanda" }, { "click": "[data-action=\"enviarComanda\"]" }, { "goto": "/mipedido" }, { "expectVisible": ".track" } ] },
+  { "name": "El panel de caja muestra las ventas", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"caja\"]" }, { "expectVisible": ".caja-kpis" } ] }
 ]
 </script>
 </body>
