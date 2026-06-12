@@ -346,6 +346,9 @@ document.addEventListener("click",async e=>{
     const asunto="Vuestra app de pedidos por QR — "+l.nombre;
     let cuerpo; try{ cuerpo=AJ().iaKey?await mensajeIA(l):null; }catch(err){ cuerpo=null; }
     if(!cuerpo) cuerpo=fillTpl(AJ().t1,l);
+    const miWa=(AJ().wa||"").replace(/[^0-9]/g,"");
+    if(miWa){ const txtWa=encodeURIComponent("Hola, soy de "+l.nombre+". Me interesa vuestra propuesta de la app de pedidos por QR, ¿hablamos?");
+      cuerpo+="\n\n👉 Si te interesa, escríbeme directo por WhatsApp (un toque):\nhttps://wa.me/"+miWa+"?text="+txtWa; }
     cuerpo+="\n\nUn saludo,\nIncuba tu Negocio\nincubatunegociowebapps@gmail.com\n(Si no quieres recibir más correos nuestros, responde BAJA y no te escribimos más.)";
     if(em){ location.href="mailto:"+encodeURIComponent(em)+"?subject="+encodeURIComponent(asunto)+"&body="+encodeURIComponent(cuerpo);
       upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 }); setTimeout(render,400); toast("Se abre tu correo con todo escrito ✉️"); }
