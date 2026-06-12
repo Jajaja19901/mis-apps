@@ -2682,7 +2682,7 @@ const TREN={
 function T(s){ return (LANG==="en"&&TREN[s])||s; }
 function syncLangBtn(){ const b=$("#langBtn"); if(b) b.textContent=LANG==="es"?"EN":"ES"; try{ document.documentElement.lang=LANG; }catch(e){} }
 /* ── Fidelización: un sello por día con comanda; tarjeta llena = premio ── */
-function getFid(){ const f=getSettings().fidelidad; return Object.assign({on:true,n:8,premio:"Café o postre gratis"},f||{}); }
+function getFid(){ const f=getSettings().fidelidad; return Object.assign({on:false,n:8,premio:"Café o postre gratis"},f||{}); }
 function addSello(){ const f=getFid(); if(!f.on) return; const hoy=new Date().toISOString().slice(0,10); const S=load("lt_sellos",{d:[],canjeados:0}); if(S.d.includes(hoy)) return; S.d.push(hoy); save("lt_sellos",S); setTimeout(()=>toast(T("⭐ +1 sello en tu tarjeta")),900); }
 function viewHome(){
   const m=getMesa();
@@ -2753,11 +2753,11 @@ function viewComanda(){
     </div>
   </div></div>`;
 }
-function viewGracias(){ const rateHTML=RATED?`<p class="muted" style="margin-top:14px">${T("¡Gracias por tu valoración! ⭐")}</p>`:`<div class="rate" style="margin-top:14px"><p class="muted" style="margin:0 0 4px">${T("¿Qué tal la experiencia?")}</p>${[1,2,3,4,5].map(n=>`<button class="star" data-action="rate" data-n="${n}" type="button" aria-label="${n} estrellas">★</button>`).join("")}</div>`; return `<div class="page"><div class="wrap" style="max-width:540px;text-align:center"><div style="font-size:64px">🔔</div><h1 class="ptitle" style="margin-top:8px">${T("¡Comanda enviada!")}</h1><p class="muted">${T("Tu pedido ha llegado a la barra. Te lo llevamos a la mesa enseguida. ¿Quieres pedir algo más?")}</p>${rateHTML}<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px"><a class="btn btn-primary" href="#/mipedido">${T("🚦 Seguir mi pedido")}</a><a class="btn btn-ghost" href="#/sellos">⭐ ${T("Mis sellos")}</a><a class="btn btn-ghost" href="#/carta">${T("Seguir pidiendo")}</a></div></div></div>`; }
+function viewGracias(){ const rateHTML=RATED?`<p class="muted" style="margin-top:14px">${T("¡Gracias por tu valoración! ⭐")}</p>`:`<div class="rate" style="margin-top:14px"><p class="muted" style="margin:0 0 4px">${T("¿Qué tal la experiencia?")}</p>${[1,2,3,4,5].map(n=>`<button class="star" data-action="rate" data-n="${n}" type="button" aria-label="${n} estrellas">★</button>`).join("")}</div>`; return `<div class="page"><div class="wrap" style="max-width:540px;text-align:center"><div style="font-size:64px">🔔</div><h1 class="ptitle" style="margin-top:8px">${T("¡Comanda enviada!")}</h1><p class="muted">${T("Tu pedido ha llegado a la barra. Te lo llevamos a la mesa enseguida. ¿Quieres pedir algo más?")}</p>${rateHTML}<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:18px"><a class="btn btn-primary" href="#/mipedido">${T("🚦 Seguir mi pedido")}</a>${getFid().on?`<a class="btn btn-ghost" href="#/sellos">⭐ ${T("Mis sellos")}</a>`:""}<a class="btn btn-ghost" href="#/carta">${T("Seguir pidiendo")}</a></div></div></div>`; }
 function viewLegal(){ return `<div class="page"><div class="wrap" style="max-width:760px"><a class="back" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Volver</a><h1 class="ptitle">Privacidad y aviso legal</h1><h3 style="margin-top:16px">Política de privacidad</h3><p class="muted">En <b>${esc(B().nombre)}</b> no recogemos datos personales para pedir: solo el número de mesa y tu comanda, que se envía a la barra. No usamos cookies de seguimiento; la comanda se guarda solo en tu dispositivo.</p><h3 style="margin-top:16px">Responsable</h3><p class="muted">${esc(B().nombre)} · ${esc(B().city)} · ${esc(B().email)}.</p><h3 style="margin-top:16px">Aviso legal</h3><p class="muted">Precios y disponibilidad a título informativo, sujetos a la carta del día.</p><p class="note">Texto base con marcadores [ ]. Sustitúyelo por tus datos reales.</p></div></div>`; }
 
 /* ====== Admin ====== */
-let ADMIN_OK=false, ADMIN_TAB="com", EDIT_ID=null;
+let ADMIN_OK=false, BARRA_OK=false, ADMIN_TAB="com", EDIT_ID=null;
 function viewAdmin(){
   if(!ADMIN_OK) return `<div class="page"><div class="wrap" style="max-width:420px"><a class="back" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Volver</a><h1 class="ptitle">Acceso del dueño</h1><form class="form-card" id="adminLogin"><div id="loginErr"></div><div class="field"><label for="apass">Contraseña</label><input id="apass" type="password" placeholder="••••••••"></div><button class="btn btn-primary btn-block" type="submit">Entrar</button><p class="note">Acceso local. La clave se cambia dentro, en Ajustes.</p></form></div></div>`;
   const C=comandasAll();
@@ -2960,10 +2960,10 @@ function viewCamarero(){
   </div></div>`;
 }
 function viewBarra(){
-  if(!ADMIN_OK) return `<div class="page"><div class="wrap" style="max-width:420px"><a class="back" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Volver</a><h1 class="ptitle">🖥️ Pantalla de barra</h1><p class="muted" style="margin-top:0">Acceso del personal.</p><form class="form-card" id="adminLogin"><div id="loginErr"></div><div class="field"><label for="apass">Contraseña</label><input id="apass" type="password" placeholder="••••••••"></div><button class="btn btn-primary btn-block" type="submit">Entrar</button></form></div></div>`;
+  if(!ADMIN_OK&&!BARRA_OK) return `<div class="page"><div class="wrap" style="max-width:420px"><a class="back" href="#/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg> Volver</a><h1 class="ptitle">🖥️ Pantalla de barra</h1><p class="muted" style="margin-top:0">Acceso del personal.</p><form class="form-card" id="adminLogin"><div id="loginErr"></div><div class="field"><label for="apass">Contraseña del dueño <b>o tu PIN de camarero</b></label><input id="apass" type="password" placeholder="••••••••"></div><button class="btn btn-primary btn-block" type="submit">Entrar</button><p class="note">Con PIN de camarero se ve SOLO esta pantalla; el panel del dueño queda cerrado.</p></form></div></div>`;
   const pendC=comandasAll().filter(c=>["pendiente","cocina","listo"].includes(c.estado)).slice().reverse();
   return `<div class="page"><div class="wrap">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h1 class="ptitle">🖥️ Barra · comandas</h1><a class="btn btn-ghost" href="#/admin">Panel</a></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h1 class="ptitle">🖥️ Barra · comandas</h1><div style="display:flex;gap:8px">${ADMIN_OK?`<a class="btn btn-ghost" href="#/admin">Panel</a>`:""}<button class="btn btn-ghost" data-action="logout" type="button">Salir</button></div></div>
     <p class="muted" style="margin-top:0">Se actualiza sola y suena al entrar una comanda nueva.</p>
     ${(function(){ const hoy=new Date().toISOString().slice(0,10); const ab={}; comandasAll().forEach(c=>{ if(c.estado!=="cerrada"&&c.dia===hoy) ab[String(c.mesa)]=(ab[String(c.mesa)]||0)+1; }); const N=Math.min(B().mesas,30); return `<div class="mesas-board">${Array.from({length:N},(_,i)=>String(i+1)).map(mm=>{ const oc=ab[mm]; return oc?`<button class="mchip ocupada" data-action="cerrarMesa" data-id="${mm}" title="Cerrar mesa (cobrada)" type="button">M${mm} · ${oc} ✕</button>`:`<span class="mchip">M${mm}</span>`; }).join("")}</div>`; })()}
     ${pendC.length?`<div class="barra-grid">${pendC.map(c=>`<div class="bcard est-${esc(c.estado)}"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div class="bmesa">MESA ${esc(c.mesa)}</div><span class="est-badge ${esc(c.estado)}">${esc(ESTLAB[c.estado]||c.estado)}</span></div><div class="bhora">${esc(c.hora)} · ${c.camarero?("👤 "+esc(c.camarero)):"📱 Cliente"}</div><ul>${c.items.map(i=>`<li><b>${i.qty}×</b> ${esc(i.nombre)}${i.mods?`<span class="bm"> · ${esc(i.mods)}</span>`:""}</li>`).join("")}</ul><div class="btot">${money(c.total)}</div>${ESTNEXT[c.estado]?`<button class="btn btn-primary btn-block" data-action="advanceCom" data-id="${esc(c.id)}" type="button">${c.estado==="pendiente"?"👨‍🍳 Pasar a cocina":c.estado==="cocina"?"✅ Marcar listo":"🍽️ Marcar servida"}</button>`:""}</div>`).join("")}</div>`:`<div class="empty"><div class="big">🖥️</div><b style="color:var(--text)">Sin comandas pendientes</b><br><span class="muted">Cuando entre una, sonará el aviso.</span></div>`}
@@ -2971,7 +2971,7 @@ function viewBarra(){
 }
 function beep(){ try{ const ctx=new (window.AudioContext||window.webkitAudioContext)(); const o=ctx.createOscillator(), g=ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.frequency.value=880; g.gain.value=.15; o.start(); o.stop(ctx.currentTime+.25); }catch(e){} }
 let LASTP=-1;
-function barraCheck(){ try{ const h=location.hash||""; if(h.indexOf("mipedido")!==-1){ if(cloudOn()) refreshComandas(render); return; } if(h.indexOf("barra")===-1||!ADMIN_OK) return;
+function barraCheck(){ try{ const h=location.hash||""; if(h.indexOf("mipedido")!==-1){ if(cloudOn()) refreshComandas(render); return; } if(h.indexOf("barra")===-1||!(ADMIN_OK||BARRA_OK)) return;
   const fin=()=>{ const n=comandasAll().filter(c=>c.estado==="pendiente").length; if(LASTP===-1){ LASTP=n; render(); return; } if(n!==LASTP){ if(n>LASTP) beep(); LASTP=n; render(); } };
   if(cloudOn()) refreshComandas(fin); else fin();
 }catch(e){} }
@@ -2994,7 +2994,7 @@ function render(){
   else if(r==="admin") html=viewAdmin();
   else html=viewHome();
   $("#app").innerHTML=html; window.scrollTo(0,0); refreshCart();
-  if(cloudOn()&&!CTRIED&&ADMIN_OK&&((location.hash||"").indexOf("admin")!==-1||(location.hash||"").indexOf("barra")!==-1)){ CTRIED=true; refreshComandas(()=>render()); }
+  if(cloudOn()&&!CTRIED&&(ADMIN_OK||BARRA_OK)&&((location.hash||"").indexOf("admin")!==-1||(location.hash||"").indexOf("barra")!==-1)){ CTRIED=true; refreshComandas(()=>render()); }
 }
 window.addEventListener("hashchange",render);
 document.addEventListener("click",e=>{ if(e.target&&e.target.id==="ov") closeDish(); });
@@ -3045,7 +3045,7 @@ document.addEventListener("click",e=>{
     case "printCards": { const nM=B().mesas; const base=location.href.split("#")[0].split("?")[0]; let elp=document.getElementById("printArea"); if(!elp){ elp=document.createElement("div"); elp.id="printArea"; elp.className="print-area"; document.body.appendChild(elp); } elp.innerHTML=Array.from({length:Math.min(nM,50)},(_,i)=>i+1).map(mm=>`<div class="pcard"><div class="pbrand">${esc(B().nombre)}</div><div class="pmesa">MESA ${mm}</div><div class="pqr">${qrSvg(base+"?mesa="+mm)}</div><div class="purl">${esc(base)}?mesa=${mm}</div><div class="pp">📱 Escanea y pide desde el móvil</div></div>`).join(""); try{ window.print(); }catch(e){} toast("Preparando impresión…"); break; }
     case "studio": e.preventDefault(); toast("Diseñado por Incuba tu Negocio · Jaime M. M."); break;
     case "install": installApp(); break;
-    case "logout": ADMIN_OK=false; render(); break;
+    case "logout": ADMIN_OK=false; BARRA_OK=false; render(); break;
     case "tab": ADMIN_TAB=t2.dataset.tab; EDIT_ID=null; render(); break;
     case "editP": EDIT_ID=id; ADMIN_TAB="carta"; render(); window.scrollTo(0,0); break;
     case "cancelEdit": EDIT_ID=null; render(); break;
@@ -3076,7 +3076,10 @@ document.addEventListener("click",e=>{
 });
 document.addEventListener("click",e=>{ const c=e.target.closest(".chip"); if(c&&c.dataset.cat){ FILTER=c.dataset.cat; document.querySelectorAll("#chips .chip").forEach(x=>x.setAttribute("aria-pressed",x===c?"true":"false")); rerenderGrid(); } });
 document.addEventListener("submit",e=>{
-  if(e.target.id==="adminLogin"){ e.preventDefault(); if($("#apass").value===B().pass){ ADMIN_OK=true; render(); } else $("#loginErr").innerHTML='<div class="alert">Contraseña incorrecta.</div>'; }
+  if(e.target.id==="adminLogin"){ e.preventDefault(); const v=$("#apass").value; const rr=(location.hash||"").indexOf("barra")!==-1;
+    if(v===B().pass){ ADMIN_OK=true; BARRA_OK=true; render(); }
+    else if(rr&&(getSettings().camareros||[]).some(x=>String(x.pin)===v.trim())){ BARRA_OK=true; render(); toast("Modo personal: solo pantalla de barra 👤"); }
+    else $("#loginErr").innerHTML='<div class="alert">Contraseña incorrecta.</div>'; }
   else if(e.target.id==="platoForm"){ e.preventDefault(); savePlato(); }
   else if(e.target.id==="camLogin"){ e.preventDefault(); const pin=($("#cpin").value||"").trim(); const cam=(getSettings().camareros||[]).find(x=>String(x.pin)===pin); if(cam){ setCam({id:cam.id,nombre:cam.nombre}); render(); toast("¡Hola, "+cam.nombre+"! 👋"); } else $("#camErr").innerHTML='<div class="alert">PIN incorrecto.</div>'; }
   else if(e.target.id==="camForm"){ e.preventDefault(); const nom=($("#cnom").value||"").trim(), pin=($("#cpin2").value||"").trim(); if(!nom||!pin){ toast("Pon nombre y PIN"); return; } const s=getSettings(); const cams=s.camareros||[]; if(cams.some(x=>String(x.pin)===pin)){ toast("Ese PIN ya está en uso"); return; } cams.push({id:uid(),nombre:nom,pin:pin}); setSettings({camareros:cams}); render(); toast("Camarero añadido ✅"); }
@@ -3122,7 +3125,8 @@ getPlatos(); applyLogo(); setupPWA(); syncLangBtn(); render();
   { "name": "Seguir mi pedido funciona", "steps": [ { "goto": "/" }, { "click": "[data-action=\"pickMesa\"][data-n=\"2\"]" }, { "goto": "/carta" }, { "click": "[data-action=\"add\"]" }, { "goto": "/comanda" }, { "click": "[data-action=\"enviarComanda\"]" }, { "goto": "/mipedido" }, { "expectVisible": ".track" } ] },
   { "name": "El panel de caja muestra las ventas", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"caja\"]" }, { "expectVisible": ".caja-kpis" } ] },
   { "name": "Dividir cuenta y propina funciona", "steps": [ { "goto": "/" }, { "click": "[data-action=\"pickMesa\"][data-n=\"4\"]" }, { "goto": "/carta" }, { "click": "[data-action=\"add\"]" }, { "goto": "/comanda" }, { "click": "[data-action=\"enviarComanda\"]" }, { "goto": "/cuenta" }, { "expectVisible": ".cuenta-pp" }, { "click": "[data-action=\"personas\"][data-d=\"1\"]" }, { "click": "[data-action=\"setTip\"][data-t=\"10\"]" }, { "expectVisible": ".tipchip.on" } ] },
-  { "name": "La tarjeta de sellos funciona", "steps": [ { "goto": "/sellos" }, { "expectVisible": ".sellos-grid" } ] }
+  { "name": "El local activa los sellos y el cliente ve su tarjeta", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"ajustes\"]" }, { "click": "#dFid" }, { "submit": "#datosForm" }, { "goto": "/sellos" }, { "expectVisible": ".sellos-grid" } ] },
+  { "name": "El PIN de camarero abre la barra pero no el panel", "steps": [ { "goto": "/admin" }, { "fill": { "sel": "#apass", "value": "tasca2024" } }, { "submit": "#adminLogin" }, { "click": "[data-tab=\"cam\"]" }, { "fill": { "sel": "#cnom", "value": "Marta" } }, { "fill": { "sel": "#cpin2", "value": "4321" } }, { "submit": "#camForm" }, { "click": "[data-action=\"logout\"]" }, { "goto": "/barra" }, { "fill": { "sel": "#apass", "value": "4321" } }, { "submit": "#adminLogin" }, { "expectVisible": ".mesas-board" } ] }
 ]
 </script>
 </body>
