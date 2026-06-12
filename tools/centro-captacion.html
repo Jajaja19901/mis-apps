@@ -319,7 +319,7 @@ document.addEventListener("click",async e=>{
       upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 }); render();
     }catch(err){ toast("IA: "+err.message); t.textContent=orig; t.disabled=false; }
     return; }
-  if(t.id==="addTodos"){ let n=0; RES.forEach(d=>{ if(addLead(leadDe(d))) n++; }); toast(n+" añadidos al pipeline"); render(); return; }
+  if(t.id==="addTodos"){ let n=0; RES.forEach(d=>{ if(addLead(leadDe(d))) n++; }); const rep=RES.length-n; toast(rep?(n+" nuevos añadidos · "+rep+" ya estaban en el pipeline (saltados para no repetir)"):(n+" añadidos al pipeline")); render(); return; }
   if(t.dataset.add!=null){ const d=RES[+t.dataset.add]; toast(addLead(leadDe(d))?"Añadido al pipeline ✓":"Ya estaba en el pipeline"); return; }
   if(t.dataset.filtro!=null){ save("filtro",t.dataset.filtro); render(); return; }
   if(t.id==="mAdd"){ const nom=$("#mNom").value.trim(); if(nom.length<2){ toast("Pon el nombre"); return; }
