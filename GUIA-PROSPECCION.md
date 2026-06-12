@@ -1,4 +1,15 @@
-# 📣 Máquina de prospección — cómo conseguir clientes
+# 📣 Cómo conseguir clientes — TODO desde el Centro de Captación
+
+**Lo nuevo y recomendado: abre `tools/centro-captacion.html` en tu navegador.**
+Es tu panel único: buscas bares (🔎), los trabajas como pipeline (📋: estados,
+mensajes de WhatsApp/email listos con TUS precios, recordatorios a los 3 y 7 días,
+generar su demo con un botón), importas los interesados de tu landing (📥) y ves
+tus números y tu caja recurrente (📊). Tus precios, mensajes y WhatsApp se cambian
+en ⚙️ Ajustes. Sin regalos: oferta directa con precio.
+
+Lo de abajo son las herramientas sueltas por si las prefieres por separado.
+
+# 📣 Máquina de prospección — herramientas sueltas
 
 Tres pasos para pasar de cero a tener decenas de demos listas para enviar.
 **Sin llamadas robóticas** (eso es ilegal en España): llegas con su app ya hecha.
