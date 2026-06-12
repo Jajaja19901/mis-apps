@@ -67,7 +67,7 @@
     <div class="ok" id="ok"></div>
     <div style="overflow:auto;max-height:60vh;margin-top:10px">
       <table id="tabla">
-        <thead><tr><th></th><th>Negocio</th><th>Dirección</th><th>Teléfono</th><th>Web</th><th>★</th><th>Plan</th></tr></thead>
+        <thead><tr><th></th><th>🔥</th><th>Negocio</th><th>Por qué pica</th><th>Teléfono</th><th>Web</th><th>★</th><th>Plan</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -81,6 +81,15 @@ const $=s=>document.querySelector(s);
 let DATA=[];
 
 function slug(s){ return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40); }
+// Puntúa cada lead: cuanto más alto, más probable que te compre.
+function score(d){ let v=0; const m=[];
+  if(!d.web){ v+=40; m.push("sin web propia"); }                       // el que más te necesita
+  if(d.n>=50){ v+=20; m.push("negocio con mucho movimiento"); }        // activo, factura
+  else if(d.n>=15){ v+=10; }
+  if(d.rating>=3.8 && d.rating<=4.6){ v+=15; m.push("bien valorado"); } // cuida su imagen
+  if(d.tel){ v+=10; } else { m.push("sin teléfono"); }
+  return { v, m:m.join(" · ")||"—" };
+}
 
 $("#buscar").onclick=async ()=>{
   const err=$("#err"); err.style.display="none";
@@ -107,6 +116,8 @@ $("#buscar").onclick=async ()=>{
         tel:p.nationalPhoneNumber||"", inter:p.internationalPhoneNumber||"",
         web:p.websiteUri||"", rating:p.rating||"", n:p.userRatingCount||0
       }));
+      DATA.forEach(d=>{ const sc=score(d); d.score=sc.v; d.motivo=sc.m; });
+      DATA.sort((a,b)=>b.score-a.score);
       pageToken=j.nextPageToken||null; vueltas++;
       if(pageToken) await new Promise(r=>setTimeout(r,1800)); // Google exige esperar un poco
     } while(pageToken && vueltas<3);
@@ -119,11 +130,13 @@ function pintar(){
   const tb=$("#tabla tbody"); tb.innerHTML="";
   DATA.forEach((d,i)=>{
     const tr=document.createElement("tr");
+    const fuego=d.score>=55?"🔥🔥🔥":d.score>=35?"🔥🔥":d.score>=20?"🔥":"·";
     tr.innerHTML=`<td><input type="checkbox" class="chk" data-i="${i}" checked></td>
-      <td><b>${esc(d.nombre)}</b></td>
-      <td class="muted">${esc(d.dir)}</td>
-      <td>${esc(d.tel)}</td>
-      <td>${d.web?`<a href="${esc(d.web)}" target="_blank" rel="noopener">web</a>`:'<span class="muted">-</span>'}</td>
+      <td title="${d.score} pts">${fuego}</td>
+      <td><b>${esc(d.nombre)}</b><br><span class="muted" style="font-size:12px">${esc(d.dir)}</span></td>
+      <td class="muted">${esc(d.motivo)}</td>
+      <td>${esc(d.tel)||'<span class="muted">-</span>'}</td>
+      <td>${d.web?`<a href="${esc(d.web)}" target="_blank" rel="noopener">web</a>`:'<span class="muted" style="color:var(--brand-d);font-weight:700">sin web</span>'}</td>
       <td>${d.rating?(d.rating+" ("+d.n+")"):'<span class="muted">-</span>'}</td>
       <td><select class="plan rowplan" data-i="${i}"><option value="basico">Básica</option><option value="medio" selected>Media</option><option value="top">Digital</option></select></td>`;
     tb.appendChild(tr);
@@ -142,7 +155,7 @@ $("#exportar").onclick=()=>{
   document.querySelectorAll(".chk").forEach(c=>{ if(!c.checked) return; const i=+c.dataset.i; const d=DATA[i];
     const plan=document.querySelector('.rowplan[data-i="'+i+'"]').value;
     const wa=(d.inter||"").replace(/[^0-9]/g,"");
-    out.push({ nombre:d.nombre, ciudad:$("#zona").value.trim(), telefono:d.tel, whatsapp:wa, web:d.web, plan });
+    out.push({ nombre:d.nombre, ciudad:$("#zona").value.trim(), telefono:d.tel, whatsapp:wa, web:d.web, rating:d.rating||"", n:d.n||0, plan });
   });
   if(!out.length){ const ok=$("#ok"); ok.textContent="No has marcado ninguno."; ok.style.background="#fdeaea"; ok.style.color="#b32424"; ok.style.display="block"; return; }
   const blob=new Blob([JSON.stringify(out,null,2)],{type:"application/json"});

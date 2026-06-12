@@ -14,12 +14,15 @@ Tres pasos para pasar de cero a tener decenas de demos listas para enviar.
 
 ## 2 · Fabricar las demos  —  `tools/generar-lote.mjs`
 ```bash
-node tools/generar-lote.mjs lista-negocios.json
+STUDIO_WA=34TUWHATSAPP node tools/generar-lote.mjs lista-negocios.json
 ```
-Te genera:
-- **La app de cada negocio** en `apps/bares/<id>.html` (con su nombre ya puesto).
-- **`apps/bares/_contacto.md` y `_contacto.csv`**: el mensaje de WhatsApp listo
-  para cada uno + su teléfono y la contraseña de su panel.
+(`STUDIO_WA` = tu WhatsApp, para que el botón "Me interesa" te escriba a ti.)
+Te genera, por cada negocio:
+- **`<id>-venta.html`** → la **landing de venta** (LO QUE ENVÍAS): saluda al
+  negocio por su nombre, muestra su valoración de Google y abre su demo.
+- **`<id>.html`** → la **app real** (para entregar cuando cierre).
+- **`_contacto.md`** con la **secuencia de 3 toques** de WhatsApp por negocio
+  (inicial, recordatorio a 3 días, último a 7 días).
 
 ## 3 · Contactar
 1. Sube cada `.html` a **app.netlify.com/drop** → te da un enlace.
