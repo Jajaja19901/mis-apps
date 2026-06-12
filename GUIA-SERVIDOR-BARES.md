@@ -18,7 +18,7 @@ que **crear la base de datos (gratis) y rellenar 3 datos** en el archivo.
 create table comandas (
   id bigint generated always as identity primary key,
   bar_id text not null,
-  mesa text, dia text, hora text,
+  mesa text, camarero text, dia text, hora text,
   items jsonb, total numeric,
   estado text default 'pendiente',
   created_at timestamptz default now()
