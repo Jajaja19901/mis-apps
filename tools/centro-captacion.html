@@ -192,11 +192,24 @@ function vBuscar(){
     </tbody></table></div></div>`;
 }
 
+/* Cola del Modo Ráfaga: primero los seguimientos pendientes (más calientes), luego los
+   nuevos por puntuación. Solo bares con WhatsApp (a los sin número no se les puede abrir chat). */
+function colaRafaga(){
+  const L=LEADS().filter(l=>(l.whatsapp||"").replace(/[^0-9]/g,"").length>=9);
+  const seguimientos=L.filter(l=>toquePendiente(l)>0);
+  const nuevos=L.filter(l=>l.estado==="nuevo").sort((a,b)=>(score(b).v)-(score(a).v));
+  return seguimientos.concat(nuevos);
+}
 function vPipeline(){
   const L=LEADS(); const f=load("filtro","");
   const vis=f?L.filter(l=>l.estado===f):L;
   const chips=["","nuevo","contactado","interesado","cliente","no"].map(k=>`<button class="mini" data-filtro="${k}" type="button" style="${f===k?"background:var(--brand);color:#fff;border-color:var(--brand)":""}">${k===""?"Todos":k}</button>`).join(" ");
-  return `<div class="card"><h2>➕ Añadir negocio a mano</h2>
+  const cola=colaRafaga(); const sinWa=LEADS().filter(l=>(l.whatsapp||"").replace(/[^0-9]/g,"").length<9&&(l.estado==="nuevo")).length;
+  return `${cola.length?`<div class="card" style="border-color:var(--brand);background:#fffaf2"><h2>🚀 Modo Ráfaga — ${cola.length} por contactar</h2>
+    <p class="note" style="margin:0 0 10px">Le da al siguiente de la cola (los más calientes primero): escribe su mensaje${AJ().iaKey?" con IA ✨":""}, te abre WhatsApp listo y lo marca como contactado. Tú solo: <b>enviar y volver</b>.</p>
+    <button class="btn btn-p" id="rafaga" type="button" style="width:100%;font-size:15px">🚀 Contactar al siguiente: ${esc(cola[0].nombre)}</button>
+    ${sinWa?`<p class="note" style="margin-top:8px">⚠ ${sinWa} bar(es) sin número de WhatsApp quedan fuera de la ráfaga (búscales el teléfono y añádelo con 📝).</p>`:""}
+  </div>`:""}<div class="card"><h2>➕ Añadir negocio a mano</h2>
     <div class="row">
       <div><label>Nombre *</label><input id="mNom" placeholder="Bar Pepe"></div>
       <div><label>Ciudad</label><input id="mCiu"></div>
@@ -289,6 +302,15 @@ document.addEventListener("click",async e=>{
   const t=e.target.closest("button"); if(!t) return;
   if(t.id==="go"){ await buscar(); return; }
   if(t.id==="goosm"){ await buscarOSM(); return; }
+  if(t.id==="rafaga"){ const cola=colaRafaga(); if(!cola.length){ toast("¡Cola vacía! Todos contactados 🎉"); render(); return; }
+    const l=cola[0]; t.textContent="✍️ Escribiendo a "+l.nombre+"…"; t.disabled=true;
+    let msg; try{ msg=AJ().iaKey?await mensajeIA(l):null; }catch(err){ toast("IA falló, uso plantilla: "+err.message); }
+    if(!msg){ const tq=toquePendiente(l); msg=fillTpl(tq===3?AJ().t3:tq===2?AJ().t2:AJ().t1,l); }
+    const num=(l.whatsapp||"").replace(/[^0-9]/g,"");
+    window.open("https://wa.me/"+num+"?text="+encodeURIComponent(msg),"_blank","noopener");
+    upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 });
+    render(); const c2=colaRafaga(); toast(c2.length?("Enviado a "+l.nombre+" · quedan "+c2.length):"¡Última! Cola terminada 🎉");
+    return; }
   if(t.dataset.ia){ const l=LEADS().find(x=>x.id===t.dataset.ia); const orig=t.textContent; t.textContent="✨…"; t.disabled=true;
     try{ const m=await mensajeIA(l); const num=(l.whatsapp||"").replace(/[^0-9]/g,"");
       if(num){ window.open("https://wa.me/"+num+"?text="+encodeURIComponent(m),"_blank","noopener"); }
