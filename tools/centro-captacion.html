@@ -333,8 +333,16 @@ document.addEventListener("click",async e=>{
     try{ await navigator.clipboard.writeText(msg); toast("Mensaje copiado 📋 (mándalo por donde quieras)"); }catch(err){ prompt("Copia el mensaje:",msg); }
     upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 }); render(); return; }
   if(t.dataset.mail){ const l=LEADS().find(x=>x.id===t.dataset.mail);
-    const cuerpo="Asunto: Tu app de pedidos por QR — "+l.nombre+"\n\n"+fillTpl(AJ().t1,l)+"\n\nUn saludo,\nIncuba tu Negocio";
-    try{ await navigator.clipboard.writeText(cuerpo); toast("Email copiado ✉️"); }catch(err){ prompt("Copia el email:",cuerpo); } return; }
+    let em=(l.email||"").trim();
+    if(!em){ em=(prompt("Email de "+l.nombre+" (lo encuentras en su web o ficha de Google):","")||"").trim(); if(em){ upLead(l.id,{email:em}); } }
+    const asunto="Vuestra app de pedidos por QR — "+l.nombre;
+    let cuerpo; try{ cuerpo=AJ().iaKey?await mensajeIA(l):null; }catch(err){ cuerpo=null; }
+    if(!cuerpo) cuerpo=fillTpl(AJ().t1,l);
+    cuerpo+="\n\nUn saludo,\nIncuba tu Negocio\nincubatunegociowebapps@gmail.com\n(Si no quieres recibir más correos nuestros, responde BAJA y no te escribimos más.)";
+    if(em){ location.href="mailto:"+encodeURIComponent(em)+"?subject="+encodeURIComponent(asunto)+"&body="+encodeURIComponent(cuerpo);
+      upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 }); setTimeout(render,400); toast("Se abre tu correo con todo escrito ✉️"); }
+    else { try{ await navigator.clipboard.writeText("Para: (busca su email)\nAsunto: "+asunto+"\n\n"+cuerpo); toast("Email copiado ✉️"); }catch(err){ prompt("Copia el email:",cuerpo); } }
+    return; }
   if(t.dataset.demo){ const l=LEADS().find(x=>x.id===t.dataset.demo); bajarDemo(l); return; }
   if(t.dataset.url){ const l=LEADS().find(x=>x.id===t.dataset.url); const u=prompt("Pega el enlace de su demo (Netlify):",l.demoUrl||""); if(u!=null){ upLead(l.id,{demoUrl:u.trim()}); render(); } return; }
   if(t.dataset.nota){ const l=LEADS().find(x=>x.id===t.dataset.nota); const n=prompt("Nota de "+l.nombre+":",l.notas||""); if(n!=null){ upLead(l.id,{notas:n.trim()}); render(); } return; }
