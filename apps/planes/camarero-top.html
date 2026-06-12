@@ -2653,6 +2653,7 @@ function getCam(){ return load("lt_cam",null); }
 function setCam(c){ if(c)save("lt_cam",c); else { try{ localStorage.removeItem("lt_cam"); }catch(e){} } }
 
 const CATS=["Para picar","Raciones","Bebidas","Postres"];
+function getCats(){ const seen=[]; getPlatos().forEach(p=>{ const c=(p&&p.cat||"").trim(); if(c&&seen.indexOf(c)<0) seen.push(c); }); return seen.length?seen:CATS; }
 const ALG={gluten:"🌾 Gluten",lactosa:"🥛 Lácteos",huevo:"🥚 Huevo",pescado:"🐟 Pescado",marisco:"🦐 Marisco",frutos:"🥜 Frutos secos",soja:"🌿 Soja",sulfitos:"🍷 Sulfitos"};
 function algHTML(p){ const a=Array.isArray(p.al)?p.al:[]; if(!a.length) return ""; return `<div class="algs">${a.map(k=>ALG[k]?`<span class="alg" title="${esc(ALG[k])}">${esc(ALG[k].split(" ")[0])}</span>`:"").join("")}</div>`; }
 const SEED=[
@@ -2673,14 +2674,14 @@ const SEED=[
 ];
 function getPlatos(){ let p=load("lt_platos",null); if(!p){ const base=(Array.isArray(PRESET_CARTA)&&PRESET_CARTA.length)?PRESET_CARTA:SEED; p=base.map(x=>({id:uid(),activo:true,img:null,...x})); save("lt_platos",p); } return p; }
 /* Zona de preparación: la comida va a COCINA, las bebidas a la BARRA (el dueño puede cambiarlo por plato) */
-function zonaPlato(p){ return (p&&p.zona)||((p&&p.cat==="Bebidas")?"barra":"cocina"); }
+function zonaPlato(p){ if(p&&p.zona) return p.zona; return /bebid|caf[eé]|refresc|copa|barra/i.test((p&&p.cat)||"")?"barra":"cocina"; }
 const ZONA_LBL={cocina:"🍳 Cocina",barra:"🍹 Barra"};
 function setPlatos(p){ save("lt_platos",p); pushCarta(p); }
 /* ── Carta en la nube: el panel la sube; los móviles de los clientes la bajan ── */
 let CARTA_TS=0;
 function pushCarta(p){ if(!f(3)||!cloudOn()||!ADMIN_OK) return; api("cartas?on_conflict=bar_id",{method:"POST",headers:{"Prefer":"resolution=merge-duplicates,return=minimal"},body:JSON.stringify({bar_id:CONFIG.BAR_ID,platos:p,updated_at:new Date().toISOString()})}).catch(()=>toast("⚠ Sin nube: la carta se guardó solo en este aparato")); }
 function saneaPlatos(arr){ if(!Array.isArray(arr)) return null;
-  const out=arr.slice(0,200).map(p=>{ try{ const m=p&&p.mods&&typeof p.mods==="object"?p.mods:{}; return { id:String((p&&p.id)||uid()).slice(0,24), nombre:String((p&&p.nombre)||"").slice(0,80), desc:String((p&&p.desc)||"").slice(0,200), precio:Math.max(0,Math.min(9999,Number(p&&p.precio)||0)), emoji:String((p&&p.emoji)||"🍽️").slice(0,4), cat:CATS.includes(p&&p.cat)?p.cat:CATS[0], zona:(p&&p.zona==="barra")?"barra":(p&&p.zona==="cocina")?"cocina":undefined, dest:!!(p&&p.dest), activo:(p&&p.activo)!==false, agotado:!!(p&&p.agotado), al:Array.isArray(p&&p.al)?p.al.filter(k=>ALG[k]).slice(0,8):[], img:(typeof (p&&p.img)==="string"&&/^data:image\/(png|jpe?g|webp|gif|svg\+xml);/.test(p.img)&&p.img.length<400000)?p.img:null, mods:{ quitar:Array.isArray(m.quitar)?m.quitar.slice(0,12).map(x=>String(x).slice(0,40)):[], elige:Array.isArray(m.elige)?m.elige.slice(0,6).map(g=>({t:String((g&&g.t)||"").slice(0,40),o:Array.isArray(g&&g.o)?g.o.slice(0,8).map(o=>String(o).slice(0,40)):[]})):[], extras:Array.isArray(m.extras)?m.extras.slice(0,8).map(e=>({n:String((e&&e.n)||"").slice(0,40),p:Math.max(0,Math.min(999,Number(e&&e.p)||0))})):[] } }; }catch(e){ return null; } }).filter(p=>p&&p.nombre);
+  const out=arr.slice(0,200).map(p=>{ try{ const m=p&&p.mods&&typeof p.mods==="object"?p.mods:{}; return { id:String((p&&p.id)||uid()).slice(0,24), nombre:String((p&&p.nombre)||"").slice(0,80), desc:String((p&&p.desc)||"").slice(0,200), precio:Math.max(0,Math.min(9999,Number(p&&p.precio)||0)), emoji:String((p&&p.emoji)||"🍽️").slice(0,4), cat:String((p&&p.cat)||CATS[0]).slice(0,40), zona:(p&&p.zona==="barra")?"barra":(p&&p.zona==="cocina")?"cocina":undefined, dest:!!(p&&p.dest), activo:(p&&p.activo)!==false, agotado:!!(p&&p.agotado), al:Array.isArray(p&&p.al)?p.al.filter(k=>ALG[k]).slice(0,8):[], img:(typeof (p&&p.img)==="string"&&/^data:image\/(png|jpe?g|webp|gif|svg\+xml);/.test(p.img)&&p.img.length<400000)?p.img:null, mods:{ quitar:Array.isArray(m.quitar)?m.quitar.slice(0,12).map(x=>String(x).slice(0,40)):[], elige:Array.isArray(m.elige)?m.elige.slice(0,6).map(g=>({t:String((g&&g.t)||"").slice(0,40),o:Array.isArray(g&&g.o)?g.o.slice(0,8).map(o=>String(o).slice(0,40)):[]})):[], extras:Array.isArray(m.extras)?m.extras.slice(0,8).map(e=>({n:String((e&&e.n)||"").slice(0,40),p:Math.max(0,Math.min(999,Number(e&&e.p)||0))})):[] } }; }catch(e){ return null; } }).filter(p=>p&&p.nombre);
   return out.length?out:null; }
 function pullCarta(then){ if(!f(3)||!cloudOn()||ADMIN_OK){ if(then)then(); return; } if(Date.now()-CARTA_TS<60000){ if(then)then(); return; } CARTA_TS=Date.now();
   api("cartas?bar_id=eq."+encodeURIComponent(CONFIG.BAR_ID)+"&select=platos").then(rows=>{ const limpia=rows&&rows[0]?saneaPlatos(rows[0].platos):null; if(limpia) save("lt_platos",limpia); if(then)then(); }).catch(()=>{ if(then)then(); }); }
@@ -2804,7 +2805,7 @@ function viewCarta(){
     ${(function(){ const k=cocinaInfo(); return k.open?"":`<div class="kban">⏰ <b>${T("Cocina cerrada ahora")}.</b> ${T("Abre a las")} <b>${esc(k.next)}</b>. ${T("Puedes mirar la carta y pedir cuando abra.")}</div>`; })()}
     ${recoHTML(P)}
     <div class="sec-head"><span class="eyebrow">${T("La carta")}</span><h2>${T("Elige y añade a tu comanda")}</h2></div>
-    <div class="chips" id="chips">${CATS.map(c=>`<button class="chip" data-cat="${esc(c)}" aria-pressed="${FILTER===c}" type="button">${esc(c)}</button>`).join("")}</div>
+    <div class="chips" id="chips">${getCats().map(c=>`<button class="chip" data-cat="${esc(c)}" aria-pressed="${FILTER===c}" type="button">${esc(c)}</button>`).join("")}</div>
     ${f(2)?`<details class="algfil"${ALGOFF.length?" open":""}><summary>🚫 ${T("Evitar alérgenos")}${ALGOFF.length?` <b>(${ALGOFF.length})</b>`:""}</summary><div class="algrow">${Object.keys(ALG).map(k=>`<button class="algopt2" data-action="algTog" data-k="${k}" aria-pressed="${ALGOFF.includes(k)}" type="button">${ALGOFF.includes(k)?"✓ ":""}${esc(ALG[k])}</button>`).join("")}<p class="note" style="flex-basis:100%;margin:6px 0 0">${T("Según lo marcado por el local.")}</p></div></details>`:""}
     <div class="menu-list" id="grid">${gridHTML(P)}</div>
     <p class="alg-ley">${T("Alérgenos")}: ${Object.values(ALG).join(" · ")}</p>
@@ -2884,7 +2885,7 @@ function admCarta(){
   const ff=ed||{nombre:"",cat:"Para picar",desc:"",precio:"",emoji:"🍽️",dest:false,activo:true,img:null};
   return `<div class="form-card" style="margin-bottom:22px"><h3 style="margin-bottom:12px">${ed?"Editar plato":"Añadir plato"}</h3><form id="platoForm"><input type="hidden" id="pId" value="${esc(ed?ed.id:"")}">
     <div class="field"><label for="pNom">Nombre *</label><input id="pNom" type="text" required value="${esc(ff.nombre)}" placeholder="Ej. Patatas bravas"></div>
-    <div style="display:flex;gap:12px;flex-wrap:wrap"><div class="field" style="flex:2;min-width:150px"><label for="pCat">Categoría</label><select id="pCat">${CATS.map(c=>`<option ${ff.cat===c?"selected":""}>${esc(c)}</option>`).join("")}</select></div><div class="field" style="flex:1;min-width:90px"><label for="pEmoji">Icono</label><input id="pEmoji" type="text" maxlength="4" value="${esc(ff.emoji||"🍽️")}"></div></div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap"><div class="field" style="flex:2;min-width:150px"><label for="pCat">Categoría / sección</label><input id="pCat" list="catList" value="${esc(ff.cat||getCats()[0]||"")}" placeholder="Ej. Croissants"><datalist id="catList">${getCats().map(c=>`<option value="${esc(c)}">`).join("")}</datalist></div><div class="field" style="flex:1;min-width:90px"><label for="pEmoji">Icono</label><input id="pEmoji" type="text" maxlength="4" value="${esc(ff.emoji||"🍽️")}"></div></div>
     ${f(2)?`<div class="field"><label for="pZona">¿A dónde va este plato?</label><select id="pZona"><option value="cocina" ${zonaPlato(ff)==="cocina"?"selected":""}>🍳 A la cocina</option><option value="barra" ${zonaPlato(ff)==="barra"?"selected":""}>🍹 A la barra</option></select><p class="note">En qué pantalla aparece. Por defecto, las bebidas a la barra y lo demás a la cocina.</p></div>`:""}
     <div class="field"><label for="pDesc">Descripción</label><textarea id="pDesc">${esc(ff.desc)}</textarea></div>
     <div class="field"><label>Alérgenos</label><div class="algpick">${Object.keys(ALG).map(k=>`<label class="algopt"><input type="checkbox" name="alg_${k}" ${(ff.al||[]).includes(k)?"checked":""}> ${esc(ALG[k])}</label>`).join("")}</div></div>
@@ -3269,7 +3270,7 @@ function setupPWA(){ const ic=logoURI(); const f=$("#favicon"),ap=$("#appleIcon"
 try{ const q=new URLSearchParams(location.search); const mz=q.get("mesa"); if(mz&&/^\d+$/.test(mz)) setMesa(+mz); if(q.has("llevar")) setMesa("LLEVAR"); }catch(e){}
 $("#year").textContent=new Date().getFullYear();
 $("#footCity").textContent=B().city;
-getPlatos(); applyLogo(); applyName(); setupPWA(); syncLangBtn(); render(); pullCarta(()=>render());
+getPlatos(); try{ if(getCats().indexOf(FILTER)<0) FILTER=getCats()[0]||FILTER; }catch(e){} applyLogo(); applyName(); setupPWA(); syncLangBtn(); render(); pullCarta(()=>render());
 </script>
 
 
