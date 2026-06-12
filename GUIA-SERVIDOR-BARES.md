@@ -35,6 +35,16 @@ create table cartas (
 alter table cartas enable row level security;
 create policy "acceso cartas" on cartas for all using (true) with check (true);
 
+create table mensajes (
+  id bigint generated always as identity primary key,
+  bar_id text not null,
+  autor text, texto text, dia text, hora text,
+  created_at timestamptz default now()
+);
+alter table mensajes enable row level security;
+create policy "acceso mensajes" on mensajes for all using (true) with check (true);
+create index mensajes_bar on mensajes (bar_id, id);
+
 create table valoraciones (
   id bigint generated always as identity primary key,
   bar_id text, n int, dia text,
@@ -71,6 +81,10 @@ Si los 3 campos están vacíos, la app funciona como siempre (WhatsApp). No romp
 > un precio o marca un "agotado" en su panel, se sube a la base de datos y **los móviles
 > de los clientes la bajan solos** (al abrir la app y al entrar en la carta). Sin nube,
 > la carta solo vive en cada aparato.
+
+> 💬 **Tablón del personal:** camareros y barra tienen un chat interno (botón
+> "💬 Tablón" en sus pantallas) para avisarse entre ellos sin gritar. Con nube
+> llega a todos al instante; sin nube, solo se ve en ese aparato.
 
 ---
 
