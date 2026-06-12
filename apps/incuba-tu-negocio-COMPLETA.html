@@ -657,14 +657,54 @@ route();
     f.srcdoc=injectShim(html); window.scrollTo(0,0); }
   function close(){ if(ov){ var f=document.getElementById('ovFrame'); if(f){ f.removeAttribute('srcdoc'); f.src='about:blank'; } ov.style.display='none'; if(curUrl){ try{URL.revokeObjectURL(curUrl);}catch(e){} curUrl=null; } } }
   function chooserQR(){
-    var bk=document.createElement('div'); bk.id='qrPick'; bk.style.cssText='position:fixed;inset:0;z-index:99998;background:rgba(4,8,16,.86);display:flex;align-items:center;justify-content:center;padding:20px;font-family:Inter,system-ui,sans-serif';
-    var opts=[['camarero-basico.html','\uD83E\uDD49 B\u00e1sica','Carta por QR y pedir. Lo esencial para empezar.'],['camarero-medio.html','\uD83E\uDD48 Media','+ camareros, caja, estado en vivo, cuenta y para llevar.'],['camarero-top.html','\uD83E\uDD47 Digital (todo)','+ sellos, idiomas, tabl\u00f3n y avisos al m\u00f3vil.']];
-    var rows=opts.map(function(o){ return '<button class="qrOpt" data-k="'+o[0]+'" style="text-align:left;background:#13203a;border:1px solid #26344f;border-radius:14px;padding:14px 16px;cursor:pointer;color:#eaf1fb;font-family:inherit;width:100%"><div style="font-size:16px;font-weight:700">'+o[1]+'</div><div style="font-size:13px;color:#9fb0c8;margin-top:2px">'+o[2]+'</div></button>'; }).join('');
-    bk.innerHTML='<div style="background:#0d1526;border:1px solid #22304a;border-radius:20px;max-width:430px;width:100%;padding:24px"><h3 style="margin:0 0 4px;font-size:20px;color:#eaf1fb">\uD83C\uDF7D\uFE0F El Camarero Digital</h3><p style="margin:0 0 18px;color:#9fb0c8;font-size:14px">Elige el plan para ver la demo:</p><div style="display:flex;flex-direction:column;gap:12px">'+rows+'</div><button id="qrX" style="margin-top:16px;width:100%;background:none;border:1px solid #2a3a55;color:#9fb0c8;border-radius:12px;padding:11px;cursor:pointer;font-family:inherit">Cerrar</button></div>';
+    var bk=document.createElement('div'); bk.id='qrPick';
+    bk.style.cssText='position:fixed;inset:0;z-index:99998;background:rgba(4,8,16,.9);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto;font-family:Inter,system-ui,sans-serif';
     document.body.appendChild(bk);
     function quita(){ try{document.body.removeChild(bk);}catch(e){} }
-    bk.addEventListener('click',function(e){ if(e.target===bk){ quita(); return; } var b=e.target.closest?e.target.closest('.qrOpt'):null; if(b){ var k=b.getAttribute('data-k'); quita(); if(APPS[k]) open(b64ToUtf8(APPS[k])); } });
-    bk.querySelector('#qrX').addEventListener('click',quita);
+    function card(html){ bk.innerHTML='<div style="background:#0d1526;border:1px solid #22304a;border-radius:20px;max-width:440px;width:100%;padding:24px;color:#eaf1fb;max-height:94vh;overflow:auto">'+html+'</div>'; }
+    var planes=[['camarero-basico.html','🥉 Básica','Carta por QR y pedir. Lo esencial.'],['camarero-medio.html','🥈 Media','+ camareros, caja, estado en vivo, cuenta y para llevar.'],['camarero-top.html','🥇 Digital (todo)','+ sellos, idiomas, tablón y avisos al móvil.']];
+    function vistaPlanes(){
+      var rows=planes.map(function(o){return '<button class="qrOpt" data-k="'+o[0]+'" style="text-align:left;background:#13203a;border:1px solid #26344f;border-radius:14px;padding:13px 15px;cursor:pointer;color:#eaf1fb;font-family:inherit;width:100%"><div style="font-size:16px;font-weight:700">'+o[1]+'</div><div style="font-size:12.5px;color:#9fb0c8;margin-top:2px">'+o[2]+'</div></button>';}).join('');
+      card('<h3 style="margin:0 0 3px;font-size:21px">🍽️ El Camarero Digital</h3>'
+        +'<p style="margin:0 0 6px;color:#cdd8ea;font-size:14px">Tus clientes piden por QR desde la mesa y la comanda llega sola a la barra. <b>Tú cobras como siempre.</b></p>'
+        +'<p style="margin:0 0 14px;color:#7fd1a8;font-size:12.5px;font-weight:700">⭐ Pruébalo gratis ahora · sin instalar nada</p>'
+        +'<div style="display:flex;flex-direction:column;gap:10px">'+rows+'</div>'
+        +'<button id="qrInteresa" style="margin-top:16px;width:100%;background:#27e6a6;color:#04221a;border:0;border-radius:13px;padding:14px;font-weight:800;cursor:pointer;font-family:inherit;font-size:15px">🔥 Lo quiero para mi local</button>'
+        +'<button id="qrX" style="margin-top:10px;width:100%;background:none;border:1px solid #2a3a55;color:#9fb0c8;border-radius:12px;padding:10px;cursor:pointer;font-family:inherit">Cerrar</button>');
+      bk.querySelector('#qrX').onclick=quita;
+      bk.querySelector('#qrInteresa').onclick=vistaForm;
+      Array.prototype.forEach.call(bk.querySelectorAll('.qrOpt'),function(b){ b.onclick=function(){ var k=b.getAttribute('data-k'); quita(); if(APPS[k]) open(b64ToUtf8(APPS[k])); }; });
+    }
+    function inp(id,ph,extra){ return '<input id="'+id+'" placeholder="'+ph+'" '+(extra||'')+' style="padding:12px;border-radius:10px;border:1px solid #2a3a55;background:#0a1322;color:#eaf1fb;font:inherit;width:100%">'; }
+    function vistaForm(){
+      card('<h3 style="margin:0 0 4px;font-size:20px">Te preparamos tu app 🎉</h3>'
+        +'<p style="margin:0 0 16px;color:#9fb0c8;font-size:13.5px">Déjanos tus datos y te contactamos en menos de 24 h, sin compromiso.</p>'
+        +'<form id="qrForm" style="display:flex;flex-direction:column;gap:10px">'
+        +inp('qf-nom','Tu nombre')
+        +inp('qf-neg','Nombre de tu local')
+        +inp('qf-tel','WhatsApp / teléfono','inputmode="tel"')
+        +'<select id="qf-plan" style="padding:12px;border-radius:10px;border:1px solid #2a3a55;background:#0a1322;color:#eaf1fb;font:inherit"><option value="">¿Qué plan te interesa?</option><option>Básica</option><option>Media</option><option>Digital</option><option>No lo sé, asesoradme</option></select>'
+        +'<label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;color:#9fb0c8"><input type="checkbox" id="qf-ok"> Acepto que me contacten sobre el producto.</label>'
+        +'<button type="submit" style="background:#27e6a6;color:#04221a;border:0;border-radius:12px;padding:14px;font-weight:800;cursor:pointer;font:inherit;font-size:15px">Enviar y que me contacten</button>'
+        +'</form>'
+        +'<div id="qfErr" style="color:#ff9a9a;font-size:13px;margin-top:8px;display:none">Rellena nombre, local, teléfono y acepta el contacto.</div>'
+        +'<button id="qrBack" style="margin-top:10px;width:100%;background:none;border:1px solid #2a3a55;color:#9fb0c8;border-radius:12px;padding:10px;cursor:pointer;font-family:inherit">← Volver</button>');
+      bk.querySelector('#qrBack').onclick=vistaPlanes;
+      bk.querySelector('#qrForm').onsubmit=function(e){ e.preventDefault();
+        var nom=bk.querySelector('#qf-nom').value.trim(), neg=bk.querySelector('#qf-neg').value.trim(), tel=bk.querySelector('#qf-tel').value.trim(), plan=bk.querySelector('#qf-plan').value, ok=bk.querySelector('#qf-ok').checked;
+        if(nom.length<2||neg.length<2||tel.length<7||!ok){ bk.querySelector('#qfErr').style.display='block'; return; }
+        try{ var lead={ id:"lead_"+Date.now()+"_"+Math.random().toString(36).slice(2,6), fecha:new Date().toISOString(), nombre:nom, negocio:neg, telefono:tel, nivel:"Camarero Digital"+(plan?(" · "+plan):""), mensaje:"Interesado en el Camarero Digital (desde la demo)", estado:"nuevo" }; var L=loadLeads(); L.unshift(lead); saveLeads(L); }catch(e2){}
+        vistaGracias(nom);
+      };
+    }
+    function vistaGracias(nom){
+      var wa=(typeof CONFIG!=='undefined'&&CONFIG.WHATSAPP&&CONFIG.WHATSAPP!=="PEGA_AQUI_TU_NUMERO")?CONFIG.WHATSAPP:"";
+      var waBtn=wa?'<a href="https://wa.me/'+wa+'?text='+encodeURIComponent('Hola, soy '+nom+' y quiero mi Camarero Digital')+'" target="_blank" rel="noopener" style="display:block;text-align:center;background:#25d366;color:#fff;border-radius:12px;padding:14px;font-weight:800;text-decoration:none;margin-top:6px">💬 Hablar ahora por WhatsApp</a>':'';
+      card('<div style="text-align:center"><div style="font-size:46px">✅</div><h3 style="margin:6px 0 4px;font-size:20px">¡Recibido, '+(nom||'')+'!</h3><p style="margin:0 0 16px;color:#9fb0c8;font-size:14px">Te contactamos en menos de 24 h para montar tu app. Si quieres, escríbenos ya:</p>'+waBtn+'<button id="qrFin" style="margin-top:12px;width:100%;background:none;border:1px solid #2a3a55;color:#9fb0c8;border-radius:12px;padding:10px;cursor:pointer;font-family:inherit">Cerrar</button></div>');
+      bk.querySelector('#qrFin').onclick=quita;
+    }
+    bk.addEventListener('click',function(e){ if(e.target===bk) quita(); });
+    vistaPlanes();
   }
   document.addEventListener('click',function(e){ var a=e.target&&e.target.closest?e.target.closest('a[href]'):null; if(!a) return; var href=a.getAttribute('href')||''; if(href.indexOf('restaurante-qr-ejemplo.html')!==-1){ e.preventDefault(); chooserQR(); return; } for(var key in APPS){ if(href.indexOf(key)!==-1){ e.preventDefault(); open(b64ToUtf8(APPS[key])); return; } } }, true);
 })();
