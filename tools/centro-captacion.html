@@ -83,6 +83,28 @@ const T3_DEF="Hola {nombre}, último mensaje y no os molesto más 🙏 Si queré
 function AJ(){ return Object.assign({ wa:"34680363828", gkey:"", t1:T1_DEF, t2:T2_DEF, t3:T3_DEF,
   precios:{ basico:{alta:99,cuota:25}, medio:{alta:150,cuota:50}, top:{alta:250,cuota:75} } }, load("ajustes",{})); }
 function planLbl(p){ return p==="basico"?"Básica":p==="top"?"Digital":"Media"; }
+
+// ───────── Buscar EMAIL en la web (búsqueda real, como Google; NUNCA inventa) ─────────
+// Un navegador no puede entrar directo en webs ajenas (lo bloquea CORS), así que pasamos
+// por un "puente" público y gratuito que trae la página por nosotros. Solo se rellena el
+// email si aparece DE VERDAD en lo que devuelve la web. Si no hay, no se pone nada.
+const EMAIL_RE=/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
+const EMAIL_BLACK=/(example\.|sentry|wixpress|godaddy|cloudflare|@2x|@3x|\.png|\.jpg|\.jpeg|\.gif|\.webp|\.svg|@sentry|@dominio|tuemail|youremail|tu-?correo|nombre@|usuario@|email@email|test@test|info@dominio|@example|@domain)/i;
+const PUENTES=[ u=>"https://api.allorigins.win/raw?url="+encodeURIComponent(u),
+                u=>"https://corsproxy.io/?url="+encodeURIComponent(u) ];
+async function traerWeb(url){ for(const p of PUENTES){ try{ const r=await fetch(p(url)); if(r.ok){ const t=await r.text(); if(t&&t.length>40) return t; } }catch(e){} } return ""; }
+function sacaEmails(txt){ const out=[],seen={}; (String(txt).match(EMAIL_RE)||[]).forEach(e=>{ e=e.toLowerCase().replace(/[.,;:]+$/,""); if(EMAIL_BLACK.test(e))return; if(e.length>60)return; if(seen[e])return; seen[e]=1; out.push(e); }); return out; }
+async function buscarEmailWeb(nombre,ciudad){
+  const q=nombre+" "+(ciudad||"")+" email correo contacto";
+  const html=await traerWeb("https://html.duckduckgo.com/html/?q="+encodeURIComponent(q));
+  if(!html) throw new Error("el puente no respondió, prueba otra vez");
+  let m=sacaEmails(html); if(m.length) return m[0];                 // ¿el email salió ya en los resultados?
+  const links=[],re=/uddg=([^&"']+)/gi; let g;                       // si no, abrimos los 1ºs resultados
+  while((g=re.exec(html))&&links.length<4){ try{ const u=decodeURIComponent(g[1]); if(/^https?:\/\//.test(u)&&!/\.(png|jpe?g|gif|css|js|pdf)(\?|$)/i.test(u)) links.push(u); }catch(e){} }
+  for(const u of links){ const t=await traerWeb(u); const ms=sacaEmails(t); if(ms.length) return ms[0]; }
+  return ""; // no tiene email publicado → no se inventa
+}
+
 // Mensaje escrito por IA (Claude u OpenAI; se detecta por el formato de la clave).
 // Usa los datos que sabemos del bar. Funciona en el navegador (la clave es tuya y local).
 async function mensajeIA(l){
@@ -280,7 +302,8 @@ function vPipeline(){
   <div class="card"><h2>📋 Pipeline (${L.length})</h2>
     <div style="margin:-4px 0 8px"><b style="font-size:12px;color:var(--mut)">Por canal de contacto:</b><br>${chipsCanal}</div>
     <div style="margin:0 0 4px"><b style="font-size:12px;color:var(--mut)">Por estado:</b><br>${chips}</div>
-    ${fc==="ninguno"?`<p class="note" style="color:var(--brand-d)">❓ Estos no tienen ni WhatsApp ni email localizado. Para "subir de nivel": busca su web/redes a mano, y si encuentras un contacto, añádelo con 📝/✉️. Si no, déjalos para una pasada con un scraper de pago (Outscraper).</p>`:""}
+    ${L.some(l=>!l.email)?`<div style="margin:6px 0"><button class="mini" id="buscaMails" type="button" title="Busca en la web el email de los bares que aún no lo tengan">🔎✉️ Buscar emails que falten (${L.filter(l=>!l.email).length})</button></div>`:""}
+    ${fc==="ninguno"?`<p class="note" style="color:var(--brand-d)">❓ Estos no tienen ni WhatsApp ni email localizado. Pulsa 🔎✉️ en cada uno (o el botón de arriba) para que busque su email en la web. Si aun así no aparece, es que no lo tienen publicado.</p>`:""}
     ${vis.length?`<div style="overflow:auto"><table><thead><tr><th>Negocio</th><th>Estado</th><th>Aviso</th><th>Contactar</th><th>Demo</th><th>Plan</th><th></th></tr></thead><tbody>
     ${vis.map(l=>{ const tq=toquePendiente(l); const tpl=tq===3?AJ().t3:tq===2?AJ().t2:AJ().t1; const msg=fillTpl(tpl,l);
       const waNum=(l.whatsapp||"").replace(/[^0-9]/g,"");
@@ -294,7 +317,8 @@ function vPipeline(){
       <td>${l.estado==="contactado"?`<div style="display:flex;gap:4px;flex-wrap:wrap"><button class="mini" data-resp="${l.id}" type="button" title="Me ha contestado" style="border-color:#3f9d52;color:#1d6f2b">✅ Respondió</button><button class="mini" data-norep="${l.id}" type="button" title="No le interesa" style="color:#b32424">❌ No</button></div>${tq?`<span class="alerta">↻ toca ${tq}º toque</span>`:""}`:tq?`<span class="alerta">↻ toca ${tq}º toque</span>`:l.estado==="interesado"?'<span class="alerta" style="background:#fde8f0;border-color:#a3164f;color:#a3164f">🔥 ¡cerrar!</span>':"—"}</td>
       <td>${waNum?`<button class="btn btn-wa" data-wa="${l.id}" type="button">💬 WhatsApp</button>`:`<button class="mini" data-copy="${l.id}" type="button">📋 Copiar msj</button>`}
         <button class="mini" data-ia="${l.id}" type="button" title="Mensaje escrito por IA">✨ IA</button>
-        <button class="mini" data-mail="${l.id}" type="button" title="Copiar email">✉️</button></td>
+        <button class="mini" data-mail="${l.id}" type="button" title="Copiar email">✉️</button>
+        ${l.email?"":`<button class="mini" data-bmail="${l.id}" type="button" title="Buscar su email en la web">🔎✉️</button>`}</td>
       <td><button class="mini" data-demo="${l.id}" type="button">⬇️ Generar</button> <button class="mini" data-url="${l.id}" type="button" title="Pegar enlace de su demo">🔗</button></td>
       <td><select data-plan="${l.id}" style="padding:5px"><option value="basico"${l.plan==="basico"?" selected":""}>Básica</option><option value="medio"${l.plan==="medio"?" selected":""}>Media</option><option value="top"${l.plan==="top"?" selected":""}>Digital</option></select></td>
       <td><button class="mini" data-nota="${l.id}" type="button" title="Nota">📝</button> <button class="mini" data-del="${l.id}" type="button" title="Borrar">🗑</button></td>
@@ -384,6 +408,17 @@ document.addEventListener("click",async e=>{
     return; }
   if(t.id==="addTodos"){ let n=0; RES.forEach(d=>{ if(addLead(leadDe(d))) n++; }); const rep=RES.length-n; toast(rep?(n+" nuevos añadidos · "+rep+" ya estaban en el pipeline (saltados para no repetir)"):(n+" añadidos al pipeline")); render(); return; }
   if(t.dataset.add!=null){ const d=RES[+t.dataset.add]; toast(addLead(leadDe(d))?"Añadido al pipeline ✓":"Ya estaba en el pipeline"); return; }
+  if(t.dataset.bmail){ const l=LEADS().find(x=>x.id===t.dataset.bmail); const o=t.textContent; t.textContent="🔎…"; t.disabled=true;
+    try{ const em=await buscarEmailWeb(l.nombre,l.ciudad);
+      if(em){ upLead(l.id,{email:em}); toast("Email encontrado: "+em+" ✓"); render(); }
+      else { toast(l.nombre+": no tiene email publicado (no se inventa nada)"); t.textContent=o; t.disabled=false; }
+    }catch(err){ toast("No se pudo buscar: "+err.message); t.textContent=o; t.disabled=false; } return; }
+  if(t.id==="buscaMails"){ const faltan=LEADS().filter(l=>!l.email); if(!faltan.length){ toast("Todos tienen email ya ✓"); return; }
+    if(!confirm("Voy a buscar en la web el email de "+faltan.length+" bares. Tarda unos segundos cada uno y algunos no tendrán email publicado. ¿Sigo?")) return;
+    t.disabled=true; let n=0;
+    for(let i=0;i<faltan.length;i++){ t.textContent="🔎 buscando "+(i+1)+"/"+faltan.length+"…";
+      try{ const em=await buscarEmailWeb(faltan[i].nombre,faltan[i].ciudad); if(em){ upLead(faltan[i].id,{email:em}); n++; } }catch(e){} }
+    t.disabled=false; render(); toast("Encontrados "+n+" emails reales de "+faltan.length+" (los demás no lo tienen publicado)"); return; }
   if(t.dataset.resp){ upLead(t.dataset.resp,{estado:"interesado"}); render(); toast("Marcado: respondió 🔥 ¡A cerrar!"); return; }
   if(t.dataset.norep){ upLead(t.dataset.norep,{estado:"no"}); render(); toast("Marcado: no interesa. No se le insistirá más."); return; }
   if(t.dataset.filtro!=null){ save("filtro",t.dataset.filtro); render(); return; }
