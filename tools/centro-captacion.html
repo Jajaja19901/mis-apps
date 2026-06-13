@@ -84,25 +84,35 @@ function AJ(){ return Object.assign({ wa:"34680363828", gkey:"", t1:T1_DEF, t2:T
   precios:{ basico:{alta:99,cuota:25}, medio:{alta:150,cuota:50}, top:{alta:250,cuota:75} } }, load("ajustes",{})); }
 function planLbl(p){ return p==="basico"?"Básica":p==="top"?"Digital":"Media"; }
 
-// ───────── Buscar EMAIL en la web (búsqueda real, como Google; NUNCA inventa) ─────────
-// Un navegador no puede entrar directo en webs ajenas (lo bloquea CORS), así que pasamos
-// por un "puente" público y gratuito que trae la página por nosotros. Solo se rellena el
-// email si aparece DE VERDAD en lo que devuelve la web. Si no hay, no se pone nada.
+// ───────── Buscar EMAIL + WEB del local en internet (búsqueda real; NUNCA inventa) ─────────
+// Un navegador no puede entrar directo en webs ajenas (lo bloquea CORS), así que pasamos por
+// "puentes" públicos y gratuitos que traen la página por nosotros. El primero (Jina Reader)
+// es el más fiable. Solo se rellena lo que aparece DE VERDAD; si no hay, no se pone nada.
 const EMAIL_RE=/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
-const EMAIL_BLACK=/(example\.|sentry|wixpress|godaddy|cloudflare|@2x|@3x|\.png|\.jpg|\.jpeg|\.gif|\.webp|\.svg|@sentry|@dominio|tuemail|youremail|tu-?correo|nombre@|usuario@|email@email|test@test|info@dominio|@example|@domain)/i;
-const PUENTES=[ u=>"https://api.allorigins.win/raw?url="+encodeURIComponent(u),
-                u=>"https://corsproxy.io/?url="+encodeURIComponent(u) ];
-async function traerWeb(url){ for(const p of PUENTES){ try{ const r=await fetch(p(url)); if(r.ok){ const t=await r.text(); if(t&&t.length>40) return t; } }catch(e){} } return ""; }
+const EMAIL_BLACK=/(example\.|sentry|wixpress|godaddy|cloudflare|@2x|@3x|\.png|\.jpg|\.jpeg|\.gif|\.webp|\.svg|@sentry|@dominio|tuemail|youremail|tu-?correo|nombre@|usuario@|email@email|test@test|info@dominio|@example|@domain|jina\.ai|allorigins|corsproxy)/i;
+const WEB_BAD=/(facebook|instagram|tripadvisor|tiktok|youtube|twitter|x\.com|google\.|duckduckgo|bing\.|paginasamarillas|cylex|citiservi|restaurantguru|yelp|just-?eat|ubereats|glovo|deliveroo|carta\.menu|mymenuweb|sluurpy|wikipedia|jina\.ai|allorigins|corsproxy|thingproxy|gstatic|w3\.org|schema\.org)/i;
+// Puentes (proxies CORS). Jina añade la URL tal cual; los demás la codifican.
+const PUENTES=[ u=>"https://r.jina.ai/"+u,
+                u=>"https://api.allorigins.win/raw?url="+encodeURIComponent(u),
+                u=>"https://corsproxy.io/?url="+encodeURIComponent(u),
+                u=>"https://thingproxy.freeboard.io/fetch/"+u ];
+async function traerWeb(url){ for(const p of PUENTES){ try{ const r=await fetch(p(url),{headers:{"Accept":"text/html,text/plain,*/*"}}); if(r.ok){ const t=await r.text(); if(t&&t.length>60) return t; } }catch(e){} } return ""; }
 function sacaEmails(txt){ const out=[],seen={}; (String(txt).match(EMAIL_RE)||[]).forEach(e=>{ e=e.toLowerCase().replace(/[.,;:]+$/,""); if(EMAIL_BLACK.test(e))return; if(e.length>60)return; if(seen[e])return; seen[e]=1; out.push(e); }); return out; }
-async function buscarEmailWeb(nombre,ciudad){
+function sacaWeb(txt){ const re=/https?:\/\/[a-z0-9.-]+\.[a-z]{2,}[^\s"'<>)\]]*/gi; const m=(String(txt).match(re)||[]).map(u=>u.replace(/[.,)\]]+$/,"")).filter(u=>!WEB_BAD.test(u)); return m[0]||""; }
+// Devuelve {email, web} con lo que encuentre de verdad. Vacío si no hay.
+async function buscarDatosWeb(nombre,ciudad){
   const q=nombre+" "+(ciudad||"")+" email correo contacto";
-  const html=await traerWeb("https://html.duckduckgo.com/html/?q="+encodeURIComponent(q));
-  if(!html) throw new Error("el puente no respondió, prueba otra vez");
-  let m=sacaEmails(html); if(m.length) return m[0];                 // ¿el email salió ya en los resultados?
-  const links=[],re=/uddg=([^&"']+)/gi; let g;                       // si no, abrimos los 1ºs resultados
-  while((g=re.exec(html))&&links.length<4){ try{ const u=decodeURIComponent(g[1]); if(/^https?:\/\//.test(u)&&!/\.(png|jpe?g|gif|css|js|pdf)(\?|$)/i.test(u)) links.push(u); }catch(e){} }
-  for(const u of links){ const t=await traerWeb(u); const ms=sacaEmails(t); if(ms.length) return ms[0]; }
-  return ""; // no tiene email publicado → no se inventa
+  let txt=await traerWeb("https://html.duckduckgo.com/html/?q="+encodeURIComponent(q));
+  if(!txt) txt=await traerWeb("https://www.bing.com/search?q="+encodeURIComponent(q));
+  if(!txt) throw new Error("ningún puente respondió, vuelve a intentarlo en un momento");
+  let email=sacaEmails(txt)[0]||""; const web=sacaWeb(txt);
+  // Si el email no salió en los resultados, entramos en la web del local a por su contacto.
+  if(!email && web){
+    const pg=await traerWeb(web); let e2=sacaEmails(pg);
+    if(!e2.length){ const c=await traerWeb(web.replace(/\/+$/,"")+"/contacto"); e2=sacaEmails(c); }
+    if(e2.length) email=e2[0];
+  }
+  return { email, web };
 }
 
 // Mensaje escrito por IA (Claude u OpenAI; se detecta por el formato de la clave).
@@ -409,16 +419,18 @@ document.addEventListener("click",async e=>{
   if(t.id==="addTodos"){ let n=0; RES.forEach(d=>{ if(addLead(leadDe(d))) n++; }); const rep=RES.length-n; toast(rep?(n+" nuevos añadidos · "+rep+" ya estaban en el pipeline (saltados para no repetir)"):(n+" añadidos al pipeline")); render(); return; }
   if(t.dataset.add!=null){ const d=RES[+t.dataset.add]; toast(addLead(leadDe(d))?"Añadido al pipeline ✓":"Ya estaba en el pipeline"); return; }
   if(t.dataset.bmail){ const l=LEADS().find(x=>x.id===t.dataset.bmail); const o=t.textContent; t.textContent="🔎…"; t.disabled=true;
-    try{ const em=await buscarEmailWeb(l.nombre,l.ciudad);
-      if(em){ upLead(l.id,{email:em}); toast("Email encontrado: "+em+" ✓"); render(); }
+    try{ const d=await buscarDatosWeb(l.nombre,l.ciudad); const patch={}; if(d.email)patch.email=d.email; if(d.web&&!l.web)patch.web=d.web;
+      if(d.email){ upLead(l.id,patch); toast("Email encontrado: "+d.email+" ✓"); render(); }
+      else if(d.web&&!l.web){ upLead(l.id,patch); toast(l.nombre+": web encontrada, pero sin email publicado"); render(); }
       else { toast(l.nombre+": no tiene email publicado (no se inventa nada)"); t.textContent=o; t.disabled=false; }
     }catch(err){ toast("No se pudo buscar: "+err.message); t.textContent=o; t.disabled=false; } return; }
   if(t.id==="buscaMails"){ const faltan=LEADS().filter(l=>!l.email); if(!faltan.length){ toast("Todos tienen email ya ✓"); return; }
-    if(!confirm("Voy a buscar en la web el email de "+faltan.length+" bares. Tarda unos segundos cada uno y algunos no tendrán email publicado. ¿Sigo?")) return;
-    t.disabled=true; let n=0;
+    if(!confirm("Voy a buscar en la web el email y la web de "+faltan.length+" bares. Tarda unos segundos cada uno y algunos no tendrán email publicado. ¿Sigo?")) return;
+    t.disabled=true; let n=0,w=0;
     for(let i=0;i<faltan.length;i++){ t.textContent="🔎 buscando "+(i+1)+"/"+faltan.length+"…";
-      try{ const em=await buscarEmailWeb(faltan[i].nombre,faltan[i].ciudad); if(em){ upLead(faltan[i].id,{email:em}); n++; } }catch(e){} }
-    t.disabled=false; render(); toast("Encontrados "+n+" emails reales de "+faltan.length+" (los demás no lo tienen publicado)"); return; }
+      try{ const d=await buscarDatosWeb(faltan[i].nombre,faltan[i].ciudad); const patch={}; if(d.email){patch.email=d.email; n++;} if(d.web&&!faltan[i].web){patch.web=d.web; w++;} if(Object.keys(patch).length) upLead(faltan[i].id,patch); }catch(e){}
+      await new Promise(r=>setTimeout(r,1200)); } // respiro para no saturar el puente
+    t.disabled=false; render(); toast("Encontrados "+n+" emails y "+w+" webs de "+faltan.length+" (los demás no lo tienen publicado)"); return; }
   if(t.dataset.resp){ upLead(t.dataset.resp,{estado:"interesado"}); render(); toast("Marcado: respondió 🔥 ¡A cerrar!"); return; }
   if(t.dataset.norep){ upLead(t.dataset.norep,{estado:"no"}); render(); toast("Marcado: no interesa. No se le insistirá más."); return; }
   if(t.dataset.filtro!=null){ save("filtro",t.dataset.filtro); render(); return; }
