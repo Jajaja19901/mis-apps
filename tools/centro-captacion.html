@@ -102,19 +102,23 @@ async function mensajeIA(l){
   ];
   const sys="Escribes mensajes de WhatsApp como una persona real, no como una IA ni un comercial. Eres del equipo de Incuba tu Negocio, un estudio pequeño que hace apps de pedidos por QR para bares: el cliente escanea en la mesa, pide desde su movil y la comanda llega sola a la barra; el bar cobra como siempre con su caja. REGLAS DE ESTILO (importantes): espanol de Espana, coloquial y natural; frases cortas; 3-4 frases maximo; CERO lenguaje de marketing (nada de 'descubre', 'revoluciona', 'no te lo pierdas', 'imagina'); sin listas, sin guiones largos, sin negritas, sin estructura perfecta; maximo un emoji o ninguno; sin despedida formal (nada de 'un cordial saludo'); puede haber alguna construccion imperfecta como la de un humano escribiendo rapido, pero sin faltas graves. "+estilos[Math.floor(Math.random()*estilos.length)]+" El objetivo NO es vender: es que le pique la curiosidad y pruebe la demo (menciona el enlace si lo hay) o conteste. Menciona el precio solo de pasada y con naturalidad. Devuelve SOLO el texto del mensaje, sin comillas ni markdown.";
   const usr="Escribe el mensaje para este local:\n"+datos;
+  // Claude (Anthropic) usa otro formato; el resto (Groq, Grok, OpenAI) son compatibles OpenAI.
   if(/^sk-ant/i.test(key)){
     const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
       headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
       body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:500,system:sys,messages:[{role:"user",content:usr}]})});
     const j=await r.json(); if(j.error) throw new Error(j.error.message||"error de Claude");
     return (j.content&&j.content[0]&&j.content[0].text||"").trim();
-  } else {
-    const r=await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",
-      headers:{"content-type":"application/json","Authorization":"Bearer "+key},
-      body:JSON.stringify({model:"gpt-4o-mini",messages:[{role:"system",content:sys},{role:"user",content:usr}]})});
-    const j=await r.json(); if(j.error) throw new Error(j.error.message||"error de OpenAI");
-    return (j.choices&&j.choices[0]&&j.choices[0].message.content||"").trim();
   }
+  // Detecta proveedor por el formato de la clave
+  let url="https://api.openai.com/v1/chat/completions", model="gpt-4o-mini", quien="OpenAI";
+  if(/^gsk_/i.test(key)){ url="https://api.groq.com/openai/v1/chat/completions"; model="llama-3.3-70b-versatile"; quien="Groq"; }      // GRATIS
+  else if(/^xai-/i.test(key)){ url="https://api.x.ai/v1/chat/completions"; model="grok-2-latest"; quien="Grok"; }
+  const r=await fetch(url,{method:"POST",
+    headers:{"content-type":"application/json","Authorization":"Bearer "+key},
+    body:JSON.stringify({model,messages:[{role:"system",content:sys},{role:"user",content:usr}],temperature:0.95})});
+  const j=await r.json(); if(j.error) throw new Error((j.error.message||"error")+" ("+quien+")");
+  return (j.choices&&j.choices[0]&&j.choices[0].message.content||"").trim();
 }
 // Importar CSV (de Outscraper, Apify, o el del propio panel). Detecta las columnas solo.
 function parseCSV(txt){
@@ -339,7 +343,7 @@ function vAjustes(){
     <div class="row">
       <div><label>Tu WhatsApp (34...)</label><input id="aWa" value="${esc(a.wa)}" inputmode="tel"></div>
       <div><label>Clave Google Places (opcional, para 🔎 Buscar Google)</label><input id="aKey" type="password" value="${esc(a.gkey)}"><p class="note">Opcional. El buscador GRATIS no la necesita.</p></div>
-      <div><label>Clave de IA (opcional, para el botón ✨ IA)</label><input id="aIa" type="password" value="${esc(a.iaKey)}" placeholder="sk-ant-... (Claude) o sk-... (OpenAI)"><p class="note">Para que la IA escriba cada mensaje a medida. Pega tu clave de Claude o de OpenAI. Se detecta sola. Todo se guarda SOLO en este navegador.</p></div>
+      <div><label>Clave de IA (opcional, para el botón ✨ IA)</label><input id="aIa" type="password" value="${esc(a.iaKey)}" placeholder="gsk_... (Groq, GRATIS) · sk-ant... (Claude) · xai-... (Grok) · sk-... (OpenAI)"><p class="note">Para que la IA escriba cada mensaje a medida. <b>Groq es gratis</b> (clave <code>gsk_...</code> desde console.groq.com). También vale Claude, Grok u OpenAI — se detecta sola por la clave. Se guarda SOLO en este navegador.</p></div>
     </div></div>
   <div class="card"><h2>💶 Tus precios</h2>
     <div class="row">
