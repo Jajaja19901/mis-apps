@@ -90,7 +90,7 @@ function proveedorDe(k){ k=(k||"").trim(); if(!k)return""; if(/^gsk_/i.test(k))r
 // "puentes" públicos y gratuitos que traen la página por nosotros. El primero (Jina Reader)
 // es el más fiable. Solo se rellena lo que aparece DE VERDAD; si no hay, no se pone nada.
 const EMAIL_RE=/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
-const EMAIL_BLACK=/(example\.|sentry|wixpress|godaddy|cloudflare|@2x|@3x|\.png|\.jpg|\.jpeg|\.gif|\.webp|\.svg|@sentry|@dominio|tuemail|youremail|tu-?correo|nombre@|usuario@|email@email|test@test|info@dominio|@example|@domain|jina\.ai|allorigins|corsproxy)/i;
+const EMAIL_BLACK=/(example\.|sentry|wixpress|godaddy|cloudflare|@2x|@3x|\.png|\.jpg|\.jpeg|\.gif|\.webp|\.svg|@sentry|@dominio|tuemail|youremail|tu-?correo|nombre@|usuario@|email@email|test@test|info@dominio|@example|@domain|jina\.ai|allorigins|corsproxy|kioskoymas|paginasamarillas|cylex|citiservi|tripadvisor|yelp|thefork|eltenedor|just-?eat|glovo|ubereats|deliveroo|doctoralia|infoempresa|einforma|empresite|axesor|restaurantguru|sluurpy|mymenuweb|@facebook|@instagram|wordpress|@wix\.|squarespace|shopify|mailchimp|@google|@youtube)/i;
 const WEB_BAD=/(facebook|instagram|tripadvisor|tiktok|youtube|twitter|x\.com|google\.|duckduckgo|bing\.|paginasamarillas|cylex|citiservi|restaurantguru|yelp|just-?eat|ubereats|glovo|deliveroo|carta\.menu|mymenuweb|sluurpy|wikipedia|jina\.ai|allorigins|corsproxy|thingproxy|gstatic|w3\.org|schema\.org)/i;
 // Puentes (proxies CORS). Jina añade la URL tal cual; los demás la codifican.
 const PUENTES=[ u=>"https://r.jina.ai/"+u,
@@ -131,33 +131,40 @@ async function buscarDatosWeb(nombre,ciudad){
     if(!email && !WEB_BAD.test(u)){ const c=await traerWeb(u.replace(/\/+$/,"")+"/contacto"); if(c){ pg+="\n"+c; const e=sacaEmails(c); if(e.length) email=e[0]; } }
   }
   const extra={};
-  // Si hay clave de IA, lee TODO el texto reunido y saca email oculto + redes + si ya vende online.
+  // Si hay clave de IA, lee TODO el texto reunido y saca datos. PERO solo aceptamos lo que
+  // aparezca LITERALMENTE en el texto leído: si la IA lo inventa, no está en el texto y se tira.
   if((AJ().iaKey||"").trim() && pg){
     try{ const d=await iaExtrae(pg, nombre);
-      if(d){ if(d.email && /@/.test(d.email) && !EMAIL_BLACK.test(String(d.email).toLowerCase())) email=email||String(d.email).toLowerCase();
-        if(d.instagram) extra.instagram=d.instagram; if(d.facebook) extra.facebook=d.facebook;
-        if(d.telefono) extra.tel=String(d.telefono); if(d.pedidos_online) extra.pedidos=true; }
+      if(d){ const low=pg.toLowerCase(); const dig=pg.replace(/\D/g,"");
+        if(d.email){ const e=String(d.email).toLowerCase().trim();
+          if(/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(e) && !EMAIL_BLACK.test(e) && low.includes(e)) email=email||e; } // SOLO si está escrito tal cual
+        if(d.instagram && low.includes(String(d.instagram).toLowerCase().replace(/^https?:\/\//,"").replace(/\/$/,""))) extra.instagram=d.instagram;
+        if(d.facebook && low.includes(String(d.facebook).toLowerCase().replace(/^https?:\/\//,"").replace(/\/$/,""))) extra.facebook=d.facebook;
+        if(d.telefono){ const td=String(d.telefono).replace(/\D/g,""); if(td.length>=9 && dig.includes(td.slice(-9))) extra.tel=String(d.telefono); } // el nº debe estar en el texto
+        if(d.pedidos_online===true) extra.pedidos=true; }
     }catch(e){}
   }
+  // Seguridad final: el email tiene que estar SÍ o SÍ en el texto leído. Si no, fuera (no se inventa).
+  if(email && !pg.toLowerCase().includes(email.toLowerCase())) email="";
   return Object.assign({ email, web }, extra);
 }
 // Convierte lo encontrado en un parche para el lead (solo rellena lo que falta; no pisa lo que ya hay).
-function datosPatch(d,l){ const p={}; if(d.email)p.email=d.email; if(d.web&&!l.web)p.web=d.web; if(d.tel&&!l.tel)p.tel=d.tel; if(d.instagram&&!l.instagram)p.instagram=d.instagram; if(d.facebook&&!l.facebook)p.facebook=d.facebook; if(d.pedidos)p.pedidos=true; return p; }
+function datosPatch(d,l){ const p={}; if(d.email){p.email=d.email; p.emailAuto=true;} if(d.web&&!l.web)p.web=d.web; if(d.tel&&!l.tel)p.tel=d.tel; if(d.instagram&&!l.instagram)p.instagram=d.instagram; if(d.facebook&&!l.facebook)p.facebook=d.facebook; if(d.pedidos)p.pedidos=true; return p; }
 
 // La IA lee el texto de la web del local y devuelve sus datos en JSON. NUNCA inventa (instruido).
 async function iaExtrae(texto,nombre){
   const key=(AJ().iaKey||"").trim(); if(!key) return null;
-  const sys="Eres un extractor de datos para un CRM de hosteleria. Te paso el texto de la web de un negocio. Devuelve SOLO un JSON plano (sin markdown ni explicaciones) con estas claves: email (el correo real del negocio o null; IGNORA correos de soporte de plantillas como wordpress/wix/shopify y correos de ejemplo), instagram (url o null), facebook (url o null), telefono (o null), pedidos_online (true si hay Just Eat/Glovo/UberEats/tienda propia, si no false), reservas (true si hay TheFork o reserva online, si no false). Si un dato no aparece en el texto, pon null. PROHIBIDO inventar: si no lo ves, null.";
-  const usr="Negocio: "+nombre+"\n\nTexto de su web:\n"+String(texto).slice(0,8000);
+  const sys="Eres un extractor que COPIA datos escritos en un texto. Te paso texto de webs/fichas de un negocio. Devuelve SOLO un JSON plano (sin markdown) con: email, instagram, facebook, telefono, pedidos_online, reservas. REGLAS ABSOLUTAS: (1) email: copia un correo SOLO si aparece escrito tal cual en el texto, con su arroba. ESTÁ PROHIBIDO construir, deducir o adivinar un correo a partir del nombre del negocio o de su dominio (NO inventes 'info@nombre.com'). Si en el texto no hay ningún correo escrito, email=null. (2) Ignora correos de plataformas/portales (paginasamarillas, cylex, tripadvisor, just eat, glovo, kioskoymas, wordpress, wix...). (3) instagram, facebook, telefono: cópialos solo si están literalmente en el texto; si no, null. (4) pedidos_online: true solo si ves Just Eat/Glovo/UberEats/tienda propia de compra; si no false. (5) reservas: true solo si ves TheFork o reserva online; si no false. Ante la duda, null. NUNCA te inventes nada.";
+  const usr="Negocio: "+nombre+"\n\nTexto encontrado:\n"+String(texto).slice(0,8000);
   let out="";
   if(/^sk-ant/i.test(key)){
-    const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:400,system:sys,messages:[{role:"user",content:usr}]})});
+    const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:400,temperature:0,system:sys,messages:[{role:"user",content:usr}]})});
     const j=await r.json(); if(j.error) throw new Error(j.error.message||"error IA"); out=(j.content&&j.content[0]&&j.content[0].text)||"";
   } else {
     let url="https://api.openai.com/v1/chat/completions",model="gpt-4o-mini";
     if(/^gsk_/i.test(key)){ url="https://api.groq.com/openai/v1/chat/completions"; model="llama-3.3-70b-versatile"; }
     else if(/^xai-/i.test(key)){ url="https://api.x.ai/v1/chat/completions"; model="grok-2-latest"; }
-    const r=await fetch(url,{method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+key},body:JSON.stringify({model:model,max_tokens:400,messages:[{role:"system",content:sys},{role:"user",content:usr}]})});
+    const r=await fetch(url,{method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+key},body:JSON.stringify({model:model,max_tokens:400,temperature:0,messages:[{role:"system",content:sys},{role:"user",content:usr}]})});
     const j=await r.json(); if(j.error) throw new Error(j.error.message||"error IA"); out=(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||"";
   }
   try{ const m=out.match(/\{[\s\S]*\}/); return m?JSON.parse(m[0]):null; }catch(e){ return null; }
@@ -360,7 +367,9 @@ function vPipeline(){
   <div class="card"><h2>📋 Pipeline (${L.length})</h2>
     <div style="margin:-4px 0 8px"><b style="font-size:12px;color:var(--mut)">Por canal de contacto:</b><br>${chipsCanal}</div>
     <div style="margin:0 0 4px"><b style="font-size:12px;color:var(--mut)">Por estado:</b><br>${chips}</div>
-    ${L.some(l=>!l.email)?`<div style="margin:6px 0"><button class="mini" id="buscaMails" type="button" title="Busca en la web el email de los bares que aún no lo tengan">🔎✉️ Buscar emails que falten (${L.filter(l=>!l.email).length})</button></div>`:""}
+    <div style="margin:6px 0;display:flex;gap:6px;flex-wrap:wrap">
+    ${L.some(l=>!l.email)?`<button class="mini" id="buscaMails" type="button" title="Busca en la web el email de los bares que aún no lo tengan">🔎✉️ Buscar emails que falten (${L.filter(l=>!l.email).length})</button>`:""}
+    ${L.some(l=>l.emailAuto)?`<button class="mini" id="limpiaMails" type="button" title="Borra los emails que encontró la app, para re-buscarlos" style="color:#b32424">🧹 Borrar emails auto (${L.filter(l=>l.emailAuto).length})</button>`:""}</div>
     ${fc==="ninguno"?`<p class="note" style="color:var(--brand-d)">❓ Estos no tienen ni WhatsApp ni email localizado. Pulsa 🔎✉️ en cada uno (o el botón de arriba) para que busque su email en la web. Si aun así no aparece, es que no lo tienen publicado.</p>`:""}
     ${vis.length?`<div style="overflow:auto"><table><thead><tr><th>Negocio</th><th>Estado</th><th>Aviso</th><th>Contactar</th><th>Demo</th><th>Plan</th><th></th></tr></thead><tbody>
     ${vis.map(l=>{ const tq=toquePendiente(l); const tpl=tq===3?AJ().t3:tq===2?AJ().t2:AJ().t1; const msg=fillTpl(tpl,l);
@@ -480,6 +489,9 @@ document.addEventListener("click",async e=>{
       else if(Object.keys(patch).length){ upLead(l.id,patch); toast(l.nombre+": datos encontrados (web/redes), pero sin email publicado"); render(); }
       else { toast(l.nombre+": no tiene email publicado (no se inventa nada)"); t.textContent=o; t.disabled=false; }
     }catch(err){ toast("No se pudo buscar: "+err.message); t.textContent=o; t.disabled=false; } return; }
+  if(t.id==="limpiaMails"){ const n=LEADS().filter(l=>l.emailAuto).length; if(!n){ toast("No hay emails automáticos que borrar"); return; }
+    if(!confirm("Borro los "+n+" emails que encontró la app automáticamente (para re-buscarlos con la versión corregida). Los que metiste tú a mano se quedan. ¿Sigo?")) return;
+    setLeads(LEADS().map(l=>l.emailAuto?Object.assign({},l,{email:"",emailAuto:false}):l)); render(); toast("Emails automáticos borrados. Dale otra vez a 🔎✉️"); return; }
   if(t.id==="buscaMails"){ const faltan=LEADS().filter(l=>!l.email); if(!faltan.length){ toast("Todos tienen email ya ✓"); return; }
     if(!confirm("Voy a buscar en la web el email y la web de "+faltan.length+" bares. Tarda unos segundos cada uno y algunos no tendrán email publicado. ¿Sigo?")) return;
     t.disabled=true; let n=0,w=0;
