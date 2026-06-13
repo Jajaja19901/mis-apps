@@ -89,7 +89,7 @@ async function mensajeIA(l){
   const key=(AJ().iaKey||"").trim();
   if(!key) throw new Error("Pon tu clave de IA en ⚙️ Ajustes");
   const pr=(AJ().precios||{})[l.plan||"medio"]||{alta:"?",cuota:"?"};
-  const datos="Nombre del local: "+l.nombre+"\nCiudad: "+(l.ciudad||"desconocida")+
+  const datos="Nombre del local: "+l.nombre+"\nQué le falta / tiene: "+diagTexto(l)+"\nCiudad: "+(l.ciudad||"desconocida")+
     "\nTiene web propia: "+(l.web?("sí ("+l.web+")"):"no")+
     "\nValoración en Google: "+(l.rating?(l.rating+"★ con "+(l.n||0)+" reseñas"):"desconocida")+
     "\nPlan que le ofrezco: "+planLbl(l.plan)+" ("+pr.alta+"€ de alta + "+pr.cuota+"€/mes)"+
@@ -116,6 +116,16 @@ async function mensajeIA(l){
     return (j.choices&&j.choices[0]&&j.choices[0].message.content||"").trim();
   }
 }
+// Diagnóstico: qué tiene y qué le falta cada bar (chequeo automático de su ficha).
+function diagItems(l){ return [
+  { ok:!!l.web, txt:l.web?"tiene web":"sin web", falta:!l.web },
+  { ok:false, txt:"sin forma de pedir online", falta:true },        // ningún bar de la lista la tiene; es el gancho de venta
+  { ok:!!l.tel||!!l.whatsapp, txt:(l.tel||l.whatsapp)?"con teléfono":"sin teléfono", falta:!(l.tel||l.whatsapp) },
+  { ok:!!l.email, txt:l.email?"con email":"email no encontrado", falta:!l.email },
+  ...(l.rating?[{ ok:Number(l.rating)>=4, txt:l.rating+"★ en Google", falta:false }]:[]),
+]; }
+function diagnostico(l){ return diagItems(l).map(d=>`<span style="color:${d.ok?'#1d6f2b':(d.falta?'#b96a06':'#6f7480')}">${d.ok?'🟢':(d.falta?'🔴':'⚪')} ${esc(d.txt)}</span>`).join(" · "); }
+function diagTexto(l){ const f=diagItems(l).filter(d=>d.falta).map(d=>d.txt); const t=diagItems(l).filter(d=>d.ok).map(d=>d.txt); return "LE FALTA: "+(f.join(", ")||"nada")+". TIENE: "+(t.join(", ")||"poco")+"."; }
 // Gancho PERSONAL por bar, según lo que sabemos de él (su ficha pública). Hace que el
 // mensaje parezca escrito a mano para cada uno.
 function gancho(l){
@@ -229,7 +239,8 @@ function vPipeline(){
     ${vis.map(l=>{ const tq=toquePendiente(l); const tpl=tq===3?AJ().t3:tq===2?AJ().t2:AJ().t1; const msg=fillTpl(tpl,l);
       const waNum=(l.whatsapp||"").replace(/[^0-9]/g,"");
       return `<tr>
-      <td><b>${esc(l.nombre)}</b><br><span class="muted" style="font-size:11px">${esc(l.ciudad||"")} ${l.tel?("· "+esc(l.tel)):""} ${l.origen==="embudo"?"· 📥 del embudo":""}</span>
+      <td><b>${esc(l.nombre)}</b><br><span class="muted" style="font-size:11px">${esc(l.ciudad||"")} ${l.tel?("· 📞 "+esc(l.tel)):"· 📞—"} ${l.email?("· ✉️ "+esc(l.email)):""} ${l.origen==="embudo"?"· 📥 del embudo":""}</span>
+        <br><span style="font-size:10.5px">${diagnostico(l)}</span>
         ${l.notas?`<br><span class="muted" style="font-size:11px">📝 ${esc(l.notas)}</span>`:""}
         ${l.demoUrl?`<br><a href="${esc(l.demoUrl)}" target="_blank" rel="noopener" style="font-size:11px">🔗 su demo</a>`:""}</td>
       <td><select data-est="${l.id}" style="padding:5px"><option value="nuevo"${l.estado==="nuevo"?" selected":""}>Nuevo</option><option value="contactado"${l.estado==="contactado"?" selected":""}>Contactado</option><option value="interesado"${l.estado==="interesado"?" selected":""}>Interesado</option><option value="cliente"${l.estado==="cliente"?" selected":""}>CLIENTE 🎉</option><option value="no"${l.estado==="no"?" selected":""}>No</option></select>
