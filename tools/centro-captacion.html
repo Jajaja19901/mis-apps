@@ -106,13 +106,44 @@ async function buscarDatosWeb(nombre,ciudad){
   if(!txt) txt=await traerWeb("https://www.bing.com/search?q="+encodeURIComponent(q));
   if(!txt) throw new Error("ningún puente respondió, vuelve a intentarlo en un momento");
   let email=sacaEmails(txt)[0]||""; const web=sacaWeb(txt);
-  // Si el email no salió en los resultados, entramos en la web del local a por su contacto.
-  if(!email && web){
-    const pg=await traerWeb(web); let e2=sacaEmails(pg);
-    if(!e2.length){ const c=await traerWeb(web.replace(/\/+$/,"")+"/contacto"); e2=sacaEmails(c); }
-    if(e2.length) email=e2[0];
+  // Entramos en la web del local a por más texto (contacto/aviso legal).
+  let pg="";
+  if(web){ pg=await traerWeb(web);
+    let e2=sacaEmails(pg);
+    if(!e2.length){ const c=await traerWeb(web.replace(/\/+$/,"")+"/contacto"); pg+="\n"+c; if(!e2.length) e2=sacaEmails(c); }
+    if(!email && e2.length) email=e2[0];
   }
-  return { email, web };
+  const extra={};
+  // Si hay clave de IA, la IA lee el texto de su web y saca email oculto + redes + si ya vende online.
+  if((AJ().iaKey||"").trim() && (pg||txt)){
+    try{ const d=await iaExtrae((pg||"")+"\n"+txt, nombre);
+      if(d){ if(d.email && /@/.test(d.email) && !EMAIL_BLACK.test(String(d.email).toLowerCase())) email=email||String(d.email).toLowerCase();
+        if(d.instagram) extra.instagram=d.instagram; if(d.facebook) extra.facebook=d.facebook;
+        if(d.telefono) extra.tel=String(d.telefono); if(d.pedidos_online) extra.pedidos=true; }
+    }catch(e){}
+  }
+  return Object.assign({ email, web }, extra);
+}
+// Convierte lo encontrado en un parche para el lead (solo rellena lo que falta; no pisa lo que ya hay).
+function datosPatch(d,l){ const p={}; if(d.email)p.email=d.email; if(d.web&&!l.web)p.web=d.web; if(d.tel&&!l.tel)p.tel=d.tel; if(d.instagram&&!l.instagram)p.instagram=d.instagram; if(d.facebook&&!l.facebook)p.facebook=d.facebook; if(d.pedidos)p.pedidos=true; return p; }
+
+// La IA lee el texto de la web del local y devuelve sus datos en JSON. NUNCA inventa (instruido).
+async function iaExtrae(texto,nombre){
+  const key=(AJ().iaKey||"").trim(); if(!key) return null;
+  const sys="Eres un extractor de datos para un CRM de hosteleria. Te paso el texto de la web de un negocio. Devuelve SOLO un JSON plano (sin markdown ni explicaciones) con estas claves: email (el correo real del negocio o null; IGNORA correos de soporte de plantillas como wordpress/wix/shopify y correos de ejemplo), instagram (url o null), facebook (url o null), telefono (o null), pedidos_online (true si hay Just Eat/Glovo/UberEats/tienda propia, si no false), reservas (true si hay TheFork o reserva online, si no false). Si un dato no aparece en el texto, pon null. PROHIBIDO inventar: si no lo ves, null.";
+  const usr="Negocio: "+nombre+"\n\nTexto de su web:\n"+String(texto).slice(0,8000);
+  let out="";
+  if(/^sk-ant/i.test(key)){
+    const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:400,system:sys,messages:[{role:"user",content:usr}]})});
+    const j=await r.json(); if(j.error) throw new Error(j.error.message||"error IA"); out=(j.content&&j.content[0]&&j.content[0].text)||"";
+  } else {
+    let url="https://api.openai.com/v1/chat/completions",model="gpt-4o-mini";
+    if(/^gsk_/i.test(key)){ url="https://api.groq.com/openai/v1/chat/completions"; model="llama-3.3-70b-versatile"; }
+    else if(/^xai-/i.test(key)){ url="https://api.x.ai/v1/chat/completions"; model="grok-2-latest"; }
+    const r=await fetch(url,{method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+key},body:JSON.stringify({model:model,max_tokens:400,messages:[{role:"system",content:sys},{role:"user",content:usr}]})});
+    const j=await r.json(); if(j.error) throw new Error(j.error.message||"error IA"); out=(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||"";
+  }
+  try{ const m=out.match(/\{[\s\S]*\}/); return m?JSON.parse(m[0]):null; }catch(e){ return null; }
 }
 
 // Mensaje escrito por IA (Claude u OpenAI; se detecta por el formato de la clave).
@@ -318,7 +349,7 @@ function vPipeline(){
     ${vis.map(l=>{ const tq=toquePendiente(l); const tpl=tq===3?AJ().t3:tq===2?AJ().t2:AJ().t1; const msg=fillTpl(tpl,l);
       const waNum=(l.whatsapp||"").replace(/[^0-9]/g,"");
       return `<tr>
-      <td><b>${esc(l.nombre)}</b><br><span class="muted" style="font-size:11px">${esc(l.ciudad||"")} ${l.tel?("· 📞 "+esc(l.tel)):"· 📞—"} ${l.email?("· ✉️ "+esc(l.email)):""} ${l.origen==="embudo"?"· 📥 del embudo":""}</span>
+      <td><b>${esc(l.nombre)}</b><br><span class="muted" style="font-size:11px">${esc(l.ciudad||"")} ${l.tel?("· 📞 "+esc(l.tel)):"· 📞—"} ${l.email?("· ✉️ "+esc(l.email)):""} ${l.instagram?`· <a href="${esc(l.instagram)}" target="_blank" rel="noopener">📷</a>`:""} ${l.facebook?`· <a href="${esc(l.facebook)}" target="_blank" rel="noopener">f</a>`:""} ${l.pedidos?"· 🛒 ya vende online":""} ${l.origen==="embudo"?"· 📥 del embudo":""}</span>
         <br><span style="font-size:10.5px">${diagnostico(l)}</span>
         ${l.notas?`<br><span class="muted" style="font-size:11px">📝 ${esc(l.notas)}</span>`:""}
         ${l.demoUrl?`<br><a href="${esc(l.demoUrl)}" target="_blank" rel="noopener" style="font-size:11px">🔗 su demo</a>`:""}</td>
@@ -419,16 +450,16 @@ document.addEventListener("click",async e=>{
   if(t.id==="addTodos"){ let n=0; RES.forEach(d=>{ if(addLead(leadDe(d))) n++; }); const rep=RES.length-n; toast(rep?(n+" nuevos añadidos · "+rep+" ya estaban en el pipeline (saltados para no repetir)"):(n+" añadidos al pipeline")); render(); return; }
   if(t.dataset.add!=null){ const d=RES[+t.dataset.add]; toast(addLead(leadDe(d))?"Añadido al pipeline ✓":"Ya estaba en el pipeline"); return; }
   if(t.dataset.bmail){ const l=LEADS().find(x=>x.id===t.dataset.bmail); const o=t.textContent; t.textContent="🔎…"; t.disabled=true;
-    try{ const d=await buscarDatosWeb(l.nombre,l.ciudad); const patch={}; if(d.email)patch.email=d.email; if(d.web&&!l.web)patch.web=d.web;
+    try{ const d=await buscarDatosWeb(l.nombre,l.ciudad); const patch=datosPatch(d,l);
       if(d.email){ upLead(l.id,patch); toast("Email encontrado: "+d.email+" ✓"); render(); }
-      else if(d.web&&!l.web){ upLead(l.id,patch); toast(l.nombre+": web encontrada, pero sin email publicado"); render(); }
+      else if(Object.keys(patch).length){ upLead(l.id,patch); toast(l.nombre+": datos encontrados (web/redes), pero sin email publicado"); render(); }
       else { toast(l.nombre+": no tiene email publicado (no se inventa nada)"); t.textContent=o; t.disabled=false; }
     }catch(err){ toast("No se pudo buscar: "+err.message); t.textContent=o; t.disabled=false; } return; }
   if(t.id==="buscaMails"){ const faltan=LEADS().filter(l=>!l.email); if(!faltan.length){ toast("Todos tienen email ya ✓"); return; }
     if(!confirm("Voy a buscar en la web el email y la web de "+faltan.length+" bares. Tarda unos segundos cada uno y algunos no tendrán email publicado. ¿Sigo?")) return;
     t.disabled=true; let n=0,w=0;
     for(let i=0;i<faltan.length;i++){ t.textContent="🔎 buscando "+(i+1)+"/"+faltan.length+"…";
-      try{ const d=await buscarDatosWeb(faltan[i].nombre,faltan[i].ciudad); const patch={}; if(d.email){patch.email=d.email; n++;} if(d.web&&!faltan[i].web){patch.web=d.web; w++;} if(Object.keys(patch).length) upLead(faltan[i].id,patch); }catch(e){}
+      try{ const d=await buscarDatosWeb(faltan[i].nombre,faltan[i].ciudad); const patch=datosPatch(d,faltan[i]); if(d.email)n++; if(patch.web)w++; if(Object.keys(patch).length) upLead(faltan[i].id,patch); }catch(e){}
       await new Promise(r=>setTimeout(r,1200)); } // respiro para no saturar el puente
     t.disabled=false; render(); toast("Encontrados "+n+" emails y "+w+" webs de "+faltan.length+" (los demás no lo tienen publicado)"); return; }
   if(t.dataset.resp){ upLead(t.dataset.resp,{estado:"interesado"}); render(); toast("Marcado: respondió 🔥 ¡A cerrar!"); return; }
