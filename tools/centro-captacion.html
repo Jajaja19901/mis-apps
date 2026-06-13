@@ -98,6 +98,13 @@ const PUENTES=[ u=>"https://r.jina.ai/"+u,
                 u=>"https://corsproxy.io/?url="+encodeURIComponent(u),
                 u=>"https://thingproxy.freeboard.io/fetch/"+u ];
 async function traerWeb(url){ for(const p of PUENTES){ try{ const r=await fetch(p(url),{headers:{"Accept":"text/html,text/plain,*/*"}}); if(r.ok){ const t=await r.text(); if(t&&t.length>60) return t; } }catch(e){} } return ""; }
+// Buscador de Jina: como la IA de Google, devuelve el CONTENIDO de los primeros resultados (donde está el email).
+async function jinaSearch(q){
+  for(const u of ["https://s.jina.ai/?q="+encodeURIComponent(q),"https://s.jina.ai/"+encodeURIComponent(q)]){
+    try{ const r=await fetch(u,{headers:{"Accept":"text/plain","X-Return-Format":"markdown"}}); if(r.ok){ const t=await r.text(); if(t&&t.length>80) return t; } }catch(e){}
+  }
+  return "";
+}
 function sacaEmails(txt){ const out=[],seen={}; (String(txt).match(EMAIL_RE)||[]).forEach(e=>{ e=e.toLowerCase().replace(/[.,;:]+$/,""); if(EMAIL_BLACK.test(e))return; if(e.length>60)return; if(seen[e])return; seen[e]=1; out.push(e); }); return out; }
 function sacaWeb(txt){ return sacaLinks(txt).find(u=>!WEB_BAD.test(u))||""; }
 // Saca los enlaces de resultados de la búsqueda (incluye guías y Facebook: ahí suele estar el email
@@ -112,23 +119,24 @@ function sacaLinks(txt){
 }
 // Devuelve {email, web} con lo que encuentre de verdad. Vacío si no hay.
 async function buscarDatosWeb(nombre,ciudad){
-  const q=nombre+" "+(ciudad||"")+" email correo contacto";
-  // Buscamos en varios sitios y juntamos el texto (Google suele traer el email en el resultado).
-  let txt=await traerWeb("https://www.google.com/search?q="+encodeURIComponent(q));
-  const ddg=await traerWeb("https://html.duckduckgo.com/html/?q="+encodeURIComponent(q));
-  txt=((txt||"")+"\n"+(ddg||"")).trim();
-  if(!txt) txt=await traerWeb("https://www.bing.com/search?q="+encodeURIComponent(q));
-  if(!txt) throw new Error("ningún puente respondió, vuelve a intentarlo en un momento");
-  let email=sacaEmails(txt)[0]||"";
-  const links=sacaLinks(txt);
+  const q="correo electronico email de "+nombre+" "+(ciudad||"");
+  // 1) Buscador de Jina: trae el CONTENIDO de los resultados (como la IA de Google). Aquí suele estar el email.
+  let pg=await jinaSearch(q);
+  // 2) Además, resultados de Google y DuckDuckGo por el puente, por si Jina no llega.
+  const gg=await traerWeb("https://www.google.com/search?q="+encodeURIComponent(q));
+  const ddg=await traerWeb("https://html.duckduckgo.com/html/?q="+encodeURIComponent(nombre+" "+(ciudad||"")+" email correo contacto"));
+  pg=((pg||"")+"\n"+(gg||"")+"\n"+(ddg||"")).trim();
+  if(!pg) pg=await traerWeb("https://www.bing.com/search?q="+encodeURIComponent(q));
+  if(!pg) throw new Error("ningún puente respondió, vuelve a intentarlo en un momento");
+  let email=sacaEmails(pg)[0]||"";
+  const links=sacaLinks(pg);
   const web=links.find(u=>!WEB_BAD.test(u))||"";
-  // Abrimos los primeros resultados (web propia, Facebook, guías…) a por el email/datos.
-  let pg=txt;
+  // 3) Si aún no hay email, abrimos los primeros resultados (web propia, Facebook, guías…) a por él.
   for(const u of links.slice(0,3)){
-    if(email && pg.length>5000) break;
+    if(email) break;
     const t=await traerWeb(u); if(!t) continue; pg+="\n"+t;
-    if(!email){ const e=sacaEmails(t); if(e.length) email=e[0]; }
-    if(!email && !WEB_BAD.test(u)){ const c=await traerWeb(u.replace(/\/+$/,"")+"/contacto"); if(c){ pg+="\n"+c; const e=sacaEmails(c); if(e.length) email=e[0]; } }
+    const e=sacaEmails(t); if(e.length){ email=e[0]; break; }
+    if(!WEB_BAD.test(u)){ const c=await traerWeb(u.replace(/\/+$/,"")+"/contacto"); if(c){ pg+="\n"+c; const e2=sacaEmails(c); if(e2.length){ email=e2[0]; break; } } }
   }
   const extra={};
   // Si hay clave de IA, lee TODO el texto reunido y saca datos. PERO solo aceptamos lo que
