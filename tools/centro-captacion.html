@@ -98,25 +98,41 @@ const PUENTES=[ u=>"https://r.jina.ai/"+u,
                 u=>"https://thingproxy.freeboard.io/fetch/"+u ];
 async function traerWeb(url){ for(const p of PUENTES){ try{ const r=await fetch(p(url),{headers:{"Accept":"text/html,text/plain,*/*"}}); if(r.ok){ const t=await r.text(); if(t&&t.length>60) return t; } }catch(e){} } return ""; }
 function sacaEmails(txt){ const out=[],seen={}; (String(txt).match(EMAIL_RE)||[]).forEach(e=>{ e=e.toLowerCase().replace(/[.,;:]+$/,""); if(EMAIL_BLACK.test(e))return; if(e.length>60)return; if(seen[e])return; seen[e]=1; out.push(e); }); return out; }
-function sacaWeb(txt){ const re=/https?:\/\/[a-z0-9.-]+\.[a-z]{2,}[^\s"'<>)\]]*/gi; const m=(String(txt).match(re)||[]).map(u=>u.replace(/[.,)\]]+$/,"")).filter(u=>!WEB_BAD.test(u)); return m[0]||""; }
+function sacaWeb(txt){ return sacaLinks(txt).find(u=>!WEB_BAD.test(u))||""; }
+// Saca los enlaces de resultados de la búsqueda (incluye guías y Facebook: ahí suele estar el email
+// de los bares SIN web). Descarta buscadores, proxies e imágenes. Uno por dominio, máx 5.
+function sacaLinks(txt){
+  const out=[],seen={};
+  const t=String(txt).replace(/uddg=([^&"'\s]+)/gi,(m,u)=>{ try{ return " "+decodeURIComponent(u)+" "; }catch(e){ return " "; } });
+  (t.match(/https?:\/\/[a-z0-9.-]+\.[a-z]{2,}[^\s"'<>)\]]*/gi)||[]).forEach(u=>{ u=u.replace(/[.,)\]]+$/,"");
+    if(/(google\.|bing\.|duckduckgo|jina\.ai|allorigins|corsproxy|thingproxy|gstatic|w3\.org|schema\.org|\.(png|jpe?g|gif|css|js|svg|ico|woff))/i.test(u)) return;
+    const host=u.replace(/^https?:\/\//,"").split("/")[0]; if(seen[host]) return; seen[host]=1; out.push(u); });
+  return out.slice(0,5);
+}
 // Devuelve {email, web} con lo que encuentre de verdad. Vacío si no hay.
 async function buscarDatosWeb(nombre,ciudad){
   const q=nombre+" "+(ciudad||"")+" email correo contacto";
-  let txt=await traerWeb("https://html.duckduckgo.com/html/?q="+encodeURIComponent(q));
+  // Buscamos en varios sitios y juntamos el texto (Google suele traer el email en el resultado).
+  let txt=await traerWeb("https://www.google.com/search?q="+encodeURIComponent(q));
+  const ddg=await traerWeb("https://html.duckduckgo.com/html/?q="+encodeURIComponent(q));
+  txt=((txt||"")+"\n"+(ddg||"")).trim();
   if(!txt) txt=await traerWeb("https://www.bing.com/search?q="+encodeURIComponent(q));
   if(!txt) throw new Error("ningún puente respondió, vuelve a intentarlo en un momento");
-  let email=sacaEmails(txt)[0]||""; const web=sacaWeb(txt);
-  // Entramos en la web del local a por más texto (contacto/aviso legal).
-  let pg="";
-  if(web){ pg=await traerWeb(web);
-    let e2=sacaEmails(pg);
-    if(!e2.length){ const c=await traerWeb(web.replace(/\/+$/,"")+"/contacto"); pg+="\n"+c; if(!e2.length) e2=sacaEmails(c); }
-    if(!email && e2.length) email=e2[0];
+  let email=sacaEmails(txt)[0]||"";
+  const links=sacaLinks(txt);
+  const web=links.find(u=>!WEB_BAD.test(u))||"";
+  // Abrimos los primeros resultados (web propia, Facebook, guías…) a por el email/datos.
+  let pg=txt;
+  for(const u of links.slice(0,3)){
+    if(email && pg.length>5000) break;
+    const t=await traerWeb(u); if(!t) continue; pg+="\n"+t;
+    if(!email){ const e=sacaEmails(t); if(e.length) email=e[0]; }
+    if(!email && !WEB_BAD.test(u)){ const c=await traerWeb(u.replace(/\/+$/,"")+"/contacto"); if(c){ pg+="\n"+c; const e=sacaEmails(c); if(e.length) email=e[0]; } }
   }
   const extra={};
-  // Si hay clave de IA, la IA lee el texto de su web y saca email oculto + redes + si ya vende online.
-  if((AJ().iaKey||"").trim() && (pg||txt)){
-    try{ const d=await iaExtrae((pg||"")+"\n"+txt, nombre);
+  // Si hay clave de IA, lee TODO el texto reunido y saca email oculto + redes + si ya vende online.
+  if((AJ().iaKey||"").trim() && pg){
+    try{ const d=await iaExtrae(pg, nombre);
       if(d){ if(d.email && /@/.test(d.email) && !EMAIL_BLACK.test(String(d.email).toLowerCase())) email=email||String(d.email).toLowerCase();
         if(d.instagram) extra.instagram=d.instagram; if(d.facebook) extra.facebook=d.facebook;
         if(d.telefono) extra.tel=String(d.telefono); if(d.pedidos_online) extra.pedidos=true; }
