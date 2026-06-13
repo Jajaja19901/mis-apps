@@ -430,6 +430,10 @@ function vAjustes(){
       <div><label>🔑 Clave API de Google (opcional, AIza...)</label>
         <div style="display:flex;gap:6px"><input id="aKey" type="password" value="${esc(a.gkey)}" placeholder="AIza..." style="flex:1"><button class="btn btn-p" id="aKeyOn" type="button">Activar</button></div>
         <p class="note">Estado: <b>${a.gkey?"✅ ACTIVA":"⬜ sin clave"}</b>. <b>OJO:</b> la búsqueda de emails NO necesita esta clave (usa la IA de arriba). Esta es solo para la pestaña 🔎 Buscar con Google. El buscador gratis (OpenStreetMap) funciona sin ella.</p></div>
+    </div>
+    <div style="margin-top:6px;padding-top:10px;border-top:1px solid #eee">
+      <button class="btn btn-g" id="aTest" type="button">🔌 Probar conexión (¿busca emails este móvil?)</button>
+      <div id="testOut" class="note" style="margin-top:8px;font-size:13px">Pulsa el botón para comprobar si tu navegador deja salir a internet y si la IA responde.</div>
     </div></div>
   <div class="card"><h2>💶 Tus precios</h2>
     <div class="row">
@@ -521,6 +525,16 @@ document.addEventListener("click",async e=>{
   if(t.id==="impTodos"){ let E=[]; try{ E=JSON.parse(localStorage.getItem("incuba_leads_v1")||"[]"); }catch(err){}
     E.filter(l=>/camarero/i.test(l.nivel||"")).forEach(l=>importarEmbudo(l.id,true)); toast("Importados ✓"); render(); return; }
   if(t.id==="csv"){ exportCSV(); return; }
+  if(t.id==="aTest"){ const out=$("#testOut"); out.innerHTML="⏳ Probando, espera unos segundos…";
+    let puente=false, ia=null;
+    try{ const r=await traerWeb("https://example.com"); if(r && /example|domain/i.test(r)) puente=true; }catch(e){}
+    let html="<b>1) Internet desde la página:</b> "+(puente?"✅ funciona (puede buscar emails)":"❌ BLOQUEADO. Tu navegador no deja salir. Solución: ábrela en <b>Chrome</b> (no en el explorador de archivos), o súbela a internet con app.netlify.com/drop.");
+    const key=(AJ().iaKey||"").trim();
+    if(key){ try{ const d=await iaExtrae("Bar de Prueba. Escríbenos a hola@barprueba.es. Instagram https://instagram.com/barprueba","Bar de Prueba"); ia=!!(d&&d.email); }catch(e){ ia=false; }
+      html+="<br><b>2) IA ("+proveedorDe(key)+"):</b> "+(ia?"✅ responde bien":"❌ no responde. Revisa que la clave esté bien pegada y Activada."); }
+    else html+="<br><b>2) IA:</b> ⬜ no has puesto la clave de Groq todavía.";
+    html+="<br><br>"+((puente&&ia)?"🎉 <b>Todo listo: la app puede buscar emails.</b> Ve al Pipeline y dale a 🔎✉️.":"⚠️ Arregla lo que salga en rojo y vuelve a probar.");
+    out.innerHTML=html; toast(puente?"Conexión OK":"Sin internet en la página"); return; }
   if(t.id==="aIaOn"){ const a=AJ(); a.iaKey=($("#aIa")?$("#aIa").value.trim():""); save("ajustes",a); render();
     toast(a.iaKey?("✅ IA activada — "+proveedorDe(a.iaKey)):"Clave de IA borrada"); return; }
   if(t.id==="aKeyOn"){ const a=AJ(); a.gkey=($("#aKey")?$("#aKey").value.trim():""); save("ajustes",a); render();
