@@ -116,6 +116,38 @@ async function mensajeIA(l){
     return (j.choices&&j.choices[0]&&j.choices[0].message.content||"").trim();
   }
 }
+// Importar CSV (de Outscraper, Apify, o el del propio panel). Detecta las columnas solo.
+function parseCSV(txt){
+  txt=String(txt||"").replace(/\r\n/g,"\n").replace(/\r/g,"\n").replace(/^﻿/,"");
+  const head1=(txt.split("\n")[0]||""); const delim=(head1.split(";").length>head1.split(",").length)?";":",";
+  const rows=[]; let row=[],cur="",q=false;
+  for(let i=0;i<txt.length;i++){ const c=txt[i];
+    if(q){ if(c==='"'){ if(txt[i+1]==='"'){cur+='"';i++;} else q=false; } else cur+=c; }
+    else { if(c==='"') q=true; else if(c===delim){ row.push(cur);cur=""; } else if(c==='\n'){ row.push(cur);rows.push(row);row=[];cur=""; } else cur+=c; } }
+  if(cur.length||row.length){ row.push(cur); rows.push(row); }
+  if(!rows.length) return [];
+  const head=rows.shift().map(h=>h.trim().toLowerCase());
+  return rows.filter(r=>r.some(x=>(x||"").trim())).map(r=>{ const o={}; head.forEach((h,i)=>o[h]=(r[i]||"").trim()); return o; });
+}
+function importarCSV(txt){
+  let rows; try{ rows=parseCSV(txt); }catch(e){ toast("Ese CSV no se pudo leer"); return; }
+  if(!rows.length){ toast("El CSV está vacío"); return; }
+  const val=(o,keys)=>{ for(const k of Object.keys(o)){ if(keys.some(kk=>k.indexOf(kk)>=0)&&o[k]) return o[k]; } return ""; };
+  let n=0;
+  rows.forEach(o=>{
+    const nombre=val(o,["name","nombre","negocio","title","business"]); if(!nombre) return;
+    const tel=val(o,["phone","tel","telefono","teléfono","móvil","movil"]);
+    const email=val(o,["email","correo","mail","e-mail"]);
+    const web=val(o,["site","web","url","dominio","domain"]);
+    const ciudad=val(o,["city","ciudad","localidad","town"])||($("#bz")&&$("#bz").value.trim())||"";
+    const rating=parseFloat(val(o,["rating","valorac","stars","puntu"]))||"";
+    const dig=(tel||"").replace(/[^0-9]/g,"");
+    const wa=dig?(dig.length===9?"34"+dig:dig):"";
+    if(addLead({nombre, ciudad, tel, email, web, whatsapp:wa, rating, origen:"csv"})) n++;
+  });
+  save("tab","pipeline"); TAB="pipeline"; render();
+  toast(n?(n+" bares importados al pipeline ✓ (con su email y teléfono)"):"No se añadió ninguno (¿ya estaban o falta la columna 'nombre'?)");
+}
 // Diagnóstico: qué tiene y qué le falta cada bar (chequeo automático de su ficha).
 function diagItems(l){ return [
   { ok:!!l.web, txt:l.web?"tiene web":"sin web", falta:!l.web },
@@ -197,6 +229,9 @@ function vBuscar(){
     <div style="margin-top:8px"><button class="btn btn-p" id="goosm" type="button" style="width:100%">🌍 Buscar GRATIS (sin Google, sin clave)</button></div>
     <p class="note">El botón GRATIS no necesita NADA: te saca nombres y direcciones de bares al instante (algunos con teléfono). El de Google necesita tu clave (pestaña ⚙️). Ordenados por quién pica más (🔥).</p>
     <div class="err" id="berr"></div></div>
+  <div class="card"><h2>📥 Importar lista enriquecida (CSV)</h2>
+    <p class="note" style="margin:0 0 8px">¿Compraste una lista de <b>Outscraper</b>, Apify o similar (con email y teléfono)? Súbela aquí y entra al pipeline con todo. También vale el CSV que exporta este mismo panel.</p>
+    <input type="file" id="csvFile" accept=".csv,text/csv"></div>
   <div class="card" id="bres" style="display:${RES.length?"":"none"}">
     <h2>Resultados (${RES.length}) <button class="btn btn-g" id="addTodos" type="button" style="float:right">+ Añadir todos al pipeline</button></h2>
     <div style="overflow:auto;max-height:56vh"><table><thead><tr><th>🔥</th><th>Negocio</th><th>Por qué pica</th><th>Tel.</th><th>Web</th><th>★</th><th></th></tr></thead><tbody>
@@ -383,6 +418,7 @@ document.addEventListener("click",async e=>{
 
 document.addEventListener("change",e=>{
   const s=e.target;
+  if(s.id==="csvFile"){ const f=s.files&&s.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>importarCSV(String(rd.result||"")); rd.onerror=()=>toast("No se pudo leer el archivo"); rd.readAsText(f,"utf-8"); return; }
   if(s.dataset&&s.dataset.est){ const patch={estado:s.value}; if(s.value==="contactado"){ patch.ultimo=hoyISO(); patch.toques=Math.max(1,(LEADS().find(l=>l.id===s.dataset.est)||{}).toques||1); } upLead(s.dataset.est,patch); render(); }
   if(s.dataset&&s.dataset.plan){ upLead(s.dataset.plan,{plan:s.value}); render(); }
 });
