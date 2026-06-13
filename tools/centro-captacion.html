@@ -83,6 +83,7 @@ const T3_DEF="Hola {nombre}, último mensaje y no os molesto más 🙏 Si queré
 function AJ(){ return Object.assign({ wa:"34680363828", gkey:"", t1:T1_DEF, t2:T2_DEF, t3:T3_DEF,
   precios:{ basico:{alta:99,cuota:25}, medio:{alta:150,cuota:50}, top:{alta:250,cuota:75} } }, load("ajustes",{})); }
 function planLbl(p){ return p==="basico"?"Básica":p==="top"?"Digital":"Media"; }
+function proveedorDe(k){ k=(k||"").trim(); if(!k)return""; if(/^gsk_/i.test(k))return"Groq (GRATIS)"; if(/^sk-ant/i.test(k))return"Claude"; if(/^xai-/i.test(k))return"Grok"; if(/^AIza/i.test(k))return"Google"; if(/^sk-/i.test(k))return"OpenAI"; return"clave guardada"; }
 
 // ───────── Buscar EMAIL + WEB del local en internet (búsqueda real; NUNCA inventa) ─────────
 // Un navegador no puede entrar directo en webs ajenas (lo bloquea CORS), así que pasamos por
@@ -423,8 +424,12 @@ function vAjustes(){
   return `<div class="card"><h2>⚙️ Tus datos</h2>
     <div class="row">
       <div><label>Tu WhatsApp (34...)</label><input id="aWa" value="${esc(a.wa)}" inputmode="tel"></div>
-      <div><label>Clave Google Places (opcional, para 🔎 Buscar Google)</label><input id="aKey" type="password" value="${esc(a.gkey)}"><p class="note">Opcional. El buscador GRATIS no la necesita.</p></div>
-      <div><label>Clave de IA (opcional, para el botón ✨ IA)</label><input id="aIa" type="password" value="${esc(a.iaKey)}" placeholder="gsk_... (Groq, GRATIS) · sk-ant... (Claude) · xai-... (Grok) · sk-... (OpenAI)"><p class="note">Para que la IA escriba cada mensaje a medida. <b>Groq es gratis</b> (clave <code>gsk_...</code> desde console.groq.com). También vale Claude, Grok u OpenAI — se detecta sola por la clave. Se guarda SOLO en este navegador.</p></div>
+      <div><label>🤖 Clave de IA — Groq es GRATIS (gsk_...)</label>
+        <div style="display:flex;gap:6px"><input id="aIa" type="password" value="${esc(a.iaKey)}" placeholder="gsk_... (Groq) · sk-ant... (Claude) · xai-... · sk-..." style="flex:1"><button class="btn btn-p" id="aIaOn" type="button">Activar</button></div>
+        <p class="note">Estado: <b>${a.iaKey?("✅ ACTIVA — "+proveedorDe(a.iaKey)):"⬜ sin clave (pégala y dale a Activar)"}</b>. Es la que usa la app para sacar emails y escribir mensajes. Gratis en <code>console.groq.com</code>. Se guarda solo en este navegador.</p></div>
+      <div><label>🔑 Clave API de Google (opcional, AIza...)</label>
+        <div style="display:flex;gap:6px"><input id="aKey" type="password" value="${esc(a.gkey)}" placeholder="AIza..." style="flex:1"><button class="btn btn-p" id="aKeyOn" type="button">Activar</button></div>
+        <p class="note">Estado: <b>${a.gkey?"✅ ACTIVA":"⬜ sin clave"}</b>. <b>OJO:</b> la búsqueda de emails NO necesita esta clave (usa la IA de arriba). Esta es solo para la pestaña 🔎 Buscar con Google. El buscador gratis (OpenStreetMap) funciona sin ella.</p></div>
     </div></div>
   <div class="card"><h2>💶 Tus precios</h2>
     <div class="row">
@@ -516,6 +521,10 @@ document.addEventListener("click",async e=>{
   if(t.id==="impTodos"){ let E=[]; try{ E=JSON.parse(localStorage.getItem("incuba_leads_v1")||"[]"); }catch(err){}
     E.filter(l=>/camarero/i.test(l.nivel||"")).forEach(l=>importarEmbudo(l.id,true)); toast("Importados ✓"); render(); return; }
   if(t.id==="csv"){ exportCSV(); return; }
+  if(t.id==="aIaOn"){ const a=AJ(); a.iaKey=($("#aIa")?$("#aIa").value.trim():""); save("ajustes",a); render();
+    toast(a.iaKey?("✅ IA activada — "+proveedorDe(a.iaKey)):"Clave de IA borrada"); return; }
+  if(t.id==="aKeyOn"){ const a=AJ(); a.gkey=($("#aKey")?$("#aKey").value.trim():""); save("ajustes",a); render();
+    toast(a.gkey?"✅ Clave de Google guardada":"Clave de Google borrada"); return; }
   if(t.id==="aGuardar"){ const a=AJ();
     a.wa=$("#aWa").value.replace(/[^0-9]/g,""); a.gkey=$("#aKey").value.trim(); a.iaKey=($("#aIa")?$("#aIa").value.trim():a.iaKey)||"";
     a.t1=$("#aT1").value; a.t2=$("#aT2").value; a.t3=$("#aT3").value;
