@@ -252,10 +252,14 @@ function colaRafaga(){
   const nuevos=L.filter(l=>l.estado==="nuevo").sort((a,b)=>(score(b).v)-(score(a).v));
   return seguimientos.concat(nuevos);
 }
+function canalDe(l){ const wa=(l.whatsapp||"").replace(/[^0-9]/g,"").length>=9; if(wa) return "wa"; if(l.email) return "email"; return "ninguno"; }
 function vPipeline(){
-  const L=LEADS(); const f=load("filtro","");
-  const vis=f?L.filter(l=>l.estado===f):L;
+  const L=LEADS(); const f=load("filtro",""); const fc=load("filtrocanal","");
+  let vis=f?L.filter(l=>l.estado===f):L;
+  if(fc) vis=vis.filter(l=>canalDe(l)===fc);
   const chips=["","nuevo","contactado","interesado","cliente","no"].map(k=>`<button class="mini" data-filtro="${k}" type="button" style="${f===k?"background:var(--brand);color:#fff;border-color:var(--brand)":""}">${k===""?"Todos":k}</button>`).join(" ");
+  const nW=L.filter(l=>canalDe(l)==="wa").length, nE=L.filter(l=>canalDe(l)==="email").length, nN=L.filter(l=>canalDe(l)==="ninguno").length;
+  const chipsCanal=[["","Todos los canales",L.length],["wa","📞 Por WhatsApp",nW],["email","✉️ Solo email (sin tel)",nE],["ninguno","❓ Sin contacto",nN]].map(([k,t,c])=>`<button class="mini" data-canal="${k}" type="button" style="${fc===k?"background:var(--ink);color:#fff;border-color:var(--ink)":""}">${t} (${c})</button>`).join(" ");
   const cola=colaRafaga(); const sinWa=LEADS().filter(l=>(l.whatsapp||"").replace(/[^0-9]/g,"").length<9&&(l.estado==="nuevo")).length;
   return `${cola.length?`<div class="card" style="border-color:var(--brand);background:#fffaf2"><h2>🚀 Modo Ráfaga — ${cola.length} por contactar</h2>
     <p class="note" style="margin:0 0 10px">Le da al siguiente de la cola (los más calientes primero): escribe su mensaje${AJ().iaKey?" con IA ✨":""}, te abre WhatsApp listo y lo marca como contactado. Tú solo: <b>enviar y volver</b>.</p>
@@ -269,7 +273,10 @@ function vPipeline(){
       <div><label>WhatsApp (34...)</label><input id="mWa" inputmode="tel"></div>
       <div style="flex:0 0 auto;display:flex;align-items:flex-end"><button class="btn btn-p" id="mAdd" type="button">Añadir</button></div>
     </div></div>
-  <div class="card"><h2>📋 Pipeline (${L.length}) <span style="float:right;font-weight:400">${chips}</span></h2>
+  <div class="card"><h2>📋 Pipeline (${L.length})</h2>
+    <div style="margin:-4px 0 8px"><b style="font-size:12px;color:var(--mut)">Por canal de contacto:</b><br>${chipsCanal}</div>
+    <div style="margin:0 0 4px"><b style="font-size:12px;color:var(--mut)">Por estado:</b><br>${chips}</div>
+    ${fc==="ninguno"?`<p class="note" style="color:var(--brand-d)">❓ Estos no tienen ni WhatsApp ni email localizado. Para "subir de nivel": busca su web/redes a mano, y si encuentras un contacto, añádelo con 📝/✉️. Si no, déjalos para una pasada con un scraper de pago (Outscraper).</p>`:""}
     ${vis.length?`<div style="overflow:auto"><table><thead><tr><th>Negocio</th><th>Estado</th><th>Aviso</th><th>Contactar</th><th>Demo</th><th>Plan</th><th></th></tr></thead><tbody>
     ${vis.map(l=>{ const tq=toquePendiente(l); const tpl=tq===3?AJ().t3:tq===2?AJ().t2:AJ().t1; const msg=fillTpl(tpl,l);
       const waNum=(l.whatsapp||"").replace(/[^0-9]/g,"");
@@ -376,6 +383,7 @@ document.addEventListener("click",async e=>{
   if(t.dataset.resp){ upLead(t.dataset.resp,{estado:"interesado"}); render(); toast("Marcado: respondió 🔥 ¡A cerrar!"); return; }
   if(t.dataset.norep){ upLead(t.dataset.norep,{estado:"no"}); render(); toast("Marcado: no interesa. No se le insistirá más."); return; }
   if(t.dataset.filtro!=null){ save("filtro",t.dataset.filtro); render(); return; }
+  if(t.dataset.canal!=null){ save("filtrocanal",t.dataset.canal); render(); return; }
   if(t.id==="mAdd"){ const nom=$("#mNom").value.trim(); if(nom.length<2){ toast("Pon el nombre"); return; }
     addLead({ nombre:nom, ciudad:$("#mCiu").value.trim(), tel:$("#mTel").value.trim(), whatsapp:$("#mWa").value.replace(/[^0-9]/g,"") })?toast("Añadido ✓"):toast("Ya existía"); render(); return; }
   if(t.dataset.wa){ const l=LEADS().find(x=>x.id===t.dataset.wa); const num=(l.whatsapp||"").replace(/[^0-9]/g,"");
