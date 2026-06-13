@@ -364,7 +364,7 @@ function vPipeline(){
       <div><label>WhatsApp (34...)</label><input id="mWa" inputmode="tel"></div>
       <div style="flex:0 0 auto;display:flex;align-items:flex-end"><button class="btn btn-p" id="mAdd" type="button">Añadir</button></div>
     </div></div>
-  <div class="card"><h2>📋 Pipeline (${L.length})</h2>
+  <div class="card"><h2 style="display:flex;justify-content:space-between;align-items:center;gap:8px">📋 Pipeline (${L.length})${L.length?`<button class="mini" id="borraTodos" type="button" style="color:#b32424;font-size:12px" title="Borrar todos los leads y empezar de cero">🗑 Empezar de cero</button>`:""}</h2>
     <div style="margin:-4px 0 8px"><b style="font-size:12px;color:var(--mut)">Por canal de contacto:</b><br>${chipsCanal}</div>
     <div style="margin:0 0 4px"><b style="font-size:12px;color:var(--mut)">Por estado:</b><br>${chips}</div>
     <div style="margin:6px 0;display:flex;gap:6px;flex-wrap:wrap">
@@ -489,6 +489,10 @@ document.addEventListener("click",async e=>{
       else if(Object.keys(patch).length){ upLead(l.id,patch); toast(l.nombre+": datos encontrados (web/redes), pero sin email publicado"); render(); }
       else { toast(l.nombre+": no tiene email publicado (no se inventa nada)"); t.textContent=o; t.disabled=false; }
     }catch(err){ toast("No se pudo buscar: "+err.message); t.textContent=o; t.disabled=false; } return; }
+  if(t.id==="borraTodos"){ const tot=LEADS().length; if(!tot){ toast("Ya está vacío"); return; }
+    if(!confirm("¿Borrar los "+tot+" leads y empezar de cero? No se puede deshacer.")) return;
+    if(!confirm("Última confirmación: se borra TODO el pipeline. ¿Seguro?")) return;
+    setLeads([]); save("filtro",""); save("filtrocanal",""); render(); toast("Pipeline vacío. Empieza de cero ✓"); return; }
   if(t.id==="limpiaMails"){ const n=LEADS().filter(l=>l.emailAuto).length; if(!n){ toast("No hay emails automáticos que borrar"); return; }
     if(!confirm("Borro los "+n+" emails que encontró la app automáticamente (para re-buscarlos con la versión corregida). Los que metiste tú a mano se quedan. ¿Sigo?")) return;
     setLeads(LEADS().map(l=>l.emailAuto?Object.assign({},l,{email:"",emailAuto:false}):l)); render(); toast("Emails automáticos borrados. Dale otra vez a 🔎✉️"); return; }
