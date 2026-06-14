@@ -328,11 +328,13 @@ function importarCSV(txt){
     const tel=val(o,["phone","tel","telefono","teléfono","móvil","movil"]);
     const email=val(o,["email","correo","mail","e-mail"]);
     const web=val(o,["site","web","url","dominio","domain"]);
-    const ciudad=val(o,["city","ciudad","localidad","town"])||($("#bz")&&$("#bz").value.trim())||"";
+    const ciuCol=val(o,["city","ciudad","localidad","town"]); // ciudad REAL del CSV si la trae
+    const ciudad=ciuCol||($("#bz")&&$("#bz").value.trim())||"";
+    const ciudadReal=!!ciuCol; // si cae al fallback (zona buscada), NO cuenta como ciudad real
     const rating=parseFloat(val(o,["rating","valorac","stars","puntu"]))||"";
     const dig=(tel||"").replace(/[^0-9]/g,"");
     const wa=dig?(dig.length===9?"34"+dig:dig):"";
-    if(addLead({nombre, ciudad, tel, email, web, whatsapp:wa, rating, origen:"csv"})) n++;
+    if(addLead({nombre, ciudad, ciudadReal, tel, email, web, whatsapp:wa, rating, origen:"csv"})) n++;
   });
   save("tab","pipeline"); TAB="pipeline"; render();
   toast(n?(n+" bares importados al pipeline ✓ (con su email y teléfono)"):"No se añadió ninguno (¿ya estaban o falta la columna 'nombre'?)");
@@ -453,7 +455,9 @@ function vBuscar(){
   <div class="card" id="bres" style="display:${RES.length?"":"none"}">
     ${(function(){
       const nSinWeb=RES.filter(d=>!d.web).length, nTel=RES.filter(d=>d.tel).length;
-      const ciudades={}; RES.forEach(d=>{ const c=d.ciudad||"—"; ciudades[c]=(ciudades[c]||0)+1; });
+      // Solo contamos como "ciudad" las que OSM trae de verdad (ciudadReal). El fallback a la zona
+      // buscada NO cuenta: si todo cae al fallback, no hay filtro de ciudad honesto que ofrecer.
+      const ciudades={}; RES.forEach(d=>{ if(!d.ciudadReal) return; const c=d.ciudad||"—"; ciudades[c]=(ciudades[c]||0)+1; });
       const onSel="background:var(--ink);color:#fff;border-color:var(--ink)";
       const tipoChips=[["","Todos",RES.length],["sinweb","🔴 Sin web",nSinWeb],["contel","📞 Con teléfono",nTel]]
         .map(([k,t,n])=>`<button class="mini" data-rtipo="${k}" type="button" style="${RESF.tipo===k?onSel:''}">${t} (${n})</button>`).join(" ");
@@ -519,14 +523,16 @@ function vPipeline(){
   const chipsWeb=`<button class="mini" data-fweb="" type="button" style="${fweb===''?onSel:''}">Todos</button> <button class="mini" data-fweb="sin" type="button" style="${fweb==='sin'?onSel:''}">🔴 Sin web (${nSinWeb})</button>`;
   const chipsEmail=`<button class="mini" data-femail="" type="button" style="${fem===''?onSel:''}">Todos</button> <button class="mini" data-femail="con" type="button" style="${fem==='con'?onSel:''}">✉️ Con email (${nConEm})</button> <button class="mini" data-femail="sin" type="button" style="${fem==='sin'?onSel:''}">🔴 Sin email (${nSinEm})</button>`;
   const chipsTel=`<button class="mini" data-ftel="" type="button" style="${ft===''?onSel:''}">Todos</button> <button class="mini" data-ftel="con" type="button" style="${ft==='con'?onSel:''}">📞 Con teléfono (${nConTel})</button> <button class="mini" data-ftel="sin" type="button" style="${ft==='sin'?onSel:''}">📵 Sin teléfono (${nSinTel})</button>`;
-  const ciu={}; L.forEach(l=>{ const c=l.ciudad||"—"; ciu[c]=(ciu[c]||0)+1; });
+  // Ciudad: solo cuenta como ciudad real la que NO es fallback (ciudadReal!==false). Los leads OSM
+  // sin addr:city traen ciudadReal:false y NO se cuentan, para no fabricar un filtro de un solo grupo.
+  const ciu={}; L.forEach(l=>{ if(l.ciudadReal===false) return; const c=l.ciudad||"—"; if(c==="—") return; ciu[c]=(ciu[c]||0)+1; });
   const ciuList=Object.entries(ciu).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const chipsCiu=ciuList.length>1?(`<button class="mini" data-fciudad="" type="button" style="${fciu===''?onSel:''}">Todas</button> `+ciuList.map(([c,n])=>`<button class="mini" data-fciudad="${esc(c)}" type="button" style="${fciu===c?onSel:''}">${esc(c)} (${n})</button>`).join(" ")):"";
   const fkm=+load("filtrokm",0), fval=load("filtroval",""), fped=load("filtroped","");
   const nKm=L.filter(l=>l.km!=null).length;
   const chipsKm=`<button class="mini" data-fkm="0" type="button" style="${!fkm?onSel:''}">Todas</button> `+[3,6,10,15].map(k=>`<button class="mini" data-fkm="${k}" type="button" style="${fkm===k?onSel:''}">≤${k} km</button>`).join(" ")+(nKm<L.length?` <span class="muted" style="font-size:10.5px">${nKm===0?"⚠ ninguno tiene distancia (búscalos de nuevo o filtra en 🔎 Buscar)":"(solo "+nKm+" tienen distancia)"}</span>`:"");
   const nVal=L.filter(l=>Number(l.rating)>=4).length, nPed=L.filter(l=>!!l.pedidos).length;
-  const chipsExtra=`<button class="mini" data-fval="" type="button" style="${fval===''&&fped===''?onSel:''}">Todos</button>`
+  const chipsExtra=`<button class="mini" data-fextra="" type="button" style="${fval===''&&fped===''?onSel:''}">Todos</button>`
     +(nVal?` <button class="mini" data-fval="${fval==='si'?'':'si'}" type="button" style="${fval==='si'?onSel:''}">⭐ Bien valorados (${nVal})</button>`:"")
     +(nPed?` <button class="mini" data-fped="${fped==='si'?'':'si'}" type="button" style="${fped==='si'?onSel:''}">🛒 Vende online (${nPed})</button>`:"");
   const cola=colaRafaga(); const sinWa=LEADS().filter(l=>!waDe(l)&&(l.estado==="nuevo")).length;
@@ -793,8 +799,10 @@ document.addEventListener("click",async e=>{
   if(t.dataset.ftel!=null){ save("filtrotel",t.dataset.ftel); render(); return; }
   if(t.dataset.fciudad!=null){ save("filtrociudad",t.dataset.fciudad); render(); return; }
   if(t.dataset.fkm!=null){ save("filtrokm",t.dataset.fkm); render(); return; }
-  if(t.dataset.fval!=null){ save("filtroval",t.dataset.fval); save("filtroped",""); render(); return; }
-  if(t.dataset.fped!=null){ save("filtroped",t.dataset.fped); save("filtroval",""); render(); return; }
+  // Valoración y "vende online" son independientes y combinables entre sí (y con el resto de filtros).
+  if(t.dataset.fextra!=null){ save("filtroval",""); save("filtroped",""); render(); return; } // "Todos" del grupo Extra: limpia SOLO los suyos.
+  if(t.dataset.fval!=null){ save("filtroval",t.dataset.fval); render(); return; }
+  if(t.dataset.fped!=null){ save("filtroped",t.dataset.fped); render(); return; }
   if(t.id==="mAdd"){ const nom=$("#mNom").value.trim(); if(nom.length<2){ toast("Pon el nombre"); return; }
     addLead({ nombre:nom, ciudad:$("#mCiu").value.trim(), tel:$("#mTel").value.trim(), whatsapp:$("#mWa").value.replace(/[^0-9]/g,"") })?toast("Añadido ✓"):toast("Ya existía"); render(); return; }
   if(t.dataset.wa){ const l=LEADS().find(x=>x.id===t.dataset.wa); const num=waDe(l);
@@ -888,7 +896,7 @@ document.addEventListener("change",e=>{
   if(s.dataset&&s.dataset.plan){ upLead(s.dataset.plan,{plan:s.value}); render(); }
 });
 
-function leadDe(d){ const t9=(d.tel||d.inter||"").replace(/\D/g,"").slice(-9); return { nombre:d.nombre, ciudad:d.ciudad||load("bz",""), dir:d.dir, tel:d.tel, whatsapp:esMovil(t9)?("34"+t9):"", web:d.web, rating:d.rating, n:d.n, km:(d.km!=null?d.km:null), score:d.score||0, origen:"busqueda" }; }
+function leadDe(d){ const t9=(d.tel||d.inter||"").replace(/\D/g,"").slice(-9); return { nombre:d.nombre, ciudad:d.ciudad||load("bz",""), ciudadReal:(d.ciudadReal!==undefined?d.ciudadReal:true), dir:d.dir, tel:d.tel, whatsapp:esMovil(t9)?("34"+t9):"", web:d.web, rating:d.rating, n:d.n, km:(d.km!=null?d.km:null), score:d.score||0, origen:"busqueda" }; }
 function importarEmbudo(id,silencio){ let E=[]; try{ E=JSON.parse(localStorage.getItem("incuba_leads_v1")||"[]"); }catch(e){}
   const l=E.find(x=>x.id===id); if(!l) return;
   if(LEADS().some(x=>x.embudoId===id)){ if(!silencio) toast("Ya estaba importado"); return; }
@@ -958,11 +966,13 @@ async function buscarOSM(){
     const seen={};
     RES=(j.elements||[]).filter(e=>e.tags&&e.tags.name && !esCadena(e.tags)).map(e=>{ const t=e.tags;
       const dir=[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ")||t["addr:suburb"]||t["addr:city"]||"";
-      const ciudad=t["addr:city"]||t["addr:town"]||t["addr:village"]||t["addr:municipality"]||z; // ciudad REAL del negocio
+      // ciudad REAL del negocio si OSM la trae en cualquiera de estos tags; si no, cae a la zona buscada (fallback).
+      const ciuTag=t["addr:city"]||t["addr:town"]||t["addr:village"]||t["addr:municipality"]||t["addr:suburb"]||t["addr:district"]||"";
+      const ciudadReal=!!ciuTag; const ciudad=ciuTag||z;
       const tel=t.phone||t["contact:phone"]||t["contact:mobile"]||"";
       const elat=e.lat||(e.center&&e.center.lat), elon=e.lon||(e.center&&e.center.lon);
       const km=(elat&&elon)?distKm(+lat,+lon,+elat,+elon):null;
-      return { nombre:t.name, dir, ciudad, km, tel, inter:tel, web:t.website||t["contact:website"]||"", rating:"", n:0 }; })
+      return { nombre:t.name, dir, ciudad, ciudadReal, km, tel, inter:tel, web:t.website||t["contact:website"]||"", rating:"", n:0 }; })
       .filter(d=>{ const k=d.nombre.toLowerCase(); if(seen[k])return false; seen[k]=1; return true; });
     RES.forEach(d=>{ const sc=score(d); d.score=sc.v; d.motivo=sc.m; });
     RES.sort((a,b)=>b.score-a.score);
@@ -990,7 +1000,12 @@ async function buscar(){
         body:JSON.stringify(body) });
       const j=await r.json();
       if(j.error) throw new Error(j.error.message||"Error de Google");
-      (j.places||[]).forEach(p=>RES.push({ nombre:(p.displayName&&p.displayName.text)||"", dir:p.formattedAddress||"", tel:p.nationalPhoneNumber||"", inter:p.internationalPhoneNumber||"", web:p.websiteUri||"", rating:p.rating||"", n:p.userRatingCount||0 }));
+      (j.places||[]).forEach(p=>{ const addr=p.formattedAddress||"";
+        // Intentamos sacar la ciudad REAL de la dirección de Google ("..., 35400 Arucas, España").
+        // Si no se puede separar limpiamente, NO inventamos: cae a la zona buscada como fallback (ciudadReal:false).
+        const mc=addr.match(/\b\d{4,5}\s+([^,]+?)\s*(?:,\s*(?:España|Spain)\s*)?$/i)||addr.match(/\b\d{4,5}\s+([^,]+?)\s*,/);
+        const ciuTag=mc?mc[1].trim():""; const ciudadReal=!!ciuTag; const ciudad=ciuTag||z;
+        RES.push({ nombre:(p.displayName&&p.displayName.text)||"", dir:addr, ciudad, ciudadReal, tel:p.nationalPhoneNumber||"", inter:p.internationalPhoneNumber||"", web:p.websiteUri||"", rating:p.rating||"", n:p.userRatingCount||0 }); });
       pageToken=j.nextPageToken||null; vueltas++;
       if(pageToken) await new Promise(r2=>setTimeout(r2,1800));
     }while(pageToken&&vueltas<3);
