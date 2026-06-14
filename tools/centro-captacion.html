@@ -135,15 +135,20 @@ function sacaLinks(txt){
   return out.slice(0,5);
 }
 // Devuelve {email, web} con lo que encuentre de verdad. Vacío si no hay.
+let DIAG={total:0,jina:0,gg:0,ddg:0,texto:0,email:0};
+function resetDiag(){ DIAG={total:0,jina:0,gg:0,ddg:0,texto:0,email:0}; }
+function diagTxt(){ return "Jina "+DIAG.jina+"/"+DIAG.total+" · Google "+DIAG.gg+"/"+DIAG.total+" · DDG "+DIAG.ddg+"/"+DIAG.total+" · con texto "+DIAG.texto+"/"+DIAG.total+" · con email "+DIAG.email+"/"+DIAG.total; }
 async function buscarDatosWeb(nombre,ciudad){
+  DIAG.total++;
   const q="correo electronico email de "+nombre+" "+(ciudad||"");
   // 1) Buscador de Jina: trae el CONTENIDO de los resultados (como la IA de Google). Aquí suele estar el email.
-  let pg=await jinaSearch(q);
+  let pg=await jinaSearch(q); if(pg) DIAG.jina++;
   // 2) Además, resultados de Google y DuckDuckGo por el puente, por si Jina no llega.
-  const gg=await traerWeb("https://www.google.com/search?q="+encodeURIComponent(q));
-  const ddg=await traerWeb("https://html.duckduckgo.com/html/?q="+encodeURIComponent(nombre+" "+(ciudad||"")+" email correo contacto"));
+  const gg=await traerWeb("https://www.google.com/search?q="+encodeURIComponent(q)); if(gg) DIAG.gg++;
+  const ddg=await traerWeb("https://html.duckduckgo.com/html/?q="+encodeURIComponent(nombre+" "+(ciudad||"")+" email correo contacto")); if(ddg) DIAG.ddg++;
   pg=((pg||"")+"\n"+(gg||"")+"\n"+(ddg||"")).trim();
   if(!pg) pg=await traerWeb("https://www.bing.com/search?q="+encodeURIComponent(q));
+  if(pg) DIAG.texto++;
   if(!pg) throw new Error("ningún puente respondió, vuelve a intentarlo en un momento");
   let email=sacaEmails(pg)[0]||"";
   const links=sacaLinks(pg);
@@ -173,6 +178,7 @@ async function buscarDatosWeb(nombre,ciudad){
   if(email && !pg.toLowerCase().includes(email.toLowerCase())) email="";
   // …Y tiene que ser DE ESTE bar, no de una web grande de la zona (turismo, destilería, otra empresa).
   if(email && !emailRelevante(email,nombre,web,pg)) email="";
+  if(email) DIAG.email++;
   return Object.assign({ email, web }, extra);
 }
 // Convierte lo encontrado en un parche para el lead (solo rellena lo que falta; no pisa lo que ya hay).
@@ -525,12 +531,12 @@ document.addEventListener("click",async e=>{
     let add=0; RES.forEach(d=>{ if(addLead(leadDe(d))) add++; });
     const faltan=LEADS().filter(l=>!l.email);
     setp("✅ "+add+" bares añadidos. Ahora busco sus emails (tarda, no cierres la pestaña)…");
-    let n=0;
+    resetDiag(); let n=0;
     for(let i=0;i<faltan.length;i++){ setp("🔎 Sacando emails… "+(i+1)+"/"+faltan.length+" · encontrados: <b>"+n+"</b>");
       try{ const d=await buscarDatosWeb(faltan[i].nombre,faltan[i].ciudad); const patch=datosPatch(d,faltan[i]); if(d.email)n++; if(Object.keys(patch).length) upLead(faltan[i].id,patch); }catch(e){}
       await new Promise(r=>setTimeout(r,1000)); }
-    setp("🎉 Listo: "+add+" bares · <b>"+n+"</b> con email. Te llevo a tu lista…");
-    setTimeout(()=>{ TAB="pipeline"; save("tab","pipeline"); render(); toast("Hecho: "+n+" emails de "+faltan.length+" bares"); },1400);
+    setp("🎉 Listo: "+add+" bares · <b>"+n+"</b> con email.<br><span style='font-size:12px;font-weight:400'>Diagnóstico: "+diagTxt()+"</span>");
+    setTimeout(()=>{ TAB="pipeline"; save("tab","pipeline"); render(); toast("Hecho: "+n+" emails de "+faltan.length+" bares"); },4000);
     return; }
   if(t.id==="rafaga"){ const cola=colaRafaga(); if(!cola.length){ toast("¡Cola vacía! Todos contactados 🎉"); render(); return; }
     const l=cola[0]; t.textContent="✍️ Escribiendo a "+l.nombre+"…"; t.disabled=true;
@@ -565,11 +571,11 @@ document.addEventListener("click",async e=>{
     setLeads(LEADS().map(l=>l.emailAuto?Object.assign({},l,{email:"",emailAuto:false}):l)); render(); toast("Emails automáticos borrados. Dale otra vez a 🔎✉️"); return; }
   if(t.id==="buscaMails"){ const faltan=LEADS().filter(l=>!l.email); if(!faltan.length){ toast("Todos tienen email ya ✓"); return; }
     if(!confirm("Voy a buscar en la web el email y la web de "+faltan.length+" bares. Tarda unos segundos cada uno y algunos no tendrán email publicado. ¿Sigo?")) return;
-    t.disabled=true; let n=0,w=0;
+    t.disabled=true; resetDiag(); let n=0,w=0;
     for(let i=0;i<faltan.length;i++){ t.textContent="🔎 buscando "+(i+1)+"/"+faltan.length+"…";
       try{ const d=await buscarDatosWeb(faltan[i].nombre,faltan[i].ciudad); const patch=datosPatch(d,faltan[i]); if(d.email)n++; if(patch.web)w++; if(Object.keys(patch).length) upLead(faltan[i].id,patch); }catch(e){}
       await new Promise(r=>setTimeout(r,1200)); } // respiro para no saturar el puente
-    t.disabled=false; render(); toast("Encontrados "+n+" emails y "+w+" webs de "+faltan.length+" (los demás no lo tienen publicado)"); return; }
+    t.disabled=false; render(); alert("RESULTADO\n\nEmails: "+n+"  ·  Webs: "+w+"  de "+faltan.length+" bares\n\nDiagnóstico (mándame esto):\n"+diagTxt()); return; }
   if(t.dataset.resp){ upLead(t.dataset.resp,{estado:"interesado"}); render(); toast("Marcado: respondió 🔥 ¡A cerrar!"); return; }
   if(t.dataset.norep){ upLead(t.dataset.norep,{estado:"no"}); render(); toast("Marcado: no interesa. No se le insistirá más."); return; }
   if(t.dataset.filtro!=null){ save("filtro",t.dataset.filtro); render(); return; }
