@@ -80,7 +80,7 @@ function dias(iso){ if(!iso) return 9999; return Math.floor((Date.now()-new Date
 const T1_DEF="Hola {nombre} 👋 Soy de Incuba tu Negocio. Os escribo porque {gancho}, y justo hacemos algo que os encaja: vuestros clientes escanean un QR en la mesa, piden desde su móvil y la comanda llega sola a la barra (vosotros cobráis como siempre, con vuestra caja). Os he preparado una demo CON VUESTRO NOMBRE para que la probéis: {enlace}. El plan {plan} son {alta}€ de alta y {cuota}€/mes, todo incluido (montaje, vuestros QR, soporte y cambios de carta). ¿Os la enseño en 2 minutos?";
 const T2_DEF="Hola {nombre}, ¿pudisteis ver la demo que os preparé? 🙂 En las horas punta os ahorra viajes de camarero y se piden más rondas. Aquí la tenéis otra vez: {enlace}. Si os encaja, esta semana os la dejo funcionando ({alta}€ alta + {cuota}€/mes).";
 const T3_DEF="Hola {nombre}, último mensaje y no os molesto más 🙏 Si queréis vuestra app de pedidos por QR ({alta}€ alta + {cuota}€/mes, sin permanencia), decídmelo y la activo esta semana. Si no es el momento, sin problema. ¡Gracias y buen servicio!";
-function AJ(){ return Object.assign({ wa:"34680363828", gkey:"", jinaKey:"", webBase:"", t1:T1_DEF, t2:T2_DEF, t3:T3_DEF,
+function AJ(){ return Object.assign({ wa:"34680363828", gkey:"", jinaKey:"", webBase:"", demoBase:"", t1:T1_DEF, t2:T2_DEF, t3:T3_DEF,
   precios:{ basico:{alta:99,cuota:25}, medio:{alta:150,cuota:50}, top:{alta:250,cuota:75} } }, load("ajustes",{})); }
 function planLbl(p){ return p==="basico"?"Básica":p==="top"?"Digital":"Media"; }
 // Contador de consumo (se guarda). Jina = estimado por texto leído; IA = exacto (lo da la respuesta).
@@ -355,8 +355,13 @@ function gancho(l){
   if(l.rating) return "vi vuestra ficha en Google y me pasé a echaros un ojo";
   return "para un sitio como el vuestro en "+(l.ciudad||"vuestra zona")+" esto encaja muy bien";
 }
+// Enlace personalizado a la DEMO UNIVERSAL (un solo archivo subido 1 vez; cada bar lleva sus datos en el enlace).
+function linkDemo(l){ const b=(AJ().demoBase||"").trim(); if(!b||!l) return "";
+  const hue=(typeof hashN==="function"?hashN(l.nombre):0)%360; const col=(typeof hsl2hex==="function"?hsl2hex(hue,66,46):"#e0871a").slice(1);
+  const wa=waDe(l)||(l.whatsapp||"").replace(/\D/g,"");
+  return b+(b.indexOf("?")>=0?"&":"?")+"n="+encodeURIComponent(l.nombre||"")+"&c="+encodeURIComponent(l.ciudad||"")+"&wa="+encodeURIComponent(wa)+"&em="+encodeURIComponent(l.email||"")+"&col="+col; }
 function fillTpl(t,l){ const a=AJ(); const pr=(a.precios||{})[l.plan||"medio"]||{alta:"?",cuota:"?"};
-  return String(t||"").replace(/\{nombre\}/g,l.nombre||"").replace(/\{gancho\}/g,gancho(l)).replace(/\{ciudad\}/g,l.ciudad||"").replace(/\{plan\}/g,planLbl(l.plan)).replace(/\{alta\}/g,pr.alta).replace(/\{cuota\}/g,pr.cuota).replace(/\{enlace\}/g,l.demoUrl||a.webBase||"(os la enseño en cuanto me digáis)"); }
+  return String(t||"").replace(/\{nombre\}/g,l.nombre||"").replace(/\{gancho\}/g,gancho(l)).replace(/\{ciudad\}/g,l.ciudad||"").replace(/\{plan\}/g,planLbl(l.plan)).replace(/\{alta\}/g,pr.alta).replace(/\{cuota\}/g,pr.cuota).replace(/\{enlace\}/g,l.demoUrl||linkDemo(l)||a.webBase||"(os la enseño en cuanto me digáis)"); }
 
 /* ── leads ── */
 function LEADS(){ return load("leads",[]); }
@@ -632,7 +637,8 @@ function vAjustes(){
   return `<div class="card"><h2>⚙️ Tus datos</h2>
     <div class="row">
       <div><label>Tu WhatsApp (34...)</label><input id="aWa" value="${esc(a.wa)}" inputmode="tel"></div>
-      <div><label>🔗 Tu web/landing (enlace por defecto en los mensajes)</label><input id="aWeb" value="${esc(a.webBase)}" placeholder="https://tu-pagina.com" inputmode="url"><p class="note">Es el enlace que se pone en los correos/WhatsApp cuando un negocio aún no tiene su demo propia. Si a un bar le pegas su demo con 🔗, esa manda.</p></div>
+      <div><label>🔗 Tu web/landing (enlace por defecto en los mensajes)</label><input id="aWeb" value="${esc(a.webBase)}" placeholder="https://tu-pagina.com" inputmode="url"><p class="note">Enlace que se pone en los mensajes si un bar no tiene demo. </p></div>
+      <div><label>🌐 URL de tu DEMO UNIVERSAL (la subes 1 vez)</label><input id="aDemoBase" value="${esc(a.demoBase)}" placeholder="https://tudemo.netlify.app/demo-universal.html" inputmode="url"><p class="note">Sube el archivo <code>demo-universal.html</code> a netlify.com/drop UNA vez y pega aquí su enlace. Entonces cada bar tendrá su demo <b>por enlace personalizado</b> (con su nombre y color) — <b>sin mandar archivos</b>. El botón ⬇️ Demo copiará ese enlace.</p></div>
       <div><label>🤖 Clave de IA — Groq es GRATIS (gsk_...)</label>
         <div style="display:flex;gap:6px"><input id="aIa" type="password" value="${esc(a.iaKey)}" placeholder="gsk_... (Groq) · sk-ant... (Claude) · xai-... · sk-..." style="flex:1"><button class="btn btn-p" id="aIaOn" type="button">Activar</button></div>
         <p class="note">Estado: <b>${a.iaKey?("✅ ACTIVA — "+proveedorDe(a.iaKey)):"⬜ sin clave (pégala y dale a Activar)"}</b>. Es la que usa la app para sacar emails y escribir mensajes. Gratis en <code>console.groq.com</code>. Se guarda solo en este navegador.</p></div>
@@ -803,7 +809,11 @@ document.addEventListener("click",async e=>{
       upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 }); setTimeout(render,500); toast("Abriendo tu correo con el email escrito para "+em+" ✉️"); }
     else { try{ await navigator.clipboard.writeText("Para: (busca su email)\nAsunto: "+asunto+"\n\n"+cuerpo); toast("No tiene email guardado · correo copiado ✉️"); }catch(err){ prompt("Copia el email:",cuerpo); } }
     return; }
-  if(t.dataset.demo){ const l=LEADS().find(x=>x.id===t.dataset.demo); bajarDemo(l); return; }
+  if(t.dataset.demo){ const l=LEADS().find(x=>x.id===t.dataset.demo); const lk=linkDemo(l);
+    if(lk){ upLead(l.id,{demoUrl:lk}); try{ await navigator.clipboard.writeText(lk); }catch(e){} render();
+      alert("🔗 Enlace de la demo de "+l.nombre+" (copiado):\n\n"+lk+"\n\nMándaselo por WhatsApp/email. Él lo abre y ve SU demo (su nombre y color). No le das ningún archivo.\n\nYa va incluido solo en sus mensajes (✨IA, 💬WhatsApp, ✉️Email)."); }
+    else { bajarDemo(l); }
+    return; }
   if(t.dataset.url){ const l=LEADS().find(x=>x.id===t.dataset.url); const u=prompt("Pega el enlace de su demo (Netlify):",l.demoUrl||""); if(u!=null){ upLead(l.id,{demoUrl:u.trim()}); render(); } return; }
   if(t.dataset.nota){ const l=LEADS().find(x=>x.id===t.dataset.nota); const n=prompt("Nota de "+l.nombre+":",l.notas||""); if(n!=null){ upLead(l.id,{notas:n.trim()}); render(); } return; }
   if(t.dataset.del){ if(confirm("¿Borrar este lead?")){ setLeads(LEADS().filter(x=>x.id!==t.dataset.del)); render(); } return; }
@@ -845,7 +855,7 @@ document.addEventListener("click",async e=>{
   if(t.id==="aKeyOn"){ const a=AJ(); a.gkey=($("#aKey")?$("#aKey").value.trim():""); save("ajustes",a); render();
     toast(a.gkey?"✅ Clave de Google guardada":"Clave de Google borrada"); return; }
   if(t.id==="aGuardar"){ const a=AJ();
-    a.wa=$("#aWa").value.replace(/[^0-9]/g,""); a.gkey=$("#aKey").value.trim(); a.iaKey=($("#aIa")?$("#aIa").value.trim():a.iaKey)||""; if($("#aWeb")) a.webBase=$("#aWeb").value.trim();
+    a.wa=$("#aWa").value.replace(/[^0-9]/g,""); a.gkey=$("#aKey").value.trim(); a.iaKey=($("#aIa")?$("#aIa").value.trim():a.iaKey)||""; if($("#aWeb")) a.webBase=$("#aWeb").value.trim(); if($("#aDemoBase")) a.demoBase=$("#aDemoBase").value.trim();
     a.t1=$("#aT1").value; a.t2=$("#aT2").value; a.t3=$("#aT3").value;
     ["basico","medio","top"].forEach(k=>{ a.precios[k]={ alta:+($("#pa_"+k).value)||0, cuota:+($("#pc_"+k).value)||0 }; });
     save("ajustes",a); toast("Ajustes guardados ✅"); return; }
