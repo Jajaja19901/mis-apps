@@ -217,7 +217,7 @@ async function buscarDatosWeb(nombre,ciudad,prof){
   if(email && !emailRelevante(email,nombre,web,pg)) email="";
   if(email) DIAG.email++;
   if(prof){ const low=pg.toLowerCase(); const tk=tokensNombre(nombre); let idx=-1,tkf=""; for(const t of tk){ const i=low.indexOf(t); if(i>=0){idx=i;tkf=t;break;} }
-    extra._dbg={ pgLen:pg.length, jina:DIAG.jina, gg:DIAG.gg, ddg:DIAG.ddg, nombreEnTexto:idx>=0?("sí ("+tkf+")"):"NO", telsCerca:telCand.slice(0,6).join(", ")||"(ninguno)", telsTodos:sacaTel(pg).slice(0,8).join(", ")||"(ninguno)", mobiles:telCand.filter(esMovil) }; }
+    extra._dbg={ pgLen:pg.length, jina:DIAG.jina, gg:DIAG.gg, ddg:DIAG.ddg, nombreEnTexto:idx>=0?("sí ("+tkf+")"):"NO", emailHallado:email||"(ninguno)", telsCerca:telCand.slice(0,6).join(", ")||"(ninguno)", telsTodos:sacaTel(pg).slice(0,8).join(", ")||"(ninguno)", mobiles:telCand.filter(esMovil) }; }
   return Object.assign({ email, web }, extra);
 }
 // Convierte lo encontrado en un parche para el lead (solo rellena lo que falta; no pisa lo que ya hay).
@@ -646,8 +646,11 @@ document.addEventListener("click",async e=>{
   if(t.dataset.rebuscar){ const l=LEADS().find(x=>x.id===t.dataset.rebuscar); const o=t.textContent; t.textContent="🔄…"; t.disabled=true;
     resetDiag();
     try{ const d=await conTope(buscarDatosWeb(l.nombre,l.ciudad,true),55000); const patch=datosPatch(d,l);
-      if(Object.keys(patch).filter(k=>k!=="emailAuto").length){ upLead(l.id,patch); render(); toast(l.nombre+": actualizado ✓ ("+Object.keys(patch).filter(k=>k!=="emailAuto").join(", ")+")"); }
-      else { t.textContent=o; t.disabled=false; toast(l.nombre+": sin cambios — lo que hay ya es lo mejor que se encuentra"); }
+      const g=d._dbg||{};
+      const diag="— Diagnóstico —\nInternet: Jina "+(g.jina?"sí":"NO")+" · Google "+(g.gg?"sí":"NO")+" · DDG "+(g.ddg?"sí":"NO")+"\nTexto leído: "+(g.pgLen||0)+" letras\nNombre en el texto: "+(g.nombreEnTexto||"?")+"\nEmail encontrado: "+(g.emailHallado||"?")+"\nMóviles posibles: "+((g.mobiles||[]).join(", ")||"(ninguno)");
+      const cambios=Object.keys(patch).filter(k=>k!=="emailAuto");
+      if(cambios.length){ upLead(l.id,patch); render(); alert(l.nombre+": ACTUALIZADO ✓\nCambios: "+cambios.join(", ")+"\n\n"+diag); }
+      else { t.textContent=o; t.disabled=false; alert(l.nombre+": sin cambios nuevos.\n\n"+diag+"\n\n(Si 'Internet' pone NO = sin cupo hoy. Si pone sí pero no trae el dato = no es legible. Mándame esta foto.)"); }
     }catch(err){ toast("No se pudo reajustar: "+err.message); t.textContent=o; t.disabled=false; } return; }
   if(t.dataset.editmail){ const l=LEADS().find(x=>x.id===t.dataset.editmail);
     const r=(prompt("Email de "+l.nombre+" (cópialo de Google si lo ves). Vacío = quitarlo:", l.email||"")||"").trim().toLowerCase();
