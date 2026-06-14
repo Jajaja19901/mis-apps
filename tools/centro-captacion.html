@@ -630,8 +630,14 @@ document.addEventListener("click",async e=>{
     await buscarOSM();                              // rellena RES y re-renderiza la vista Buscar
     if(!RES.length){ setp(""); return; }            // buscarOSM ya muestra el error si no hay
     let add=0; RES.forEach(d=>{ if(addLead(leadDe(d))) add++; });
-    const faltan=LEADS().filter(l=>!l.email);
-    setp("✅ "+add+" bares añadidos. Ahora busco sus emails (tarda, no cierres la pestaña)…");
+    let faltan=LEADS().filter(l=>!l.email).sort((a,b)=>(b.score||0)-(a.score||0)); // los más interesantes primero
+    const TOPE=80;
+    if(faltan.length>TOPE){
+      if(!confirm("Salieron "+faltan.length+" negocios. Sacar el email/datos de TODOS agotaría el cupo gratis y tardaría muchísimo.\n\n¿Hago ahora solo los "+TOPE+" MÁS INTERESANTES (🔥)? El resto se queda en tu lista con su teléfono; para sacarles datos, busca por zonas más pequeñas.")){
+        setp(""); TAB="pipeline"; save("tab","pipeline"); render(); toast(add+" negocios añadidos (con teléfono). Busca zonas más pequeñas para sacar emails."); return; }
+      faltan=faltan.slice(0,TOPE);
+    }
+    setp("✅ "+add+" negocios añadidos. Ahora saco datos de "+faltan.length+" (los más interesantes)…");
     resetDiag(); let n=0;
     for(let i=0;i<faltan.length;i++){ setp("🔎 Sacando emails… "+(i+1)+"/"+faltan.length+" · encontrados: <b>"+n+"</b>");
       try{ const d=await conTope(buscarDatosWeb(faltan[i].nombre,faltan[i].ciudad),45000); const patch=datosPatch(d,faltan[i]); if(d.email)n++; if(Object.keys(patch).length) upLead(faltan[i].id,patch); }catch(e){}
@@ -794,7 +800,7 @@ document.addEventListener("change",e=>{
   if(s.dataset&&s.dataset.plan){ upLead(s.dataset.plan,{plan:s.value}); render(); }
 });
 
-function leadDe(d){ const t9=(d.tel||d.inter||"").replace(/\D/g,"").slice(-9); return { nombre:d.nombre, ciudad:load("bz",""), dir:d.dir, tel:d.tel, whatsapp:esMovil(t9)?("34"+t9):"", web:d.web, rating:d.rating, n:d.n, origen:"busqueda" }; }
+function leadDe(d){ const t9=(d.tel||d.inter||"").replace(/\D/g,"").slice(-9); return { nombre:d.nombre, ciudad:load("bz",""), dir:d.dir, tel:d.tel, whatsapp:esMovil(t9)?("34"+t9):"", web:d.web, rating:d.rating, n:d.n, score:d.score||0, origen:"busqueda" }; }
 function importarEmbudo(id,silencio){ let E=[]; try{ E=JSON.parse(localStorage.getItem("incuba_leads_v1")||"[]"); }catch(e){}
   const l=E.find(x=>x.id===id); if(!l) return;
   if(LEADS().some(x=>x.embudoId===id)){ if(!silencio) toast("Ya estaba importado"); return; }
