@@ -665,11 +665,11 @@ document.addEventListener("click",async e=>{
     if(miWa){ const txtWa=encodeURIComponent("Hola, soy de "+l.nombre+". Me interesa vuestra propuesta de la app de pedidos por QR, ¿hablamos?");
       cuerpo+="\n\n👉 Si te interesa, escríbeme directo por WhatsApp (un toque):\nhttps://wa.me/"+miWa+"?text="+txtWa; }
     cuerpo+="\n\nUn saludo,\nIncuba tu Negocio\nincubatunegociowebapps@gmail.com\n(Si no quieres recibir más correos nuestros, responde BAJA y no te escribimos más.)";
-    if(em){ // abre Gmail con el correo personal YA escrito (de tu cuenta) -> solo das a Enviar
-      try{ await navigator.clipboard.writeText("Para: "+em+"\nAsunto: "+asunto+"\n\n"+cuerpo); }catch(e){} // copia de respaldo por si Gmail no abre
-      const g="https://mail.google.com/mail/?view=cm&fs=1&to="+encodeURIComponent(em)+"&su="+encodeURIComponent(asunto)+"&body="+encodeURIComponent(cuerpo);
-      window.open(g,"_blank","noopener");
-      upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 }); setTimeout(render,400); toast("Correo escrito para "+em+" — se abre Gmail (y queda copiado por si acaso) ✉️"); }
+    if(em){ // abre la APP DE CORREO del móvil (mailto) con todo ya escrito -> solo dar a Enviar
+      try{ await navigator.clipboard.writeText("Para: "+em+"\nAsunto: "+asunto+"\n\n"+cuerpo); }catch(e){} // copia de respaldo
+      const mt="mailto:"+em+"?subject="+encodeURIComponent(asunto)+"&body="+encodeURIComponent(cuerpo);
+      location.href=mt; // tu app de correo se abre con el destinatario, asunto y texto puestos
+      upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 }); setTimeout(render,500); toast("Abriendo tu correo con el email escrito para "+em+" ✉️"); }
     else { try{ await navigator.clipboard.writeText("Para: (busca su email)\nAsunto: "+asunto+"\n\n"+cuerpo); toast("No tiene email guardado · correo copiado ✉️"); }catch(err){ prompt("Copia el email:",cuerpo); } }
     return; }
   if(t.dataset.demo){ const l=LEADS().find(x=>x.id===t.dataset.demo); bajarDemo(l); return; }
