@@ -493,10 +493,12 @@ function colaRafaga(){
   return seguimientos.concat(nuevos);
 }
 function canalDe(l){ if(waDe(l)) return "wa"; if(l.email) return "email"; return "ninguno"; }
-// Leads que pasan TODOS los filtros activos (estado, canal, ciudad, web). Lo usan la vista Y los botones.
-function leadsFiltrados(){ const f=load("filtro",""),fc=load("filtrocanal",""),fciu=load("filtrociudad",""),fweb=load("filtroweb","");
-  return LEADS().filter(l=>(!f||l.estado===f)&&(!fc||canalDe(l)===fc)&&(!fciu||(l.ciudad||"—")===fciu)&&(fweb!=="sin"||!l.web)); }
-function hayFiltro(){ return !!(load("filtro","")||load("filtrocanal","")||load("filtrociudad","")||load("filtroweb","")); }
+// Leads que pasan TODOS los filtros activos. Lo usan la vista Y los botones de acción.
+function tieneTel(l){ return !!(l.tel||(l.whatsapp||"").replace(/\D/g,"").length>=9); }
+function leadsFiltrados(){ const f=load("filtro",""),fc=load("filtrocanal",""),fciu=load("filtrociudad",""),fweb=load("filtroweb",""),fem=load("filtroemail",""),ft=load("filtrotel","");
+  return LEADS().filter(l=>(!f||l.estado===f)&&(!fc||canalDe(l)===fc)&&(!fciu||(l.ciudad||"—")===fciu)&&(fweb!=="sin"||!l.web)
+    &&(!fem||(fem==="con"?!!l.email:!l.email))&&(!ft||(ft==="con"?tieneTel(l):!tieneTel(l)))); }
+function hayFiltro(){ return !!(load("filtro","")||load("filtrocanal","")||load("filtrociudad","")||load("filtroweb","")||load("filtroemail","")||load("filtrotel","")); }
 function vPipeline(){
   const L=LEADS(); const f=load("filtro",""); const fc=load("filtrocanal",""); const fciu=load("filtrociudad",""); const fweb=load("filtroweb","");
   let vis=leadsFiltrados();
@@ -504,8 +506,11 @@ function vPipeline(){
   const nW=L.filter(l=>canalDe(l)==="wa").length, nE=L.filter(l=>canalDe(l)==="email").length, nN=L.filter(l=>canalDe(l)==="ninguno").length;
   const chipsCanal=[["","Todos los canales",L.length],["wa","📞 Por WhatsApp",nW],["email","✉️ Solo email (sin tel)",nE],["ninguno","❓ Sin contacto",nN]].map(([k,t,c])=>`<button class="mini" data-canal="${k}" type="button" style="${fc===k?"background:var(--ink);color:#fff;border-color:var(--ink)":""}">${t} (${c})</button>`).join(" ");
   const onSel="background:var(--ink);color:#fff;border-color:var(--ink)";
-  const nSinWeb=L.filter(l=>!l.web).length;
+  const fem=load("filtroemail",""), ft=load("filtrotel","");
+  const nSinWeb=L.filter(l=>!l.web).length, nConEm=L.filter(l=>!!l.email).length, nSinEm=L.length-nConEm, nConTel=L.filter(tieneTel).length, nSinTel=L.length-nConTel;
   const chipsWeb=`<button class="mini" data-fweb="" type="button" style="${fweb===''?onSel:''}">Todos</button> <button class="mini" data-fweb="sin" type="button" style="${fweb==='sin'?onSel:''}">🔴 Sin web (${nSinWeb})</button>`;
+  const chipsEmail=`<button class="mini" data-femail="" type="button" style="${fem===''?onSel:''}">Todos</button> <button class="mini" data-femail="con" type="button" style="${fem==='con'?onSel:''}">✉️ Con email (${nConEm})</button> <button class="mini" data-femail="sin" type="button" style="${fem==='sin'?onSel:''}">🔴 Sin email (${nSinEm})</button>`;
+  const chipsTel=`<button class="mini" data-ftel="" type="button" style="${ft===''?onSel:''}">Todos</button> <button class="mini" data-ftel="con" type="button" style="${ft==='con'?onSel:''}">📞 Con teléfono (${nConTel})</button> <button class="mini" data-ftel="sin" type="button" style="${ft==='sin'?onSel:''}">📵 Sin teléfono (${nSinTel})</button>`;
   const ciu={}; L.forEach(l=>{ const c=l.ciudad||"—"; ciu[c]=(ciu[c]||0)+1; });
   const ciuList=Object.entries(ciu).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const chipsCiu=ciuList.length>1?(`<button class="mini" data-fciudad="" type="button" style="${fciu===''?onSel:''}">Todas</button> `+ciuList.map(([c,n])=>`<button class="mini" data-fciudad="${esc(c)}" type="button" style="${fciu===c?onSel:''}">${esc(c)} (${n})</button>`).join(" ")):"";
@@ -525,6 +530,8 @@ function vPipeline(){
   <div class="card"><h2 style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">📋 Pipeline (${L.length})${L.length?`<span style="display:flex;gap:6px"><button class="mini" id="expPipe" type="button" title="Descargar todos los datos a un archivo CSV">⬇️ Guardar/Exportar</button><button class="mini" id="impPipe" type="button" title="Importar un CSV">📥 Importar</button><button class="mini" id="borraTodos" type="button" style="color:#b32424" title="Borrar todos los leads y empezar de cero">🗑 De cero</button></span>`:""}</h2>
     <input type="file" id="csvFilePipe" accept=".csv,text/csv" style="display:none">
     <div style="margin:-4px 0 8px"><b style="font-size:12px;color:var(--mut)">Por canal de contacto:</b><br>${chipsCanal}</div>
+    <div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por email:</b><br>${chipsEmail}</div>
+    <div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por teléfono:</b><br>${chipsTel}</div>
     <div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por web:</b><br>${chipsWeb}</div>
     ${chipsCiu?`<div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por ciudad:</b><br>${chipsCiu}</div>`:""}
     <div style="margin:0 0 4px"><b style="font-size:12px;color:var(--mut)">Por estado:</b><br>${chips}</div>
@@ -764,6 +771,8 @@ document.addEventListener("click",async e=>{
   if(t.dataset.filtro!=null){ save("filtro",t.dataset.filtro); render(); return; }
   if(t.dataset.canal!=null){ save("filtrocanal",t.dataset.canal); render(); return; }
   if(t.dataset.fweb!=null){ save("filtroweb",t.dataset.fweb); render(); return; }
+  if(t.dataset.femail!=null){ save("filtroemail",t.dataset.femail); render(); return; }
+  if(t.dataset.ftel!=null){ save("filtrotel",t.dataset.ftel); render(); return; }
   if(t.dataset.fciudad!=null){ save("filtrociudad",t.dataset.fciudad); render(); return; }
   if(t.id==="mAdd"){ const nom=$("#mNom").value.trim(); if(nom.length<2){ toast("Pon el nombre"); return; }
     addLead({ nombre:nom, ciudad:$("#mCiu").value.trim(), tel:$("#mTel").value.trim(), whatsapp:$("#mWa").value.replace(/[^0-9]/g,"") })?toast("Añadido ✓"):toast("Ya existía"); render(); return; }
