@@ -344,8 +344,10 @@ function vBuscar(){
       <div style="flex:0 0 auto;min-width:110px"><label for="bradio">Radio</label><select id="bradio">${[3,6,10,15,25].map(k=>`<option value="${k}" ${String(load("bradio",6))===String(k)?"selected":""}>${k} km</option>`).join("")}</select></div>
       <div style="flex:0 0 auto;display:flex;align-items:flex-end"><button class="btn btn-g" id="go" type="button">Google</button></div>
     </div>
-    <div style="margin-top:8px"><button class="btn btn-p" id="goosm" type="button" style="width:100%">🌍 Buscar GRATIS (sin Google, sin clave)</button></div>
-    <p class="note">El botón GRATIS no necesita NADA: te saca nombres y direcciones de bares al instante (algunos con teléfono). El de Google necesita tu clave (pestaña ⚙️). Ordenados por quién pica más (🔥).</p>
+    <div style="margin-top:8px"><button class="btn btn-p" id="autoTodo" type="button" style="width:100%;font-size:16px;padding:14px">⚡ AUTOMÁTICO: buscar bares + sus emails (todo de una)</button></div>
+    <div style="margin-top:8px"><button class="btn btn-g" id="goosm" type="button" style="width:100%">🌍 Solo buscar bares (sin emails)</button></div>
+    <div id="autoProg" class="note" style="margin-top:8px;display:none;font-weight:600"></div>
+    <p class="note">El botón <b>⚡ AUTOMÁTICO</b> hace todo solo: encuentra los bares de la zona, los mete en tu lista, y va sacando el email de cada uno. Tú le das una vez y esperas. (Necesita la clave <b>Jina</b> y la de <b>Groq</b> en ⚙️ Ajustes.)</p>
     <div class="err" id="berr"></div></div>
   <div class="card"><h2>📥 Importar lista enriquecida (CSV)</h2>
     <p class="note" style="margin:0 0 8px">¿Compraste una lista de <b>Outscraper</b>, Apify o similar (con email y teléfono)? Súbela aquí y entra al pipeline con todo. También vale el CSV que exporta este mismo panel.</p>
@@ -514,6 +516,22 @@ document.addEventListener("click",async e=>{
   const t=e.target.closest("button"); if(!t) return;
   if(t.id==="go"){ await buscar(); return; }
   if(t.id==="goosm"){ await buscarOSM(); return; }
+  if(t.id==="autoTodo"){
+    const setp=(s)=>{ const p=$("#autoProg"); if(p){ p.style.display="block"; p.innerHTML=s; } };
+    if(!(AJ().jinaKey||"").trim()){ toast("⚠ Falta la clave Jina en ⚙️ Ajustes — sin ella no saca emails"); }
+    setp("🌍 Buscando bares en la zona…");
+    await buscarOSM();                              // rellena RES y re-renderiza la vista Buscar
+    if(!RES.length){ setp(""); return; }            // buscarOSM ya muestra el error si no hay
+    let add=0; RES.forEach(d=>{ if(addLead(leadDe(d))) add++; });
+    const faltan=LEADS().filter(l=>!l.email);
+    setp("✅ "+add+" bares añadidos. Ahora busco sus emails (tarda, no cierres la pestaña)…");
+    let n=0;
+    for(let i=0;i<faltan.length;i++){ setp("🔎 Sacando emails… "+(i+1)+"/"+faltan.length+" · encontrados: <b>"+n+"</b>");
+      try{ const d=await buscarDatosWeb(faltan[i].nombre,faltan[i].ciudad); const patch=datosPatch(d,faltan[i]); if(d.email)n++; if(Object.keys(patch).length) upLead(faltan[i].id,patch); }catch(e){}
+      await new Promise(r=>setTimeout(r,1000)); }
+    setp("🎉 Listo: "+add+" bares · <b>"+n+"</b> con email. Te llevo a tu lista…");
+    setTimeout(()=>{ TAB="pipeline"; save("tab","pipeline"); render(); toast("Hecho: "+n+" emails de "+faltan.length+" bares"); },1400);
+    return; }
   if(t.id==="rafaga"){ const cola=colaRafaga(); if(!cola.length){ toast("¡Cola vacía! Todos contactados 🎉"); render(); return; }
     const l=cola[0]; t.textContent="✍️ Escribiendo a "+l.nombre+"…"; t.disabled=true;
     let msg; try{ msg=AJ().iaKey?await mensajeIA(l):null; }catch(err){ toast("IA falló, uso plantilla: "+err.message); }
