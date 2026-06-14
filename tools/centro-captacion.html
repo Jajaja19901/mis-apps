@@ -151,12 +151,11 @@ async function traerWeb(url){ const keys=jinaKeys();
   // Jina con cada clave (rota a la siguiente si una se agota), y al final puentes de respaldo.
   for(const k of keys){ try{ const r=await fetchT(PUENTES[0](url),{headers:{"Authorization":"Bearer "+k,"Accept":"text/html,text/plain,*/*"}},9000); if(r.ok){ const t=await r.text(); if(t&&t.length>60){ usoAdd("jina",Math.ceil(t.length/4)); return t; } } }catch(e){} }
   const lista=keys.length?PUENTES.slice(1):PUENTES;
-  // DOS PASADAS: los puentes gratis son intermitentes; el que falla/agota a la 1ª suele responder a la 2ª
-  // (con más tiempo). Así dejamos de rendirnos al primer fallo, que era el problema real.
-  for(let pasada=0;pasada<2;pasada++){
-    for(const p of lista){ try{ const r=await fetchT(p(url),{headers:{"Accept":"text/html,text/plain,*/*"}}, pasada?13000:8000); if(r.ok){ const t=await r.text(); if(t&&t.length>60) return t; } }catch(e){} }
-  }
-  return ""; }
+  // TODOS los puentes A LA VEZ y me quedo con el PRIMERO que traiga texto bueno. Así no espero a que
+  // cada puente lento agote su tiempo uno tras otro (eso era lo que disparaba el "tope de tiempo").
+  const intentos=lista.map(p=>fetchT(p(url),{headers:{"Accept":"text/html,text/plain,*/*"}},9000)
+      .then(async r=>{ if(!r.ok) throw 0; const t=await r.text(); if(!(t&&t.length>60)) throw 0; return t; }));
+  try{ return await Promise.any(intentos); }catch(e){ return ""; } }
 // Buscador: devuelve el CONTENIDO de los primeros resultados (donde está el email). Si Jina está agotado,
 // NO se rinde: baja los resultados de DuckDuckGo y Bing a través de los puentes (no depende de Jina).
 async function jinaSearch(q){ const keys=jinaKeys(); const tries=keys.length?keys:[""];
@@ -236,18 +235,14 @@ async function buscarDatosWeb(nombre,ciudad,prof){
   // 4) ENTRAMOS en las páginas del negocio a leer su contacto de verdad (el email/teléfono casi nunca
   //    está en los resúmenes del buscador, sí dentro de su web/ficha). Abrimos hasta 3: la web propia
   //    primero, y su página de contacto si la hay. Lo hacemos AUNQUE ya tengamos email (para el teléfono).
-  const propias=[]; if(web) propias.push(web);
-  for(const u of links){ if(u!==web && !WEB_BAD.test(u) && propias.length<2) propias.push(u); } // 1-2 webs/fichas propias
-  for(const base of propias.slice(0,2)){
-    const cands=[base]; // intenta también /contacto y /contact (ahí está el correo y el teléfono)
-    const b=base.replace(/\/+$/,""); if(/^https?:\/\/[^\/]+\/?$/.test(base)){ cands.push(b+"/contacto", b+"/contact"); }
-    for(const u of cands){
-      const t=cap(await traerWeb(u)); if(!t) continue; pg+="\n"+t;
-      const e=sacaEmails(t); if(e.length && !email){ email=e[0];
-        const host=u.replace(/^https?:\/\//,"").split("/")[0];
-        if(!WEB_BAD.test(u) && web && dominioBase(host)===dominioBase(web)) emailOrigenWeb=true; }
-      if(u===base){} // (el bucle externo de abajo conserva su variable u)
-    }
+  const cands=[]; const b=web.replace(/\/+$/,"");
+  if(web){ cands.push(web); if(/^https?:\/\/[^\/]+\/?$/.test(web)) cands.push(b+"/contacto"); } // web propia + su /contacto
+  if(!email){ const otra=links.find(u=>u!==web && !WEB_BAD.test(u)); if(otra) cands.push(otra); } // y otra ficha si falta el email
+  for(const u of cands.slice(0,3)){
+    const t=cap(await traerWeb(u)); if(!t) continue; pg+="\n"+t;
+    const e=sacaEmails(t); if(e.length && !email){ email=e[0];
+      const host=u.replace(/^https?:\/\//,"").split("/")[0];
+      if(!WEB_BAD.test(u) && web && dominioBase(host)===dominioBase(web)) emailOrigenWeb=true; }
   }
   const extra={};
   // Si hay clave de IA, lee TODO el texto reunido y saca datos. PERO solo aceptamos lo que
@@ -793,7 +788,7 @@ document.addEventListener("click",async e=>{
   if(t.dataset.add!=null){ const d=RES[+t.dataset.add]; toast(addLead(leadDe(d))?"Añadido al pipeline ✓":"Ya estaba en el pipeline"); return; }
   if(t.dataset.rebuscar){ const l=LEADS().find(x=>x.id===t.dataset.rebuscar); const o=t.textContent; t.textContent="🔄…"; t.disabled=true;
     resetDiag();
-    try{ const d=await conTope(buscarDatosWeb(l.nombre,l.ciudad,true),55000); const patch=datosPatch(d,l);
+    try{ const d=await conTope(buscarDatosWeb(l.nombre,l.ciudad,true),75000); const patch=datosPatch(d,l);
       const g=d._dbg||{};
       const diag="— Diagnóstico —\nInternet: Jina "+(g.jina?"sí":"NO")+" · Google "+(g.gg?"sí":"NO")+" · DDG "+(g.ddg?"sí":"NO")+"\nTexto leído: "+(g.pgLen||0)+" letras\nNombre en el texto: "+(g.nombreEnTexto||"?")+"\nEmail encontrado: "+(g.emailHallado||"?")+"\nMóviles posibles: "+((g.mobiles||[]).join(", ")||"(ninguno)");
       const cambios=Object.keys(patch).filter(k=>k!=="emailAuto");
