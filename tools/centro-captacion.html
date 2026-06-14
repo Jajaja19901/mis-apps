@@ -480,14 +480,15 @@ function vPipeline(){
     ${L.some(incompleto)?`<button class="mini" id="completaDatos" type="button" title="Rellena teléfono, web y redes de los que les falte (aunque ya tengan email)">🔄 Completar datos que faltan (${L.filter(incompleto).length})</button>`:""}
     ${L.some(l=>l.emailAuto)?`<button class="mini" id="limpiaMails" type="button" title="Borra los emails que encontró la app, para re-buscarlos" style="color:#b32424">🧹 Borrar emails auto (${L.filter(l=>l.emailAuto).length})</button>`:""}</div>
     ${fc==="ninguno"?`<p class="note" style="color:var(--brand-d)">❓ Estos no tienen ni WhatsApp ni email localizado. Pulsa 🔎✉️ en cada uno (o el botón de arriba) para que busque su email en la web. Si aun así no aparece, es que no lo tienen publicado.</p>`:""}
-    ${vis.length?`<div style="display:flex;flex-direction:column;gap:12px">
+    ${vis.length>3?`<input id="qLead" type="search" placeholder="🔍 Buscar un bar por nombre, ciudad, email…" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:10px;margin-bottom:10px;font-size:14px">`:""}
+    ${vis.length?`<div id="leadList" style="display:flex;flex-direction:column;gap:12px">
     ${vis.map(l=>{ const tq=toquePendiente(l); const waNum=waDe(l);
       // teléfono mostrado = el mismo que se usa (móvil si hay; si no, el fijo). Etiquetado para no confundir.
       const telMostrar = waNum ? ("+34 "+waNum.slice(2).replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4")) : (l.tel||"");
       const telTipo = waNum ? ' <span style="color:#1d6f2b;font-size:11px">(móvil)</span>' : (l.tel?' <span style="color:#999;font-size:11px">(fijo)</span>':'');
       const telLlamar = (l.tel||"").replace(/[^0-9+]/g,"");
       const aviso=tq?`<span class="alerta">↻ toca ${tq}º toque</span>`:(l.estado==="interesado"?'<span class="alerta" style="background:#fde8f0;border-color:#a3164f;color:#a3164f">🔥 ¡cerrar!</span>':"");
-      return `<div style="border:1px solid #e4e4e4;border-radius:14px;padding:13px 15px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      return `<div class="leadcard" data-buscar="${esc((l.nombre+" "+(l.ciudad||"")+" "+(l.dir||"")+" "+(l.email||"")+" "+(l.tel||"")+" "+(l.whatsapp||"")).toLowerCase())}" style="border:1px solid #e4e4e4;border-radius:14px;padding:13px 15px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06)">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
         <div style="font-size:17px;font-weight:700;line-height:1.2">${esc(l.nombre)}</div>${aviso}</div>
       <div style="display:flex;flex-wrap:wrap;gap:5px 14px;font-size:13.5px;color:#444;margin-bottom:7px">
@@ -751,6 +752,10 @@ document.addEventListener("click",async e=>{
   if(t.id==="aReset"){ const a=AJ(); a.t1=T1_DEF; a.t2=T2_DEF; a.t3=T3_DEF; save("ajustes",a); render(); toast("Mensajes restaurados"); return; }
 });
 
+// Buscador del Pipeline: filtra las fichas en vivo, sin recargar (no pierde el foco al escribir).
+document.addEventListener("input",e=>{ if(e.target.id!=="qLead") return; const qq=e.target.value.trim().toLowerCase();
+  let vistos=0; document.querySelectorAll(".leadcard").forEach(c=>{ const ok=!qq||(c.dataset.buscar||"").indexOf(qq)>=0; c.style.display=ok?"":"none"; if(ok)vistos++; });
+});
 document.addEventListener("change",e=>{
   const s=e.target;
   if(s.id==="csvFile"||s.id==="csvFilePipe"){ const f=s.files&&s.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>importarCSV(String(rd.result||"")); rd.onerror=()=>toast("No se pudo leer el archivo"); rd.readAsText(f,"utf-8"); return; }
