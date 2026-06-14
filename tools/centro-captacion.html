@@ -118,8 +118,8 @@ async function fetchT(url,opt,ms){ const c=new AbortController(); const id=setTi
 // Tope total por bar: si tarda demasiado, se abandona y se sigue con el siguiente (nunca se congela).
 function conTope(p,ms){ return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error("tope de tiempo")),ms||45000))]); }
 async function traerWeb(url){ const jk=(AJ().jinaKey||"").trim();
-  // Con clave Jina, usamos SOLO Jina (es el fiable); los otros puentes solo si no hay clave.
-  const lista = jk ? [PUENTES[0]] : PUENTES.slice(1);
+  // Jina primero (con clave, es el fiable); si falla o se agota, los demás puentes de respaldo.
+  const lista = jk ? PUENTES : PUENTES.slice(1);
   for(const p of lista){ const pu=p(url); const h={"Accept":"text/html,text/plain,*/*"}; if(jk && pu.indexOf("jina.ai")>=0) h["Authorization"]="Bearer "+jk;
     try{ const r=await fetchT(pu,{headers:h},9000); if(r.ok){ const t=await r.text(); if(t&&t.length>60) return t; } }catch(e){} } return ""; }
 // Buscador de Jina: como la IA de Google, devuelve el CONTENIDO de los primeros resultados (donde está el email).
@@ -202,8 +202,8 @@ async function buscarDatosWeb(nombre,ciudad,prof){
         if(d.pedidos_online===true) extra.pedidos=true; }
     }catch(e){}
   }
-  // Teléfono: el más repetido junto al nombre, PREFIRIENDO un móvil válido (el real, no la basura).
-  const telCand=telCerca(pg,nombre); const movil=telCand.find(esMovil); let telD="";
+  // Teléfono: el más repetido junto al nombre, PREFIRIENDO un móvil 6xx (los reales casi siempre), luego 7x.
+  const telCand=telCerca(pg,nombre); const movil=telCand.find(d=>/^6/.test(d))||telCand.find(esMovil); let telD="";
   if(movil) telD=movil;                                          // el móvil más repetido (vale para WhatsApp)
   else if(esMovil(aiTel) && telCand.includes(aiTel)) telD=aiTel; // si no, el móvil de la IA
   else if(telCand.length) telD=telCand[0];                       // si no, el fijo más repetido
@@ -644,18 +644,8 @@ document.addEventListener("click",async e=>{
   if(t.dataset.rebuscar){ const l=LEADS().find(x=>x.id===t.dataset.rebuscar); const o=t.textContent; t.textContent="🔄…"; t.disabled=true;
     resetDiag();
     try{ const d=await conTope(buscarDatosWeb(l.nombre,l.ciudad,true),55000); const patch=datosPatch(d,l);
-      const g=d._dbg||{}; const movs=(g.mobiles||[]);
-      const fmt=m=>"+34 "+m.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4");
-      // Si hay VARIOS móviles posibles, que elija el usuario (no adivinar).
-      if(movs.length>1){
-        const op=movs.map((m,i)=>(i+1)+") "+fmt(m)).join("\n");
-        const r=(prompt("📞 "+l.nombre+": he encontrado varios móviles posibles. ¿Cuál es el SUYO?\nEscribe el número de la opción (1, 2, 3…). Deja vacío para no cambiar el teléfono.\n\n"+op,"")||"").trim();
-        const i=parseInt(r,10)-1;
-        if(movs[i]){ patch.tel=fmt(movs[i]); patch.whatsapp="34"+movs[i]; }
-        else { delete patch.tel; delete patch.whatsapp; } // si no elige, no tocamos el teléfono
-      }
       if(Object.keys(patch).filter(k=>k!=="emailAuto").length){ upLead(l.id,patch); render(); toast(l.nombre+": actualizado ✓ ("+Object.keys(patch).filter(k=>k!=="emailAuto").join(", ")+")"); }
-      else { t.textContent=o; t.disabled=false; toast(l.nombre+": sin cambios"); }
+      else { t.textContent=o; t.disabled=false; toast(l.nombre+": sin cambios — lo que hay ya es lo mejor que se encuentra"); }
     }catch(err){ toast("No se pudo reajustar: "+err.message); t.textContent=o; t.disabled=false; } return; }
   if(t.dataset.bmail){ const l=LEADS().find(x=>x.id===t.dataset.bmail); const o=t.textContent; t.textContent="🔎…"; t.disabled=true;
     try{ const d=await buscarDatosWeb(l.nombre,l.ciudad); const patch=datosPatch(d,l);
