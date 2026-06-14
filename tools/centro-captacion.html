@@ -112,13 +112,18 @@ const PUENTES=[ u=>"https://r.jina.ai/"+u,
                 u=>"https://api.allorigins.win/raw?url="+encodeURIComponent(u),
                 u=>"https://corsproxy.io/?url="+encodeURIComponent(u),
                 u=>"https://thingproxy.freeboard.io/fetch/"+u ];
+// fetch con límite de tiempo: si un puente no responde en X seg, lo abandona (para no colgarse).
+async function fetchT(url,opt,ms){ const c=new AbortController(); const id=setTimeout(()=>c.abort(),ms||9000);
+  try{ const r=await fetch(url,Object.assign({signal:c.signal},opt||{})); clearTimeout(id); return r; }catch(e){ clearTimeout(id); throw e; } }
 async function traerWeb(url){ const jk=(AJ().jinaKey||"").trim();
-  for(const p of PUENTES){ const pu=p(url); const h={"Accept":"text/html,text/plain,*/*"}; if(jk && pu.indexOf("jina.ai")>=0) h["Authorization"]="Bearer "+jk;
-    try{ const r=await fetch(pu,{headers:h}); if(r.ok){ const t=await r.text(); if(t&&t.length>60) return t; } }catch(e){} } return ""; }
+  // Con clave Jina, usamos SOLO Jina (es el fiable); los otros puentes solo si no hay clave.
+  const lista = jk ? [PUENTES[0]] : PUENTES.slice(1);
+  for(const p of lista){ const pu=p(url); const h={"Accept":"text/html,text/plain,*/*"}; if(jk && pu.indexOf("jina.ai")>=0) h["Authorization"]="Bearer "+jk;
+    try{ const r=await fetchT(pu,{headers:h},9000); if(r.ok){ const t=await r.text(); if(t&&t.length>60) return t; } }catch(e){} } return ""; }
 // Buscador de Jina: como la IA de Google, devuelve el CONTENIDO de los primeros resultados (donde está el email).
 async function jinaSearch(q){ const jk=(AJ().jinaKey||"").trim(); const h={"Accept":"text/plain","X-Return-Format":"markdown"}; if(jk) h["Authorization"]="Bearer "+jk;
-  for(const u of ["https://s.jina.ai/?q="+encodeURIComponent(q),"https://s.jina.ai/"+encodeURIComponent(q)]){
-    try{ const r=await fetch(u,{headers:h}); if(r.ok){ const t=await r.text(); if(t&&t.length>80) return t; } }catch(e){}
+  for(const u of ["https://s.jina.ai/?q="+encodeURIComponent(q)]){
+    try{ const r=await fetchT(u,{headers:h},12000); if(r.ok){ const t=await r.text(); if(t&&t.length>80) return t; } }catch(e){}
   }
   return "";
 }
@@ -143,18 +148,19 @@ async function buscarDatosWeb(nombre,ciudad){
   const q="correo electronico email de "+nombre+" "+(ciudad||"");
   // 1) Buscador de Jina: trae el CONTENIDO de los resultados (como la IA de Google). Aquí suele estar el email.
   let pg=await jinaSearch(q); if(pg) DIAG.jina++;
-  // 2) Además, resultados de Google y DuckDuckGo por el puente, por si Jina no llega.
-  const gg=await traerWeb("https://www.google.com/search?q="+encodeURIComponent(q)); if(gg) DIAG.gg++;
-  const ddg=await traerWeb("https://html.duckduckgo.com/html/?q="+encodeURIComponent(nombre+" "+(ciudad||"")+" email correo contacto")); if(ddg) DIAG.ddg++;
-  pg=((pg||"")+"\n"+(gg||"")+"\n"+(ddg||"")).trim();
-  if(!pg) pg=await traerWeb("https://www.bing.com/search?q="+encodeURIComponent(q));
+  let email=sacaEmails(pg)[0]||"";
+  // 2) Solo si Jina no resolvió el email, pedimos Google/DDG (para no eternizar cada bar).
+  if(!email){
+    const gg=await traerWeb("https://www.google.com/search?q="+encodeURIComponent(q)); if(gg){ DIAG.gg++; pg+="\n"+gg; }
+    const ddg=await traerWeb("https://html.duckduckgo.com/html/?q="+encodeURIComponent(nombre+" "+(ciudad||"")+" email correo contacto")); if(ddg){ DIAG.ddg++; pg+="\n"+ddg; }
+    pg=pg.trim(); email=sacaEmails(pg)[0]||"";
+  }
   if(pg) DIAG.texto++;
   if(!pg) throw new Error("ningún puente respondió, vuelve a intentarlo en un momento");
-  let email=sacaEmails(pg)[0]||"";
   const links=sacaLinks(pg);
   const web=links.find(u=>!WEB_BAD.test(u))||"";
   // 3) Si aún no hay email, abrimos los primeros resultados (web propia, Facebook, guías…) a por él.
-  for(const u of links.slice(0,3)){
+  for(const u of links.slice(0,2)){
     if(email) break;
     const t=await traerWeb(u); if(!t) continue; pg+="\n"+t;
     const e=sacaEmails(t); if(e.length){ email=e[0]; break; }
@@ -534,7 +540,7 @@ document.addEventListener("click",async e=>{
     resetDiag(); let n=0;
     for(let i=0;i<faltan.length;i++){ setp("🔎 Sacando emails… "+(i+1)+"/"+faltan.length+" · encontrados: <b>"+n+"</b>");
       try{ const d=await buscarDatosWeb(faltan[i].nombre,faltan[i].ciudad); const patch=datosPatch(d,faltan[i]); if(d.email)n++; if(Object.keys(patch).length) upLead(faltan[i].id,patch); }catch(e){}
-      await new Promise(r=>setTimeout(r,1000)); }
+      await new Promise(r=>setTimeout(r,400)); }
     setp("🎉 Listo: "+add+" bares · <b>"+n+"</b> con email.");
     alert("RESULTADO\n\nBares: "+add+"\nEmails encontrados: "+n+" de "+faltan.length+"\n\nDiagnóstico (mándame esta foto):\nClave Jina: "+((AJ().jinaKey||"").trim()?"PUESTA":"FALTA")+"\n"+diagTxt());
     setTimeout(()=>{ TAB="pipeline"; save("tab","pipeline"); render(); toast("Hecho: "+n+" emails de "+faltan.length+" bares"); },800);
@@ -575,7 +581,7 @@ document.addEventListener("click",async e=>{
     t.disabled=true; resetDiag(); let n=0,w=0;
     for(let i=0;i<faltan.length;i++){ t.textContent="🔎 buscando "+(i+1)+"/"+faltan.length+"…";
       try{ const d=await buscarDatosWeb(faltan[i].nombre,faltan[i].ciudad); const patch=datosPatch(d,faltan[i]); if(d.email)n++; if(patch.web)w++; if(Object.keys(patch).length) upLead(faltan[i].id,patch); }catch(e){}
-      await new Promise(r=>setTimeout(r,1200)); } // respiro para no saturar el puente
+      await new Promise(r=>setTimeout(r,400)); } // respiro para no saturar el puente
     t.disabled=false; render(); alert("RESULTADO\n\nEmails: "+n+"  ·  Webs: "+w+"  de "+faltan.length+" bares\n\nDiagnóstico (mándame esto):\n"+diagTxt()); return; }
   if(t.dataset.resp){ upLead(t.dataset.resp,{estado:"interesado"}); render(); toast("Marcado: respondió 🔥 ¡A cerrar!"); return; }
   if(t.dataset.norep){ upLead(t.dataset.norep,{estado:"no"}); render(); toast("Marcado: no interesa. No se le insistirá más."); return; }
