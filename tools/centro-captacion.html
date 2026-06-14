@@ -573,9 +573,13 @@ function leadsFiltrados(){ const f=load("filtro",""),fc=load("filtrocanal",""),f
     &&(!fem||(fem==="con"?!!l.email:!l.email))&&(!ft||(ft==="con"?tieneTel(l):!tieneTel(l)))
     &&(!fkm||(l.km!=null&&l.km<=fkm))&&(fval!=="si"||(Number(l.rating)>=4))&&(fped!=="si"||!!l.pedidos)); }
 function hayFiltro(){ return !!(load("filtro","")||load("filtrocanal","")||load("filtrociudad","")||load("filtroweb","")||load("filtroemail","")||load("filtrotel","")||+load("filtrokm",0)||load("filtroval","")||load("filtroped","")); }
+var MOSTRAR=40, _sigPipe="";  // paginación: cuántas fichas se dibujan (más = ahoga el móvil)
 function vPipeline(){
   const L=LEADS(); const f=load("filtro",""); const fc=load("filtrocanal",""); const fciu=load("filtrociudad",""); const fweb=load("filtroweb","");
   let vis=leadsFiltrados();
+  // si cambió el filtro (o el total), volvemos a empezar mostrando 40
+  const _sig=[f,fc,fciu,fweb,load("filtroemail",""),load("filtrotel",""),load("filtrokm",0),load("filtroval",""),load("filtroped",""),vis.length].join("|");
+  if(_sig!==_sigPipe){ _sigPipe=_sig; MOSTRAR=40; }
   const chips=["","nuevo","contactado","interesado","cliente","no"].map(k=>`<button class="mini" data-filtro="${k}" type="button" style="${f===k?"background:var(--brand);color:#fff;border-color:var(--brand)":""}">${k===""?"Todos":k}</button>`).join(" ");
   const nW=L.filter(l=>canalDe(l)==="wa").length, nE=L.filter(l=>canalDe(l)==="email").length, nN=L.filter(l=>canalDe(l)==="ninguno").length;
   const chipsCanal=[["","Todos los canales",L.length],["wa","📞 Por WhatsApp",nW],["email","✉️ Solo email (sin tel)",nE],["ninguno","❓ Sin contacto",nN]].map(([k,t,c])=>`<button class="mini" data-canal="${k}" type="button" style="${fc===k?"background:var(--ink);color:#fff;border-color:var(--ink)":""}">${t} (${c})</button>`).join(" ");
@@ -629,7 +633,7 @@ function vPipeline(){
     ${fc==="ninguno"?`<p class="note" style="color:var(--brand-d)">❓ Estos no tienen ni WhatsApp ni email localizado. Pulsa 🔎✉️ en cada uno (o el botón de arriba) para que busque su email en la web. Si aun así no aparece, es que no lo tienen publicado.</p>`:""}
     ${vis.length>3?`<input id="qLead" type="search" placeholder="🔍 Buscar un bar por nombre, ciudad, email…" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:10px;margin-bottom:10px;font-size:14px">`:""}
     ${vis.length?`<div id="leadList" style="display:flex;flex-direction:column;gap:12px">
-    ${vis.map(l=>{ const tq=toquePendiente(l); const waNum=waDe(l);
+    ${vis.slice(0,MOSTRAR).map(l=>{ const tq=toquePendiente(l); const waNum=waDe(l);
       // teléfono mostrado = el mismo que se usa (móvil si hay; si no, el fijo). Etiquetado para no confundir.
       const telMostrar = waNum ? ("+34 "+waNum.slice(2).replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4")) : (l.tel||"");
       const telTipo = waNum ? ' <span style="color:#1d6f2b;font-size:11px">(móvil)</span>' : (l.tel?' <span style="color:#999;font-size:11px">(fijo)</span>':'');
@@ -673,7 +677,7 @@ function vPipeline(){
         <button class="mini" data-del="${l.id}" type="button" title="Borrar" style="color:#b32424">🗑</button></div>
       ${l.estado==="contactado"?`<div style="display:flex;gap:7px;margin-top:9px;padding-top:9px;border-top:1px solid #eee"><button class="mini" data-resp="${l.id}" type="button" style="border-color:#3f9d52;color:#1d6f2b">✅ Me respondió</button><button class="mini" data-norep="${l.id}" type="button" style="color:#b32424">❌ No le interesa</button></div>`:""}
       </div>`; }).join("")}
-    </div>`:`<div class="vacio">${hayFiltro()?"Ningún negocio pasa este filtro. Quita algún filtro (pulsa <b>Todos/Todas</b>) y vuelve a ver.":"Sin leads todavía. Pulsa 📥 Importar (arriba) para subir tu CSV, o añade desde 🔎 Buscar o a mano."}</div>`}
+    </div>${vis.length>MOSTRAR?`<div style="text-align:center;margin:14px 0 4px"><button class="btn btn-p" id="verMas" type="button">⬇️ Ver 40 más (${vis.length-MOSTRAR} sin mostrar)</button><div class="muted" style="font-size:11px;margin-top:5px">Mostrando ${MOSTRAR} de ${vis.length}. Filtra arriba para ver grupos pequeños.</div></div>`:`<p class="muted" style="text-align:center;margin-top:8px;font-size:12px">— ${vis.length} ${vis.length===1?"negocio":"negocios"} —</p>`}`:`<div class="vacio">${hayFiltro()?"Ningún negocio pasa este filtro. Quita algún filtro (pulsa <b>Todos/Todas</b>) y vuelve a ver.":"Sin leads todavía. Pulsa 📥 Importar (arriba) para subir tu CSV, o añade desde 🔎 Buscar o a mano."}</div>`}
   </div>`;
 }
 
@@ -842,6 +846,7 @@ document.addEventListener("click",async e=>{
   if(t.id==="limpiaMails"){ const n=LEADS().filter(l=>l.emailAuto).length; if(!n){ toast("No hay emails automáticos que borrar"); return; }
     if(!confirm("Borro los "+n+" emails que encontró la app automáticamente (para re-buscarlos con la versión corregida). Los que metiste tú a mano se quedan. ¿Sigo?")) return;
     setLeads(LEADS().map(l=>l.emailAuto?Object.assign({},l,{email:"",emailAuto:false}):l)); render(); toast("Emails automáticos borrados. Dale otra vez a 🔎✉️"); return; }
+  if(t.id==="verMas"){ MOSTRAR+=40; render(); return; }
   if(t.id==="completaDatos"){ const faltan=leadsFiltrados().filter(incompleto); if(!faltan.length){ toast("Todos completos ✓"); return; }
     if(!confirm("Voy a completar lo que falte (teléfono, web, redes) de "+faltan.length+" bares. Tarda un poco. ¿Sigo?")) return;
     t.disabled=true; resetDiag(); let n=0;
