@@ -130,9 +130,9 @@ async function jinaSearch(q){ const jk=(AJ().jinaKey||"").trim(); const h={"Acce
   return "";
 }
 function sacaEmails(txt){ const out=[],seen={}; (String(txt).match(EMAIL_RE)||[]).forEach(e=>{ e=e.toLowerCase().replace(/[.,;:]+$/,""); if(EMAIL_BLACK.test(e))return; if(e.length>60)return; if(seen[e])return; seen[e]=1; out.push(e); }); return out; }
-// Saca teléfonos españoles (9 cifras que empiezan por 6/7/8/9), con o sin +34.
+// Saca teléfonos españoles válidos (móvil 6/7 o fijo 9x). Descarta premium/especiales (90x, 80x).
 function sacaTel(txt){ const out=[],seen={}; const re=/(?:\+?34[\s.\-]?)?([6789]\d{2}[\s.\-]?\d{2}[\s.\-]?\d{2}[\s.\-]?\d{2})/g; let m;
-  while((m=re.exec(String(txt)))){ const d=m[1].replace(/\D/g,""); if(d.length===9 && !seen[d]){ seen[d]=1; out.push(d); } } return out; }
+  while((m=re.exec(String(txt)))){ const d=m[1].replace(/\D/g,""); if(d.length===9 && !/^(8|90)/.test(d) && !seen[d]){ seen[d]=1; out.push(d); } } return out; }
 // Teléfonos que aparecen PEGADOS al nombre del bar (para no coger el de otro resultado de la zona).
 function telCerca(pg,nombre){ const low=String(pg).toLowerCase(); const toks=tokensNombre(nombre);
   let idx=-1; for(const t of toks){ const i=low.indexOf(t); if(i>=0){ idx=i; break; } }
@@ -192,10 +192,11 @@ async function buscarDatosWeb(nombre,ciudad){
         if(d.pedidos_online===true) extra.pedidos=true; }
     }catch(e){}
   }
-  // Teléfono: SOLO el que aparece PEGADO al nombre del bar (así no se cuela el de otro local de la zona).
-  const telCand=telCerca(pg,nombre); let telD="";
-  if(aiTel.length===9 && telCand.includes(aiTel)) telD=aiTel;   // el de la IA, solo si está junto al nombre
-  if(!telD && telCand.length) telD=telCand[0];                  // si no, el primero pegado al nombre
+  // Teléfono: PEGADO al nombre del bar, y PREFIRIENDO el móvil (6/7) sobre el fijo.
+  const telCand=telCerca(pg,nombre); const movil=telCand.find(d=>/^[67]/.test(d)); let telD="";
+  if(movil) telD=movil;                                          // si hay móvil, ese (vale para WhatsApp)
+  else if(aiTel.length===9 && telCand.includes(aiTel)) telD=aiTel; // si no, el de la IA (si está junto al nombre)
+  else if(telCand.length) telD=telCand[0];                       // si no, el primero pegado al nombre
   if(telD){
     extra.tel="+34 "+telD.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4");
     if(/^[67]/.test(telD)) extra.whatsapp="34"+telD; // solo los móviles sirven para WhatsApp
@@ -208,7 +209,11 @@ async function buscarDatosWeb(nombre,ciudad){
   return Object.assign({ email, web }, extra);
 }
 // Convierte lo encontrado en un parche para el lead (solo rellena lo que falta; no pisa lo que ya hay).
-function datosPatch(d,l){ const p={}; if(d.email&&!l.email){p.email=d.email; p.emailAuto=true;} if(d.web&&!l.web)p.web=d.web; if(d.tel&&!l.tel)p.tel=d.tel; if(d.whatsapp&&!(l.whatsapp||"").replace(/\D/g,"")) p.whatsapp=d.whatsapp; if(d.instagram&&!l.instagram)p.instagram=d.instagram; if(d.facebook&&!l.facebook)p.facebook=d.facebook; if(d.tiktok&&!l.tiktok)p.tiktok=d.tiktok; if(d.pedidos)p.pedidos=true; return p; }
+function datosPatch(d,l){ const p={}; if(d.email&&!l.email){p.email=d.email; p.emailAuto=true;} if(d.web&&!l.web)p.web=d.web;
+  // teléfono: rellena si falta, o MEJORA un fijo por un móvil encontrado
+  if(d.tel){ const nuevoMovil=/^(\+?34)?[\s.]*[67]/.test(String(d.tel).replace(/\s/g,"")); const curMovil=/^[67]/.test((l.tel||"").replace(/\D/g,"").slice(-9)); if(!l.tel || (nuevoMovil&&!curMovil)) p.tel=d.tel; }
+  if(d.whatsapp && !waDe(l)) p.whatsapp=d.whatsapp; // pon el móvil de WhatsApp si el lead aún no tiene uno
+  if(d.instagram&&!l.instagram)p.instagram=d.instagram; if(d.facebook&&!l.facebook)p.facebook=d.facebook; if(d.tiktok&&!l.tiktok)p.tiktok=d.tiktok; if(d.pedidos)p.pedidos=true; return p; }
 function incompleto(l){ return !l.tel || !l.web || (!l.instagram&&!l.facebook); }
 
 // La IA lee el texto de la web del local y devuelve sus datos en JSON. NUNCA inventa (instruido).
@@ -426,8 +431,9 @@ function vBuscar(){
 
 /* Cola del Modo Ráfaga: primero los seguimientos pendientes (más calientes), luego los
    nuevos por puntuación. Solo bares con WhatsApp (a los sin número no se les puede abrir chat). */
-// Número listo para WhatsApp: usa el WhatsApp si lo hay; si no, el teléfono (fijo o el que sea).
-function waDe(l){ let d=(l.whatsapp||"").replace(/\D/g,""); if(d.length<9) d=(l.tel||"").replace(/\D/g,""); if(d.length>9) d=d.slice(-9); return d.length===9?("34"+d):""; }
+// Número listo para WhatsApp: SOLO móviles (empiezan por 6 o 7). Los fijos NO tienen WhatsApp.
+function waDe(l){ const core=s=>{ let d=(s||"").replace(/\D/g,""); if(d.length>9) d=d.slice(-9); return d.length===9?d:""; };
+  let d=core(l.whatsapp); if(!/^[67]/.test(d)) d=core(l.tel); return /^[67]/.test(d)?("34"+d):""; }
 function colaRafaga(){
   const L=LEADS().filter(l=>waDe(l));
   const seguimientos=L.filter(l=>toquePendiente(l)>0);
