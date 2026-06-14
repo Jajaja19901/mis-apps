@@ -822,6 +822,9 @@ function osmFiltros(tipo){
   // término no reconocido → barrido amplio de cualquier negocio
   return ['["shop"]','["craft"]','["office"]','["amenity"~"^(pharmacy|clinic|dentist|doctors|veterinary|fuel|bank)$"]','["tourism"~"^(hotel|guest_house)$"]'];
 }
+// Cadenas/franquicias que NO son clientes (tienen su propio sistema). Se filtran de la búsqueda.
+const CADENAS=/(mcdonald|burger\s*king|\bkfc\b|telepizza|domino|pizza\s*hut|starbucks|subway|foster|100\s*montaditos|taco\s*bell|popeyes|five\s*guys|goiko|dunkin|costa\s*coffee|papa\s*john|wendy|rodilla|lizarr|la\s*sureña|\bginos\b|tagliatella|\budon\b|muerde\s*la\s*pasta|\btgb\b|santagloria|granier|400\s*grados|carrefour|mercadona|\blidl\b|\bdia\b|\baldi\b|repsol|cepsa|\bshell\b|\bbp\b|\bgalp\b|vips|cañas\s*y\s*tapas|tierra\s*burrito|honest\s*greens)/i;
+function esCadena(t){ return !!(t&&(t.brand||t["brand:wikidata"]||CADENAS.test(t.name||""))); }
 async function buscarOSM(){
   const err=$("#berr"); err.style.display="none";
   const z=$("#bz").value.trim(); save("bz",z); save("bq",$("#bq").value.trim()); save("bradio",($("#bradio")&&$("#bradio").value)||6);
@@ -844,7 +847,7 @@ async function buscarOSM(){
     }
     if(!j) throw new Error("Los servidores de OpenStreetMap están ocupados. Prueba otra vez en un minuto.");
     const seen={};
-    RES=(j.elements||[]).filter(e=>e.tags&&e.tags.name).map(e=>{ const t=e.tags;
+    RES=(j.elements||[]).filter(e=>e.tags&&e.tags.name && !esCadena(e.tags)).map(e=>{ const t=e.tags;
       const dir=[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ")||t["addr:suburb"]||t["addr:city"]||z;
       const tel=t.phone||t["contact:phone"]||t["contact:mobile"]||"";
       return { nombre:t.name, dir, tel, inter:tel, web:t.website||t["contact:website"]||"", rating:"", n:0 }; })
