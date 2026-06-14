@@ -133,6 +133,11 @@ function sacaEmails(txt){ const out=[],seen={}; (String(txt).match(EMAIL_RE)||[]
 // Saca teléfonos españoles (9 cifras que empiezan por 6/7/8/9), con o sin +34.
 function sacaTel(txt){ const out=[],seen={}; const re=/(?:\+?34[\s.\-]?)?([6789]\d{2}[\s.\-]?\d{2}[\s.\-]?\d{2}[\s.\-]?\d{2})/g; let m;
   while((m=re.exec(String(txt)))){ const d=m[1].replace(/\D/g,""); if(d.length===9 && !seen[d]){ seen[d]=1; out.push(d); } } return out; }
+// Teléfonos que aparecen PEGADOS al nombre del bar (para no coger el de otro resultado de la zona).
+function telCerca(pg,nombre){ const low=String(pg).toLowerCase(); const toks=tokensNombre(nombre);
+  let idx=-1; for(const t of toks){ const i=low.indexOf(t); if(i>=0){ idx=i; break; } }
+  const zona = idx>=0 ? String(pg).slice(Math.max(0,idx-250), idx+450) : ""; // si no se ve el nombre, no arriesgamos
+  return sacaTel(zona); }
 function sacaWeb(txt){ return sacaLinks(txt).find(u=>!WEB_BAD.test(u))||""; }
 // Saca los enlaces de resultados de la búsqueda (incluye guías y Facebook: ahí suele estar el email
 // de los bares SIN web). Descarta buscadores, proxies e imágenes. Uno por dominio, máx 5.
@@ -174,24 +179,26 @@ async function buscarDatosWeb(nombre,ciudad){
   const extra={};
   // Si hay clave de IA, lee TODO el texto reunido y saca datos. PERO solo aceptamos lo que
   // aparezca LITERALMENTE en el texto leído: si la IA lo inventa, no está en el texto y se tira.
+  let aiTel="";
   if((AJ().iaKey||"").trim() && pg){
     try{ const d=await iaExtrae(pg, nombre);
-      if(d){ const low=pg.toLowerCase(); const dig=pg.replace(/\D/g,"");
+      if(d){ const low=pg.toLowerCase();
         if(d.email){ const e=String(d.email).toLowerCase().trim();
           if(/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(e) && !EMAIL_BLACK.test(e) && low.includes(e)) email=email||e; } // SOLO si está escrito tal cual
         if(d.instagram && low.includes(String(d.instagram).toLowerCase().replace(/^https?:\/\//,"").replace(/\/$/,""))) extra.instagram=d.instagram;
         if(d.facebook && low.includes(String(d.facebook).toLowerCase().replace(/^https?:\/\//,"").replace(/\/$/,""))) extra.facebook=d.facebook;
         if(d.tiktok && low.includes(String(d.tiktok).toLowerCase().replace(/^https?:\/\//,"").replace(/\/$/,""))) extra.tiktok=d.tiktok;
-        if(d.telefono){ const td=String(d.telefono).replace(/\D/g,""); if(td.length>=9 && dig.includes(td.slice(-9))) extra.telD=td.slice(-9); } // el nº debe estar en el texto
+        if(d.telefono) aiTel=String(d.telefono).replace(/\D/g,"").slice(-9);
         if(d.pedidos_online===true) extra.pedidos=true; }
     }catch(e){}
   }
-  // Teléfono: si la IA no lo dio, lo sacamos por reglas del texto. Si es móvil (6/7), también vale de WhatsApp.
-  if(!extra.telD){ const ts=sacaTel(pg); if(ts.length) extra.telD=ts[0]; }
-  if(extra.telD){ const d9=extra.telD;
-    extra.tel="+34 "+d9.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4");
-    if(/^[67]/.test(d9)) extra.whatsapp="34"+d9; // solo los móviles sirven para WhatsApp
-    delete extra.telD;
+  // Teléfono: SOLO el que aparece PEGADO al nombre del bar (así no se cuela el de otro local de la zona).
+  const telCand=telCerca(pg,nombre); let telD="";
+  if(aiTel.length===9 && telCand.includes(aiTel)) telD=aiTel;   // el de la IA, solo si está junto al nombre
+  if(!telD && telCand.length) telD=telCand[0];                  // si no, el primero pegado al nombre
+  if(telD){
+    extra.tel="+34 "+telD.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4");
+    if(/^[67]/.test(telD)) extra.whatsapp="34"+telD; // solo los móviles sirven para WhatsApp
   }
   // Seguridad final: el email tiene que estar literal en el texto leído (no se inventa)…
   if(email && !pg.toLowerCase().includes(email.toLowerCase())) email="";
