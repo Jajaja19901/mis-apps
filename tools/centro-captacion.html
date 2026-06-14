@@ -489,12 +489,13 @@ function colaRafaga(){
   return seguimientos.concat(nuevos);
 }
 function canalDe(l){ if(waDe(l)) return "wa"; if(l.email) return "email"; return "ninguno"; }
+// Leads que pasan TODOS los filtros activos (estado, canal, ciudad, web). Lo usan la vista Y los botones.
+function leadsFiltrados(){ const f=load("filtro",""),fc=load("filtrocanal",""),fciu=load("filtrociudad",""),fweb=load("filtroweb","");
+  return LEADS().filter(l=>(!f||l.estado===f)&&(!fc||canalDe(l)===fc)&&(!fciu||(l.ciudad||"—")===fciu)&&(fweb!=="sin"||!l.web)); }
+function hayFiltro(){ return !!(load("filtro","")||load("filtrocanal","")||load("filtrociudad","")||load("filtroweb","")); }
 function vPipeline(){
   const L=LEADS(); const f=load("filtro",""); const fc=load("filtrocanal",""); const fciu=load("filtrociudad",""); const fweb=load("filtroweb","");
-  let vis=f?L.filter(l=>l.estado===f):L;
-  if(fc) vis=vis.filter(l=>canalDe(l)===fc);
-  if(fciu) vis=vis.filter(l=>(l.ciudad||"—")===fciu);
-  if(fweb==="sin") vis=vis.filter(l=>!l.web);
+  let vis=leadsFiltrados();
   const chips=["","nuevo","contactado","interesado","cliente","no"].map(k=>`<button class="mini" data-filtro="${k}" type="button" style="${f===k?"background:var(--brand);color:#fff;border-color:var(--brand)":""}">${k===""?"Todos":k}</button>`).join(" ");
   const nW=L.filter(l=>canalDe(l)==="wa").length, nE=L.filter(l=>canalDe(l)==="email").length, nN=L.filter(l=>canalDe(l)==="ninguno").length;
   const chipsCanal=[["","Todos los canales",L.length],["wa","📞 Por WhatsApp",nW],["email","✉️ Solo email (sin tel)",nE],["ninguno","❓ Sin contacto",nN]].map(([k,t,c])=>`<button class="mini" data-canal="${k}" type="button" style="${fc===k?"background:var(--ink);color:#fff;border-color:var(--ink)":""}">${t} (${c})</button>`).join(" ");
@@ -523,9 +524,10 @@ function vPipeline(){
     <div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por web:</b><br>${chipsWeb}</div>
     ${chipsCiu?`<div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por ciudad:</b><br>${chipsCiu}</div>`:""}
     <div style="margin:0 0 4px"><b style="font-size:12px;color:var(--mut)">Por estado:</b><br>${chips}</div>
+    ${hayFiltro()?`<p class="note" style="margin:6px 0 0;color:var(--brand-d)">🔎 Filtro activo: las acciones de abajo trabajan SOLO sobre los ${vis.length} que ves.</p>`:""}
     <div style="margin:6px 0;display:flex;gap:6px;flex-wrap:wrap">
-    ${L.some(l=>!l.email)?`<button class="mini" id="buscaMails" type="button" title="Busca en la web el email de los bares que aún no lo tengan">🔎✉️ Buscar emails que falten (${L.filter(l=>!l.email).length})</button>`:""}
-    ${L.some(incompleto)?`<button class="mini" id="completaDatos" type="button" title="Rellena teléfono, web y redes de los que les falte (aunque ya tengan email)">🔄 Completar datos que faltan (${L.filter(incompleto).length})</button>`:""}
+    ${vis.some(l=>!l.email)?`<button class="mini" id="buscaMails" type="button" title="Busca el email de los filtrados que aún no lo tengan">🔎✉️ Buscar emails que falten (${vis.filter(l=>!l.email).length})</button>`:""}
+    ${vis.some(incompleto)?`<button class="mini" id="completaDatos" type="button" title="Rellena teléfono, web y redes de los filtrados que les falte">🔄 Completar datos que faltan (${vis.filter(incompleto).length})</button>`:""}
     ${L.some(l=>l.emailAuto)?`<button class="mini" id="limpiaMails" type="button" title="Borra los emails que encontró la app, para re-buscarlos" style="color:#b32424">🧹 Borrar emails auto (${L.filter(l=>l.emailAuto).length})</button>`:""}</div>
     ${fc==="ninguno"?`<p class="note" style="color:var(--brand-d)">❓ Estos no tienen ni WhatsApp ni email localizado. Pulsa 🔎✉️ en cada uno (o el botón de arriba) para que busque su email en la web. Si aun así no aparece, es que no lo tienen publicado.</p>`:""}
     ${vis.length>3?`<input id="qLead" type="search" placeholder="🔍 Buscar un bar por nombre, ciudad, email…" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:10px;margin-bottom:10px;font-size:14px">`:""}
@@ -731,14 +733,14 @@ document.addEventListener("click",async e=>{
   if(t.id==="limpiaMails"){ const n=LEADS().filter(l=>l.emailAuto).length; if(!n){ toast("No hay emails automáticos que borrar"); return; }
     if(!confirm("Borro los "+n+" emails que encontró la app automáticamente (para re-buscarlos con la versión corregida). Los que metiste tú a mano se quedan. ¿Sigo?")) return;
     setLeads(LEADS().map(l=>l.emailAuto?Object.assign({},l,{email:"",emailAuto:false}):l)); render(); toast("Emails automáticos borrados. Dale otra vez a 🔎✉️"); return; }
-  if(t.id==="completaDatos"){ const faltan=LEADS().filter(incompleto); if(!faltan.length){ toast("Todos completos ✓"); return; }
+  if(t.id==="completaDatos"){ const faltan=leadsFiltrados().filter(incompleto); if(!faltan.length){ toast("Todos completos ✓"); return; }
     if(!confirm("Voy a completar lo que falte (teléfono, web, redes) de "+faltan.length+" bares. Tarda un poco. ¿Sigo?")) return;
     t.disabled=true; resetDiag(); let n=0;
     for(let i=0;i<faltan.length;i++){ t.textContent="🔄 completando "+(i+1)+"/"+faltan.length+"…";
       try{ const d=await conTope(buscarDatosWeb(faltan[i].nombre,faltan[i].ciudad,true),55000); const patch=datosPatch(d,faltan[i]); if(Object.keys(patch).length){ n++; upLead(faltan[i].id,patch); } }catch(e){}
       await new Promise(r=>setTimeout(r,400)); }
     t.disabled=false; render(); alert("Datos completados en "+n+" de "+faltan.length+" bares.\n\n"+diagTxt()); return; }
-  if(t.id==="buscaMails"){ const faltan=LEADS().filter(l=>!l.email); if(!faltan.length){ toast("Todos tienen email ya ✓"); return; }
+  if(t.id==="buscaMails"){ const faltan=leadsFiltrados().filter(l=>!l.email); if(!faltan.length){ toast("Todos tienen email ya ✓"); return; }
     if(!confirm("Voy a buscar en la web el email y la web de "+faltan.length+" bares. Tarda unos segundos cada uno y algunos no tendrán email publicado. ¿Sigo?")) return;
     t.disabled=true; resetDiag(); let n=0,w=0;
     for(let i=0;i<faltan.length;i++){ t.textContent="🔎 buscando "+(i+1)+"/"+faltan.length+"…";
