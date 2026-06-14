@@ -620,6 +620,7 @@ function vPipeline(){
     <div style="margin:6px 0;display:flex;gap:6px;flex-wrap:wrap">
     ${vis.some(l=>!l.email)?`<button class="mini" id="buscaMails" type="button" title="Busca el email de los filtrados que aún no lo tengan">🔎✉️ Buscar emails que falten (${vis.filter(l=>!l.email).length})</button>`:""}
     ${vis.some(incompleto)?`<button class="mini" id="completaDatos" type="button" title="Rellena teléfono, web y redes de los filtrados que les falte">🔄 Completar datos que faltan (${vis.filter(incompleto).length})</button>`:""}
+    ${vis.some(l=>!l.tel)?`<button class="mini" id="googleFill" type="button" title="Pide a Google el teléfono y web OFICIALES (usa tu clave de Ajustes; cuesta céntimos por bar)" style="border-color:#1a73e8;color:#1a73e8">📞 Rellenar con Google (${vis.filter(l=>!l.tel).length})</button>`:""}
     ${L.some(l=>l.emailAuto)?`<button class="mini" id="limpiaMails" type="button" title="Borra los emails que encontró la app, para re-buscarlos" style="color:#b32424">🧹 Borrar emails auto (${L.filter(l=>l.emailAuto).length})</button>`:""}</div>
     ${fc==="ninguno"?`<p class="note" style="color:var(--brand-d)">❓ Estos no tienen ni WhatsApp ni email localizado. Pulsa 🔎✉️ en cada uno (o el botón de arriba) para que busque su email en la web. Si aun así no aparece, es que no lo tienen publicado.</p>`:""}
     ${vis.length>3?`<input id="qLead" type="search" placeholder="🔍 Buscar un bar por nombre, ciudad, email…" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:10px;margin-bottom:10px;font-size:14px">`:""}
@@ -841,6 +842,19 @@ document.addEventListener("click",async e=>{
       try{ const d=await conTope(buscarDatosWeb(faltan[i].nombre,faltan[i].ciudad),45000); const patch=datosPatch(d,faltan[i]); if(Object.keys(patch).length){ n++; upLead(faltan[i].id,patch); } }catch(e){}
       await new Promise(r=>setTimeout(r,400)); }
     t.disabled=false; render(); alert("Datos completados en "+n+" de "+faltan.length+" bares.\n\n"+diagTxt()); return; }
+  if(t.id==="googleFill"){ if(!(AJ().gkey||"").trim()){ alert("Falta tu clave de Google. Métela en ⚙️ Ajustes → Clave de Google."); return; }
+    const faltan=leadsFiltrados().filter(l=>!l.tel); if(!faltan.length){ toast("Todos tienen teléfono ya ✓"); return; }
+    if(!confirm("Voy a pedir a Google el teléfono y web OFICIALES de "+faltan.length+" bares.\nUsa tu clave (cuesta unos céntimos por bar, dentro de tu crédito gratis de Google).\n¿Sigo?")) return;
+    t.disabled=true; let n=0, fatal="";
+    for(let i=0;i<faltan.length;i++){ t.textContent="📞 Google "+(i+1)+"/"+faltan.length+"…";
+      try{ const d=await googleFill(faltan[i].nombre, faltan[i].ciudad);
+        if(d){ const p={}; if(d.tel)p.tel=d.tel; if(d.whatsapp)p.whatsapp=d.whatsapp; if(d.web&&!faltan[i].web)p.web=d.web; if(d.rating&&!faltan[i].rating)p.rating=d.rating;
+          if(Object.keys(p).length){ upLead(faltan[i].id,p); if(d.tel)n++; } } }
+      catch(e){ const m=String(e.message||""); if(/key|API|denied|permission|billing|disabled|SERVICE|authoriz|PERMISSION/i.test(m)){ fatal=m; break; } } // clave mal → parar y avisar
+      await new Promise(r=>setTimeout(r,250)); }
+    t.disabled=false; render();
+    if(fatal){ alert("❌ Google rechazó la clave:\n\n\""+fatal+"\"\n\nCasi siempre es una de estas:\n1) No está activada la 'Places API (New)' en tu proyecto.\n2) No está activada la facturación (aunque no te cobren).\n3) La clave tiene restricciones que la bloquean.\nArréglalo y vuelve a pulsar."); }
+    else alert("✅ Google rellenó el teléfono en "+n+" de "+faltan.length+" bares (datos oficiales)."); return; }
   if(t.id==="buscaMails"){ const faltan=leadsFiltrados().filter(l=>!l.email); if(!faltan.length){ toast("Todos tienen email ya ✓"); return; }
     if(!confirm("Voy a buscar en la web el email y la web de "+faltan.length+" bares. Tarda unos segundos cada uno y algunos no tendrán email publicado. ¿Sigo?")) return;
     t.disabled=true; resetDiag(); let n=0,w=0;
@@ -1040,6 +1054,18 @@ async function buscarOSM(){
   }catch(e){ render(); const e2=$("#berr"); if(e2){ e2.textContent="No se pudo buscar gratis: "+e.message; e2.style.display="block"; } }
 }
 
+// Rellena teléfono y web OFICIALES de UN bar desde Google Places (clave del usuario). null si Google no lo tiene.
+async function googleFill(nombre, ciudad){ const key=(AJ().gkey||"").trim(); if(!key) throw new Error("Falta la clave de Google");
+  const zona=(ciudad&&!/^arucas$/i.test(ciudad))?ciudad:""; const q=(nombre+" "+zona+" Gran Canaria").replace(/\s+/g," ").trim();
+  const r=await fetchT("https://places.googleapis.com/v1/places:searchText",{ method:"POST",
+    headers:{ "Content-Type":"application/json","X-Goog-Api-Key":key,
+      "X-Goog-FieldMask":"places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount" },
+    body:JSON.stringify({ textQuery:q, languageCode:"es", maxResultCount:1 }) },12000);
+  const j=await r.json(); if(j.error) throw new Error(j.error.message||"Error de Google");
+  const p=(j.places||[])[0]; if(!p) return null;
+  const tel=p.nationalPhoneNumber||""; const dig=(p.internationalPhoneNumber||tel||"").replace(/[^0-9]/g,""); const n9=dig.length>9?dig.slice(-9):dig;
+  const wa=(n9.length===9 && /^(6|7[1-9])/.test(n9))?("34"+n9):"";
+  return { tel, web:p.websiteUri||"", whatsapp:wa, rating:p.rating||"", n:p.userRatingCount||0 }; }
 async function buscar(){
   const err=$("#berr"); err.style.display="none";
   const key=AJ().gkey; const q=$("#bq").value.trim(); const z=$("#bz").value.trim();
