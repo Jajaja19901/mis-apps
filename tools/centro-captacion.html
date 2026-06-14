@@ -209,6 +209,8 @@ async function buscarDatosWeb(nombre,ciudad,prof){
   // …Y tiene que ser DE ESTE bar, no de una web grande de la zona (turismo, destilería, otra empresa).
   if(email && !emailRelevante(email,nombre,web,pg)) email="";
   if(email) DIAG.email++;
+  if(prof){ const low=pg.toLowerCase(); const tk=tokensNombre(nombre); let idx=-1,tkf=""; for(const t of tk){ const i=low.indexOf(t); if(i>=0){idx=i;tkf=t;break;} }
+    extra._dbg={ pgLen:pg.length, jina:DIAG.jina, gg:DIAG.gg, ddg:DIAG.ddg, nombreEnTexto:idx>=0?("sí ("+tkf+")"):"NO", telsCerca:telCand.slice(0,6).join(", ")||"(ninguno)", telsTodos:sacaTel(pg).slice(0,8).join(", ")||"(ninguno)" }; }
   return Object.assign({ email, web }, extra);
 }
 // Convierte lo encontrado en un parche para el lead (solo rellena lo que falta; no pisa lo que ya hay).
@@ -626,9 +628,11 @@ document.addEventListener("click",async e=>{
   if(t.id==="addTodos"){ let n=0; RES.forEach(d=>{ if(addLead(leadDe(d))) n++; }); const rep=RES.length-n; toast(rep?(n+" nuevos añadidos · "+rep+" ya estaban en el pipeline (saltados para no repetir)"):(n+" añadidos al pipeline")); render(); return; }
   if(t.dataset.add!=null){ const d=RES[+t.dataset.add]; toast(addLead(leadDe(d))?"Añadido al pipeline ✓":"Ya estaba en el pipeline"); return; }
   if(t.dataset.rebuscar){ const l=LEADS().find(x=>x.id===t.dataset.rebuscar); const o=t.textContent; t.textContent="🔄…"; t.disabled=true;
+    resetDiag();
     try{ const d=await conTope(buscarDatosWeb(l.nombre,l.ciudad,true),55000); const patch=datosPatch(d,l);
-      if(Object.keys(patch).length){ upLead(l.id,patch); toast(l.nombre+": actualizado ✓ ("+Object.keys(patch).filter(k=>k!=="emailAuto").join(", ")+")"); render(); }
-      else { toast(l.nombre+": sin cambios — lo que hay ya es lo mejor que se encuentra"); t.textContent=o; t.disabled=false; }
+      const g=d._dbg||{}; const diag="\n\n— Diagnóstico —\nJina: "+(g.jina?"sí":"NO")+" · Google: "+(g.gg?"sí":"NO")+" · DDG: "+(g.ddg?"sí":"NO")+"\nTexto leído: "+(g.pgLen||0)+" letras\nNombre en el texto: "+(g.nombreEnTexto||"?")+"\nTeléfonos junto al nombre: "+(g.telsCerca||"?")+"\nTeléfonos en todo el texto: "+(g.telsTodos||"?");
+      if(Object.keys(patch).filter(k=>k!=="emailAuto").length){ upLead(l.id,patch); render(); alert(l.nombre+": ACTUALIZADO ✓\nCambios: "+Object.keys(patch).filter(k=>k!=="emailAuto").join(", ")+diag); }
+      else { t.textContent=o; t.disabled=false; alert(l.nombre+": sin cambios."+diag+"\n\n(Mándame esta foto y veo qué pasa.)"); }
     }catch(err){ toast("No se pudo reajustar: "+err.message); t.textContent=o; t.disabled=false; } return; }
   if(t.dataset.bmail){ const l=LEADS().find(x=>x.id===t.dataset.bmail); const o=t.textContent; t.textContent="🔎…"; t.disabled=true;
     try{ const d=await buscarDatosWeb(l.nombre,l.ciudad); const patch=datosPatch(d,l);
