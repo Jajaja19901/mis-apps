@@ -163,28 +163,26 @@ function diagTxt(){ return "Jina "+DIAG.jina+"/"+DIAG.total+" · Google "+DIAG.g
 async function buscarDatosWeb(nombre,ciudad,prof){
   DIAG.total++;
   const q="correo electronico email de "+nombre+" "+(ciudad||"");
-  // 1) Buscador de Jina: trae el CONTENIDO de los resultados (como la IA de Google). Aquí suele estar el email.
-  let pg=await jinaSearch(q); if(pg) DIAG.jina++;
+  // Limita cada trozo leído (antes acumulaba 500.000 letras; con los resultados de búsqueda basta).
+  const cap=t=>String(t||"").slice(0,11000);
+  // 1) Jina: contenido de los resultados (aquí suele estar el email).
+  let pg=cap(await jinaSearch(q)); if(pg) DIAG.jina++;
   let email=sacaEmails(pg)[0]||"";
-  // 2) Google/DDG. En modo PROFUNDO (botón Reajustar) se piden siempre, para pillar también el teléfono.
+  // 2) Si falta email o es modo a fondo: DuckDuckGo (contacto).
   if(!email || prof){
-    const gg=await traerWeb("https://www.google.com/search?q="+encodeURIComponent(q)); if(gg){ DIAG.gg++; pg+="\n"+gg; }
-    const ddg=await traerWeb("https://html.duckduckgo.com/html/?q="+encodeURIComponent(nombre+" "+(ciudad||"")+" telefono email contacto")); if(ddg){ DIAG.ddg++; pg+="\n"+ddg; }
-    pg=pg.trim(); email=email||sacaEmails(pg)[0]||"";
+    const ddg=cap(await traerWeb("https://html.duckduckgo.com/html/?q="+encodeURIComponent(nombre+" "+(ciudad||"")+" telefono email contacto"))); if(ddg){ DIAG.ddg++; pg+="\n"+ddg; }
   }
-  // En modo profundo, además una búsqueda ESPECÍFICA del teléfono (ahí es donde aparece el móvil).
-  if(prof){ const pj=await jinaSearch("telefono whatsapp movil contacto de "+nombre+" "+(ciudad||"")); if(pj) pg+="\n"+pj;
-    const pg2=await traerWeb("https://www.google.com/search?q="+encodeURIComponent("telefono "+nombre+" "+(ciudad||""))); if(pg2) pg+="\n"+pg2; }
+  // 3) En modo a fondo: búsqueda ESPECÍFICA del teléfono (ahí aparece el móvil real).
+  if(prof){ const pj=cap(await jinaSearch("telefono whatsapp movil de "+nombre+" "+(ciudad||""))); if(pj){ DIAG.gg++; pg+="\n"+pj; } }
+  email=email||sacaEmails(pg)[0]||"";
   if(pg) DIAG.texto++;
   if(!pg) throw new Error("ningún puente respondió, vuelve a intentarlo en un momento");
   const links=sacaLinks(pg);
   const web=links.find(u=>!WEB_BAD.test(u))||"";
-  // 3) Abrimos las primeras páginas (web/ficha/guía). En modo profundo seguimos aunque ya haya email (a por el teléfono).
-  for(const u of links.slice(0,prof?3:2)){
-    if(email && !prof) break;
-    const t=await traerWeb(u); if(!t) continue; pg+="\n"+t;
-    const e=sacaEmails(t); if(!email && e.length){ email=e[0]; if(!prof) break; }
-    if(!WEB_BAD.test(u)){ const c=await traerWeb(u.replace(/\/+$/,"")+"/contacto"); if(c){ pg+="\n"+c; const e2=sacaEmails(c); if(!email && e2.length){ email=e2[0]; } } }
+  // 4) Solo si AÚN falta el email, abrimos 1-2 páginas (web/ficha) a por él.
+  for(const u of (email?[]:links.slice(0,2))){
+    const t=cap(await traerWeb(u)); if(!t) continue; pg+="\n"+t;
+    const e=sacaEmails(t); if(e.length){ email=e[0]; }
   }
   const extra={};
   // Si hay clave de IA, lee TODO el texto reunido y saca datos. PERO solo aceptamos lo que
@@ -484,13 +482,17 @@ function vPipeline(){
     ${fc==="ninguno"?`<p class="note" style="color:var(--brand-d)">❓ Estos no tienen ni WhatsApp ni email localizado. Pulsa 🔎✉️ en cada uno (o el botón de arriba) para que busque su email en la web. Si aun así no aparece, es que no lo tienen publicado.</p>`:""}
     ${vis.length?`<div style="display:flex;flex-direction:column;gap:12px">
     ${vis.map(l=>{ const tq=toquePendiente(l); const waNum=waDe(l);
+      // teléfono mostrado = el mismo que se usa (móvil si hay; si no, el fijo). Etiquetado para no confundir.
+      const telMostrar = waNum ? ("+34 "+waNum.slice(2).replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4")) : (l.tel||"");
+      const telTipo = waNum ? ' <span style="color:#1d6f2b;font-size:11px">(móvil)</span>' : (l.tel?' <span style="color:#999;font-size:11px">(fijo)</span>':'');
+      const telLlamar = (l.tel||"").replace(/[^0-9+]/g,"");
       const aviso=tq?`<span class="alerta">↻ toca ${tq}º toque</span>`:(l.estado==="interesado"?'<span class="alerta" style="background:#fde8f0;border-color:#a3164f;color:#a3164f">🔥 ¡cerrar!</span>':"");
       return `<div style="border:1px solid #e4e4e4;border-radius:14px;padding:13px 15px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06)">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
         <div style="font-size:17px;font-weight:700;line-height:1.2">${esc(l.nombre)}</div>${aviso}</div>
       <div style="display:flex;flex-wrap:wrap;gap:5px 14px;font-size:13.5px;color:#444;margin-bottom:7px">
         <span>📍 ${esc(l.ciudad||"—")}${l.dir&&l.dir!==l.ciudad?" · "+esc(l.dir):""}</span>
-        <span>📞 ${l.tel?esc(l.tel):"<span style=color:#c33>—</span>"}</span>
+        <span>📞 ${telMostrar?esc(telMostrar)+telTipo:"<span style=color:#c33>—</span>"}</span>
         <span>✉️ ${l.email?esc(l.email):"<span style=color:#c33>sin email</span>"}</span>
         ${l.web?`<a href="${esc(l.web)}" target="_blank" rel="noopener">🌐 Web</a>`:""}
         ${l.instagram?`<a href="${esc(l.instagram)}" target="_blank" rel="noopener">📷 Instagram</a>`:""}
@@ -508,7 +510,9 @@ function vPipeline(){
         <label style="font-size:12px;color:var(--mut)">Plan: <select data-plan="${l.id}" style="padding:6px;font-size:13px"><option value="basico"${l.plan==="basico"?" selected":""}>Básica</option><option value="medio"${l.plan==="medio"?" selected":""}>Media</option><option value="top"${l.plan==="top"?" selected":""}>Digital</option></select></label>
         ${l.ultimo?`<span class="muted" style="font-size:11px">hace ${dias(l.ultimo)}d · ${l.toques||0} toque(s)</span>`:""}</div>
       <div style="display:flex;gap:7px;flex-wrap:wrap">
-        ${waNum?`<button class="btn btn-wa" data-wa="${l.id}" type="button">💬 WhatsApp</button>`:`<button class="mini" data-copy="${l.id}" type="button">📋 Copiar msj</button>`}
+        ${waNum?`<button class="btn btn-wa" data-wa="${l.id}" type="button">💬 WhatsApp</button>`
+          :telLlamar?`<a class="mini" href="tel:${esc(telLlamar)}" style="text-decoration:none;padding:0 12px;width:auto" title="Llamar (fijo, sin WhatsApp)">📞 Llamar</a> <button class="mini" data-copy="${l.id}" type="button">📋 Copiar</button>`
+          :`<button class="mini" data-copy="${l.id}" type="button">📋 Copiar msj</button>`}
         <button class="mini" data-ia="${l.id}" type="button" title="Mensaje escrito por IA">✨ IA</button>
         <button class="mini" data-mail="${l.id}" type="button" title="Escribir email">✉️ Email</button>
         ${l.email?"":`<button class="mini" data-bmail="${l.id}" type="button" title="Buscar su email en la web">🔎✉️ Buscar email</button>`}
