@@ -568,17 +568,27 @@ function colaRafaga(){
 function canalDe(l){ if(waDe(l)) return "wa"; if(l.email) return "email"; return "ninguno"; }
 // Leads que pasan TODOS los filtros activos. Lo usan la vista Y los botones de acción.
 function tieneTel(l){ return !!(l.tel||(l.whatsapp||"").replace(/\D/g,"").length>=9); }
-function leadsFiltrados(){ const f=load("filtro",""),fc=load("filtrocanal",""),fciu=load("filtrociudad",""),fweb=load("filtroweb",""),fem=load("filtroemail",""),ft=load("filtrotel",""),fkm=+load("filtrokm",0),fval=load("filtroval",""),fped=load("filtroped","");
-  return LEADS().filter(l=>(!f||l.estado===f)&&(!fc||canalDe(l)===fc)&&(!fciu||(l.ciudad||"—")===fciu)&&(fweb!=="sin"||!l.web)
+// Zona/isla de un negocio: 1º la etiqueta "isla:X" de Notas (la pone Apify), si no la deduce de la ciudad.
+function zonaDe(l){ const m=String(l.notas||"").match(/isla:([A-Za-zÀ-ÿ' ]+?)(?: -|$)/i); if(m) return m[1].trim();
+  const c=String(l.ciudad||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+  if(/lanzarote|arrecife|tias|teguise|yaiza|tinajo|haria/.test(c)) return "Lanzarote";
+  if(/fuerteventura|puerto del rosario|corralejo|morro jable|antigua|betancuria|la oliva|pajara|tuineje/.test(c)) return "Fuerteventura";
+  if(/gomera/.test(c)) return "La Gomera";
+  if(/el hierro|valverde|frontera/.test(c)) return "El Hierro";
+  if(/(santa cruz de la palma|los llanos|tazacorte|brena|garafia|barlovento|tijarafe)/.test(c)) return "La Palma";
+  if(/tenerife|la laguna|orotava|puerto de la cruz|cristianos|adeje|arona|granadilla|candelaria|tacoronte|icod|garachico|realejos|guimar|los gigantes/.test(c)) return "Tenerife";
+  return "Gran Canaria"; }
+function leadsFiltrados(){ const f=load("filtro",""),fc=load("filtrocanal",""),fzona=load("filtrozona",""),fciu=load("filtrociudad",""),fweb=load("filtroweb",""),fem=load("filtroemail",""),ft=load("filtrotel",""),fkm=+load("filtrokm",0),fval=load("filtroval",""),fped=load("filtroped","");
+  return LEADS().filter(l=>(!f||l.estado===f)&&(!fc||canalDe(l)===fc)&&(!fzona||zonaDe(l)===fzona)&&(!fciu||(l.ciudad||"—")===fciu)&&(fweb!=="sin"||!l.web)
     &&(!fem||(fem==="con"?!!l.email:!l.email))&&(!ft||(ft==="con"?tieneTel(l):!tieneTel(l)))
     &&(!fkm||(l.km!=null&&l.km<=fkm))&&(fval!=="si"||(Number(l.rating)>=4))&&(fped!=="si"||!!l.pedidos)); }
-function hayFiltro(){ return !!(load("filtro","")||load("filtrocanal","")||load("filtrociudad","")||load("filtroweb","")||load("filtroemail","")||load("filtrotel","")||+load("filtrokm",0)||load("filtroval","")||load("filtroped","")); }
+function hayFiltro(){ return !!(load("filtro","")||load("filtrocanal","")||load("filtrozona","")||load("filtrociudad","")||load("filtroweb","")||load("filtroemail","")||load("filtrotel","")||+load("filtrokm",0)||load("filtroval","")||load("filtroped","")); }
 var MOSTRAR=40, _sigPipe="";  // paginación: cuántas fichas se dibujan (más = ahoga el móvil)
 function vPipeline(){
   const L=LEADS(); const f=load("filtro",""); const fc=load("filtrocanal",""); const fciu=load("filtrociudad",""); const fweb=load("filtroweb","");
   let vis=leadsFiltrados();
   // si cambió el filtro (o el total), volvemos a empezar mostrando 40
-  const _sig=[f,fc,fciu,fweb,load("filtroemail",""),load("filtrotel",""),load("filtrokm",0),load("filtroval",""),load("filtroped",""),vis.length].join("|");
+  const _sig=[f,fc,load("filtrozona",""),fciu,fweb,load("filtroemail",""),load("filtrotel",""),load("filtrokm",0),load("filtroval",""),load("filtroped",""),vis.length].join("|");
   if(_sig!==_sigPipe){ _sigPipe=_sig; MOSTRAR=40; }
   const chips=["","nuevo","contactado","interesado","cliente","no"].map(k=>`<button class="mini" data-filtro="${k}" type="button" style="${f===k?"background:var(--brand);color:#fff;border-color:var(--brand)":""}">${k===""?"Todos":k}</button>`).join(" ");
   const nW=L.filter(l=>canalDe(l)==="wa").length, nE=L.filter(l=>canalDe(l)==="email").length, nN=L.filter(l=>canalDe(l)==="ninguno").length;
@@ -589,10 +599,14 @@ function vPipeline(){
   const chipsWeb=`<button class="mini" data-fweb="" type="button" style="${fweb===''?onSel:''}">Todos</button> <button class="mini" data-fweb="sin" type="button" style="${fweb==='sin'?onSel:''}">🔴 Sin web (${nSinWeb})</button>`;
   const chipsEmail=`<button class="mini" data-femail="" type="button" style="${fem===''?onSel:''}">Todos</button> <button class="mini" data-femail="con" type="button" style="${fem==='con'?onSel:''}">✉️ Con email (${nConEm})</button> <button class="mini" data-femail="sin" type="button" style="${fem==='sin'?onSel:''}">🔴 Sin email (${nSinEm})</button>`;
   const chipsTel=`<button class="mini" data-ftel="" type="button" style="${ft===''?onSel:''}">Todos</button> <button class="mini" data-ftel="con" type="button" style="${ft==='con'?onSel:''}">📞 Con teléfono (${nConTel})</button> <button class="mini" data-ftel="sin" type="button" style="${ft==='sin'?onSel:''}">📵 Sin teléfono (${nSinTel})</button>`;
-  // Ciudad: solo cuenta como ciudad real la que NO es fallback (ciudadReal!==false). Los leads OSM
-  // sin addr:city traen ciudadReal:false y NO se cuentan, para no fabricar un filtro de un solo grupo.
-  const ciu={}; L.forEach(l=>{ if(l.ciudadReal===false) return; const c=l.ciudad||"—"; if(c==="—") return; ciu[c]=(ciu[c]||0)+1; });
-  const ciuList=Object.entries(ciu).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  // Isla/zona: filtro grande de arriba. Dentro, las ciudades de esa isla.
+  const fzona=load("filtrozona","");
+  const zon={}; L.forEach(l=>{ const z=zonaDe(l); zon[z]=(zon[z]||0)+1; });
+  const zonList=Object.entries(zon).sort((a,b)=>b[1]-a[1]);
+  const chipsZona=zonList.length>1?(`<button class="mini" data-fzona="" type="button" style="${fzona===''?onSel:''}">Todas</button> `+zonList.map(([z,n])=>`<button class="mini" data-fzona="${esc(z)}" type="button" style="${fzona===z?onSel:''}">🏝️ ${esc(z)} (${n})</button>`).join(" ")):"";
+  // Ciudad: solo cuenta la ciudad real, y SOLO las de la isla seleccionada (jerárquico).
+  const ciu={}; L.forEach(l=>{ if(l.ciudadReal===false) return; if(fzona && zonaDe(l)!==fzona) return; const c=l.ciudad||"—"; if(c==="—") return; ciu[c]=(ciu[c]||0)+1; });
+  const ciuList=Object.entries(ciu).sort((a,b)=>b[1]-a[1]).slice(0,12);
   const chipsCiu=ciuList.length>1?(`<button class="mini" data-fciudad="" type="button" style="${fciu===''?onSel:''}">Todas</button> `+ciuList.map(([c,n])=>`<button class="mini" data-fciudad="${esc(c)}" type="button" style="${fciu===c?onSel:''}">${esc(c)} (${n})</button>`).join(" ")):"";
   const fkm=+load("filtrokm",0), fval=load("filtroval",""), fped=load("filtroped","");
   const nKm=L.filter(l=>l.km!=null).length;
@@ -620,7 +634,8 @@ function vPipeline(){
     <div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por email:</b><br>${chipsEmail}</div>
     <div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por teléfono:</b><br>${chipsTel}</div>
     <div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por web:</b><br>${chipsWeb}</div>
-    ${chipsCiu?`<div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por ciudad:</b><br>${chipsCiu}</div>`:""}
+    ${chipsZona?`<div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por isla / zona:</b><br>${chipsZona}</div>`:""}
+    ${chipsCiu?`<div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por ciudad${fzona?" (en "+esc(fzona)+")":""}:</b><br>${chipsCiu}</div>`:""}
     <div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por distancia:</b><br>${chipsKm}</div>
     ${(nVal||nPed)?`<div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Extra:</b><br>${chipsExtra}</div>`:""}
     <div style="margin:0 0 4px"><b style="font-size:12px;color:var(--mut)">Por estado:</b><br>${chips}</div>
@@ -891,6 +906,7 @@ document.addEventListener("click",async e=>{
   if(t.dataset.fweb!=null){ save("filtroweb",t.dataset.fweb); render(); return; }
   if(t.dataset.femail!=null){ save("filtroemail",t.dataset.femail); render(); return; }
   if(t.dataset.ftel!=null){ save("filtrotel",t.dataset.ftel); render(); return; }
+  if(t.dataset.fzona!=null){ save("filtrozona",t.dataset.fzona); save("filtrociudad",""); render(); return; }
   if(t.dataset.fciudad!=null){ save("filtrociudad",t.dataset.fciudad); render(); return; }
   if(t.dataset.fkm!=null){ save("filtrokm",t.dataset.fkm); render(); return; }
   // Valoración y "vende online" son independientes y combinables entre sí (y con el resto de filtros).
