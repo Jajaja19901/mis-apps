@@ -419,7 +419,7 @@ function exportCSV(){ const L=LEADS(); if(!L.length){ toast("No hay leads"); ret
   const a=document.createElement("a"); a.href=u; a.download="captacion-"+new Date().toISOString().slice(0,10)+".csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),1500); }
 
 /* ════ vistas ════ */
-let TAB=load("tab","pipeline"); let RES=[];
+let TAB=load("tab","pipeline"); let RES=[]; let RESF={tipo:"",ciudad:"",maxkm:0};
 function render(){ document.querySelectorAll("#tabs button").forEach(b=>b.setAttribute("aria-pressed",b.dataset.t===TAB?"true":"false"));
   const v={buscar:vBuscar,pipeline:vPipeline,embudo:vEmbudo,resumen:vResumen,ajustes:vAjustes}[TAB]||vPipeline; $("#app").innerHTML=v(); }
 
@@ -440,20 +440,40 @@ function vBuscar(){
     <p class="note" style="margin:0 0 8px">¿Compraste una lista de <b>Outscraper</b>, Apify o similar (con email y teléfono)? Súbela aquí y entra al pipeline con todo. También vale el CSV que exporta este mismo panel.</p>
     <input type="file" id="csvFile" accept=".csv,text/csv"></div>
   <div class="card" id="bres" style="display:${RES.length?"":"none"}">
-    <h2>Resultados (${RES.length}) <button class="btn btn-g" id="addTodos" type="button" style="float:right">+ Añadir todos al pipeline</button></h2>
-    ${RES.length>4?`<input id="qRes" type="search" placeholder="🔍 Filtrar resultados por nombre o ciudad…" style="width:100%;padding:10px 13px;border:1.5px solid #ddd;border-radius:10px;margin-bottom:10px;font-size:14px">`:""}
-    <div style="display:flex;flex-direction:column;gap:10px;max-height:62vh;overflow:auto">
-    ${RES.map((d,i)=>`<div class="rescard" data-buscar="${esc(((d.nombre||"")+" "+(d.ciudad||"")+" "+(d.dir||"")).toLowerCase())}" style="border:1px solid #e4e4e4;border-radius:12px;padding:11px 13px;background:#fff">
+    ${(function(){
+      const nSinWeb=RES.filter(d=>!d.web).length, nTel=RES.filter(d=>d.tel).length;
+      const ciudades={}; RES.forEach(d=>{ const c=d.ciudad||"—"; ciudades[c]=(ciudades[c]||0)+1; });
+      const onSel="background:var(--ink);color:#fff;border-color:var(--ink)";
+      const tipoChips=[["","Todos",RES.length],["sinweb","🔴 Sin web",nSinWeb],["contel","📞 Con teléfono",nTel]]
+        .map(([k,t,n])=>`<button class="mini" data-rtipo="${k}" type="button" style="${RESF.tipo===k?onSel:''}">${t} (${n})</button>`).join(" ");
+      const hayKm=RES.some(d=>d.km!=null);
+      const kmChips=hayKm?("<div style='margin-top:6px'><b style='font-size:11px;color:var(--mut)'>Por distancia:</b><br>"+
+        [[0,"Todas"],[3,"≤3 km"],[6,"≤6 km"],[10,"≤10 km"]].map(([k,t])=>`<button class="mini" data-rkm="${k}" type="button" style="${RESF.maxkm===k?onSel:''}">${t}</button>`).join(" ")+"</div>"):"";
+      const cityList=Object.entries(ciudades).sort((a,b)=>b[1]-a[1]).slice(0,10);
+      const cityChips=cityList.length>1?("<div style='margin-top:6px'><b style='font-size:11px;color:var(--mut)'>Por ciudad:</b><br>"+
+        `<button class="mini" data-rciudad="" type="button" style="${RESF.ciudad===''?onSel:''}">Todas</button> `+
+        cityList.map(([c,n])=>`<button class="mini" data-rciudad="${esc(c)}" type="button" style="${RESF.ciudad===c?onSel:''}">${esc(c)} (${n})</button>`).join(" ")+"</div>"):"";
+      return `<h2>Resultados (${RES.length}) <button class="btn btn-g" id="addTodos" type="button" style="float:right">+ Añadir los filtrados</button></h2>
+      <div style="margin-bottom:6px">${tipoChips}</div>${kmChips}${cityChips}`;
+    })()}
+    ${RES.length>4?`<input id="qRes" type="search" placeholder="🔍 Filtrar por nombre…" style="width:100%;padding:10px 13px;border:1.5px solid #ddd;border-radius:10px;margin:10px 0;font-size:14px">`:""}
+    <div style="display:flex;flex-direction:column;gap:10px;max-height:58vh;overflow:auto">
+    ${(function(){
+      const pasa=d=>(!RESF.ciudad||(d.ciudad||"—")===RESF.ciudad)&&(RESF.tipo!=="sinweb"||!d.web)&&(RESF.tipo!=="contel"||!!d.tel)&&(!RESF.maxkm||(d.km!=null&&d.km<=RESF.maxkm));
+      const vis=RES.map((d,i)=>({d,i})).filter(x=>pasa(x.d));
+      if(!vis.length) return `<div class="vacio">Ningún resultado con ese filtro.</div>`;
+      return vis.map(({d,i})=>`<div class="rescard" data-buscar="${esc(((d.nombre||"")+" "+(d.ciudad||"")+" "+(d.dir||"")).toLowerCase())}" style="border:1px solid #e4e4e4;border-radius:12px;padding:11px 13px;background:#fff">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div style="font-size:15.5px;font-weight:700;line-height:1.2">${d.score>=55?"🔥🔥🔥 ":d.score>=35?"🔥🔥 ":d.score>=20?"🔥 ":""}${esc(d.nombre)}</div>
         <button class="mini" data-add="${i}" type="button">+ Pipeline</button></div>
-      <div style="font-size:12.5px;color:#666;margin:4px 0">📍 ${esc(d.ciudad||"")}${d.dir?" · "+esc(d.dir):""}</div>
+      <div style="font-size:12.5px;color:#666;margin:4px 0">📍 ${esc(d.ciudad||"")}${d.km!=null?" · a "+d.km+" km":""}${d.dir?" · "+esc(d.dir):""}</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px">
         <span>📞 ${esc(d.tel)||"<span style=color:#c33>—</span>"}</span>
         <span>${d.web?`🌐 <a href="${esc(d.web)}" target="_blank" rel="noopener">web</a>`:'<b style="color:var(--brand-d)">sin web</b>'}</span>
         ${d.rating?`<span>⭐ ${d.rating} (${d.n})</span>`:""}</div>
       <div style="font-size:12px;color:#888;margin-top:4px">${esc(d.motivo)}</div>
-    </div>`).join("")}
+    </div>`).join("");
+    })()}
     </div></div>`;
 }
 
@@ -663,7 +683,11 @@ document.addEventListener("click",async e=>{
       upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 }); render();
     }catch(err){ toast("IA: "+err.message); t.textContent=orig; t.disabled=false; }
     return; }
-  if(t.id==="addTodos"){ let n=0; RES.forEach(d=>{ if(addLead(leadDe(d))) n++; }); const rep=RES.length-n; toast(rep?(n+" nuevos añadidos · "+rep+" ya estaban en el pipeline (saltados para no repetir)"):(n+" añadidos al pipeline")); render(); return; }
+  if(t.dataset.rtipo!=null){ RESF.tipo=t.dataset.rtipo; render(); return; }
+  if(t.dataset.rkm!=null){ RESF.maxkm=+t.dataset.rkm; render(); return; }
+  if(t.dataset.rciudad!=null){ RESF.ciudad=t.dataset.rciudad; render(); return; }
+  if(t.id==="addTodos"){ const pasa=d=>(!RESF.ciudad||(d.ciudad||"—")===RESF.ciudad)&&(RESF.tipo!=="sinweb"||!d.web)&&(RESF.tipo!=="contel"||!!d.tel)&&(!RESF.maxkm||(d.km!=null&&d.km<=RESF.maxkm));
+    const sel=RES.filter(pasa); let n=0; sel.forEach(d=>{ if(addLead(leadDe(d))) n++; }); const rep=sel.length-n; toast(rep?(n+" nuevos añadidos · "+rep+" ya estaban (saltados)"):(n+" añadidos al pipeline")); render(); return; }
   if(t.dataset.add!=null){ const d=RES[+t.dataset.add]; toast(addLead(leadDe(d))?"Añadido al pipeline ✓":"Ya estaba en el pipeline"); return; }
   if(t.dataset.rebuscar){ const l=LEADS().find(x=>x.id===t.dataset.rebuscar); const o=t.textContent; t.textContent="🔄…"; t.disabled=true;
     resetDiag();
@@ -843,6 +867,8 @@ function osmFiltros(tipo){
   // término no reconocido → barrido amplio de cualquier negocio
   return ['["shop"]','["craft"]','["office"]','["amenity"~"^(pharmacy|clinic|dentist|doctors|veterinary|fuel|bank)$"]','["tourism"~"^(hotel|guest_house)$"]'];
 }
+// Distancia en km entre dos puntos (para filtrar por cercanía).
+function distKm(lat1,lon1,lat2,lon2){ const R=6371,toR=x=>x*Math.PI/180; const dLat=toR(lat2-lat1),dLon=toR(lon2-lon1); const a=Math.sin(dLat/2)**2+Math.cos(toR(lat1))*Math.cos(toR(lat2))*Math.sin(dLon/2)**2; return Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))*10)/10; }
 // Cadenas/franquicias que NO son clientes (tienen su propio sistema). Se filtran de la búsqueda.
 const CADENAS=/(mcdonald|burger\s*king|\bkfc\b|telepizza|domino|pizza\s*hut|starbucks|subway|foster|100\s*montaditos|taco\s*bell|popeyes|five\s*guys|goiko|dunkin|costa\s*coffee|papa\s*john|wendy|rodilla|lizarr|la\s*sureña|\bginos\b|tagliatella|\budon\b|muerde\s*la\s*pasta|\btgb\b|santagloria|granier|400\s*grados|carrefour|mercadona|\blidl\b|\bdia\b|\baldi\b|repsol|cepsa|\bshell\b|\bbp\b|\bgalp\b|vips|cañas\s*y\s*tapas|tierra\s*burrito|honest\s*greens)/i;
 function esCadena(t){ return !!(t&&(t.brand||t["brand:wikidata"]||CADENAS.test(t.name||""))); }
@@ -872,10 +898,13 @@ async function buscarOSM(){
       const dir=[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ")||t["addr:suburb"]||t["addr:city"]||"";
       const ciudad=t["addr:city"]||t["addr:town"]||t["addr:village"]||t["addr:municipality"]||z; // ciudad REAL del negocio
       const tel=t.phone||t["contact:phone"]||t["contact:mobile"]||"";
-      return { nombre:t.name, dir, ciudad, tel, inter:tel, web:t.website||t["contact:website"]||"", rating:"", n:0 }; })
+      const elat=e.lat||(e.center&&e.center.lat), elon=e.lon||(e.center&&e.center.lon);
+      const km=(elat&&elon)?distKm(+lat,+lon,+elat,+elon):null;
+      return { nombre:t.name, dir, ciudad, km, tel, inter:tel, web:t.website||t["contact:website"]||"", rating:"", n:0 }; })
       .filter(d=>{ const k=d.nombre.toLowerCase(); if(seen[k])return false; seen[k]=1; return true; });
     RES.forEach(d=>{ const sc=score(d); d.score=sc.v; d.motivo=sc.m; });
     RES.sort((a,b)=>b.score-a.score);
+    RESF={tipo:"",ciudad:"",maxkm:0}; // filtro limpio en cada búsqueda nueva
     render();
     if(!RES.length){ const e2=$("#berr"); if(e2){ e2.textContent="No salió ningún bar en esa zona. Prueba con una ciudad más grande cerca."; e2.style.display="block"; } }
   }catch(e){ render(); const e2=$("#berr"); if(e2){ e2.textContent="No se pudo buscar gratis: "+e.message; e2.style.display="block"; } }
@@ -905,6 +934,7 @@ async function buscar(){
     }while(pageToken&&vueltas<3);
     RES.forEach(d=>{ const sc=score(d); d.score=sc.v; d.motivo=sc.m; });
     RES.sort((a,b)=>b.score-a.score);
+    RESF={tipo:"",ciudad:"",maxkm:0}; // filtro limpio en cada búsqueda nueva
     render();
   }catch(e){ render(); const e2=$("#berr"); if(e2){ e2.textContent="No se pudo buscar: "+e.message; e2.style.display="block"; } }
 }
