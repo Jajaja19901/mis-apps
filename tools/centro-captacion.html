@@ -441,12 +441,13 @@ function vBuscar(){
     <input type="file" id="csvFile" accept=".csv,text/csv"></div>
   <div class="card" id="bres" style="display:${RES.length?"":"none"}">
     <h2>Resultados (${RES.length}) <button class="btn btn-g" id="addTodos" type="button" style="float:right">+ Añadir todos al pipeline</button></h2>
+    ${RES.length>4?`<input id="qRes" type="search" placeholder="🔍 Filtrar resultados por nombre o ciudad…" style="width:100%;padding:10px 13px;border:1.5px solid #ddd;border-radius:10px;margin-bottom:10px;font-size:14px">`:""}
     <div style="display:flex;flex-direction:column;gap:10px;max-height:62vh;overflow:auto">
-    ${RES.map((d,i)=>`<div style="border:1px solid #e4e4e4;border-radius:12px;padding:11px 13px;background:#fff">
+    ${RES.map((d,i)=>`<div class="rescard" data-buscar="${esc(((d.nombre||"")+" "+(d.ciudad||"")+" "+(d.dir||"")).toLowerCase())}" style="border:1px solid #e4e4e4;border-radius:12px;padding:11px 13px;background:#fff">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
         <div style="font-size:15.5px;font-weight:700;line-height:1.2">${d.score>=55?"🔥🔥🔥 ":d.score>=35?"🔥🔥 ":d.score>=20?"🔥 ":""}${esc(d.nombre)}</div>
         <button class="mini" data-add="${i}" type="button">+ Pipeline</button></div>
-      <div style="font-size:12.5px;color:#666;margin:4px 0">${esc(d.dir)}</div>
+      <div style="font-size:12.5px;color:#666;margin:4px 0">📍 ${esc(d.ciudad||"")}${d.dir?" · "+esc(d.dir):""}</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px">
         <span>📞 ${esc(d.tel)||"<span style=color:#c33>—</span>"}</span>
         <span>${d.web?`🌐 <a href="${esc(d.web)}" target="_blank" rel="noopener">web</a>`:'<b style="color:var(--brand-d)">sin web</b>'}</span>
@@ -790,8 +791,9 @@ document.addEventListener("click",async e=>{
 });
 
 // Buscador del Pipeline: filtra las fichas en vivo, sin recargar (no pierde el foco al escribir).
-document.addEventListener("input",e=>{ if(e.target.id!=="qLead") return; const qq=e.target.value.trim().toLowerCase();
-  let vistos=0; document.querySelectorAll(".leadcard").forEach(c=>{ const ok=!qq||(c.dataset.buscar||"").indexOf(qq)>=0; c.style.display=ok?"":"none"; if(ok)vistos++; });
+document.addEventListener("input",e=>{
+  if(e.target.id==="qLead"||e.target.id==="qRes"){ const qq=e.target.value.trim().toLowerCase(); const cls=e.target.id==="qRes"?".rescard":".leadcard";
+    document.querySelectorAll(cls).forEach(c=>{ c.style.display=(!qq||(c.dataset.buscar||"").indexOf(qq)>=0)?"":"none"; }); }
 });
 document.addEventListener("change",e=>{
   const s=e.target;
@@ -800,7 +802,7 @@ document.addEventListener("change",e=>{
   if(s.dataset&&s.dataset.plan){ upLead(s.dataset.plan,{plan:s.value}); render(); }
 });
 
-function leadDe(d){ const t9=(d.tel||d.inter||"").replace(/\D/g,"").slice(-9); return { nombre:d.nombre, ciudad:load("bz",""), dir:d.dir, tel:d.tel, whatsapp:esMovil(t9)?("34"+t9):"", web:d.web, rating:d.rating, n:d.n, score:d.score||0, origen:"busqueda" }; }
+function leadDe(d){ const t9=(d.tel||d.inter||"").replace(/\D/g,"").slice(-9); return { nombre:d.nombre, ciudad:d.ciudad||load("bz",""), dir:d.dir, tel:d.tel, whatsapp:esMovil(t9)?("34"+t9):"", web:d.web, rating:d.rating, n:d.n, score:d.score||0, origen:"busqueda" }; }
 function importarEmbudo(id,silencio){ let E=[]; try{ E=JSON.parse(localStorage.getItem("incuba_leads_v1")||"[]"); }catch(e){}
   const l=E.find(x=>x.id===id); if(!l) return;
   if(LEADS().some(x=>x.embudoId===id)){ if(!silencio) toast("Ya estaba importado"); return; }
@@ -867,9 +869,10 @@ async function buscarOSM(){
     if(!j) throw new Error("Los servidores de OpenStreetMap están ocupados. Prueba otra vez en un minuto.");
     const seen={};
     RES=(j.elements||[]).filter(e=>e.tags&&e.tags.name && !esCadena(e.tags)).map(e=>{ const t=e.tags;
-      const dir=[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ")||t["addr:suburb"]||t["addr:city"]||z;
+      const dir=[t["addr:street"],t["addr:housenumber"]].filter(Boolean).join(" ")||t["addr:suburb"]||t["addr:city"]||"";
+      const ciudad=t["addr:city"]||t["addr:town"]||t["addr:village"]||t["addr:municipality"]||z; // ciudad REAL del negocio
       const tel=t.phone||t["contact:phone"]||t["contact:mobile"]||"";
-      return { nombre:t.name, dir, tel, inter:tel, web:t.website||t["contact:website"]||"", rating:"", n:0 }; })
+      return { nombre:t.name, dir, ciudad, tel, inter:tel, web:t.website||t["contact:website"]||"", rating:"", n:0 }; })
       .filter(d=>{ const k=d.nombre.toLowerCase(); if(seen[k])return false; seen[k]=1; return true; });
     RES.forEach(d=>{ const sc=score(d); d.score=sc.v; d.motivo=sc.m; });
     RES.sort((a,b)=>b.score-a.score);
