@@ -165,6 +165,9 @@ async function buscarDatosWeb(nombre,ciudad,prof){
     const ddg=await traerWeb("https://html.duckduckgo.com/html/?q="+encodeURIComponent(nombre+" "+(ciudad||"")+" telefono email contacto")); if(ddg){ DIAG.ddg++; pg+="\n"+ddg; }
     pg=pg.trim(); email=email||sacaEmails(pg)[0]||"";
   }
+  // En modo profundo, además una búsqueda ESPECÍFICA del teléfono (ahí es donde aparece el móvil).
+  if(prof){ const pj=await jinaSearch("telefono whatsapp movil contacto de "+nombre+" "+(ciudad||"")); if(pj) pg+="\n"+pj;
+    const pg2=await traerWeb("https://www.google.com/search?q="+encodeURIComponent("telefono "+nombre+" "+(ciudad||""))); if(pg2) pg+="\n"+pg2; }
   if(pg) DIAG.texto++;
   if(!pg) throw new Error("ningún puente respondió, vuelve a intentarlo en un momento");
   const links=sacaLinks(pg);
