@@ -130,21 +130,23 @@ async function jinaSearch(q){ const jk=(AJ().jinaKey||"").trim(); const h={"Acce
   return "";
 }
 function sacaEmails(txt){ const out=[],seen={}; (String(txt).match(EMAIL_RE)||[]).forEach(e=>{ e=e.toLowerCase().replace(/[.,;:]+$/,""); if(EMAIL_BLACK.test(e))return; if(e.length>60)return; if(seen[e])return; seen[e]=1; out.push(e); }); return out; }
-// Saca teléfonos españoles válidos (móvil 6/7 o fijo 9x). Descarta premium/especiales (90x, 80x).
+// Móvil español válido: 6xx, o 7 seguido de 1-9 (el 70x es numeración personal, no móvil normal).
+function esMovil(d){ return /^6/.test(d)||/^7[1-9]/.test(d); }
+// Saca teléfonos españoles válidos. Descarta premium/especiales/no asignados (80x, 90x, 99x).
 function sacaTel(txt){ const out=[],seen={}; const re=/(?:\+?34[\s.\-]?)?([6789]\d{2}[\s.\-]?\d{2}[\s.\-]?\d{2}[\s.\-]?\d{2})/g; let m;
-  while((m=re.exec(String(txt)))){ const d=m[1].replace(/\D/g,""); if(d.length===9 && !/^(8|90)/.test(d) && !seen[d]){ seen[d]=1; out.push(d); } } return out; }
-// Teléfonos que aparecen PEGADOS al nombre del bar (mira TODAS las veces que sale el nombre,
-// no solo la primera — el dato puede estar en cualquier mención dentro del texto).
+  while((m=re.exec(String(txt)))){ const d=m[1].replace(/\D/g,""); if(d.length===9 && !/^(8|90|99)/.test(d) && !seen[d]){ seen[d]=1; out.push(d); } } return out; }
+// Teléfonos PEGADOS al nombre del bar, ORDENADOS por cuántas veces salen (el real se repite en
+// muchas fichas; la basura sale una vez). Mira TODAS las menciones del nombre, no solo la primera.
 function telCerca(pg,nombre){ const low=String(pg).toLowerCase(); const toks=tokensNombre(nombre); if(!toks.length) return [];
-  const out=[],seen={};
+  const cnt={};
   for(const tok of toks){ let from=0,idx;
-    while((idx=low.indexOf(tok,from))>=0 && out.length<12){
+    while((idx=low.indexOf(tok,from))>=0){
       const zona=String(pg).slice(Math.max(0,idx-200), idx+400);
-      for(const d of sacaTel(zona)){ if(!seen[d]){ seen[d]=1; out.push(d); } }
-      from=idx+tok.length;
+      for(const d of sacaTel(zona)) cnt[d]=(cnt[d]||0)+1;
+      from=idx+tok.length; if(Object.keys(cnt).length>50) break;
     }
   }
-  return out; }
+  return Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]); } // el más repetido primero
 function sacaWeb(txt){ return sacaLinks(txt).find(u=>!WEB_BAD.test(u))||""; }
 // Saca los enlaces de resultados de la búsqueda (incluye guías y Facebook: ahí suele estar el email
 // de los bares SIN web). Descarta buscadores, proxies e imágenes. Uno por dominio, máx 5.
@@ -200,14 +202,14 @@ async function buscarDatosWeb(nombre,ciudad,prof){
         if(d.pedidos_online===true) extra.pedidos=true; }
     }catch(e){}
   }
-  // Teléfono: PEGADO al nombre del bar, y PREFIRIENDO el móvil (6/7) sobre el fijo.
-  const telCand=telCerca(pg,nombre); const movil=telCand.find(d=>/^[67]/.test(d)); let telD="";
-  if(movil) telD=movil;                                          // si hay móvil, ese (vale para WhatsApp)
-  else if(aiTel.length===9 && telCand.includes(aiTel)) telD=aiTel; // si no, el de la IA (si está junto al nombre)
-  else if(telCand.length) telD=telCand[0];                       // si no, el primero pegado al nombre
+  // Teléfono: el más repetido junto al nombre, PREFIRIENDO un móvil válido (el real, no la basura).
+  const telCand=telCerca(pg,nombre); const movil=telCand.find(esMovil); let telD="";
+  if(movil) telD=movil;                                          // el móvil más repetido (vale para WhatsApp)
+  else if(esMovil(aiTel) && telCand.includes(aiTel)) telD=aiTel; // si no, el móvil de la IA
+  else if(telCand.length) telD=telCand[0];                       // si no, el fijo más repetido
   if(telD){
     extra.tel="+34 "+telD.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4");
-    if(/^[67]/.test(telD)) extra.whatsapp="34"+telD; // solo los móviles sirven para WhatsApp
+    if(esMovil(telD)) extra.whatsapp="34"+telD; // solo los móviles válidos sirven para WhatsApp
   }
   // Seguridad final: el email tiene que estar literal en el texto leído (no se inventa)…
   if(email && !pg.toLowerCase().includes(email.toLowerCase())) email="";
@@ -221,7 +223,7 @@ async function buscarDatosWeb(nombre,ciudad,prof){
 // Convierte lo encontrado en un parche para el lead (solo rellena lo que falta; no pisa lo que ya hay).
 function datosPatch(d,l){ const p={}; if(d.email&&!l.email){p.email=d.email; p.emailAuto=true;} if(d.web&&!l.web)p.web=d.web;
   // teléfono: rellena si falta, o MEJORA un fijo por un móvil encontrado
-  if(d.tel){ const nuevoMovil=/^(\+?34)?[\s.]*[67]/.test(String(d.tel).replace(/\s/g,"")); const curMovil=/^[67]/.test((l.tel||"").replace(/\D/g,"").slice(-9)); if(!l.tel || (nuevoMovil&&!curMovil)) p.tel=d.tel; }
+  if(d.tel){ const nuevoMovil=esMovil(String(d.tel).replace(/\D/g,"").slice(-9)); const curMovil=esMovil((l.tel||"").replace(/\D/g,"").slice(-9)); if(!l.tel || (nuevoMovil&&!curMovil)) p.tel=d.tel; }
   if(d.whatsapp && !waDe(l)) p.whatsapp=d.whatsapp; // pon el móvil de WhatsApp si el lead aún no tiene uno
   if(d.instagram&&!l.instagram)p.instagram=d.instagram; if(d.facebook&&!l.facebook)p.facebook=d.facebook; if(d.tiktok&&!l.tiktok)p.tiktok=d.tiktok; if(d.pedidos)p.pedidos=true; return p; }
 function incompleto(l){ return !l.tel || !l.web || (!l.instagram&&!l.facebook); }
@@ -441,9 +443,9 @@ function vBuscar(){
 
 /* Cola del Modo Ráfaga: primero los seguimientos pendientes (más calientes), luego los
    nuevos por puntuación. Solo bares con WhatsApp (a los sin número no se les puede abrir chat). */
-// Número listo para WhatsApp: SOLO móviles (empiezan por 6 o 7). Los fijos NO tienen WhatsApp.
+// Número listo para WhatsApp: SOLO móviles válidos (6xx o 71x-79x). Los fijos/raros NO tienen WhatsApp.
 function waDe(l){ const core=s=>{ let d=(s||"").replace(/\D/g,""); if(d.length>9) d=d.slice(-9); return d.length===9?d:""; };
-  let d=core(l.whatsapp); if(!/^[67]/.test(d)) d=core(l.tel); return /^[67]/.test(d)?("34"+d):""; }
+  let d=core(l.whatsapp); if(!esMovil(d)) d=core(l.tel); return esMovil(d)?("34"+d):""; }
 function colaRafaga(){
   const L=LEADS().filter(l=>waDe(l));
   const seguimientos=L.filter(l=>toquePendiente(l)>0);
