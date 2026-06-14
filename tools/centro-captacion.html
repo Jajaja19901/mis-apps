@@ -829,13 +829,14 @@ document.addEventListener("click",async e=>{
     const jk=(AJ().jinaKey||"").trim();
     let puente=false, ia=null;
     try{ const r=await traerWeb("https://example.com"); if(r && /example|domain/i.test(r)) puente=true; }catch(e){}
-    let html="<b>0) Clave Jina:</b> "+(jk?"✅ puesta":"❌ FALTA — sin ella no entra en internet. Sácala gratis en jina.ai y actívala arriba.");
-    html+="<br><b>1) Internet desde la página:</b> "+(puente?"✅ funciona (puede buscar emails)":"❌ BLOQUEADO. Pon la clave Jina (gratis), o abre la app en <b>Chrome</b> (no en el explorador de archivos).");
+    let html="<b>0) Buscar negocios (mapa):</b> ✅ funciona siempre (es conexión directa, no depende de esto).";
+    html+="<br><b>1) Clave Jina:</b> "+(jk?"✅ puesta":"⬜ sin clave");
+    html+="<br><b>2) Puente para EMAILS:</b> "+(puente?"✅ funciona (puede sacar emails)":"❌ no responde ahora — Jina agotada o puentes ocupados. La búsqueda de negocios sigue yendo igual; solo afecta a sacar emails.");
     const key=(AJ().iaKey||"").trim();
     if(key){ try{ const d=await iaExtrae("Bar de Prueba. Escríbenos a hola@barprueba.es. Instagram https://instagram.com/barprueba","Bar de Prueba"); ia=!!(d&&d.email); }catch(e){ ia=false; }
-      html+="<br><b>2) IA ("+proveedorDe(key)+"):</b> "+(ia?"✅ responde bien":"❌ no responde. Revisa que la clave esté bien pegada y Activada."); }
-    else html+="<br><b>2) IA:</b> ⬜ no has puesto la clave de Groq todavía.";
-    html+="<br><br>"+((puente&&ia)?"🎉 <b>Todo listo: la app puede buscar emails.</b> Ve al Pipeline y dale a 🔎✉️.":"⚠️ Arregla lo que salga en rojo y vuelve a probar.");
+      html+="<br><b>3) IA ("+proveedorDe(key)+"):</b> "+(ia?"✅ responde bien":"❌ no responde. Revisa que la clave esté bien pegada y Activada."); }
+    else html+="<br><b>3) IA:</b> ⬜ no has puesto la clave de Groq todavía.";
+    html+="<br><br>"+(puente?"🎉 <b>Todo listo: también puede sacar emails.</b>":"ℹ️ <b>Puedes seguir trabajando</b> (buscar negocios, teléfonos, mensajes). Solo el sacar emails automático está parado por el cupo/puentes.");
     out.innerHTML=html; toast(puente?"Conexión OK":"Sin internet en la página"); return; }
   if(t.id==="aIaOn"){ const a=AJ(); a.iaKey=($("#aIa")?$("#aIa").value.trim():""); save("ajustes",a); render();
     toast(a.iaKey?("✅ IA activada — "+proveedorDe(a.iaKey)):"Clave de IA borrada"); return; }
