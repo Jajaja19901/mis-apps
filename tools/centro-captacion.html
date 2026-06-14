@@ -181,6 +181,7 @@ async function buscarDatosWeb(nombre,ciudad){
           if(/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(e) && !EMAIL_BLACK.test(e) && low.includes(e)) email=email||e; } // SOLO si está escrito tal cual
         if(d.instagram && low.includes(String(d.instagram).toLowerCase().replace(/^https?:\/\//,"").replace(/\/$/,""))) extra.instagram=d.instagram;
         if(d.facebook && low.includes(String(d.facebook).toLowerCase().replace(/^https?:\/\//,"").replace(/\/$/,""))) extra.facebook=d.facebook;
+        if(d.tiktok && low.includes(String(d.tiktok).toLowerCase().replace(/^https?:\/\//,"").replace(/\/$/,""))) extra.tiktok=d.tiktok;
         if(d.telefono){ const td=String(d.telefono).replace(/\D/g,""); if(td.length>=9 && dig.includes(td.slice(-9))) extra.telD=td.slice(-9); } // el nº debe estar en el texto
         if(d.pedidos_online===true) extra.pedidos=true; }
     }catch(e){}
@@ -205,7 +206,7 @@ function datosPatch(d,l){ const p={}; if(d.email){p.email=d.email; p.emailAuto=t
 // La IA lee el texto de la web del local y devuelve sus datos en JSON. NUNCA inventa (instruido).
 async function iaExtrae(texto,nombre){
   const key=(AJ().iaKey||"").trim(); if(!key) return null;
-  const sys="Eres un extractor que COPIA datos escritos en un texto. Te paso texto de webs/fichas de un negocio. Devuelve SOLO un JSON plano (sin markdown) con: email, instagram, facebook, telefono, pedidos_online, reservas. REGLAS ABSOLUTAS: (1) email: copia un correo SOLO si aparece escrito tal cual en el texto, con su arroba. ESTÁ PROHIBIDO construir, deducir o adivinar un correo a partir del nombre del negocio o de su dominio (NO inventes 'info@nombre.com'). Si en el texto no hay ningún correo escrito, email=null. (2) Ignora correos de plataformas/portales (paginasamarillas, cylex, tripadvisor, just eat, glovo, kioskoymas, wordpress, wix...). (3) instagram, facebook, telefono: cópialos solo si están literalmente en el texto; si no, null. (4) pedidos_online: true solo si ves Just Eat/Glovo/UberEats/tienda propia de compra; si no false. (5) reservas: true solo si ves TheFork o reserva online; si no false. Ante la duda, null. NUNCA te inventes nada.";
+  const sys="Eres un extractor que COPIA datos escritos en un texto. Te paso texto de webs/fichas de un negocio. Devuelve SOLO un JSON plano (sin markdown) con: email, instagram, facebook, tiktok, telefono, pedidos_online, reservas. REGLAS ABSOLUTAS: (1) email: copia un correo SOLO si aparece escrito tal cual en el texto, con su arroba. ESTÁ PROHIBIDO construir, deducir o adivinar un correo a partir del nombre del negocio o de su dominio (NO inventes 'info@nombre.com'). Si en el texto no hay ningún correo escrito, email=null. (2) Ignora correos de plataformas/portales (paginasamarillas, cylex, tripadvisor, just eat, glovo, kioskoymas, wordpress, wix...). (3) instagram, facebook, telefono: cópialos solo si están literalmente en el texto; si no, null. (4) pedidos_online: true solo si ves Just Eat/Glovo/UberEats/tienda propia de compra; si no false. (5) reservas: true solo si ves TheFork o reserva online; si no false. Ante la duda, null. NUNCA te inventes nada.";
   const usr="Negocio: "+nombre+"\n\nTexto encontrado:\n"+String(texto).slice(0,8000);
   let out="";
   if(/^sk-ant/i.test(key)){
@@ -350,8 +351,9 @@ function bajarDemo(l){ if(!TPL_B64){ toast("Falta embeber la plantilla: node too
 /* ── CSV seguro ── */
 function csvCell(v){ let s=String(v==null?"":v); if(/^[=+\-@\t\r]/.test(s)) s="'"+s; if(/[",;\n]/.test(s)) s='"'+s.replace(/"/g,'""')+'"'; return s; }
 function exportCSV(){ const L=LEADS(); if(!L.length){ toast("No hay leads"); return; }
-  const rows=[["Nombre","Ciudad","Teléfono","WhatsApp","Email","Instagram","Facebook","VendeOnline","Web","Plan","Estado","Toques","Último contacto","Demo","Notas","Origen"]];
-  L.forEach(l=>rows.push([l.nombre,l.ciudad||"",l.tel||"",l.whatsapp||"",l.email||"",l.instagram||"",l.facebook||"",l.pedidos?"sí":"",l.web||"",planLbl(l.plan),l.estado,l.toques||0,(l.ultimo||"").slice(0,10),l.demoUrl||"",l.notas||"",l.origen||""]));
+  const maps=l=>"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(l.nombre+" "+(l.dir||l.ciudad||""));
+  const rows=[["Nombre","Ciudad","Dirección","Teléfono","WhatsApp","Email","Web","Instagram","Facebook","TikTok","GoogleMaps","Valoración","Reseñas","VendeOnline","Plan","Estado","Toques","Último contacto","Demo","Notas","Origen"]];
+  L.forEach(l=>rows.push([l.nombre,l.ciudad||"",l.dir||"",l.tel||"",l.whatsapp||"",l.email||"",l.web||"",l.instagram||"",l.facebook||"",l.tiktok||"",maps(l),l.rating||"",l.n||"",l.pedidos?"sí":"",planLbl(l.plan),l.estado,l.toques||0,(l.ultimo||"").slice(0,10),l.demoUrl||"",l.notas||"",l.origen||""]));
   const u=URL.createObjectURL(new Blob(["﻿"+rows.map(r=>r.map(csvCell).join(";")).join("\n")],{type:"text/csv;charset=utf-8"}));
   const a=document.createElement("a"); a.href=u; a.download="captacion-"+new Date().toISOString().slice(0,10)+".csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),1500); }
 
@@ -437,11 +439,15 @@ function vPipeline(){
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
         <div style="font-size:17px;font-weight:700;line-height:1.2">${esc(l.nombre)}</div>${aviso}</div>
       <div style="display:flex;flex-wrap:wrap;gap:5px 14px;font-size:13.5px;color:#444;margin-bottom:7px">
-        <span>📍 ${esc(l.ciudad||"—")}</span>
+        <span>📍 ${esc(l.ciudad||"—")}${l.dir&&l.dir!==l.ciudad?" · "+esc(l.dir):""}</span>
         <span>📞 ${l.tel?esc(l.tel):"<span style=color:#c33>—</span>"}</span>
         <span>✉️ ${l.email?esc(l.email):"<span style=color:#c33>sin email</span>"}</span>
+        ${l.web?`<a href="${esc(l.web)}" target="_blank" rel="noopener">🌐 Web</a>`:""}
         ${l.instagram?`<a href="${esc(l.instagram)}" target="_blank" rel="noopener">📷 Instagram</a>`:""}
         ${l.facebook?`<a href="${esc(l.facebook)}" target="_blank" rel="noopener">📘 Facebook</a>`:""}
+        ${l.tiktok?`<a href="${esc(l.tiktok)}" target="_blank" rel="noopener">🎵 TikTok</a>`:""}
+        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.nombre+" "+(l.dir||l.ciudad||""))}" target="_blank" rel="noopener">🗺️ Maps</a>
+        ${l.rating?`<span>⭐ ${esc(String(l.rating))}${l.n?" ("+l.n+")":""}</span>`:""}
         ${l.pedidos?`<span>🛒 ya vende online</span>`:""}
         ${l.origen==="embudo"?`<span>📥 del embudo</span>`:""}</div>
       <div style="font-size:12px;margin-bottom:7px">${diagnostico(l)}</div>
