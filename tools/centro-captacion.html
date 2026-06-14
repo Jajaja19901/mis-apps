@@ -505,7 +505,7 @@ function tieneTel(l){ return !!(l.tel||(l.whatsapp||"").replace(/\D/g,"").length
 function leadsFiltrados(){ const f=load("filtro",""),fc=load("filtrocanal",""),fciu=load("filtrociudad",""),fweb=load("filtroweb",""),fem=load("filtroemail",""),ft=load("filtrotel",""),fkm=+load("filtrokm",0),fval=load("filtroval",""),fped=load("filtroped","");
   return LEADS().filter(l=>(!f||l.estado===f)&&(!fc||canalDe(l)===fc)&&(!fciu||(l.ciudad||"—")===fciu)&&(fweb!=="sin"||!l.web)
     &&(!fem||(fem==="con"?!!l.email:!l.email))&&(!ft||(ft==="con"?tieneTel(l):!tieneTel(l)))
-    &&(!fkm||(l.km!=null&&l.km<=fkm))&&(fval!=="si"||(Number(l.rating)>=4))&&(fped!=="si"||!!l.pedidos)); }
+    &&(!fkm||l.km==null||l.km<=fkm)&&(fval!=="si"||(Number(l.rating)>=4))&&(fped!=="si"||!!l.pedidos)); }
 function hayFiltro(){ return !!(load("filtro","")||load("filtrocanal","")||load("filtrociudad","")||load("filtroweb","")||load("filtroemail","")||load("filtrotel","")||+load("filtrokm",0)||load("filtroval","")||load("filtroped","")); }
 function vPipeline(){
   const L=LEADS(); const f=load("filtro",""); const fc=load("filtrocanal",""); const fciu=load("filtrociudad",""); const fweb=load("filtroweb","");
@@ -523,8 +523,8 @@ function vPipeline(){
   const ciuList=Object.entries(ciu).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const chipsCiu=ciuList.length>1?(`<button class="mini" data-fciudad="" type="button" style="${fciu===''?onSel:''}">Todas</button> `+ciuList.map(([c,n])=>`<button class="mini" data-fciudad="${esc(c)}" type="button" style="${fciu===c?onSel:''}">${esc(c)} (${n})</button>`).join(" ")):"";
   const fkm=+load("filtrokm",0), fval=load("filtroval",""), fped=load("filtroped","");
-  const hayKm=L.some(l=>l.km!=null);
-  const chipsKm=hayKm?(`<button class="mini" data-fkm="0" type="button" style="${!fkm?onSel:''}">Todas</button> `+[3,6,10,15].map(k=>`<button class="mini" data-fkm="${k}" type="button" style="${fkm===k?onSel:''}">≤${k} km</button>`).join(" ")):"";
+  const nKm=L.filter(l=>l.km!=null).length;
+  const chipsKm=`<button class="mini" data-fkm="0" type="button" style="${!fkm?onSel:''}">Todas</button> `+[3,6,10,15].map(k=>`<button class="mini" data-fkm="${k}" type="button" style="${fkm===k?onSel:''}">≤${k} km</button>`).join(" ")+(nKm<L.length?` <span class="muted" style="font-size:10.5px">(solo aplica a ${nKm} buscados con distancia)</span>`:"");
   const nVal=L.filter(l=>Number(l.rating)>=4).length, nPed=L.filter(l=>!!l.pedidos).length;
   const chipsExtra=`<button class="mini" data-fval="" type="button" style="${fval===''&&fped===''?onSel:''}">Todos</button>`
     +(nVal?` <button class="mini" data-fval="${fval==='si'?'':'si'}" type="button" style="${fval==='si'?onSel:''}">⭐ Bien valorados (${nVal})</button>`:"")
@@ -549,7 +549,7 @@ function vPipeline(){
     <div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por teléfono:</b><br>${chipsTel}</div>
     <div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por web:</b><br>${chipsWeb}</div>
     ${chipsCiu?`<div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por ciudad:</b><br>${chipsCiu}</div>`:""}
-    ${chipsKm?`<div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por distancia:</b><br>${chipsKm}</div>`:""}
+    <div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por distancia:</b><br>${chipsKm}</div>
     ${(nVal||nPed)?`<div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Extra:</b><br>${chipsExtra}</div>`:""}
     <div style="margin:0 0 4px"><b style="font-size:12px;color:var(--mut)">Por estado:</b><br>${chips}</div>
     ${hayFiltro()?`<p class="note" style="margin:6px 0 0;color:var(--brand-d)">🔎 Filtro activo: las acciones de abajo trabajan SOLO sobre los ${vis.length} que ves.</p>`:""}
