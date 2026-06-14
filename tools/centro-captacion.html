@@ -150,13 +150,24 @@ function jinaKeys(){ return (AJ().jinaKey||"").split(/[\s,;]+/).map(s=>s.trim())
 async function traerWeb(url){ const keys=jinaKeys();
   // Jina con cada clave (rota a la siguiente si una se agota), y al final puentes de respaldo.
   for(const k of keys){ try{ const r=await fetchT(PUENTES[0](url),{headers:{"Authorization":"Bearer "+k,"Accept":"text/html,text/plain,*/*"}},9000); if(r.ok){ const t=await r.text(); if(t&&t.length>60){ usoAdd("jina",Math.ceil(t.length/4)); return t; } } }catch(e){} }
-  for(const p of (keys.length?PUENTES.slice(1):PUENTES)){ try{ const r=await fetchT(p(url),{headers:{"Accept":"text/html,text/plain,*/*"}},9000); if(r.ok){ const t=await r.text(); if(t&&t.length>60) return t; } }catch(e){} }
+  const lista=keys.length?PUENTES.slice(1):PUENTES;
+  // DOS PASADAS: los puentes gratis son intermitentes; el que falla/agota a la 1ª suele responder a la 2ª
+  // (con más tiempo). Así dejamos de rendirnos al primer fallo, que era el problema real.
+  for(let pasada=0;pasada<2;pasada++){
+    for(const p of lista){ try{ const r=await fetchT(p(url),{headers:{"Accept":"text/html,text/plain,*/*"}}, pasada?13000:8000); if(r.ok){ const t=await r.text(); if(t&&t.length>60) return t; } }catch(e){} }
+  }
   return ""; }
-// Buscador de Jina: como la IA de Google, devuelve el CONTENIDO de los primeros resultados (donde está el email).
+// Buscador: devuelve el CONTENIDO de los primeros resultados (donde está el email). Si Jina está agotado,
+// NO se rinde: baja los resultados de DuckDuckGo y Bing a través de los puentes (no depende de Jina).
 async function jinaSearch(q){ const keys=jinaKeys(); const tries=keys.length?keys:[""];
   for(const k of tries){ const h={"Accept":"text/plain","X-Return-Format":"markdown"}; if(k) h["Authorization"]="Bearer "+k;
     try{ const r=await fetchT("https://s.jina.ai/?q="+encodeURIComponent(q),{headers:h},12000); if(r.ok){ const t=await r.text(); if(t&&t.length>80){ if(k) usoAdd("jina",Math.ceil(t.length/4)); return t; } } }catch(e){}
   }
+  // Respaldo sin Jina: resultados de varios buscadores por los puentes (uno suele pasar).
+  const motores=[ "https://html.duckduckgo.com/html/?q="+encodeURIComponent(q),
+                  "https://lite.duckduckgo.com/lite/?q="+encodeURIComponent(q),
+                  "https://www.bing.com/search?q="+encodeURIComponent(q) ];
+  for(const m of motores){ try{ const t=await traerWeb(m); if(t&&t.length>120) return t; }catch(e){} }
   return "";
 }
 function sacaEmails(txt){ const out=[],seen={}; (String(txt).match(EMAIL_RE)||[]).forEach(e=>{ e=e.toLowerCase().replace(/[.,;:]+$/,""); if(EMAIL_BLACK.test(e))return; if(e.length>60)return; if(seen[e])return; seen[e]=1; out.push(e); }); return out; }
@@ -203,8 +214,9 @@ function diagTxt(){ return "Jina "+DIAG.jina+"/"+DIAG.total+" · Google "+DIAG.g
 async function buscarDatosWeb(nombre,ciudad,prof){
   DIAG.total++;
   const q="correo electronico email de "+nombre+" "+(ciudad||"");
-  // Limita cada trozo leído (antes acumulaba 500.000 letras; con los resultados de búsqueda basta).
-  const cap=t=>String(t||"").slice(0,11000);
+  // Limita cada trozo leído. Subido a 20.000: el email/teléfono a veces está más abajo en la página
+  // y con 11.000 se cortaba justo antes de llegar a él.
+  const cap=t=>String(t||"").slice(0,20000);
   // 1) Jina: contenido de los resultados (aquí suele estar el email).
   let pg=cap(await jinaSearch(q)); if(pg) DIAG.jina++;
   let email=sacaEmails(pg)[0]||"";
