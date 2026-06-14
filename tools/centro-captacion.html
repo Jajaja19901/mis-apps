@@ -640,6 +640,7 @@ function cardHTML(l){ const tq=toquePendiente(l); const waNum=waDe(l);
         <button class="mini" data-rebuscar="${l.id}" type="button" title="Volver a buscar y actualizar SOLO este negocio (arregla teléfono/email/datos)">🔄 Reajustar</button>
         <button class="mini" data-edittel="${l.id}" type="button" title="Corregir el teléfono a mano">✏️ Nº</button>
         <button class="mini" data-editmail="${l.id}" type="button" title="Poner/corregir el email a mano">✏️ Email</button>
+        <button class="mini" data-editig="${l.id}" type="button" title="Poner/corregir Instagram a mano">✏️ IG</button>
         <button class="mini" data-demo="${l.id}" type="button" title="Generar su demo">⬇️ Demo</button>
         <button class="mini" data-url="${l.id}" type="button" title="Pegar enlace de su demo">🔗</button>
         <button class="mini" data-nota="${l.id}" type="button" title="Nota">📝</button>
@@ -867,6 +868,11 @@ document.addEventListener("click",async e=>{
     const r=raw.trim().toLowerCase();
     if(r==="" || /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(r)){ upLead(l.id,{email:r, emailAuto:false}); render(); toast(r?"Email guardado ✓":"Email quitado"); }
     else toast("Ese email no tiene buena pinta (revisa la @)"); return; }
+  if(t.dataset.editig){ const l=LEADS().find(x=>x.id===t.dataset.editig);
+    const raw=await pedir("Instagram de "+l.nombre+" (pega el enlace o @usuario). Vacío = quitarlo:", l.instagram||""); if(raw===null) return;
+    let v=raw.trim().replace(/^@/,"");
+    if(v){ if(/^[A-Za-z0-9._]+$/.test(v)) v="https://instagram.com/"+v; else if(!/^https?:\/\//i.test(v)) v="https://"+v; v=safeUrl(v)||""; }
+    upLead(l.id,{instagram:v}); render(); toast(v?"Instagram guardado ✓":"Instagram quitado"); return; }
   if(t.dataset.edittel){ const l=LEADS().find(x=>x.id===t.dataset.edittel); const cur=(l.tel||"").replace(/\D/g,"").slice(-9);
     const raw=await pedir("Teléfono de "+l.nombre+" (9 cifras, móvil o fijo). Vacío = quitarlo:", cur); if(raw===null) return;
     const r=raw.replace(/\D/g,"").slice(-9);
