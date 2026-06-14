@@ -902,11 +902,11 @@ document.addEventListener("click",async e=>{
   if(t.dataset.wa){ const l=LEADS().find(x=>x.id===t.dataset.wa); const num=waDe(l);
     const tq=toquePendiente(l); const msg=fillTpl(tq===3?AJ().t3:tq===2?AJ().t2:AJ().t1,l);
     window.open("https://wa.me/"+num+"?text="+encodeURIComponent(msg),"_blank","noopener");
-    upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 }); render(); return; }
+    return; } // SOLO abre WhatsApp. NO marca contactado: lo marcas tú con el desplegable "Estado" cuando lo envíes de verdad.
   if(t.dataset.copy){ const l=LEADS().find(x=>x.id===t.dataset.copy); const tq=toquePendiente(l);
     const msg=fillTpl(tq===3?AJ().t3:tq===2?AJ().t2:AJ().t1,l);
     try{ await navigator.clipboard.writeText(msg); toast("Mensaje copiado 📋 (mándalo por donde quieras)"); }catch(err){ prompt("Copia el mensaje:",msg); }
-    upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 }); render(); return; }
+    return; } // solo copia, no marca nada
   if(t.dataset.mail){ const l=LEADS().find(x=>x.id===t.dataset.mail);
     let em=(l.email||"").trim();
     if(!em){ em=(prompt("Email de "+l.nombre+" (lo encuentras en su web o ficha de Google):","")||"").trim(); if(em){ upLead(l.id,{email:em}); } }
@@ -921,7 +921,7 @@ document.addEventListener("click",async e=>{
       try{ await navigator.clipboard.writeText("Para: "+em+"\nAsunto: "+asunto+"\n\n"+cuerpo); }catch(e){} // copia de respaldo
       const mt="mailto:"+encodeURIComponent(em)+"?subject="+encodeURIComponent(asunto)+"&body="+encodeURIComponent(cuerpo);
       location.href=mt; // tu app de correo se abre con el destinatario, asunto y texto puestos
-      upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 }); setTimeout(render,500); toast("Abriendo tu correo con el email escrito para "+em+" ✉️"); }
+      setTimeout(render,500); toast("Abriendo tu correo para "+em+" ✉️ — márcalo como Contactado tú cuando lo envíes de verdad"); }
     else { try{ await navigator.clipboard.writeText("Para: (busca su email)\nAsunto: "+asunto+"\n\n"+cuerpo); toast("No tiene email guardado · correo copiado ✉️"); }catch(err){ prompt("Copia el email:",cuerpo); } }
     return; }
   if(t.dataset.demo){ const l=LEADS().find(x=>x.id===t.dataset.demo); const lk=linkDemo(l);
