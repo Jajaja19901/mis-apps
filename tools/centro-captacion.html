@@ -201,7 +201,8 @@ async function buscarDatosWeb(nombre,ciudad){
   return Object.assign({ email, web }, extra);
 }
 // Convierte lo encontrado en un parche para el lead (solo rellena lo que falta; no pisa lo que ya hay).
-function datosPatch(d,l){ const p={}; if(d.email){p.email=d.email; p.emailAuto=true;} if(d.web&&!l.web)p.web=d.web; if(d.tel&&!l.tel)p.tel=d.tel; if(d.whatsapp&&!(l.whatsapp||"").replace(/\D/g,"")) p.whatsapp=d.whatsapp; if(d.instagram&&!l.instagram)p.instagram=d.instagram; if(d.facebook&&!l.facebook)p.facebook=d.facebook; if(d.pedidos)p.pedidos=true; return p; }
+function datosPatch(d,l){ const p={}; if(d.email&&!l.email){p.email=d.email; p.emailAuto=true;} if(d.web&&!l.web)p.web=d.web; if(d.tel&&!l.tel)p.tel=d.tel; if(d.whatsapp&&!(l.whatsapp||"").replace(/\D/g,"")) p.whatsapp=d.whatsapp; if(d.instagram&&!l.instagram)p.instagram=d.instagram; if(d.facebook&&!l.facebook)p.facebook=d.facebook; if(d.tiktok&&!l.tiktok)p.tiktok=d.tiktok; if(d.pedidos)p.pedidos=true; return p; }
+function incompleto(l){ return !l.tel || !l.web || (!l.instagram&&!l.facebook); }
 
 // La IA lee el texto de la web del local y devuelve sus datos en JSON. NUNCA inventa (instruido).
 async function iaExtrae(texto,nombre){
@@ -430,6 +431,7 @@ function vPipeline(){
     <div style="margin:0 0 4px"><b style="font-size:12px;color:var(--mut)">Por estado:</b><br>${chips}</div>
     <div style="margin:6px 0;display:flex;gap:6px;flex-wrap:wrap">
     ${L.some(l=>!l.email)?`<button class="mini" id="buscaMails" type="button" title="Busca en la web el email de los bares que aún no lo tengan">🔎✉️ Buscar emails que falten (${L.filter(l=>!l.email).length})</button>`:""}
+    ${L.some(incompleto)?`<button class="mini" id="completaDatos" type="button" title="Rellena teléfono, web y redes de los que les falte (aunque ya tengan email)">🔄 Completar datos que faltan (${L.filter(incompleto).length})</button>`:""}
     ${L.some(l=>l.emailAuto)?`<button class="mini" id="limpiaMails" type="button" title="Borra los emails que encontró la app, para re-buscarlos" style="color:#b32424">🧹 Borrar emails auto (${L.filter(l=>l.emailAuto).length})</button>`:""}</div>
     ${fc==="ninguno"?`<p class="note" style="color:var(--brand-d)">❓ Estos no tienen ni WhatsApp ni email localizado. Pulsa 🔎✉️ en cada uno (o el botón de arriba) para que busque su email en la web. Si aun así no aparece, es que no lo tienen publicado.</p>`:""}
     ${vis.length?`<div style="display:flex;flex-direction:column;gap:12px">
@@ -595,6 +597,13 @@ document.addEventListener("click",async e=>{
   if(t.id==="limpiaMails"){ const n=LEADS().filter(l=>l.emailAuto).length; if(!n){ toast("No hay emails automáticos que borrar"); return; }
     if(!confirm("Borro los "+n+" emails que encontró la app automáticamente (para re-buscarlos con la versión corregida). Los que metiste tú a mano se quedan. ¿Sigo?")) return;
     setLeads(LEADS().map(l=>l.emailAuto?Object.assign({},l,{email:"",emailAuto:false}):l)); render(); toast("Emails automáticos borrados. Dale otra vez a 🔎✉️"); return; }
+  if(t.id==="completaDatos"){ const faltan=LEADS().filter(incompleto); if(!faltan.length){ toast("Todos completos ✓"); return; }
+    if(!confirm("Voy a completar lo que falte (teléfono, web, redes) de "+faltan.length+" bares. Tarda un poco. ¿Sigo?")) return;
+    t.disabled=true; resetDiag(); let n=0;
+    for(let i=0;i<faltan.length;i++){ t.textContent="🔄 completando "+(i+1)+"/"+faltan.length+"…";
+      try{ const d=await conTope(buscarDatosWeb(faltan[i].nombre,faltan[i].ciudad),45000); const patch=datosPatch(d,faltan[i]); if(Object.keys(patch).length){ n++; upLead(faltan[i].id,patch); } }catch(e){}
+      await new Promise(r=>setTimeout(r,400)); }
+    t.disabled=false; render(); alert("Datos completados en "+n+" de "+faltan.length+" bares.\n\n"+diagTxt()); return; }
   if(t.id==="buscaMails"){ const faltan=LEADS().filter(l=>!l.email); if(!faltan.length){ toast("Todos tienen email ya ✓"); return; }
     if(!confirm("Voy a buscar en la web el email y la web de "+faltan.length+" bares. Tarda unos segundos cada uno y algunos no tendrán email publicado. ¿Sigo?")) return;
     t.disabled=true; resetDiag(); let n=0,w=0;
