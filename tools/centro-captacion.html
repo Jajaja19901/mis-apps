@@ -80,7 +80,7 @@ function dias(iso){ if(!iso) return 9999; return Math.floor((Date.now()-new Date
 const T1_DEF="Hola {nombre} 👋 Soy de Incuba tu Negocio. Os escribo porque {gancho}, y justo hacemos algo que os encaja: vuestros clientes escanean un QR en la mesa, piden desde su móvil y la comanda llega sola a la barra (vosotros cobráis como siempre, con vuestra caja). Os he preparado una demo CON VUESTRO NOMBRE para que la probéis: {enlace}. El plan {plan} son {alta}€ de alta y {cuota}€/mes, todo incluido (montaje, vuestros QR, soporte y cambios de carta). ¿Os la enseño en 2 minutos?";
 const T2_DEF="Hola {nombre}, ¿pudisteis ver la demo que os preparé? 🙂 En las horas punta os ahorra viajes de camarero y se piden más rondas. Aquí la tenéis otra vez: {enlace}. Si os encaja, esta semana os la dejo funcionando ({alta}€ alta + {cuota}€/mes).";
 const T3_DEF="Hola {nombre}, último mensaje y no os molesto más 🙏 Si queréis vuestra app de pedidos por QR ({alta}€ alta + {cuota}€/mes, sin permanencia), decídmelo y la activo esta semana. Si no es el momento, sin problema. ¡Gracias y buen servicio!";
-function AJ(){ return Object.assign({ wa:"34680363828", gkey:"", t1:T1_DEF, t2:T2_DEF, t3:T3_DEF,
+function AJ(){ return Object.assign({ wa:"34680363828", gkey:"", jinaKey:"", t1:T1_DEF, t2:T2_DEF, t3:T3_DEF,
   precios:{ basico:{alta:99,cuota:25}, medio:{alta:150,cuota:50}, top:{alta:250,cuota:75} } }, load("ajustes",{})); }
 function planLbl(p){ return p==="basico"?"Básica":p==="top"?"Digital":"Media"; }
 function proveedorDe(k){ k=(k||"").trim(); if(!k)return""; if(/^gsk_/i.test(k))return"Groq (GRATIS)"; if(/^sk-ant/i.test(k))return"Claude"; if(/^xai-/i.test(k))return"Grok"; if(/^AIza/i.test(k))return"Google"; if(/^sk-/i.test(k))return"OpenAI"; return"clave guardada"; }
@@ -112,11 +112,13 @@ const PUENTES=[ u=>"https://r.jina.ai/"+u,
                 u=>"https://api.allorigins.win/raw?url="+encodeURIComponent(u),
                 u=>"https://corsproxy.io/?url="+encodeURIComponent(u),
                 u=>"https://thingproxy.freeboard.io/fetch/"+u ];
-async function traerWeb(url){ for(const p of PUENTES){ try{ const r=await fetch(p(url),{headers:{"Accept":"text/html,text/plain,*/*"}}); if(r.ok){ const t=await r.text(); if(t&&t.length>60) return t; } }catch(e){} } return ""; }
+async function traerWeb(url){ const jk=(AJ().jinaKey||"").trim();
+  for(const p of PUENTES){ const pu=p(url); const h={"Accept":"text/html,text/plain,*/*"}; if(jk && pu.indexOf("jina.ai")>=0) h["Authorization"]="Bearer "+jk;
+    try{ const r=await fetch(pu,{headers:h}); if(r.ok){ const t=await r.text(); if(t&&t.length>60) return t; } }catch(e){} } return ""; }
 // Buscador de Jina: como la IA de Google, devuelve el CONTENIDO de los primeros resultados (donde está el email).
-async function jinaSearch(q){
+async function jinaSearch(q){ const jk=(AJ().jinaKey||"").trim(); const h={"Accept":"text/plain","X-Return-Format":"markdown"}; if(jk) h["Authorization"]="Bearer "+jk;
   for(const u of ["https://s.jina.ai/?q="+encodeURIComponent(q),"https://s.jina.ai/"+encodeURIComponent(q)]){
-    try{ const r=await fetch(u,{headers:{"Accept":"text/plain","X-Return-Format":"markdown"}}); if(r.ok){ const t=await r.text(); if(t&&t.length>80) return t; } }catch(e){}
+    try{ const r=await fetch(u,{headers:h}); if(r.ok){ const t=await r.text(); if(t&&t.length>80) return t; } }catch(e){}
   }
   return "";
 }
@@ -461,6 +463,9 @@ function vAjustes(){
       <div><label>🤖 Clave de IA — Groq es GRATIS (gsk_...)</label>
         <div style="display:flex;gap:6px"><input id="aIa" type="password" value="${esc(a.iaKey)}" placeholder="gsk_... (Groq) · sk-ant... (Claude) · xai-... · sk-..." style="flex:1"><button class="btn btn-p" id="aIaOn" type="button">Activar</button></div>
         <p class="note">Estado: <b>${a.iaKey?("✅ ACTIVA — "+proveedorDe(a.iaKey)):"⬜ sin clave (pégala y dale a Activar)"}</b>. Es la que usa la app para sacar emails y escribir mensajes. Gratis en <code>console.groq.com</code>. Se guarda solo en este navegador.</p></div>
+      <div><label>🌉 Clave Jina (GRATIS — la que abre internet para buscar emails)</label>
+        <div style="display:flex;gap:6px"><input id="aJina" type="password" value="${esc(a.jinaKey)}" placeholder="jina_..." style="flex:1"><button class="btn btn-p" id="aJinaOn" type="button">Activar</button></div>
+        <p class="note">Estado: <b>${a.jinaKey?"✅ ACTIVA":"⬜ sin clave — SIN ESTO NO SACA EMAILS"}</b>. Es el "puente" que deja a la app entrar en internet. Gratis y sin tarjeta en <code>jina.ai</code> (botón "API Key"). Pégala y dale a Activar.</p></div>
       <div><label>🔑 Clave API de Google (opcional, AIza...)</label>
         <div style="display:flex;gap:6px"><input id="aKey" type="password" value="${esc(a.gkey)}" placeholder="AIza..." style="flex:1"><button class="btn btn-p" id="aKeyOn" type="button">Activar</button></div>
         <p class="note">Estado: <b>${a.gkey?"✅ ACTIVA":"⬜ sin clave"}</b>. <b>OJO:</b> la búsqueda de emails NO necesita esta clave (usa la IA de arriba). Esta es solo para la pestaña 🔎 Buscar con Google. El buscador gratis (OpenStreetMap) funciona sin ella.</p></div>
@@ -581,9 +586,11 @@ document.addEventListener("click",async e=>{
     log.push(mails.length?"➡️ Hay material: la búsqueda real debería sacarlos.":"➡️ Si todo está en ❌, los puentes no traen el contenido en TU red, o el email no es público.");
     out.innerHTML="<b>🔍 Diagnóstico (Mesón Los Chorros, Firgas):</b><br>"+log.join("<br>"); return; }
   if(t.id==="aTest"){ const out=$("#testOut"); out.innerHTML="⏳ Probando, espera unos segundos…";
+    const jk=(AJ().jinaKey||"").trim();
     let puente=false, ia=null;
     try{ const r=await traerWeb("https://example.com"); if(r && /example|domain/i.test(r)) puente=true; }catch(e){}
-    let html="<b>1) Internet desde la página:</b> "+(puente?"✅ funciona (puede buscar emails)":"❌ BLOQUEADO. Tu navegador no deja salir. Solución: ábrela en <b>Chrome</b> (no en el explorador de archivos), o súbela a internet con app.netlify.com/drop.");
+    let html="<b>0) Clave Jina:</b> "+(jk?"✅ puesta":"❌ FALTA — sin ella no entra en internet. Sácala gratis en jina.ai y actívala arriba.");
+    html+="<br><b>1) Internet desde la página:</b> "+(puente?"✅ funciona (puede buscar emails)":"❌ BLOQUEADO. Pon la clave Jina (gratis), o abre la app en <b>Chrome</b> (no en el explorador de archivos).");
     const key=(AJ().iaKey||"").trim();
     if(key){ try{ const d=await iaExtrae("Bar de Prueba. Escríbenos a hola@barprueba.es. Instagram https://instagram.com/barprueba","Bar de Prueba"); ia=!!(d&&d.email); }catch(e){ ia=false; }
       html+="<br><b>2) IA ("+proveedorDe(key)+"):</b> "+(ia?"✅ responde bien":"❌ no responde. Revisa que la clave esté bien pegada y Activada."); }
@@ -592,6 +599,8 @@ document.addEventListener("click",async e=>{
     out.innerHTML=html; toast(puente?"Conexión OK":"Sin internet en la página"); return; }
   if(t.id==="aIaOn"){ const a=AJ(); a.iaKey=($("#aIa")?$("#aIa").value.trim():""); save("ajustes",a); render();
     toast(a.iaKey?("✅ IA activada — "+proveedorDe(a.iaKey)):"Clave de IA borrada"); return; }
+  if(t.id==="aJinaOn"){ const a=AJ(); a.jinaKey=($("#aJina")?$("#aJina").value.trim():""); save("ajustes",a); render();
+    toast(a.jinaKey?"✅ Jina activada — ya puede entrar en internet":"Clave Jina borrada"); return; }
   if(t.id==="aKeyOn"){ const a=AJ(); a.gkey=($("#aKey")?$("#aKey").value.trim():""); save("ajustes",a); render();
     toast(a.gkey?"✅ Clave de Google guardada":"Clave de Google borrada"); return; }
   if(t.id==="aGuardar"){ const a=AJ();
