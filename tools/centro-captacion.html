@@ -476,8 +476,14 @@ function bajarDemo(l){ if(!TPL_B64){ toast("Falta embeber la plantilla: node too
 
 /* ── CSV seguro ── */
 function csvCell(v){ let s=String(v==null?"":v); if(/^[=+\-@\t\r]/.test(s)) s="'"+s; if(/[",;\n]/.test(s)) s='"'+s.replace(/"/g,'""')+'"'; return s; }
+// Enlace a Google Maps. NO pega "Arucas" (muchos no están allí y entonces Maps no los encuentra):
+// usa el nombre + la CALLE real si la hay, y "Gran Canaria" (la isla siempre acierta).
+function mapsUrl(l){ const dir=(l.dir||"").trim(); const ciu=(l.ciudad||"").trim(); const partes=[l.nombre];
+  if(dir && dir.toLowerCase()!==ciu.toLowerCase() && !/^arucas$/i.test(dir)) partes.push(dir);
+  partes.push("Gran Canaria");
+  return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(partes.join(" ")); }
 function exportCSV(){ const L=LEADS(); if(!L.length){ toast("No hay leads"); return; }
-  const maps=l=>"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(l.nombre+" "+(l.dir||l.ciudad||""));
+  const maps=l=>mapsUrl(l);
   const rows=[["Nombre","Ciudad","Dirección","Teléfono","WhatsApp","Email","Web","Instagram","Facebook","TikTok","GoogleMaps","Valoración","Reseñas","VendeOnline","Plan","Estado","Toques","Último contacto","Demo","Notas","Origen"]];
   L.forEach(l=>rows.push([l.nombre,l.ciudad||"",l.dir||"",l.tel||"",l.whatsapp||"",l.email||"",l.web||"",l.instagram||"",l.facebook||"",l.tiktok||"",maps(l),l.rating||"",l.n||"",l.pedidos?"sí":"",planLbl(l.plan),l.estado,l.toques||0,(l.ultimo||"").slice(0,10),l.demoUrl||"",l.notas||"",l.origen||""]));
   const u=URL.createObjectURL(new Blob(["﻿"+rows.map(r=>r.map(csvCell).join(";")).join("\n")],{type:"text/csv;charset=utf-8"}));
@@ -635,7 +641,7 @@ function vPipeline(){
         ${safeUrl(l.instagram)?`<a href="${esc(safeUrl(l.instagram))}" target="_blank" rel="noopener">📷 Instagram</a>`:""}
         ${safeUrl(l.facebook)?`<a href="${esc(safeUrl(l.facebook))}" target="_blank" rel="noopener">📘 Facebook</a>`:""}
         ${safeUrl(l.tiktok)?`<a href="${esc(safeUrl(l.tiktok))}" target="_blank" rel="noopener">🎵 TikTok</a>`:""}
-        <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.nombre+" "+(l.dir||l.ciudad||""))}" target="_blank" rel="noopener">🗺️ Maps</a>
+        <a href="${esc(mapsUrl(l))}" target="_blank" rel="noopener">🗺️ Maps</a>
         ${l.rating?`<span>⭐ ${esc(String(l.rating))}${l.n?" ("+l.n+")":""}</span>`:""}
         ${l.pedidos?`<span>🛒 ya vende online</span>`:""}
         ${l.origen==="embudo"?`<span>📥 del embudo</span>`:""}</div>
