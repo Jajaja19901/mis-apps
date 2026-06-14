@@ -584,6 +584,49 @@ function leadsFiltrados(){ const f=load("filtro",""),fc=load("filtrocanal",""),f
     &&(!fkm||(l.km!=null&&l.km<=fkm))&&(fval!=="si"||(Number(l.rating)>=4))&&(fped!=="si"||!!l.pedidos)); }
 function hayFiltro(){ return !!(load("filtro","")||load("filtrocanal","")||load("filtrozona","")||load("filtrociudad","")||load("filtroweb","")||load("filtroemail","")||load("filtrotel","")||+load("filtrokm",0)||load("filtroval","")||load("filtroped","")); }
 var MOSTRAR=40, _sigPipe="", BUSQUEDA="";  // paginación + texto del buscador (filtra TODOS, no solo los visibles)
+function cardHTML(l){ const tq=toquePendiente(l); const waNum=waDe(l);
+  const telMostrar = waNum ? ("+34 "+waNum.slice(2).replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4")) : (l.tel||"");
+  const telTipo = waNum ? ' <span style="color:#1d6f2b;font-size:11px">(móvil)</span>' : (l.tel?' <span style="color:#999;font-size:11px">(fijo)</span>':'');
+  const telLlamar = (l.tel||"").replace(/[^0-9+]/g,"");
+  const aviso=tq?`<span class="alerta">↻ toca ${tq}º toque</span>`:(l.estado==="interesado"?'<span class="alerta" style="background:#fde8f0;border-color:#a3164f;color:#a3164f">🔥 ¡cerrar!</span>':"");
+  return `<div class="leadcard" data-buscar="${esc((l.nombre+" "+(l.ciudad||"")+" "+(l.dir||"")+" "+(l.email||"")+" "+(l.tel||"")+" "+(l.whatsapp||"")).toLowerCase())}" style="border:1px solid #e4e4e4;border-radius:14px;padding:13px 15px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+        <div style="font-size:17px;font-weight:700;line-height:1.2">${esc(l.nombre)}</div>${aviso}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px 14px;font-size:13.5px;color:#444;margin-bottom:7px">
+        <span>📍 ${esc(l.ciudad||"—")}${l.dir&&l.dir!==l.ciudad?" · "+esc(l.dir):""}</span>
+        <span>📞 ${telMostrar?esc(telMostrar)+telTipo:"<span style=color:#c33>—</span>"}</span>
+        <span>✉️ ${l.email?esc(l.email):"<span style=color:#c33>sin email</span>"}</span>
+        ${safeUrl(l.web)?`<a href="${esc(safeUrl(l.web))}" target="_blank" rel="noopener">🌐 Web</a>`:""}
+        ${safeUrl(l.instagram)?`<a href="${esc(safeUrl(l.instagram))}" target="_blank" rel="noopener">📷 Instagram</a>`:""}
+        ${safeUrl(l.facebook)?`<a href="${esc(safeUrl(l.facebook))}" target="_blank" rel="noopener">📘 Facebook</a>`:""}
+        ${safeUrl(l.tiktok)?`<a href="${esc(safeUrl(l.tiktok))}" target="_blank" rel="noopener">🎵 TikTok</a>`:""}
+        <a href="${esc(mapsUrl(l))}" target="_blank" rel="noopener">🗺️ Maps</a>
+        ${l.rating?`<span>⭐ ${esc(String(l.rating))}${l.n?" ("+l.n+")":""}</span>`:""}
+        ${l.pedidos?`<span>🛒 ya vende online</span>`:""}
+        ${l.origen==="embudo"?`<span>📥 del embudo</span>`:""}</div>
+      <div style="font-size:12px;margin-bottom:7px">${diagnostico(l)}</div>
+      ${l.notas?`<div style="font-size:12.5px;color:#555;background:#f7f7f7;border-radius:8px;padding:5px 9px;margin-bottom:7px">📝 ${esc(l.notas)}</div>`:""}
+      ${safeUrl(l.demoUrl)?`<div style="margin-bottom:7px"><a href="${esc(safeUrl(l.demoUrl))}" target="_blank" rel="noopener" style="font-size:12.5px">🔗 su demo</a></div>`:""}
+      <div style="display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-bottom:9px">
+        <label style="font-size:12px;color:var(--mut)">Estado: <select data-est="${l.id}" style="padding:6px;font-size:13px"><option value="nuevo"${l.estado==="nuevo"?" selected":""}>Nuevo</option><option value="contactado"${l.estado==="contactado"?" selected":""}>Contactado</option><option value="interesado"${l.estado==="interesado"?" selected":""}>Interesado</option><option value="cliente"${l.estado==="cliente"?" selected":""}>CLIENTE 🎉</option><option value="no"${l.estado==="no"?" selected":""}>No</option></select></label>
+        <label style="font-size:12px;color:var(--mut)">Plan: <select data-plan="${l.id}" style="padding:6px;font-size:13px"><option value="basico"${l.plan==="basico"?" selected":""}>Básica</option><option value="medio"${l.plan==="medio"?" selected":""}>Media</option><option value="top"${l.plan==="top"?" selected":""}>Digital</option></select></label>
+        ${l.ultimo?`<span class="muted" style="font-size:11px">hace ${dias(l.ultimo)}d · ${l.toques||0} toque(s)</span>`:""}</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        ${waNum?`<button class="btn btn-wa" data-wa="${l.id}" type="button">💬 WhatsApp</button>`
+          :telLlamar?`<a class="mini" href="tel:${esc(telLlamar)}" style="text-decoration:none;padding:0 12px;width:auto" title="Llamar (fijo, sin WhatsApp)">📞 Llamar</a> <button class="mini" data-copy="${l.id}" type="button">📋 Copiar</button>`
+          :`<button class="mini" data-copy="${l.id}" type="button">📋 Copiar msj</button>`}
+        <button class="mini" data-ia="${l.id}" type="button" title="Mensaje escrito por IA">✨ IA</button>
+        <button class="mini" data-mail="${l.id}" type="button" title="Escribir email">✉️ Email</button>
+        ${l.email?"":`<button class="mini" data-bmail="${l.id}" type="button" title="Buscar su email en la web">🔎✉️ Buscar email</button>`}
+        <button class="mini" data-rebuscar="${l.id}" type="button" title="Volver a buscar y actualizar SOLO este negocio (arregla teléfono/email/datos)">🔄 Reajustar</button>
+        <button class="mini" data-edittel="${l.id}" type="button" title="Corregir el teléfono a mano">✏️ Nº</button>
+        <button class="mini" data-editmail="${l.id}" type="button" title="Poner/corregir el email a mano">✏️ Email</button>
+        <button class="mini" data-demo="${l.id}" type="button" title="Generar su demo">⬇️ Demo</button>
+        <button class="mini" data-url="${l.id}" type="button" title="Pegar enlace de su demo">🔗</button>
+        <button class="mini" data-nota="${l.id}" type="button" title="Nota">📝</button>
+        <button class="mini" data-del="${l.id}" type="button" title="Borrar" style="color:#b32424">🗑</button></div>
+      ${l.estado==="contactado"?`<div style="display:flex;gap:7px;margin-top:9px;padding-top:9px;border-top:1px solid #eee"><button class="mini" data-resp="${l.id}" type="button" style="border-color:#3f9d52;color:#1d6f2b">✅ Me respondió</button><button class="mini" data-norep="${l.id}" type="button" style="color:#b32424">❌ No le interesa</button></div>`:""}
+      </div>`; }
 function vPipeline(){
   const L=LEADS(); const f=load("filtro",""); const fc=load("filtrocanal",""); const fciu=load("filtrociudad",""); const fweb=load("filtroweb","");
   let vis=leadsFiltrados();
@@ -649,51 +692,8 @@ function vPipeline(){
     ${fc==="ninguno"?`<p class="note" style="color:var(--brand-d)">❓ Estos no tienen ni WhatsApp ni email localizado. Pulsa 🔎✉️ en cada uno (o el botón de arriba) para que busque su email en la web. Si aun así no aparece, es que no lo tienen publicado.</p>`:""}
     ${(vis.length>3||BUSQUEDA)?`<input id="qLead" type="search" value="${esc(BUSQUEDA)}" placeholder="🔍 Buscar en los ${L.length} por nombre, ciudad, email…" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:10px;margin-bottom:10px;font-size:14px">`:""}
     ${vis.length?`<div id="leadList" style="display:flex;flex-direction:column;gap:12px">
-    ${vis.slice(0,MOSTRAR).map(l=>{ const tq=toquePendiente(l); const waNum=waDe(l);
-      // teléfono mostrado = el mismo que se usa (móvil si hay; si no, el fijo). Etiquetado para no confundir.
-      const telMostrar = waNum ? ("+34 "+waNum.slice(2).replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4")) : (l.tel||"");
-      const telTipo = waNum ? ' <span style="color:#1d6f2b;font-size:11px">(móvil)</span>' : (l.tel?' <span style="color:#999;font-size:11px">(fijo)</span>':'');
-      const telLlamar = (l.tel||"").replace(/[^0-9+]/g,"");
-      const aviso=tq?`<span class="alerta">↻ toca ${tq}º toque</span>`:(l.estado==="interesado"?'<span class="alerta" style="background:#fde8f0;border-color:#a3164f;color:#a3164f">🔥 ¡cerrar!</span>':"");
-      return `<div class="leadcard" data-buscar="${esc((l.nombre+" "+(l.ciudad||"")+" "+(l.dir||"")+" "+(l.email||"")+" "+(l.tel||"")+" "+(l.whatsapp||"")).toLowerCase())}" style="border:1px solid #e4e4e4;border-radius:14px;padding:13px 15px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06)">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
-        <div style="font-size:17px;font-weight:700;line-height:1.2">${esc(l.nombre)}</div>${aviso}</div>
-      <div style="display:flex;flex-wrap:wrap;gap:5px 14px;font-size:13.5px;color:#444;margin-bottom:7px">
-        <span>📍 ${esc(l.ciudad||"—")}${l.dir&&l.dir!==l.ciudad?" · "+esc(l.dir):""}</span>
-        <span>📞 ${telMostrar?esc(telMostrar)+telTipo:"<span style=color:#c33>—</span>"}</span>
-        <span>✉️ ${l.email?esc(l.email):"<span style=color:#c33>sin email</span>"}</span>
-        ${safeUrl(l.web)?`<a href="${esc(safeUrl(l.web))}" target="_blank" rel="noopener">🌐 Web</a>`:""}
-        ${safeUrl(l.instagram)?`<a href="${esc(safeUrl(l.instagram))}" target="_blank" rel="noopener">📷 Instagram</a>`:""}
-        ${safeUrl(l.facebook)?`<a href="${esc(safeUrl(l.facebook))}" target="_blank" rel="noopener">📘 Facebook</a>`:""}
-        ${safeUrl(l.tiktok)?`<a href="${esc(safeUrl(l.tiktok))}" target="_blank" rel="noopener">🎵 TikTok</a>`:""}
-        <a href="${esc(mapsUrl(l))}" target="_blank" rel="noopener">🗺️ Maps</a>
-        ${l.rating?`<span>⭐ ${esc(String(l.rating))}${l.n?" ("+l.n+")":""}</span>`:""}
-        ${l.pedidos?`<span>🛒 ya vende online</span>`:""}
-        ${l.origen==="embudo"?`<span>📥 del embudo</span>`:""}</div>
-      <div style="font-size:12px;margin-bottom:7px">${diagnostico(l)}</div>
-      ${l.notas?`<div style="font-size:12.5px;color:#555;background:#f7f7f7;border-radius:8px;padding:5px 9px;margin-bottom:7px">📝 ${esc(l.notas)}</div>`:""}
-      ${safeUrl(l.demoUrl)?`<div style="margin-bottom:7px"><a href="${esc(safeUrl(l.demoUrl))}" target="_blank" rel="noopener" style="font-size:12.5px">🔗 su demo</a></div>`:""}
-      <div style="display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-bottom:9px">
-        <label style="font-size:12px;color:var(--mut)">Estado: <select data-est="${l.id}" style="padding:6px;font-size:13px"><option value="nuevo"${l.estado==="nuevo"?" selected":""}>Nuevo</option><option value="contactado"${l.estado==="contactado"?" selected":""}>Contactado</option><option value="interesado"${l.estado==="interesado"?" selected":""}>Interesado</option><option value="cliente"${l.estado==="cliente"?" selected":""}>CLIENTE 🎉</option><option value="no"${l.estado==="no"?" selected":""}>No</option></select></label>
-        <label style="font-size:12px;color:var(--mut)">Plan: <select data-plan="${l.id}" style="padding:6px;font-size:13px"><option value="basico"${l.plan==="basico"?" selected":""}>Básica</option><option value="medio"${l.plan==="medio"?" selected":""}>Media</option><option value="top"${l.plan==="top"?" selected":""}>Digital</option></select></label>
-        ${l.ultimo?`<span class="muted" style="font-size:11px">hace ${dias(l.ultimo)}d · ${l.toques||0} toque(s)</span>`:""}</div>
-      <div style="display:flex;gap:7px;flex-wrap:wrap">
-        ${waNum?`<button class="btn btn-wa" data-wa="${l.id}" type="button">💬 WhatsApp</button>`
-          :telLlamar?`<a class="mini" href="tel:${esc(telLlamar)}" style="text-decoration:none;padding:0 12px;width:auto" title="Llamar (fijo, sin WhatsApp)">📞 Llamar</a> <button class="mini" data-copy="${l.id}" type="button">📋 Copiar</button>`
-          :`<button class="mini" data-copy="${l.id}" type="button">📋 Copiar msj</button>`}
-        <button class="mini" data-ia="${l.id}" type="button" title="Mensaje escrito por IA">✨ IA</button>
-        <button class="mini" data-mail="${l.id}" type="button" title="Escribir email">✉️ Email</button>
-        ${l.email?"":`<button class="mini" data-bmail="${l.id}" type="button" title="Buscar su email en la web">🔎✉️ Buscar email</button>`}
-        <button class="mini" data-rebuscar="${l.id}" type="button" title="Volver a buscar y actualizar SOLO este negocio (arregla teléfono/email/datos)">🔄 Reajustar</button>
-        <button class="mini" data-edittel="${l.id}" type="button" title="Corregir el teléfono a mano">✏️ Nº</button>
-        <button class="mini" data-editmail="${l.id}" type="button" title="Poner/corregir el email a mano">✏️ Email</button>
-        <button class="mini" data-demo="${l.id}" type="button" title="Generar su demo">⬇️ Demo</button>
-        <button class="mini" data-url="${l.id}" type="button" title="Pegar enlace de su demo">🔗</button>
-        <button class="mini" data-nota="${l.id}" type="button" title="Nota">📝</button>
-        <button class="mini" data-del="${l.id}" type="button" title="Borrar" style="color:#b32424">🗑</button></div>
-      ${l.estado==="contactado"?`<div style="display:flex;gap:7px;margin-top:9px;padding-top:9px;border-top:1px solid #eee"><button class="mini" data-resp="${l.id}" type="button" style="border-color:#3f9d52;color:#1d6f2b">✅ Me respondió</button><button class="mini" data-norep="${l.id}" type="button" style="color:#b32424">❌ No le interesa</button></div>`:""}
-      </div>`; }).join("")}
-    </div>${vis.length>MOSTRAR?`<div style="text-align:center;margin:14px 0 4px"><button class="btn btn-p" id="verMas" type="button">⬇️ Ver 40 más (${vis.length-MOSTRAR} sin mostrar)</button><div class="muted" style="font-size:11px;margin-top:5px">Mostrando ${MOSTRAR} de ${vis.length}. Filtra arriba para ver grupos pequeños.</div></div>`:`<p class="muted" style="text-align:center;margin-top:8px;font-size:12px">— ${vis.length} ${vis.length===1?"negocio":"negocios"} —</p>`}`:`<div class="vacio">${hayFiltro()?"Ningún negocio pasa este filtro. Quita algún filtro (pulsa <b>Todos/Todas</b>) y vuelve a ver.":"Sin leads todavía. Pulsa 📥 Importar (arriba) para subir tu CSV, o añade desde 🔎 Buscar o a mano."}</div>`}
+    ${vis.slice(0,MOSTRAR).map(cardHTML).join("")}
+    </div><div id="verMasWrap" style="text-align:center;margin:14px 0 4px">${vis.length>MOSTRAR?`<button class="btn btn-p" id="verMas" type="button">⬇️ Ver 40 más (${vis.length-MOSTRAR} sin mostrar)</button>`:`<span class="muted" style="font-size:12px">— ${vis.length} ${vis.length===1?"negocio":"negocios"} —</span>`}</div>`:`<div class="vacio">${hayFiltro()?"Ningún negocio pasa este filtro. Quita algún filtro (pulsa <b>Todos/Todas</b>) y vuelve a ver.":"Sin leads todavía. Pulsa 📥 Importar (arriba) para subir tu CSV, o añade desde 🔎 Buscar o a mano."}</div>`}
   </div>`;
 }
 
@@ -999,8 +999,11 @@ document.addEventListener("click",async e=>{
 
 // Buscador del Pipeline: filtra las fichas en vivo, sin recargar (no pierde el foco al escribir).
 document.addEventListener("input",e=>{
-  if(e.target.id==="qLead"){ BUSQUEDA=e.target.value.trim().toLowerCase(); render();
-    const i=document.getElementById("qLead"); if(i){ i.focus(); const v=i.value; try{ i.setSelectionRange(v.length,v.length); }catch(_){} } return; } // busca en TODOS, no solo los visibles
+  if(e.target.id==="qLead"){ BUSQUEDA=e.target.value.trim().toLowerCase(); MOSTRAR=40;
+    const cont=document.getElementById("leadList"); if(cont){ let v=leadsFiltrados(); if(BUSQUEDA) v=v.filter(l=>((l.nombre||"")+" "+(l.ciudad||"")+" "+(l.dir||"")+" "+(l.email||"")+" "+(l.tel||"")+" "+(l.whatsapp||"")).toLowerCase().indexOf(BUSQUEDA)>=0);
+      cont.innerHTML = v.length? v.slice(0,MOSTRAR).map(cardHTML).join("") : '<div class="vacio">Ningún negocio con ese texto.</div>';
+      const vm=document.getElementById("verMasWrap"); if(vm) vm.innerHTML = v.length>MOSTRAR? `<button class="btn btn-p" id="verMas" type="button">⬇️ Ver 40 más (${v.length-MOSTRAR})</button>` : `<span class="muted" style="font-size:12px">— ${v.length} ${v.length===1?"resultado":"resultados"} —</span>`;
+    } return; } // busca sobre TODOS, refresca solo la lista (no pierde foco)
   if(e.target.id==="qRes"){ const qq=e.target.value.trim().toLowerCase();
     document.querySelectorAll(".rescard").forEach(c=>{ c.style.display=(!qq||(c.dataset.buscar||"").indexOf(qq)>=0)?"":"none"; }); }
 });
