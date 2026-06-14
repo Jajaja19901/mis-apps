@@ -82,7 +82,7 @@ function dias(iso){ if(!iso) return 9999; return Math.floor((Date.now()-new Date
 const T1_DEF="Hola {nombre} 👋 Soy de Incuba tu Negocio. Os escribo porque {gancho}, y justo hacemos algo que os encaja: vuestros clientes escanean un QR en la mesa, piden desde su móvil y la comanda llega sola a la barra (vosotros cobráis como siempre, con vuestra caja). Os he preparado una demo CON VUESTRO NOMBRE para que la probéis: {enlace}. El plan {plan} son {alta}€ de alta y {cuota}€/mes, todo incluido (montaje, vuestros QR, soporte y cambios de carta). ¿Os la enseño en 2 minutos?";
 const T2_DEF="Hola {nombre}, ¿pudisteis ver la demo que os preparé? 🙂 En las horas punta os ahorra viajes de camarero y se piden más rondas. Aquí la tenéis otra vez: {enlace}. Si os encaja, esta semana os la dejo funcionando ({alta}€ alta + {cuota}€/mes).";
 const T3_DEF="Hola {nombre}, último mensaje y no os molesto más 🙏 Si queréis vuestra app de pedidos por QR ({alta}€ alta + {cuota}€/mes, sin permanencia), decídmelo y la activo esta semana. Si no es el momento, sin problema. ¡Gracias y buen servicio!";
-function AJ(){ return Object.assign({ wa:"34680363828", gkey:"", jinaKey:"", webBase:"", demoBase:"", t1:T1_DEF, t2:T2_DEF, t3:T3_DEF,
+function AJ(){ return Object.assign({ wa:"34680363828", gkey:"", jinaKey:"", cfWorker:"", webBase:"", demoBase:"", t1:T1_DEF, t2:T2_DEF, t3:T3_DEF,
   precios:{ basico:{alta:99,cuota:25}, medio:{alta:150,cuota:50}, top:{alta:250,cuota:75} } }, load("ajustes",{})); }
 function planLbl(p){ return p==="basico"?"Básica":p==="top"?"Digital":"Media"; }
 // Contador de consumo (se guarda). Jina = estimado por texto leído; IA = exacto (lo da la respuesta).
@@ -148,7 +148,11 @@ function conTope(p,ms){ return Promise.race([p, new Promise((_,rej)=>setTimeout(
 // Puede haber VARIAS claves de Jina (de varias cuentas) para más cupo. Una por línea/coma.
 function jinaKeys(){ return (AJ().jinaKey||"").split(/[\s,;]+/).map(s=>s.trim()).filter(s=>/^jina_/i.test(s)); }
 async function traerWeb(url){ const keys=jinaKeys();
-  // Jina con cada clave (rota a la siguiente si una se agota), y al final puentes de respaldo.
+  // 0) Tu Cloudflare Worker (si lo tienes en Ajustes): IP residencial-friendly, 100k/dia gratis, fiable.
+  //    Es el PRIMER puente porque no se cae como los gratuitos compartidos.
+  const cf=(AJ().cfWorker||"").trim().replace(/\/+$/,"");
+  if(cf){ try{ const r=await fetchT(cf+"/?url="+encodeURIComponent(url),{headers:{"Accept":"text/html,text/plain,*/*"}},10000); if(r.ok){ const t=await r.text(); if(t&&t.length>60) return t; } }catch(e){} }
+  // 1) Jina con cada clave (rota a la siguiente si una se agota), y al final puentes de respaldo.
   for(const k of keys){ try{ const r=await fetchT(PUENTES[0](url),{headers:{"Authorization":"Bearer "+k,"Accept":"text/html,text/plain,*/*"}},9000); if(r.ok){ const t=await r.text(); if(t&&t.length>60){ usoAdd("jina",Math.ceil(t.length/4)); return t; } } }catch(e){} }
   const lista=keys.length?PUENTES.slice(1):PUENTES;
   // TODOS los puentes A LA VEZ y me quedo con el PRIMERO que traiga texto bueno. Así no espero a que
@@ -717,6 +721,9 @@ function vAjustes(){
       <div><label>🤖 Clave de IA — Groq es GRATIS (gsk_...)</label>
         <div style="display:flex;gap:6px"><input id="aIa" type="password" value="${esc(a.iaKey)}" placeholder="gsk_... (Groq) · sk-ant... (Claude) · xai-... · sk-..." style="flex:1"><button class="btn btn-p" id="aIaOn" type="button">Activar</button></div>
         <p class="note">Estado: <b>${a.iaKey?("✅ ACTIVA — "+proveedorDe(a.iaKey)):"⬜ sin clave (pégala y dale a Activar)"}</b>. Es la que usa la app para sacar emails y escribir mensajes. Gratis en <code>console.groq.com</code>. Se guarda solo en este navegador.</p></div>
+      <div><label>☁️ Tu Cloudflare Worker (puente CORS fiable — 100k peticiones/día GRATIS)</label>
+        <div style="display:flex;gap:6px"><input id="aCfW" value="${esc(a.cfWorker||"")}" placeholder="https://tu-worker.tu-usuario.workers.dev" style="flex:1"><button class="btn btn-p" id="aCfWOn" type="button">Activar</button></div>
+        <p class="note">Estado: <b>${(a.cfWorker||"").trim()?"✅ ACTIVO — puente fiable":"⬜ sin Worker — usa proxies gratuitos (se caen)"}</b>. Es tu propio servidor puente, no se cae. Súbelo con el archivo <code>tools/cloudflare-worker.js</code> del repo a <code>workers.cloudflare.com</code> (gratis, sin tarjeta). Pega aquí su URL.</p></div>
       <div><label>🌉 Clave(s) Jina (GRATIS — abre internet para buscar emails)</label>
         <div style="display:flex;gap:6px"><input id="aJina" value="${esc(a.jinaKey)}" placeholder="jina_xxx, jina_yyy (varias separadas por coma)" style="flex:1"><button class="btn btn-p" id="aJinaOn" type="button">Activar</button></div>
         <p class="note">Estado: <b>${a.jinaKey?("✅ ACTIVA ("+jinaKeys().length+" clave"+(jinaKeys().length>1?"s":"")+")"):"⬜ sin clave — SIN ESTO NO SACA EMAILS"}</b>. Gratis y sin tarjeta en <code>jina.ai</code> ("API Key"). <b>Truco:</b> si se te agota el cupo, crea otra cuenta de Jina con otro Gmail y pega la 2ª clave aquí <b>separada por coma</b> — la app usa todas y dura el doble.</p></div>
@@ -955,6 +962,8 @@ document.addEventListener("click",async e=>{
     toast(a.iaKey?("✅ IA activada — "+proveedorDe(a.iaKey)):"Clave de IA borrada"); return; }
   if(t.id==="aJinaOn"){ const a=AJ(); a.jinaKey=($("#aJina")?$("#aJina").value.trim():""); save("ajustes",a); render();
     toast(a.jinaKey?"✅ Jina activada — ya puede entrar en internet":"Clave Jina borrada"); return; }
+  if(t.id==="aCfWOn"){ const a=AJ(); a.cfWorker=($("#aCfW")?$("#aCfW").value.trim().replace(/\/+$/,""):""); save("ajustes",a); render();
+    toast(a.cfWorker?"✅ Worker activado — puente fiable":"Worker borrado"); return; }
   if(t.id==="aKeyOn"){ const a=AJ(); a.gkey=($("#aKey")?$("#aKey").value.trim():""); save("ajustes",a); render();
     toast(a.gkey?"✅ Clave de Google guardada":"Clave de Google borrada"); return; }
   if(t.id==="aGuardar"){ const a=AJ();
