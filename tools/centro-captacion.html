@@ -215,7 +215,7 @@ function incompleto(l){ return !l.tel || !l.web || (!l.instagram&&!l.facebook); 
 async function iaExtrae(texto,nombre){
   const key=(AJ().iaKey||"").trim(); if(!key) return null;
   const sys="Eres un extractor que COPIA datos escritos en un texto. Te paso texto de webs/fichas de un negocio. Devuelve SOLO un JSON plano (sin markdown) con: email, instagram, facebook, tiktok, telefono, pedidos_online, reservas. REGLAS ABSOLUTAS: (1) email: copia un correo SOLO si aparece escrito tal cual en el texto, con su arroba. ESTÁ PROHIBIDO construir, deducir o adivinar un correo a partir del nombre del negocio o de su dominio (NO inventes 'info@nombre.com'). Si en el texto no hay ningún correo escrito, email=null. (2) Ignora correos de plataformas/portales (paginasamarillas, cylex, tripadvisor, just eat, glovo, kioskoymas, wordpress, wix...). (3) instagram, facebook, telefono: cópialos solo si están literalmente en el texto; si no, null. (4) pedidos_online: true solo si ves Just Eat/Glovo/UberEats/tienda propia de compra; si no false. (5) reservas: true solo si ves TheFork o reserva online; si no false. Ante la duda, null. NUNCA te inventes nada.";
-  const usr="Negocio: "+nombre+"\n\nTexto encontrado:\n"+String(texto).slice(0,8000);
+  const usr="Negocio: "+nombre+"\n\nTexto encontrado:\n"+String(texto).slice(0,2600);
   let out="";
   if(/^sk-ant/i.test(key)){
     const r=await fetchT("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:400,temperature:0,system:sys,messages:[{role:"user",content:usr}]})},15000);
@@ -370,7 +370,7 @@ function bajarDemo(l){ if(!TPL_B64){ toast("Falta embeber la plantilla: node too
   const id=slug(l.nombre)+(l.ciudad?("-"+slug(l.ciudad)):"");
   const hue=hashN(l.nombre)%360; const color=hsl2hex(hue,66,46); const colorD=hsl2hex(hue,70,33);
   const html=generarBar(decodeTpl(TPL_B64),{ id, nombre:l.nombre, ciudad:l.ciudad||"", plan:l.plan||"medio",
-    whatsapp:(l.whatsapp||"").replace(/[^0-9]/g,""), email:l.email||"",
+    whatsapp:waDe(l), email:l.email||"",
     color, colorD, logoSvg:logoBar(l.nombre,color),
     password:(slug(l.nombre).replace(/-/g,"")+"2026").slice(0,16) });
   const u=URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"}));
@@ -426,13 +426,15 @@ function vBuscar(){
 
 /* Cola del Modo Ráfaga: primero los seguimientos pendientes (más calientes), luego los
    nuevos por puntuación. Solo bares con WhatsApp (a los sin número no se les puede abrir chat). */
+// Número listo para WhatsApp: usa el WhatsApp si lo hay; si no, el teléfono (fijo o el que sea).
+function waDe(l){ let d=(l.whatsapp||"").replace(/\D/g,""); if(d.length<9) d=(l.tel||"").replace(/\D/g,""); if(d.length>9) d=d.slice(-9); return d.length===9?("34"+d):""; }
 function colaRafaga(){
-  const L=LEADS().filter(l=>(l.whatsapp||"").replace(/[^0-9]/g,"").length>=9);
+  const L=LEADS().filter(l=>waDe(l));
   const seguimientos=L.filter(l=>toquePendiente(l)>0);
   const nuevos=L.filter(l=>l.estado==="nuevo").sort((a,b)=>(score(b).v)-(score(a).v));
   return seguimientos.concat(nuevos);
 }
-function canalDe(l){ const wa=(l.whatsapp||"").replace(/[^0-9]/g,"").length>=9; if(wa) return "wa"; if(l.email) return "email"; return "ninguno"; }
+function canalDe(l){ if(waDe(l)) return "wa"; if(l.email) return "email"; return "ninguno"; }
 function vPipeline(){
   const L=LEADS(); const f=load("filtro",""); const fc=load("filtrocanal","");
   let vis=f?L.filter(l=>l.estado===f):L;
@@ -440,7 +442,7 @@ function vPipeline(){
   const chips=["","nuevo","contactado","interesado","cliente","no"].map(k=>`<button class="mini" data-filtro="${k}" type="button" style="${f===k?"background:var(--brand);color:#fff;border-color:var(--brand)":""}">${k===""?"Todos":k}</button>`).join(" ");
   const nW=L.filter(l=>canalDe(l)==="wa").length, nE=L.filter(l=>canalDe(l)==="email").length, nN=L.filter(l=>canalDe(l)==="ninguno").length;
   const chipsCanal=[["","Todos los canales",L.length],["wa","📞 Por WhatsApp",nW],["email","✉️ Solo email (sin tel)",nE],["ninguno","❓ Sin contacto",nN]].map(([k,t,c])=>`<button class="mini" data-canal="${k}" type="button" style="${fc===k?"background:var(--ink);color:#fff;border-color:var(--ink)":""}">${t} (${c})</button>`).join(" ");
-  const cola=colaRafaga(); const sinWa=LEADS().filter(l=>(l.whatsapp||"").replace(/[^0-9]/g,"").length<9&&(l.estado==="nuevo")).length;
+  const cola=colaRafaga(); const sinWa=LEADS().filter(l=>!waDe(l)&&(l.estado==="nuevo")).length;
   return `${cola.length?`<div class="card" style="border-color:var(--brand);background:#fffaf2"><h2>🚀 Modo Ráfaga — ${cola.length} por contactar</h2>
     <p class="note" style="margin:0 0 10px">Le da al siguiente de la cola (los más calientes primero): escribe su mensaje${AJ().iaKey?" con IA ✨":""}, te abre WhatsApp listo y lo marca como contactado. Tú solo: <b>enviar y volver</b>.</p>
     <button class="btn btn-p" id="rafaga" type="button" style="width:100%;font-size:15px">🚀 Contactar al siguiente: ${esc(cola[0].nombre)}</button>
@@ -463,7 +465,7 @@ function vPipeline(){
     ${L.some(l=>l.emailAuto)?`<button class="mini" id="limpiaMails" type="button" title="Borra los emails que encontró la app, para re-buscarlos" style="color:#b32424">🧹 Borrar emails auto (${L.filter(l=>l.emailAuto).length})</button>`:""}</div>
     ${fc==="ninguno"?`<p class="note" style="color:var(--brand-d)">❓ Estos no tienen ni WhatsApp ni email localizado. Pulsa 🔎✉️ en cada uno (o el botón de arriba) para que busque su email en la web. Si aun así no aparece, es que no lo tienen publicado.</p>`:""}
     ${vis.length?`<div style="display:flex;flex-direction:column;gap:12px">
-    ${vis.map(l=>{ const tq=toquePendiente(l); const waNum=(l.whatsapp||"").replace(/[^0-9]/g,"");
+    ${vis.map(l=>{ const tq=toquePendiente(l); const waNum=waDe(l);
       const aviso=tq?`<span class="alerta">↻ toca ${tq}º toque</span>`:(l.estado==="interesado"?'<span class="alerta" style="background:#fde8f0;border-color:#a3164f;color:#a3164f">🔥 ¡cerrar!</span>':"");
       return `<div style="border:1px solid #e4e4e4;border-radius:14px;padding:13px 15px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06)">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
@@ -598,13 +600,13 @@ document.addEventListener("click",async e=>{
     const l=cola[0]; t.textContent="✍️ Escribiendo a "+l.nombre+"…"; t.disabled=true;
     let msg; try{ msg=AJ().iaKey?await mensajeIA(l):null; }catch(err){ toast("IA falló, uso plantilla: "+err.message); }
     if(!msg){ const tq=toquePendiente(l); msg=fillTpl(tq===3?AJ().t3:tq===2?AJ().t2:AJ().t1,l); }
-    const num=(l.whatsapp||"").replace(/[^0-9]/g,"");
+    const num=waDe(l);
     window.open("https://wa.me/"+num+"?text="+encodeURIComponent(msg),"_blank","noopener");
     upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 });
     render(); const c2=colaRafaga(); toast(c2.length?("Enviado a "+l.nombre+" · quedan "+c2.length):"¡Última! Cola terminada 🎉");
     return; }
   if(t.dataset.ia){ const l=LEADS().find(x=>x.id===t.dataset.ia); const orig=t.textContent; t.textContent="✨…"; t.disabled=true;
-    try{ const m=await mensajeIA(l); const num=(l.whatsapp||"").replace(/[^0-9]/g,"");
+    try{ const m=await mensajeIA(l); const num=waDe(l);
       if(num){ window.open("https://wa.me/"+num+"?text="+encodeURIComponent(m),"_blank","noopener"); }
       else { try{ await navigator.clipboard.writeText(m); }catch(e){} prompt("Mensaje de la IA (cópialo):",m); }
       upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 }); render();
@@ -645,7 +647,7 @@ document.addEventListener("click",async e=>{
   if(t.dataset.canal!=null){ save("filtrocanal",t.dataset.canal); render(); return; }
   if(t.id==="mAdd"){ const nom=$("#mNom").value.trim(); if(nom.length<2){ toast("Pon el nombre"); return; }
     addLead({ nombre:nom, ciudad:$("#mCiu").value.trim(), tel:$("#mTel").value.trim(), whatsapp:$("#mWa").value.replace(/[^0-9]/g,"") })?toast("Añadido ✓"):toast("Ya existía"); render(); return; }
-  if(t.dataset.wa){ const l=LEADS().find(x=>x.id===t.dataset.wa); const num=(l.whatsapp||"").replace(/[^0-9]/g,"");
+  if(t.dataset.wa){ const l=LEADS().find(x=>x.id===t.dataset.wa); const num=waDe(l);
     const tq=toquePendiente(l); const msg=fillTpl(tq===3?AJ().t3:tq===2?AJ().t2:AJ().t1,l);
     window.open("https://wa.me/"+num+"?text="+encodeURIComponent(msg),"_blank","noopener");
     upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 }); render(); return; }
@@ -664,9 +666,10 @@ document.addEventListener("click",async e=>{
       cuerpo+="\n\n👉 Si te interesa, escríbeme directo por WhatsApp (un toque):\nhttps://wa.me/"+miWa+"?text="+txtWa; }
     cuerpo+="\n\nUn saludo,\nIncuba tu Negocio\nincubatunegociowebapps@gmail.com\n(Si no quieres recibir más correos nuestros, responde BAJA y no te escribimos más.)";
     if(em){ // abre Gmail con el correo personal YA escrito (de tu cuenta) -> solo das a Enviar
+      try{ await navigator.clipboard.writeText("Para: "+em+"\nAsunto: "+asunto+"\n\n"+cuerpo); }catch(e){} // copia de respaldo por si Gmail no abre
       const g="https://mail.google.com/mail/?view=cm&fs=1&to="+encodeURIComponent(em)+"&su="+encodeURIComponent(asunto)+"&body="+encodeURIComponent(cuerpo);
       window.open(g,"_blank","noopener");
-      upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 }); setTimeout(render,400); toast("Gmail abierto con el correo escrito — solo dale a Enviar ✉️"); }
+      upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 }); setTimeout(render,400); toast("Correo escrito para "+em+" — se abre Gmail (y queda copiado por si acaso) ✉️"); }
     else { try{ await navigator.clipboard.writeText("Para: (busca su email)\nAsunto: "+asunto+"\n\n"+cuerpo); toast("No tiene email guardado · correo copiado ✉️"); }catch(err){ prompt("Copia el email:",cuerpo); } }
     return; }
   if(t.dataset.demo){ const l=LEADS().find(x=>x.id===t.dataset.demo); bajarDemo(l); return; }
