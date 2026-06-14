@@ -583,12 +583,13 @@ function leadsFiltrados(){ const f=load("filtro",""),fc=load("filtrocanal",""),f
     &&(!fem||(fem==="con"?!!l.email:!l.email))&&(!ft||(ft==="con"?tieneTel(l):!tieneTel(l)))
     &&(!fkm||(l.km!=null&&l.km<=fkm))&&(fval!=="si"||(Number(l.rating)>=4))&&(fped!=="si"||!!l.pedidos)); }
 function hayFiltro(){ return !!(load("filtro","")||load("filtrocanal","")||load("filtrozona","")||load("filtrociudad","")||load("filtroweb","")||load("filtroemail","")||load("filtrotel","")||+load("filtrokm",0)||load("filtroval","")||load("filtroped","")); }
-var MOSTRAR=40, _sigPipe="";  // paginación: cuántas fichas se dibujan (más = ahoga el móvil)
+var MOSTRAR=40, _sigPipe="", BUSQUEDA="";  // paginación + texto del buscador (filtra TODOS, no solo los visibles)
 function vPipeline(){
   const L=LEADS(); const f=load("filtro",""); const fc=load("filtrocanal",""); const fciu=load("filtrociudad",""); const fweb=load("filtroweb","");
   let vis=leadsFiltrados();
+  if(BUSQUEDA){ vis=vis.filter(l=>((l.nombre||"")+" "+(l.ciudad||"")+" "+(l.dir||"")+" "+(l.email||"")+" "+(l.tel||"")+" "+(l.whatsapp||"")).toLowerCase().indexOf(BUSQUEDA)>=0); }
   // si cambió el filtro (o el total), volvemos a empezar mostrando 40
-  const _sig=[f,fc,load("filtrozona",""),fciu,fweb,load("filtroemail",""),load("filtrotel",""),load("filtrokm",0),load("filtroval",""),load("filtroped",""),vis.length].join("|");
+  const _sig=[f,fc,load("filtrozona",""),fciu,fweb,load("filtroemail",""),load("filtrotel",""),load("filtrokm",0),load("filtroval",""),load("filtroped",""),BUSQUEDA,vis.length].join("|");
   if(_sig!==_sigPipe){ _sigPipe=_sig; MOSTRAR=40; }
   const chips=["","nuevo","contactado","interesado","cliente","no"].map(k=>`<button class="mini" data-filtro="${k}" type="button" style="${f===k?"background:var(--brand);color:#fff;border-color:var(--brand)":""}">${k===""?"Todos":k}</button>`).join(" ");
   const nW=L.filter(l=>canalDe(l)==="wa").length, nE=L.filter(l=>canalDe(l)==="email").length, nN=L.filter(l=>canalDe(l)==="ninguno").length;
@@ -646,7 +647,7 @@ function vPipeline(){
     ${vis.some(l=>!l.tel)?`<button class="mini" id="googleFill" type="button" title="Pide a Google el teléfono y web OFICIALES (usa tu clave de Ajustes; cuesta céntimos por bar)" style="border-color:#1a73e8;color:#1a73e8">📞 Rellenar con Google (${vis.filter(l=>!l.tel).length})</button>`:""}
     ${L.some(l=>l.emailAuto)?`<button class="mini" id="limpiaMails" type="button" title="Borra los emails que encontró la app, para re-buscarlos" style="color:#b32424">🧹 Borrar emails auto (${L.filter(l=>l.emailAuto).length})</button>`:""}</div>
     ${fc==="ninguno"?`<p class="note" style="color:var(--brand-d)">❓ Estos no tienen ni WhatsApp ni email localizado. Pulsa 🔎✉️ en cada uno (o el botón de arriba) para que busque su email en la web. Si aun así no aparece, es que no lo tienen publicado.</p>`:""}
-    ${vis.length>3?`<input id="qLead" type="search" placeholder="🔍 Buscar un bar por nombre, ciudad, email…" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:10px;margin-bottom:10px;font-size:14px">`:""}
+    ${(vis.length>3||BUSQUEDA)?`<input id="qLead" type="search" value="${esc(BUSQUEDA)}" placeholder="🔍 Buscar en los ${L.length} por nombre, ciudad, email…" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:10px;margin-bottom:10px;font-size:14px">`:""}
     ${vis.length?`<div id="leadList" style="display:flex;flex-direction:column;gap:12px">
     ${vis.slice(0,MOSTRAR).map(l=>{ const tq=toquePendiente(l); const waNum=waDe(l);
       // teléfono mostrado = el mismo que se usa (móvil si hay; si no, el fijo). Etiquetado para no confundir.
@@ -998,8 +999,10 @@ document.addEventListener("click",async e=>{
 
 // Buscador del Pipeline: filtra las fichas en vivo, sin recargar (no pierde el foco al escribir).
 document.addEventListener("input",e=>{
-  if(e.target.id==="qLead"||e.target.id==="qRes"){ const qq=e.target.value.trim().toLowerCase(); const cls=e.target.id==="qRes"?".rescard":".leadcard";
-    document.querySelectorAll(cls).forEach(c=>{ c.style.display=(!qq||(c.dataset.buscar||"").indexOf(qq)>=0)?"":"none"; }); }
+  if(e.target.id==="qLead"){ BUSQUEDA=e.target.value.trim().toLowerCase(); render();
+    const i=document.getElementById("qLead"); if(i){ i.focus(); const v=i.value; try{ i.setSelectionRange(v.length,v.length); }catch(_){} } return; } // busca en TODOS, no solo los visibles
+  if(e.target.id==="qRes"){ const qq=e.target.value.trim().toLowerCase();
+    document.querySelectorAll(".rescard").forEach(c=>{ c.style.display=(!qq||(c.dataset.buscar||"").indexOf(qq)>=0)?"":"none"; }); }
 });
 document.addEventListener("change",e=>{
   const s=e.target;
