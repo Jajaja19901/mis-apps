@@ -217,7 +217,7 @@ async function buscarDatosWeb(nombre,ciudad,prof){
   if(email && !emailRelevante(email,nombre,web,pg)) email="";
   if(email) DIAG.email++;
   if(prof){ const low=pg.toLowerCase(); const tk=tokensNombre(nombre); let idx=-1,tkf=""; for(const t of tk){ const i=low.indexOf(t); if(i>=0){idx=i;tkf=t;break;} }
-    extra._dbg={ pgLen:pg.length, jina:DIAG.jina, gg:DIAG.gg, ddg:DIAG.ddg, nombreEnTexto:idx>=0?("sí ("+tkf+")"):"NO", telsCerca:telCand.slice(0,6).join(", ")||"(ninguno)", telsTodos:sacaTel(pg).slice(0,8).join(", ")||"(ninguno)" }; }
+    extra._dbg={ pgLen:pg.length, jina:DIAG.jina, gg:DIAG.gg, ddg:DIAG.ddg, nombreEnTexto:idx>=0?("sí ("+tkf+")"):"NO", telsCerca:telCand.slice(0,6).join(", ")||"(ninguno)", telsTodos:sacaTel(pg).slice(0,8).join(", ")||"(ninguno)", mobiles:telCand.filter(esMovil) }; }
   return Object.assign({ email, web }, extra);
 }
 // Convierte lo encontrado en un parche para el lead (solo rellena lo que falta; no pisa lo que ya hay).
@@ -644,9 +644,18 @@ document.addEventListener("click",async e=>{
   if(t.dataset.rebuscar){ const l=LEADS().find(x=>x.id===t.dataset.rebuscar); const o=t.textContent; t.textContent="🔄…"; t.disabled=true;
     resetDiag();
     try{ const d=await conTope(buscarDatosWeb(l.nombre,l.ciudad,true),55000); const patch=datosPatch(d,l);
-      const g=d._dbg||{}; const diag="\n\n— Diagnóstico —\nJina: "+(g.jina?"sí":"NO")+" · Google: "+(g.gg?"sí":"NO")+" · DDG: "+(g.ddg?"sí":"NO")+"\nTexto leído: "+(g.pgLen||0)+" letras\nNombre en el texto: "+(g.nombreEnTexto||"?")+"\nTeléfonos junto al nombre: "+(g.telsCerca||"?")+"\nTeléfonos en todo el texto: "+(g.telsTodos||"?");
-      if(Object.keys(patch).filter(k=>k!=="emailAuto").length){ upLead(l.id,patch); render(); alert(l.nombre+": ACTUALIZADO ✓\nCambios: "+Object.keys(patch).filter(k=>k!=="emailAuto").join(", ")+diag); }
-      else { t.textContent=o; t.disabled=false; alert(l.nombre+": sin cambios."+diag+"\n\n(Mándame esta foto y veo qué pasa.)"); }
+      const g=d._dbg||{}; const movs=(g.mobiles||[]);
+      const fmt=m=>"+34 "+m.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4");
+      // Si hay VARIOS móviles posibles, que elija el usuario (no adivinar).
+      if(movs.length>1){
+        const op=movs.map((m,i)=>(i+1)+") "+fmt(m)).join("\n");
+        const r=(prompt("📞 "+l.nombre+": he encontrado varios móviles posibles. ¿Cuál es el SUYO?\nEscribe el número de la opción (1, 2, 3…). Deja vacío para no cambiar el teléfono.\n\n"+op,"")||"").trim();
+        const i=parseInt(r,10)-1;
+        if(movs[i]){ patch.tel=fmt(movs[i]); patch.whatsapp="34"+movs[i]; }
+        else { delete patch.tel; delete patch.whatsapp; } // si no elige, no tocamos el teléfono
+      }
+      if(Object.keys(patch).filter(k=>k!=="emailAuto").length){ upLead(l.id,patch); render(); toast(l.nombre+": actualizado ✓ ("+Object.keys(patch).filter(k=>k!=="emailAuto").join(", ")+")"); }
+      else { t.textContent=o; t.disabled=false; toast(l.nombre+": sin cambios"); }
     }catch(err){ toast("No se pudo reajustar: "+err.message); t.textContent=o; t.disabled=false; } return; }
   if(t.dataset.bmail){ const l=LEADS().find(x=>x.id===t.dataset.bmail); const o=t.textContent; t.textContent="🔎…"; t.disabled=true;
     try{ const d=await buscarDatosWeb(l.nombre,l.ciudad); const patch=datosPatch(d,l);
