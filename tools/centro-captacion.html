@@ -355,6 +355,8 @@ function generarBar(tpl,d){ let out=tpl; const set=(re,val)=>{ out=out.replace(r
   if(d.color){ out=out.replace(/--brand:#[0-9a-fA-F]{3,8}/,'--brand:'+d.color).replace(/--brand-d:#[0-9a-fA-F]{3,8}/,'--brand-d:'+d.colorD).replace(/--gold:#[0-9a-fA-F]{3,8}/,'--gold:'+d.color); }
   // logo de iniciales propio
   if(d.logoSvg){ out=out.replace(/const LOGO=`[\s\S]*?`;/, ()=>'const LOGO=`'+d.logoSvg+'`;'); }
+  // sello DEMO discreto (para que el cliente la vea pero quede claro que es una muestra)
+  out=out.replace(/<\/body>/i,'<div aria-hidden="true" style="position:fixed;left:8px;bottom:8px;z-index:99998;background:rgba(17,17,17,.82);color:#fff;font:800 10px/1 system-ui,Arial;letter-spacing:.06em;padding:6px 9px;border-radius:7px;pointer-events:none">DEMO</div></body>');
   out=out.replace(/<script type="application\/json" id="acceptance-tests">[\s\S]*?<\/script>/,"");
   return out; }
 function bajarDemo(l){ if(!TPL_B64){ toast("Falta embeber la plantilla: node tools/regenerar-centro.mjs"); return; }
@@ -366,7 +368,7 @@ function bajarDemo(l){ if(!TPL_B64){ toast("Falta embeber la plantilla: node too
     password:(slug(l.nombre).replace(/-/g,"")+"2026").slice(0,16) });
   const u=URL.createObjectURL(new Blob([html],{type:"text/html;charset=utf-8"}));
   const a=document.createElement("a"); a.href=u; a.download=id+".html"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),1500);
-  toast("Demo descargada. Súbela a app.netlify.com/drop y pega el enlace en el lead 📎"); }
+  setTimeout(()=>{ if(confirm("✅ Demo de "+l.nombre+" descargada.\n\nPARA ENVIÁRSELA AL CLIENTE SIN DARLE EL ARCHIVO (un enlace):\n1) Se abre la web 'Netlify Drop'.\n2) Sube/arrastra el archivo que se acaba de descargar.\n3) Te da un ENLACE (https://...netlify.app).\n4) Pega ese enlace en este bar con el botón 🔗, y mándaselo por WhatsApp.\n\nEl cliente abre el enlace y ve su demo, pero no se queda el archivo.\n\n¿Abro Netlify Drop ahora?")) window.open("https://app.netlify.com/drop","_blank","noopener"); },300); }
 
 /* ── CSV seguro ── */
 function csvCell(v){ let s=String(v==null?"":v); if(/^[=+\-@\t\r]/.test(s)) s="'"+s; if(/[",;\n]/.test(s)) s='"'+s.replace(/"/g,'""')+'"'; return s; }
