@@ -352,14 +352,19 @@ function vBuscar(){
     <input type="file" id="csvFile" accept=".csv,text/csv"></div>
   <div class="card" id="bres" style="display:${RES.length?"":"none"}">
     <h2>Resultados (${RES.length}) <button class="btn btn-g" id="addTodos" type="button" style="float:right">+ Añadir todos al pipeline</button></h2>
-    <div style="overflow:auto;max-height:56vh"><table><thead><tr><th>🔥</th><th>Negocio</th><th>Por qué pica</th><th>Tel.</th><th>Web</th><th>★</th><th></th></tr></thead><tbody>
-    ${RES.map((d,i)=>`<tr><td title="${d.score} pts">${d.score>=55?"🔥🔥🔥":d.score>=35?"🔥🔥":d.score>=20?"🔥":"·"}</td>
-      <td><b>${esc(d.nombre)}</b><br><span class="muted" style="font-size:11px">${esc(d.dir)}</span></td>
-      <td class="muted">${esc(d.motivo)}</td><td>${esc(d.tel)||"-"}</td>
-      <td>${d.web?`<a href="${esc(d.web)}" target="_blank" rel="noopener">web</a>`:'<b style="color:var(--brand-d)">sin web</b>'}</td>
-      <td>${d.rating?(d.rating+" ("+d.n+")"):"-"}</td>
-      <td><button class="mini" data-add="${i}" type="button">+ Pipeline</button></td></tr>`).join("")}
-    </tbody></table></div></div>`;
+    <div style="display:flex;flex-direction:column;gap:10px;max-height:62vh;overflow:auto">
+    ${RES.map((d,i)=>`<div style="border:1px solid #e4e4e4;border-radius:12px;padding:11px 13px;background:#fff">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+        <div style="font-size:15.5px;font-weight:700;line-height:1.2">${d.score>=55?"🔥🔥🔥 ":d.score>=35?"🔥🔥 ":d.score>=20?"🔥 ":""}${esc(d.nombre)}</div>
+        <button class="mini" data-add="${i}" type="button">+ Pipeline</button></div>
+      <div style="font-size:12.5px;color:#666;margin:4px 0">${esc(d.dir)}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px">
+        <span>📞 ${esc(d.tel)||"<span style=color:#c33>—</span>"}</span>
+        <span>${d.web?`🌐 <a href="${esc(d.web)}" target="_blank" rel="noopener">web</a>`:'<b style="color:var(--brand-d)">sin web</b>'}</span>
+        ${d.rating?`<span>⭐ ${d.rating} (${d.n})</span>`:""}</div>
+      <div style="font-size:12px;color:#888;margin-top:4px">${esc(d.motivo)}</div>
+    </div>`).join("")}
+    </div></div>`;
 }
 
 /* Cola del Modo Ráfaga: primero los seguimientos pendientes (más calientes), luego los
@@ -398,26 +403,39 @@ function vPipeline(){
     ${L.some(l=>!l.email)?`<button class="mini" id="buscaMails" type="button" title="Busca en la web el email de los bares que aún no lo tengan">🔎✉️ Buscar emails que falten (${L.filter(l=>!l.email).length})</button>`:""}
     ${L.some(l=>l.emailAuto)?`<button class="mini" id="limpiaMails" type="button" title="Borra los emails que encontró la app, para re-buscarlos" style="color:#b32424">🧹 Borrar emails auto (${L.filter(l=>l.emailAuto).length})</button>`:""}</div>
     ${fc==="ninguno"?`<p class="note" style="color:var(--brand-d)">❓ Estos no tienen ni WhatsApp ni email localizado. Pulsa 🔎✉️ en cada uno (o el botón de arriba) para que busque su email en la web. Si aun así no aparece, es que no lo tienen publicado.</p>`:""}
-    ${vis.length?`<div style="overflow:auto"><table><thead><tr><th>Negocio</th><th>Estado</th><th>Aviso</th><th>Contactar</th><th>Demo</th><th>Plan</th><th></th></tr></thead><tbody>
-    ${vis.map(l=>{ const tq=toquePendiente(l); const tpl=tq===3?AJ().t3:tq===2?AJ().t2:AJ().t1; const msg=fillTpl(tpl,l);
-      const waNum=(l.whatsapp||"").replace(/[^0-9]/g,"");
-      return `<tr>
-      <td><b>${esc(l.nombre)}</b><br><span class="muted" style="font-size:11px">${esc(l.ciudad||"")} ${l.tel?("· 📞 "+esc(l.tel)):"· 📞—"} ${l.email?("· ✉️ "+esc(l.email)):""} ${l.instagram?`· <a href="${esc(l.instagram)}" target="_blank" rel="noopener">📷</a>`:""} ${l.facebook?`· <a href="${esc(l.facebook)}" target="_blank" rel="noopener">f</a>`:""} ${l.pedidos?"· 🛒 ya vende online":""} ${l.origen==="embudo"?"· 📥 del embudo":""}</span>
-        <br><span style="font-size:10.5px">${diagnostico(l)}</span>
-        ${l.notas?`<br><span class="muted" style="font-size:11px">📝 ${esc(l.notas)}</span>`:""}
-        ${l.demoUrl?`<br><a href="${esc(l.demoUrl)}" target="_blank" rel="noopener" style="font-size:11px">🔗 su demo</a>`:""}</td>
-      <td><select data-est="${l.id}" style="padding:5px"><option value="nuevo"${l.estado==="nuevo"?" selected":""}>Nuevo</option><option value="contactado"${l.estado==="contactado"?" selected":""}>Contactado</option><option value="interesado"${l.estado==="interesado"?" selected":""}>Interesado</option><option value="cliente"${l.estado==="cliente"?" selected":""}>CLIENTE 🎉</option><option value="no"${l.estado==="no"?" selected":""}>No</option></select>
-        ${l.ultimo?`<br><span class="muted" style="font-size:10.5px">hace ${dias(l.ultimo)}d · ${l.toques||0} toque(s)</span>`:""}</td>
-      <td>${l.estado==="contactado"?`<div style="display:flex;gap:4px;flex-wrap:wrap"><button class="mini" data-resp="${l.id}" type="button" title="Me ha contestado" style="border-color:#3f9d52;color:#1d6f2b">✅ Respondió</button><button class="mini" data-norep="${l.id}" type="button" title="No le interesa" style="color:#b32424">❌ No</button></div>${tq?`<span class="alerta">↻ toca ${tq}º toque</span>`:""}`:tq?`<span class="alerta">↻ toca ${tq}º toque</span>`:l.estado==="interesado"?'<span class="alerta" style="background:#fde8f0;border-color:#a3164f;color:#a3164f">🔥 ¡cerrar!</span>':"—"}</td>
-      <td>${waNum?`<button class="btn btn-wa" data-wa="${l.id}" type="button">💬 WhatsApp</button>`:`<button class="mini" data-copy="${l.id}" type="button">📋 Copiar msj</button>`}
+    ${vis.length?`<div style="display:flex;flex-direction:column;gap:12px">
+    ${vis.map(l=>{ const tq=toquePendiente(l); const waNum=(l.whatsapp||"").replace(/[^0-9]/g,"");
+      const aviso=tq?`<span class="alerta">↻ toca ${tq}º toque</span>`:(l.estado==="interesado"?'<span class="alerta" style="background:#fde8f0;border-color:#a3164f;color:#a3164f">🔥 ¡cerrar!</span>':"");
+      return `<div style="border:1px solid #e4e4e4;border-radius:14px;padding:13px 15px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
+        <div style="font-size:17px;font-weight:700;line-height:1.2">${esc(l.nombre)}</div>${aviso}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px 14px;font-size:13.5px;color:#444;margin-bottom:7px">
+        <span>📍 ${esc(l.ciudad||"—")}</span>
+        <span>📞 ${l.tel?esc(l.tel):"<span style=color:#c33>—</span>"}</span>
+        <span>✉️ ${l.email?esc(l.email):"<span style=color:#c33>sin email</span>"}</span>
+        ${l.instagram?`<a href="${esc(l.instagram)}" target="_blank" rel="noopener">📷 Instagram</a>`:""}
+        ${l.facebook?`<a href="${esc(l.facebook)}" target="_blank" rel="noopener">📘 Facebook</a>`:""}
+        ${l.pedidos?`<span>🛒 ya vende online</span>`:""}
+        ${l.origen==="embudo"?`<span>📥 del embudo</span>`:""}</div>
+      <div style="font-size:12px;margin-bottom:7px">${diagnostico(l)}</div>
+      ${l.notas?`<div style="font-size:12.5px;color:#555;background:#f7f7f7;border-radius:8px;padding:5px 9px;margin-bottom:7px">📝 ${esc(l.notas)}</div>`:""}
+      ${l.demoUrl?`<div style="margin-bottom:7px"><a href="${esc(l.demoUrl)}" target="_blank" rel="noopener" style="font-size:12.5px">🔗 su demo</a></div>`:""}
+      <div style="display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-bottom:9px">
+        <label style="font-size:12px;color:var(--mut)">Estado: <select data-est="${l.id}" style="padding:6px;font-size:13px"><option value="nuevo"${l.estado==="nuevo"?" selected":""}>Nuevo</option><option value="contactado"${l.estado==="contactado"?" selected":""}>Contactado</option><option value="interesado"${l.estado==="interesado"?" selected":""}>Interesado</option><option value="cliente"${l.estado==="cliente"?" selected":""}>CLIENTE 🎉</option><option value="no"${l.estado==="no"?" selected":""}>No</option></select></label>
+        <label style="font-size:12px;color:var(--mut)">Plan: <select data-plan="${l.id}" style="padding:6px;font-size:13px"><option value="basico"${l.plan==="basico"?" selected":""}>Básica</option><option value="medio"${l.plan==="medio"?" selected":""}>Media</option><option value="top"${l.plan==="top"?" selected":""}>Digital</option></select></label>
+        ${l.ultimo?`<span class="muted" style="font-size:11px">hace ${dias(l.ultimo)}d · ${l.toques||0} toque(s)</span>`:""}</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        ${waNum?`<button class="btn btn-wa" data-wa="${l.id}" type="button">💬 WhatsApp</button>`:`<button class="mini" data-copy="${l.id}" type="button">📋 Copiar msj</button>`}
         <button class="mini" data-ia="${l.id}" type="button" title="Mensaje escrito por IA">✨ IA</button>
-        <button class="mini" data-mail="${l.id}" type="button" title="Copiar email">✉️</button>
-        ${l.email?"":`<button class="mini" data-bmail="${l.id}" type="button" title="Buscar su email en la web">🔎✉️</button>`}</td>
-      <td><button class="mini" data-demo="${l.id}" type="button">⬇️ Generar</button> <button class="mini" data-url="${l.id}" type="button" title="Pegar enlace de su demo">🔗</button></td>
-      <td><select data-plan="${l.id}" style="padding:5px"><option value="basico"${l.plan==="basico"?" selected":""}>Básica</option><option value="medio"${l.plan==="medio"?" selected":""}>Media</option><option value="top"${l.plan==="top"?" selected":""}>Digital</option></select></td>
-      <td><button class="mini" data-nota="${l.id}" type="button" title="Nota">📝</button> <button class="mini" data-del="${l.id}" type="button" title="Borrar">🗑</button></td>
-      </tr>`; }).join("")}
-    </tbody></table></div>`:`<div class="vacio">Sin leads${f?" en este estado":""}. Añade desde 🔎 Buscar o a mano.</div>`}
+        <button class="mini" data-mail="${l.id}" type="button" title="Escribir email">✉️ Email</button>
+        ${l.email?"":`<button class="mini" data-bmail="${l.id}" type="button" title="Buscar su email en la web">🔎✉️ Buscar email</button>`}
+        <button class="mini" data-demo="${l.id}" type="button" title="Generar su demo">⬇️ Demo</button>
+        <button class="mini" data-url="${l.id}" type="button" title="Pegar enlace de su demo">🔗</button>
+        <button class="mini" data-nota="${l.id}" type="button" title="Nota">📝</button>
+        <button class="mini" data-del="${l.id}" type="button" title="Borrar" style="color:#b32424">🗑</button></div>
+      ${l.estado==="contactado"?`<div style="display:flex;gap:7px;margin-top:9px;padding-top:9px;border-top:1px solid #eee"><button class="mini" data-resp="${l.id}" type="button" style="border-color:#3f9d52;color:#1d6f2b">✅ Me respondió</button><button class="mini" data-norep="${l.id}" type="button" style="color:#b32424">❌ No le interesa</button></div>`:""}
+      </div>`; }).join("")}
+    </div>`:`<div class="vacio">Sin leads${f?" en este estado":""}. Añade desde 🔎 Buscar o a mano.</div>`}
   </div>`;
 }
 
