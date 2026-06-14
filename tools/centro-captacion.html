@@ -133,11 +133,18 @@ function sacaEmails(txt){ const out=[],seen={}; (String(txt).match(EMAIL_RE)||[]
 // Saca teléfonos españoles válidos (móvil 6/7 o fijo 9x). Descarta premium/especiales (90x, 80x).
 function sacaTel(txt){ const out=[],seen={}; const re=/(?:\+?34[\s.\-]?)?([6789]\d{2}[\s.\-]?\d{2}[\s.\-]?\d{2}[\s.\-]?\d{2})/g; let m;
   while((m=re.exec(String(txt)))){ const d=m[1].replace(/\D/g,""); if(d.length===9 && !/^(8|90)/.test(d) && !seen[d]){ seen[d]=1; out.push(d); } } return out; }
-// Teléfonos que aparecen PEGADOS al nombre del bar (para no coger el de otro resultado de la zona).
-function telCerca(pg,nombre){ const low=String(pg).toLowerCase(); const toks=tokensNombre(nombre);
-  let idx=-1; for(const t of toks){ const i=low.indexOf(t); if(i>=0){ idx=i; break; } }
-  const zona = idx>=0 ? String(pg).slice(Math.max(0,idx-250), idx+450) : ""; // si no se ve el nombre, no arriesgamos
-  return sacaTel(zona); }
+// Teléfonos que aparecen PEGADOS al nombre del bar (mira TODAS las veces que sale el nombre,
+// no solo la primera — el dato puede estar en cualquier mención dentro del texto).
+function telCerca(pg,nombre){ const low=String(pg).toLowerCase(); const toks=tokensNombre(nombre); if(!toks.length) return [];
+  const out=[],seen={};
+  for(const tok of toks){ let from=0,idx;
+    while((idx=low.indexOf(tok,from))>=0 && out.length<12){
+      const zona=String(pg).slice(Math.max(0,idx-200), idx+400);
+      for(const d of sacaTel(zona)){ if(!seen[d]){ seen[d]=1; out.push(d); } }
+      from=idx+tok.length;
+    }
+  }
+  return out; }
 function sacaWeb(txt){ return sacaLinks(txt).find(u=>!WEB_BAD.test(u))||""; }
 // Saca los enlaces de resultados de la búsqueda (incluye guías y Facebook: ahí suele estar el email
 // de los bares SIN web). Descarta buscadores, proxies e imágenes. Uno por dominio, máx 5.
