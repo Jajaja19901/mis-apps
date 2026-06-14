@@ -149,6 +149,14 @@ function telCerca(pg,nombre){ const low=String(pg).toLowerCase(); const toks=tok
     }
   }
   return Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a]); } // el más repetido primero
+// Saca enlaces de redes sociales por regex (sin depender de la IA). Prefiere los que llevan el nombre del bar.
+function sacaRedes(pg,nombre){ const txt=String(pg); const toks=tokensNombre(nombre);
+  const grab=re=>[...new Set((txt.match(re)||[]).map(u=>u.replace(/[).,"'<>\]]+$/,"")))];
+  const best=arr=>{ if(!arr.length)return""; return arr.find(u=>toks.some(t=>u.toLowerCase().includes(t)))||arr[0]; };
+  const ig=grab(/https?:\/\/(?:www\.)?instagram\.com\/[A-Za-z0-9_.]{2,}/gi).filter(u=>!/instagram\.com\/(p|reel|explore|stories|accounts|about|developer)\b/i.test(u));
+  const fb=grab(/https?:\/\/(?:www\.)?facebook\.com\/[A-Za-z0-9_.\-\/]{2,}/gi).filter(u=>!/facebook\.com\/(sharer|plugins|tr\?|events|groups|photo|login|help|policies)/i.test(u));
+  const tk=grab(/https?:\/\/(?:www\.)?tiktok\.com\/@[A-Za-z0-9_.]{2,}/gi);
+  return { instagram:best(ig), facebook:best(fb), tiktok:best(tk) }; }
 function sacaWeb(txt){ return sacaLinks(txt).find(u=>!WEB_BAD.test(u))||""; }
 // Saca los enlaces de resultados de la búsqueda (incluye guías y Facebook: ahí suele estar el email
 // de los bares SIN web). Descarta buscadores, proxies e imágenes. Uno por dominio, máx 5.
@@ -204,6 +212,11 @@ async function buscarDatosWeb(nombre,ciudad,prof){
         if(d.pedidos_online===true) extra.pedidos=true; }
     }catch(e){}
   }
+  // Redes por regex (no dependen de la IA): se rellenan en la PRIMERA búsqueda si existen.
+  const redes=sacaRedes(pg,nombre);
+  if(!extra.instagram && redes.instagram) extra.instagram=redes.instagram;
+  if(!extra.facebook && redes.facebook) extra.facebook=redes.facebook;
+  if(!extra.tiktok && redes.tiktok) extra.tiktok=redes.tiktok;
   // Teléfono: el más repetido junto al nombre, PREFIRIENDO un móvil 6xx (los reales casi siempre), luego 7x.
   const telCand=telCerca(pg,nombre); const movil=telCand.find(d=>/^6/.test(d))||telCand.find(esMovil); let telD="";
   if(movil) telD=movil;                                          // el móvil más repetido (vale para WhatsApp)
