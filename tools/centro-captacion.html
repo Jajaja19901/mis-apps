@@ -490,12 +490,20 @@ function colaRafaga(){
 }
 function canalDe(l){ if(waDe(l)) return "wa"; if(l.email) return "email"; return "ninguno"; }
 function vPipeline(){
-  const L=LEADS(); const f=load("filtro",""); const fc=load("filtrocanal","");
+  const L=LEADS(); const f=load("filtro",""); const fc=load("filtrocanal",""); const fciu=load("filtrociudad",""); const fweb=load("filtroweb","");
   let vis=f?L.filter(l=>l.estado===f):L;
   if(fc) vis=vis.filter(l=>canalDe(l)===fc);
+  if(fciu) vis=vis.filter(l=>(l.ciudad||"—")===fciu);
+  if(fweb==="sin") vis=vis.filter(l=>!l.web);
   const chips=["","nuevo","contactado","interesado","cliente","no"].map(k=>`<button class="mini" data-filtro="${k}" type="button" style="${f===k?"background:var(--brand);color:#fff;border-color:var(--brand)":""}">${k===""?"Todos":k}</button>`).join(" ");
   const nW=L.filter(l=>canalDe(l)==="wa").length, nE=L.filter(l=>canalDe(l)==="email").length, nN=L.filter(l=>canalDe(l)==="ninguno").length;
   const chipsCanal=[["","Todos los canales",L.length],["wa","📞 Por WhatsApp",nW],["email","✉️ Solo email (sin tel)",nE],["ninguno","❓ Sin contacto",nN]].map(([k,t,c])=>`<button class="mini" data-canal="${k}" type="button" style="${fc===k?"background:var(--ink);color:#fff;border-color:var(--ink)":""}">${t} (${c})</button>`).join(" ");
+  const onSel="background:var(--ink);color:#fff;border-color:var(--ink)";
+  const nSinWeb=L.filter(l=>!l.web).length;
+  const chipsWeb=`<button class="mini" data-fweb="" type="button" style="${fweb===''?onSel:''}">Todos</button> <button class="mini" data-fweb="sin" type="button" style="${fweb==='sin'?onSel:''}">🔴 Sin web (${nSinWeb})</button>`;
+  const ciu={}; L.forEach(l=>{ const c=l.ciudad||"—"; ciu[c]=(ciu[c]||0)+1; });
+  const ciuList=Object.entries(ciu).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const chipsCiu=ciuList.length>1?(`<button class="mini" data-fciudad="" type="button" style="${fciu===''?onSel:''}">Todas</button> `+ciuList.map(([c,n])=>`<button class="mini" data-fciudad="${esc(c)}" type="button" style="${fciu===c?onSel:''}">${esc(c)} (${n})</button>`).join(" ")):"";
   const cola=colaRafaga(); const sinWa=LEADS().filter(l=>!waDe(l)&&(l.estado==="nuevo")).length;
   return `${cola.length?`<div class="card" style="border-color:var(--brand);background:#fffaf2"><h2>🚀 Modo Ráfaga — ${cola.length} por contactar</h2>
     <p class="note" style="margin:0 0 10px">Le da al siguiente de la cola (los más calientes primero): escribe su mensaje${AJ().iaKey?" con IA ✨":""}, te abre WhatsApp listo y lo marca como contactado. Tú solo: <b>enviar y volver</b>.</p>
@@ -512,6 +520,8 @@ function vPipeline(){
   <div class="card"><h2 style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">📋 Pipeline (${L.length})${L.length?`<span style="display:flex;gap:6px"><button class="mini" id="expPipe" type="button" title="Descargar todos los datos a un archivo CSV">⬇️ Guardar/Exportar</button><button class="mini" id="impPipe" type="button" title="Importar un CSV">📥 Importar</button><button class="mini" id="borraTodos" type="button" style="color:#b32424" title="Borrar todos los leads y empezar de cero">🗑 De cero</button></span>`:""}</h2>
     <input type="file" id="csvFilePipe" accept=".csv,text/csv" style="display:none">
     <div style="margin:-4px 0 8px"><b style="font-size:12px;color:var(--mut)">Por canal de contacto:</b><br>${chipsCanal}</div>
+    <div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por web:</b><br>${chipsWeb}</div>
+    ${chipsCiu?`<div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por ciudad:</b><br>${chipsCiu}</div>`:""}
     <div style="margin:0 0 4px"><b style="font-size:12px;color:var(--mut)">Por estado:</b><br>${chips}</div>
     <div style="margin:6px 0;display:flex;gap:6px;flex-wrap:wrap">
     ${L.some(l=>!l.email)?`<button class="mini" id="buscaMails" type="button" title="Busca en la web el email de los bares que aún no lo tengan">🔎✉️ Buscar emails que falten (${L.filter(l=>!l.email).length})</button>`:""}
@@ -739,6 +749,8 @@ document.addEventListener("click",async e=>{
   if(t.dataset.norep){ upLead(t.dataset.norep,{estado:"no"}); render(); toast("Marcado: no interesa. No se le insistirá más."); return; }
   if(t.dataset.filtro!=null){ save("filtro",t.dataset.filtro); render(); return; }
   if(t.dataset.canal!=null){ save("filtrocanal",t.dataset.canal); render(); return; }
+  if(t.dataset.fweb!=null){ save("filtroweb",t.dataset.fweb); render(); return; }
+  if(t.dataset.fciudad!=null){ save("filtrociudad",t.dataset.fciudad); render(); return; }
   if(t.id==="mAdd"){ const nom=$("#mNom").value.trim(); if(nom.length<2){ toast("Pon el nombre"); return; }
     addLead({ nombre:nom, ciudad:$("#mCiu").value.trim(), tel:$("#mTel").value.trim(), whatsapp:$("#mWa").value.replace(/[^0-9]/g,"") })?toast("Añadido ✓"):toast("Ya existía"); render(); return; }
   if(t.dataset.wa){ const l=LEADS().find(x=>x.id===t.dataset.wa); const num=waDe(l);
