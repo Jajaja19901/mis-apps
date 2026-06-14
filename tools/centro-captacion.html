@@ -737,7 +737,7 @@ document.addEventListener("click",async e=>{
     if(!confirm("Voy a completar lo que falte (teléfono, web, redes) de "+faltan.length+" bares. Tarda un poco. ¿Sigo?")) return;
     t.disabled=true; resetDiag(); let n=0;
     for(let i=0;i<faltan.length;i++){ t.textContent="🔄 completando "+(i+1)+"/"+faltan.length+"…";
-      try{ const d=await conTope(buscarDatosWeb(faltan[i].nombre,faltan[i].ciudad,true),55000); const patch=datosPatch(d,faltan[i]); if(Object.keys(patch).length){ n++; upLead(faltan[i].id,patch); } }catch(e){}
+      try{ const d=await conTope(buscarDatosWeb(faltan[i].nombre,faltan[i].ciudad),45000); const patch=datosPatch(d,faltan[i]); if(Object.keys(patch).length){ n++; upLead(faltan[i].id,patch); } }catch(e){}
       await new Promise(r=>setTimeout(r,400)); }
     t.disabled=false; render(); alert("Datos completados en "+n+" de "+faltan.length+" bares.\n\n"+diagTxt()); return; }
   if(t.id==="buscaMails"){ const faltan=leadsFiltrados().filter(l=>!l.email); if(!faltan.length){ toast("Todos tienen email ya ✓"); return; }
