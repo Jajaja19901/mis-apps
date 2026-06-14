@@ -117,15 +117,17 @@ async function fetchT(url,opt,ms){ const c=new AbortController(); const id=setTi
   try{ const r=await fetch(url,Object.assign({signal:c.signal},opt||{})); clearTimeout(id); return r; }catch(e){ clearTimeout(id); throw e; } }
 // Tope total por bar: si tarda demasiado, se abandona y se sigue con el siguiente (nunca se congela).
 function conTope(p,ms){ return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error("tope de tiempo")),ms||45000))]); }
-async function traerWeb(url){ const jk=(AJ().jinaKey||"").trim();
-  // Jina primero (con clave, es el fiable); si falla o se agota, los demás puentes de respaldo.
-  const lista = jk ? PUENTES : PUENTES.slice(1);
-  for(const p of lista){ const pu=p(url); const h={"Accept":"text/html,text/plain,*/*"}; if(jk && pu.indexOf("jina.ai")>=0) h["Authorization"]="Bearer "+jk;
-    try{ const r=await fetchT(pu,{headers:h},9000); if(r.ok){ const t=await r.text(); if(t&&t.length>60) return t; } }catch(e){} } return ""; }
+// Puede haber VARIAS claves de Jina (de varias cuentas) para más cupo. Una por línea/coma.
+function jinaKeys(){ return (AJ().jinaKey||"").split(/[\s,;]+/).map(s=>s.trim()).filter(s=>/^jina_/i.test(s)); }
+async function traerWeb(url){ const keys=jinaKeys();
+  // Jina con cada clave (rota a la siguiente si una se agota), y al final puentes de respaldo.
+  for(const k of keys){ try{ const r=await fetchT(PUENTES[0](url),{headers:{"Authorization":"Bearer "+k,"Accept":"text/html,text/plain,*/*"}},9000); if(r.ok){ const t=await r.text(); if(t&&t.length>60) return t; } }catch(e){} }
+  for(const p of (keys.length?PUENTES.slice(1):PUENTES)){ try{ const r=await fetchT(p(url),{headers:{"Accept":"text/html,text/plain,*/*"}},9000); if(r.ok){ const t=await r.text(); if(t&&t.length>60) return t; } }catch(e){} }
+  return ""; }
 // Buscador de Jina: como la IA de Google, devuelve el CONTENIDO de los primeros resultados (donde está el email).
-async function jinaSearch(q){ const jk=(AJ().jinaKey||"").trim(); const h={"Accept":"text/plain","X-Return-Format":"markdown"}; if(jk) h["Authorization"]="Bearer "+jk;
-  for(const u of ["https://s.jina.ai/?q="+encodeURIComponent(q)]){
-    try{ const r=await fetchT(u,{headers:h},12000); if(r.ok){ const t=await r.text(); if(t&&t.length>80) return t; } }catch(e){}
+async function jinaSearch(q){ const keys=jinaKeys(); const tries=keys.length?keys:[""];
+  for(const k of tries){ const h={"Accept":"text/plain","X-Return-Format":"markdown"}; if(k) h["Authorization"]="Bearer "+k;
+    try{ const r=await fetchT("https://s.jina.ai/?q="+encodeURIComponent(q),{headers:h},12000); if(r.ok){ const t=await r.text(); if(t&&t.length>80) return t; } }catch(e){}
   }
   return "";
 }
@@ -575,9 +577,9 @@ function vAjustes(){
       <div><label>🤖 Clave de IA — Groq es GRATIS (gsk_...)</label>
         <div style="display:flex;gap:6px"><input id="aIa" type="password" value="${esc(a.iaKey)}" placeholder="gsk_... (Groq) · sk-ant... (Claude) · xai-... · sk-..." style="flex:1"><button class="btn btn-p" id="aIaOn" type="button">Activar</button></div>
         <p class="note">Estado: <b>${a.iaKey?("✅ ACTIVA — "+proveedorDe(a.iaKey)):"⬜ sin clave (pégala y dale a Activar)"}</b>. Es la que usa la app para sacar emails y escribir mensajes. Gratis en <code>console.groq.com</code>. Se guarda solo en este navegador.</p></div>
-      <div><label>🌉 Clave Jina (GRATIS — la que abre internet para buscar emails)</label>
-        <div style="display:flex;gap:6px"><input id="aJina" type="password" value="${esc(a.jinaKey)}" placeholder="jina_..." style="flex:1"><button class="btn btn-p" id="aJinaOn" type="button">Activar</button></div>
-        <p class="note">Estado: <b>${a.jinaKey?"✅ ACTIVA":"⬜ sin clave — SIN ESTO NO SACA EMAILS"}</b>. Es el "puente" que deja a la app entrar en internet. Gratis y sin tarjeta en <code>jina.ai</code> (botón "API Key"). Pégala y dale a Activar.</p></div>
+      <div><label>🌉 Clave(s) Jina (GRATIS — abre internet para buscar emails)</label>
+        <div style="display:flex;gap:6px"><input id="aJina" value="${esc(a.jinaKey)}" placeholder="jina_xxx, jina_yyy (varias separadas por coma)" style="flex:1"><button class="btn btn-p" id="aJinaOn" type="button">Activar</button></div>
+        <p class="note">Estado: <b>${a.jinaKey?("✅ ACTIVA ("+jinaKeys().length+" clave"+(jinaKeys().length>1?"s":"")+")"):"⬜ sin clave — SIN ESTO NO SACA EMAILS"}</b>. Gratis y sin tarjeta en <code>jina.ai</code> ("API Key"). <b>Truco:</b> si se te agota el cupo, crea otra cuenta de Jina con otro Gmail y pega la 2ª clave aquí <b>separada por coma</b> — la app usa todas y dura el doble.</p></div>
       <div><label>🔑 Clave API de Google (opcional, AIza...)</label>
         <div style="display:flex;gap:6px"><input id="aKey" type="password" value="${esc(a.gkey)}" placeholder="AIza..." style="flex:1"><button class="btn btn-p" id="aKeyOn" type="button">Activar</button></div>
         <p class="note">Estado: <b>${a.gkey?"✅ ACTIVA":"⬜ sin clave"}</b>. <b>OJO:</b> la búsqueda de emails NO necesita esta clave (usa la IA de arriba). Esta es solo para la pestaña 🔎 Buscar con Google. El buscador gratis (OpenStreetMap) funciona sin ella.</p></div>
