@@ -502,10 +502,11 @@ function colaRafaga(){
 function canalDe(l){ if(waDe(l)) return "wa"; if(l.email) return "email"; return "ninguno"; }
 // Leads que pasan TODOS los filtros activos. Lo usan la vista Y los botones de acción.
 function tieneTel(l){ return !!(l.tel||(l.whatsapp||"").replace(/\D/g,"").length>=9); }
-function leadsFiltrados(){ const f=load("filtro",""),fc=load("filtrocanal",""),fciu=load("filtrociudad",""),fweb=load("filtroweb",""),fem=load("filtroemail",""),ft=load("filtrotel","");
+function leadsFiltrados(){ const f=load("filtro",""),fc=load("filtrocanal",""),fciu=load("filtrociudad",""),fweb=load("filtroweb",""),fem=load("filtroemail",""),ft=load("filtrotel",""),fkm=+load("filtrokm",0),fval=load("filtroval",""),fped=load("filtroped","");
   return LEADS().filter(l=>(!f||l.estado===f)&&(!fc||canalDe(l)===fc)&&(!fciu||(l.ciudad||"—")===fciu)&&(fweb!=="sin"||!l.web)
-    &&(!fem||(fem==="con"?!!l.email:!l.email))&&(!ft||(ft==="con"?tieneTel(l):!tieneTel(l)))); }
-function hayFiltro(){ return !!(load("filtro","")||load("filtrocanal","")||load("filtrociudad","")||load("filtroweb","")||load("filtroemail","")||load("filtrotel","")); }
+    &&(!fem||(fem==="con"?!!l.email:!l.email))&&(!ft||(ft==="con"?tieneTel(l):!tieneTel(l)))
+    &&(!fkm||(l.km!=null&&l.km<=fkm))&&(fval!=="si"||(Number(l.rating)>=4))&&(fped!=="si"||!!l.pedidos)); }
+function hayFiltro(){ return !!(load("filtro","")||load("filtrocanal","")||load("filtrociudad","")||load("filtroweb","")||load("filtroemail","")||load("filtrotel","")||+load("filtrokm",0)||load("filtroval","")||load("filtroped","")); }
 function vPipeline(){
   const L=LEADS(); const f=load("filtro",""); const fc=load("filtrocanal",""); const fciu=load("filtrociudad",""); const fweb=load("filtroweb","");
   let vis=leadsFiltrados();
@@ -521,6 +522,13 @@ function vPipeline(){
   const ciu={}; L.forEach(l=>{ const c=l.ciudad||"—"; ciu[c]=(ciu[c]||0)+1; });
   const ciuList=Object.entries(ciu).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const chipsCiu=ciuList.length>1?(`<button class="mini" data-fciudad="" type="button" style="${fciu===''?onSel:''}">Todas</button> `+ciuList.map(([c,n])=>`<button class="mini" data-fciudad="${esc(c)}" type="button" style="${fciu===c?onSel:''}">${esc(c)} (${n})</button>`).join(" ")):"";
+  const fkm=+load("filtrokm",0), fval=load("filtroval",""), fped=load("filtroped","");
+  const hayKm=L.some(l=>l.km!=null);
+  const chipsKm=hayKm?(`<button class="mini" data-fkm="0" type="button" style="${!fkm?onSel:''}">Todas</button> `+[3,6,10,15].map(k=>`<button class="mini" data-fkm="${k}" type="button" style="${fkm===k?onSel:''}">≤${k} km</button>`).join(" ")):"";
+  const nVal=L.filter(l=>Number(l.rating)>=4).length, nPed=L.filter(l=>!!l.pedidos).length;
+  const chipsExtra=`<button class="mini" data-fval="" type="button" style="${fval===''&&fped===''?onSel:''}">Todos</button>`
+    +(nVal?` <button class="mini" data-fval="${fval==='si'?'':'si'}" type="button" style="${fval==='si'?onSel:''}">⭐ Bien valorados (${nVal})</button>`:"")
+    +(nPed?` <button class="mini" data-fped="${fped==='si'?'':'si'}" type="button" style="${fped==='si'?onSel:''}">🛒 Vende online (${nPed})</button>`:"");
   const cola=colaRafaga(); const sinWa=LEADS().filter(l=>!waDe(l)&&(l.estado==="nuevo")).length;
   return `${cola.length?`<div class="card" style="border-color:var(--brand);background:#fffaf2"><h2>🚀 Modo Ráfaga — ${cola.length} por contactar</h2>
     <p class="note" style="margin:0 0 10px">Le da al siguiente de la cola (los más calientes primero): escribe su mensaje${AJ().iaKey?" con IA ✨":""}, te abre WhatsApp listo y lo marca como contactado. Tú solo: <b>enviar y volver</b>.</p>
@@ -541,6 +549,8 @@ function vPipeline(){
     <div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por teléfono:</b><br>${chipsTel}</div>
     <div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por web:</b><br>${chipsWeb}</div>
     ${chipsCiu?`<div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por ciudad:</b><br>${chipsCiu}</div>`:""}
+    ${chipsKm?`<div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por distancia:</b><br>${chipsKm}</div>`:""}
+    ${(nVal||nPed)?`<div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Extra:</b><br>${chipsExtra}</div>`:""}
     <div style="margin:0 0 4px"><b style="font-size:12px;color:var(--mut)">Por estado:</b><br>${chips}</div>
     ${hayFiltro()?`<p class="note" style="margin:6px 0 0;color:var(--brand-d)">🔎 Filtro activo: las acciones de abajo trabajan SOLO sobre los ${vis.length} que ves.</p>`:""}
     <div style="margin:6px 0;display:flex;gap:6px;flex-wrap:wrap">
@@ -782,6 +792,9 @@ document.addEventListener("click",async e=>{
   if(t.dataset.femail!=null){ save("filtroemail",t.dataset.femail); render(); return; }
   if(t.dataset.ftel!=null){ save("filtrotel",t.dataset.ftel); render(); return; }
   if(t.dataset.fciudad!=null){ save("filtrociudad",t.dataset.fciudad); render(); return; }
+  if(t.dataset.fkm!=null){ save("filtrokm",t.dataset.fkm); render(); return; }
+  if(t.dataset.fval!=null){ save("filtroval",t.dataset.fval); save("filtroped",""); render(); return; }
+  if(t.dataset.fped!=null){ save("filtroped",t.dataset.fped); save("filtroval",""); render(); return; }
   if(t.id==="mAdd"){ const nom=$("#mNom").value.trim(); if(nom.length<2){ toast("Pon el nombre"); return; }
     addLead({ nombre:nom, ciudad:$("#mCiu").value.trim(), tel:$("#mTel").value.trim(), whatsapp:$("#mWa").value.replace(/[^0-9]/g,"") })?toast("Añadido ✓"):toast("Ya existía"); render(); return; }
   if(t.dataset.wa){ const l=LEADS().find(x=>x.id===t.dataset.wa); const num=waDe(l);
@@ -875,7 +888,7 @@ document.addEventListener("change",e=>{
   if(s.dataset&&s.dataset.plan){ upLead(s.dataset.plan,{plan:s.value}); render(); }
 });
 
-function leadDe(d){ const t9=(d.tel||d.inter||"").replace(/\D/g,"").slice(-9); return { nombre:d.nombre, ciudad:d.ciudad||load("bz",""), dir:d.dir, tel:d.tel, whatsapp:esMovil(t9)?("34"+t9):"", web:d.web, rating:d.rating, n:d.n, score:d.score||0, origen:"busqueda" }; }
+function leadDe(d){ const t9=(d.tel||d.inter||"").replace(/\D/g,"").slice(-9); return { nombre:d.nombre, ciudad:d.ciudad||load("bz",""), dir:d.dir, tel:d.tel, whatsapp:esMovil(t9)?("34"+t9):"", web:d.web, rating:d.rating, n:d.n, km:(d.km!=null?d.km:null), score:d.score||0, origen:"busqueda" }; }
 function importarEmbudo(id,silencio){ let E=[]; try{ E=JSON.parse(localStorage.getItem("incuba_leads_v1")||"[]"); }catch(e){}
   const l=E.find(x=>x.id===id); if(!l) return;
   if(LEADS().some(x=>x.embudoId===id)){ if(!silencio) toast("Ya estaba importado"); return; }
