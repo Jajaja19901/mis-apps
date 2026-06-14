@@ -505,7 +505,7 @@ function tieneTel(l){ return !!(l.tel||(l.whatsapp||"").replace(/\D/g,"").length
 function leadsFiltrados(){ const f=load("filtro",""),fc=load("filtrocanal",""),fciu=load("filtrociudad",""),fweb=load("filtroweb",""),fem=load("filtroemail",""),ft=load("filtrotel",""),fkm=+load("filtrokm",0),fval=load("filtroval",""),fped=load("filtroped","");
   return LEADS().filter(l=>(!f||l.estado===f)&&(!fc||canalDe(l)===fc)&&(!fciu||(l.ciudad||"—")===fciu)&&(fweb!=="sin"||!l.web)
     &&(!fem||(fem==="con"?!!l.email:!l.email))&&(!ft||(ft==="con"?tieneTel(l):!tieneTel(l)))
-    &&(!fkm||l.km==null||l.km<=fkm)&&(fval!=="si"||(Number(l.rating)>=4))&&(fped!=="si"||!!l.pedidos)); }
+    &&(!fkm||(l.km!=null&&l.km<=fkm))&&(fval!=="si"||(Number(l.rating)>=4))&&(fped!=="si"||!!l.pedidos)); }
 function hayFiltro(){ return !!(load("filtro","")||load("filtrocanal","")||load("filtrociudad","")||load("filtroweb","")||load("filtroemail","")||load("filtrotel","")||+load("filtrokm",0)||load("filtroval","")||load("filtroped","")); }
 function vPipeline(){
   const L=LEADS(); const f=load("filtro",""); const fc=load("filtrocanal",""); const fciu=load("filtrociudad",""); const fweb=load("filtroweb","");
@@ -524,7 +524,7 @@ function vPipeline(){
   const chipsCiu=ciuList.length>1?(`<button class="mini" data-fciudad="" type="button" style="${fciu===''?onSel:''}">Todas</button> `+ciuList.map(([c,n])=>`<button class="mini" data-fciudad="${esc(c)}" type="button" style="${fciu===c?onSel:''}">${esc(c)} (${n})</button>`).join(" ")):"";
   const fkm=+load("filtrokm",0), fval=load("filtroval",""), fped=load("filtroped","");
   const nKm=L.filter(l=>l.km!=null).length;
-  const chipsKm=`<button class="mini" data-fkm="0" type="button" style="${!fkm?onSel:''}">Todas</button> `+[3,6,10,15].map(k=>`<button class="mini" data-fkm="${k}" type="button" style="${fkm===k?onSel:''}">≤${k} km</button>`).join(" ")+(nKm<L.length?` <span class="muted" style="font-size:10.5px">(solo aplica a ${nKm} buscados con distancia)</span>`:"");
+  const chipsKm=`<button class="mini" data-fkm="0" type="button" style="${!fkm?onSel:''}">Todas</button> `+[3,6,10,15].map(k=>`<button class="mini" data-fkm="${k}" type="button" style="${fkm===k?onSel:''}">≤${k} km</button>`).join(" ")+(nKm<L.length?` <span class="muted" style="font-size:10.5px">${nKm===0?"⚠ ninguno tiene distancia (búscalos de nuevo o filtra en 🔎 Buscar)":"(solo "+nKm+" tienen distancia)"}</span>`:"");
   const nVal=L.filter(l=>Number(l.rating)>=4).length, nPed=L.filter(l=>!!l.pedidos).length;
   const chipsExtra=`<button class="mini" data-fval="" type="button" style="${fval===''&&fped===''?onSel:''}">Todos</button>`
     +(nVal?` <button class="mini" data-fval="${fval==='si'?'':'si'}" type="button" style="${fval==='si'?onSel:''}">⭐ Bien valorados (${nVal})</button>`:"")
@@ -604,7 +604,7 @@ function vPipeline(){
         <button class="mini" data-del="${l.id}" type="button" title="Borrar" style="color:#b32424">🗑</button></div>
       ${l.estado==="contactado"?`<div style="display:flex;gap:7px;margin-top:9px;padding-top:9px;border-top:1px solid #eee"><button class="mini" data-resp="${l.id}" type="button" style="border-color:#3f9d52;color:#1d6f2b">✅ Me respondió</button><button class="mini" data-norep="${l.id}" type="button" style="color:#b32424">❌ No le interesa</button></div>`:""}
       </div>`; }).join("")}
-    </div>`:`<div class="vacio">Sin leads${f?" en este estado":""}. Añade desde 🔎 Buscar o a mano.</div>`}
+    </div>`:`<div class="vacio">${hayFiltro()?"Ningún negocio pasa este filtro. Quita algún filtro (pulsa <b>Todos/Todas</b>) y vuelve a ver.":"Sin leads todavía. Añade desde 🔎 Buscar o a mano."}</div>`}
   </div>`;
 }
 
