@@ -392,9 +392,9 @@ function render(){ document.querySelectorAll("#tabs button").forEach(b=>b.setAtt
   const v={buscar:vBuscar,pipeline:vPipeline,embudo:vEmbudo,resumen:vResumen,ajustes:vAjustes}[TAB]||vPipeline; $("#app").innerHTML=v(); }
 
 function vBuscar(){
-  return `<div class="card"><h2>🔎 Buscar bares y cafeterías</h2>
+  return `<div class="card"><h2>🔎 Buscar negocios</h2>
     <div class="row">
-      <div><label for="bq">Tipo</label><input id="bq" value="${esc(load("bq","cafeterías y bares"))}"></div>
+      <div><label for="bq">Tipo de negocio</label><input id="bq" value="${esc(load("bq","cafeterías y bares"))}" placeholder="bares, peluquerías, gimnasios, talleres…"></div>
       <div><label for="bz">Zona / ciudad</label><input id="bz" value="${esc(load("bz",""))}" placeholder="Las Palmas de Gran Canaria"></div>
       <div style="flex:0 0 auto;min-width:110px"><label for="bradio">Radio</label><select id="bradio">${[3,6,10,15,25].map(k=>`<option value="${k}" ${String(load("bradio",6))===String(k)?"selected":""}>${k} km</option>`).join("")}</select></div>
       <div style="flex:0 0 auto;display:flex;align-items:flex-end"><button class="btn btn-g" id="go" type="button">Google</button></div>
@@ -402,7 +402,7 @@ function vBuscar(){
     <div style="margin-top:8px"><button class="btn btn-p" id="autoTodo" type="button" style="width:100%;font-size:16px;padding:14px">⚡ AUTOMÁTICO: buscar bares + sus emails (todo de una)</button></div>
     <div style="margin-top:8px"><button class="btn btn-g" id="goosm" type="button" style="width:100%">🌍 Solo buscar bares (sin emails)</button></div>
     <div id="autoProg" class="note" style="margin-top:8px;display:none;font-weight:600"></div>
-    <p class="note">El botón <b>⚡ AUTOMÁTICO</b> hace todo solo: encuentra los bares de la zona, los mete en tu lista, y va sacando el email de cada uno. Tú le das una vez y esperas. (Necesita la clave <b>Jina</b> y la de <b>Groq</b> en ⚙️ Ajustes.)</p>
+    <p class="note">Escribe el <b>tipo</b> (bares, peluquerías, gimnasios, talleres, tiendas, farmacias…) y la zona. El botón <b>⚡ AUTOMÁTICO</b> hace todo solo: encuentra los negocios, los mete en tu lista, y va sacando el email de cada uno. (Necesita la clave <b>Jina</b> y la de <b>Groq</b> en ⚙️ Ajustes.)</p>
     <div class="err" id="berr"></div></div>
   <div class="card"><h2>📥 Importar lista enriquecida (CSV)</h2>
     <p class="note" style="margin:0 0 8px">¿Compraste una lista de <b>Outscraper</b>, Apify o similar (con email y teléfono)? Súbela aquí y entra al pipeline con todo. También vale el CSV que exporta este mismo panel.</p>
@@ -736,6 +736,38 @@ function importarEmbudo(id,silencio){ let E=[]; try{ E=JSON.parse(localStorage.g
   if(!silencio){ toast("Importado como INTERESADO 🔥"); render(); } }
 
 // Búsqueda GRATIS con OpenStreetMap (sin clave, sin Google). Funciona en el navegador.
+// Traduce lo que escribe el usuario en "Tipo" a categorías de OpenStreetMap. Si no reconoce el
+// término, hace un barrido amplio de cualquier negocio (tiendas, talleres, oficinas, servicios…).
+function osmFiltros(tipo){
+  const t=(tipo||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+  const M=[
+    [/bar|cafe|cafeteria|restaurant|pub|tapa|cervec|comida|tasca|asador|pizz|hamburgues|kebab|helad|churr|brunch|desayun|gastro|tabern/, ['["amenity"~"^(cafe|bar|restaurant|fast_food|pub|ice_cream)$"]']],
+    [/peluqu|barber|estetic|belleza|uña|unas|spa|tatu|piercing/, ['["shop"~"hairdresser|beauty|tattoo"]','["leisure"="spa"]']],
+    [/gimnas|fitness|deporte|crossfit|yoga|pilates|padel/, ['["leisure"~"fitness_centre|sports_centre"]','["sport"]']],
+    [/farmac|parafarm/, ['["amenity"="pharmacy"]']],
+    [/panad|paster|confiter|bolleria/, ['["shop"~"bakery|pastry|confectionery"]']],
+    [/ropa|moda|boutique|zapat|calzad|complement|textil/, ['["shop"~"clothes|shoes|boutique|fashion|bag"]']],
+    [/taller|mecanic|coche|automov|neumatic|chapa|motor/, ['["shop"~"car_repair|car|tyres|motorcycle"]','["craft"="car_repair"]']],
+    [/ferreter|bricolaje/, ['["shop"~"hardware|doityourself"]']],
+    [/florist|flore|jardin/, ['["shop"~"florist|garden_centre"]']],
+    [/carnic/, ['["shop"="butcher"]']],
+    [/fruteri|verduler/, ['["shop"="greengrocer"]']],
+    [/super|aliment|ultramarin|tienda|colmado|kiosko|kiosco|estanco|bazar/, ['["shop"~"supermarket|convenience|grocery|kiosk|tobacco|variety_store"]']],
+    [/clinic|dentist|medic|fisio|psicolog|podolog|sanitar/, ['["amenity"~"clinic|dentist|doctors"]','["healthcare"]']],
+    [/veterinar|mascot/, ['["amenity"="veterinary"]','["shop"="pet"]']],
+    [/hotel|aloja|hostal|pension|apartament|turism/, ['["tourism"~"hotel|guest_house|hostel|apartment"]']],
+    [/inmobil/, ['["office"="estate_agent"]']],
+    [/abogad|asesor|gestor|consultor|contab|notari/, ['["office"~"lawyer|accountant|estate_agent|company|consulting"]']],
+    [/joyer|relojer/, ['["shop"~"jewelry|watches"]']],
+    [/librer|papeler/, ['["shop"~"books|stationery"]']],
+    [/optic/, ['["shop"="optician"]']],
+    [/lavander|tintorer/, ['["shop"~"laundry|dry_cleaning"]']],
+    [/inform|ordenador|movil|telefon|electron/, ['["shop"~"computer|mobile_phone|electronics"]']]
+  ];
+  for(const par of M){ if(par[0].test(t)) return par[1]; }
+  // término no reconocido → barrido amplio de cualquier negocio
+  return ['["shop"]','["craft"]','["office"]','["amenity"~"^(pharmacy|clinic|dentist|doctors|veterinary|fuel|bank)$"]','["tourism"~"^(hotel|guest_house)$"]'];
+}
 async function buscarOSM(){
   const err=$("#berr"); err.style.display="none";
   const z=$("#bz").value.trim(); save("bz",z); save("bq",$("#bq").value.trim()); save("bradio",($("#bradio")&&$("#bradio").value)||6);
@@ -747,9 +779,11 @@ async function buscarOSM(){
     const gj=await g.json();
     if(!gj||!gj.length) throw new Error("No encuentro esa ciudad. Prueba a escribirla más completa.");
     const lat=gj[0].lat, lon=gj[0].lon;
-    // 2) bares/cafés/restaurantes alrededor (Overpass, gratis)
+    // 2) negocios alrededor (Overpass, gratis) — el TIPO que escribas decide qué se busca
     const radio=(parseInt($("#bradio")&&$("#bradio").value,10)||6)*1000; // km -> metros
-    const oq='[out:json][timeout:60];(node["amenity"~"^(cafe|bar|restaurant|fast_food|pub)$"](around:'+radio+','+lat+','+lon+');way["amenity"~"^(cafe|bar|restaurant|fast_food|pub)$"](around:'+radio+','+lat+','+lon+'););out center tags 500;';
+    const filtros=osmFiltros(($("#bq")&&$("#bq").value)||"");
+    const partes=filtros.map(f=>'node'+f+'(around:'+radio+','+lat+','+lon+');way'+f+'(around:'+radio+','+lat+','+lon+');').join('');
+    const oq='[out:json][timeout:60];('+partes+');out center tags 400;';
     let j=null;
     for(const ep of ["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"]){
       try{ const r=await fetch(ep,{method:"POST",body:"data="+encodeURIComponent(oq)}); if(r.ok){ j=await r.json(); break; } }catch(e){}
