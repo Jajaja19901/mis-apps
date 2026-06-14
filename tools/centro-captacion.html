@@ -233,12 +233,21 @@ async function buscarDatosWeb(nombre,ciudad,prof){
   const web=links.find(u=>!WEB_BAD.test(u))||"";
   let emailOrigenWeb=false; // ¿el email salió DENTRO de la web propia (no de un directorio)?
   if(email && web && dominioBase((email.split("@")[1]||""))===dominioBase(web)) emailOrigenWeb=true;
-  // 4) Solo si AÚN falta el email, abrimos 1-2 páginas (web/ficha) a por él.
-  for(const u of (email?[]:links.slice(0,2))){
-    const t=cap(await traerWeb(u)); if(!t) continue; pg+="\n"+t;
-    const e=sacaEmails(t); if(e.length){ email=e[0];
-      const host=u.replace(/^https?:\/\//,"").split("/")[0];
-      if(!WEB_BAD.test(u) && web && dominioBase(host)===dominioBase(web)) emailOrigenWeb=true; }
+  // 4) ENTRAMOS en las páginas del negocio a leer su contacto de verdad (el email/teléfono casi nunca
+  //    está en los resúmenes del buscador, sí dentro de su web/ficha). Abrimos hasta 3: la web propia
+  //    primero, y su página de contacto si la hay. Lo hacemos AUNQUE ya tengamos email (para el teléfono).
+  const propias=[]; if(web) propias.push(web);
+  for(const u of links){ if(u!==web && !WEB_BAD.test(u) && propias.length<2) propias.push(u); } // 1-2 webs/fichas propias
+  for(const base of propias.slice(0,2)){
+    const cands=[base]; // intenta también /contacto y /contact (ahí está el correo y el teléfono)
+    const b=base.replace(/\/+$/,""); if(/^https?:\/\/[^\/]+\/?$/.test(base)){ cands.push(b+"/contacto", b+"/contact"); }
+    for(const u of cands){
+      const t=cap(await traerWeb(u)); if(!t) continue; pg+="\n"+t;
+      const e=sacaEmails(t); if(e.length && !email){ email=e[0];
+        const host=u.replace(/^https?:\/\//,"").split("/")[0];
+        if(!WEB_BAD.test(u) && web && dominioBase(host)===dominioBase(web)) emailOrigenWeb=true; }
+      if(u===base){} // (el bucle externo de abajo conserva su variable u)
+    }
   }
   const extra={};
   // Si hay clave de IA, lee TODO el texto reunido y saca datos. PERO solo aceptamos lo que
