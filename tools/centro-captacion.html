@@ -584,6 +584,23 @@ function leadsFiltrados(){ const f=load("filtro",""),fc=load("filtrocanal",""),f
     &&(!fkm||(l.km!=null&&l.km<=fkm))&&(fval!=="si"||(Number(l.rating)>=4))&&(fped!=="si"||!!l.pedidos)); }
 function hayFiltro(){ return !!(load("filtro","")||load("filtrocanal","")||load("filtrozona","")||load("filtrociudad","")||load("filtroweb","")||load("filtroemail","")||load("filtrotel","")||+load("filtrokm",0)||load("filtroval","")||load("filtroped","")); }
 var MOSTRAR=40, _sigPipe="", BUSQUEDA="";  // paginación + texto del buscador (filtra TODOS, no solo los visibles)
+// Cuadro de entrada propio (el prompt() del navegador falla en content://). Devuelve el texto o null.
+function pedir(titulo, valor){ return new Promise(res=>{
+  const ov=document.createElement("div"); ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px";
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;padding:18px;max-width:430px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.3)">'+
+    '<div style="font-size:15px;font-weight:600;margin-bottom:10px;color:#222">'+esc(titulo)+'</div>'+
+    '<input id="_pdInp" style="width:100%;padding:12px;border:1.5px solid #ccc;border-radius:9px;font-size:16px;box-sizing:border-box" value="'+esc(valor||"")+'">'+
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">'+
+    '<button id="_pdC" class="mini" type="button">Cancelar</button>'+
+    '<button id="_pdOK" class="btn btn-p" type="button">Guardar</button></div></div>';
+  document.body.appendChild(ov);
+  const inp=ov.querySelector("#_pdInp"); setTimeout(()=>{ try{ inp.focus(); inp.select(); }catch(e){} },50);
+  const cerrar=v=>{ ov.remove(); res(v); };
+  ov.querySelector("#_pdOK").onclick=()=>cerrar(inp.value);
+  ov.querySelector("#_pdC").onclick=()=>cerrar(null);
+  ov.addEventListener("click",e=>{ if(e.target===ov) cerrar(null); });
+  inp.addEventListener("keydown",e=>{ if(e.key==="Enter") cerrar(inp.value); });
+}); }
 function cardHTML(l){ const tq=toquePendiente(l); const waNum=waDe(l);
   const telMostrar = waNum ? ("+34 "+waNum.slice(2).replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4")) : (l.tel||"");
   const telTipo = waNum ? ' <span style="color:#1d6f2b;font-size:11px">(móvil)</span>' : (l.tel?' <span style="color:#999;font-size:11px">(fijo)</span>':'');
@@ -845,11 +862,13 @@ document.addEventListener("click",async e=>{
       else { t.textContent=o; t.disabled=false; alert(l.nombre+": sin cambios nuevos.\n\n"+diag+"\n\n(Si 'Internet' pone NO = sin cupo hoy. Si pone sí pero no trae el dato = no es legible. Mándame esta foto.)"); }
     }catch(err){ toast("No se pudo reajustar: "+err.message); t.textContent=o; t.disabled=false; } return; }
   if(t.dataset.editmail){ const l=LEADS().find(x=>x.id===t.dataset.editmail);
-    const r=(prompt("Email de "+l.nombre+" (cópialo de Google si lo ves). Vacío = quitarlo:", l.email||"")||"").trim().toLowerCase();
+    const raw=await pedir("Email de "+l.nombre+" (pégalo aquí). Vacío = quitarlo:", l.email||""); if(raw===null) return;
+    const r=raw.trim().toLowerCase();
     if(r==="" || /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(r)){ upLead(l.id,{email:r, emailAuto:false}); render(); toast(r?"Email guardado ✓":"Email quitado"); }
     else toast("Ese email no tiene buena pinta (revisa la @)"); return; }
   if(t.dataset.edittel){ const l=LEADS().find(x=>x.id===t.dataset.edittel); const cur=(l.tel||"").replace(/\D/g,"").slice(-9);
-    const r=(prompt("Teléfono correcto de "+l.nombre+" (9 cifras, móvil o fijo). Vacío = quitarlo:", cur)||"").replace(/\D/g,"").slice(-9);
+    const raw=await pedir("Teléfono de "+l.nombre+" (9 cifras, móvil o fijo). Vacío = quitarlo:", cur); if(raw===null) return;
+    const r=raw.replace(/\D/g,"").slice(-9);
     if(r===""){ upLead(l.id,{tel:"",whatsapp:""}); render(); toast("Teléfono quitado"); return; }
     if(r.length!==9){ toast("Pon 9 cifras"); return; }
     upLead(l.id,{ tel:"+34 "+r.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"), whatsapp: esMovil(r)?("34"+r):"" }); render();
