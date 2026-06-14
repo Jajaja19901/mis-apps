@@ -520,6 +520,7 @@ function vPipeline(){
         <button class="mini" data-mail="${l.id}" type="button" title="Escribir email">✉️ Email</button>
         ${l.email?"":`<button class="mini" data-bmail="${l.id}" type="button" title="Buscar su email en la web">🔎✉️ Buscar email</button>`}
         <button class="mini" data-rebuscar="${l.id}" type="button" title="Volver a buscar y actualizar SOLO este negocio (arregla teléfono/email/datos)">🔄 Reajustar</button>
+        <button class="mini" data-edittel="${l.id}" type="button" title="Corregir el teléfono a mano">✏️ Nº</button>
         <button class="mini" data-demo="${l.id}" type="button" title="Generar su demo">⬇️ Demo</button>
         <button class="mini" data-url="${l.id}" type="button" title="Pegar enlace de su demo">🔗</button>
         <button class="mini" data-nota="${l.id}" type="button" title="Nota">📝</button>
@@ -647,6 +648,12 @@ document.addEventListener("click",async e=>{
       if(Object.keys(patch).filter(k=>k!=="emailAuto").length){ upLead(l.id,patch); render(); toast(l.nombre+": actualizado ✓ ("+Object.keys(patch).filter(k=>k!=="emailAuto").join(", ")+")"); }
       else { t.textContent=o; t.disabled=false; toast(l.nombre+": sin cambios — lo que hay ya es lo mejor que se encuentra"); }
     }catch(err){ toast("No se pudo reajustar: "+err.message); t.textContent=o; t.disabled=false; } return; }
+  if(t.dataset.edittel){ const l=LEADS().find(x=>x.id===t.dataset.edittel); const cur=(l.tel||"").replace(/\D/g,"").slice(-9);
+    const r=(prompt("Teléfono correcto de "+l.nombre+" (9 cifras, móvil o fijo). Vacío = quitarlo:", cur)||"").replace(/\D/g,"").slice(-9);
+    if(r===""){ upLead(l.id,{tel:"",whatsapp:""}); render(); toast("Teléfono quitado"); return; }
+    if(r.length!==9){ toast("Pon 9 cifras"); return; }
+    upLead(l.id,{ tel:"+34 "+r.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"), whatsapp: esMovil(r)?("34"+r):"" }); render();
+    toast("Teléfono actualizado"+(esMovil(r)?" · WhatsApp activado":" (fijo, sin WhatsApp)")); return; }
   if(t.dataset.bmail){ const l=LEADS().find(x=>x.id===t.dataset.bmail); const o=t.textContent; t.textContent="🔎…"; t.disabled=true;
     try{ const d=await buscarDatosWeb(l.nombre,l.ciudad); const patch=datosPatch(d,l);
       if(d.email){ upLead(l.id,patch); toast("Email encontrado: "+d.email+" ✓"); render(); }
