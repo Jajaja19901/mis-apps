@@ -83,6 +83,10 @@ const T3_DEF="Hola {nombre}, último mensaje y no os molesto más 🙏 Si queré
 function AJ(){ return Object.assign({ wa:"34680363828", gkey:"", jinaKey:"", webBase:"", t1:T1_DEF, t2:T2_DEF, t3:T3_DEF,
   precios:{ basico:{alta:99,cuota:25}, medio:{alta:150,cuota:50}, top:{alta:250,cuota:75} } }, load("ajustes",{})); }
 function planLbl(p){ return p==="basico"?"Básica":p==="top"?"Digital":"Media"; }
+// Contador de consumo (se guarda). Jina = estimado por texto leído; IA = exacto (lo da la respuesta).
+function usoGet(){ return load("uso",{jinaTok:0,jinaReq:0,iaTok:0,iaReq:0}); }
+function usoAdd(p,tok){ const u=usoGet(); if(p==="jina"){ u.jinaTok+=Math.max(0,tok||0); u.jinaReq++; } else { u.iaTok+=Math.max(0,tok||0); u.iaReq++; } save("uso",u); }
+function fmtN(n){ return (n||0)>=1000?((n/1000).toFixed(n>=100000?0:1)+"k"):String(n||0); }
 function proveedorDe(k){ k=(k||"").trim(); if(!k)return""; if(/^gsk_/i.test(k))return"Groq (GRATIS)"; if(/^sk-ant/i.test(k))return"Claude"; if(/^xai-/i.test(k))return"Grok"; if(/^AIza/i.test(k))return"Google"; if(/^sk-/i.test(k))return"OpenAI"; return"clave guardada"; }
 
 // ───────── Buscar EMAIL + WEB del local en internet (búsqueda real; NUNCA inventa) ─────────
@@ -121,13 +125,13 @@ function conTope(p,ms){ return Promise.race([p, new Promise((_,rej)=>setTimeout(
 function jinaKeys(){ return (AJ().jinaKey||"").split(/[\s,;]+/).map(s=>s.trim()).filter(s=>/^jina_/i.test(s)); }
 async function traerWeb(url){ const keys=jinaKeys();
   // Jina con cada clave (rota a la siguiente si una se agota), y al final puentes de respaldo.
-  for(const k of keys){ try{ const r=await fetchT(PUENTES[0](url),{headers:{"Authorization":"Bearer "+k,"Accept":"text/html,text/plain,*/*"}},9000); if(r.ok){ const t=await r.text(); if(t&&t.length>60) return t; } }catch(e){} }
+  for(const k of keys){ try{ const r=await fetchT(PUENTES[0](url),{headers:{"Authorization":"Bearer "+k,"Accept":"text/html,text/plain,*/*"}},9000); if(r.ok){ const t=await r.text(); if(t&&t.length>60){ usoAdd("jina",Math.ceil(t.length/4)); return t; } } }catch(e){} }
   for(const p of (keys.length?PUENTES.slice(1):PUENTES)){ try{ const r=await fetchT(p(url),{headers:{"Accept":"text/html,text/plain,*/*"}},9000); if(r.ok){ const t=await r.text(); if(t&&t.length>60) return t; } }catch(e){} }
   return ""; }
 // Buscador de Jina: como la IA de Google, devuelve el CONTENIDO de los primeros resultados (donde está el email).
 async function jinaSearch(q){ const keys=jinaKeys(); const tries=keys.length?keys:[""];
   for(const k of tries){ const h={"Accept":"text/plain","X-Return-Format":"markdown"}; if(k) h["Authorization"]="Bearer "+k;
-    try{ const r=await fetchT("https://s.jina.ai/?q="+encodeURIComponent(q),{headers:h},12000); if(r.ok){ const t=await r.text(); if(t&&t.length>80) return t; } }catch(e){}
+    try{ const r=await fetchT("https://s.jina.ai/?q="+encodeURIComponent(q),{headers:h},12000); if(r.ok){ const t=await r.text(); if(t&&t.length>80){ if(k) usoAdd("jina",Math.ceil(t.length/4)); return t; } } }catch(e){}
   }
   return "";
 }
@@ -251,13 +255,13 @@ async function iaExtrae(texto,nombre){
   let out="";
   if(/^sk-ant/i.test(key)){
     const r=await fetchT("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:400,temperature:0,system:sys,messages:[{role:"user",content:usr}]})},15000);
-    const j=await r.json(); if(j.error) throw new Error(j.error.message||"error IA"); out=(j.content&&j.content[0]&&j.content[0].text)||"";
+    const j=await r.json(); if(j.error) throw new Error(j.error.message||"error IA"); out=(j.content&&j.content[0]&&j.content[0].text)||""; usoAdd("ia",(j.usage&&((j.usage.input_tokens||0)+(j.usage.output_tokens||0)))||0);
   } else {
     let url="https://api.openai.com/v1/chat/completions",model="gpt-4o-mini";
     if(/^gsk_/i.test(key)){ url="https://api.groq.com/openai/v1/chat/completions"; model="llama-3.3-70b-versatile"; }
     else if(/^xai-/i.test(key)){ url="https://api.x.ai/v1/chat/completions"; model="grok-2-latest"; }
     const r=await fetchT(url,{method:"POST",headers:{"content-type":"application/json","authorization":"Bearer "+key},body:JSON.stringify({model:model,max_tokens:400,temperature:0,messages:[{role:"system",content:sys},{role:"user",content:usr}]})},15000);
-    const j=await r.json(); if(j.error) throw new Error(j.error.message||"error IA"); out=(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||"";
+    const j=await r.json(); if(j.error) throw new Error(j.error.message||"error IA"); out=(j.choices&&j.choices[0]&&j.choices[0].message&&j.choices[0].message.content)||""; usoAdd("ia",(j.usage&&j.usage.total_tokens)||0);
   }
   try{ const m=out.match(/\{[\s\S]*\}/); return m?JSON.parse(m[0]):null; }catch(e){ return null; }
 }
@@ -286,7 +290,7 @@ async function mensajeIA(l){
     const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",
       headers:{"content-type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
       body:JSON.stringify({model:"claude-haiku-4-5-20251001",max_tokens:500,system:sys,messages:[{role:"user",content:usr}]})});
-    const j=await r.json(); if(j.error) throw new Error(j.error.message||"error de Claude");
+    const j=await r.json(); if(j.error) throw new Error(j.error.message||"error de Claude"); usoAdd("ia",(j.usage&&((j.usage.input_tokens||0)+(j.usage.output_tokens||0)))||0);
     return (j.content&&j.content[0]&&j.content[0].text||"").trim();
   }
   // Detecta proveedor por el formato de la clave
@@ -296,7 +300,7 @@ async function mensajeIA(l){
   const r=await fetch(url,{method:"POST",
     headers:{"content-type":"application/json","Authorization":"Bearer "+key},
     body:JSON.stringify({model,messages:[{role:"system",content:sys},{role:"user",content:usr}],temperature:0.95})});
-  const j=await r.json(); if(j.error) throw new Error((j.error.message||"error")+" ("+quien+")");
+  const j=await r.json(); if(j.error) throw new Error((j.error.message||"error")+" ("+quien+")"); usoAdd("ia",(j.usage&&j.usage.total_tokens)||0);
   return (j.choices&&j.choices[0]&&j.choices[0].message.content||"").trim();
 }
 // Importar CSV (de Outscraper, Apify, o el del propio panel). Detecta las columnas solo.
@@ -634,7 +638,15 @@ function vAjustes(){
       <button class="btn btn-g" id="aTest" type="button">🔌 Probar conexión</button>
       <button class="btn btn-g" id="aTestBar" type="button" style="margin-left:6px">🔍 Probar buscar 1 email</button>
       <div id="testOut" class="note" style="margin-top:8px;font-size:13px">Pulsa un botón para comprobar la conexión, o "Probar buscar 1 email" para ver dónde se rompe la búsqueda.</div>
-    </div></div>
+    </div>
+    ${(function(){ const u=usoGet(); return `<div style="margin-top:10px;padding:10px 12px;background:#f7f7f9;border-radius:10px">
+      <b style="font-size:13px">📊 Consumo (se va guardando)</b>
+      <div style="font-size:13px;margin-top:6px">🌉 <b>Jina</b>: ~${fmtN(u.jinaTok)} tokens · ${u.jinaReq} llamadas <span class="muted">(estimado)</span><br>
+      <span style="font-size:11px;color:var(--mut)">Cada cuenta gratis de Jina trae ~1.000.000 (1M). Cuando te acerques, abre otra cuenta y añade su clave.</span></div>
+      <div style="font-size:13px;margin-top:4px">🤖 <b>IA</b>: ${fmtN(u.iaTok)} tokens · ${u.iaReq} llamadas <span class="muted">(exacto)</span></div>
+      <button class="mini" id="usoReset" type="button" style="margin-top:8px">↺ Poner contadores a cero</button>
+    </div>`; })()}
+    </div>
   <div class="card"><h2>💶 Tus precios</h2>
     <div class="row">
       ${["basico","medio","top"].map(k=>`<div><label>${planLbl(k)} — alta € / cuota €</label><div style="display:flex;gap:6px"><input id="pa_${k}" type="number" min="0" value="${p[k].alta}"><input id="pc_${k}" type="number" min="0" value="${p[k].cuota}"></div></div>`).join("")}
@@ -826,6 +838,7 @@ document.addEventListener("click",async e=>{
     ["basico","medio","top"].forEach(k=>{ a.precios[k]={ alta:+($("#pa_"+k).value)||0, cuota:+($("#pc_"+k).value)||0 }; });
     save("ajustes",a); toast("Ajustes guardados ✅"); return; }
   if(t.id==="aReset"){ const a=AJ(); a.t1=T1_DEF; a.t2=T2_DEF; a.t3=T3_DEF; save("ajustes",a); render(); toast("Mensajes restaurados"); return; }
+  if(t.id==="usoReset"){ save("uso",{jinaTok:0,jinaReq:0,iaTok:0,iaReq:0}); render(); toast("Contadores a cero"); return; }
 });
 
 // Buscador del Pipeline: filtra las fichas en vivo, sin recargar (no pierde el foco al escribir).
