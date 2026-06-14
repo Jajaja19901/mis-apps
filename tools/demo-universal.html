@@ -2601,12 +2601,12 @@ const CONFIG={ BUSINESS_NAME:"La Tasca", CITY:"[Tu ciudad]", WHATSAPP:"", EMAIL:
   if(g("c")) CONFIG.CITY = g("c");
   if(g("wa")) CONFIG.WHATSAPP = g("wa").replace(/[^0-9]/g,"");
   if(g("em")) CONFIG.EMAIL = g("em");
-  var col = g("col"); if(col){ if(col.charAt(0)!=="#") col="#"+col;
-    var s=document.documentElement.style; s.setProperty("--brand",col); s.setProperty("--brand-d",col); s.setProperty("--gold",col); }
+  var col = (g("col")||"").replace(/[^0-9a-fA-F]/g,"").slice(0,6); col = col ? "#"+col : ""; // SOLO hex válido (anti-XSS)
+  if(col){ var s=document.documentElement.style; s.setProperty("--brand",col); s.setProperty("--brand-d",col); s.setProperty("--gold",col); }
   // Logo con las iniciales del bar + su color, una vez cargada la página.
   window.addEventListener("load", function(){ try{
     var n = CONFIG.BUSINESS_NAME||"Bar"; var w = n.split(/\s+/).filter(Boolean);
-    var ini = (w[0]?w[0].charAt(0):"B"); if(w[1]) ini += w[1].charAt(0); ini = ini.toUpperCase();
+    var ini = (w[0]?w[0].charAt(0):"B"); if(w[1]) ini += w[1].charAt(0); ini = ini.toUpperCase().replace(/[^A-ZÑ0-9]/g,"")||"B"; // solo letras/números (anti-XSS)
     var c = col || "#e0871a";
     var svg = '<svg viewBox="0 0 48 48" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" rx="12" fill="'+c+'"/><text x="24" y="33" font-size="'+(ini.length>1?20:25)+'" font-weight="900" text-anchor="middle" fill="#fff" font-family="system-ui,Arial,sans-serif">'+ini+'</text></svg>';
     ["brandLogo","footLogo"].forEach(function(id){ var el=document.getElementById(id); if(el) el.innerHTML=svg; });

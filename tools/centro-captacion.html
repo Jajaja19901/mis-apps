@@ -67,6 +67,8 @@ const TPL_B64=/*TPL_INI*/"PCFkb2N0eXBlIGh0bWw+CjxodG1sIGxhbmc9ImVzIj4KPGhlYWQ+Cj
 /* ── base ── */
 const $=s=>document.querySelector(s);
 function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+// URL segura: solo http(s). Bloquea javascript:, data:, etc. (anti-XSS en enlaces de datos scrapeados).
+function safeUrl(u){ u=String(u==null?"":u).trim(); return /^https?:\/\//i.test(u)?u:""; }
 function slug(s){ return String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,40); }
 function load(k,d){ try{ const v=localStorage.getItem("cc_"+k); return v?JSON.parse(v):d; }catch(e){ return d; } }
 function save(k,v){ try{ localStorage.setItem("cc_"+k,JSON.stringify(v)); }catch(e){} }
@@ -99,27 +101,47 @@ const WEBMAIL=/@(gmail|hotmail|outlook|yahoo|live|icloud|me\.com|gmx|proton|prot
 // Palabras significativas del nombre del bar (quita genéricos como "bar", "la", "de"…).
 const STOP=new Set(["bar","cafe","cafeteria","cafetería","restaurante","meson","mesón","pizzeria","pizzería","tasca","kiosko","kiosco","grill","pub","cerveceria","cervecería","heladeria","churreria","churrería","asador","taberna","casa","local","comida","cocina","plaza","centro","nuevo","nueva"]);
 function tokensNombre(s){ return (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(w=>w.length>=4 && !STOP.has(w)); }
-// ¿El email es DE ESTE bar (y no de una web grande de la zona: turismo, destilería…)?
-function emailRelevante(email,nombre,web,pg){
-  email=(email||"").toLowerCase(); const dom=(email.split("@")[1]||"").replace(/[^a-z0-9.]/g,""); if(!dom) return false;
-  const toks=tokensNombre(nombre); const domplano=dom.replace(/[^a-z0-9]/g,"");
-  // a) el dominio del email lleva una palabra del nombre del bar (su propia web)
-  if(toks.some(w=>domplano.includes(w))) return true;
-  // b) es un correo personal (gmail/hotmail…) y el nombre del bar sale junto al email en el texto
-  if(WEBMAIL.test(email)){ const low=String(pg).toLowerCase(); const i=low.indexOf(email);
-    if(i>=0){ const ventana=low.slice(Math.max(0,i-220),i+220); if(toks.some(w=>ventana.includes(w))) return true; } }
-  return false; // dominio de un sitio ajeno (turismo, destilería, otra empresa) → fuera
+// "Marca" del dominio (auroragastro de auroragastro.es o de x@auroragastro.es), maneja .com.es/.co.uk
+function dominioBase(host){
+  host=(host||"").toLowerCase().replace(/^https?:\/\//,"").replace(/^www\./,"").split("/")[0].replace(/[^a-z0-9.]/g,"");
+  const p=host.split("."); if(!p.length) return "";
+  if(p.length>=3 && /^(co|com|org|net|gob|gov|edu)$/.test(p[p.length-2])) return p[p.length-3];
+  return p.length>=2 ? p[p.length-2] : host;
+}
+// ¿El email es DE ESTE negocio SEGURO? Jerarquía de confianza; ante la duda → false (vacío).
+// web=web propia detectada; pg=texto leído; origenWeb=true si salió DENTRO de la web propia (no de un directorio).
+function emailRelevante(email,nombre,web,pg,origenWeb){
+  email=(email||"").toLowerCase().trim();
+  const dom=(email.split("@")[1]||"").replace(/[^a-z0-9.]/g,""); if(!dom) return false;
+  if(EMAIL_BLACK.test(email)) return false;                 // portales/instituciones/agregadores → fuera
+  const low=String(pg||"").toLowerCase();
+  if(!low.includes(email)) return false;                    // DEBE estar literal en el texto (nunca construido)
+  // NIVEL 1: el dominio del email == dominio de la web PROPIA del negocio → FIABLE
+  if(web && !WEB_BAD.test(web)){ const mW=dominioBase(web), mM=dominioBase(dom); if(mW && mW.length>=3 && mW===mM) return true; }
+  // NIVEL 2: sabemos que el email salió DENTRO de la web propia (no en un directorio) → FIABLE
+  if(origenWeb===true && !WEBMAIL.test(email)) return true;
+  // NIVEL 3: webmail (gmail/hotmail…) SOLO si el nombre está MUY pegado (≤80) y NO hay otro email al lado
+  if(WEBMAIL.test(email)){
+    const toks=tokensNombre(nombre); if(!toks.length) return false;
+    const i=low.indexOf(email); if(i<0) return false;
+    const ventana=low.slice(Math.max(0,i-80), i+80);
+    if(!toks.some(w=>ventana.includes(w))) return false;
+    const otros=(ventana.match(EMAIL_RE)||[]).map(x=>x.toLowerCase()).filter(x=>x!==email);
+    if(otros.length) return false;                          // hay otro email pegado = directorio con varias fichas → fuera
+    return true;
+  }
+  // NIVEL 4: cualquier otro caso → RECHAZAR (vacío). Mejor 0 emails que 1 inventado.
+  return false;
 }
 const WEB_BAD=/(facebook|instagram|tripadvisor|tiktok|youtube|twitter|x\.com|google\.|duckduckgo|bing\.|paginasamarillas|cylex|citiservi|restaurantguru|yelp|just-?eat|ubereats|glovo|deliveroo|carta\.menu|mymenuweb|sluurpy|wikipedia|jina\.ai|allorigins|corsproxy|thingproxy|gstatic|w3\.org|schema\.org|turismo|ayuntamiento|cabildo|gobiernodecanarias|diputacion|arehucas|idealista|booking)/i;
 // Puentes (proxies CORS). Jina añade la URL tal cual; los demás la codifican.
-const PUENTES=[ u=>"https://r.jina.ai/"+u,
-                u=>"https://api.codetabs.com/v1/proxy/?quest="+encodeURIComponent(u),
-                u=>"https://api.allorigins.win/raw?url="+encodeURIComponent(u),
-                u=>"https://corsproxy.io/?url="+encodeURIComponent(u),
-                u=>"https://proxy.corsfix.com/?"+u,
-                u=>"https://thingproxy.freeboard.io/fetch/"+u ];
+const PUENTES=[ u=>"https://r.jina.ai/"+u,                                            // 1º con clave Jina (cuando hay cupo)
+                u=>"https://api.codetabs.com/v1/proxy/?quest="+encodeURIComponent(u),  // mejor gratis sin clave (manda CORS *)
+                u=>"https://api.allorigins.win/raw?url="+encodeURIComponent(u),        // respaldo (intermitente)
+                u=>"https://cors.x2u.in/"+encodeURIComponent(u) ];                     // respaldo nuevo 2026
+// (quitados corsproxy.io / corsfix / thingproxy: muertos o exigen registro → solo hacían esperar en vano)
 // fetch con límite de tiempo: si un puente no responde en X seg, lo abandona (para no colgarse).
-async function fetchT(url,opt,ms){ const c=new AbortController(); const id=setTimeout(()=>c.abort(),ms||9000);
+async function fetchT(url,opt,ms){ const c=new AbortController(); const id=setTimeout(()=>c.abort(),ms||7000);
   try{ const r=await fetch(url,Object.assign({signal:c.signal},opt||{})); clearTimeout(id); return r; }catch(e){ clearTimeout(id); throw e; } }
 // Tope total por bar: si tarda demasiado, se abandona y se sigue con el siguiente (nunca se congela).
 function conTope(p,ms){ return Promise.race([p, new Promise((_,rej)=>setTimeout(()=>rej(new Error("tope de tiempo")),ms||45000))]); }
@@ -197,10 +219,14 @@ async function buscarDatosWeb(nombre,ciudad,prof){
   if(!pg) throw new Error("ningún puente respondió, vuelve a intentarlo en un momento");
   const links=sacaLinks(pg);
   const web=links.find(u=>!WEB_BAD.test(u))||"";
+  let emailOrigenWeb=false; // ¿el email salió DENTRO de la web propia (no de un directorio)?
+  if(email && web && dominioBase((email.split("@")[1]||""))===dominioBase(web)) emailOrigenWeb=true;
   // 4) Solo si AÚN falta el email, abrimos 1-2 páginas (web/ficha) a por él.
   for(const u of (email?[]:links.slice(0,2))){
     const t=cap(await traerWeb(u)); if(!t) continue; pg+="\n"+t;
-    const e=sacaEmails(t); if(e.length){ email=e[0]; }
+    const e=sacaEmails(t); if(e.length){ email=e[0];
+      const host=u.replace(/^https?:\/\//,"").split("/")[0];
+      if(!WEB_BAD.test(u) && web && dominioBase(host)===dominioBase(web)) emailOrigenWeb=true; }
   }
   const extra={};
   // Si hay clave de IA, lee TODO el texto reunido y saca datos. PERO solo aceptamos lo que
@@ -235,14 +261,14 @@ async function buscarDatosWeb(nombre,ciudad,prof){
   // Seguridad final: el email tiene que estar literal en el texto leído (no se inventa)…
   if(email && !pg.toLowerCase().includes(email.toLowerCase())) email="";
   // …Y tiene que ser DE ESTE bar, no de una web grande de la zona (turismo, destilería, otra empresa).
-  if(email && !emailRelevante(email,nombre,web,pg)) email="";
+  if(email && !emailRelevante(email,nombre,web,pg,emailOrigenWeb)) email="";
   if(email) DIAG.email++;
   if(prof){ const low=pg.toLowerCase(); const tk=tokensNombre(nombre); let idx=-1,tkf=""; for(const t of tk){ const i=low.indexOf(t); if(i>=0){idx=i;tkf=t;break;} }
     extra._dbg={ pgLen:pg.length, jina:DIAG.jina, gg:DIAG.gg, ddg:DIAG.ddg, nombreEnTexto:idx>=0?("sí ("+tkf+")"):"NO", emailHallado:email||"(ninguno)", telsCerca:telCand.slice(0,6).join(", ")||"(ninguno)", telsTodos:sacaTel(pg).slice(0,8).join(", ")||"(ninguno)", mobiles:telCand.filter(esMovil) }; }
   return Object.assign({ email, web }, extra);
 }
 // Convierte lo encontrado en un parche para el lead (solo rellena lo que falta; no pisa lo que ya hay).
-function datosPatch(d,l){ const p={}; if(d.email&&!l.email){p.email=d.email; p.emailAuto=true;} if(d.web&&!l.web)p.web=d.web;
+function datosPatch(d,l){ const p={}; if(d.email&&!l.email){p.email=d.email; p.emailAuto=true;} if(safeUrl(d.web)&&!l.web)p.web=safeUrl(d.web);
   // teléfono: rellena si falta, o MEJORA un fijo por un móvil encontrado
   if(d.tel){ const nuevoMovil=esMovil(String(d.tel).replace(/\D/g,"").slice(-9)); const curMovil=esMovil((l.tel||"").replace(/\D/g,"").slice(-9)); if(!l.tel || (nuevoMovil&&!curMovil)) p.tel=d.tel; }
   if(d.whatsapp && !waDe(l)) p.whatsapp=d.whatsapp; // pon el móvil de WhatsApp si el lead aún no tiene uno
@@ -252,7 +278,7 @@ function incompleto(l){ return !l.tel || !l.web || (!l.instagram&&!l.facebook); 
 // La IA lee el texto de la web del local y devuelve sus datos en JSON. NUNCA inventa (instruido).
 async function iaExtrae(texto,nombre){
   const key=(AJ().iaKey||"").trim(); if(!key) return null;
-  const sys="Eres un extractor que COPIA datos escritos en un texto. Te paso texto de webs/fichas de un negocio. Devuelve SOLO un JSON plano (sin markdown) con: email, instagram, facebook, tiktok, telefono, pedidos_online, reservas. REGLAS ABSOLUTAS: (1) email: copia un correo SOLO si aparece escrito tal cual en el texto, con su arroba. ESTÁ PROHIBIDO construir, deducir o adivinar un correo a partir del nombre del negocio o de su dominio (NO inventes 'info@nombre.com'). Si en el texto no hay ningún correo escrito, email=null. (2) Ignora correos de plataformas/portales (paginasamarillas, cylex, tripadvisor, just eat, glovo, kioskoymas, wordpress, wix...). (3) instagram, facebook, telefono: cópialos solo si están literalmente en el texto; si no, null. (4) pedidos_online: true solo si ves Just Eat/Glovo/UberEats/tienda propia de compra; si no false. (5) reservas: true solo si ves TheFork o reserva online; si no false. Ante la duda, null. NUNCA te inventes nada.";
+  const sys="Eres un extractor que COPIA datos escritos en un texto. Te paso texto de webs/fichas de un negocio. Devuelve SOLO un JSON plano (sin markdown) con: email, instagram, facebook, tiktok, telefono, pedidos_online, reservas. REGLAS ABSOLUTAS: (1) email: copia un correo SOLO si aparece escrito tal cual en el texto, con su arroba. ESTÁ PROHIBIDO construir, deducir o adivinar un correo a partir del nombre del negocio o de su dominio (NO inventes 'info@nombre.com'). Si en el texto no hay ningún correo escrito, email=null. (1b) El texto puede contener VARIOS negocios (directorios, listados, mapas, negocios vecinos). Devuelve el email SOLO si estás SEGURO de que es EXACTAMENTE del negocio indicado en 'Negocio:' — porque su dominio coincide con la web de ese negocio, o porque el correo aparece pegado a su nombre EXACTO y a ningún otro. Si hay varios correos y no puedes atribuir uno con certeza a ESTE negocio (y no a uno cercano o del directorio), email=null. Un gmail/hotmail suelto sin el nombre de ESTE negocio justo al lado → email=null. (2) Ignora correos de plataformas/portales (paginasamarillas, cylex, tripadvisor, just eat, glovo, kioskoymas, wordpress, wix...). (3) instagram, facebook, telefono: cópialos solo si están literalmente en el texto; si no, null. (4) pedidos_online: true solo si ves Just Eat/Glovo/UberEats/tienda propia de compra; si no false. (5) reservas: true solo si ves TheFork o reserva online; si no false. Ante la duda, null. NUNCA te inventes nada.";
   const usr="Negocio: "+nombre+"\n\nTexto encontrado:\n"+String(texto).slice(0,2600);
   let out="";
   if(/^sk-ant/i.test(key)){
@@ -484,7 +510,7 @@ function vBuscar(){
       <div style="font-size:12.5px;color:#666;margin:4px 0">📍 ${esc(d.ciudad||"")}${d.km!=null?" · a "+d.km+" km":""}${d.dir?" · "+esc(d.dir):""}</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px">
         <span>📞 ${esc(d.tel)||"<span style=color:#c33>—</span>"}</span>
-        <span>${d.web?`🌐 <a href="${esc(d.web)}" target="_blank" rel="noopener">web</a>`:'<b style="color:var(--brand-d)">sin web</b>'}</span>
+        <span>${safeUrl(d.web)?`🌐 <a href="${esc(safeUrl(d.web))}" target="_blank" rel="noopener">web</a>`:'<b style="color:var(--brand-d)">sin web</b>'}</span>
         ${d.rating?`<span>⭐ ${d.rating} (${d.n})</span>`:""}</div>
       <div style="font-size:12px;color:#888;margin-top:4px">${esc(d.motivo)}</div>
     </div>`).join("");
@@ -579,17 +605,17 @@ function vPipeline(){
         <span>📍 ${esc(l.ciudad||"—")}${l.dir&&l.dir!==l.ciudad?" · "+esc(l.dir):""}</span>
         <span>📞 ${telMostrar?esc(telMostrar)+telTipo:"<span style=color:#c33>—</span>"}</span>
         <span>✉️ ${l.email?esc(l.email):"<span style=color:#c33>sin email</span>"}</span>
-        ${l.web?`<a href="${esc(l.web)}" target="_blank" rel="noopener">🌐 Web</a>`:""}
-        ${l.instagram?`<a href="${esc(l.instagram)}" target="_blank" rel="noopener">📷 Instagram</a>`:""}
-        ${l.facebook?`<a href="${esc(l.facebook)}" target="_blank" rel="noopener">📘 Facebook</a>`:""}
-        ${l.tiktok?`<a href="${esc(l.tiktok)}" target="_blank" rel="noopener">🎵 TikTok</a>`:""}
+        ${safeUrl(l.web)?`<a href="${esc(safeUrl(l.web))}" target="_blank" rel="noopener">🌐 Web</a>`:""}
+        ${safeUrl(l.instagram)?`<a href="${esc(safeUrl(l.instagram))}" target="_blank" rel="noopener">📷 Instagram</a>`:""}
+        ${safeUrl(l.facebook)?`<a href="${esc(safeUrl(l.facebook))}" target="_blank" rel="noopener">📘 Facebook</a>`:""}
+        ${safeUrl(l.tiktok)?`<a href="${esc(safeUrl(l.tiktok))}" target="_blank" rel="noopener">🎵 TikTok</a>`:""}
         <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.nombre+" "+(l.dir||l.ciudad||""))}" target="_blank" rel="noopener">🗺️ Maps</a>
         ${l.rating?`<span>⭐ ${esc(String(l.rating))}${l.n?" ("+l.n+")":""}</span>`:""}
         ${l.pedidos?`<span>🛒 ya vende online</span>`:""}
         ${l.origen==="embudo"?`<span>📥 del embudo</span>`:""}</div>
       <div style="font-size:12px;margin-bottom:7px">${diagnostico(l)}</div>
       ${l.notas?`<div style="font-size:12.5px;color:#555;background:#f7f7f7;border-radius:8px;padding:5px 9px;margin-bottom:7px">📝 ${esc(l.notas)}</div>`:""}
-      ${l.demoUrl?`<div style="margin-bottom:7px"><a href="${esc(l.demoUrl)}" target="_blank" rel="noopener" style="font-size:12.5px">🔗 su demo</a></div>`:""}
+      ${safeUrl(l.demoUrl)?`<div style="margin-bottom:7px"><a href="${esc(safeUrl(l.demoUrl))}" target="_blank" rel="noopener" style="font-size:12.5px">🔗 su demo</a></div>`:""}
       <div style="display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-bottom:9px">
         <label style="font-size:12px;color:var(--mut)">Estado: <select data-est="${l.id}" style="padding:6px;font-size:13px"><option value="nuevo"${l.estado==="nuevo"?" selected":""}>Nuevo</option><option value="contactado"${l.estado==="contactado"?" selected":""}>Contactado</option><option value="interesado"${l.estado==="interesado"?" selected":""}>Interesado</option><option value="cliente"${l.estado==="cliente"?" selected":""}>CLIENTE 🎉</option><option value="no"${l.estado==="no"?" selected":""}>No</option></select></label>
         <label style="font-size:12px;color:var(--mut)">Plan: <select data-plan="${l.id}" style="padding:6px;font-size:13px"><option value="basico"${l.plan==="basico"?" selected":""}>Básica</option><option value="medio"${l.plan==="medio"?" selected":""}>Media</option><option value="top"${l.plan==="top"?" selected":""}>Digital</option></select></label>
@@ -823,9 +849,9 @@ document.addEventListener("click",async e=>{
     if(miWa){ const txtWa=encodeURIComponent("Hola, soy de "+l.nombre+". Me interesa vuestra propuesta de la app de pedidos por QR, ¿hablamos?");
       cuerpo+="\n\n👉 Si te interesa, escríbeme directo por WhatsApp (un toque):\nhttps://wa.me/"+miWa+"?text="+txtWa; }
     cuerpo+="\n\nUn saludo,\nIncuba tu Negocio\nincubatunegociowebapps@gmail.com\n(Si no quieres recibir más correos nuestros, responde BAJA y no te escribimos más.)";
-    if(em){ // abre la APP DE CORREO del móvil (mailto) con todo ya escrito -> solo dar a Enviar
+    if(em && /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(em)){ // abre la APP DE CORREO del móvil (mailto) con todo ya escrito
       try{ await navigator.clipboard.writeText("Para: "+em+"\nAsunto: "+asunto+"\n\n"+cuerpo); }catch(e){} // copia de respaldo
-      const mt="mailto:"+em+"?subject="+encodeURIComponent(asunto)+"&body="+encodeURIComponent(cuerpo);
+      const mt="mailto:"+encodeURIComponent(em)+"?subject="+encodeURIComponent(asunto)+"&body="+encodeURIComponent(cuerpo);
       location.href=mt; // tu app de correo se abre con el destinatario, asunto y texto puestos
       upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 }); setTimeout(render,500); toast("Abriendo tu correo con el email escrito para "+em+" ✉️"); }
     else { try{ await navigator.clipboard.writeText("Para: (busca su email)\nAsunto: "+asunto+"\n\n"+cuerpo); toast("No tiene email guardado · correo copiado ✉️"); }catch(err){ prompt("Copia el email:",cuerpo); } }
@@ -896,7 +922,7 @@ document.addEventListener("change",e=>{
   if(s.dataset&&s.dataset.plan){ upLead(s.dataset.plan,{plan:s.value}); render(); }
 });
 
-function leadDe(d){ const t9=(d.tel||d.inter||"").replace(/\D/g,"").slice(-9); return { nombre:d.nombre, ciudad:d.ciudad||load("bz",""), ciudadReal:(d.ciudadReal!==undefined?d.ciudadReal:true), dir:d.dir, tel:d.tel, whatsapp:esMovil(t9)?("34"+t9):"", web:d.web, rating:d.rating, n:d.n, km:(d.km!=null?d.km:null), score:d.score||0, origen:"busqueda" }; }
+function leadDe(d){ const t9=(d.tel||d.inter||"").replace(/\D/g,"").slice(-9); return { nombre:d.nombre, ciudad:d.ciudad||load("bz",""), ciudadReal:(d.ciudadReal!==undefined?d.ciudadReal:true), dir:d.dir, tel:d.tel, whatsapp:esMovil(t9)?("34"+t9):"", web:safeUrl(d.web), rating:d.rating, n:d.n, km:(d.km!=null?d.km:null), score:d.score||0, origen:"busqueda" }; }
 function importarEmbudo(id,silencio){ let E=[]; try{ E=JSON.parse(localStorage.getItem("incuba_leads_v1")||"[]"); }catch(e){}
   const l=E.find(x=>x.id===id); if(!l) return;
   if(LEADS().some(x=>x.embudoId===id)){ if(!silencio) toast("Ya estaba importado"); return; }
