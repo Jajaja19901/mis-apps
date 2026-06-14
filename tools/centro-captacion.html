@@ -753,7 +753,7 @@ function vAjustes(){
         <div style="display:flex;gap:6px"><input id="aKey" type="password" value="${esc(a.gkey)}" placeholder="AIza..." style="flex:1"><button class="btn btn-p" id="aKeyOn" type="button">Activar</button></div>
         <p class="note">Estado: <b>${a.gkey?"✅ ACTIVA":"⬜ sin clave"}</b>. <b>OJO:</b> la búsqueda de emails NO necesita esta clave (usa la IA de arriba). Esta es solo para la pestaña 🔎 Buscar con Google. El buscador gratis (OpenStreetMap) funciona sin ella.</p></div>
       <div><label>🤖 Clave de Gemini (para el botón 🤖 Gemini — GRATIS en AI Studio)</label>
-        <div style="display:flex;gap:6px"><input id="aGem" type="password" value="${esc(a.geminiKey||"")}" placeholder="AIza... (de aistudio.google.com)" style="flex:1"><button class="btn btn-p" id="aGemOn" type="button">Activar</button></div>
+        <div style="display:flex;gap:6px"><input id="aGem" type="password" value="${esc(a.geminiKey||"")}" placeholder="AQ.... o AIza... (de aistudio.google.com)" style="flex:1"><button class="btn btn-p" id="aGemOn" type="button">Activar</button></div>
         <p class="note">Estado: <b>${(a.geminiKey||"").trim()?"✅ ACTIVA":"⬜ sin clave"}</b>. La clave de Places NO sirve para Gemini (Google lo cambió). Saca una GRATIS aquí: <code>aistudio.google.com/app/apikey</code> → "Create API key" → pégala. Es la que usa el botón 🤖 Gemini de cada ficha.</p></div>
     </div>
     <div style="margin-top:6px;padding-top:10px;border-top:1px solid #eee">
@@ -871,7 +871,7 @@ document.addEventListener("click",async e=>{
     const q="Dame el email, el teléfono móvil (WhatsApp) y el Instagram de "+l.nombre+(l.ciudad?(" "+l.ciudad):"")+", Canarias. Solo datos reales publicados, sin inventar.";
     window.open("https://www.google.com/search?q="+encodeURIComponent(q),"_blank","noopener"); return; }
   if(t.dataset.gem){ const l=LEADS().find(x=>x.id===t.dataset.gem); if(!l) return;
-    if(!/^AIza/i.test((AJ().geminiKey||AJ().gkey||"").trim())){ alert("Para usar Gemini necesitas su clave: sácala GRATIS en aistudio.google.com/app/apikey (2 clics) y pégala en ⚙️ Ajustes → Clave Gemini."); return; }
+    if(!(AJ().geminiKey||AJ().gkey||"").trim()){ alert("Para usar Gemini necesitas su clave: sácala GRATIS en aistudio.google.com/app/apikey (2 clics) y pégala en ⚙️ Ajustes → Clave Gemini."); return; }
     const o=t.textContent; t.textContent="🤖…"; t.disabled=true;
     const prompt="Busca en internet los datos de contacto reales del negocio de hostelería \""+l.nombre+"\" en "+(l.ciudad||"Canarias")+", Canarias, España. Responde SOLO con un JSON plano: {\"email\":\"\",\"movil\":\"\",\"instagram\":\"\"}. Reglas: pon SOLO datos publicados de verdad de ESE negocio; si no lo encuentras seguro, deja la cadena vacía. NUNCA inventes. El movil debe ser un número español que empiece por 6 o 7. No añadas texto fuera del JSON.";
     try{ const txt=await geminiPregunta(prompt);
@@ -1131,7 +1131,7 @@ function gNombreCoincide(a,b){ const t=s=>new Set(String(s||"").toLowerCase().no
   const A=t(a),B=t(b); if(!A.size||!B.size) return false; let c=0; A.forEach(w=>{ if(B.has(w))c++; }); return c/new Set([...A,...B]).size>=0.5; }
 // Gemini (con tu clave Google AIza) CONECTADO A BÚSQUEDA real (google_search) → menos invención.
 // Requiere activar "Generative Language API" en tu proyecto de Google (gratis).
-async function geminiPregunta(prompt){ const key=(AJ().geminiKey||AJ().gkey||"").trim(); if(!/^AIza/i.test(key)) throw new Error("Falta la clave de Gemini (sácala gratis en aistudio.google.com) en Ajustes");
+async function geminiPregunta(prompt){ const key=(AJ().geminiKey||AJ().gkey||"").trim(); if(!key) throw new Error("Falta la clave de Gemini (sácala gratis en aistudio.google.com) en Ajustes");
   const r=await fetchT("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key="+encodeURIComponent(key),
     { method:"POST", headers:{"content-type":"application/json"},
       body:JSON.stringify({ contents:[{parts:[{text:prompt}]}], tools:[{google_search:{}}] }) }, 18000);
