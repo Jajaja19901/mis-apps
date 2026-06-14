@@ -521,6 +521,7 @@ function vPipeline(){
         ${l.email?"":`<button class="mini" data-bmail="${l.id}" type="button" title="Buscar su email en la web">🔎✉️ Buscar email</button>`}
         <button class="mini" data-rebuscar="${l.id}" type="button" title="Volver a buscar y actualizar SOLO este negocio (arregla teléfono/email/datos)">🔄 Reajustar</button>
         <button class="mini" data-edittel="${l.id}" type="button" title="Corregir el teléfono a mano">✏️ Nº</button>
+        <button class="mini" data-editmail="${l.id}" type="button" title="Poner/corregir el email a mano">✏️ Email</button>
         <button class="mini" data-demo="${l.id}" type="button" title="Generar su demo">⬇️ Demo</button>
         <button class="mini" data-url="${l.id}" type="button" title="Pegar enlace de su demo">🔗</button>
         <button class="mini" data-nota="${l.id}" type="button" title="Nota">📝</button>
@@ -648,6 +649,10 @@ document.addEventListener("click",async e=>{
       if(Object.keys(patch).filter(k=>k!=="emailAuto").length){ upLead(l.id,patch); render(); toast(l.nombre+": actualizado ✓ ("+Object.keys(patch).filter(k=>k!=="emailAuto").join(", ")+")"); }
       else { t.textContent=o; t.disabled=false; toast(l.nombre+": sin cambios — lo que hay ya es lo mejor que se encuentra"); }
     }catch(err){ toast("No se pudo reajustar: "+err.message); t.textContent=o; t.disabled=false; } return; }
+  if(t.dataset.editmail){ const l=LEADS().find(x=>x.id===t.dataset.editmail);
+    const r=(prompt("Email de "+l.nombre+" (cópialo de Google si lo ves). Vacío = quitarlo:", l.email||"")||"").trim().toLowerCase();
+    if(r==="" || /^[^@\s]+@[^@\s]+\.[a-z]{2,}$/.test(r)){ upLead(l.id,{email:r, emailAuto:false}); render(); toast(r?"Email guardado ✓":"Email quitado"); }
+    else toast("Ese email no tiene buena pinta (revisa la @)"); return; }
   if(t.dataset.edittel){ const l=LEADS().find(x=>x.id===t.dataset.edittel); const cur=(l.tel||"").replace(/\D/g,"").slice(-9);
     const r=(prompt("Teléfono correcto de "+l.nombre+" (9 cifras, móvil o fijo). Vacío = quitarlo:", cur)||"").replace(/\D/g,"").slice(-9);
     if(r===""){ upLead(l.id,{tel:"",whatsapp:""}); render(); toast("Teléfono quitado"); return; }
