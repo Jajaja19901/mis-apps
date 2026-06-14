@@ -90,8 +90,23 @@ function proveedorDe(k){ k=(k||"").trim(); if(!k)return""; if(/^gsk_/i.test(k))r
 // "puentes" públicos y gratuitos que traen la página por nosotros. El primero (Jina Reader)
 // es el más fiable. Solo se rellena lo que aparece DE VERDAD; si no hay, no se pone nada.
 const EMAIL_RE=/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi;
-const EMAIL_BLACK=/(example\.|sentry|wixpress|godaddy|cloudflare|@2x|@3x|\.png|\.jpg|\.jpeg|\.gif|\.webp|\.svg|@sentry|@dominio|tuemail|youremail|tu-?correo|nombre@|usuario@|email@email|test@test|info@dominio|@example|@domain|jina\.ai|allorigins|corsproxy|kioskoymas|paginasamarillas|cylex|citiservi|tripadvisor|yelp|thefork|eltenedor|just-?eat|glovo|ubereats|deliveroo|doctoralia|infoempresa|einforma|empresite|axesor|restaurantguru|sluurpy|mymenuweb|@facebook|@instagram|wordpress|@wix\.|squarespace|shopify|mailchimp|@google|@youtube)/i;
-const WEB_BAD=/(facebook|instagram|tripadvisor|tiktok|youtube|twitter|x\.com|google\.|duckduckgo|bing\.|paginasamarillas|cylex|citiservi|restaurantguru|yelp|just-?eat|ubereats|glovo|deliveroo|carta\.menu|mymenuweb|sluurpy|wikipedia|jina\.ai|allorigins|corsproxy|thingproxy|gstatic|w3\.org|schema\.org)/i;
+const EMAIL_BLACK=/(example\.|sentry|wixpress|godaddy|cloudflare|@2x|@3x|\.png|\.jpg|\.jpeg|\.gif|\.webp|\.svg|@sentry|@dominio|tuemail|youremail|tu-?correo|nombre@|usuario@|email@email|test@test|info@dominio|@example|@domain|jina\.ai|allorigins|corsproxy|kioskoymas|paginasamarillas|cylex|citiservi|tripadvisor|yelp|thefork|eltenedor|just-?eat|glovo|ubereats|deliveroo|doctoralia|infoempresa|einforma|empresite|axesor|restaurantguru|sluurpy|mymenuweb|@facebook|@instagram|wordpress|@wix\.|squarespace|shopify|mailchimp|@google|@youtube|turismo|ayuntamiento|cabildo|gobiernodecanarias|diputacion|arehucas|@idealista|@booking|@tripadvisor)/i;
+const WEBMAIL=/@(gmail|hotmail|outlook|yahoo|live|icloud|me\.com|gmx|proton|protonmail|terra|telefonica|movistar|orange|vodafone)\./i;
+// Palabras significativas del nombre del bar (quita genéricos como "bar", "la", "de"…).
+const STOP=new Set(["bar","cafe","cafeteria","cafetería","restaurante","meson","mesón","pizzeria","pizzería","tasca","kiosko","kiosco","grill","pub","cerveceria","cervecería","heladeria","churreria","churrería","asador","taberna","casa","local","comida","cocina","plaza","centro","nuevo","nueva"]);
+function tokensNombre(s){ return (s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(w=>w.length>=4 && !STOP.has(w)); }
+// ¿El email es DE ESTE bar (y no de una web grande de la zona: turismo, destilería…)?
+function emailRelevante(email,nombre,web,pg){
+  email=(email||"").toLowerCase(); const dom=(email.split("@")[1]||"").replace(/[^a-z0-9.]/g,""); if(!dom) return false;
+  const toks=tokensNombre(nombre); const domplano=dom.replace(/[^a-z0-9]/g,"");
+  // a) el dominio del email lleva una palabra del nombre del bar (su propia web)
+  if(toks.some(w=>domplano.includes(w))) return true;
+  // b) es un correo personal (gmail/hotmail…) y el nombre del bar sale junto al email en el texto
+  if(WEBMAIL.test(email)){ const low=String(pg).toLowerCase(); const i=low.indexOf(email);
+    if(i>=0){ const ventana=low.slice(Math.max(0,i-220),i+220); if(toks.some(w=>ventana.includes(w))) return true; } }
+  return false; // dominio de un sitio ajeno (turismo, destilería, otra empresa) → fuera
+}
+const WEB_BAD=/(facebook|instagram|tripadvisor|tiktok|youtube|twitter|x\.com|google\.|duckduckgo|bing\.|paginasamarillas|cylex|citiservi|restaurantguru|yelp|just-?eat|ubereats|glovo|deliveroo|carta\.menu|mymenuweb|sluurpy|wikipedia|jina\.ai|allorigins|corsproxy|thingproxy|gstatic|w3\.org|schema\.org|turismo|ayuntamiento|cabildo|gobiernodecanarias|diputacion|arehucas|idealista|booking)/i;
 // Puentes (proxies CORS). Jina añade la URL tal cual; los demás la codifican.
 const PUENTES=[ u=>"https://r.jina.ai/"+u,
                 u=>"https://api.allorigins.win/raw?url="+encodeURIComponent(u),
@@ -152,8 +167,10 @@ async function buscarDatosWeb(nombre,ciudad){
         if(d.pedidos_online===true) extra.pedidos=true; }
     }catch(e){}
   }
-  // Seguridad final: el email tiene que estar SÍ o SÍ en el texto leído. Si no, fuera (no se inventa).
+  // Seguridad final: el email tiene que estar literal en el texto leído (no se inventa)…
   if(email && !pg.toLowerCase().includes(email.toLowerCase())) email="";
+  // …Y tiene que ser DE ESTE bar, no de una web grande de la zona (turismo, destilería, otra empresa).
+  if(email && !emailRelevante(email,nombre,web,pg)) email="";
   return Object.assign({ email, web }, extra);
 }
 // Convierte lo encontrado en un parche para el lead (solo rellena lo que falta; no pisa lo que ya hay).
