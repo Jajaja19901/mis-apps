@@ -618,7 +618,8 @@ function cardHTML(l){ const tq=toquePendiente(l); const waNum=waDe(l);
         <button class="mini" data-ia="${l.id}" type="button" title="Mensaje escrito por IA">✨ IA</button>
         <button class="mini" data-mail="${l.id}" type="button" title="Escribir email">✉️ Email</button>
         ${l.email?"":`<button class="mini" data-bmail="${l.id}" type="button" title="Buscar su email en la web">🔎✉️ Buscar email</button>`}
-        <button class="mini" data-iag="${l.id}" type="button" title="Preguntar a la IA de Google por su email/móvil/Instagram (tú lees y copias)" style="border-color:#1a73e8;color:#1a73e8">🔮 IA Google</button>
+        <button class="mini" data-iag="${l.id}" type="button" title="Abre Google preguntando por sus datos (tú lees y copias)" style="border-color:#1a73e8;color:#1a73e8">🔮 IA Google</button>
+        <button class="mini" data-gem="${l.id}" type="button" title="Gemini busca y rellena sus datos solo (marcado para revisar)" style="border-color:#8a44d6;color:#8a44d6">🤖 Gemini</button>
         <button class="mini" data-rebuscar="${l.id}" type="button" title="Volver a buscar y actualizar SOLO este negocio (arregla teléfono/email/datos)">🔄 Reajustar</button>
         <button class="mini" data-edittel="${l.id}" type="button" title="Corregir el teléfono a mano">✏️ Nº</button>
         <button class="mini" data-editmail="${l.id}" type="button" title="Poner/corregir el email a mano">✏️ Email</button>
@@ -866,6 +867,21 @@ document.addEventListener("click",async e=>{
   if(t.dataset.iag){ const l=LEADS().find(x=>x.id===t.dataset.iag); if(!l) return;
     const q="Dame el email, el teléfono móvil (WhatsApp) y el Instagram de "+l.nombre+(l.ciudad?(" "+l.ciudad):"")+", Canarias. Solo datos reales publicados, sin inventar.";
     window.open("https://www.google.com/search?q="+encodeURIComponent(q),"_blank","noopener"); return; }
+  if(t.dataset.gem){ const l=LEADS().find(x=>x.id===t.dataset.gem); if(!l) return;
+    if(!/^AIza/i.test((AJ().gkey||"").trim())){ alert("Para usar Gemini, pon tu clave de Google (AIza) en ⚙️ Ajustes y activa la 'Generative Language API' en tu proyecto."); return; }
+    const o=t.textContent; t.textContent="🤖…"; t.disabled=true;
+    const prompt="Busca en internet los datos de contacto reales del negocio de hostelería \""+l.nombre+"\" en "+(l.ciudad||"Canarias")+", Canarias, España. Responde SOLO con un JSON plano: {\"email\":\"\",\"movil\":\"\",\"instagram\":\"\"}. Reglas: pon SOLO datos publicados de verdad de ESE negocio; si no lo encuentras seguro, deja la cadena vacía. NUNCA inventes. El movil debe ser un número español que empiece por 6 o 7. No añadas texto fuera del JSON.";
+    try{ const txt=await geminiPregunta(prompt);
+      const m=txt.match(/\{[\s\S]*\}/); let d={}; if(m){ try{ d=JSON.parse(m[0]); }catch(e){} }
+      const patch={}; const mailRe=/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i;
+      const found=[];
+      if(d.email && mailRe.test(String(d.email).trim()) && !l.email){ patch.email=String(d.email).toLowerCase().trim(); found.push("email "+patch.email); }
+      const mv=String(d.movil||"").replace(/\D/g,"").slice(-9); if(/^(6|7[1-9])/.test(mv)&&mv.length===9 && !waDe(l)){ patch.whatsapp="34"+mv; if(!l.tel)patch.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); found.push("móvil "+mv); }
+      const ig=String(d.instagram||"").trim(); if(ig && /instagram\.com\//i.test(ig) && !l.instagram){ patch.instagram=safeUrl(ig)||("https://instagram.com/"+ig.replace(/^@/,"")); found.push("instagram"); }
+      if(found.length){ patch.notas="(Gemini, REVISAR) "+(l.notas||""); upLead(l.id,patch); render(); toast("Gemini puso: "+found.join(", ")+" — REVÍSALO antes de usar"); }
+      else { t.textContent=o; t.disabled=false; alert("Gemini no encontró datos fiables de "+l.nombre+".\n\nRespuesta:\n"+(txt.slice(0,300)||"(vacío)")); }
+    }catch(e){ t.textContent=o; t.disabled=false; alert("Error de Gemini: "+e.message+"\n\nSeguramente falta activar la 'Generative Language API' en tu proyecto de Google (gratis)."); }
+    return; }
   if(t.id==="verMas"){ MOSTRAR+=40; render(); return; }
   if(t.id==="completaDatos"){ const faltan=leadsFiltrados().filter(incompleto); if(!faltan.length){ toast("Todos completos ✓"); return; }
     if(!confirm("Voy a completar lo que falte (teléfono, web, redes) de "+faltan.length+" bares. Tarda un poco. ¿Sigo?")) return;
@@ -1108,6 +1124,15 @@ async function buscarOSM(){
 // ¿El nombre que devuelve Google se parece al del bar? Si no, es OTRO negocio (homónimo) → no lo cogemos.
 function gNombreCoincide(a,b){ const t=s=>new Set(String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9 ]/g," ").replace(/\b(bar|cafeteria|cafe|restaurante|restaurant|el|la|los|las|de|del|y|grill|pub|tasca|meson)\b/g," ").split(/\s+/).filter(w=>w.length>=3));
   const A=t(a),B=t(b); if(!A.size||!B.size) return false; let c=0; A.forEach(w=>{ if(B.has(w))c++; }); return c/new Set([...A,...B]).size>=0.5; }
+// Gemini (con tu clave Google AIza) CONECTADO A BÚSQUEDA real (google_search) → menos invención.
+// Requiere activar "Generative Language API" en tu proyecto de Google (gratis).
+async function geminiPregunta(prompt){ const key=(AJ().gkey||"").trim(); if(!/^AIza/i.test(key)) throw new Error("Falta tu clave de Google (AIza) en Ajustes");
+  const r=await fetchT("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key="+encodeURIComponent(key),
+    { method:"POST", headers:{"content-type":"application/json"},
+      body:JSON.stringify({ contents:[{parts:[{text:prompt}]}], tools:[{google_search:{}}] }) }, 18000);
+  const j=await r.json(); if(j.error) throw new Error(j.error.message||"Error de Gemini");
+  const c=(j.candidates||[])[0]||{}; const parts=((c.content||{}).parts||[]); return parts.map(p=>p.text||"").join(" ").trim();
+}
 async function googleFill(nombre, ciudad){ const key=(AJ().gkey||"").trim(); if(!key) throw new Error("Falta la clave de Google");
   const zona=(ciudad&&!/^arucas$/i.test(ciudad))?ciudad:""; const q=(nombre+" "+zona+" Gran Canaria").replace(/\s+/g," ").trim();
   const r=await fetchT("https://places.googleapis.com/v1/places:searchText",{ method:"POST",
