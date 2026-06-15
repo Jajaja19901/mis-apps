@@ -591,12 +591,15 @@ function pedir(titulo, valor){ return new Promise(res=>{
   const ov=document.createElement("div"); ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px";
   ov.innerHTML='<div style="background:#fff;border-radius:14px;padding:18px;max-width:430px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.3)">'+
     '<div style="font-size:15px;font-weight:600;margin-bottom:10px;color:#222">'+esc(titulo)+'</div>'+
-    '<input id="_pdInp" style="width:100%;padding:12px;border:1.5px solid #ccc;border-radius:9px;font-size:16px;box-sizing:border-box" value="'+esc(valor||"")+'">'+
+    '<div style="display:flex;gap:6px;align-items:stretch">'+
+    '<input id="_pdInp" style="flex:1;padding:12px;border:1.5px solid #ccc;border-radius:9px;font-size:16px;box-sizing:border-box;min-width:0" value="'+esc(valor||"")+'">'+
+    '<button id="_pdPaste" class="mini" type="button" title="Pegar lo que copiaste (del navegador / IA Google)" style="white-space:nowrap">📋 Pegar</button></div>'+
     '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">'+
     '<button id="_pdC" class="mini" type="button">Cancelar</button>'+
     '<button id="_pdOK" class="btn btn-p" type="button">Guardar</button></div></div>';
   document.body.appendChild(ov);
   const inp=ov.querySelector("#_pdInp"); setTimeout(()=>{ try{ inp.focus(); inp.select(); }catch(e){} },50);
+  ov.querySelector("#_pdPaste").onclick=async()=>{ try{ const txt=(await navigator.clipboard.readText()||"").trim(); if(txt){ inp.value=txt; inp.focus(); } else { toast("El portapapeles está vacío"); } }catch(e){ toast("Tu navegador no deja leer el portapapeles: pega a mano (mantén pulsado el campo → Pegar)"); } };
   const cerrar=v=>{ ov.remove(); res(v); };
   ov.querySelector("#_pdOK").onclick=()=>cerrar(inp.value);
   ov.querySelector("#_pdC").onclick=()=>cerrar(null);
@@ -896,7 +899,7 @@ document.addEventListener("click",async e=>{
     if(!confirm("Borro los "+n+" emails que encontró la app automáticamente (para re-buscarlos con la versión corregida). Los que metiste tú a mano se quedan. ¿Sigo?")) return;
     setLeads(LEADS().map(l=>l.emailAuto?Object.assign({},l,{email:"",emailAuto:false}):l)); render(); toast("Emails automáticos borrados. Dale otra vez a 🔎✉️"); return; }
   if(t.dataset.iag){ const l=LEADS().find(x=>x.id===t.dataset.iag); if(!l) return;
-    const q="Dame el email, el teléfono móvil (WhatsApp) y el Instagram de "+l.nombre+(l.ciudad?(" "+l.ciudad):"")+", Canarias. Solo datos reales publicados, sin inventar.";
+    const q=l.nombre+(l.ciudad?(" "+l.ciudad):"")+", Canarias. Email, teléfono móvil (WhatsApp) e Instagram. Solo los datos reales exactos, listos para copiar, sin inventar.";
     window.open("https://www.google.com/search?q="+encodeURIComponent(q),"_blank","noopener"); return; }
   if(t.dataset.gem){ const l=LEADS().find(x=>x.id===t.dataset.gem); if(!l) return;
     if(!(AJ().geminiKey||AJ().gkey||"").trim()){ alert("Para usar Gemini necesitas su clave: sácala GRATIS en aistudio.google.com/app/apikey (2 clics) y pégala en ⚙️ Ajustes → Clave Gemini."); return; }
