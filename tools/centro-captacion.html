@@ -985,7 +985,14 @@ document.addEventListener("click",async e=>{
     if(!usaGoogle && !(AJ().geminiKey||AJ().gkey||"").trim()){ alert("Monta el Buscador de Google (CSE) o pon tu clave Gemini en ⚙️ Ajustes."); return; }
     // PASO 0 (gratis): recupero los móviles que ya están en las notas antes de gastar nada de internet.
     { const L=LEADS(); let rec=0; L.forEach(l=>{ const mv=movilEnNotas(l); if(mv){ l.whatsapp="34"+mv; if(!l.tel)l.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); rec++; } }); if(rec){ setLeads(L); } }
-    const faltan=leadsFiltrados().filter(l=>!l.email||!waDe(l)); if(!faltan.length){ render(); toast("Nada que rellenar ✓ (WhatsApp recuperados de las notas)"); return; }
+    const faltan0=leadsFiltrados().filter(l=>!l.email||!waDe(l)); if(!faltan0.length){ render(); toast("Nada que rellenar ✓ (WhatsApp recuperados de las notas)"); return; }
+    // TOPE DE SEGURIDAD: nunca miles de golpe (cuelga el móvil y agota el cupo gratis). Tandas pequeñas.
+    const TOPE = usaGoogle ? 90 : 20;     // Google: 100/día · Gemini gratis: frena enseguida
+    let faltan=faltan0;
+    if(faltan0.length>TOPE){
+      if(!confirm("Tienes "+faltan0.length+" bares sin datos. Hacerlos TODOS de golpe cuelga la app y agota el cupo gratis.\n\nVoy a hacer solo los primeros "+TOPE+" ahora. Para el resto: filtra por isla/ciudad (arriba) y repite, o sigue mañana.\n\n¿Hago los primeros "+TOPE+"?")) return;
+      faltan=faltan0.slice(0,TOPE);
+    }
     t.disabled=true; let n=0, parar=false, motivo="";
     // Con Google real voy rápido (1 consulta/bar). Con Gemini voy lento (cupo por minuto).
     const espera = usaGoogle ? 400 : 4500;
@@ -993,7 +1000,7 @@ document.addEventListener("click",async e=>{
     const porMinuto=m=>/429|RESOURCE_EXHAUSTED|rateLimit|per minute|retry in|exceeded|quota/i.test(m||"");
     let i=0, reintentos=0;
     while(i<faltan.length){ const l=faltan[i]; t.textContent=(usaGoogle?"🔎 ":"🤖 ")+(i+1)+"/"+faltan.length+"…";
-      try{ const g=await autoBuscaLead(l); if(g.found.length){ upLead(l.id,g.patch); n++; render(); } i++; reintentos=0; }
+      try{ const g=await autoBuscaLead(l); if(g.found.length){ upLead(l.id,g.patch); n++; if(n%8===0) render(); } i++; reintentos=0; }
       catch(e){ const m=e.message||"";
         if(!duro(m) && porMinuto(m) && reintentos<2){ reintentos++;
           let segs=40; const mm=m.match(/retry in (\d+)/i); if(mm) segs=Math.min(75,(+mm[1])+5);
