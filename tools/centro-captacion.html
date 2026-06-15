@@ -1190,14 +1190,22 @@ async function gemBuscaLead(l){
   let d={}; const bloques=txt.match(/\{[^{}]*\}/g)||[];
   for(let k=bloques.length-1;k>=0;k--){ try{ const o=JSON.parse(bloques[k]); if(("email" in o)||("movil" in o)||("instagram" in o)){ d=o; break; } }catch(e){} }
   const patch={}; const mailRe=/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i; const found=[];
-  if(d.email && mailRe.test(String(d.email).trim()) && !l.email){ patch.email=String(d.email).toLowerCase().trim(); patch.emailAuto=true; found.push("email "+patch.email); }
-  const mv=String(d.movil||"").replace(/\D/g,"").slice(-9); if(/^(6|7[1-9])/.test(mv)&&mv.length===9 && !waDe(l)){ patch.whatsapp="34"+mv; if(!l.tel)patch.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); found.push("móvil "+mv); }
-  // Instagram: puede venir como URL completa, como @usuario o como usuario pelado. Lo normalizo a instagram.com/usuario.
-  if(!l.instagram){ let ig=String(d.instagram||"").trim(); let handle="";
-    const mu=ig.match(/instagram\.com\/([A-Za-z0-9._]+)/i);
+  // EMAIL: primero el del JSON; si viene vacío, lo busco también en TODO el texto que escribió Gemini.
+  if(!l.email){ let email=(d.email && mailRe.test(String(d.email).trim()))?String(d.email).toLowerCase().trim():(sacaEmails(txt)[0]||"");
+    if(email && mailRe.test(email)){ patch.email=email; patch.emailAuto=true; found.push("email "+email); }
+  }
+  // MÓVIL (para WhatsApp): del JSON; si no, el primer móvil 6/7 que aparezca en el texto de Gemini.
+  if(!waDe(l)){ let mv=String(d.movil||"").replace(/\D/g,"").slice(-9);
+    if(!(mv.length===9 && esMovil(mv))) mv=(sacaTel(txt).filter(esMovil)[0]||"");
+    if(mv && mv.length===9 && esMovil(mv)){ patch.whatsapp="34"+mv; if(!l.tel)patch.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); found.push("móvil "+mv); }
+  }
+  // INSTAGRAM: del JSON (URL, @usuario o usuario pelado); si no, lo busco en el texto. Normalizo a instagram.com/usuario.
+  if(!l.instagram){ let handle=""; const cand=String(d.instagram||"").trim();
+    const mu=cand.match(/instagram\.com\/([A-Za-z0-9._]+)/i);
     if(mu) handle=mu[1];
-    else if(/^@?[A-Za-z0-9._]{2,30}$/.test(ig)) handle=ig.replace(/^@/,"");
-    if(handle && !/^(p|reel|reels|explore|stories)$/i.test(handle)){ patch.instagram="https://instagram.com/"+handle; found.push("instagram @"+handle); }
+    else if(/^@?[A-Za-z0-9._]{2,30}$/.test(cand)) handle=cand.replace(/^@/,"");
+    if(!handle){ const t2=txt.match(/instagram\.com\/([A-Za-z0-9._]+)/i)||txt.match(/(?:instagram|insta|ig)\b[^A-Za-z0-9]{0,8}@?([A-Za-z0-9._]{3,30})/i); if(t2) handle=t2[1]; }
+    if(handle && !/^(p|reel|reels|explore|stories|com|www)$/i.test(handle)){ patch.instagram="https://instagram.com/"+handle; found.push("instagram @"+handle); }
   }
   if(found.length) patch.notas="(Gemini, REVISAR) "+(l.notas||"");
   return { patch, found, txt };
