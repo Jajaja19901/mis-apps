@@ -621,10 +621,12 @@ function zonaDe(l){ const m=String(l.notas||"").match(/isla:([A-Za-zÀ-ÿ' ]+?)(
   if(/(santa cruz de la palma|los llanos|tazacorte|brena|garafia|barlovento|tijarafe)/.test(c)) return "La Palma";
   if(/tenerife|la laguna|orotava|puerto de la cruz|cristianos|adeje|arona|granadilla|candelaria|tacoronte|icod|garachico|realejos|guimar|los gigantes/.test(c)) return "Tenerife";
   return "Gran Canaria"; }
-function leadsFiltrados(){ const f=load("filtro",""),fc=load("filtrocanal",""),fzona=load("filtrozona",""),fciu=load("filtrociudad",""),fweb=load("filtroweb",""),fem=load("filtroemail",""),ft=load("filtrotel",""),fkm=+load("filtrokm",0),fval=load("filtroval",""),fped=load("filtroped","");
+// ¿El negocio está cerrado? Lo marcas tú (estado "cerrado"), o lo detecta Google al "Rellenar con Google".
+function estaCerrado(l){ return l.estado==="cerrado" || !!l.cerrado || /CERRADO\s+(PERMANENTE|TEMPORAL)/i.test(l.notas||""); }
+function leadsFiltrados(){ const f=load("filtro",""),fc=load("filtrocanal",""),fzona=load("filtrozona",""),fciu=load("filtrociudad",""),fweb=load("filtroweb",""),fem=load("filtroemail",""),ft=load("filtrotel",""),fkm=+load("filtrokm",0),fval=load("filtroval",""),fped=load("filtroped",""),fcerr=load("filtrocerrados","");
   return LEADS().filter(l=>(!f||l.estado===f)&&(!fc||canalDe(l)===fc)&&(!fzona||zonaDe(l)===fzona)&&(!fciu||(l.ciudad||"—")===fciu)&&(fweb!=="sin"||!l.web)
     &&(!fem||(fem==="con"?!!l.email:!l.email))&&(!ft||(ft==="con"?tieneTel(l):!tieneTel(l)))
-    &&(!fkm||(l.km!=null&&l.km<=fkm))&&(fval!=="si"||(Number(l.rating)>=4))&&(fped!=="si"||!!l.pedidos)); }
+    &&(!fkm||(l.km!=null&&l.km<=fkm))&&(fval!=="si"||(Number(l.rating)>=4))&&(fped!=="si"||!!l.pedidos)&&(!fcerr||!estaCerrado(l))); }
 function hayFiltro(){ return !!(load("filtro","")||load("filtrocanal","")||load("filtrozona","")||load("filtrociudad","")||load("filtroweb","")||load("filtroemail","")||load("filtrotel","")||+load("filtrokm",0)||load("filtroval","")||load("filtroped","")); }
 var MOSTRAR=40, _sigPipe="", BUSQUEDA="";  // paginación + texto del buscador (filtra TODOS, no solo los visibles)
 // Cuadro de entrada propio (el prompt() del navegador falla en content://). Devuelve el texto o null.
@@ -650,7 +652,7 @@ function pedir(titulo, valor){ return new Promise(res=>{
 function cardHTML(l){ const tq=toquePendiente(l); const waNum=waDe(l); const fijNum=fijoDe(l);
   const movShow = waNum ? ("+34 "+waNum.slice(2).replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4")) : "";
   const fijShow = fijNum ? ("+34 "+fijNum.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4")) : "";
-  const aviso=tq?`<span class="alerta">↻ toca ${tq}º toque</span>`:(l.estado==="interesado"?'<span class="alerta" style="background:#fde8f0;border-color:#a3164f;color:#a3164f">🔥 ¡cerrar!</span>':"");
+  const aviso=estaCerrado(l)?'<span class="alerta" style="background:#fde2e2;border-color:#b32424;color:#b32424">🚫 CERRADO</span>':(tq?`<span class="alerta">↻ toca ${tq}º toque</span>`:(l.estado==="interesado"?'<span class="alerta" style="background:#fde8f0;border-color:#a3164f;color:#a3164f">🔥 ¡cerrar!</span>':""));
   return `<div class="leadcard" data-buscar="${esc((l.nombre+" "+(l.ciudad||"")+" "+(l.dir||"")+" "+(l.email||"")+" "+(l.tel||"")+" "+(l.fijo||"")+" "+(l.whatsapp||"")).toLowerCase())}" style="border:1px solid #e4e4e4;border-radius:14px;padding:13px 15px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06)">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
         <div style="font-size:17px;font-weight:700;line-height:1.2">${esc(l.nombre)}</div>${aviso}</div>
@@ -671,7 +673,7 @@ function cardHTML(l){ const tq=toquePendiente(l); const waNum=waDe(l); const fij
       ${l.notas?`<div style="font-size:12.5px;color:#555;background:#f7f7f7;border-radius:8px;padding:5px 9px;margin-bottom:7px">📝 ${esc(l.notas)}</div>`:""}
       ${safeUrl(l.demoUrl)?`<div style="margin-bottom:7px"><a href="${esc(safeUrl(l.demoUrl))}" target="_blank" rel="noopener" style="font-size:12.5px">🔗 su demo</a></div>`:""}
       <div style="display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-bottom:9px">
-        <label style="font-size:12px;color:var(--mut)">Estado: <select data-est="${l.id}" style="padding:6px;font-size:13px"><option value="nuevo"${l.estado==="nuevo"?" selected":""}>Nuevo</option><option value="contactado"${l.estado==="contactado"?" selected":""}>Contactado</option><option value="interesado"${l.estado==="interesado"?" selected":""}>Interesado</option><option value="cliente"${l.estado==="cliente"?" selected":""}>CLIENTE 🎉</option><option value="no"${l.estado==="no"?" selected":""}>No</option></select></label>
+        <label style="font-size:12px;color:var(--mut)">Estado: <select data-est="${l.id}" style="padding:6px;font-size:13px"><option value="nuevo"${l.estado==="nuevo"?" selected":""}>Nuevo</option><option value="contactado"${l.estado==="contactado"?" selected":""}>Contactado</option><option value="interesado"${l.estado==="interesado"?" selected":""}>Interesado</option><option value="cliente"${l.estado==="cliente"?" selected":""}>CLIENTE 🎉</option><option value="no"${l.estado==="no"?" selected":""}>No</option><option value="cerrado"${l.estado==="cerrado"?" selected":""}>🚫 Cerrado</option></select></label>
         <label style="font-size:12px;color:var(--mut)">Plan: <select data-plan="${l.id}" style="padding:6px;font-size:13px"><option value="basico"${l.plan==="basico"?" selected":""}>Básica</option><option value="medio"${l.plan==="medio"?" selected":""}>Media</option><option value="top"${l.plan==="top"?" selected":""}>Digital</option></select></label>
         ${l.ultimo?`<span class="muted" style="font-size:11px">hace ${dias(l.ultimo)}d · ${l.toques||0} toque(s)</span>`:""}</div>
       <div style="display:flex;gap:7px;flex-wrap:wrap">
@@ -753,6 +755,7 @@ function vPipeline(){
     <div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Por distancia:</b><br>${chipsKm}</div>
     ${(nVal||nPed)?`<div style="margin:0 0 6px"><b style="font-size:12px;color:var(--mut)">Extra:</b><br>${chipsExtra}</div>`:""}
     <div style="margin:0 0 4px"><b style="font-size:12px;color:var(--mut)">Por estado:</b><br>${chips}</div>
+    ${(()=>{ const nCerr=L.filter(estaCerrado).length; const on=load("filtrocerrados",""); return (nCerr||on)?`<div style="margin:0 0 6px"><button class="mini" id="toggleCerrados" type="button" title="Oculta o muestra los bares cerrados (temporal o permanente)" style="${on?onSel:'border-color:#b32424;color:#b32424'}">${on?"👁️ Mostrar cerrados":"🚫 Ocultar cerrados ("+nCerr+")"}</button></div>`:""; })()}
     ${hayFiltro()?`<p class="note" style="margin:6px 0 0;color:var(--brand-d)">🔎 Filtro activo: las acciones de abajo trabajan SOLO sobre los ${vis.length} que ves.</p>`:""}
     <div style="margin:6px 0;display:flex;gap:6px;flex-wrap:wrap">
     ${vis.some(l=>!l.email)?`<button class="mini" id="buscaMails" type="button" title="Busca el email de los filtrados que aún no lo tengan">🔎✉️ Buscar emails que falten (${vis.filter(l=>!l.email).length})</button>`:""}
@@ -1027,7 +1030,7 @@ document.addEventListener("click",async e=>{
           const p={};
           if(!fueraGC){ if(d.tel)p.tel=d.tel; if(d.whatsapp)p.whatsapp=d.whatsapp; if(d.web&&!faltan[i].web)p.web=d.web; if(d.rating&&!faltan[i].rating)p.rating=d.rating;
             if(d.ciudad){ p.ciudad=d.ciudad; p.ciudadReal=true; } if(d.tel)n++; }
-          if(d.cerrado){ cerr++; p.notas="*** CERRADO "+d.cerrado.toUpperCase()+" (Google) *** "+(faltan[i].notas||""); }
+          if(d.cerrado){ cerr++; p.cerrado=d.cerrado; p.notas="*** CERRADO "+d.cerrado.toUpperCase()+" (Google) *** "+(faltan[i].notas||""); }
           if(fueraGC){ otra++; p.notas="(Google lo ubica en "+d.ciudad+", otra zona — revisar) "+(faltan[i].notas||""); }
           if(Object.keys(p).length) upLead(faltan[i].id,p);
         } else if(d && d.nomatch){ otra++; upLead(faltan[i].id,{notas:"(Google no lo localizó con ese nombre — revisar) "+(faltan[i].notas||"")}); }
@@ -1075,6 +1078,7 @@ document.addEventListener("click",async e=>{
     t.disabled=false; render(); alert("RESULTADO\n\nEmails: "+n+"  ·  Webs: "+w+"  de "+faltan.length+" bares\n\nDiagnóstico (mándame esto):\n"+diagTxt()); return; }
   if(t.dataset.resp){ upLead(t.dataset.resp,{estado:"interesado"}); render(); toast("Marcado: respondió 🔥 ¡A cerrar!"); return; }
   if(t.dataset.norep){ upLead(t.dataset.norep,{estado:"no"}); render(); toast("Marcado: no interesa. No se le insistirá más."); return; }
+  if(t.id==="toggleCerrados"){ save("filtrocerrados", load("filtrocerrados","")?"":"1"); render(); return; }
   if(t.dataset.filtro!=null){ save("filtro",t.dataset.filtro); render(); return; }
   if(t.dataset.canal!=null){ save("filtrocanal",t.dataset.canal); render(); return; }
   if(t.dataset.fweb!=null){ save("filtroweb",t.dataset.fweb); render(); return; }
