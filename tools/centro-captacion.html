@@ -975,12 +975,23 @@ document.addEventListener("click",async e=>{
     const mvL=movilEnNotas(l);
     if(mvL){ upLead(l.id,{whatsapp:"34"+mvL, tel:l.tel||("+34 "+mvL.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"))}); render();
       toast("✓ WhatsApp recuperado de las notas: "+mvL); t.textContent=o; t.disabled=false; return; }
-    if(!((AJ().cseId||"").trim()&&(AJ().gkey||"").trim()) && !(AJ().geminiKey||"").trim()){
-      toast("Monta el Buscador de Google o pon tu clave Gemini en ⚙️ Ajustes (o usa 🔮 IA Google a mano)."); t.textContent=o; t.disabled=false; return; }
-    try{ const g=await autoBuscaLead(l);   // Google real primero, Gemini si no
-      if(g.found.length){ upLead(l.id,g.patch); render(); toast("✓ "+g.via+" encontró: "+g.found.join(", ")+" — REVÍSALO"); }
-      else { toast(l.nombre+": no hay datos publicados (no se inventa nada). Prueba 🔮 IA Google."); t.textContent=o; t.disabled=false; }
-    }catch(err){ toast("No se pudo buscar: "+err.message); t.textContent=o; t.disabled=false; } return; }
+    let hechos=[];
+    try{
+      // 1) TU WORKER (buscarDatosWeb): es el que de verdad trae datos para ti. Lo intento PRIMERO.
+      try{ const d=await conTope(buscarDatosWeb(l.nombre,l.ciudad,true),60000); const patch=datosPatch(d,l);
+        const cambios=Object.keys(patch).filter(k=>k!=="emailAuto"&&k!=="pedidos");
+        if(cambios.length){ upLead(l.id,patch); hechos=cambios; }
+      }catch(e){}
+      // 2) Si el Worker no trajo nada Y tienes CSE/Gemini, pruebo con eso de respaldo.
+      if(!hechos.length && (((AJ().cseId||"").trim()&&(AJ().gkey||"").trim())||(AJ().geminiKey||"").trim())){
+        t.textContent="🤖…";
+        try{ const g=await autoBuscaLead(l); if(g.found.length){ upLead(l.id,g.patch); hechos=g.found; } }catch(e){}
+      }
+      render();
+      if(hechos.length) toast("✓ Encontrado: "+hechos.join(", ")+" — REVÍSALO antes de usar");
+      else toast(l.nombre+": no se encontró nada publicado (no se inventa nada). Prueba 🔮 IA Google.");
+    }catch(err){ toast("No se pudo buscar: "+err.message); }
+    t.textContent=o; t.disabled=false; return; }
   if(t.id==="borraTodos"){ const tot=LEADS().length; if(!tot){ toast("Ya está vacío"); return; }
     if(!confirm("¿Borrar los "+tot+" leads y empezar de cero? No se puede deshacer.")) return;
     if(!confirm("Última confirmación: se borra TODO el pipeline. ¿Seguro?")) return;
