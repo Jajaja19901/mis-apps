@@ -1182,9 +1182,13 @@ async function geminiPregunta(prompt){ const key=(AJ().geminiKey||AJ().gkey||"")
 // Busca email/móvil/Instagram de UN lead con Gemini (búsqueda en internet) y devuelve {patch, found, txt}.
 // Reutilizado por el botón 🤖 Gemini y como respaldo de 🔎✉️ Buscar email.
 async function gemBuscaLead(l){
-  const prompt="Busca en internet los datos de contacto reales del negocio de hostelería \""+l.nombre+"\" en "+(l.ciudad||"Canarias")+", Canarias, España. Responde SOLO con un JSON plano: {\"email\":\"\",\"movil\":\"\",\"instagram\":\"\"}. Reglas: pon SOLO datos publicados de verdad de ESE negocio; si no lo encuentras seguro, deja la cadena vacía. NUNCA inventes. El movil debe ser un número español que empiece por 6 o 7. No añadas texto fuera del JSON.";
+  // Le pido que BUSQUE y razone primero (así escarba más: web oficial, Instagram, TripAdvisor, TheFork, directorios)
+  // y que termine con una línea JSON. Con la pregunta corta "solo JSON" se vaguea y devuelve todo vacío.
+  const prompt="Quiero los datos de contacto del negocio de hostelería \""+l.nombre+"\" en "+(l.ciudad||"Canarias")+", Gran Canaria (España). Busca en internet su perfil de Instagram, su teléfono móvil (WhatsApp) y su email (mira web oficial, Instagram, Facebook, TripAdvisor, TheFork y directorios locales). Explica brevemente qué encontraste y TERMINA con una única línea JSON: {\"email\":\"\",\"movil\":\"\",\"instagram\":\"\"} — instagram = el nombre de usuario sin @; movil = número español que empiece por 6 o 7. Pon SOLO datos publicados de verdad de ESE negocio; si algo no aparece, déjalo como cadena vacía. NUNCA inventes ni mezcles con otro negocio del mismo nombre.";
   const txt=await geminiPregunta(prompt);
-  const m=txt.match(/\{[\s\S]*\}/); let d={}; if(m){ try{ d=JSON.parse(m[0]); }catch(e){} }
+  // Cojo el ÚLTIMO bloque {...} que parsee y tenga nuestras claves (la respuesta lleva texto antes del JSON).
+  let d={}; const bloques=txt.match(/\{[^{}]*\}/g)||[];
+  for(let k=bloques.length-1;k>=0;k--){ try{ const o=JSON.parse(bloques[k]); if(("email" in o)||("movil" in o)||("instagram" in o)){ d=o; break; } }catch(e){} }
   const patch={}; const mailRe=/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i; const found=[];
   if(d.email && mailRe.test(String(d.email).trim()) && !l.email){ patch.email=String(d.email).toLowerCase().trim(); patch.emailAuto=true; found.push("email "+patch.email); }
   const mv=String(d.movil||"").replace(/\D/g,"").slice(-9); if(/^(6|7[1-9])/.test(mv)&&mv.length===9 && !waDe(l)){ patch.whatsapp="34"+mv; if(!l.tel)patch.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); found.push("móvil "+mv); }
