@@ -47,7 +47,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v68 · 15 jun</span></h1>
+  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v69 · 15 jun</span></h1>
   <nav class="tabs" id="tabs">
     <button data-t="buscar" type="button">🔎 Buscar</button>
     <button data-t="pipeline" type="button">📋 Pipeline</button>
@@ -690,14 +690,13 @@ function cardHTML(l){ const tq=toquePendiente(l); const waNum=waDe(l); const fij
       <div style="display:flex;gap:7px;flex-wrap:wrap">
         ${waNum?`<button class="btn btn-wa" data-wa="${l.id}" type="button">💬 WhatsApp</button> <a class="mini" href="tel:+34${esc(waNum.slice(2))}" style="text-decoration:none;padding:0 12px;width:auto" title="Llamar al móvil">📞 Móvil</a>`:""}
         ${fijNum?`<a class="mini" href="tel:+34${esc(fijNum)}" style="text-decoration:none;padding:0 12px;width:auto" title="Llamar al fijo">📞 Fijo</a>`:""}
-        <button class="mini" data-copy="${l.id}" type="button">${(waNum||fijNum)?"📋 Copiar":"📋 Copiar msj"}</button>
         <button class="mini" data-ia="${l.id}" type="button" title="Mensaje escrito por IA">✨ IA</button>
         <button class="mini" data-mail="${l.id}" type="button" title="Escribir email">✉️ Email</button>
-        ${(l.email&&waDe(l)&&l.instagram)?"":`<button class="mini" data-bmail="${l.id}" type="button" title="Busca en Google (real) su email, móvil e Instagram y los rellena solo">🔎 Buscar datos</button>`}
         <button class="mini" data-iag="${l.id}" type="button" title="Abre Google preguntando por sus datos (tú lees y copias)" style="border-color:#1a73e8;color:#1a73e8">🔮 IA Google</button>
         <button class="mini" data-gem="${l.id}" type="button" title="Gemini busca y rellena sus datos solo (marcado para revisar)" style="border-color:#8a44d6;color:#8a44d6">🤖 Gemini</button>
         <button class="mini" data-rebuscar="${l.id}" type="button" title="Volver a buscar y actualizar SOLO este negocio (arregla teléfono/email/datos)">🔄 Reajustar</button>
-        <button class="mini" data-pegar="${l.id}" type="button" title="Pega lo que tengas copiado (email, teléfono o Instagram) y lo coloca solo en su sitio" style="border-color:#0a7d28;color:#0a7d28">📋 Pegar dato</button>
+        <button class="mini" data-pegar="${l.id}" type="button" title="Pega un dato (email, teléfono o Instagram) y lo coloca solo en su campo, sobrescribiendo" style="border-color:#0a7d28;color:#0a7d28">📋 Pegar dato</button>
+        <button class="mini" data-copiardatos="${l.id}" type="button" title="Copia los datos de este bar (nombre, tel, móvil, fijo, email, web, redes) para pegarlos donde quieras" style="border-color:#1a73e8;color:#1a73e8">📄 Copiar datos</button>
         <button class="mini" data-edittel="${l.id}" type="button" title="Corregir el teléfono a mano">✏️ Nº</button>
         ${(waDe(l)||fijoDe(l))?`<button class="mini" data-borratel="${l.id}" type="button" title="Borrar el teléfono (si es falso)" style="color:#b32424">🗑️ Tel</button>`:""}
         <button class="mini" data-editmail="${l.id}" type="button" title="Poner/corregir el email a mano">✏️ Email</button>
@@ -971,18 +970,32 @@ document.addEventListener("click",async e=>{
     upLead(l.id,{tel:"",whatsapp:"",fijo:""}); render(); toast("Teléfono borrado ✓"); return; }
   // Pegar inteligente: lee el portapapeles y coloca el dato solo en su sitio (email / móvil / fijo / Instagram).
   if(t.dataset.pegar){ const l=LEADS().find(x=>x.id===t.dataset.pegar); if(!l) return;
-    let txt=""; try{ txt=(await navigator.clipboard.readText()||"").trim(); }catch(e){ toast("Tu navegador no deja leer el portapapeles. Usa ✏️ y pega a mano."); return; }
-    if(!txt){ toast("No tienes nada copiado"); return; }
-    txt=txt.replace(/^mailto:/i,"").replace(/^tel:/i,"").trim();
+    // Cuadro a prueba de fallos: pegas el dato AHÍ (el portapapeles directo falla en content://). Detecta y SOBRESCRIBE el campo.
+    let txt=await pedir("Pega aquí el dato (email, teléfono o Instagram) y se pone solo en su sitio:", "");
+    if(txt===null) return; txt=String(txt).replace(/^mailto:/i,"").replace(/^tel:/i,"").trim();
+    if(!txt){ toast("No pegaste nada"); return; }
     const mailM=txt.match(/[^@\s]+@[^@\s]+\.[a-z]{2,}/i);
-    if(mailM){ upLead(l.id,{email:mailM[0].toLowerCase(),emailAuto:false}); render(); toast("✓ Email pegado: "+mailM[0]); return; }
+    if(mailM){ upLead(l.id,{email:mailM[0].toLowerCase(),emailAuto:false}); render(); toast("✓ Email actualizado: "+mailM[0]); return; }
     const igM=txt.match(/instagram\.com\/([A-Za-z0-9._]+)/i);
-    if(igM || /^@[A-Za-z0-9._]{2,30}$/.test(txt)){ const h=igM?igM[1]:txt.replace(/^@/,""); upLead(l.id,{instagram:"https://instagram.com/"+h}); render(); toast("✓ Instagram pegado: @"+h); return; }
+    if(igM || /^@[A-Za-z0-9._]{2,30}$/.test(txt)){ const h=igM?igM[1]:txt.replace(/^@/,""); upLead(l.id,{instagram:"https://instagram.com/"+h}); render(); toast("✓ Instagram actualizado: @"+h); return; }
     const dig=txt.replace(/\D/g,""); const nine=dig.length>9?dig.slice(-9):dig;
     if(nine.length===9 && /^[6-9]/.test(nine)){ const fmt="+34 "+nine.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4");
-      if(esMovil(nine)){ upLead(l.id,{tel:fmt,whatsapp:"34"+nine}); toast("✓ Móvil pegado: "+nine); } else { upLead(l.id,{fijo:fmt}); toast("✓ Fijo pegado: "+nine); }
-      render(); return; }
-    toast("No reconocí el dato. Copia SOLO el email, el teléfono o el Instagram."); return; }
+      if(esMovil(nine)){ upLead(l.id,{tel:fmt,whatsapp:"34"+nine}); render(); toast("✓ Móvil actualizado: "+nine); } else { upLead(l.id,{fijo:fmt}); render(); toast("✓ Fijo actualizado: "+nine); }
+      return; }
+    toast("No reconocí el dato. Pega SOLO el email, el teléfono o el Instagram (uno cada vez)."); return; }
+  if(t.dataset.copiardatos){ const l=LEADS().find(x=>x.id===t.dataset.copiardatos); if(!l) return;
+    const mv=waDe(l), fj=fijoDe(l);
+    const lineas=[ l.nombre, (l.ciudad||"")+(l.dir&&l.dir!==l.ciudad?(" · "+l.dir):"") ];
+    if(mv) lineas.push("Móvil/WhatsApp: +34 "+mv.slice(2));
+    if(fj) lineas.push("Fijo: +34 "+fj);
+    if(l.email) lineas.push("Email: "+l.email);
+    if(l.web) lineas.push("Web: "+l.web);
+    if(l.instagram) lineas.push("Instagram: "+l.instagram);
+    if(l.facebook) lineas.push("Facebook: "+l.facebook);
+    const texto=lineas.filter(Boolean).join("\n");
+    try{ await navigator.clipboard.writeText(texto); toast("✓ Datos copiados de "+l.nombre); }
+    catch(e){ await pedir("Datos de "+l.nombre+" (mantén pulsado para copiar):", texto.replace(/\n/g," · ")); }
+    return; }
   if(t.dataset.editig){ const l=LEADS().find(x=>x.id===t.dataset.editig);
     const raw=await pedir("Instagram de "+l.nombre+" (pega el enlace o @usuario). Vacío = quitarlo:", l.instagram||""); if(raw===null) return;
     let v=raw.trim().replace(/^@/,"");
