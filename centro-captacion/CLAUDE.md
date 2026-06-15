@@ -11,7 +11,7 @@ el de la fábrica de apps** (ese es el `CLAUDE.md` de la raíz del repo).
 ---
 
 ## Qué es y dónde corre
-- **App:** `centrocaptacion-XX.html` (XX = nº de versión; actual ~v71). Un único HTML
+- **App:** `centrocaptacion-XX.html` (XX = nº de versión; actual ~v72). Un único HTML
   autocontenido (CSS+JS inline, datos en `localStorage`). Al entregar, **sube la versión**
   (v72, v73…) y actualízala en el texto visible junto al título.
 - **Entorno real:** móvil Android, abierto desde un explorador de archivos → URL
@@ -59,6 +59,7 @@ el de la fábrica de apps** (ese es el `CLAUDE.md` de la raíz del repo).
 - `[2026-06-15] Importar el CSV duplicaba bares → Cruzar por móvil + confirmar mismo negocio antes de añadir.`
 - `[2026-06-15] La llamada buscarDatosWeb al Worker es lo que ya funciona → No tocarla sin que el prompt lo pida.`
 - `[2026-06-15] La URL del worker cambió varias veces (broad-wind → orange-math → polished-union) → La URL viva NO se hardcodea: vive en ⚙️ Ajustes (cfWorker). Worker activo hoy: https://polished-union-3d80.matasano901.workers.dev. Verificar que el defecto del código no apunte a un worker muerto.`
+- `[2026-06-15] El defecto hardcodeado de la línea 223 (cuando ⚙️ Ajustes está vacío) seguía en orange-math-f552 (muerto) → corregido a polished-union-3d80 en v72. La llamada CORS de la línea 153 se deja en "" a propósito: sin worker usa proxies gratis.`
 
 ## 👷 Equipo de agentes y skill
 - Agentes en `.claude/agents/captacion-*`: **arquitecto** (planifica), **backend-worker**,
