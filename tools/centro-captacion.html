@@ -284,17 +284,21 @@ async function buscarDatosWeb(nombre,ciudad,prof){
   if(!extra.instagram && redes.instagram) extra.instagram=redes.instagram;
   if(!extra.facebook && redes.facebook) extra.facebook=redes.facebook;
   if(!extra.tiktok && redes.tiktok) extra.tiktok=redes.tiktok;
-  // Teléfono: el más repetido junto al nombre. Separo MÓVIL (6xx/7x → tel + WhatsApp) y FIJO (→ campo fijo).
+  // Teléfono: cojo el MÁS REPETIDO junto al nombre (el real casi siempre). NO prefiero un móvil suelto y raro
+  // sobre el fijo de verdad — antes colaba un 743… que no era del bar (caso Las Caracolas).
   const telCand=telCerca(pg,nombre);
-  const movil=telCand.find(d=>/^6/.test(d))||telCand.find(esMovil)||((esMovil(aiTel)&&telCand.includes(aiTel))?aiTel:"");
-  const fijoN=telCand.find(d=>!esMovil(d));                      // el fijo más repetido (si lo hay)
+  const top=telCand[0]||"";
+  const movil=esMovil(top)?top:"";                              // móvil (→ WhatsApp) SOLO si el más repetido es móvil
+  const fijoN=telCand.find(d=>!esMovil(d))||"";                 // el fijo más repetido (si lo hay)
   const fmtTel=n=>"+34 "+n.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4");
   if(movil){ extra.tel=fmtTel(movil); extra.whatsapp="34"+movil; } // móvil → tel + WhatsApp
   if(fijoN){ extra.fijo=fmtTel(fijoN); }                         // fijo → campo fijo (si hay los dos, los dos)
   // Seguridad final: el email tiene que estar literal en el texto leído (no se inventa)…
   if(email && !pg.toLowerCase().includes(email.toLowerCase())) email="";
-  // …Y tiene que ser DE ESTE bar, no de una web grande de la zona (turismo, destilería, otra empresa).
+  // …ser DE ESTE bar, no de una web grande de la zona (turismo, destilería, otra empresa)…
   if(email && !emailRelevante(email,nombre,web,pg,emailOrigenWeb)) email="";
+  // …y de SU zona (Canarias / su ciudad), no de un homónimo de otra provincia (Gaucín/Málaga…).
+  if(email && !esDeLaZona(pg,ciudad)) email="";
   if(email) DIAG.email++;
   if(prof){ const low=pg.toLowerCase(); const tk=tokensNombre(nombre); let idx=-1,tkf=""; for(const t of tk){ const i=low.indexOf(t); if(i>=0){idx=i;tkf=t;break;} }
     extra._dbg={ pgLen:pg.length, jina:DIAG.jina, gg:DIAG.gg, ddg:DIAG.ddg, nombreEnTexto:idx>=0?("sí ("+tkf+")"):"NO", emailHallado:email||"(ninguno)", telsCerca:telCand.slice(0,6).join(", ")||"(ninguno)", telsTodos:sacaTel(pg).slice(0,8).join(", ")||"(ninguno)", mobiles:telCand.filter(esMovil) }; }
@@ -1341,21 +1345,30 @@ function igCoherente(handle, nombre){
   if(!toks.length) return true;                 // nombre sin palabras de 4+ letras (ej. "Bar 22") → no puedo verificar, lo dejo pasar
   return toks.some(t=>h.includes(t) || t.includes(h));   // comparten alguna palabra de 4+ letras
 }
+// ¿El texto encontrado es de la ZONA del lead (Canarias / su ciudad) y NO de un homónimo de la península u otra
+// isla? Si no hay ninguna señal de Canarias ni de su ciudad, NO nos fiamos del email/teléfono (caso Gaucín/Málaga).
+function esDeLaZona(txt, ciudad){
+  const t=String(txt||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+  const ciu=String(ciudad||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim();
+  if(ciu && ciu.length>=4 && t.indexOf(ciu)>=0) return true;
+  return /(canarias|gran canaria|las palmas|tenerife|lanzarote|fuerteventura|la gomera|el hierro|la palma|canaria)/.test(t);
+}
 // Saca email/móvil/Instagram de un TEXTO (resultados de Google o respuesta de Gemini) y arma el patch.
 // d = JSON opcional con {email,movil,instagram} (lo que devuelve Gemini); si no hay, {}.
 function extraeContacto(txt, l, d, etiqueta){
   d=d||{}; const patch={}; const mailRe=/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i; const found=[];
-  // EMAIL: el del JSON; si viene vacío, lo busco en TODO el texto.
-  if(!l.email){ let email=(d.email && mailRe.test(String(d.email).trim()))?String(d.email).toLowerCase().trim():(sacaEmails(txt)[0]||"");
+  const zonaOK=esDeLaZona(txt, l.ciudad);   // ¿el texto es de Canarias/su ciudad? si no, no aceptamos email/teléfono
+  // EMAIL: el del JSON; si viene vacío, lo busco en TODO el texto. SOLO si el texto es de su zona.
+  if(!l.email && zonaOK){ let email=(d.email && mailRe.test(String(d.email).trim()))?String(d.email).toLowerCase().trim():(sacaEmails(txt)[0]||"");
     if(email && mailRe.test(email)){ patch.email=email; patch.emailAuto=true; found.push("email "+email); }
   }
-  // MÓVIL (para WhatsApp): del JSON; si no, el primer móvil 6/7 que aparezca en el texto.
-  if(!waDe(l)){ let mv=String(d.movil||"").replace(/\D/g,"").slice(-9);
+  // MÓVIL (para WhatsApp): del JSON; si no, el primer móvil 6/7 que aparezca en el texto. SOLO si es de su zona.
+  if(!waDe(l) && zonaOK){ let mv=String(d.movil||"").replace(/\D/g,"").slice(-9);
     if(!(mv.length===9 && esMovil(mv))) mv=(sacaTel(txt).filter(esMovil)[0]||"");
     if(mv && mv.length===9 && esMovil(mv) && !digTrozoRed(mv,txt)){ patch.whatsapp="34"+mv; if(!l.tel)patch.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); found.push("móvil "+mv); }
   }
-  // FIJO para LLAMAR: si aparece un fijo y el bar aún no tiene fijo, lo apunto en su campo (separado del móvil).
-  if(!fijoDe(l)){ const fijo=(sacaTel(txt).filter(d=>!esMovil(d))[0])||"";
+  // FIJO para LLAMAR: si aparece un fijo y el bar aún no tiene fijo, lo apunto en su campo (separado del móvil). SOLO si es de su zona.
+  if(!fijoDe(l) && zonaOK){ const fijo=(sacaTel(txt).filter(d=>!esMovil(d))[0])||"";
     if(fijo.length===9 && !digTrozoRed(fijo,txt)){ patch.fijo="+34 "+fijo.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); found.push("fijo "+fijo); }
   }
   // INSTAGRAM: SOLO el dato concreto que da el JSON como "del negocio" (NUNCA rebuscando en el texto:
@@ -1374,7 +1387,7 @@ function extraeContacto(txt, l, d, etiqueta){
 }
 // Busca email/móvil/Instagram de UN lead con Gemini (búsqueda en internet) y devuelve {patch, found, txt}.
 async function gemBuscaLead(l){
-  const prompt="Quiero los datos de contacto del negocio de hostelería \""+l.nombre+"\" en "+(l.ciudad||"Canarias")+", Gran Canaria (España). Busca en internet su perfil de Instagram, su teléfono móvil (WhatsApp) y su email (mira web oficial, Instagram, Facebook, TripAdvisor, TheFork y directorios locales). Explica brevemente qué encontraste y TERMINA con una única línea JSON: {\"email\":\"\",\"movil\":\"\",\"instagram\":\"\"} — instagram = el nombre de usuario sin @; movil = número español que empiece por 6 o 7. Pon SOLO datos publicados de verdad de ESE negocio; si algo no aparece, déjalo como cadena vacía. NUNCA inventes ni mezcles con otro negocio del mismo nombre.";
+  const prompt="Quiero los datos de contacto del negocio de hostelería \""+l.nombre+"\" que está EXACTAMENTE en "+(l.ciudad||"Canarias")+", GRAN CANARIA, ISLAS CANARIAS (España). IMPORTANTE: hay negocios con nombres parecidos en la Península (Málaga, Gaucín, etc.) y en otras islas — esos NO valen. Si lo que encuentras es de OTRA provincia/isla, o no puedes confirmar que es el de "+(l.ciudad||"Canarias")+" (Gran Canaria), devuelve TODO vacío. Busca su Instagram, su teléfono móvil (WhatsApp) y su email (web oficial, Instagram, Facebook, TripAdvisor, directorios locales canarios). Explica brevemente qué encontraste, di en qué LUGAR está, y TERMINA con una única línea JSON: {\"email\":\"\",\"movil\":\"\",\"instagram\":\"\"} — instagram = usuario sin @; movil = número español que empiece por 6 o 7. SOLO datos publicados de verdad de ESE negocio de Gran Canaria; si algo no aparece, cadena vacía. NUNCA inventes ni mezcles con un homónimo de otra zona.";
   const txt=await geminiPregunta(prompt);
   let d={}; const bloques=txt.match(/\{[^{}]*\}/g)||[];
   for(let k=bloques.length-1;k>=0;k--){ try{ const o=JSON.parse(bloques[k]); if(("email" in o)||("movil" in o)||("instagram" in o)){ d=o; break; } }catch(e){} }
