@@ -1263,6 +1263,10 @@ function extraeContacto(txt, l, d, etiqueta){
     if(!(mv.length===9 && esMovil(mv))) mv=(sacaTel(txt).filter(esMovil)[0]||"");
     if(mv && mv.length===9 && esMovil(mv)){ patch.whatsapp="34"+mv; if(!l.tel)patch.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); found.push("móvil "+mv); }
   }
+  // TELÉFONO para LLAMAR: si el bar no tiene NINGÚN teléfono y no salió móvil, apunto el que aparezca (aunque sea fijo).
+  if(!l.tel && !patch.tel && !patch.whatsapp){ const tel=sacaTel(txt)[0]||"";
+    if(tel.length===9){ patch.tel="+34 "+tel.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); found.push("teléfono "+tel+(esMovil(tel)?"":" (fijo)")); }
+  }
   // INSTAGRAM: SOLO el dato concreto que da el JSON como "del negocio" (NUNCA rebuscando en el texto:
   // ahí puede aparecer el Instagram de un cliente/crítico y acabaríamos escribiendo a quien no es).
   if(!l.instagram){ let handle=""; const cand=String(d.instagram||"").trim();
