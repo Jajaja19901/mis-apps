@@ -17,6 +17,16 @@ const SOURCES = {
   "peluqueria-aurora.html": "apps/peluqueria-aurora.html",
   "reformas-presupuestador.html": "apps/reformas-presupuestador.html",
   "tienda-arte-ejemplo.html": "apps/tienda-arte-ejemplo.html",
+  "huerta-natural-ejemplo.html": "apps/huerta-natural-ejemplo.html",
+  "restaurante-ejemplo.html": "apps/restaurante-ejemplo.html",
+  "restaurante-qr-ejemplo.html": "apps/restaurante-qr-ejemplo.html",
+  "camarero-basico.html": "apps/planes/camarero-basico.html",
+  "camarero-medio.html": "apps/planes/camarero-medio.html",
+  "camarero-top.html": "apps/planes/camarero-top.html",
+  "cafeteria-ejemplo.html": "apps/cafeteria-ejemplo.html",
+  "fontanero-ejemplo.html": "apps/fontanero-ejemplo.html",
+  "floristeria-ejemplo.html": "apps/floristeria-ejemplo.html",
+  "veterinario-ejemplo.html": "apps/veterinario-ejemplo.html",
 };
 
 if (!fs.existsSync(COMPLETA)) { console.error("No existe " + COMPLETA); process.exit(1); }
