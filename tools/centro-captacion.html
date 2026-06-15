@@ -889,7 +889,15 @@ document.addEventListener("click",async e=>{
     try{ const d=await buscarDatosWeb(l.nombre,l.ciudad); const patch=datosPatch(d,l);
       if(d.email){ upLead(l.id,patch); toast("Email encontrado: "+d.email+" ✓"); render(); }
       else if(Object.keys(patch).length){ upLead(l.id,patch); toast(l.nombre+": datos encontrados (web/redes), pero sin email publicado"); render(); }
-      else { toast(l.nombre+": no tiene email publicado (no se inventa nada)"); t.textContent=o; t.disabled=false; }
+      else if((AJ().geminiKey||AJ().gkey||"").trim()){
+        // La web no dio email (o el móvil bloquea leer webs de fuera): pruebo con Gemini, que busca en internet.
+        t.textContent="🤖…";
+        try{ const g=await gemBuscaLead(l);
+          if(g.found.length){ upLead(l.id,g.patch); render(); toast("Gemini encontró: "+g.found.join(", ")+" — REVÍSALO"); }
+          else { toast(l.nombre+": ni la web ni Gemini encontraron email (no se inventa nada)"); t.textContent=o; t.disabled=false; }
+        }catch(ge){ toast("Gemini falló: "+ge.message); t.textContent=o; t.disabled=false; }
+      }
+      else { toast(l.nombre+": sin email en su web. Pon tu clave Gemini en ⚙️ Ajustes para que lo busque, o usa 🔮 IA Google."); t.textContent=o; t.disabled=false; }
     }catch(err){ toast("No se pudo buscar: "+err.message); t.textContent=o; t.disabled=false; } return; }
   if(t.id==="borraTodos"){ const tot=LEADS().length; if(!tot){ toast("Ya está vacío"); return; }
     if(!confirm("¿Borrar los "+tot+" leads y empezar de cero? No se puede deshacer.")) return;
@@ -904,15 +912,8 @@ document.addEventListener("click",async e=>{
   if(t.dataset.gem){ const l=LEADS().find(x=>x.id===t.dataset.gem); if(!l) return;
     if(!(AJ().geminiKey||AJ().gkey||"").trim()){ alert("Para usar Gemini necesitas su clave: sácala GRATIS en aistudio.google.com/app/apikey (2 clics) y pégala en ⚙️ Ajustes → Clave Gemini."); return; }
     const o=t.textContent; t.textContent="🤖…"; t.disabled=true;
-    const prompt="Busca en internet los datos de contacto reales del negocio de hostelería \""+l.nombre+"\" en "+(l.ciudad||"Canarias")+", Canarias, España. Responde SOLO con un JSON plano: {\"email\":\"\",\"movil\":\"\",\"instagram\":\"\"}. Reglas: pon SOLO datos publicados de verdad de ESE negocio; si no lo encuentras seguro, deja la cadena vacía. NUNCA inventes. El movil debe ser un número español que empiece por 6 o 7. No añadas texto fuera del JSON.";
-    try{ const txt=await geminiPregunta(prompt);
-      const m=txt.match(/\{[\s\S]*\}/); let d={}; if(m){ try{ d=JSON.parse(m[0]); }catch(e){} }
-      const patch={}; const mailRe=/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i;
-      const found=[];
-      if(d.email && mailRe.test(String(d.email).trim()) && !l.email){ patch.email=String(d.email).toLowerCase().trim(); found.push("email "+patch.email); }
-      const mv=String(d.movil||"").replace(/\D/g,"").slice(-9); if(/^(6|7[1-9])/.test(mv)&&mv.length===9 && !waDe(l)){ patch.whatsapp="34"+mv; if(!l.tel)patch.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); found.push("móvil "+mv); }
-      const ig=String(d.instagram||"").trim(); if(ig && /instagram\.com\//i.test(ig) && !l.instagram){ patch.instagram=safeUrl(ig)||("https://instagram.com/"+ig.replace(/^@/,"")); found.push("instagram"); }
-      if(found.length){ patch.notas="(Gemini, REVISAR) "+(l.notas||""); upLead(l.id,patch); render(); toast("Gemini puso: "+found.join(", ")+" — REVÍSALO antes de usar"); }
+    try{ const {patch,found,txt}=await gemBuscaLead(l);
+      if(found.length){ upLead(l.id,patch); render(); toast("Gemini puso: "+found.join(", ")+" — REVÍSALO antes de usar"); }
       else { t.textContent=o; t.disabled=false; alert("Gemini no encontró datos fiables de "+l.nombre+".\n\nRespuesta:\n"+(txt.slice(0,300)||"(vacío)")); }
     }catch(e){ t.textContent=o; t.disabled=false; alert("Error de Gemini: "+e.message+"\n\nSeguramente falta activar la 'Generative Language API' en tu proyecto de Google (gratis)."); }
     return; }
@@ -1183,6 +1184,19 @@ async function geminiPregunta(prompt){ const key=(AJ().geminiKey||AJ().gkey||"")
       body:JSON.stringify({ contents:[{parts:[{text:prompt}]}], tools:[{google_search:{}}] }) }, 25000);
   const j=await r.json(); if(j.error) throw new Error(j.error.message||"Error de Gemini");
   const c=(j.candidates||[])[0]||{}; const parts=((c.content||{}).parts||[]); return parts.map(p=>p.text||"").join(" ").trim();
+}
+// Busca email/móvil/Instagram de UN lead con Gemini (búsqueda en internet) y devuelve {patch, found, txt}.
+// Reutilizado por el botón 🤖 Gemini y como respaldo de 🔎✉️ Buscar email.
+async function gemBuscaLead(l){
+  const prompt="Busca en internet los datos de contacto reales del negocio de hostelería \""+l.nombre+"\" en "+(l.ciudad||"Canarias")+", Canarias, España. Responde SOLO con un JSON plano: {\"email\":\"\",\"movil\":\"\",\"instagram\":\"\"}. Reglas: pon SOLO datos publicados de verdad de ESE negocio; si no lo encuentras seguro, deja la cadena vacía. NUNCA inventes. El movil debe ser un número español que empiece por 6 o 7. No añadas texto fuera del JSON.";
+  const txt=await geminiPregunta(prompt);
+  const m=txt.match(/\{[\s\S]*\}/); let d={}; if(m){ try{ d=JSON.parse(m[0]); }catch(e){} }
+  const patch={}; const mailRe=/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i; const found=[];
+  if(d.email && mailRe.test(String(d.email).trim()) && !l.email){ patch.email=String(d.email).toLowerCase().trim(); patch.emailAuto=true; found.push("email "+patch.email); }
+  const mv=String(d.movil||"").replace(/\D/g,"").slice(-9); if(/^(6|7[1-9])/.test(mv)&&mv.length===9 && !waDe(l)){ patch.whatsapp="34"+mv; if(!l.tel)patch.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); found.push("móvil "+mv); }
+  const ig=String(d.instagram||"").trim(); if(ig && /instagram\.com\//i.test(ig) && !l.instagram){ patch.instagram=safeUrl(ig)||("https://instagram.com/"+ig.replace(/^@/,"")); found.push("instagram"); }
+  if(found.length) patch.notas="(Gemini, REVISAR) "+(l.notas||"");
+  return { patch, found, txt };
 }
 async function googleFill(nombre, ciudad){ const key=(AJ().gkey||"").trim(); if(!key) throw new Error("Falta la clave de Google");
   const zona=(ciudad&&!/^arucas$/i.test(ciudad))?ciudad:""; const q=(nombre+" "+zona+" Gran Canaria").replace(/\s+/g," ").trim();
