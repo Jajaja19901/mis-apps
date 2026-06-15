@@ -1226,7 +1226,10 @@ function gNombreCoincide(a,b){ const t=s=>new Set(String(s||"").toLowerCase().no
 async function geminiPregunta(prompt){ const key=(AJ().geminiKey||AJ().gkey||"").trim(); if(!key) throw new Error("Falta la clave de Gemini (sácala gratis en aistudio.google.com) en Ajustes");
   const modelos=["gemini-2.5-flash","gemini-flash-latest"]; let ultimo="Gemini no respondió";
   const saturado=m=>/overload|high demand|UNAVAILABLE|503|try again|temporar|network|fetch|tope de tiempo/i.test(m||"");
-  const sinCupo=m=>/quota|exceeded|RESOURCE_EXHAUSTED|limit: 0|rateLimit|429/i.test(m||"");
+  const duro=m=>/limit: 0|free_tier|per day|dailyLimit|daily limit/i.test(m||"");                 // cupo del día / en 0 → esperar no sirve
+  const porMinuto=m=>/RESOURCE_EXHAUSTED|rateLimit|per minute|retry in|429|quota|exceeded/i.test(m||"");
+  const esperaDe=m=>{ const mm=String(m||"").match(/retry in (\d+)/i); return Math.min(48,(mm?(+mm[1]):35)+3); };
+  const dormir=s=>new Promise(r=>setTimeout(r,s*1000));
   for(const modelo of modelos){
     for(let intento=0;intento<3;intento++){
       try{
@@ -1235,15 +1238,19 @@ async function geminiPregunta(prompt){ const key=(AJ().geminiKey||AJ().gkey||"")
             body:JSON.stringify({ contents:[{parts:[{text:prompt}]}], tools:[{google_search:{}}] }) }, 25000);
         const j=await r.json();
         if(j.error){ ultimo=j.error.message||"Error de Gemini";
-          if(saturado(ultimo)){ await new Promise(s=>setTimeout(s,1200*(intento+1))); continue; } // saturado → reintenta
-          if(sinCupo(ultimo)) break;        // sin cupo en este modelo → prueba el siguiente
-          throw new Error(ultimo);          // error duro (clave, etc.)
+          if(duro(ultimo)) break;                                              // cupo del día/en 0 → siguiente modelo
+          if(saturado(ultimo)){ await dormir(2*(intento+1)); continue; }       // saturado → reintenta rápido
+          if(porMinuto(ultimo) && intento<2){ await dormir(esperaDe(ultimo)); continue; } // freno por minuto → espera y reintenta solo
+          if(porMinuto(ultimo)) break;
+          throw new Error(ultimo);                                             // error duro (clave, etc.)
         }
         const c=(j.candidates||[])[0]||{}; const parts=((c.content||{}).parts||[]); return parts.map(p=>p.text||"").join(" ").trim();
       }catch(e){ ultimo=e.message||String(e);
-        if(saturado(ultimo)){ await new Promise(s=>setTimeout(s,1200*(intento+1))); continue; } // reintenta
-        if(sinCupo(ultimo)) break;          // prueba siguiente modelo
-        throw e;                            // error duro
+        if(duro(ultimo)) break;
+        if(saturado(ultimo)){ await dormir(2*(intento+1)); continue; }
+        if(porMinuto(ultimo) && intento<2){ await dormir(esperaDe(ultimo)); continue; }
+        if(porMinuto(ultimo)) break;
+        throw e;
       }
     }
   }
