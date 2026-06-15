@@ -977,15 +977,26 @@ document.addEventListener("click",async e=>{
     // PASO 0 (gratis): recupero los móviles que ya están en las notas antes de gastar nada de internet.
     { const L=LEADS(); let rec=0; L.forEach(l=>{ const mv=movilEnNotas(l); if(mv){ l.whatsapp="34"+mv; if(!l.tel)l.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); rec++; } }); if(rec){ setLeads(L); } }
     const faltan=leadsFiltrados().filter(l=>!l.email||!waDe(l)); if(!faltan.length){ render(); toast("Nada que rellenar ✓ (WhatsApp recuperados de las notas)"); return; }
-    t.disabled=true; let n=0,quota=false;
-    // Con Google real puedo ir rápido (1 consulta/bar, 100/día). Con Gemini voy lento (cupo por minuto).
+    t.disabled=true; let n=0, parar=false, motivo="";
+    // Con Google real voy rápido (1 consulta/bar). Con Gemini voy lento (cupo por minuto).
     const espera = usaGoogle ? 400 : 4500;
-    for(let i=0;i<faltan.length;i++){ const l=faltan[i]; t.textContent="🔎 "+(i+1)+"/"+faltan.length+"…";
-      try{ const g=await autoBuscaLead(l); if(g.found.length){ upLead(l.id,g.patch); n++; render(); } }
-      catch(e){ if(/quota|exceeded|RESOURCE_EXHAUSTED|limit: 0|rateLimit|dailyLimit|429/i.test(e.message)){ quota=true; break; } }
-      await new Promise(r=>setTimeout(r,espera)); }
+    const duro=m=>/limit: 0|free_tier|per day|dailyLimit|daily limit/i.test(m||"");      // cupo del día / en 0 → no se recupera esperando
+    const porMinuto=m=>/429|RESOURCE_EXHAUSTED|rateLimit|per minute|retry in|exceeded|quota/i.test(m||"");
+    let i=0, reintentos=0;
+    while(i<faltan.length){ const l=faltan[i]; t.textContent=(usaGoogle?"🔎 ":"🤖 ")+(i+1)+"/"+faltan.length+"…";
+      try{ const g=await autoBuscaLead(l); if(g.found.length){ upLead(l.id,g.patch); n++; render(); } i++; reintentos=0; }
+      catch(e){ const m=e.message||"";
+        if(!duro(m) && porMinuto(m) && reintentos<2){ reintentos++;
+          let segs=40; const mm=m.match(/retry in (\d+)/i); if(mm) segs=Math.min(75,(+mm[1])+5);
+          for(let s=segs;s>0;s--){ t.textContent="⏳ Google frena un momento — sigo en "+s+"s…"; await new Promise(r=>setTimeout(r,1000)); }
+          continue; // reintenta el MISMO bar, sin error
+        }
+        parar=true; motivo = duro(m) ? "Se agotó el cupo del DÍA (o tu Gemini está en 0 por tener facturación). Sigue mañana, monta el Buscador de Google (CSE), o saca una clave Gemini nueva en un proyecto SIN tarjeta." : ("Paró por: "+m);
+        break;
+      }
+      if(i<faltan.length) await new Promise(r=>setTimeout(r,espera)); }
     t.disabled=false; render();
-    alert(quota?("Se agotó el cupo gratis (Google: 100/día · Gemini: por minuto).\nRellenó "+n+" antes de parar. Sigue en un rato o mañana."):("✓ Rellené datos en "+n+" de "+faltan.length+" bares.\nTodo marcado REVISAR — míralo antes de usar.")); return; }
+    alert(parar?("Paré tras rellenar "+n+" de "+faltan.length+".\n\n"+motivo):("✓ Rellené datos en "+n+" de "+faltan.length+" bares.\nTodo marcado REVISAR — míralo antes de usar.")); return; }
   if(t.id==="buscaMails"){ const faltan=leadsFiltrados().filter(l=>!l.email); if(!faltan.length){ toast("Todos tienen email ya ✓"); return; }
     if(!confirm("Voy a buscar en la web el email y la web de "+faltan.length+" bares. Tarda unos segundos cada uno y algunos no tendrán email publicado. ¿Sigo?")) return;
     t.disabled=true; resetDiag(); let n=0,w=0;
