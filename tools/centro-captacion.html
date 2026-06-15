@@ -863,13 +863,24 @@ document.addEventListener("click",async e=>{
     const sel=RES.filter(pasa); let n=0; sel.forEach(d=>{ if(addLead(leadDe(d))) n++; }); const rep=sel.length-n; toast(rep?(n+" nuevos añadidos · "+rep+" ya estaban (saltados)"):(n+" añadidos al pipeline")); render(); return; }
   if(t.dataset.add!=null){ const d=RES[+t.dataset.add]; toast(addLead(leadDe(d))?"Añadido al pipeline ✓":"Ya estaba en el pipeline"); return; }
   if(t.dataset.rebuscar){ const l=LEADS().find(x=>x.id===t.dataset.rebuscar); const o=t.textContent; t.textContent="🔄…"; t.disabled=true;
-    resetDiag();
-    try{ const d=await conTope(buscarDatosWeb(l.nombre,l.ciudad,true),75000); const patch=datosPatch(d,l);
+    resetDiag(); const cambios=[];
+    try{
+      // 1) Búsqueda BUENA primero: Google real (CSE) o Gemini → email/móvil/Instagram (lo que ve Google a mano).
+      if(((AJ().cseId||"").trim()&&(AJ().gkey||"").trim())||(AJ().geminiKey||"").trim()){
+        t.textContent="🔎…";
+        try{ const g=await autoBuscaLead(l); if(g.found.length){ upLead(l.id,g.patch); g.found.forEach(f=>cambios.push(f)); } }catch(e){ if(/quota|exceeded|RESOURCE_EXHAUSTED|rateLimit|dailyLimit|429/i.test(e.message)) throw e; }
+      }
+      // 2) Método web (rellena web/redes que falten) sobre el lead ya actualizado.
+      const l2=LEADS().find(x=>x.id===l.id)||l; t.textContent="🔄…";
+      const d=await conTope(buscarDatosWeb(l2.nombre,l2.ciudad,true),75000); const patch=datosPatch(d,l2);
+      Object.keys(patch).filter(k=>k!=="emailAuto").forEach(k=>{ if(!cambios.includes(k)) cambios.push(k); });
+      if(Object.keys(patch).length) upLead(l2.id,patch);
       const g=d._dbg||{};
-      const diag="— Diagnóstico —\nInternet: Jina "+(g.jina?"sí":"NO")+" · Google "+(g.gg?"sí":"NO")+" · DDG "+(g.ddg?"sí":"NO")+"\nTexto leído: "+(g.pgLen||0)+" letras\nNombre en el texto: "+(g.nombreEnTexto||"?")+"\nEmail encontrado: "+(g.emailHallado||"?")+"\nMóviles posibles: "+((g.mobiles||[]).join(", ")||"(ninguno)");
-      const cambios=Object.keys(patch).filter(k=>k!=="emailAuto");
-      if(cambios.length){ upLead(l.id,patch); render(); alert(l.nombre+": ACTUALIZADO ✓\nCambios: "+cambios.join(", ")+"\n\n"+diag); }
-      else { t.textContent=o; t.disabled=false; alert(l.nombre+": sin cambios nuevos.\n\n"+diag+"\n\n(Si 'Internet' pone NO = sin cupo hoy. Si pone sí pero no trae el dato = no es legible. Mándame esta foto.)"); }
+      const tieneCSE=(AJ().cseId||"").trim()&&(AJ().gkey||"").trim();
+      const diag="— Diagnóstico —\nBúsqueda Google (CSE): "+(tieneCSE?"sí":"NO montada")+"\nWeb: Jina "+(g.jina?"sí":"NO")+" · Google "+(g.gg?"sí":"NO")+" · DDG "+(g.ddg?"sí":"NO")+"\nTexto leído: "+(g.pgLen||0)+" letras";
+      render();
+      if(cambios.length){ alert(l.nombre+": ACTUALIZADO ✓\nCambios: "+cambios.join(", ")+"\n\n"+diag); t.textContent=o; t.disabled=false; }
+      else { t.textContent=o; t.disabled=false; alert(l.nombre+": sin datos nuevos publicados.\n\n"+diag+(tieneCSE?"":"\n\n⚠ Aún NO has montado la Búsqueda de Google (CSE) en ⚙️ Ajustes — sin eso no se puede sacar lo que ves a mano en Google. Mientras, usa 🔮 IA Google.")); }
     }catch(err){ toast("No se pudo reajustar: "+err.message); t.textContent=o; t.disabled=false; } return; }
   if(t.dataset.editmail){ const l=LEADS().find(x=>x.id===t.dataset.editmail);
     const raw=await pedir("Email de "+l.nombre+" (pégalo aquí). Vacío = quitarlo:", l.email||""); if(raw===null) return;
