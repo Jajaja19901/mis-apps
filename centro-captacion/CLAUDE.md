@@ -23,7 +23,8 @@ el de la fábrica de apps** (ese es el `CLAUDE.md` de la raíz del repo).
   datos de cada bar. **URL activa: `https://polished-union-3d80.matasano901.workers.dev`** — la
   app la lee de ⚙️ Ajustes (`cfWorker`), no la hardcodea (el defecto del código v70,
   `orange-math-f552`, está viejo). Endpoints: `/find?q=nombre+ciudad` (enriquecedor) y `/?url=...`
-  (puente CORS). Lo usa `buscarDatosWeb`. **No tocar esa llamada sin pedirlo.**
+  (puente CORS). Lo usa `buscarDatosWeb`. **No tocar esa llamada sin pedirlo.** Detalle completo
+  del worker (filtros, variables, límites, % de aciertos): **`centro-captacion/SKILL.md`**.
 - **Claves** (las pega el dueño en ⚙️ Ajustes, **nunca** en el repo):
   - Google Places (`AIza…`) → pestaña 🔎 Buscar y "Rellenar con Google".
   - Gemini (`AQ…`) → botón 🤖 Gemini. Modelo: `gemini-2.5-flash`.
