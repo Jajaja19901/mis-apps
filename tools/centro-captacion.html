@@ -47,7 +47,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v69 · 15 jun</span></h1>
+  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v70 · 15 jun</span></h1>
   <nav class="tabs" id="tabs">
     <button data-t="buscar" type="button">🔎 Buscar</button>
     <button data-t="pipeline" type="button">📋 Pipeline</button>
@@ -402,8 +402,10 @@ function importarCSV(txt){
   if(!rows.length){ toast("El CSV está vacío"); return; }
   const val=(o,keys)=>{ for(const k of Object.keys(o)){ if(keys.some(kk=>k.indexOf(kk)>=0)&&o[k]) return o[k]; } return ""; };
   const dig9=s=>{ let x=String(s||"").replace(/\D/g,""); if(x.length>9) x=x.slice(-9); return x.length===9?x:""; };
-  const L=LEADS(); const idx={}, idxTel={}; // cruzo por nombre+ciudad Y por TELÉFONO (para no duplicar el mismo bar)
-  L.forEach(l=>{ idx[(l.nombre||"").toLowerCase()+"|"+(l.ciudad||"")]=l; [l.tel,l.whatsapp,l.fijo].forEach(p=>{ const d=dig9(p); if(d) idxTel[d]=l; }); });
+  const nomToks=s=>new Set(String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(w=>w.length>=4));
+  const mismoNeg=(a,b)=>{ const A=nomToks(a.nombre),B=nomToks(b.nombre); if([...A].some(w=>B.has(w))) return true; return (a.ciudad||"")&&(a.ciudad||"")===(b.ciudad||""); }; // mismo bar si comparten palabra del nombre o misma ciudad
+  const L=LEADS(); const idx={}, idxTel={}; // cruzo por nombre+ciudad Y por MÓVIL (el fijo se comparte demasiado entre negocios)
+  L.forEach(l=>{ idx[(l.nombre||"").toLowerCase()+"|"+(l.ciudad||"")]=l; [l.whatsapp,l.tel].forEach(p=>{ const d=dig9(p); if(d&&esMovil(d)) idxTel[d]=l; }); });
   let n=0,upd=0;
   rows.forEach(o=>{
     const nombre=val(o,["name","nombre","negocio","title","business"]); if(!nombre) return;
@@ -426,11 +428,12 @@ function importarCSV(txt){
     // UPSERT SIN DUPLICAR: busca el bar por nombre+ciudad O por TELÉFONO (mismo número = mismo bar, aunque el
     // nombre esté escrito distinto, como "Los Dragos" y "Bar Restaurante Los Dragos Arucas"). Si lo encuentra, ACTUALIZA.
     const key=nombre.toLowerCase()+"|"+(ciudad||"");
-    const telsFila=[dig9(tel),dig9(fijo),dig9(wa)].filter(Boolean);
-    let ex=idx[key]; if(!ex){ for(const d of telsFila){ if(idxTel[d]){ ex=idxTel[d]; break; } } }
+    const movilesFila=[dig9(wa),dig9(tel)].filter(d=>d&&esMovil(d));   // solo móviles para cruzar (el fijo se comparte)
+    let ex=idx[key];
+    if(!ex){ for(const d of movilesFila){ const cand=idxTel[d]; if(cand && mismoNeg(cand,datos)){ ex=cand; break; } } } // mismo móvil PERO confirmando que es el mismo negocio
     if(ex){ ["dir","tel","fijo","email","web","instagram","facebook","tiktok","whatsapp"].forEach(k=>{ if(datos[k]) ex[k]=datos[k]; }); if(rating&&!ex.rating)ex.rating=rating;
-      telsFila.forEach(d=>idxTel[d]=ex); upd++; }
-    else { const nuevo=Object.assign({ id:uid(), creado:hoyISO(), estado:"nuevo", plan:"medio", notas:"", demoUrl:"", ultimo:null, toques:0 }, datos, {origen:"csv"}); L.unshift(nuevo); idx[key]=nuevo; telsFila.forEach(d=>idxTel[d]=nuevo); n++; }
+      movilesFila.forEach(d=>idxTel[d]=ex); upd++; }
+    else { const nuevo=Object.assign({ id:uid(), creado:hoyISO(), estado:"nuevo", plan:"medio", notas:"", demoUrl:"", ultimo:null, toques:0 }, datos, {origen:"csv"}); L.unshift(nuevo); idx[key]=nuevo; movilesFila.forEach(d=>idxTel[d]=nuevo); n++; }
   });
   setLeads(L); // guarda la lista entera UNA sola vez (antes lo hacía por cada fila → se colgaba)
   save("tab","pipeline"); TAB="pipeline"; render();
@@ -910,7 +913,7 @@ document.addEventListener("click",async e=>{
   if(t.dataset.ia){ const l=LEADS().find(x=>x.id===t.dataset.ia); const orig=t.textContent; t.textContent="✨…"; t.disabled=true;
     try{ const m=await mensajeIA(l); const num=waDe(l);
       if(num){ window.open("https://wa.me/"+num+"?text="+encodeURIComponent(m),"_blank","noopener"); }
-      else { try{ await navigator.clipboard.writeText(m); }catch(e){} prompt("Mensaje de la IA (cópialo):",m); }
+      else { try{ await navigator.clipboard.writeText(m); toast("Mensaje IA copiado 📋"); }catch(e){ await pedir("Mensaje de la IA (mantén pulsado para copiar):",m); } }
       upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 }); render();
     }catch(err){ toast("IA: "+err.message); t.textContent=orig; t.disabled=false; }
     return; }
@@ -933,7 +936,7 @@ document.addEventListener("click",async e=>{
       const d=await conTope(buscarDatosWeb(l2.nombre,l2.ciudad,true),75000);
       // SEGURIDAD: si la web/Instagram/Facebook que trae no comparte NINGUNA palabra con el nombre del lead,
       // es OTRO negocio (homónimo: el turco/restaurante → la tienda de aromas). NO sobrescribir y avisar.
-      if(!datosCoinciden(d, l2.nombre)){
+      if(!datosCoinciden(d, l2.nombre, l2.ciudad)){
         render(); t.textContent=o; t.disabled=false;
         alert("⚠ Datos no coinciden con este negocio, revisar a mano.\n\n"+l2.nombre+": lo que encontró (web/redes con OTRO nombre) parece de un negocio distinto, así que NO he cambiado nada.");
         return;
@@ -1148,11 +1151,11 @@ document.addEventListener("click",async e=>{
     return; } // SOLO abre WhatsApp. NO marca contactado: lo marcas tú con el desplegable "Estado" cuando lo envíes de verdad.
   if(t.dataset.copy){ const l=LEADS().find(x=>x.id===t.dataset.copy); const tq=toquePendiente(l);
     const msg=fillTpl(tq===3?AJ().t3:tq===2?AJ().t2:AJ().t1,l);
-    try{ await navigator.clipboard.writeText(msg); toast("Mensaje copiado 📋 (mándalo por donde quieras)"); }catch(err){ prompt("Copia el mensaje:",msg); }
+    try{ await navigator.clipboard.writeText(msg); toast("Mensaje copiado 📋 (mándalo por donde quieras)"); }catch(err){ await pedir("Copia el mensaje (mantén pulsado):",msg); }
     return; } // solo copia, no marca nada
   if(t.dataset.mail){ const l=LEADS().find(x=>x.id===t.dataset.mail);
     let em=(l.email||"").trim();
-    if(!em){ em=(prompt("Email de "+l.nombre+" (lo encuentras en su web o ficha de Google):","")||"").trim(); if(em){ upLead(l.id,{email:em}); } }
+    if(!em){ em=((await pedir("Email de "+l.nombre+" (lo encuentras en su web o ficha de Google):",""))||"").trim(); if(em){ upLead(l.id,{email:em}); } }
     const asunto="Vuestra app de pedidos por QR — "+l.nombre;
     let cuerpo; try{ cuerpo=AJ().iaKey?await mensajeIA(l):null; }catch(err){ cuerpo=null; }
     if(!cuerpo) cuerpo=fillTpl(AJ().t1,l);
@@ -1165,15 +1168,15 @@ document.addEventListener("click",async e=>{
       const mt="mailto:"+encodeURIComponent(em)+"?subject="+encodeURIComponent(asunto)+"&body="+encodeURIComponent(cuerpo);
       location.href=mt; // tu app de correo se abre con el destinatario, asunto y texto puestos
       setTimeout(render,500); toast("Abriendo tu correo para "+em+" ✉️ — márcalo como Contactado tú cuando lo envíes de verdad"); }
-    else { try{ await navigator.clipboard.writeText("Para: (busca su email)\nAsunto: "+asunto+"\n\n"+cuerpo); toast("No tiene email guardado · correo copiado ✉️"); }catch(err){ prompt("Copia el email:",cuerpo); } }
+    else { try{ await navigator.clipboard.writeText("Para: (busca su email)\nAsunto: "+asunto+"\n\n"+cuerpo); toast("No tiene email guardado · correo copiado ✉️"); }catch(err){ await pedir("Copia el email (mantén pulsado):",cuerpo); } }
     return; }
   if(t.dataset.demo){ const l=LEADS().find(x=>x.id===t.dataset.demo); const lk=linkDemo(l);
     if(lk){ upLead(l.id,{demoUrl:lk}); try{ await navigator.clipboard.writeText(lk); }catch(e){} render();
       alert("🔗 Enlace de la demo de "+l.nombre+" (copiado):\n\n"+lk+"\n\nMándaselo por WhatsApp/email. Él lo abre y ve SU demo (su nombre y color). No le das ningún archivo.\n\nYa va incluido solo en sus mensajes (✨IA, 💬WhatsApp, ✉️Email)."); }
     else { bajarDemo(l); }
     return; }
-  if(t.dataset.url){ const l=LEADS().find(x=>x.id===t.dataset.url); const u=prompt("Pega el enlace de su demo (Netlify):",l.demoUrl||""); if(u!=null){ upLead(l.id,{demoUrl:u.trim()}); render(); } return; }
-  if(t.dataset.nota){ const l=LEADS().find(x=>x.id===t.dataset.nota); const n=prompt("Nota de "+l.nombre+":",l.notas||""); if(n!=null){ upLead(l.id,{notas:n.trim()}); render(); } return; }
+  if(t.dataset.url){ const l=LEADS().find(x=>x.id===t.dataset.url); const u=await pedir("Pega el enlace de su demo (Netlify):",l.demoUrl||""); if(u!=null){ upLead(l.id,{demoUrl:u.trim()}); render(); } return; }
+  if(t.dataset.nota){ const l=LEADS().find(x=>x.id===t.dataset.nota); const n=await pedir("Nota de "+l.nombre+":",l.notas||""); if(n!=null){ upLead(l.id,{notas:n.trim()}); render(); } return; }
   if(t.dataset.del){ if(confirm("¿Borrar este lead?")){ setLeads(LEADS().filter(x=>x.id!==t.dataset.del)); render(); } return; }
   if(t.dataset.imp){ importarEmbudo(t.dataset.imp); return; }
   if(t.id==="impTodos"){ let E=[]; try{ E=JSON.parse(localStorage.getItem("incuba_leads_v1")||"[]"); }catch(err){}
@@ -1381,33 +1384,37 @@ function igCoherente(handle, nombre){
 }
 // ¿Los datos que trae el worker (web/Instagram/Facebook) son de ESTE negocio? Si la web/redes tienen un nombre
 // que NO comparte ninguna palabra con el del lead, es OTRO negocio (homónimo) → NO sobrescribir.
-function datosCoinciden(d, nombre){
+function datosCoinciden(d, nombre, ciudad){
   const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
-  const toks=norm(nombre).replace(/[^a-z0-9 ]/g," ").split(/\s+/)
-    .filter(w=>w.length>=4 && !/^(bar|cafe|cafeteria|restaurante|restaurant|pub|tasca|meson|grill|hotel|kiosko|kiosco|gastrobar|comida|asador|pizzeria|pizza)$/.test(w));
+  const toks=norm(nombre+" "+(ciudad||"")).replace(/[^a-z0-9 ]/g," ").split(/\s+/)
+    .filter(w=>w.length>=3 && !/^(bar|cafe|the|los|las|del|pub|son)$/.test(w));   // incluyo la ciudad y bajo a 3 letras
   if(!toks.length) return true;                              // nombre sin palabras propias → no puedo verificar, lo dejo pasar
   const sociales=[d.web,d.instagram,d.facebook,d.tiktok].filter(x=>String(x||"").trim());
   if(!sociales.length) return true;                          // no trajo web/redes con nombre → no hay qué verificar
   const blob=norm(sociales.join(" ")).replace(/[^a-z0-9]/g,"");
-  return toks.some(t=>blob.includes(t));                     // ¿alguna palabra del nombre aparece en su web/redes?
+  return toks.some(t=>blob.includes(t));                     // ¿alguna palabra del nombre/ciudad aparece en su web/redes?
 }
 // ¿La calle del lead y la que devuelve el worker son la MISMA? Si las dos tienen calle y NO comparten ninguna
 // palabra (4+ letras), son sitios distintos (caso "Marhaba": mismo nombre, otra dirección) → no reajustar.
 function mismaCalle(dirA, dirB){
   const calleToks=s=>{ const t=String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")
       .replace(/[^a-z0-9 ]/g," ").replace(/\b(calle|c|avenida|avda|av|plaza|pza|paseo|po|camino|cam|carretera|ctra|urbanizacion|urb|local|s n|sn|numero|num|n)\b/g," ");
-    return new Set(t.split(/\s+/).filter(w=>w.length>=4)); };
+    return new Set(t.split(/\s+/).filter(w=>w.length>=3)); };  // 3+ letras: pilla calles cortas y abreviadas
   const A=calleToks(dirA), B=calleToks(dirB);
   if(!A.size || !B.size) return true;                        // si falta la calle de alguno, no puedo comparar → dejo pasar
   return [...A].some(w=>B.has(w));                           // comparten alguna palabra de la calle → misma dirección
 }
-// ¿El texto encontrado es de la ZONA del lead (Canarias / su ciudad) y NO de un homónimo de la península u otra
-// isla? Si no hay ninguna señal de Canarias ni de su ciudad, NO nos fiamos del email/teléfono (caso Gaucín/Málaga).
+// ¿El texto es de la ZONA del lead? Damos por bueno SALVO que el texto apunte CLARAMENTE a otra provincia
+// (península u otra isla). Antes exigíamos que mencionara "Canarias" y eso tiraba datos buenos (la web de un
+// bar casi nunca escribe la isla). Ahora solo rechazamos si vemos señal POSITIVA de otra zona (caso Gaucín/Málaga).
 function esDeLaZona(txt, ciudad){
   const t=String(txt||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
   const ciu=String(ciudad||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").trim();
-  if(ciu && ciu.length>=4 && t.indexOf(ciu)>=0) return true;
-  return /(canarias|gran canaria|las palmas|tenerife|lanzarote|fuerteventura|la gomera|el hierro|la palma|canaria)/.test(t);
+  if(ciu && ciu.length>=4 && t.indexOf(ciu)>=0) return true;                                  // menciona su ciudad → seguro de la zona
+  if(/(canarias|gran canaria|las palmas|tenerife|lanzarote|fuerteventura|la gomera|el hierro|la palma|canaria)/.test(t)) return true; // menciona Canarias
+  // señal POSITIVA de otra provincia/región peninsular o de Baleares → NO es de la zona
+  if(/\b(malaga|gaucin|madrid|barcelona|sevilla|valencia|murcia|alicante|granada|cordoba|cadiz|bilbao|zaragoza|asturias|galicia|coruna|vigo|oviedo|gijon|santander|pamplona|valladolid|salamanca|toledo|almeria|huelva|jaen|albacete|leon|burgos|badajoz|caceres|girona|tarragona|lleida|huesca|teruel|soria|cuenca|guadalajara|segovia|avila|zamora|palencia|ourense|pontevedra|lugo|baleares|mallorca|menorca|ibiza|peninsula)\b/.test(t)) return false;
+  return true;                                                                                // sin señal clara → lo damos por bueno (no tiramos datos por falta de mención)
 }
 // Saca email/móvil/Instagram de un TEXTO (resultados de Google o respuesta de Gemini) y arma el patch.
 // d = JSON opcional con {email,movil,instagram} (lo que devuelve Gemini); si no hay, {}.
