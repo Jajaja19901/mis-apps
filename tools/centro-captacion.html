@@ -368,6 +368,7 @@ function importarCSV(txt){
   let rows; try{ rows=parseCSV(txt); }catch(e){ toast("Ese CSV no se pudo leer"); return; }
   if(!rows.length){ toast("El CSV está vacío"); return; }
   const val=(o,keys)=>{ for(const k of Object.keys(o)){ if(keys.some(kk=>k.indexOf(kk)>=0)&&o[k]) return o[k]; } return ""; };
+  const L=LEADS(); const idx={}; L.forEach(l=>{ idx[(l.nombre||"").toLowerCase()+"|"+(l.ciudad||"")]=l; }); // carga la lista UNA sola vez
   let n=0,upd=0;
   rows.forEach(o=>{
     const nombre=val(o,["name","nombre","negocio","title","business"]); if(!nombre) return;
@@ -388,10 +389,11 @@ function importarCSV(txt){
     const datos={nombre, ciudad, ciudadReal, dir, tel, email, web, instagram, facebook, tiktok, whatsapp:wa, rating};
     // UPSERT: si el bar ya está (mismo nombre+ciudad) lo ACTUALIZA con lo nuevo no vacío (aplica correcciones);
     // si no, lo añade. Antes lo IGNORABA, por eso reimportar una lista corregida no cambiaba nada.
-    const ex=LEADS().find(x=>(x.nombre||"").toLowerCase()===nombre.toLowerCase()&&(x.ciudad||"")===(ciudad||""));
-    if(ex){ const p={}; ["dir","tel","email","web","instagram","facebook","tiktok","whatsapp"].forEach(k=>{ if(datos[k]) p[k]=datos[k]; }); if(rating&&!ex.rating)p.rating=rating; if(Object.keys(p).length){ upLead(ex.id,p); upd++; } }
-    else if(addLead(Object.assign({origen:"csv"},datos))) n++;
+    const key=nombre.toLowerCase()+"|"+(ciudad||""); const ex=idx[key];
+    if(ex){ ["dir","tel","email","web","instagram","facebook","tiktok","whatsapp"].forEach(k=>{ if(datos[k]) ex[k]=datos[k]; }); if(rating&&!ex.rating)ex.rating=rating; upd++; }
+    else { const nuevo=Object.assign({ id:uid(), creado:hoyISO(), estado:"nuevo", plan:"medio", notas:"", demoUrl:"", ultimo:null, toques:0 }, datos, {origen:"csv"}); L.unshift(nuevo); idx[key]=nuevo; n++; }
   });
+  setLeads(L); // guarda la lista entera UNA sola vez (antes lo hacía por cada fila → se colgaba)
   save("tab","pipeline"); TAB="pipeline"; render();
   toast((n||upd)?((n?n+" nuevos":"")+(n&&upd?" · ":"")+(upd?upd+" actualizados":"")+" ✓"):"No se añadió ninguno (¿falta la columna 'nombre'?)");
 }
