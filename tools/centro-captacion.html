@@ -47,7 +47,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v70 · 15 jun</span></h1>
+  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v71 · 15 jun</span></h1>
   <nav class="tabs" id="tabs">
     <button data-t="buscar" type="button">🔎 Buscar</button>
     <button data-t="pipeline" type="button">📋 Pipeline</button>
@@ -663,6 +663,27 @@ function pedir(titulo, valor){ return new Promise(res=>{
   ov.addEventListener("click",e=>{ if(e.target===ov) cerrar(null); });
   inp.addEventListener("keydown",e=>{ if(e.key==="Enter") cerrar(inp.value); });
 }); }
+// Copia al portapapeles de forma que FUNCIONE en content:// (navigator.clipboard suele estar bloqueado ahí).
+async function copiarTexto(texto){
+  try{ if(navigator.clipboard&&navigator.clipboard.writeText){ await navigator.clipboard.writeText(texto); return true; } }catch(e){}
+  try{ const ta=document.createElement("textarea"); ta.value=texto; ta.setAttribute("readonly",""); ta.style.cssText="position:fixed;top:0;left:0;width:1px;height:1px;opacity:0"; document.body.appendChild(ta); ta.focus(); ta.select(); ta.setSelectionRange(0,texto.length); const ok=document.execCommand("copy"); ta.remove(); if(ok) return true; }catch(e){}
+  return false;
+}
+// Caja con TODO el texto en un recuadro grande, ya seleccionado, para copiar a mano (mantener pulsado → Copiar).
+function cajaCopia(titulo, texto){
+  const ov=document.createElement("div"); ov.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:18px";
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;padding:18px;max-width:460px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.3)">'+
+    '<div style="font-size:15px;font-weight:600;margin-bottom:10px;color:#222">'+esc(titulo)+'</div>'+
+    '<textarea id="_ccTa" readonly style="width:100%;height:140px;padding:11px;border:1.5px solid #ccc;border-radius:9px;font-size:14px;box-sizing:border-box;resize:none">'+esc(texto)+'</textarea>'+
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">'+
+    '<button id="_ccCopy" class="btn btn-p" type="button">📋 Copiar todo</button>'+
+    '<button id="_ccClose" class="mini" type="button">Cerrar</button></div></div>';
+  document.body.appendChild(ov);
+  const ta=ov.querySelector("#_ccTa"); setTimeout(()=>{ try{ ta.focus(); ta.select(); }catch(e){} },50);
+  ov.querySelector("#_ccCopy").onclick=async()=>{ if(await copiarTexto(texto)){ toast("✓ Copiado"); ov.remove(); } else { try{ ta.focus(); ta.select(); }catch(e){} toast("Mantén pulsado el texto → Copiar"); } };
+  ov.querySelector("#_ccClose").onclick=()=>ov.remove();
+  ov.addEventListener("click",e=>{ if(e.target===ov) ov.remove(); });
+}
 function cardHTML(l){ const tq=toquePendiente(l); const waNum=waDe(l); const fijNum=fijoDe(l);
   const movShow = waNum ? ("+34 "+waNum.slice(2).replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4")) : "";
   const fijShow = fijNum ? ("+34 "+fijNum.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4")) : "";
@@ -913,7 +934,7 @@ document.addEventListener("click",async e=>{
   if(t.dataset.ia){ const l=LEADS().find(x=>x.id===t.dataset.ia); const orig=t.textContent; t.textContent="✨…"; t.disabled=true;
     try{ const m=await mensajeIA(l); const num=waDe(l);
       if(num){ window.open("https://wa.me/"+num+"?text="+encodeURIComponent(m),"_blank","noopener"); }
-      else { try{ await navigator.clipboard.writeText(m); toast("Mensaje IA copiado 📋"); }catch(e){ await pedir("Mensaje de la IA (mantén pulsado para copiar):",m); } }
+      else { if(await copiarTexto(m)) toast("Mensaje IA copiado 📋"); else cajaCopia("Mensaje de la IA",m); }
       upLead(l.id,{ estado:l.estado==="nuevo"?"contactado":l.estado, ultimo:hoyISO(), toques:(l.toques||0)+1 }); render();
     }catch(err){ toast("IA: "+err.message); t.textContent=orig; t.disabled=false; }
     return; }
@@ -996,8 +1017,8 @@ document.addEventListener("click",async e=>{
     if(l.instagram) lineas.push("Instagram: "+l.instagram);
     if(l.facebook) lineas.push("Facebook: "+l.facebook);
     const texto=lineas.filter(Boolean).join("\n");
-    try{ await navigator.clipboard.writeText(texto); toast("✓ Datos copiados de "+l.nombre); }
-    catch(e){ await pedir("Datos de "+l.nombre+" (mantén pulsado para copiar):", texto.replace(/\n/g," · ")); }
+    if(await copiarTexto(texto)){ toast("✓ Datos copiados de "+l.nombre); }
+    else { cajaCopia("Datos de "+l.nombre, texto); }   // si el navegador no deja copiar, caja con todo seleccionado
     return; }
   if(t.dataset.editig){ const l=LEADS().find(x=>x.id===t.dataset.editig);
     const raw=await pedir("Instagram de "+l.nombre+" (pega el enlace o @usuario). Vacío = quitarlo:", l.instagram||""); if(raw===null) return;
@@ -1151,7 +1172,7 @@ document.addEventListener("click",async e=>{
     return; } // SOLO abre WhatsApp. NO marca contactado: lo marcas tú con el desplegable "Estado" cuando lo envíes de verdad.
   if(t.dataset.copy){ const l=LEADS().find(x=>x.id===t.dataset.copy); const tq=toquePendiente(l);
     const msg=fillTpl(tq===3?AJ().t3:tq===2?AJ().t2:AJ().t1,l);
-    try{ await navigator.clipboard.writeText(msg); toast("Mensaje copiado 📋 (mándalo por donde quieras)"); }catch(err){ await pedir("Copia el mensaje (mantén pulsado):",msg); }
+    if(await copiarTexto(msg)) toast("Mensaje copiado 📋 (mándalo por donde quieras)"); else cajaCopia("Mensaje para "+l.nombre,msg);
     return; } // solo copia, no marca nada
   if(t.dataset.mail){ const l=LEADS().find(x=>x.id===t.dataset.mail);
     let em=(l.email||"").trim();
@@ -1168,7 +1189,7 @@ document.addEventListener("click",async e=>{
       const mt="mailto:"+encodeURIComponent(em)+"?subject="+encodeURIComponent(asunto)+"&body="+encodeURIComponent(cuerpo);
       location.href=mt; // tu app de correo se abre con el destinatario, asunto y texto puestos
       setTimeout(render,500); toast("Abriendo tu correo para "+em+" ✉️ — márcalo como Contactado tú cuando lo envíes de verdad"); }
-    else { try{ await navigator.clipboard.writeText("Para: (busca su email)\nAsunto: "+asunto+"\n\n"+cuerpo); toast("No tiene email guardado · correo copiado ✉️"); }catch(err){ await pedir("Copia el email (mantén pulsado):",cuerpo); } }
+    else { const corr="Asunto: "+asunto+"\n\n"+cuerpo; if(await copiarTexto(corr)) toast("No tiene email · correo copiado ✉️"); else cajaCopia("Correo para "+l.nombre,corr); }
     return; }
   if(t.dataset.demo){ const l=LEADS().find(x=>x.id===t.dataset.demo); const lk=linkDemo(l);
     if(lk){ upLead(l.id,{demoUrl:lk}); try{ await navigator.clipboard.writeText(lk); }catch(e){} render();
