@@ -1178,9 +1178,9 @@ function gNombreCoincide(a,b){ const t=s=>new Set(String(s||"").toLowerCase().no
 // Gemini (con tu clave Google AIza) CONECTADO A BÚSQUEDA real (google_search) → menos invención.
 // Requiere activar "Generative Language API" en tu proyecto de Google (gratis).
 async function geminiPregunta(prompt){ const key=(AJ().geminiKey||AJ().gkey||"").trim(); if(!key) throw new Error("Falta la clave de Gemini (sácala gratis en aistudio.google.com) en Ajustes");
-  const r=await fetchT("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key="+encodeURIComponent(key),
+  const r=await fetchT("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key="+encodeURIComponent(key),
     { method:"POST", headers:{"content-type":"application/json"},
-      body:JSON.stringify({ contents:[{parts:[{text:prompt}]}], tools:[{google_search:{}}] }) }, 18000);
+      body:JSON.stringify({ contents:[{parts:[{text:prompt}]}], tools:[{google_search:{}}] }) }, 25000);
   const j=await r.json(); if(j.error) throw new Error(j.error.message||"Error de Gemini");
   const c=(j.candidates||[])[0]||{}; const parts=((c.content||{}).parts||[]); return parts.map(p=>p.text||"").join(" ").trim();
 }
