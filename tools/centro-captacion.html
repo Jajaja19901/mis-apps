@@ -1287,10 +1287,18 @@ async function googleCSE(q){ const key=(AJ().gkey||AJ().geminiKey||"").trim(); c
 async function googleBuscaLead(l){
   const zona=l.ciudad||"Gran Canaria";
   const items=await googleCSE(l.nombre+" "+zona+" Gran Canaria contacto email teléfono instagram");
-  // Texto = título + resumen + enlace + metadatos de cada resultado (ahí salen email/teléfono/redes).
-  const txt=items.map(i=>(i.title||"")+" — "+(i.snippet||"")+" "+(i.link||"")+" "+JSON.stringify(i.pagemap||{})).join("\n");
-  const {patch,found}=extraeContacto(txt, l, {}, "Google");
-  return { patch, found, txt, n:items.length };
+  // Me quedo SOLO con los resultados que claramente son de ESTE negocio (su título/enlace/resumen pega con
+  // el nombre). Si cojo de cualquier resultado, acabaría poniendo el email/teléfono de OTRO negocio o de un
+  // directorio que sale en la búsqueda. Si ninguno pega con el nombre, no extraigo email/teléfono.
+  const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+  const toks=norm(l.nombre).replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(w=>w.length>=4);
+  const rel=items.filter(i=>{ const t=norm((i.title||"")+" "+(i.link||"")+" "+(i.snippet||"")); return !toks.length || toks.some(w=>t.includes(w)); });
+  const usar=rel.length?rel:[];
+  const txt=usar.map(i=>(i.title||"")+" — "+(i.snippet||"")+" "+(i.link||"")+" "+JSON.stringify(i.pagemap||{})).join("\n");
+  // Instagram: SOLO de un enlace instagram.com/usuario que aparezca en un resultado de ESTE negocio.
+  let igLink=""; for(const i of usar){ const m=(i.link||"").match(/instagram\.com\/[A-Za-z0-9._]+/i); if(m){ igLink=m[0]; break; } }
+  const {patch,found}=extraeContacto(txt, l, igLink?{instagram:igLink}:{}, "Google");
+  return { patch, found, txt, n:items.length, rel:usar.length };
 }
 // Busca un lead por el mejor camino disponible: Google real primero (si está montado), luego Gemini.
 async function autoBuscaLead(l){
