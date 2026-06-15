@@ -226,7 +226,9 @@ async function buscarDatosWeb(nombre,ciudad,prof){
       const _d=await _r.json();
       if(_d && !_d.error && (_d.email||_d.web||_d.instagram||_d.facebook||_d.tel||_d.whatsapp||(_d._textoLeido||0)>200)){
         if(_d.email) DIAG.email++;
-        return { email:(_d.email||""), web:safeUrl(_d.web||""), instagram:(_d.instagram||""), facebook:(_d.facebook||""), tel:(_d.tel||""), whatsapp:(_d.whatsapp||"") };
+        // Capturo también la dirección que devuelva el worker (si la trae), para comparar la calle al Reajustar.
+        const _dir=_d.address||_d.direccion||_d.dir||_d.formattedAddress||_d.formatted_address||_d.street||_d.calle||"";
+        return { email:(_d.email||""), web:safeUrl(_d.web||""), instagram:(_d.instagram||""), facebook:(_d.facebook||""), tel:(_d.tel||""), whatsapp:(_d.whatsapp||""), dir:String(_dir||"").trim() };
       }
     }
   }catch(e){}
@@ -937,6 +939,12 @@ document.addEventListener("click",async e=>{
         alert("⚠ Datos no coinciden con este negocio, revisar a mano.\n\n"+l2.nombre+": lo que encontró (web/redes con OTRO nombre) parece de un negocio distinto, así que NO he cambiado nada.");
         return;
       }
+      // …y que sea la MISMA CALLE (mismo nombre puede ser otro local, como "Marhaba" en otra dirección).
+      if(!mismaCalle(l2.dir, d.dir)){
+        render(); t.textContent=o; t.disabled=false;
+        alert("⚠ Datos no coinciden con este negocio, revisar a mano.\n\n"+l2.nombre+": la dirección que encontró ("+esc(d.dir)+") es OTRA calle, distinta de la tuya ("+esc(l2.dir||"—")+"). NO he cambiado nada.");
+        return;
+      }
       const patch=datosPatch(d,l2);
       Object.keys(patch).filter(k=>k!=="emailAuto").forEach(k=>{ if(!cambios.includes(k)) cambios.push(k); });
       if(Object.keys(patch).length) upLead(l2.id,patch);
@@ -1369,6 +1377,16 @@ function datosCoinciden(d, nombre){
   if(!sociales.length) return true;                          // no trajo web/redes con nombre → no hay qué verificar
   const blob=norm(sociales.join(" ")).replace(/[^a-z0-9]/g,"");
   return toks.some(t=>blob.includes(t));                     // ¿alguna palabra del nombre aparece en su web/redes?
+}
+// ¿La calle del lead y la que devuelve el worker son la MISMA? Si las dos tienen calle y NO comparten ninguna
+// palabra (4+ letras), son sitios distintos (caso "Marhaba": mismo nombre, otra dirección) → no reajustar.
+function mismaCalle(dirA, dirB){
+  const calleToks=s=>{ const t=String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"")
+      .replace(/[^a-z0-9 ]/g," ").replace(/\b(calle|c|avenida|avda|av|plaza|pza|paseo|po|camino|cam|carretera|ctra|urbanizacion|urb|local|s n|sn|numero|num|n)\b/g," ");
+    return new Set(t.split(/\s+/).filter(w=>w.length>=4)); };
+  const A=calleToks(dirA), B=calleToks(dirB);
+  if(!A.size || !B.size) return true;                        // si falta la calle de alguno, no puedo comparar → dejo pasar
+  return [...A].some(w=>B.has(w));                           // comparten alguna palabra de la calle → misma dirección
 }
 // ¿El texto encontrado es de la ZONA del lead (Canarias / su ciudad) y NO de un homónimo de la península u otra
 // isla? Si no hay ninguna señal de Canarias ni de su ciudad, NO nos fiamos del email/teléfono (caso Gaucín/Málaga).
