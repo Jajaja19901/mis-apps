@@ -1188,7 +1188,13 @@ async function gemBuscaLead(l){
   const patch={}; const mailRe=/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i; const found=[];
   if(d.email && mailRe.test(String(d.email).trim()) && !l.email){ patch.email=String(d.email).toLowerCase().trim(); patch.emailAuto=true; found.push("email "+patch.email); }
   const mv=String(d.movil||"").replace(/\D/g,"").slice(-9); if(/^(6|7[1-9])/.test(mv)&&mv.length===9 && !waDe(l)){ patch.whatsapp="34"+mv; if(!l.tel)patch.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); found.push("móvil "+mv); }
-  const ig=String(d.instagram||"").trim(); if(ig && /instagram\.com\//i.test(ig) && !l.instagram){ patch.instagram=safeUrl(ig)||("https://instagram.com/"+ig.replace(/^@/,"")); found.push("instagram"); }
+  // Instagram: puede venir como URL completa, como @usuario o como usuario pelado. Lo normalizo a instagram.com/usuario.
+  if(!l.instagram){ let ig=String(d.instagram||"").trim(); let handle="";
+    const mu=ig.match(/instagram\.com\/([A-Za-z0-9._]+)/i);
+    if(mu) handle=mu[1];
+    else if(/^@?[A-Za-z0-9._]{2,30}$/.test(ig)) handle=ig.replace(/^@/,"");
+    if(handle && !/^(p|reel|reels|explore|stories)$/i.test(handle)){ patch.instagram="https://instagram.com/"+handle; found.push("instagram @"+handle); }
+  }
   if(found.length) patch.notas="(Gemini, REVISAR) "+(l.notas||"");
   return { patch, found, txt };
 }
