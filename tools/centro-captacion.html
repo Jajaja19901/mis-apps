@@ -950,16 +950,10 @@ document.addEventListener("click",async e=>{
     else alert("✅ Google rellenó "+n+" de "+faltan.length+" bares (teléfono, web, ciudad y valoración oficiales).\n✖ Cerrados detectados: "+cerr+"\n⚠ De otra zona / no localizados (marcados para revisar): "+otra); return; }
   if(t.id==="gemTodos"){ if(!(AJ().geminiKey||AJ().gkey||"").trim()){ alert("Falta la clave de Gemini en ⚙️ Ajustes.\nSácala GRATIS en aistudio.google.com con un Gmail SIN tarjeta (así tienes cupo gratis de verdad)."); return; }
     const faltan=leadsFiltrados().filter(l=>!l.email||!waDe(l)); if(!faltan.length){ toast("Nada que rellenar ✓"); return; }
-    const mailRe=/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i; t.disabled=true; let n=0,quota=false;
+    t.disabled=true; let n=0,quota=false;
     for(let i=0;i<faltan.length;i++){ const l=faltan[i]; t.textContent="🤖 "+(i+1)+"/"+faltan.length+"…";
-      const prompt="Busca en internet los datos de contacto reales del negocio de hostelería \""+l.nombre+"\" en "+(l.ciudad||"Canarias")+", Canarias, España. Responde SOLO con un JSON plano {\"email\":\"\",\"movil\":\"\",\"instagram\":\"\"}. Pon SOLO datos publicados de verdad de ESE negocio; si no estás seguro, deja la cadena vacía. NUNCA inventes. El movil debe empezar por 6 o 7 (español). Nada de texto fuera del JSON.";
-      try{ const txt=await geminiPregunta(prompt); const m=txt.match(/\{[\s\S]*\}/); let d={}; if(m){ try{ d=JSON.parse(m[0]); }catch(e){} }
-        const p={}; let hay=false;
-        if(d.email && mailRe.test(String(d.email).trim()) && !l.email){ p.email=String(d.email).toLowerCase().trim(); hay=true; }
-        const mv=String(d.movil||"").replace(/\D/g,"").slice(-9); if(/^(6|7[1-9])/.test(mv)&&mv.length===9 && !waDe(l)){ p.whatsapp="34"+mv; if(!l.tel)p.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); hay=true; }
-        const ig=String(d.instagram||"").trim(); if(ig && /instagram\.com\//i.test(ig) && !l.instagram){ p.instagram=safeUrl(ig)||""; if(p.instagram)hay=true; }
-        if(hay){ p.notas="(Gemini, REVISAR) "+(l.notas||""); upLead(l.id,p); n++; }
-      }catch(e){ if(/quota|exceeded|RESOURCE_EXHAUSTED|limit: 0|429/i.test(e.message)){ quota=true; break; } }
+      try{ const g=await gemBuscaLead(l); if(g.found.length){ upLead(l.id,g.patch); n++; render(); } }
+      catch(e){ if(/quota|exceeded|RESOURCE_EXHAUSTED|limit: 0|429/i.test(e.message)){ quota=true; break; } }
       await new Promise(r=>setTimeout(r,4500)); } // cupo gratis: ~15/min → 1 cada 4,5s
     t.disabled=false; render();
     alert(quota?("Se agotó el cupo gratis de Gemini (por minuto o por día).\nRellenó "+n+" antes de parar. Dale otra vez en un rato o mañana."):("🤖 Gemini rellenó datos en "+n+" de "+faltan.length+" bares.\nTodo marcado (Gemini, REVISAR) — míralo antes de usar.")); return; }
