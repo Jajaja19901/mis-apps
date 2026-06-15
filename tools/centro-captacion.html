@@ -1229,6 +1229,16 @@ async function geminiPregunta(prompt){ const key=(AJ().geminiKey||AJ().gkey||"")
   }
   throw new Error(ultimo);
 }
+// ¿El usuario de Instagram pega con el nombre del negocio? Si no comparten NADA, seguramente es de otro
+// (un cliente, un crítico…) y NO lo cogemos. Mejor sin Instagram que con uno equivocado.
+function igCoherente(handle, nombre){
+  const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+  const h=norm(handle).replace(/[^a-z0-9]/g,"");
+  const toks=norm(nombre).replace(/[^a-z0-9 ]/g," ").split(/\s+/).filter(w=>w.length>=4);
+  if(!h) return false;
+  if(!toks.length) return true;                 // nombre sin palabras de 4+ letras (ej. "Bar 22") → no puedo verificar, lo dejo pasar
+  return toks.some(t=>h.includes(t) || t.includes(h));   // comparten alguna palabra de 4+ letras
+}
 // Saca email/móvil/Instagram de un TEXTO (resultados de Google o respuesta de Gemini) y arma el patch.
 // d = JSON opcional con {email,movil,instagram} (lo que devuelve Gemini); si no hay, {}.
 function extraeContacto(txt, l, d, etiqueta){
@@ -1242,13 +1252,16 @@ function extraeContacto(txt, l, d, etiqueta){
     if(!(mv.length===9 && esMovil(mv))) mv=(sacaTel(txt).filter(esMovil)[0]||"");
     if(mv && mv.length===9 && esMovil(mv)){ patch.whatsapp="34"+mv; if(!l.tel)patch.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); found.push("móvil "+mv); }
   }
-  // INSTAGRAM: del JSON (URL, @usuario o usuario pelado); si no, lo busco en el texto. Normalizo a instagram.com/usuario.
+  // INSTAGRAM: SOLO el dato concreto que da el JSON como "del negocio" (NUNCA rebuscando en el texto:
+  // ahí puede aparecer el Instagram de un cliente/crítico y acabaríamos escribiendo a quien no es).
   if(!l.instagram){ let handle=""; const cand=String(d.instagram||"").trim();
     const mu=cand.match(/instagram\.com\/([A-Za-z0-9._]+)/i);
     if(mu) handle=mu[1];
     else if(/^@?[A-Za-z0-9._]{2,30}$/.test(cand)) handle=cand.replace(/^@/,"");
-    if(!handle){ const t2=txt.match(/instagram\.com\/([A-Za-z0-9._]+)/i)||txt.match(/(?:instagram|insta|ig)\b[^A-Za-z0-9]{0,8}@?([A-Za-z0-9._]{3,30})/i); if(t2) handle=t2[1]; }
-    if(handle && !/^(p|reel|reels|explore|stories|com|www|share|tv)$/i.test(handle)){ patch.instagram="https://instagram.com/"+handle; found.push("instagram @"+handle); }
+    handle=handle.replace(/^@/,"");
+    // Y solo lo acepto si el usuario PEGA con el nombre del bar; si no coincide en nada, lo descarto.
+    if(handle && !/^(p|reel|reels|explore|stories|com|www|share|tv)$/i.test(handle) && igCoherente(handle, l.nombre)){
+      patch.instagram="https://instagram.com/"+handle; found.push("instagram @"+handle); }
   }
   if(found.length) patch.notas="("+(etiqueta||"auto")+", REVISAR) "+(l.notas||"");
   return { patch, found };
