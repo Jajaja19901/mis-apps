@@ -929,7 +929,15 @@ document.addEventListener("click",async e=>{
       }
       // 2) Método web (rellena web/redes que falten) sobre el lead ya actualizado.
       const l2=LEADS().find(x=>x.id===l.id)||l; t.textContent="🔄…";
-      const d=await conTope(buscarDatosWeb(l2.nombre,l2.ciudad,true),75000); const patch=datosPatch(d,l2);
+      const d=await conTope(buscarDatosWeb(l2.nombre,l2.ciudad,true),75000);
+      // SEGURIDAD: si la web/Instagram/Facebook que trae no comparte NINGUNA palabra con el nombre del lead,
+      // es OTRO negocio (homónimo: el turco/restaurante → la tienda de aromas). NO sobrescribir y avisar.
+      if(!datosCoinciden(d, l2.nombre)){
+        render(); t.textContent=o; t.disabled=false;
+        alert("⚠ Datos no coinciden con este negocio, revisar a mano.\n\n"+l2.nombre+": lo que encontró (web/redes con OTRO nombre) parece de un negocio distinto, así que NO he cambiado nada.");
+        return;
+      }
+      const patch=datosPatch(d,l2);
       Object.keys(patch).filter(k=>k!=="emailAuto").forEach(k=>{ if(!cambios.includes(k)) cambios.push(k); });
       if(Object.keys(patch).length) upLead(l2.id,patch);
       const g=d._dbg||{};
@@ -1349,6 +1357,18 @@ function igCoherente(handle, nombre){
   if(!h) return false;
   if(!toks.length) return true;                 // nombre sin palabras de 4+ letras (ej. "Bar 22") → no puedo verificar, lo dejo pasar
   return toks.some(t=>h.includes(t) || t.includes(h));   // comparten alguna palabra de 4+ letras
+}
+// ¿Los datos que trae el worker (web/Instagram/Facebook) son de ESTE negocio? Si la web/redes tienen un nombre
+// que NO comparte ninguna palabra con el del lead, es OTRO negocio (homónimo) → NO sobrescribir.
+function datosCoinciden(d, nombre){
+  const norm=s=>String(s||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+  const toks=norm(nombre).replace(/[^a-z0-9 ]/g," ").split(/\s+/)
+    .filter(w=>w.length>=4 && !/^(bar|cafe|cafeteria|restaurante|restaurant|pub|tasca|meson|grill|hotel|kiosko|kiosco|gastrobar|comida|asador|pizzeria|pizza)$/.test(w));
+  if(!toks.length) return true;                              // nombre sin palabras propias → no puedo verificar, lo dejo pasar
+  const sociales=[d.web,d.instagram,d.facebook,d.tiktok].filter(x=>String(x||"").trim());
+  if(!sociales.length) return true;                          // no trajo web/redes con nombre → no hay qué verificar
+  const blob=norm(sociales.join(" ")).replace(/[^a-z0-9]/g,"");
+  return toks.some(t=>blob.includes(t));                     // ¿alguna palabra del nombre aparece en su web/redes?
 }
 // ¿El texto encontrado es de la ZONA del lead (Canarias / su ciudad) y NO de un homónimo de la península u otra
 // isla? Si no hay ninguna señal de Canarias ni de su ciudad, NO nos fiamos del email/teléfono (caso Gaucín/Málaga).
