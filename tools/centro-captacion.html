@@ -216,6 +216,21 @@ function resetDiag(){ DIAG={total:0,jina:0,gg:0,ddg:0,texto:0,email:0}; }
 function diagTxt(){ return "Jina "+DIAG.jina+"/"+DIAG.total+" · Google "+DIAG.gg+"/"+DIAG.total+" · DDG "+DIAG.ddg+"/"+DIAG.total+" · con texto "+DIAG.texto+"/"+DIAG.total+" · con email "+DIAG.email+"/"+DIAG.total; }
 async function buscarDatosWeb(nombre,ciudad,prof){
   DIAG.total++;
+  // === BUSCA CON TU WORKER (Serper / Google real): email, móvil/WhatsApp, IG, FB y web.
+  //     El móvil lo coge SOLO de fuentes fiables (la web del propio bar o la ficha oficial de Google),
+  //     nunca un número suelto -> así no se repite el falso 658. ===
+  try{
+    const _wk=(AJ().cfWorker||"https://orange-math-f552.matasano901.workers.dev").trim().replace(/\/+$/,"");
+    const _r=await fetchT(_wk+"/find?q="+encodeURIComponent((nombre+" "+(ciudad||"")).trim()),{},20000);
+    if(_r.ok){
+      const _d=await _r.json();
+      if(_d && !_d.error && (_d.email||_d.web||_d.instagram||_d.facebook||_d.tel||_d.whatsapp||(_d._textoLeido||0)>200)){
+        if(_d.email) DIAG.email++;
+        return { email:(_d.email||""), web:safeUrl(_d.web||""), instagram:(_d.instagram||""), facebook:(_d.facebook||""), tel:(_d.tel||""), whatsapp:(_d.whatsapp||"") };
+      }
+    }
+  }catch(e){}
+  // === Si el worker no responde, sigue el método antiguo de abajo (respaldo). ===
   const q="correo electronico email de "+nombre+" "+(ciudad||"");
   // Limita cada trozo leído. Subido a 20.000: el email/teléfono a veces está más abajo en la página
   // y con 11.000 se cortaba justo antes de llegar a él.
@@ -269,15 +284,13 @@ async function buscarDatosWeb(nombre,ciudad,prof){
   if(!extra.instagram && redes.instagram) extra.instagram=redes.instagram;
   if(!extra.facebook && redes.facebook) extra.facebook=redes.facebook;
   if(!extra.tiktok && redes.tiktok) extra.tiktok=redes.tiktok;
-  // Teléfono: el más repetido junto al nombre, PREFIRIENDO un móvil 6xx (los reales casi siempre), luego 7x.
-  const telCand=telCerca(pg,nombre); const movil=telCand.find(d=>/^6/.test(d))||telCand.find(esMovil); let telD="";
-  if(movil) telD=movil;                                          // el móvil más repetido (vale para WhatsApp)
-  else if(esMovil(aiTel) && telCand.includes(aiTel)) telD=aiTel; // si no, el móvil de la IA
-  else if(telCand.length) telD=telCand[0];                       // si no, el fijo más repetido
-  if(telD){
-    extra.tel="+34 "+telD.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4");
-    if(esMovil(telD)) extra.whatsapp="34"+telD; // solo los móviles válidos sirven para WhatsApp
-  }
+  // Teléfono: el más repetido junto al nombre. Separo MÓVIL (6xx/7x → tel + WhatsApp) y FIJO (→ campo fijo).
+  const telCand=telCerca(pg,nombre);
+  const movil=telCand.find(d=>/^6/.test(d))||telCand.find(esMovil)||((esMovil(aiTel)&&telCand.includes(aiTel))?aiTel:"");
+  const fijoN=telCand.find(d=>!esMovil(d));                      // el fijo más repetido (si lo hay)
+  const fmtTel=n=>"+34 "+n.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4");
+  if(movil){ extra.tel=fmtTel(movil); extra.whatsapp="34"+movil; } // móvil → tel + WhatsApp
+  if(fijoN){ extra.fijo=fmtTel(fijoN); }                         // fijo → campo fijo (si hay los dos, los dos)
   // Seguridad final: el email tiene que estar literal en el texto leído (no se inventa)…
   if(email && !pg.toLowerCase().includes(email.toLowerCase())) email="";
   // …Y tiene que ser DE ESTE bar, no de una web grande de la zona (turismo, destilería, otra empresa).
@@ -289,11 +302,25 @@ async function buscarDatosWeb(nombre,ciudad,prof){
 }
 // Convierte lo encontrado en un parche para el lead (solo rellena lo que falta; no pisa lo que ya hay).
 function datosPatch(d,l){ const p={}; if(d.email&&!l.email){p.email=d.email; p.emailAuto=true;} if(safeUrl(d.web)&&!l.web)p.web=safeUrl(d.web);
-  // teléfono: rellena si falta, o MEJORA un fijo por un móvil encontrado
-  if(d.tel){ const nuevoMovil=esMovil(String(d.tel).replace(/\D/g,"").slice(-9)); const curMovil=esMovil((l.tel||"").replace(/\D/g,"").slice(-9)); if(!l.tel || (nuevoMovil&&!curMovil)) p.tel=d.tel; }
-  if(d.whatsapp && !waDe(l)) p.whatsapp=d.whatsapp; // pon el móvil de WhatsApp si el lead aún no tiene uno
+  // Texto con las URLs de Facebook/Instagram (del lead y de lo recién encontrado) para validar que un
+  // teléfono nuevo NO sea un trozo de un ID largo de FB/IG (bug del worker con el 34635668619 falso).
+  const redesTxt=[l.facebook,l.instagram,d.facebook,d.instagram].map(x=>String(x||"")).join(" ");
+  const dig9=s=>{ let x=String(s||"").replace(/\D/g,""); if(x.length>9) x=x.slice(-9); return x.length===9?x:""; };
+  const fmt=n=>"+34 "+n.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4");
+  // De lo que llega, separo móvil (de whatsapp o tel) y fijo (del campo fijo o de un tel que no es móvil).
+  const wDig=dig9(d.whatsapp), tDig=dig9(d.tel), fDig=dig9(d.fijo);
+  const movil = esMovil(wDig)?wDig : (esMovil(tDig)?tDig:"");
+  const fijo  = (fDig&&!esMovil(fDig))?fDig : ((tDig&&!esMovil(tDig))?tDig:"");
+  // MÓVIL → tel + whatsapp (si falta y no es un trozo de un ID de FB/IG)
+  if(movil && !digTrozoRed(movil,redesTxt)){
+    const curMovil=esMovil((l.tel||"").replace(/\D/g,"").slice(-9));
+    if(!l.tel || !curMovil) p.tel=fmt(movil);
+    if(!waDe(l)) p.whatsapp="34"+movil;
+  }
+  // FIJO → campo fijo (si falta y no es un trozo de un ID de FB/IG)
+  if(fijo && !digTrozoRed(fijo,redesTxt) && !fijoDe(l)) p.fijo=fmt(fijo);
   if(d.instagram&&!l.instagram)p.instagram=d.instagram; if(d.facebook&&!l.facebook)p.facebook=d.facebook; if(d.tiktok&&!l.tiktok)p.tiktok=d.tiktok; if(d.pedidos)p.pedidos=true; return p; }
-function incompleto(l){ return !l.tel || !l.web || (!l.instagram&&!l.facebook); }
+function incompleto(l){ return (!waDe(l)&&!fijoDe(l)) || !l.web || (!l.instagram&&!l.facebook); }
 
 // La IA lee el texto de la web del local y devuelve sus datos en JSON. NUNCA inventa (instruido).
 async function iaExtrae(texto,nombre){
@@ -373,6 +400,7 @@ function importarCSV(txt){
   rows.forEach(o=>{
     const nombre=val(o,["name","nombre","negocio","title","business"]); if(!nombre) return;
     const tel=val(o,["phone","tel","telefono","teléfono","móvil","movil"]);
+    const fijo=val(o,["fijo","fixed","landline"]);   // teléfono fijo en su propia columna
     const email=val(o,["email","correo","mail","e-mail"]);
     const web=val(o,["site","web","url","dominio","domain"]);
     const instagram=val(o,["instagram","insta"]);   // ahora SÍ se importan las redes
@@ -386,11 +414,11 @@ function importarCSV(txt){
     const dig=(tel||"").replace(/[^0-9]/g,"");
     let wa=(val(o,["whatsapp","wasap","wsp"])||"").replace(/[^0-9]/g,""); // usa la columna WhatsApp si la trae
     if(!wa && dig){ const nine=dig.length>9?dig.slice(-9):dig; if(nine.length===9 && /^(6|7[1-9])/.test(nine)) wa="34"+nine; } // si no, deriva de móvil
-    const datos={nombre, ciudad, ciudadReal, dir, tel, email, web, instagram, facebook, tiktok, whatsapp:wa, rating};
+    const datos={nombre, ciudad, ciudadReal, dir, tel, fijo, email, web, instagram, facebook, tiktok, whatsapp:wa, rating};
     // UPSERT: si el bar ya está (mismo nombre+ciudad) lo ACTUALIZA con lo nuevo no vacío (aplica correcciones);
     // si no, lo añade. Antes lo IGNORABA, por eso reimportar una lista corregida no cambiaba nada.
     const key=nombre.toLowerCase()+"|"+(ciudad||""); const ex=idx[key];
-    if(ex){ ["dir","tel","email","web","instagram","facebook","tiktok","whatsapp"].forEach(k=>{ if(datos[k]) ex[k]=datos[k]; }); if(rating&&!ex.rating)ex.rating=rating; upd++; }
+    if(ex){ ["dir","tel","fijo","email","web","instagram","facebook","tiktok","whatsapp"].forEach(k=>{ if(datos[k]) ex[k]=datos[k]; }); if(rating&&!ex.rating)ex.rating=rating; upd++; }
     else { const nuevo=Object.assign({ id:uid(), creado:hoyISO(), estado:"nuevo", plan:"medio", notas:"", demoUrl:"", ultimo:null, toques:0 }, datos, {origen:"csv"}); L.unshift(nuevo); idx[key]=nuevo; n++; }
   });
   setLeads(L); // guarda la lista entera UNA sola vez (antes lo hacía por cada fila → se colgaba)
@@ -401,7 +429,7 @@ function importarCSV(txt){
 function diagItems(l){ return [
   { ok:!!l.web, txt:l.web?"tiene web":"sin web", falta:!l.web },
   { ok:false, txt:"sin forma de pedir online", falta:true },        // ningún bar de la lista la tiene; es el gancho de venta
-  { ok:!!l.tel||!!l.whatsapp, txt:(l.tel||l.whatsapp)?"con teléfono":"sin teléfono", falta:!(l.tel||l.whatsapp) },
+  { ok:!!(waDe(l)||fijoDe(l)), txt:(waDe(l)||fijoDe(l))?"con teléfono":"sin teléfono", falta:!(waDe(l)||fijoDe(l)) },
   { ok:!!l.email, txt:l.email?"con email":"email no encontrado", falta:!l.email },
   ...(l.rating?[{ ok:Number(l.rating)>=4, txt:l.rating+"★ en Google", falta:false }]:[]),
 ]; }
@@ -490,8 +518,8 @@ function mapsUrl(l){ const dir=(l.dir||"").trim(); const ciu=(l.ciudad||"").trim
   return "https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(partes.join(" ")); }
 function exportCSV(){ const L=LEADS(); if(!L.length){ toast("No hay leads"); return; }
   const maps=l=>mapsUrl(l);
-  const rows=[["Nombre","Ciudad","Dirección","Teléfono","WhatsApp","Email","Web","Instagram","Facebook","TikTok","GoogleMaps","Valoración","Reseñas","VendeOnline","Plan","Estado","Toques","Último contacto","Demo","Notas","Origen"]];
-  L.forEach(l=>rows.push([l.nombre,l.ciudad||"",l.dir||"",l.tel||"",l.whatsapp||"",l.email||"",l.web||"",l.instagram||"",l.facebook||"",l.tiktok||"",maps(l),l.rating||"",l.n||"",l.pedidos?"sí":"",planLbl(l.plan),l.estado,l.toques||0,(l.ultimo||"").slice(0,10),l.demoUrl||"",l.notas||"",l.origen||""]));
+  const rows=[["Nombre","Ciudad","Dirección","Teléfono","Fijo","WhatsApp","Email","Web","Instagram","Facebook","TikTok","GoogleMaps","Valoración","Reseñas","VendeOnline","Plan","Estado","Toques","Último contacto","Demo","Notas","Origen"]];
+  L.forEach(l=>rows.push([l.nombre,l.ciudad||"",l.dir||"",l.tel||"",l.fijo||"",l.whatsapp||"",l.email||"",l.web||"",l.instagram||"",l.facebook||"",l.tiktok||"",maps(l),l.rating||"",l.n||"",l.pedidos?"sí":"",planLbl(l.plan),l.estado,l.toques||0,(l.ultimo||"").slice(0,10),l.demoUrl||"",l.notas||"",l.origen||""]));
   const u=URL.createObjectURL(new Blob(["﻿"+rows.map(r=>r.map(csvCell).join(";")).join("\n")],{type:"text/csv;charset=utf-8"}));
   const a=document.createElement("a"); a.href=u; a.download="captacion-"+new Date().toISOString().slice(0,10)+".csv"; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),1500); }
 
@@ -561,6 +589,17 @@ function vBuscar(){
 // Número listo para WhatsApp: SOLO móviles válidos (6xx o 71x-79x). Los fijos/raros NO tienen WhatsApp.
 function waDe(l){ const core=s=>{ let d=(s||"").replace(/\D/g,""); if(d.length>9) d=d.slice(-9); return d.length===9?d:""; };
   let d=core(l.whatsapp); if(!esMovil(d)) d=core(l.tel); return esMovil(d)?("34"+d):""; }
+// Fijo del lead (9 dígitos) o "": el campo nuevo 'fijo', o el 'tel' antiguo si NO es un móvil (datos viejos).
+function fijoDe(l){ const core=s=>{ let d=(s||"").replace(/\D/g,""); if(d.length>9) d=d.slice(-9); return d.length===9?d:""; };
+  let f=core(l.fijo); if(f && !esMovil(f)) return f;
+  const t=core(l.tel); if(t && !esMovil(t)) return t;
+  return ""; }
+// ¿Estos 9 dígitos son en realidad un TROZO de un ID largo de Facebook/Instagram? El worker a veces saca un
+// "móvil" falso de dentro de un ID tipo facebook.com/.../100063566861960. Si es así, hay que descartarlo.
+function digTrozoRed(dig, texto){ if(!dig || dig.length<9) return false;
+  const urls=String(texto||"").match(/(?:facebook|instagram)\.com\/[^\s"'<>]*/gi)||[];
+  for(const u of urls){ const ds=u.replace(/\D/g,""); if(ds.length>=12 && ds.indexOf(dig)>=0) return true; }
+  return false; }
 // Si el móvil ya está escrito en las NOTAS o en el teléfono (pero no como WhatsApp), lo recupera. Sin internet.
 function movilEnNotas(l){ if(waDe(l)) return ""; return (sacaTel((l.notas||"")+" "+(l.tel||"")).filter(esMovil)[0])||""; }
 function colaRafaga(){
@@ -608,17 +647,17 @@ function pedir(titulo, valor){ return new Promise(res=>{
   ov.addEventListener("click",e=>{ if(e.target===ov) cerrar(null); });
   inp.addEventListener("keydown",e=>{ if(e.key==="Enter") cerrar(inp.value); });
 }); }
-function cardHTML(l){ const tq=toquePendiente(l); const waNum=waDe(l);
-  const telMostrar = waNum ? ("+34 "+waNum.slice(2).replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4")) : (l.tel||"");
-  const telTipo = waNum ? ' <span style="color:#1d6f2b;font-size:11px">(móvil)</span>' : (l.tel?' <span style="color:#999;font-size:11px">(fijo)</span>':'');
-  const telLlamar = (l.tel||"").replace(/[^0-9+]/g,"");
+function cardHTML(l){ const tq=toquePendiente(l); const waNum=waDe(l); const fijNum=fijoDe(l);
+  const movShow = waNum ? ("+34 "+waNum.slice(2).replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4")) : "";
+  const fijShow = fijNum ? ("+34 "+fijNum.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4")) : "";
   const aviso=tq?`<span class="alerta">↻ toca ${tq}º toque</span>`:(l.estado==="interesado"?'<span class="alerta" style="background:#fde8f0;border-color:#a3164f;color:#a3164f">🔥 ¡cerrar!</span>':"");
-  return `<div class="leadcard" data-buscar="${esc((l.nombre+" "+(l.ciudad||"")+" "+(l.dir||"")+" "+(l.email||"")+" "+(l.tel||"")+" "+(l.whatsapp||"")).toLowerCase())}" style="border:1px solid #e4e4e4;border-radius:14px;padding:13px 15px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+  return `<div class="leadcard" data-buscar="${esc((l.nombre+" "+(l.ciudad||"")+" "+(l.dir||"")+" "+(l.email||"")+" "+(l.tel||"")+" "+(l.fijo||"")+" "+(l.whatsapp||"")).toLowerCase())}" style="border:1px solid #e4e4e4;border-radius:14px;padding:13px 15px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06)">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px">
         <div style="font-size:17px;font-weight:700;line-height:1.2">${esc(l.nombre)}</div>${aviso}</div>
       <div style="display:flex;flex-wrap:wrap;gap:5px 14px;font-size:13.5px;color:#444;margin-bottom:7px">
         <span>📍 ${esc(l.ciudad||"—")}${l.dir&&l.dir!==l.ciudad?" · "+esc(l.dir):""}</span>
-        <span>📞 ${telMostrar?esc(telMostrar)+telTipo:"<span style=color:#c33>—</span>"}</span>
+        <span>📱 ${movShow?esc(movShow)+' <span style="color:#1d6f2b;font-size:11px">(móvil)</span>':"<span style=color:#c33>—</span>"}</span>
+        ${fijShow?`<span>☎️ ${esc(fijShow)} <span style="color:#999;font-size:11px">(fijo)</span></span>`:""}
         <span>✉️ ${l.email?esc(l.email):"<span style=color:#c33>sin email</span>"}</span>
         ${safeUrl(l.web)?`<a href="${esc(safeUrl(l.web))}" target="_blank" rel="noopener">🌐 Web</a>`:""}
         ${safeUrl(l.instagram)?`<a href="${esc(safeUrl(l.instagram))}" target="_blank" rel="noopener">📷 Instagram</a>`:""}
@@ -636,9 +675,9 @@ function cardHTML(l){ const tq=toquePendiente(l); const waNum=waDe(l);
         <label style="font-size:12px;color:var(--mut)">Plan: <select data-plan="${l.id}" style="padding:6px;font-size:13px"><option value="basico"${l.plan==="basico"?" selected":""}>Básica</option><option value="medio"${l.plan==="medio"?" selected":""}>Media</option><option value="top"${l.plan==="top"?" selected":""}>Digital</option></select></label>
         ${l.ultimo?`<span class="muted" style="font-size:11px">hace ${dias(l.ultimo)}d · ${l.toques||0} toque(s)</span>`:""}</div>
       <div style="display:flex;gap:7px;flex-wrap:wrap">
-        ${waNum?`<button class="btn btn-wa" data-wa="${l.id}" type="button">💬 WhatsApp</button>`
-          :telLlamar?`<a class="mini" href="tel:${esc(telLlamar)}" style="text-decoration:none;padding:0 12px;width:auto" title="Llamar (fijo, sin WhatsApp)">📞 Llamar</a> <button class="mini" data-copy="${l.id}" type="button">📋 Copiar</button>`
-          :`<button class="mini" data-copy="${l.id}" type="button">📋 Copiar msj</button>`}
+        ${waNum?`<button class="btn btn-wa" data-wa="${l.id}" type="button">💬 WhatsApp</button> <a class="mini" href="tel:+34${esc(waNum.slice(2))}" style="text-decoration:none;padding:0 12px;width:auto" title="Llamar al móvil">📞 Móvil</a>`:""}
+        ${fijNum?`<a class="mini" href="tel:+34${esc(fijNum)}" style="text-decoration:none;padding:0 12px;width:auto" title="Llamar al fijo">📞 Fijo</a>`:""}
+        <button class="mini" data-copy="${l.id}" type="button">${(waNum||fijNum)?"📋 Copiar":"📋 Copiar msj"}</button>
         <button class="mini" data-ia="${l.id}" type="button" title="Mensaje escrito por IA">✨ IA</button>
         <button class="mini" data-mail="${l.id}" type="button" title="Escribir email">✉️ Email</button>
         ${(l.email&&waDe(l)&&l.instagram)?"":`<button class="mini" data-bmail="${l.id}" type="button" title="Busca en Google (real) su email, móvil e Instagram y los rellena solo">🔎 Buscar datos</button>`}
@@ -985,14 +1024,7 @@ document.addEventListener("click",async e=>{
     if(!usaGoogle && !(AJ().geminiKey||AJ().gkey||"").trim()){ alert("Monta el Buscador de Google (CSE) o pon tu clave Gemini en ⚙️ Ajustes."); return; }
     // PASO 0 (gratis): recupero los móviles que ya están en las notas antes de gastar nada de internet.
     { const L=LEADS(); let rec=0; L.forEach(l=>{ const mv=movilEnNotas(l); if(mv){ l.whatsapp="34"+mv; if(!l.tel)l.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); rec++; } }); if(rec){ setLeads(L); } }
-    const faltan0=leadsFiltrados().filter(l=>!l.email||!waDe(l)); if(!faltan0.length){ render(); toast("Nada que rellenar ✓ (WhatsApp recuperados de las notas)"); return; }
-    // TOPE DE SEGURIDAD: nunca miles de golpe (cuelga el móvil y agota el cupo gratis). Tandas pequeñas.
-    const TOPE = usaGoogle ? 90 : 20;     // Google: 100/día · Gemini gratis: frena enseguida
-    let faltan=faltan0;
-    if(faltan0.length>TOPE){
-      if(!confirm("Tienes "+faltan0.length+" bares sin datos. Hacerlos TODOS de golpe cuelga la app y agota el cupo gratis.\n\nVoy a hacer solo los primeros "+TOPE+" ahora. Para el resto: filtra por isla/ciudad (arriba) y repite, o sigue mañana.\n\n¿Hago los primeros "+TOPE+"?")) return;
-      faltan=faltan0.slice(0,TOPE);
-    }
+    const faltan=leadsFiltrados().filter(l=>!l.email||!waDe(l)); if(!faltan.length){ render(); toast("Nada que rellenar ✓ (WhatsApp recuperados de las notas)"); return; }
     t.disabled=true; let n=0, parar=false, motivo="";
     // Con Google real voy rápido (1 consulta/bar). Con Gemini voy lento (cupo por minuto).
     const espera = usaGoogle ? 400 : 4500;
@@ -1000,7 +1032,7 @@ document.addEventListener("click",async e=>{
     const porMinuto=m=>/429|RESOURCE_EXHAUSTED|rateLimit|per minute|retry in|exceeded|quota/i.test(m||"");
     let i=0, reintentos=0;
     while(i<faltan.length){ const l=faltan[i]; t.textContent=(usaGoogle?"🔎 ":"🤖 ")+(i+1)+"/"+faltan.length+"…";
-      try{ const g=await autoBuscaLead(l); if(g.found.length){ upLead(l.id,g.patch); n++; if(n%8===0) render(); } i++; reintentos=0; }
+      try{ const g=await autoBuscaLead(l); if(g.found.length){ upLead(l.id,g.patch); n++; render(); } i++; reintentos=0; }
       catch(e){ const m=e.message||"";
         if(!duro(m) && porMinuto(m) && reintentos<2){ reintentos++;
           let segs=40; const mm=m.match(/retry in (\d+)/i); if(mm) segs=Math.min(75,(+mm[1])+5);
@@ -1284,11 +1316,11 @@ function extraeContacto(txt, l, d, etiqueta){
   // MÓVIL (para WhatsApp): del JSON; si no, el primer móvil 6/7 que aparezca en el texto.
   if(!waDe(l)){ let mv=String(d.movil||"").replace(/\D/g,"").slice(-9);
     if(!(mv.length===9 && esMovil(mv))) mv=(sacaTel(txt).filter(esMovil)[0]||"");
-    if(mv && mv.length===9 && esMovil(mv)){ patch.whatsapp="34"+mv; if(!l.tel)patch.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); found.push("móvil "+mv); }
+    if(mv && mv.length===9 && esMovil(mv) && !digTrozoRed(mv,txt)){ patch.whatsapp="34"+mv; if(!l.tel)patch.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); found.push("móvil "+mv); }
   }
-  // TELÉFONO para LLAMAR: si el bar no tiene NINGÚN teléfono y no salió móvil, apunto el que aparezca (aunque sea fijo).
-  if(!l.tel && !patch.tel && !patch.whatsapp){ const tel=sacaTel(txt)[0]||"";
-    if(tel.length===9){ patch.tel="+34 "+tel.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); found.push("teléfono "+tel+(esMovil(tel)?"":" (fijo)")); }
+  // FIJO para LLAMAR: si aparece un fijo y el bar aún no tiene fijo, lo apunto en su campo (separado del móvil).
+  if(!fijoDe(l)){ const fijo=(sacaTel(txt).filter(d=>!esMovil(d))[0])||"";
+    if(fijo.length===9 && !digTrozoRed(fijo,txt)){ patch.fijo="+34 "+fijo.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); found.push("fijo "+fijo); }
   }
   // INSTAGRAM: SOLO el dato concreto que da el JSON como "del negocio" (NUNCA rebuscando en el texto:
   // ahí puede aparecer el Instagram de un cliente/crítico y acabaríamos escribiendo a quien no es).
