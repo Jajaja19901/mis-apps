@@ -22,7 +22,7 @@ $ARGUMENTS
   (origen `null`, NO https). Por eso `prompt()` nativo y el portapapeles fallan: usa SIEMPRE
   cuadros propios + `execCommand`, nunca `prompt()` ni `navigator.clipboard` a secas.
 - Worker: `worker-captador.js` (cuenta Cloudflare `matasano901`, NO está en este repo).
-  Endpoint `https://broad-wind-18ea.matasano901.workers.dev/find`. No toques la llamada
+  Worker activo `https://polished-union-3d80.matasano901.workers.dev` (`/find` enriquecedor, `/?url=` CORS; la app lee la URL de ⚙️ Ajustes → `cfWorker`). No toques la llamada
   `buscarDatosWeb` sin que te lo pidan. Si la tarea es del worker y el archivo no está, pídelo.
 
 ## Cómo lo resuelves (en orden)

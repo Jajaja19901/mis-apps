@@ -18,9 +18,9 @@ arreglarlos.
 3. **Los selectores/IDs siguen existiendo.** Si el cambio decía tocar un botón/campo/modal
    (p. ej. el modal de Reajustar, el campo de tel fijo, los botones 🗑️), comprueba con
    Grep que esos `id`/selectores y sus handlers siguen en el HTML.
-4. **La URL del worker está actualizada.** Debe ser
-   `https://broad-wind-18ea.matasano901.workers.dev/find` (salvo que la tarea diga
-   cambiarla). Avisa si aparece otra o está rota.
+4. **La URL del worker.** La app lee la URL viva de ⚙️ Ajustes (`cfWorker`); el worker activo
+   hoy es `https://polished-union-3d80.matasano901.workers.dev` (endpoint `/find`). Comprueba que
+   el defecto hardcodeado en el código no sea un worker viejo/muerto y avisa si lo es.
 5. **Versión subida.** Si fue una entrega, comprueba que el nº de versión subió (vXX) y
    está visible junto al título.
 

@@ -17,8 +17,8 @@ Worker** (`worker-captador.js`) y las APIs que enriquecen los datos de cada bar.
 
 ## Qué haces
 - Modificar **filtros** del worker (zona Canarias, descarte de negocios cerrados, etc.).
-- Añadir/ajustar **endpoints** (el actual es `/find` en
-  `https://broad-wind-18ea.matasano901.workers.dev`).
+- Añadir/ajustar **endpoints** en el worker activo `https://polished-union-3d80.matasano901.workers.dev`
+  (la app lee la URL de ⚙️ Ajustes → `cfWorker`): `/find?q=nombre+ciudad` (enriquecedor) y `/?url=…` (puente CORS).
 - Integrar y orquestar APIs: **Serper, Jina, Google Places, Google CSE, Gemini**
   (modelo `gemini-2.5-flash`).
 - Mantener la cadena de enriquecimiento **`enriquecerCompleto(lead)`**, que llama a las

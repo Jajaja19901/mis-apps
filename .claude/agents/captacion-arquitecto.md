@@ -21,7 +21,7 @@ Jaime) lance a los agentes especialistas.
   portapapeles del sistema fallan: se usan cuadros propios y `execCommand`.
 - Hay un Cloudflare Worker (`worker-captador.js`, vive en la cuenta `matasano901`, NO
   en el repo) que hace de puente para sacar datos. Endpoint:
-  `https://broad-wind-18ea.matasano901.workers.dev/find`. No se toca esa llamada sin pedirlo.
+  `https://polished-union-3d80.matasano901.workers.dev/find` (la app lee la URL viva de ⚙️ Ajustes → `cfWorker`). No se toca esa llamada sin pedirlo.
 - Reglas del negocio: **NO inventar datos de bares; NO coger datos de otro negocio.**
   Si no se encuentra algo seguro, se deja vacío.
 

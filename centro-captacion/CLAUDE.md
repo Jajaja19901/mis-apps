@@ -19,9 +19,11 @@ el de la fábrica de apps** (ese es el `CLAUDE.md` de la raíz del repo).
   leer/escribir el portapapeles del sistema **fallan**.
 
 ## Piezas montadas (claves y worker NO van en el repo)
-- **Cloudflare Worker** (`worker-captador.js`, cuenta `matasano901`, fuera del repo): puente
-  para sacar datos. Endpoint: `https://broad-wind-18ea.matasano901.workers.dev/find`. Lo usa
-  `buscarDatosWeb`. **No tocar esa llamada sin pedirlo.**
+- **Cloudflare Worker** (`worker-captador.js`, cuenta `matasano901`, fuera del repo): saca los
+  datos de cada bar. **URL activa: `https://polished-union-3d80.matasano901.workers.dev`** — la
+  app la lee de ⚙️ Ajustes (`cfWorker`), no la hardcodea (el defecto del código v70,
+  `orange-math-f552`, está viejo). Endpoints: `/find?q=nombre+ciudad` (enriquecedor) y `/?url=...`
+  (puente CORS). Lo usa `buscarDatosWeb`. **No tocar esa llamada sin pedirlo.**
 - **Claves** (las pega el dueño en ⚙️ Ajustes, **nunca** en el repo):
   - Google Places (`AIza…`) → pestaña 🔎 Buscar y "Rellenar con Google".
   - Gemini (`AQ…`) → botón 🤖 Gemini. Modelo: `gemini-2.5-flash`.
@@ -55,6 +57,7 @@ el de la fábrica de apps** (ese es el `CLAUDE.md` de la raíz del repo).
 - `[2026-06-15] En content://com.rs.explore (origen null) prompt() y el portapapeles del sistema fallan → Usar cuadros de diálogo propios + execCommand('copy'); nunca prompt() ni navigator.clipboard a secas.`
 - `[2026-06-15] Importar el CSV duplicaba bares → Cruzar por móvil + confirmar mismo negocio antes de añadir.`
 - `[2026-06-15] La llamada buscarDatosWeb al Worker es lo que ya funciona → No tocarla sin que el prompt lo pida.`
+- `[2026-06-15] La URL del worker cambió varias veces (broad-wind → orange-math → polished-union) → La URL viva NO se hardcodea: vive en ⚙️ Ajustes (cfWorker). Worker activo hoy: https://polished-union-3d80.matasano901.workers.dev. Verificar que el defecto del código no apunte a un worker muerto.`
 
 ## 👷 Equipo de agentes y skill
 - Agentes en `.claude/agents/captacion-*`: **arquitecto** (planifica), **backend-worker**,
