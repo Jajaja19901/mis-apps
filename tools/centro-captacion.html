@@ -399,7 +399,9 @@ function importarCSV(txt){
   let rows; try{ rows=parseCSV(txt); }catch(e){ toast("Ese CSV no se pudo leer"); return; }
   if(!rows.length){ toast("El CSV está vacío"); return; }
   const val=(o,keys)=>{ for(const k of Object.keys(o)){ if(keys.some(kk=>k.indexOf(kk)>=0)&&o[k]) return o[k]; } return ""; };
-  const L=LEADS(); const idx={}; L.forEach(l=>{ idx[(l.nombre||"").toLowerCase()+"|"+(l.ciudad||"")]=l; }); // carga la lista UNA sola vez
+  const dig9=s=>{ let x=String(s||"").replace(/\D/g,""); if(x.length>9) x=x.slice(-9); return x.length===9?x:""; };
+  const L=LEADS(); const idx={}, idxTel={}; // cruzo por nombre+ciudad Y por TELÉFONO (para no duplicar el mismo bar)
+  L.forEach(l=>{ idx[(l.nombre||"").toLowerCase()+"|"+(l.ciudad||"")]=l; [l.tel,l.whatsapp,l.fijo].forEach(p=>{ const d=dig9(p); if(d) idxTel[d]=l; }); });
   let n=0,upd=0;
   rows.forEach(o=>{
     const nombre=val(o,["name","nombre","negocio","title","business"]); if(!nombre) return;
@@ -419,11 +421,14 @@ function importarCSV(txt){
     let wa=(val(o,["whatsapp","wasap","wsp"])||"").replace(/[^0-9]/g,""); // usa la columna WhatsApp si la trae
     if(!wa && dig){ const nine=dig.length>9?dig.slice(-9):dig; if(nine.length===9 && /^(6|7[1-9])/.test(nine)) wa="34"+nine; } // si no, deriva de móvil
     const datos={nombre, ciudad, ciudadReal, dir, tel, fijo, email, web, instagram, facebook, tiktok, whatsapp:wa, rating};
-    // UPSERT: si el bar ya está (mismo nombre+ciudad) lo ACTUALIZA con lo nuevo no vacío (aplica correcciones);
-    // si no, lo añade. Antes lo IGNORABA, por eso reimportar una lista corregida no cambiaba nada.
-    const key=nombre.toLowerCase()+"|"+(ciudad||""); const ex=idx[key];
-    if(ex){ ["dir","tel","fijo","email","web","instagram","facebook","tiktok","whatsapp"].forEach(k=>{ if(datos[k]) ex[k]=datos[k]; }); if(rating&&!ex.rating)ex.rating=rating; upd++; }
-    else { const nuevo=Object.assign({ id:uid(), creado:hoyISO(), estado:"nuevo", plan:"medio", notas:"", demoUrl:"", ultimo:null, toques:0 }, datos, {origen:"csv"}); L.unshift(nuevo); idx[key]=nuevo; n++; }
+    // UPSERT SIN DUPLICAR: busca el bar por nombre+ciudad O por TELÉFONO (mismo número = mismo bar, aunque el
+    // nombre esté escrito distinto, como "Los Dragos" y "Bar Restaurante Los Dragos Arucas"). Si lo encuentra, ACTUALIZA.
+    const key=nombre.toLowerCase()+"|"+(ciudad||"");
+    const telsFila=[dig9(tel),dig9(fijo),dig9(wa)].filter(Boolean);
+    let ex=idx[key]; if(!ex){ for(const d of telsFila){ if(idxTel[d]){ ex=idxTel[d]; break; } } }
+    if(ex){ ["dir","tel","fijo","email","web","instagram","facebook","tiktok","whatsapp"].forEach(k=>{ if(datos[k]) ex[k]=datos[k]; }); if(rating&&!ex.rating)ex.rating=rating;
+      telsFila.forEach(d=>idxTel[d]=ex); upd++; }
+    else { const nuevo=Object.assign({ id:uid(), creado:hoyISO(), estado:"nuevo", plan:"medio", notas:"", demoUrl:"", ultimo:null, toques:0 }, datos, {origen:"csv"}); L.unshift(nuevo); idx[key]=nuevo; telsFila.forEach(d=>idxTel[d]=nuevo); n++; }
   });
   setLeads(L); // guarda la lista entera UNA sola vez (antes lo hacía por cada fila → se colgaba)
   save("tab","pipeline"); TAB="pipeline"; render();
