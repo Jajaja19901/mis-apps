@@ -684,8 +684,11 @@ function cardHTML(l){ const tq=toquePendiente(l); const waNum=waDe(l); const fij
         <button class="mini" data-iag="${l.id}" type="button" title="Abre Google preguntando por sus datos (tú lees y copias)" style="border-color:#1a73e8;color:#1a73e8">🔮 IA Google</button>
         <button class="mini" data-gem="${l.id}" type="button" title="Gemini busca y rellena sus datos solo (marcado para revisar)" style="border-color:#8a44d6;color:#8a44d6">🤖 Gemini</button>
         <button class="mini" data-rebuscar="${l.id}" type="button" title="Volver a buscar y actualizar SOLO este negocio (arregla teléfono/email/datos)">🔄 Reajustar</button>
+        <button class="mini" data-pegar="${l.id}" type="button" title="Pega lo que tengas copiado (email, teléfono o Instagram) y lo coloca solo en su sitio" style="border-color:#0a7d28;color:#0a7d28">📋 Pegar dato</button>
         <button class="mini" data-edittel="${l.id}" type="button" title="Corregir el teléfono a mano">✏️ Nº</button>
+        ${(waDe(l)||fijoDe(l))?`<button class="mini" data-borratel="${l.id}" type="button" title="Borrar el teléfono (si es falso)" style="color:#b32424">🗑️ Tel</button>`:""}
         <button class="mini" data-editmail="${l.id}" type="button" title="Poner/corregir el email a mano">✏️ Email</button>
+        ${l.email?`<button class="mini" data-borramail="${l.id}" type="button" title="Borrar el email (si es falso o de plantilla)" style="color:#b32424">🗑️ Email</button>`:""}
         <button class="mini" data-editig="${l.id}" type="button" title="Poner/corregir Instagram a mano">✏️ IG</button>
         ${l.instagram?`<button class="mini" data-borraig="${l.id}" type="button" title="Borrar el Instagram (si es falso o de otro)" style="color:#b32424">🗑️ IG</button>`:""}
         <button class="mini" data-demo="${l.id}" type="button" title="Generar su demo">⬇️ Demo</button>
@@ -756,7 +759,6 @@ function vPipeline(){
     ${vis.some(incompleto)?`<button class="mini" id="completaDatos" type="button" title="Rellena teléfono, web y redes de los filtrados que les falte">🔄 Completar datos que faltan (${vis.filter(incompleto).length})</button>`:""}
     ${vis.some(l=>!l.tel)?`<button class="mini" id="googleFill" type="button" title="Pide a Google el teléfono y web OFICIALES (usa tu clave de Ajustes; cuesta céntimos por bar)" style="border-color:#1a73e8;color:#1a73e8">📞 Rellenar con Google (${vis.filter(l=>!l.tel).length})</button>`:""}
     ${vis.some(l=>movilEnNotas(l))?`<button class="mini" id="recuperaWa" type="button" title="Pasa a WhatsApp los móviles que ya están escritos en las notas (gratis, al instante)" style="border-color:#1d6f2b;color:#1d6f2b">📱 Recuperar WhatsApp de las notas (${vis.filter(l=>movilEnNotas(l)).length})</button>`:""}
-    ${vis.some(l=>!l.email||!waDe(l))?`<button class="mini" id="gemTodos" type="button" title="Busca en Google real (o Gemini) email/móvil/Instagram de TODOS los filtrados que falten. Marca todo para revisar." style="border-color:#8a44d6;color:#8a44d6">🔎 Rellenar todos con Google/IA (${vis.filter(l=>!l.email||!waDe(l)).length})</button>`:""}
     ${L.some(l=>l.emailAuto)?`<button class="mini" id="limpiaMails" type="button" title="Borra los emails que encontró la app, para re-buscarlos" style="color:#b32424">🧹 Borrar emails auto (${L.filter(l=>l.emailAuto).length})</button>`:""}</div>
     ${fc==="ninguno"?`<p class="note" style="color:var(--brand-d)">❓ Estos no tienen ni WhatsApp ni email localizado. Pulsa 🔎✉️ en cada uno (o el botón de arriba) para que busque su email en la web. Si aun así no aparece, es que no lo tienen publicado.</p>`:""}
     ${(vis.length>3||BUSQUEDA)?`<input id="qLead" type="search" value="${esc(BUSQUEDA)}" placeholder="🔍 Buscar en los ${L.length} por nombre, ciudad, email…" style="width:100%;padding:11px 14px;border:1.5px solid #ddd;border-radius:10px;margin-bottom:10px;font-size:14px">`:""}
@@ -933,6 +935,26 @@ document.addEventListener("click",async e=>{
   if(t.dataset.borraig){ const l=LEADS().find(x=>x.id===t.dataset.borraig); if(!l) return;
     if(!confirm("¿Borrar el Instagram de "+l.nombre+"?\n("+(l.instagram||"")+")")) return;
     upLead(l.id,{instagram:""}); render(); toast("Instagram borrado ✓"); return; }
+  if(t.dataset.borramail){ const l=LEADS().find(x=>x.id===t.dataset.borramail); if(!l) return;
+    if(!confirm("¿Borrar el email de "+l.nombre+"?\n("+(l.email||"")+")")) return;
+    upLead(l.id,{email:"",emailAuto:false}); render(); toast("Email borrado ✓"); return; }
+  if(t.dataset.borratel){ const l=LEADS().find(x=>x.id===t.dataset.borratel); if(!l) return;
+    if(!confirm("¿Borrar el teléfono de "+l.nombre+"? (móvil y fijo)")) return;
+    upLead(l.id,{tel:"",whatsapp:"",fijo:""}); render(); toast("Teléfono borrado ✓"); return; }
+  // Pegar inteligente: lee el portapapeles y coloca el dato solo en su sitio (email / móvil / fijo / Instagram).
+  if(t.dataset.pegar){ const l=LEADS().find(x=>x.id===t.dataset.pegar); if(!l) return;
+    let txt=""; try{ txt=(await navigator.clipboard.readText()||"").trim(); }catch(e){ toast("Tu navegador no deja leer el portapapeles. Usa ✏️ y pega a mano."); return; }
+    if(!txt){ toast("No tienes nada copiado"); return; }
+    txt=txt.replace(/^mailto:/i,"").replace(/^tel:/i,"").trim();
+    const mailM=txt.match(/[^@\s]+@[^@\s]+\.[a-z]{2,}/i);
+    if(mailM){ upLead(l.id,{email:mailM[0].toLowerCase(),emailAuto:false}); render(); toast("✓ Email pegado: "+mailM[0]); return; }
+    const igM=txt.match(/instagram\.com\/([A-Za-z0-9._]+)/i);
+    if(igM || /^@[A-Za-z0-9._]{2,30}$/.test(txt)){ const h=igM?igM[1]:txt.replace(/^@/,""); upLead(l.id,{instagram:"https://instagram.com/"+h}); render(); toast("✓ Instagram pegado: @"+h); return; }
+    const dig=txt.replace(/\D/g,""); const nine=dig.length>9?dig.slice(-9):dig;
+    if(nine.length===9 && /^[6-9]/.test(nine)){ const fmt="+34 "+nine.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4");
+      if(esMovil(nine)){ upLead(l.id,{tel:fmt,whatsapp:"34"+nine}); toast("✓ Móvil pegado: "+nine); } else { upLead(l.id,{fijo:fmt}); toast("✓ Fijo pegado: "+nine); }
+      render(); return; }
+    toast("No reconocí el dato. Copia SOLO el email, el teléfono o el Instagram."); return; }
   if(t.dataset.editig){ const l=LEADS().find(x=>x.id===t.dataset.editig);
     const raw=await pedir("Instagram de "+l.nombre+" (pega el enlace o @usuario). Vacío = quitarlo:", l.instagram||""); if(raw===null) return;
     let v=raw.trim().replace(/^@/,"");
