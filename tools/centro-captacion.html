@@ -561,6 +561,8 @@ function vBuscar(){
 // Número listo para WhatsApp: SOLO móviles válidos (6xx o 71x-79x). Los fijos/raros NO tienen WhatsApp.
 function waDe(l){ const core=s=>{ let d=(s||"").replace(/\D/g,""); if(d.length>9) d=d.slice(-9); return d.length===9?d:""; };
   let d=core(l.whatsapp); if(!esMovil(d)) d=core(l.tel); return esMovil(d)?("34"+d):""; }
+// Si el móvil ya está escrito en las NOTAS o en el teléfono (pero no como WhatsApp), lo recupera. Sin internet.
+function movilEnNotas(l){ if(waDe(l)) return ""; return (sacaTel((l.notas||"")+" "+(l.tel||"")).filter(esMovil)[0])||""; }
 function colaRafaga(){
   const L=LEADS().filter(l=>waDe(l));
   const seguimientos=L.filter(l=>toquePendiente(l)>0);
@@ -713,6 +715,7 @@ function vPipeline(){
     ${vis.some(l=>!l.email)?`<button class="mini" id="buscaMails" type="button" title="Busca el email de los filtrados que aún no lo tengan">🔎✉️ Buscar emails que falten (${vis.filter(l=>!l.email).length})</button>`:""}
     ${vis.some(incompleto)?`<button class="mini" id="completaDatos" type="button" title="Rellena teléfono, web y redes de los filtrados que les falte">🔄 Completar datos que faltan (${vis.filter(incompleto).length})</button>`:""}
     ${vis.some(l=>!l.tel)?`<button class="mini" id="googleFill" type="button" title="Pide a Google el teléfono y web OFICIALES (usa tu clave de Ajustes; cuesta céntimos por bar)" style="border-color:#1a73e8;color:#1a73e8">📞 Rellenar con Google (${vis.filter(l=>!l.tel).length})</button>`:""}
+    ${vis.some(l=>movilEnNotas(l))?`<button class="mini" id="recuperaWa" type="button" title="Pasa a WhatsApp los móviles que ya están escritos en las notas (gratis, al instante)" style="border-color:#1d6f2b;color:#1d6f2b">📱 Recuperar WhatsApp de las notas (${vis.filter(l=>movilEnNotas(l)).length})</button>`:""}
     ${vis.some(l=>!l.email||!waDe(l))?`<button class="mini" id="gemTodos" type="button" title="Busca en Google real (o Gemini) email/móvil/Instagram de TODOS los filtrados que falten. Marca todo para revisar." style="border-color:#8a44d6;color:#8a44d6">🔎 Rellenar todos con Google/IA (${vis.filter(l=>!l.email||!waDe(l)).length})</button>`:""}
     ${L.some(l=>l.emailAuto)?`<button class="mini" id="limpiaMails" type="button" title="Borra los emails que encontró la app, para re-buscarlos" style="color:#b32424">🧹 Borrar emails auto (${L.filter(l=>l.emailAuto).length})</button>`:""}</div>
     ${fc==="ninguno"?`<p class="note" style="color:var(--brand-d)">❓ Estos no tienen ni WhatsApp ni email localizado. Pulsa 🔎✉️ en cada uno (o el botón de arriba) para que busque su email en la web. Si aun así no aparece, es que no lo tienen publicado.</p>`:""}
@@ -900,6 +903,10 @@ document.addEventListener("click",async e=>{
     upLead(l.id,{ tel:"+34 "+r.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"), whatsapp: esMovil(r)?("34"+r):"" }); render();
     toast("Teléfono actualizado"+(esMovil(r)?" · WhatsApp activado":" (fijo, sin WhatsApp)")); return; }
   if(t.dataset.bmail){ const l=LEADS().find(x=>x.id===t.dataset.bmail); const o=t.textContent; t.textContent="🔎…"; t.disabled=true;
+    // 0) GRATIS y al instante: si el móvil ya está en sus notas/teléfono, lo paso a WhatsApp.
+    const mvL=movilEnNotas(l);
+    if(mvL){ upLead(l.id,{whatsapp:"34"+mvL, tel:l.tel||("+34 "+mvL.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"))}); render();
+      toast("✓ WhatsApp recuperado de las notas: "+mvL); t.textContent=o; t.disabled=false; return; }
     if(!((AJ().cseId||"").trim()&&(AJ().gkey||"").trim()) && !(AJ().geminiKey||"").trim()){
       toast("Monta el Buscador de Google o pon tu clave Gemini en ⚙️ Ajustes (o usa 🔮 IA Google a mano)."); t.textContent=o; t.disabled=false; return; }
     try{ const g=await autoBuscaLead(l);   // Google real primero, Gemini si no
@@ -955,9 +962,15 @@ document.addEventListener("click",async e=>{
     t.disabled=false; render();
     if(fatal){ alert("❌ Google rechazó la clave:\n\n\""+fatal+"\"\n\nCasi siempre es una de estas:\n1) No está activada la 'Places API (New)' en tu proyecto.\n2) No está activada la facturación (aunque no te cobren).\n3) La clave tiene restricciones que la bloquean.\nArréglalo y vuelve a pulsar."); }
     else alert("✅ Google rellenó "+n+" de "+faltan.length+" bares (teléfono, web, ciudad y valoración oficiales).\n✖ Cerrados detectados: "+cerr+"\n⚠ De otra zona / no localizados (marcados para revisar): "+otra); return; }
+  if(t.id==="recuperaWa"){ const L=LEADS(); let n=0;
+    L.forEach(l=>{ const mv=movilEnNotas(l); if(mv){ l.whatsapp="34"+mv; if(!l.tel)l.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); n++; } });
+    if(n){ setLeads(L); render(); }
+    toast(n?("✓ "+n+" WhatsApp recuperados de las notas"):"No había móviles sueltos en las notas"); return; }
   if(t.id==="gemTodos"){ const usaGoogle=(AJ().cseId||"").trim()&&(AJ().gkey||"").trim();
     if(!usaGoogle && !(AJ().geminiKey||AJ().gkey||"").trim()){ alert("Monta el Buscador de Google (CSE) o pon tu clave Gemini en ⚙️ Ajustes."); return; }
-    const faltan=leadsFiltrados().filter(l=>!l.email||!waDe(l)); if(!faltan.length){ toast("Nada que rellenar ✓"); return; }
+    // PASO 0 (gratis): recupero los móviles que ya están en las notas antes de gastar nada de internet.
+    { const L=LEADS(); let rec=0; L.forEach(l=>{ const mv=movilEnNotas(l); if(mv){ l.whatsapp="34"+mv; if(!l.tel)l.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); rec++; } }); if(rec){ setLeads(L); } }
+    const faltan=leadsFiltrados().filter(l=>!l.email||!waDe(l)); if(!faltan.length){ render(); toast("Nada que rellenar ✓ (WhatsApp recuperados de las notas)"); return; }
     t.disabled=true; let n=0,quota=false;
     // Con Google real puedo ir rápido (1 consulta/bar, 100/día). Con Gemini voy lento (cupo por minuto).
     const espera = usaGoogle ? 400 : 4500;
