@@ -47,7 +47,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v78 · 16 jun</span></h1>
+  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v79 · 16 jun</span></h1>
   <nav class="tabs" id="tabs">
     <button data-t="buscar" type="button">🔎 Buscar</button>
     <button data-t="pipeline" type="button">📋 Pipeline</button>
@@ -1131,16 +1131,33 @@ document.addEventListener("click",async e=>{
   if(t.dataset.gem){ const l=LEADS().find(x=>x.id===t.dataset.gem); if(!l) return;
     if(!(AJ().geminiKey||AJ().gkey||"").trim()){ alert("Para usar Gemini necesitas su clave: sácala GRATIS en aistudio.google.com/app/apikey (2 clics) y pégala en ⚙️ Ajustes → Clave Gemini."); return; }
     const o=t.textContent; t.textContent="🤖…"; t.disabled=true;
-    try{ const {patch,found,txt}=await gemBuscaLeadMejorado(l);
+    let res=null, reint=0, errFinal="";
+    while(reint<3){
+      try{ res=await gemBuscaLeadMejorado(l); break; }
+      catch(e){ const m=e.message||"";
+        const duro=/limit: 0|free_tier|per day|dailyLimit|daily limit/i.test(m);                   // cupo del DÍA → esperar no sirve
+        const porMin=/429|RESOURCE_EXHAUSTED|rateLimit|per minute|retry in|exceeded|quota/i.test(m); // freno por MINUTO → pasajero
+        if(!duro && porMin && reint<2){ reint++;
+          let segs=50; const mm=m.match(/retry in (\d+)/i); if(mm) segs=Math.min(70,(+mm[1])+5);
+          for(let s=segs;s>0;s--){ t.textContent="⏳ Gemini frena — espero "+s+"s y reintento…"; await new Promise(r=>setTimeout(r,1000)); }
+          continue;                                                                                 // reintenta el MISMO bar, no se rinde
+        }
+        errFinal=m; break;
+      }
+    }
+    t.textContent=o; t.disabled=false;
+    if(res){ const {patch,found,txt}=res;
       if(found.length){ upLead(l.id,patch); render(); toast("Gemini puso: "+found.join(", ")+" — REVÍSALO antes de usar"); }
-      else { t.textContent=o; t.disabled=false; alert("Gemini no encontró datos fiables de "+l.nombre+".\n\nRespuesta:\n"+(txt.slice(0,300)||"(vacío)")); }
-    }catch(e){ t.textContent=o; t.disabled=false;
-      const m=e.message||""; let ayuda;
-      if(/overload|high demand|UNAVAILABLE|503|try again|temporar/i.test(m)) ayuda="Google está saturado ahora mismo (no es culpa tuya). Espera 1 minuto y vuelve a pulsar.";
-      else if(/quota|exceeded|RESOURCE_EXHAUSTED|limit: 0|429/i.test(m)) ayuda="Se agotó el cupo gratis de Gemini (por minuto o por día). Prueba en un rato o mañana.";
-      else if(/key|API_KEY|invalid|permission|denied|not enabled|SERVICE_DISABLED/i.test(m)) ayuda="Revisa la clave de Gemini en ⚙️ Ajustes (o activa la 'Generative Language API' en tu proyecto).";
+      else { alert("Gemini no encontró datos fiables de "+l.nombre+".\n\nRespuesta:\n"+(txt.slice(0,300)||"(vacío)")); }
+    } else {
+      const m=errFinal; let ayuda;
+      if(/overload|high demand|UNAVAILABLE|503|try again|temporar/i.test(m)) ayuda="Google está saturado ahora mismo. Espera 1 minuto y vuelve a pulsar.";
+      else if(/limit: 0|per day|dailyLimit|daily limit/i.test(m)) ayuda="Se agotó el cupo del DÍA de Gemini. Prueba mañana o con otra clave.";
+      else if(/quota|exceeded|RESOURCE_EXHAUSTED|429|per minute/i.test(m)) ayuda="Gemini siguió frenando aunque esperé. Reinténtalo en 1-2 minutos.";
+      else if(/key|API_KEY|invalid|permission|denied|not enabled|SERVICE_DISABLED/i.test(m)) ayuda="Revisa la clave de Gemini en ⚙️ Ajustes (o activa la 'Generative Language API').";
       else ayuda="Inténtalo de nuevo en un momento.";
-      alert("Gemini: "+m+"\n\n"+ayuda); }
+      alert("Gemini: "+m+"\n\n"+ayuda);
+    }
     return; }
   if(t.id==="verMas"){ MOSTRAR+=40; render(); return; }
   if(t.id==="completaDatos"){ const faltan=leadsFiltrados().filter(incompleto); if(!faltan.length){ toast("Todos completos ✓"); return; }
