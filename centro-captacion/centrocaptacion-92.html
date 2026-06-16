@@ -47,7 +47,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v91 · 16 jun</span></h1>
+  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v92 · 16 jun</span></h1>
   <nav class="tabs" id="tabs">
     <button data-t="buscar" type="button">🔎 Buscar</button>
     <button data-t="pipeline" type="button">📋 Pipeline</button>
@@ -1346,21 +1346,36 @@ document.addEventListener("click",async e=>{
     E.filter(l=>/camarero/i.test(l.nivel||"")).forEach(l=>importarEmbudo(l.id,true)); toast("Importados ✓"); render(); return; }
   if(t.id==="csv"||t.id==="expPipe"){ exportCSV(); return; }
   if(t.id==="impPipe"){ const fi=$("#csvFilePipe"); if(fi) fi.click(); return; }
-  if(t.id==="aTestBar"){ const out=$("#testOut"); out.innerHTML="⏳ Probando el WORKER en un bar real… (espera, mido el tiempo)";
+  if(t.id==="aTestBar"){ const out=$("#testOut"); out.innerHTML="⏳ Probando worker y Google (CSE) en un bar real… (espera)";
     const nombre="Mesón Los Chorros", ciudad="Firgas";
     const _wk=(AJ().cfWorker||"https://holy-rain-3ea8.matasano901.workers.dev").trim().replace(/\/+$/,"");
-    const log=["<b>Worker:</b> "+esc(_wk)];
-    // LA PRUEBA DE VERDAD: la MISMA llamada que hacen 🔄 / 2️⃣ / ⚡ (la de la línea 224). Mido cuánto tarda.
+    const log=["<b>══ WORKER ══</b>", "<small>"+esc(_wk)+"</small>"];
+    // 1) WORKER: la MISMA llamada que hacen 🔄 / 2️⃣ / ⚡ (línea 224). Mido cuánto tarda.
     const t0=Date.now(); let wj=null;
     try{ const r=await fetchT(_wk+"/find?q="+encodeURIComponent(nombre+" "+ciudad),{},45000); const s=((Date.now()-t0)/1000).toFixed(1);
-      if(r.ok){ wj=await r.json(); log.push("1) /find respondió ✅ en <b>"+s+" s</b>"); }
-      else log.push("1) /find ❌ HTTP "+r.status+" (en "+s+" s)"); }
-    catch(e){ const s=((Date.now()-t0)/1000).toFixed(1); log.push("1) /find ❌ "+esc(e.message||String(e))+" (tras "+s+" s — si pone 'tope/abort' tardó demasiado)"); }
-    if(wj){ if(wj.error){ log.push("2) El worker devolvió ERROR: <b>"+esc(wj.error)+"</b>"+(/SERPER/i.test(wj.error)?"  ← falta poner la clave Serper en Cloudflare":"")); }
-      else { log.push("2) EMAIL: "+(wj.email?("✅ <b>"+esc(wj.email)+"</b>"):"— (este bar quizá no lo tiene público)"));
-        log.push("&nbsp;&nbsp;&nbsp;web: "+esc(wj.web||"—")+" · tel: "+esc(wj.tel||"—")+" · leyó <b>"+(wj._textoLeido||0)+"</b> letras de su web"); } }
-    out.innerHTML="<b>🔍 Prueba del WORKER (Mesón Los Chorros, Firgas):</b><br>"+log.join("<br>")
-      +"<br><br><i>Si sale el email (o al menos web/tel y muchas letras) en pocos segundos → la app SÍ usa bien el worker. Si sale ERROR o tarda muchísimo, ahí está el fallo. <b>Mándame esta foto.</b></i>"; return; }
+      if(r.ok){ wj=await r.json(); log.push("Respondió ✅ en <b>"+s+" s</b>"); }
+      else log.push("❌ HTTP "+r.status+" (en "+s+" s)"); }
+    catch(e){ const s=((Date.now()-t0)/1000).toFixed(1); log.push("❌ "+esc(e.message||String(e))+" (tras "+s+" s)"); }
+    if(wj){ if(wj.error){ log.push("ERROR: <b>"+esc(wj.error)+"</b>"+(/SERPER/i.test(wj.error)?" ← falta la clave Serper en Cloudflare":"")); }
+      else log.push("EMAIL: "+(wj.email?("✅ <b>"+esc(wj.email)+"</b>"):"—")+" · web "+(wj.web?"sí":"no")+" · tel "+(wj.tel?"sí":"no")); }
+    // 2) GOOGLE (CSE): la misma búsqueda que usa el 🔄 cuando está montado.
+    log.push("<br><b>══ GOOGLE (CSE) ══</b>");
+    const cx=(AJ().cseId||"").trim(), gk=(AJ().gkey||"").trim();
+    if(!cx){ log.push("⬜ No tienes puesto el ID del Buscador (CSE) en Ajustes."); }
+    else if(!gk){ log.push("⚠ Tienes el ID pero FALTA la <b>🔑 Clave de Google (AIza)</b> arriba — sin ella el CSE no funciona."); }
+    else { try{
+        const tc=Date.now(); const items=await googleCSE(nombre+" "+ciudad+" contacto email teléfono");
+        const sc=((Date.now()-tc)/1000).toFixed(1);
+        log.push("Respondió ✅ en <b>"+sc+" s</b> · "+items.length+" resultados de Google.");
+        const g=await googleBuscaLead({nombre,ciudad,dir:"",email:"",web:"",tel:"",instagram:""});
+        log.push("EMAIL: "+((g.patch&&g.patch.email)?("✅ <b>"+esc(g.patch.email)+"</b>"):"— (no encontró)")+((g.found&&g.found.length)?(" · sacó: "+esc(g.found.join(", "))):""));
+      }catch(e){ const m=e.message||String(e); log.push("❌ ERROR: "+esc(m));
+        if(/not.*enabled|SERVICE_DISABLED|disabled|has not been used/i.test(m)) log.push("&nbsp;&nbsp;← activa <b>'Custom Search API'</b> en console.cloud.google.com");
+        else if(/API key not valid|invalid|keyInvalid|forbidden|PERMISSION/i.test(m)) log.push("&nbsp;&nbsp;← la clave AIza no vale o no tiene permiso de Custom Search");
+        else if(/quota|rateLimit|dailyLimit|exceeded|429/i.test(m)) log.push("&nbsp;&nbsp;← se acabó el cupo de hoy (100/día gratis)");
+      } }
+    out.innerHTML="<b>🔍 WORKER vs GOOGLE (Mesón Los Chorros, Firgas):</b><br>"+log.join("<br>")
+      +"<br><br><i>Compara cuál te dio el email. Así ves qué funciona mejor. Mándame esta foto.</i>"; return; }
   if(t.id==="aTest"){ const out=$("#testOut"); out.innerHTML="⏳ Probando, espera unos segundos…";
     const jk=(AJ().jinaKey||"").trim();
     let puente=false, ia=null;
