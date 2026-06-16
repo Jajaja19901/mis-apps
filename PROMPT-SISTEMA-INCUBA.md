@@ -51,6 +51,10 @@ desde un solo sitio, el dueño **planifica el contenido, lo produce con IA paso 
 gestiona clientes, y automatiza la difusión** — para crecer de 0 a sus primeros clientes (y
 escalar). Cómodo, rápido y barato de arrancar.
 
+> **FUERA DE ALCANCE (por ahora):** NO se crea la **web/página pública online** del estudio
+> «Incuba tu Negocio». El sistema es **solo el panel privado interno** del dueño. La web pública
+> del estudio se hará más adelante si se decide; de momento no se construye ni se toca.
+
 ## 3) QUÉ CONSTRUIR — un único archivo `apps/incuba-sistema.html`
 Panel hub, HTML autocontenido, mobile-first, con **acceso por contraseña** (`ADMIN_PASSWORD`)
 y navegación por pestañas. Módulos (todos en localStorage, datos del dueño):
