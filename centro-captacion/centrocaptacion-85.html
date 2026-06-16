@@ -47,7 +47,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v84 · 16 jun</span></h1>
+  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v85 · 16 jun</span></h1>
   <nav class="tabs" id="tabs">
     <button data-t="buscar" type="button">🔎 Buscar</button>
     <button data-t="pipeline" type="button">📋 Pipeline</button>
@@ -307,7 +307,14 @@ async function buscarDatosWeb(nombre,ciudad,prof){
   return Object.assign({ email, web }, extra);
 }
 // Convierte lo encontrado en un parche para el lead (solo rellena lo que falta; no pisa lo que ya hay).
-function datosPatch(d,l){ const p={}; if(d.email&&!l.email){p.email=d.email; p.emailAuto=true;} if(safeUrl(d.web)&&!l.web)p.web=safeUrl(d.web);
+// Webs que NUNCA son la del propio bar: directorios, agregadores, redes, ayuntamientos y sedes oficiales.
+// Si el worker devuelve una de estas como "web", la tiramos (mejor vacío que pegar la web del Ayuntamiento).
+function esWebDirectorio(u){ const s=String(u||"").toLowerCase();
+  return /tripadvisor|thefork|el-?tenedor|eltenedor\.|escapadarural|\/directorio\/|paginasamarillas|cylex|infoisinfo|yelp|foursquare|booking\.com|glovo|just-?eat|ubereats|deliveroo|facebook\.com|instagram\.com|m\.facebook|wikipedia|\.gob\.es|gobiernodecanarias|agenciatributaria|ayuntamiento|santacruzdetenerife\.es|laspalmasgc\.es|\bsede\.|sedeelectronica|wikiloc|minube|civitatis|atrapalo|guiarepsol/i.test(s); }
+// Emails de relleno/plantilla que NO son reales (los escribe una web de ejemplo, no el bar).
+function esEmailBasura(e){ const s=String(e||"").toLowerCase().trim();
+  return !s || /^(tu|tucorreo|correo|email|ejemplo|example|nombre|usuario|your|youremail|name)@|@(example|ejemplo|dominio|tudominio|sentry|wixpress|wordpress)\./i.test(s) || /noreply|no-reply/i.test(s); }
+function datosPatch(d,l){ const p={}; if(d.email&&!l.email&&!esEmailBasura(d.email)){p.email=d.email; p.emailAuto=true;} if(safeUrl(d.web)&&!l.web&&!esWebDirectorio(d.web))p.web=safeUrl(d.web);
   // Texto con las URLs de Facebook/Instagram (del lead y de lo recién encontrado) para validar que un
   // teléfono nuevo NO sea un trozo de un ID largo de FB/IG (bug del worker con el 34635668619 falso).
   const redesTxt=[l.facebook,l.instagram,d.facebook,d.instagram].map(x=>String(x||"")).join(" ");
