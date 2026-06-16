@@ -47,7 +47,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v73 · 16 jun</span></h1>
+  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v74 · 16 jun</span></h1>
   <nav class="tabs" id="tabs">
     <button data-t="buscar" type="button">🔎 Buscar</button>
     <button data-t="pipeline" type="button">📋 Pipeline</button>
@@ -963,12 +963,16 @@ document.addEventListener("click",async e=>{
     await buscarOSM();                              // rellena RES y re-renderiza la vista Buscar
     if(!RES.length){ setp(""); return; }            // buscarOSM ya muestra el error si no hay
     let add=0; RES.forEach(d=>{ if(addLead(leadDe(d))) add++; });
+    // GRATIS primero: paso a WhatsApp los móviles que ya están escritos en las notas, antes de gastar nada de cupo.
+    { const Lx=LEADS(); let rec=0; Lx.forEach(l=>{ const mv=movilEnNotas(l); if(mv){ l.whatsapp="34"+mv; if(!l.tel)l.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); rec++; } }); if(rec){ setLeads(Lx); } }
     let faltan=LEADS().filter(l=>!l.email).sort((a,b)=>(b.score||0)-(a.score||0)); // los más interesantes primero
-    const TOPE=80;
-    if(faltan.length>TOPE){
-      if(!confirm("Salieron "+faltan.length+" negocios. Sacar el email/datos de TODOS agotaría el cupo gratis y tardaría muchísimo.\n\n¿Hago ahora solo los "+TOPE+" MÁS INTERESANTES (🔥)? El resto se queda en tu lista con su teléfono; para sacarles datos, busca por zonas más pequeñas.")){
-        setp(""); TAB="pipeline"; save("tab","pipeline"); render(); toast(add+" negocios añadidos (con teléfono). Busca zonas más pequeñas para sacar emails."); return; }
-      faltan=faltan.slice(0,TOPE);
+    // TÚ eliges cuántos enriquecer (cada uno gasta cupo de Serper); por defecto 40, los más 🔥 primero. 0 = ninguno.
+    if(faltan.length){
+      const resp=await pedir("Hay "+faltan.length+" negocios sin email. ¿De cuántos saco datos AHORA? Cada uno gasta cupo de Serper; van primero los más interesantes 🔥. Escribe un número (0 = ninguno, solo añadirlos con su teléfono).", String(Math.min(40,faltan.length)));
+      if(resp===null){ setp(""); TAB="pipeline"; save("tab","pipeline"); render(); toast(add+" negocios añadidos (con teléfono)."); return; }
+      let cuantos=parseInt(String(resp).replace(/[^0-9]/g,""),10); if(isNaN(cuantos))cuantos=0;
+      if(cuantos<=0){ setp(""); TAB="pipeline"; save("tab","pipeline"); render(); toast(add+" negocios añadidos (con teléfono)."); return; }
+      faltan=faltan.slice(0,cuantos);
     }
     setp("✅ "+add+" negocios añadidos. Ahora saco datos de "+faltan.length+" (los más interesantes)…");
     resetDiag(); let n=0;
