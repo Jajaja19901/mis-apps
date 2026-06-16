@@ -20,9 +20,9 @@ el de la fábrica de apps** (ese es el `CLAUDE.md` de la raíz del repo).
 
 ## Piezas montadas (claves y worker NO van en el repo)
 - **Cloudflare Worker** (`worker-captador.js`, cuenta `matasano901`, fuera del repo): saca los
-  datos de cada bar. **URL activa: `https://polished-union-3d80.matasano901.workers.dev`** — la
-  app la lee de ⚙️ Ajustes (`cfWorker`), no la hardcodea (el defecto del código v70,
-  `orange-math-f552`, está viejo). Endpoints: `/find?q=nombre+ciudad` (enriquecedor) y `/?url=...`
+  datos de cada bar. **URL activa (v3, desplegada 16 jun): `https://holy-rain-3ea8.matasano901.workers.dev`** —
+  la app la lee de ⚙️ Ajustes (`cfWorker`); el defecto del código se actualizó a esta URL en v90
+  (antes `polished-union-3d80`, antes `orange-math-f552`). Endpoints: `/find?q=nombre+ciudad` (enriquecedor) y `/?url=...`
   (puente CORS). Lo usa `buscarDatosWeb`. **No tocar esa llamada sin pedirlo.** Detalle completo
   del worker (filtros, variables, límites, % de aciertos): **`centro-captacion/SKILL.md`**.
 - **Claves** (las pega el dueño en ⚙️ Ajustes, **nunca** en el repo):
@@ -63,6 +63,8 @@ el de la fábrica de apps** (ese es el `CLAUDE.md` de la raíz del repo).
 - `[2026-06-16] El ⚡ AUTOMÁTICO (buscarOSM) miraba un círculo de 6 km del centro y topaba en 400 (out ... 400) → en "Tenerife" se perdía toda la isla → v84: si la "caja" (boundingbox de Nominatim) es mayor que el radio, barre la caja entera; tope subido a 2000. Zona grande = isla/municipio, no un pueblo.`
 - `[2026-06-16] Los botones en LOTE (autoTodo/auto2/buscaMails) NO aplicaban datosCoinciden/mismaCalle (eso solo lo hacía el 🔄 manual) → pegaban webs del Ayuntamiento, Agencia Tributaria, TripAdvisor, ElTenedor… (páginas que HABLAN del bar, no su web). v85: esWebDirectorio() + esEmailBasura() en datosPatch (bloqueo de directorios/oficiales y emails de plantilla tipo tu@correo.com). v86: webDudosa() SOLO en los botones de lote tira además la web que no lleva el nombre del bar (Acaymo → fincavaquerogrill = otro negocio). El 🔄 NO se toca. Mejor vacío que equivocado.`
 - `[2026-06-16] El worker a mano daba 6-7/10 emails pero en la app casi 0 → la app llamaba a /find con timeout de 20s (línea 224, fetchT(...,20000)). El worker lee la WEB del bar (donde está el email) y eso tarda >20s, así que la app lo MATABA antes de tiempo y caía al respaldo flojo. Esto también explicaba que el 🔄 "llenara todo menos email". v87: timeout del worker 20s→45s (línea 224) y presupuesto de los botones de lote 45s→60s para que quepa. NO cambia la lógica de ningún botón, solo deja terminar al worker. El código del worker vive en Cloudflare (fuera del repo): para mejorar su búsqueda de email (leer /aviso-legal, /privacidad…) hay que editarlo allí y redeplegar.`
+- `[2026-06-16] El diagnóstico del 🔄 mostraba "Jina NO · Google NO · DDG NO · 0 letras" AUNQUE el worker respondiera, porque el worker devuelve sin _dbg (ese _dbg solo lo pone el respaldo) → confundía: parecía que fallaba todo. v89: buscarDatosWeb marca _via:"worker"|"fallback". v90: el diagnóstico del 🔄 dice "Worker: ✅ respondió · email sí/no…" o "❌ no respondió → usó respaldo". Solo cambia el TEXTO del alert, no la búsqueda/blindajes. El 2️⃣ también informa wOk/wMail (en cuántos respondió el worker y traía email).`
+- `[2026-06-16] Worker v3 desplegado (más emails: lee /aviso-legal,/privacidad,/contacto, pilla mailto:, descifra info[arroba]bar punto es). NUEVA URL: https://holy-rain-3ea8.matasano901.workers.dev → defecto del código actualizado en v90 (líneas 223 y la del botón 🔍 Probar). RECORDAR: ⚙️ Ajustes (cfWorker) MANDA sobre el defecto; si el dueño tenía la URL vieja guardada ahí, hay que cambiarla a mano. Worker mejorado es un poco más lento solo en los bares que esconden el email (lee más páginas, pero para al primer email).`
 
 ## 👷 Equipo de agentes y skill
 - Agentes en `.claude/agents/captacion-*`: **arquitecto** (planifica), **backend-worker**,

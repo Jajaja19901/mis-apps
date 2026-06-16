@@ -5,8 +5,8 @@ agente `captacion-backend-worker` **antes de tocar nada**. El **código fuente N
 (vive en la cuenta Cloudflare `matasano901`); esto documenta QUÉ hace, para editarlo con criterio
 cuando Jaime pegue el código.
 
-**URL activa:** `https://polished-union-3d80.matasano901.workers.dev`
-(la app la lee de ⚙️ Ajustes → `cfWorker`; el defecto del código v70, `orange-math-f552`, está viejo).
+**URL activa:** `https://holy-rain-3ea8.matasano901.workers.dev` (worker v3, 16 jun — más emails)
+(la app la lee de ⚙️ Ajustes → `cfWorker`; el defecto del código se actualizó a esta URL en v90).
 
 ## Qué es
 Un servidor pequeño en Cloudflare que la app llama por URL. Hace **dos cosas**:
