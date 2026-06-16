@@ -47,7 +47,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v83 · 16 jun</span></h1>
+  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v84 · 16 jun</span></h1>
   <nav class="tabs" id="tabs">
     <button data-t="buscar" type="button">🔎 Buscar</button>
     <button data-t="pipeline" type="button">📋 Pipeline</button>
@@ -1444,11 +1444,18 @@ async function buscarOSM(){
     const gj=await g.json();
     if(!gj||!gj.length) throw new Error("No encuentro esa ciudad. Prueba a escribirla más completa.");
     const lat=gj[0].lat, lon=gj[0].lon;
+    const bb=gj[0].boundingbox; // ["sur","norte","oeste","este"] — la "caja" que envuelve la zona
     // 2) negocios alrededor (Overpass, gratis) — el TIPO que escribas decide qué se busca
     const radio=(parseInt($("#bradio")&&$("#bradio").value,10)||6)*1000; // km -> metros
+    // ZONA GRANDE (isla, municipio extenso, provincia): si su "caja" es más ancha que el círculo del radio,
+    // barremos la CAJA ENTERA. Si no, en "Tenerife" solo miraría 6 km del centro y perdería miles de bares.
+    let geo='(around:'+radio+','+lat+','+lon+')';            // por defecto: círculo del radio (búsquedas de pueblo)
+    if(bb&&bb.length===4){ const s=+bb[0],n=+bb[1],w=+bb[2],e=+bb[3];
+      const anchoKm=distKm(s,w,s,e), altoKm=distKm(s,w,n,w);
+      if(Math.max(anchoKm,altoKm) > (radio/1000)*2){ geo='('+s+','+w+','+n+','+e+')'; } } // caja entera de la zona
     const filtros=osmFiltros(($("#bq")&&$("#bq").value)||"");
-    const partes=filtros.map(f=>'node'+f+'(around:'+radio+','+lat+','+lon+');way'+f+'(around:'+radio+','+lat+','+lon+');').join('');
-    const oq='[out:json][timeout:60];('+partes+');out center tags 400;';
+    const partes=filtros.map(f=>'node'+f+geo+';way'+f+geo+';').join('');
+    const oq='[out:json][timeout:90];('+partes+');out center tags 2000;';
     let j=null;
     for(const ep of ["https://overpass-api.de/api/interpreter","https://overpass.kumi.systems/api/interpreter"]){
       try{ const r=await fetch(ep,{method:"POST",body:"data="+encodeURIComponent(oq)}); if(r.ok){ j=await r.json(); break; } }catch(e){}
