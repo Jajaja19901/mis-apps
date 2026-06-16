@@ -60,6 +60,8 @@ el de la fábrica de apps** (ese es el `CLAUDE.md` de la raíz del repo).
 - `[2026-06-15] La llamada buscarDatosWeb al Worker es lo que ya funciona → No tocarla sin que el prompt lo pida.`
 - `[2026-06-15] La URL del worker cambió varias veces (broad-wind → orange-math → polished-union) → La URL viva NO se hardcodea: vive en ⚙️ Ajustes (cfWorker). Worker activo hoy: https://polished-union-3d80.matasano901.workers.dev. Verificar que el defecto del código no apunte a un worker muerto.`
 - `[2026-06-15] El defecto hardcodeado de la línea 223 (cuando ⚙️ Ajustes está vacío) seguía en orange-math-f552 (muerto) → corregido a polished-union-3d80 en v72. La llamada CORS de la línea 153 se deja en "" a propósito: sin worker usa proxies gratis.`
+- `[2026-06-16] El ⚡ AUTOMÁTICO (buscarOSM) miraba un círculo de 6 km del centro y topaba en 400 (out ... 400) → en "Tenerife" se perdía toda la isla → v84: si la "caja" (boundingbox de Nominatim) es mayor que el radio, barre la caja entera; tope subido a 2000. Zona grande = isla/municipio, no un pueblo.`
+- `[2026-06-16] Los botones en LOTE (autoTodo/auto2/buscaMails) NO aplicaban datosCoinciden/mismaCalle (eso solo lo hacía el 🔄 manual) → pegaban webs del Ayuntamiento, Agencia Tributaria, TripAdvisor, ElTenedor… (páginas que HABLAN del bar, no su web). v85: esWebDirectorio() + esEmailBasura() en datosPatch (bloqueo de directorios/oficiales y emails de plantilla tipo tu@correo.com). v86: webDudosa() SOLO en los botones de lote tira además la web que no lleva el nombre del bar (Acaymo → fincavaquerogrill = otro negocio). El 🔄 NO se toca. Mejor vacío que equivocado.`
 
 ## 👷 Equipo de agentes y skill
 - Agentes en `.claude/agents/captacion-*`: **arquitecto** (planifica), **backend-worker**,

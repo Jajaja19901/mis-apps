@@ -47,7 +47,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v85 · 16 jun</span></h1>
+  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v86 · 16 jun</span></h1>
   <nav class="tabs" id="tabs">
     <button data-t="buscar" type="button">🔎 Buscar</button>
     <button data-t="pipeline" type="button">📋 Pipeline</button>
@@ -314,6 +314,16 @@ function esWebDirectorio(u){ const s=String(u||"").toLowerCase();
 // Emails de relleno/plantilla que NO son reales (los escribe una web de ejemplo, no el bar).
 function esEmailBasura(e){ const s=String(e||"").toLowerCase().trim();
   return !s || /^(tu|tucorreo|correo|email|ejemplo|example|nombre|usuario|your|youremail|name)@|@(example|ejemplo|dominio|tudominio|sentry|wixpress|wordpress)\./i.test(s) || /noreply|no-reply/i.test(s); }
+// SOLO para los botones AUTOMÁTICOS en lote: ¿la web que adivinó el worker es dudosa? Lo es si es un
+// directorio, o si su dominio NO lleva ninguna palabra del nombre del bar (es de OTRO negocio: Acaymo →
+// fincavaquerogrill). El 🔄 manual NO usa esto (revisas tú); aquí, mejor dejar el campo vacío que equivocado.
+function webDudosa(web,nombre){ if(!web) return false;
+  if(esWebDirectorio(web)) return true;
+  const url=String(web).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9]/g,"");
+  const toks=String(nombre||"").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-z0-9 ]/g," ")
+    .split(/\s+/).filter(w=>w.length>=4 && !/^(bar|cafe|cafeteria|restaurante|restaurant|tasca|meson|pub|grill|asador|local|casa|los|las|del|the|tienda|kiosko)$/.test(w));
+  if(!toks.length) return false;                 // nombre sin palabra propia (ej. "Casa") → no puedo exigir, lo dejo pasar
+  return !toks.some(t=>url.includes(t)); }        // ninguna palabra del nombre aparece en la web → dudosa, fuera
 function datosPatch(d,l){ const p={}; if(d.email&&!l.email&&!esEmailBasura(d.email)){p.email=d.email; p.emailAuto=true;} if(safeUrl(d.web)&&!l.web&&!esWebDirectorio(d.web))p.web=safeUrl(d.web);
   // Texto con las URLs de Facebook/Instagram (del lead y de lo recién encontrado) para validar que un
   // teléfono nuevo NO sea un trozo de un ID largo de FB/IG (bug del worker con el 34635668619 falso).
@@ -984,7 +994,7 @@ document.addEventListener("click",async e=>{
     setp("✅ "+add+" negocios añadidos. Ahora saco datos de "+faltan.length+" (los más interesantes)…");
     resetDiag(); let n=0;
     for(let i=0;i<faltan.length;i++){ setp("🔎 Sacando emails… "+(i+1)+"/"+faltan.length+" · encontrados: <b>"+n+"</b>");
-      try{ const d=await conTope(buscarDatosWeb(faltan[i].nombre,faltan[i].ciudad),45000); const patch=datosPatch(d,faltan[i]); if(d.email)n++; if(Object.keys(patch).length) upLead(faltan[i].id,patch); }catch(e){}
+      try{ const d=await conTope(buscarDatosWeb(faltan[i].nombre,faltan[i].ciudad),45000); if(webDudosa(d.web,faltan[i].nombre)) d.web=""; const patch=datosPatch(d,faltan[i]); if(d.email)n++; if(Object.keys(patch).length) upLead(faltan[i].id,patch); }catch(e){}
       await new Promise(r=>setTimeout(r,400)); }
     setp("🎉 Listo: "+add+" bares · <b>"+n+"</b> con email.");
     alert("RESULTADO\n\nBares: "+add+"\nEmails encontrados: "+n+" de "+faltan.length+"\n\nDiagnóstico (mándame esta foto):\nClave Jina: "+((AJ().jinaKey||"").trim()?"PUESTA":"FALTA")+"\n"+diagTxt());
@@ -1215,7 +1225,7 @@ document.addEventListener("click",async e=>{
     t.disabled=true; let n=0, gemOn=hayGem;
     for(let i=0;i<faltan.length;i++){ const l=faltan[i]; t.textContent="2️⃣ "+(i+1)+"/"+faltan.length+" · "+n+" emails";
       try{
-        const d=await conTope(buscarDatosWeb(l.nombre,l.ciudad,true),75000); const patch=datosPatch(d,l); // modo PROFUNDO, igual que el 🔄 manual
+        const d=await conTope(buscarDatosWeb(l.nombre,l.ciudad,true),75000); if(webDudosa(d.web,l.nombre)) d.web=""; const patch=datosPatch(d,l); // modo PROFUNDO; webDudosa quita webs de otro negocio
         if(Object.keys(patch).length) upLead(l.id,patch);
         let cur=LEADS().find(x=>x.id===l.id)||l;
         if(!cur.email && gemOn){
@@ -1272,7 +1282,7 @@ document.addEventListener("click",async e=>{
     if(!confirm("Voy a buscar en la web el email y la web de "+faltan.length+" bares. Tarda unos segundos cada uno y algunos no tendrán email publicado. ¿Sigo?")) return;
     t.disabled=true; resetDiag(); let n=0,w=0;
     for(let i=0;i<faltan.length;i++){ t.textContent="🔎 buscando "+(i+1)+"/"+faltan.length+"…";
-      try{ const d=await conTope(buscarDatosWeb(faltan[i].nombre,faltan[i].ciudad),45000); const patch=datosPatch(d,faltan[i]); if(d.email)n++; if(patch.web)w++; if(Object.keys(patch).length) upLead(faltan[i].id,patch); }catch(e){}
+      try{ const d=await conTope(buscarDatosWeb(faltan[i].nombre,faltan[i].ciudad),45000); if(webDudosa(d.web,faltan[i].nombre)) d.web=""; const patch=datosPatch(d,faltan[i]); if(d.email)n++; if(patch.web)w++; if(Object.keys(patch).length) upLead(faltan[i].id,patch); }catch(e){}
       await new Promise(r=>setTimeout(r,400)); } // respiro para no saturar el puente
     t.disabled=false; render(); alert("RESULTADO\n\nEmails: "+n+"  ·  Webs: "+w+"  de "+faltan.length+" bares\n\nDiagnóstico (mándame esto):\n"+diagTxt()); return; }
   if(t.dataset.resp){ upLead(t.dataset.resp,{estado:"interesado"}); render(); toast("Marcado: respondió 🔥 ¡A cerrar!"); return; }
