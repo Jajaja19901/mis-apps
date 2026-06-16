@@ -47,7 +47,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v80 · 16 jun</span></h1>
+  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v81 · 16 jun</span></h1>
   <nav class="tabs" id="tabs">
     <button data-t="buscar" type="button">🔎 Buscar</button>
     <button data-t="pipeline" type="button">📋 Pipeline</button>
@@ -706,14 +706,15 @@ function pedir(titulo, valor){ return new Promise(res=>{
   ov.innerHTML='<div style="background:#fff;border-radius:14px;padding:18px;max-width:430px;width:100%;box-shadow:0 8px 30px rgba(0,0,0,.3)">'+
     '<div style="font-size:15px;font-weight:600;margin-bottom:10px;color:#222">'+esc(titulo)+'</div>'+
     '<div style="display:flex;gap:6px;align-items:stretch">'+
-    '<input id="_pdInp" style="flex:1;padding:12px;border:1.5px solid #ccc;border-radius:9px;font-size:16px;box-sizing:border-box;min-width:0" value="'+esc(valor||"")+'">'+
-    '<button id="_pdPaste" class="mini" type="button" title="Pegar lo que copiaste (del navegador / IA Google)" style="white-space:nowrap">📋 Pegar</button></div>'+
-    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">'+
+    '<input id="_pdInp" style="flex:1;padding:13px;border:1.5px solid #ccc;border-radius:9px;font-size:16px;box-sizing:border-box;min-width:0" value="'+esc(valor||"")+'" placeholder="pega o escribe aquí">'+
+    '<button id="_pdPaste" class="mini" type="button" title="Pegar lo que copiaste" style="white-space:nowrap">📋 Pegar</button></div>'+
+    '<div style="font-size:12px;color:#b32424;margin-top:7px;line-height:1.35">👉 Si el botón 📋 no pega (en el móvil suele fallar): <b>mantén pulsado el recuadro de arriba</b> y dale a «<b>Pegar</b>» — o <b>escríbelo a mano</b>.</div>'+
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">'+
     '<button id="_pdC" class="mini" type="button">Cancelar</button>'+
     '<button id="_pdOK" class="btn btn-p" type="button">Guardar</button></div></div>';
   document.body.appendChild(ov);
   const inp=ov.querySelector("#_pdInp"); setTimeout(()=>{ try{ inp.focus(); inp.select(); }catch(e){} },50);
-  ov.querySelector("#_pdPaste").onclick=async()=>{ try{ const txt=(await navigator.clipboard.readText()||"").trim(); if(txt){ inp.value=txt; inp.focus(); } else { toast("El portapapeles está vacío"); } }catch(e){ toast("Tu navegador no deja leer el portapapeles: pega a mano (mantén pulsado el campo → Pegar)"); } };
+  ov.querySelector("#_pdPaste").onclick=async()=>{ try{ const txt=(await navigator.clipboard.readText()||"").trim(); if(txt){ inp.value=txt; inp.focus(); } else { inp.focus(); toast("Vacío — mantén pulsado el recuadro y dale a Pegar"); } }catch(e){ inp.focus(); toast("Aquí el botón no puede pegar: mantén pulsado el recuadro ☝️ y dale a «Pegar» (o escríbelo)"); } };
   const cerrar=v=>{ ov.remove(); res(v); };
   ov.querySelector("#_pdOK").onclick=()=>cerrar(inp.value);
   ov.querySelector("#_pdC").onclick=()=>cerrar(null);
