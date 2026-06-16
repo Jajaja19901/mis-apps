@@ -47,7 +47,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v77 · 16 jun</span></h1>
+  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v78 · 16 jun</span></h1>
   <nav class="tabs" id="tabs">
     <button data-t="buscar" type="button">🔎 Buscar</button>
     <button data-t="pipeline" type="button">📋 Pipeline</button>
@@ -1211,9 +1211,21 @@ document.addEventListener("click",async e=>{
         if(Object.keys(patch).length) upLead(l.id,patch);
         let cur=LEADS().find(x=>x.id===l.id)||l;
         if(!cur.email && gemOn){
-          try{ const g=await gemBuscaLeadMejorado(cur); if(g&&g.patch&&g.patch.email){ upLead(l.id,g.patch); } }
-          catch(e){ if(/quota|exceeded|RESOURCE_EXHAUSTED|429|limit: 0|dailyLimit|per day/i.test(e.message||"")){ gemOn=false; } }
-          await new Promise(r=>setTimeout(r,1500)); // respiro para el cupo de Gemini
+          let reintentos=0;
+          while(reintentos<3){
+            try{ const g=await gemBuscaLeadMejorado(cur); if(g&&g.patch&&g.patch.email){ upLead(l.id,g.patch); } break; }
+            catch(e){ const m=e.message||"";
+              const duro=/limit: 0|free_tier|per day|dailyLimit|daily limit/i.test(m);            // cupo del DÍA → esperar no sirve
+              const porMin=/429|RESOURCE_EXHAUSTED|rateLimit|per minute|retry in|exceeded|quota/i.test(m); // freno por MINUTO → pasajero
+              if(!duro && porMin && reintentos<2){ reintentos++;
+                let segs=50; const mm=m.match(/retry in (\d+)/i); if(mm) segs=Math.min(70,(+mm[1])+5);
+                for(let s=segs;s>0;s--){ t.textContent="⏳ Gemini frena 1 min — espero y SIGO ("+s+"s) · "+(i+1)+"/"+faltan.length; await new Promise(r=>setTimeout(r,1000)); }
+                continue;                                                                          // reintenta el MISMO bar, no lo pierde
+              }
+              if(duro){ gemOn=false; } break;                                                      // solo me rindo si es el cupo del DÍA
+            }
+          }
+          await new Promise(r=>setTimeout(r,4500));                                                // ~13/min: por debajo del tope por minuto, así casi nunca frena
         }
         cur=LEADS().find(x=>x.id===l.id)||l; if(cur.email) n++;
       }catch(e){}
