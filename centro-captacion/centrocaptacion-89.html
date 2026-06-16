@@ -47,7 +47,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v88 · 16 jun</span></h1>
+  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v89 · 16 jun</span></h1>
   <nav class="tabs" id="tabs">
     <button data-t="buscar" type="button">🔎 Buscar</button>
     <button data-t="pipeline" type="button">📋 Pipeline</button>
@@ -228,7 +228,7 @@ async function buscarDatosWeb(nombre,ciudad,prof){
         if(_d.email) DIAG.email++;
         // Capturo también la dirección que devuelva el worker (si la trae), para comparar la calle al Reajustar.
         const _dir=_d.address||_d.direccion||_d.dir||_d.formattedAddress||_d.formatted_address||_d.street||_d.calle||"";
-        return { email:(_d.email||""), web:safeUrl(_d.web||""), instagram:(_d.instagram||""), facebook:(_d.facebook||""), tel:(_d.tel||""), whatsapp:(_d.whatsapp||""), dir:String(_dir||"").trim() };
+        return { _via:"worker", email:(_d.email||""), web:safeUrl(_d.web||""), instagram:(_d.instagram||""), facebook:(_d.facebook||""), tel:(_d.tel||""), whatsapp:(_d.whatsapp||""), dir:String(_dir||"").trim() };
       }
     }
   }catch(e){}
@@ -304,7 +304,7 @@ async function buscarDatosWeb(nombre,ciudad,prof){
   if(email) DIAG.email++;
   if(prof){ const low=pg.toLowerCase(); const tk=tokensNombre(nombre); let idx=-1,tkf=""; for(const t of tk){ const i=low.indexOf(t); if(i>=0){idx=i;tkf=t;break;} }
     extra._dbg={ pgLen:pg.length, jina:DIAG.jina, gg:DIAG.gg, ddg:DIAG.ddg, nombreEnTexto:idx>=0?("sí ("+tkf+")"):"NO", emailHallado:email||"(ninguno)", telsCerca:telCand.slice(0,6).join(", ")||"(ninguno)", telsTodos:sacaTel(pg).slice(0,8).join(", ")||"(ninguno)", mobiles:telCand.filter(esMovil) }; }
-  return Object.assign({ email, web }, extra);
+  return Object.assign({ email, web, _via:"fallback" }, extra);
 }
 // Convierte lo encontrado en un parche para el lead (solo rellena lo que falta; no pisa lo que ya hay).
 // Webs que NUNCA son la del propio bar: directorios, agregadores, redes, ayuntamientos y sedes oficiales.
@@ -1222,10 +1222,11 @@ document.addEventListener("click",async e=>{
     const resp=await pedir("PASO 2 (termina lo que faltó, sobre todo EMAILS): el Worker lee su web y, si hace falta, Gemini razona. Gasta cupo de Serper/Gemini SOLO en estos. Hay "+cand.length+" sin email. ¿De cuántos AHORA?", String(Math.min(30,cand.length)));
     if(resp===null) return; let cuantos=parseInt(String(resp).replace(/[^0-9]/g,""),10); if(isNaN(cuantos)||cuantos<=0) return;
     const faltan=cand.slice(0,cuantos);
-    t.disabled=true; let n=0, gemOn=hayGem;
+    t.disabled=true; let n=0, gemOn=hayGem, wOk=0, wMail=0;
     for(let i=0;i<faltan.length;i++){ const l=faltan[i]; t.textContent="2️⃣ "+(i+1)+"/"+faltan.length+" · "+n+" emails";
       try{
         const d=await conTope(buscarDatosWeb(l.nombre,l.ciudad,true),75000); if(webDudosa(d.web,l.nombre)) d.web=""; const patch=datosPatch(d,l); // modo PROFUNDO; webDudosa quita webs de otro negocio
+        if(d._via==="worker"){ wOk++; if(d.email) wMail++; }   // ¿el worker respondió en la app? ¿traía email? (para que lo VEAS)
         if(Object.keys(patch).length) upLead(l.id,patch);
         let cur=LEADS().find(x=>x.id===l.id)||l;
         if(!cur.email && gemOn){
@@ -1248,7 +1249,11 @@ document.addEventListener("click",async e=>{
         cur=LEADS().find(x=>x.id===l.id)||l; if(cur.email) n++;
       }catch(e){}
       await new Promise(r=>setTimeout(r,400)); }
-    t.disabled=false; render(); alert("PASO 2 hecho.\n✉️ Emails nuevos: "+n+" de "+faltan.length+".\n\nLos que sigan sin email casi seguro no lo tienen publicado → míralos a mano (🔮 IA Google / 🤖 Gemini) o déjalos."+((!gemOn&&hayGem)?"\n\n(Gemini se quedó sin cupo a mitad; sigue mañana.)":"")); return; }
+    t.disabled=false; render(); alert("PASO 2 hecho.\n✉️ Emails nuevos: "+n+" de "+faltan.length+"."
+      +"\n\n🔧 WORKER (la prueba que pedías): respondió en la app en "+wOk+" de "+faltan.length+" bares, y traía email en "+wMail+"."
+      +(wOk>0&&wMail<wOk?"\n→ El worker SÍ funciona en la app; los que no dieron email es que no lo tienen público.":"")
+      +(wOk===0?"\n→ ⚠ El worker NO respondió ni una vez: revisa la URL del worker en ⚙️ Ajustes o pruébalo con 🔍 Probar buscar 1 email.":"")
+      +"\n\nLos que sigan sin email → míralos a mano (🔮 IA Google / 🤖 Gemini) o déjalos."+((!gemOn&&hayGem)?"\n\n(Gemini se quedó sin cupo a mitad; sigue mañana.)":"")); return; }
   if(t.id==="recuperaWa"){ const L=LEADS(); let n=0;
     L.forEach(l=>{ const mv=movilEnNotas(l); if(mv){ l.whatsapp="34"+mv; if(!l.tel)l.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); n++; } });
     if(n){ setLeads(L); render(); }
