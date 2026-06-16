@@ -47,7 +47,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v87 · 16 jun</span></h1>
+  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v88 · 16 jun</span></h1>
   <nav class="tabs" id="tabs">
     <button data-t="buscar" type="button">🔎 Buscar</button>
     <button data-t="pipeline" type="button">📋 Pipeline</button>
@@ -1340,19 +1340,21 @@ document.addEventListener("click",async e=>{
     E.filter(l=>/camarero/i.test(l.nivel||"")).forEach(l=>importarEmbudo(l.id,true)); toast("Importados ✓"); render(); return; }
   if(t.id==="csv"||t.id==="expPipe"){ exportCSV(); return; }
   if(t.id==="impPipe"){ const fi=$("#csvFilePipe"); if(fi) fi.click(); return; }
-  if(t.id==="aTestBar"){ const out=$("#testOut"); out.innerHTML="⏳ Buscando el email de un bar de prueba… (10-20s)";
-    const nombre="Mesón Los Chorros", ciudad="Firgas"; const q="correo electronico email de "+nombre+" "+ciudad;
-    const log=[];
-    let jina=""; try{ jina=await jinaSearch(q); }catch(e){}
-    log.push("1) Buscador Jina: "+(jina?("✅ trajo "+jina.length+" caracteres"):"❌ no respondió (puede pedir clave)"));
-    let gg=""; try{ gg=await traerWeb("https://www.google.com/search?q="+encodeURIComponent(q)); }catch(e){}
-    log.push("2) Google (por puente): "+(gg?("✅ "+gg.length+" car."):"❌ no llegó"));
-    let ddg=""; try{ ddg=await traerWeb("https://html.duckduckgo.com/html/?q="+encodeURIComponent(nombre+" "+ciudad+" email correo")); }catch(e){}
-    log.push("3) DuckDuckGo (por puente): "+(ddg?("✅ "+ddg.length+" car."):"❌ no llegó"));
-    const todo=(jina||"")+"\n"+(gg||"")+"\n"+(ddg||""); const mails=sacaEmails(todo);
-    log.push("4) Emails que aparecen en el texto: "+(mails.length?("✅ "+mails.slice(0,4).join(", ")):"❌ ninguno (el correo no está en lo que se pudo leer)"));
-    log.push(mails.length?"➡️ Hay material: la búsqueda real debería sacarlos.":"➡️ Si todo está en ❌, los puentes no traen el contenido en TU red, o el email no es público.");
-    out.innerHTML="<b>🔍 Diagnóstico (Mesón Los Chorros, Firgas):</b><br>"+log.join("<br>"); return; }
+  if(t.id==="aTestBar"){ const out=$("#testOut"); out.innerHTML="⏳ Probando el WORKER en un bar real… (espera, mido el tiempo)";
+    const nombre="Mesón Los Chorros", ciudad="Firgas";
+    const _wk=(AJ().cfWorker||"https://polished-union-3d80.matasano901.workers.dev").trim().replace(/\/+$/,"");
+    const log=["<b>Worker:</b> "+esc(_wk)];
+    // LA PRUEBA DE VERDAD: la MISMA llamada que hacen 🔄 / 2️⃣ / ⚡ (la de la línea 224). Mido cuánto tarda.
+    const t0=Date.now(); let wj=null;
+    try{ const r=await fetchT(_wk+"/find?q="+encodeURIComponent(nombre+" "+ciudad),{},45000); const s=((Date.now()-t0)/1000).toFixed(1);
+      if(r.ok){ wj=await r.json(); log.push("1) /find respondió ✅ en <b>"+s+" s</b>"); }
+      else log.push("1) /find ❌ HTTP "+r.status+" (en "+s+" s)"); }
+    catch(e){ const s=((Date.now()-t0)/1000).toFixed(1); log.push("1) /find ❌ "+esc(e.message||String(e))+" (tras "+s+" s — si pone 'tope/abort' tardó demasiado)"); }
+    if(wj){ if(wj.error){ log.push("2) El worker devolvió ERROR: <b>"+esc(wj.error)+"</b>"+(/SERPER/i.test(wj.error)?"  ← falta poner la clave Serper en Cloudflare":"")); }
+      else { log.push("2) EMAIL: "+(wj.email?("✅ <b>"+esc(wj.email)+"</b>"):"— (este bar quizá no lo tiene público)"));
+        log.push("&nbsp;&nbsp;&nbsp;web: "+esc(wj.web||"—")+" · tel: "+esc(wj.tel||"—")+" · leyó <b>"+(wj._textoLeido||0)+"</b> letras de su web"); } }
+    out.innerHTML="<b>🔍 Prueba del WORKER (Mesón Los Chorros, Firgas):</b><br>"+log.join("<br>")
+      +"<br><br><i>Si sale el email (o al menos web/tel y muchas letras) en pocos segundos → la app SÍ usa bien el worker. Si sale ERROR o tarda muchísimo, ahí está el fallo. <b>Mándame esta foto.</b></i>"; return; }
   if(t.id==="aTest"){ const out=$("#testOut"); out.innerHTML="⏳ Probando, espera unos segundos…";
     const jk=(AJ().jinaKey||"").trim();
     let puente=false, ia=null;
