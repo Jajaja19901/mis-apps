@@ -11,12 +11,8 @@
 <meta property="og:description" content="Mete tu negocio en la incubadora y sal con tu web o app que vende. Desde 250€, sin cuotas.">
 <meta name="twitter:card" content="summary_large_image">
 <style>
-  :root{
-    --bg:#070b12;--bg2:#0b1220;--panel:#0e1726;--line:#1d2a40;
-    --ink:#eaf1fb;--soft:#aebaccf2;--mut:#7f8da3;
-    --neo:#27e6a6;--neo2:#0c9c74;--cyan:#35d6ff;--vio:#8b6bff;
-    --radius:18px;--ease:cubic-bezier(.16,1,.3,1);
-  }
+  :root{--bg:#070b12;--bg2:#0b1220;--panel:#0e1726;--line:#1d2a40;--ink:#eaf1fb;--soft:#aebaccf2;--mut:#7f8da3;
+    --neo:#27e6a6;--neo2:#0c9c74;--cyan:#35d6ff;--vio:#8b6bff;--radius:18px;--ease:cubic-bezier(.16,1,.3,1)}
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html{scroll-behavior:smooth}
   body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,Arial,sans-serif;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
@@ -26,12 +22,14 @@
   a{color:inherit;text-decoration:none}
   .bgfx{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
   .bgfx::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);background-size:46px 46px;-webkit-mask-image:radial-gradient(circle at 50% 10%,#000,transparent 70%);mask-image:radial-gradient(circle at 50% 10%,#000,transparent 70%)}
-  .orb{position:absolute;border-radius:50%;filter:blur(70px);opacity:.3;will-change:transform}
+  .orb{position:absolute;border-radius:50%;filter:blur(70px);opacity:.3}
   .orb.a{width:460px;height:460px;background:var(--neo);top:-160px;right:-90px;animation:drift 20s ease-in-out infinite}
   .orb.b{width:400px;height:400px;background:var(--vio);top:38%;left:-140px;animation:drift 26s ease-in-out infinite reverse}
   .orb.c{width:380px;height:380px;background:var(--cyan);bottom:-160px;right:8%;animation:drift 24s ease-in-out infinite}
   @keyframes drift{0%,100%{transform:translate(0,0)}50%{transform:translate(34px,40px)}}
   @media(max-width:768px){.orb{filter:blur(46px);opacity:.22}}
+  /* foco que sigue al cursor */
+  .spot{position:fixed;inset:0;z-index:1;pointer-events:none;background:radial-gradient(380px 380px at var(--mx,50%) var(--my,18%),#27e6a614,transparent 70%);transition:background .12s linear}
 
   header.site{position:sticky;top:0;z-index:50;backdrop-filter:saturate(150%) blur(12px);background:rgba(7,11,18,.78);border-bottom:1px solid var(--line)}
   header .wrap{display:flex;align-items:center;justify-content:space-between;height:64px}
@@ -50,30 +48,28 @@
   .btn-p::after{content:"";position:absolute;top:0;left:-120%;width:60%;height:100%;background:linear-gradient(100deg,transparent,#ffffff66,transparent);transform:skewX(-18deg);animation:shine 4.5s ease-in-out infinite}
   @keyframes shine{0%,62%{left:-120%}82%,100%{left:140%}}
   .btn-p:hover{box-shadow:0 0 0 1px #27e6a6,0 0 50px #27e6a677,0 16px 44px #27e6a677;transform:translateY(-1px)}
-  .btn-g{background:#ffffff0a;color:var(--ink);border:1px solid var(--line)}
-  .btn-g:hover{border-color:var(--neo);color:#fff}
-  .btn-sm{padding:11px 18px;font-size:14px}
-  .btn-lg{padding:17px 32px;font-size:16px}
+  .btn-g{background:#ffffff0a;color:var(--ink);border:1px solid var(--line)}.btn-g:hover{border-color:var(--neo);color:#fff}
+  .btn-sm{padding:11px 18px;font-size:14px}.btn-lg{padding:17px 32px;font-size:16px}
 
   section{position:relative;z-index:2;padding:72px 0}
   .eyebrow{display:inline-block;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--neo);border:1px solid #27e6a644;background:#27e6a611;border-radius:999px;padding:6px 14px;font-weight:700}
   .h2{font-size:clamp(26px,4.6vw,40px);margin:14px 0 10px}
   .lead{color:var(--soft);font-size:clamp(15px,2vw,18px);max-width:60ch}
 
-  /* HERO + INCUBADORA */
-  .hero{text-align:center;padding:48px 0 30px}
-  .hero h1{font-size:clamp(33px,7vw,60px);margin:22px auto 16px;max-width:17ch}
-  .hero h1 em{font-style:normal;background:linear-gradient(120deg,var(--neo),var(--cyan) 55%,var(--vio));-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% auto;animation:hue 6s linear infinite}
+  .hero{text-align:center;padding:46px 0 28px}
+  .hero h1{font-size:clamp(33px,7vw,60px);margin:22px auto 14px;max-width:17ch}
+  .grad{background:linear-gradient(120deg,var(--neo),var(--cyan) 55%,var(--vio));-webkit-background-clip:text;background-clip:text;color:transparent;background-size:200% auto;animation:hue 6s linear infinite}
   @keyframes hue{to{background-position:200% center}}
+  .rot{display:inline-block;min-width:4.5ch;text-align:left;transition:opacity .3s var(--ease),transform .3s var(--ease)}
   .hero .sub{font-size:clamp(16px,2.3vw,20px);color:var(--soft);max-width:600px;margin:0 auto 26px}
   .hero-cta{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-  .trust{display:flex;gap:10px 16px;justify-content:center;flex-wrap:wrap;margin-top:24px;color:var(--mut);font-size:13.5px}
-  .trust b{color:var(--neo)}
+  .trust{display:flex;gap:10px 16px;justify-content:center;flex-wrap:wrap;margin-top:24px;color:var(--mut);font-size:13.5px}.trust b{color:var(--neo)}
   .anim-up{opacity:0;transform:translateY(22px);animation:up .8s var(--ease) forwards}
   .d1{animation-delay:.05s}.d2{animation-delay:.16s}.d3{animation-delay:.3s}.d4{animation-delay:.44s}.d5{animation-delay:.58s}
   @keyframes up{to{opacity:1;transform:none}}
 
-  .incubator{width:320px;max-width:84vw;height:320px;margin:6px auto 4px;position:relative;display:grid;place-items:center}
+  /* INCUBADORA con eclosión real */
+  .incubator{width:320px;max-width:84vw;height:320px;margin:6px auto 2px;position:relative;display:grid;place-items:center}
   .ring{position:absolute;border-radius:50%}
   .r1{inset:0;border:1px solid #27e6a633;animation:spin 18s linear infinite}
   .r2{inset:30px;border:1px dashed #8b6bff55;animation:spin 13s linear infinite reverse}
@@ -81,24 +77,45 @@
   @keyframes spin{to{transform:rotate(360deg)}}
   .orbit{position:absolute;inset:0;animation:spin 7s linear infinite}
   .orbit i{position:absolute;top:-7px;left:50%;width:14px;height:14px;margin-left:-7px;border-radius:50%;background:var(--neo);box-shadow:0 0 16px var(--neo)}
-  .egg{width:150px;height:188px;border-radius:50% 50% 50% 50%/60% 60% 42% 42%;
-    background:radial-gradient(120% 120% at 38% 30%,#0f2b3a,#0a1a2a 55%,#0a1320);
+  .egg{width:154px;height:192px;border-radius:50% 50% 50% 50%/60% 60% 42% 42%;
+    background:radial-gradient(120% 120% at 38% 28%,#0f2b3a,#0a1a2a 55%,#0a1320);
     border:1px solid #27e6a655;position:relative;display:grid;place-items:center;
-    box-shadow:0 0 0 1px #27e6a622,0 0 60px #27e6a644,inset 0 -18px 40px #00000066,inset 0 14px 30px #27e6a622;
-    animation:incubate 3.4s var(--ease) infinite}
-  @keyframes incubate{0%,100%{transform:translateY(0) rotate(-2.5deg)}50%{transform:translateY(-8px) rotate(2.5deg)}}
-  .egg::before{content:"";position:absolute;inset:0;border-radius:inherit;background:radial-gradient(80% 50% at 50% 18%,#ffffff14,transparent 60%)}
-  .egg .ic{font-size:54px;line-height:1;filter:drop-shadow(0 6px 18px #27e6a655);transition:opacity .4s var(--ease),transform .4s var(--ease)}
-  .egg .lbl{position:absolute;bottom:-2px;font-size:11px;font-weight:800;letter-spacing:.04em;color:#04221a;background:linear-gradient(120deg,var(--neo),var(--cyan));padding:5px 12px;border-radius:999px;white-space:nowrap;box-shadow:0 8px 20px #27e6a644}
-  .phase{margin-top:20px;font-size:14px;color:var(--soft)}
-  .phase b{color:var(--neo)}
+    box-shadow:0 0 0 1px #27e6a622,0 0 60px #27e6a444,inset 0 -18px 40px #00000066,inset 0 14px 30px #27e6a622;
+    animation:incubate 3.2s var(--ease) infinite;transition:box-shadow .4s var(--ease)}
+  .egg.hatch{box-shadow:0 0 0 1px #27e6a6aa,0 0 90px #27e6a677,inset 0 -18px 40px #00000066}
+  @keyframes incubate{0%,100%{transform:translateY(0) rotate(-2.6deg)}50%{transform:translateY(-8px) rotate(2.6deg)}}
+  .egg::before{content:"";position:absolute;inset:0;border-radius:inherit;background:radial-gradient(80% 50% at 50% 16%,#ffffff14,transparent 60%)}
+  .egg .ic{position:absolute;font-size:56px;filter:drop-shadow(0 6px 18px #27e6a655);transition:opacity .35s var(--ease),transform .35s var(--ease)}
+  .egg.hatch .ic{opacity:0;transform:scale(.4)}
+  /* grieta */
+  .crack{position:absolute;top:14%;width:2px;height:0;background:#27e6a6;opacity:0;box-shadow:0 0 10px #27e6a6;transition:height .3s var(--ease),opacity .3s}
+  .egg.hatch .crack{height:46%;opacity:.9}
+  /* mini-web que emerge */
+  .hatchw{position:absolute;width:120px;opacity:0;transform:scale(.4) translateY(10px);transition:opacity .45s var(--ease) .12s,transform .5s var(--ease) .12s}
+  .egg.hatch .hatchw{opacity:1;transform:scale(1) translateY(0)}
+  .bw{background:#0c1422;border:1px solid #27e6a655;border-radius:9px;overflow:hidden;box-shadow:0 10px 30px #00000088}
+  .bw .bar{display:flex;gap:4px;padding:7px 8px;background:#0e1726;border-bottom:1px solid var(--line)}
+  .bw .bar i{width:6px;height:6px;border-radius:50%;background:#2c3a52}.bw .bar i:first-child{background:var(--neo)}
+  .bw .scr{padding:10px 9px;display:flex;flex-direction:column;gap:6px}
+  .bw .ln{height:6px;border-radius:3px;background:#1c2942}.bw .ln.w1{width:80%}.bw .ln.w2{width:55%}
+  .bw .cta{height:14px;width:48px;border-radius:5px;background:linear-gradient(120deg,var(--neo),var(--cyan));margin-top:2px}
+  .lbl{position:absolute;bottom:-2px;font-size:11px;font-weight:800;color:#04221a;background:linear-gradient(120deg,var(--neo),var(--cyan));padding:5px 12px;border-radius:999px;white-space:nowrap;box-shadow:0 8px 20px #27e6a444}
+  /* chispas */
+  .sparks{position:absolute;inset:0;pointer-events:none}
+  .sparks i{position:absolute;top:50%;left:50%;width:5px;height:5px;border-radius:50%;background:var(--cyan);opacity:0}
+  .egg.hatch .sparks i{animation:spark .7s var(--ease)}
+  .sparks i:nth-child(1){--tx:-60px;--ty:-50px}.sparks i:nth-child(2){--tx:62px;--ty:-44px;background:var(--neo)}
+  .sparks i:nth-child(3){--tx:-52px;--ty:48px;background:var(--vio)}.sparks i:nth-child(4){--tx:58px;--ty:52px}
+  .sparks i:nth-child(5){--tx:0;--ty:-70px;background:var(--neo)}.sparks i:nth-child(6){--tx:0;--ty:66px}
+  @keyframes spark{0%{opacity:0;transform:translate(0,0) scale(.4)}30%{opacity:1}100%{opacity:0;transform:translate(var(--tx),var(--ty)) scale(1)}}
+  .phase{margin-top:18px;font-size:14px;color:var(--soft)}.phase b{color:var(--neo)}
 
   .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s var(--ease),transform .7s var(--ease)}
   .reveal.in{opacity:1;transform:none}
   .grid{display:grid;gap:16px}
   @media(min-width:680px){.grid.c3{grid-template-columns:repeat(3,1fr)}}
-  .card{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:var(--radius);padding:22px;transition:transform .3s var(--ease),border-color .3s var(--ease),box-shadow .3s var(--ease)}
-  .card:hover{transform:translateY(-5px);border-color:#27e6a655;box-shadow:0 18px 50px #00000066}
+  .card{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02));backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:var(--radius);padding:22px;transition:transform .2s var(--ease),border-color .3s var(--ease),box-shadow .3s var(--ease);transform-style:preserve-3d;will-change:transform}
+  .card:hover{border-color:#27e6a655;box-shadow:0 18px 50px #00000066}
   .card .ico{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-size:22px;background:#27e6a611;border:1px solid #27e6a633;margin-bottom:12px}
   .card h3{font-size:18px;margin-bottom:6px}.card p{color:var(--soft);font-size:14.5px}
 
@@ -110,9 +127,8 @@
 
   .phases{display:grid;gap:14px}
   @media(min-width:680px){.phases{grid-template-columns:repeat(3,1fr)}}
-  .phasec{background:rgba(255,255,255,.04);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:var(--radius);padding:22px;position:relative}
-  .phasec .big{font-size:34px}
-  .phasec .step{font-family:monospace;font-size:12px;letter-spacing:.16em;color:var(--neo);text-transform:uppercase}
+  .phasec{background:rgba(255,255,255,.04);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:var(--radius);padding:22px}
+  .phasec .big{font-size:34px}.phasec .step{font-family:monospace;font-size:12px;letter-spacing:.16em;color:var(--neo);text-transform:uppercase}
   .phasec h3{font-size:18px;margin:8px 0 4px}.phasec p{color:var(--soft);font-size:14px}
 
   .marquee{overflow:hidden;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:16px 0;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
@@ -134,6 +150,7 @@
 </head>
 <body>
 <div class="bgfx"><div class="orb a"></div><div class="orb b"></div><div class="orb c"></div></div>
+<div class="spot" id="spot"></div>
 
 <header class="site"><div class="wrap">
   <a class="logo" href="#top"><span class="mk"><svg viewBox="0 0 240 240"><g fill="none" stroke="#27e6a6" stroke-width="10" stroke-linejoin="round"><rect x="52" y="98" width="136" height="92" rx="15"/><path d="M52 124 H188"/></g><g fill="#27e6a6"><circle cx="70" cy="111" r="5"/><circle cx="86" cy="111" r="5"/><circle cx="102" cy="111" r="5"/></g><g transform="translate(120,152) scale(.6) translate(-120,-128)"><g fill="#27e6a6"><path d="M120 152 C151 154 167 133 161 104 C134 110 122 129 120 152 Z"/><path d="M120 152 C89 154 73 133 79 104 C106 110 118 129 120 152 Z"/></g><g fill="none" stroke="#27e6a6" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"><path d="M120 184 V74"/><path d="M101 96 L120 72 L139 96"/></g></g></svg></span><span>Incuba tu Negocio<small>Webs · Catálogos · Apps</small></span></a>
@@ -143,11 +160,17 @@
 <a id="top"></a>
 <section class="hero"><div class="wrap">
   <span class="eyebrow anim-up d1">🥚 Incubadora de webs y apps</span>
-  <h1 class="anim-up d2">Mete tu negocio en la <em>incubadora</em> y sal con tu web que vende</h1>
+  <h1 class="anim-up d2">Mete tu negocio en la <span class="grad">incubadora</span> y sal con tu <span class="grad rot" id="rot">web</span> que vende</h1>
   <div class="incubator anim-up d3" aria-hidden="true">
     <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
     <div class="orbit"><i></i></div>
-    <div class="egg"><span class="ic" id="eggIc">🥚</span><span class="lbl" id="eggLbl">Incubando…</span></div>
+    <div class="egg" id="egg">
+      <span class="crack"></span>
+      <span class="ic" id="eggIc">🥚</span>
+      <div class="hatchw"><div class="bw"><div class="bar"><i></i><i></i><i></i></div><div class="scr"><div class="ln w1"></div><div class="ln w2"></div><div class="cta"></div></div></div></div>
+      <div class="sparks"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <span class="lbl" id="eggLbl">Incubando…</span>
+    </div>
   </div>
   <p class="phase anim-up d3" id="phaseTxt"><b>Fase 01</b> · Pones el huevo (nos cuentas tu negocio)</p>
   <p class="sub anim-up d4">De tu idea sale una web, catálogo o app a medida, lista para recibir clientes <b style="color:#fff">por WhatsApp</b>. Sin cuotas raras, en días.</p>
@@ -158,14 +181,12 @@
   <div class="trust anim-up d5"><span><b>✓</b> Desde 250€</span> <span><b>✓</b> Sin cuotas</span> <span><b>✓</b> En días</span> <span><b>✓</b> Carga &lt;2 s</span></div>
 </div></section>
 
-<section style="padding-top:8px"><div class="wrap">
-  <div class="metrics">
-    <div class="metric reveal"><div class="n"><span data-count="10">0</span>+</div><div class="l">sectores con ejemplos</div></div>
-    <div class="metric reveal"><div class="n">&lt;<span data-count="2">0</span>s</div><div class="l">velocidad de carga</div></div>
-    <div class="metric reveal"><div class="n"><span data-count="250">0</span>€</div><div class="l">desde, pago único</div></div>
-    <div class="metric reveal"><div class="n"><span data-count="100">0</span>%</div><div class="l">tuya, sin cuotas</div></div>
-  </div>
-</div></section>
+<section style="padding-top:8px"><div class="wrap"><div class="metrics">
+  <div class="metric reveal"><div class="n"><span data-count="10">0</span>+</div><div class="l">sectores con ejemplos</div></div>
+  <div class="metric reveal"><div class="n">&lt;<span data-count="2">0</span>s</div><div class="l">velocidad de carga</div></div>
+  <div class="metric reveal"><div class="n"><span data-count="250">0</span>€</div><div class="l">desde, pago único</div></div>
+  <div class="metric reveal"><div class="n"><span data-count="100">0</span>%</div><div class="l">tuya, sin cuotas</div></div>
+</div></div></section>
 
 <section id="como"><div class="wrap">
   <span class="eyebrow reveal">Cómo funciona</span>
@@ -181,7 +202,7 @@
   <span class="eyebrow reveal">Lo que hago</span>
   <h2 class="h2 reveal">Todo lo que tu negocio necesita online</h2>
   <p class="lead reveal" style="margin-bottom:24px">No solo una web bonita: una herramienta para que te lleguen clientes.</p>
-  <div class="grid c3">
+  <div class="grid c3" id="svgrid">
     <div class="card reveal"><div class="ico">🌐</div><h3>Páginas web</h3><p>Tu presencia profesional, rápida y perfecta en el móvil.</p></div>
     <div class="card reveal"><div class="ico">🗂️</div><h3>Catálogos de productos</h3><p>Tu escaparate 24h: enseña lo que vendes y que te lo pidan.</p></div>
     <div class="card reveal"><div class="ico">🎯</div><h3>Landing pages</h3><p>Embudos pensados para convertir visitas en clientes.</p></div>
@@ -205,58 +226,75 @@
   <div class="faq reveal" data-action="faq"><button type="button">¿Puedo vender mis productos? <span class="pl">+</span></button><div class="a" id="faq3" hidden>Sí: monto tu catálogo para enseñar tus productos y que te los pidan por WhatsApp, sin comisiones.</div></div>
 </div></section>
 
-<section id="contacto"><div class="wrap">
-  <div class="band reveal">
-    <h2>¿Incubamos tu negocio?</h2>
-    <p>Escríbeme y te preparo una <b style="color:#fff">demo gratis</b> de cómo quedaría lo tuyo. Sin compromiso.</p>
-    <div class="hero-cta">
-      <a class="btn btn-p btn-lg" href="https://instagram.com/incuba_tu_negocio" target="_blank" rel="noopener">🥚 Incubar por Instagram</a>
-      <a class="btn btn-g btn-lg" data-action="wa" href="#contacto">WhatsApp</a>
-    </div>
-    <div class="note" id="wa-note" hidden>Pon tu número de WhatsApp en la configuración para activar este botón. De momento, escríbeme por Instagram 👆</div>
+<section id="contacto"><div class="wrap"><div class="band reveal">
+  <h2>¿Incubamos tu negocio?</h2>
+  <p>Escríbeme y te preparo una <b style="color:#fff">demo gratis</b> de cómo quedaría lo tuyo. Sin compromiso.</p>
+  <div class="hero-cta">
+    <a class="btn btn-p btn-lg" href="https://instagram.com/incuba_tu_negocio" target="_blank" rel="noopener">🥚 Incubar por Instagram</a>
+    <a class="btn btn-g btn-lg" data-action="wa" href="#contacto">WhatsApp</a>
   </div>
-</div></section>
+  <div class="note" id="wa-note" hidden>Pon tu número de WhatsApp en la configuración para activar este botón. De momento, escríbeme por Instagram 👆</div>
+</div></div></section>
 
 <footer><div class="wrap">Diseñado por <b>Incuba tu Negocio</b> · por Jaime M. M. · @incuba_tu_negocio</div></footer>
 
 <script type="application/json" id="acceptance-tests">
 [
-  {"name":"La incubadora y el titular cargan","steps":[{"expect":"incubadora"},{"expect":"vende"}]},
-  {"name":"El huevo (incubadora) esta presente","steps":[{"expectVisible":"#eggIc"}]},
-  {"name":"El FAQ se abre al pulsar","steps":[{"clickText":"¿Cuánto tarda"},{"expectVisible":"#faq0"}]},
+  {"name":"Incubadora y titular","steps":[{"expect":"incubadora"},{"expect":"vende"}]},
+  {"name":"El huevo esta presente","steps":[{"expectVisible":"#egg"}]},
+  {"name":"El FAQ se abre","steps":[{"clickText":"¿Cuánto tarda"},{"expectVisible":"#faq0"}]},
   {"name":"Navega a servicios","steps":[{"goto":"#servicios"},{"expect":"Catálogos de productos"}]},
-  {"name":"El boton WhatsApp avisa de configurarlo","steps":[{"clickText":"WhatsApp"},{"expectVisible":"#wa-note"}]}
+  {"name":"WhatsApp avisa","steps":[{"clickText":"WhatsApp"},{"expectVisible":"#wa-note"}]}
 ]
 </script>
 <script>
 "use strict";
-/* incubadora: cicla las fases (huevo -> incubando -> eclosiona) */
+/* incubadora: incuba y ECLOSIONA (el huevo se abre y sale una mini-web) */
 (function(){
-  const ic=document.getElementById("eggIc"),lbl=document.getElementById("eggLbl"),txt=document.getElementById("phaseTxt");
-  if(!ic)return;
-  const fases=[
-    {ic:"🥚",lbl:"Incubando…",tx:"<b>Fase 01</b> · Pones el huevo (nos cuentas tu negocio)"},
-    {ic:"⚙️",lbl:"Construyendo…",tx:"<b>Fase 02</b> · Lo incubamos (diseñamos tu web a medida)"},
-    {ic:"🌐",lbl:"¡Eclosionó!",tx:"<b>Fase 03</b> · Sale tu web o app, lista para vender"}
+  const egg=document.getElementById("egg"),ic=document.getElementById("eggIc"),lbl=document.getElementById("eggLbl"),txt=document.getElementById("phaseTxt");
+  if(!egg)return;
+  const F=[
+    {hatch:false,ic:"🥚",lbl:"Incubando…",tx:"<b>Fase 01</b> · Pones el huevo (nos cuentas tu negocio)"},
+    {hatch:false,ic:"⚙️",lbl:"Construyendo…",tx:"<b>Fase 02</b> · Lo incubamos (diseñamos tu web a medida)"},
+    {hatch:true ,ic:"🌐",lbl:"¡Eclosionó!",tx:"<b>Fase 03</b> · Sale tu web o app, lista para vender"}
   ];
   let i=0;
-  setInterval(()=>{ i=(i+1)%fases.length; const f=fases[i];
-    ic.style.opacity="0"; ic.style.transform="scale(.6)";
-    setTimeout(()=>{ ic.textContent=f.ic; ic.style.opacity="1"; ic.style.transform="scale(1)"; if(lbl)lbl.textContent=f.lbl; if(txt)txt.innerHTML=f.tx; },280);
+  setInterval(()=>{ i=(i+1)%F.length; const f=F[i];
+    egg.classList.toggle("hatch",f.hatch);
+    if(!f.hatch){ ic.textContent=f.ic; }
+    if(lbl)lbl.textContent=f.lbl; if(txt)txt.innerHTML=f.tx;
   },2600);
 })();
-/* reveal on scroll + count-up (efecto Framer en JS puro) */
+/* palabra que rota en el titular */
+(function(){
+  const el=document.getElementById("rot"); if(!el)return;
+  const w=["web","catálogo","app","tienda","reserva"]; let i=0;
+  setInterval(()=>{ i=(i+1)%w.length; el.style.opacity="0"; el.style.transform="translateY(-8px)";
+    setTimeout(()=>{ el.textContent=w[i]; el.style.opacity="1"; el.style.transform="none"; },300); },2200);
+})();
+/* foco que sigue al cursor (solo ratón) */
+if(matchMedia("(pointer:fine)").matches){
+  window.addEventListener("pointermove",(e)=>{ document.body.style.setProperty("--mx",e.clientX+"px"); document.body.style.setProperty("--my",e.clientY+"px"); },{passive:true});
+}
+/* inclinación 3D de las tarjetas */
+(function(){
+  const cards=document.querySelectorAll(".card");
+  cards.forEach(c=>{
+    c.addEventListener("pointermove",(e)=>{ const r=c.getBoundingClientRect(); const x=(e.clientX-r.left)/r.width-.5, y=(e.clientY-r.top)/r.height-.5;
+      c.style.transform="perspective(700px) rotateX("+(-y*6)+"deg) rotateY("+(x*6)+"deg) translateY(-4px)"; },{passive:true});
+    c.addEventListener("pointerleave",()=>{ c.style.transform=""; });
+  });
+})();
+/* reveal + count-up */
 (function(){
   const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("in");(e.target.querySelectorAll?e.target.querySelectorAll("[data-count]"):[]).forEach(cu);if(e.target.matches&&e.target.matches("[data-count]"))cu(e.target);io.unobserve(e.target);}});},{threshold:.16});
   document.querySelectorAll(".reveal,[data-count]").forEach(el=>io.observe(el));
-  function cu(el){if(el.dataset.done)return;el.dataset.done="1";const t=+el.getAttribute("data-count")||0,dur=1100,t0=performance.now();(function tick(n){const p=Math.min(1,(n-t0)/dur);el.textContent=Math.round(t*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(tick);})(t0);}
+  function cu(el){if(el.dataset.done)return;el.dataset.done="1";const t=+el.getAttribute("data-count")||0,dur=1100,t0=performance.now();(function k(n){const p=Math.min(1,(n-t0)/dur);el.textContent=Math.round(t*(1-Math.pow(1-p,3)));if(p<1)requestAnimationFrame(k);})(t0);}
 })();
 /* FAQ + aviso WhatsApp */
 document.addEventListener("click",(e)=>{
-  const f=e.target.closest('[data-action="faq"]');
-  if(f){const a=f.querySelector(".a");if(a){const o=!a.hidden;a.hidden=o;f.classList.toggle("open",!o);}return;}
-  const w=e.target.closest('[data-action="wa"]');
-  if(w){e.preventDefault();const n=document.getElementById("wa-note");if(n)n.hidden=false;}
+  const f=e.target.closest('[data-action="faq"]'); if(f){const a=f.querySelector(".a");if(a){const o=!a.hidden;a.hidden=o;f.classList.toggle("open",!o);}return;}
+  const w=e.target.closest('[data-action="wa"]'); if(w){e.preventDefault();const n=document.getElementById("wa-note");if(n)n.hidden=false;}
 });
 </script>
 </body>
