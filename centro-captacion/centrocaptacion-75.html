@@ -47,7 +47,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v74 · 16 jun</span></h1>
+  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v75 · 16 jun</span></h1>
   <nav class="tabs" id="tabs">
     <button data-t="buscar" type="button">🔎 Buscar</button>
     <button data-t="pipeline" type="button">📋 Pipeline</button>
@@ -1132,7 +1132,7 @@ document.addEventListener("click",async e=>{
   if(t.dataset.gem){ const l=LEADS().find(x=>x.id===t.dataset.gem); if(!l) return;
     if(!(AJ().geminiKey||AJ().gkey||"").trim()){ alert("Para usar Gemini necesitas su clave: sácala GRATIS en aistudio.google.com/app/apikey (2 clics) y pégala en ⚙️ Ajustes → Clave Gemini."); return; }
     const o=t.textContent; t.textContent="🤖…"; t.disabled=true;
-    try{ const {patch,found,txt}=await gemBuscaLead(l);
+    try{ const {patch,found,txt}=await gemBuscaLeadMejorado(l);
       if(found.length){ upLead(l.id,patch); render(); toast("Gemini puso: "+found.join(", ")+" — REVÍSALO antes de usar"); }
       else { t.textContent=o; t.disabled=false; alert("Gemini no encontró datos fiables de "+l.nombre+".\n\nRespuesta:\n"+(txt.slice(0,300)||"(vacío)")); }
     }catch(e){ t.textContent=o; t.disabled=false;
@@ -1533,6 +1533,16 @@ function extraeContacto(txt, l, d, etiqueta){
 // Busca email/móvil/Instagram de UN lead con Gemini (búsqueda en internet) y devuelve {patch, found, txt}.
 async function gemBuscaLead(l){
   const prompt="Quiero los datos de contacto del negocio de hostelería \""+l.nombre+"\" que está EXACTAMENTE en "+(l.ciudad||"Canarias")+", GRAN CANARIA, ISLAS CANARIAS (España). IMPORTANTE: hay negocios con nombres parecidos en la Península (Málaga, Gaucín, etc.) y en otras islas — esos NO valen. Si lo que encuentras es de OTRA provincia/isla, o no puedes confirmar que es el de "+(l.ciudad||"Canarias")+" (Gran Canaria), devuelve TODO vacío. Busca su Instagram, su teléfono móvil (WhatsApp) y su email (web oficial, Instagram, Facebook, TripAdvisor, directorios locales canarios). Explica brevemente qué encontraste, di en qué LUGAR está, y TERMINA con una única línea JSON: {\"email\":\"\",\"movil\":\"\",\"instagram\":\"\"} — instagram = usuario sin @; movil = número español que empiece por 6 o 7. SOLO datos publicados de verdad de ESE negocio de Gran Canaria; si algo no aparece, cadena vacía. NUNCA inventes ni mezcles con un homónimo de otra zona.";
+  const txt=await geminiPregunta(prompt);
+  let d={}; const bloques=txt.match(/\{[^{}]*\}/g)||[];
+  for(let k=bloques.length-1;k>=0;k--){ try{ const o=JSON.parse(bloques[k]); if(("email" in o)||("movil" in o)||("instagram" in o)){ d=o; break; } }catch(e){} }
+  const {patch,found}=extraeContacto(txt, l, d, "Gemini");
+  return { patch, found, txt };
+}
+// ── Copia MEJORADA del prompt, SOLO para el botón 🤖 Gemini. El 🔄 Reajustar (flechas) sigue usando gemBuscaLead original, intacto. ──
+async function gemBuscaLeadMejorado(l){
+  const calle=(l.dir||"").trim();
+  const prompt="Quiero los datos de contacto del negocio de hostelería \""+l.nombre+"\" que está EXACTAMENTE en "+(l.ciudad||"Canarias")+", GRAN CANARIA, ISLAS CANARIAS (España)."+(calle?(" Su dirección es \""+calle+"\": úsala para confirmar que es ESE local y no otro con el mismo nombre en otra calle."):"")+" IMPORTANTE: existe el mismo nombre en la Península (Málaga, Gaucín…), en otras islas, y a veces otro local igual en OTRA calle de la misma ciudad — esos NO valen. Si lo que encuentras es de otra provincia/isla/calle, o no puedes confirmar que es el de "+(l.ciudad||"Canarias")+" (Gran Canaria), devuelve TODO vacío. Saca su email, su móvil (WhatsApp, 9 cifras que empiece por 6 o 7) y su Instagram SOLO de fuentes PROPIAS del bar: su web oficial, su Instagram o su Facebook. NO cojas el email de TripAdvisor, TheFork, OpenTable, Wanderlog ni de directorios o agregadores: ese no es el suyo. Explica brevemente qué encontraste y en qué LUGAR está, y TERMINA con una única línea JSON: {\"email\":\"\",\"movil\":\"\",\"instagram\":\"\"} — instagram = usuario sin @. SOLO datos publicados DE VERDAD de ESE negocio; si algo no aparece o dudas, cadena vacía (mejor vacío que equivocado). NUNCA inventes ni mezcles con un homónimo de otra zona o calle.";
   const txt=await geminiPregunta(prompt);
   let d={}; const bloques=txt.match(/\{[^{}]*\}/g)||[];
   for(let k=bloques.length-1;k>=0;k--){ try{ const o=JSON.parse(bloques[k]); if(("email" in o)||("movil" in o)||("instagram" in o)){ d=o; break; } }catch(e){} }
