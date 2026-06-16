@@ -47,7 +47,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v89 · 16 jun</span></h1>
+  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v90 · 16 jun</span></h1>
   <nav class="tabs" id="tabs">
     <button data-t="buscar" type="button">🔎 Buscar</button>
     <button data-t="pipeline" type="button">📋 Pipeline</button>
@@ -1051,10 +1051,11 @@ document.addEventListener("click",async e=>{
       if(Object.keys(patch).length) upLead(l2.id,patch);
       const g=d._dbg||{};
       const tieneCSE=(AJ().cseId||"").trim()&&(AJ().gkey||"").trim();
-      const diag="— Diagnóstico —\nBúsqueda Google (CSE): "+(tieneCSE?"sí":"NO montada")+"\nWeb: Jina "+(g.jina?"sí":"NO")+" · Google "+(g.gg?"sí":"NO")+" · DDG "+(g.ddg?"sí":"NO")+"\nTexto leído: "+(g.pgLen||0)+" letras";
+      const viaWk=d._via==="worker";   // ¿contestó el worker? si sí, no enseño el respaldo (que confundía)
+      const diag="— Diagnóstico —\nWorker: "+(viaWk?("✅ respondió · email "+(d.email?"sí":"no")+" · web "+(d.web?"sí":"no")+" · tel "+(d.tel?"sí":"no")):("❌ no respondió → usó respaldo (Jina "+(g.jina?"sí":"NO")+" · Google "+(g.gg?"sí":"NO")+" · DDG "+(g.ddg?"sí":"NO")+" · "+(g.pgLen||0)+" letras)"))+"\nBúsqueda Google (CSE): "+(tieneCSE?"sí":"no montada (no hace falta: tienes worker)");
       render();
       if(cambios.length){ alert(l.nombre+": ACTUALIZADO ✓\nCambios: "+cambios.join(", ")+"\n\n"+diag); t.textContent=o; t.disabled=false; }
-      else { t.textContent=o; t.disabled=false; alert(l.nombre+": sin datos nuevos publicados.\n\n"+diag+(tieneCSE?"":"\n\n⚠ Aún NO has montado la Búsqueda de Google (CSE) en ⚙️ Ajustes — sin eso no se puede sacar lo que ves a mano en Google. Mientras, usa 🔮 IA Google.")); }
+      else { t.textContent=o; t.disabled=false; alert(l.nombre+": sin datos nuevos publicados.\n\n"+diag+(viaWk?"\n\n(El worker miró pero este bar no tiene email/web públicos nuevos. Normal en bares pequeños.)":((!tieneCSE)?"\n\n⚠ El worker no respondió esta vez. Prueba ⚙️ Ajustes → 🔍 Probar buscar 1 email para ver qué pasa.":""))); }
     }catch(err){ toast("No se pudo reajustar: "+err.message); t.textContent=o; t.disabled=false; } return; }
   if(t.dataset.editmail){ const l=LEADS().find(x=>x.id===t.dataset.editmail);
     const raw=await pedir("Email de "+l.nombre+" (pégalo aquí). Vacío = quitarlo:", l.email||""); if(raw===null) return;
