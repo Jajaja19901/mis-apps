@@ -47,7 +47,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v79 · 16 jun</span></h1>
+  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v80 · 16 jun</span></h1>
   <nav class="tabs" id="tabs">
     <button data-t="buscar" type="button">🔎 Buscar</button>
     <button data-t="pipeline" type="button">📋 Pipeline</button>
@@ -1010,7 +1010,20 @@ document.addEventListener("click",async e=>{
       // 1) Búsqueda BUENA primero: Google real (CSE) o Gemini → email/móvil/Instagram (lo que ve Google a mano).
       if(((AJ().cseId||"").trim()&&(AJ().gkey||"").trim())||(AJ().geminiKey||"").trim()){
         t.textContent="🔎…";
-        try{ const g=await autoBuscaLead(l); if(g.found.length){ upLead(l.id,g.patch); g.found.forEach(f=>cambios.push(f)); } }catch(e){ if(/quota|exceeded|RESOURCE_EXHAUSTED|rateLimit|dailyLimit|429/i.test(e.message)) throw e; }
+        let gReint=0;
+        while(gReint<3){
+          try{ const g=await autoBuscaLead(l); if(g.found.length){ upLead(l.id,g.patch); g.found.forEach(f=>cambios.push(f)); } break; }
+          catch(e){ const gm=e.message||"";
+            const gDuro=/limit: 0|free_tier|per day|dailyLimit|daily limit/i.test(gm);                 // cupo del DÍA
+            const gMin=/429|RESOURCE_EXHAUSTED|rateLimit|per minute|retry in|exceeded|quota/i.test(gm); // freno por MINUTO (pasajero)
+            if(!gDuro && gMin && gReint<2){ gReint++;
+              let segs=50; const mm=gm.match(/retry in (\d+)/i); if(mm) segs=Math.min(70,(+mm[1])+5);
+              for(let s=segs;s>0;s--){ t.textContent="⏳ Gemini frena — espero "+s+"s…"; await new Promise(r=>setTimeout(r,1000)); }
+              continue;                                                                                  // reintenta Gemini
+            }
+            break;  // Gemini sin cupo / agotado -> NO mato el Reajustar: sigo con el worker (paso 2)
+          }
+        }
       }
       // 2) Método web (rellena web/redes que falten) sobre el lead ya actualizado.
       const l2=LEADS().find(x=>x.id===l.id)||l; t.textContent="🔄…";
