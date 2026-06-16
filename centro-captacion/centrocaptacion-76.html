@@ -47,7 +47,7 @@
 </head>
 <body>
 <header class="top">
-  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v75 · 16 jun</span></h1>
+  <h1>🎯 Centro de Captación <span style="font-size:12px;font-weight:600;color:#9aa6b2;vertical-align:middle">v76 · 16 jun</span></h1>
   <nav class="tabs" id="tabs">
     <button data-t="buscar" type="button">🔎 Buscar</button>
     <button data-t="pipeline" type="button">📋 Pipeline</button>
@@ -849,9 +849,8 @@ function vPipeline(){
     ${(()=>{ const nCerr=L.filter(estaCerrado).length; const on=load("filtrocerrados",""); return (nCerr||on)?`<div style="margin:0 0 6px"><button class="mini" id="toggleCerrados" type="button" title="Oculta o muestra los bares cerrados (temporal o permanente)" style="${on?onSel:'border-color:#b32424;color:#b32424'}">${on?"👁️ Mostrar cerrados":"🚫 Ocultar cerrados ("+nCerr+")"}</button></div>`:""; })()}
     ${hayFiltro()?`<p class="note" style="margin:6px 0 0;color:var(--brand-d)">🔎 Filtro activo: las acciones de abajo trabajan SOLO sobre los ${vis.length} que ves.</p>`:""}
     <div style="margin:6px 0;display:flex;gap:6px;flex-wrap:wrap">
-    ${vis.some(l=>!l.email)?`<button class="mini" id="buscaMails" type="button" title="Busca el email de los filtrados que aún no lo tengan">🔎✉️ Buscar emails que falten (${vis.filter(l=>!l.email).length})</button>`:""}
-    ${vis.some(incompleto)?`<button class="mini" id="completaDatos" type="button" title="Rellena teléfono, web y redes de los filtrados que les falte">🔄 Completar datos que faltan (${vis.filter(incompleto).length})</button>`:""}
-    ${vis.some(l=>!l.tel)?`<button class="mini" id="googleFill" type="button" title="Pide a Google el teléfono y web OFICIALES (usa tu clave de Ajustes; cuesta céntimos por bar)" style="border-color:#1a73e8;color:#1a73e8">📞 Rellenar con Google (${vis.filter(l=>!l.tel).length})</button>`:""}
+    ${(()=>{ const n1=vis.filter(l=>!estaCerrado(l)&&!l.gChecked).length; return n1?`<button class="mini" id="auto1" type="button" title="PASO 1 (barato): gratis los WhatsApp de las notas + Google rellena tel/web/ciudad oficiales y DETECTA cerrados. NO gasta Serper ni Gemini." style="border-color:#1a73e8;color:#1a73e8;font-weight:700">1️⃣ Autocompletar barato + cerrados (${n1})</button>`:""; })()}
+    ${(()=>{ const n2=vis.filter(l=>!estaCerrado(l)&&!l.email).length; return n2?`<button class="mini" id="auto2" type="button" title="PASO 2: termina lo que faltó (sobre todo EMAILS) con el Worker (lee su web) y, si hace falta, Gemini. Gasta Serper/Gemini SOLO en los que aún faltan." style="border-color:#0a7d28;color:#0a7d28;font-weight:700">2️⃣ Terminar emails que faltan (${n2})</button>`:""; })()}
     ${vis.some(l=>movilEnNotas(l))?`<button class="mini" id="recuperaWa" type="button" title="Pasa a WhatsApp los móviles que ya están escritos en las notas (gratis, al instante)" style="border-color:#1d6f2b;color:#1d6f2b">📱 Recuperar WhatsApp de las notas (${vis.filter(l=>movilEnNotas(l)).length})</button>`:""}
     ${L.some(l=>l.emailAuto)?`<button class="mini" id="limpiaMails" type="button" title="Borra los emails que encontró la app, para re-buscarlos" style="color:#b32424">🧹 Borrar emails auto (${L.filter(l=>l.emailAuto).length})</button>`:""}</div>
     ${fc==="ninguno"?`<p class="note" style="color:var(--brand-d)">❓ Estos no tienen ni WhatsApp ni email localizado. Pulsa 🔎✉️ en cada uno (o el botón de arriba) para que busque su email en la web. Si aun así no aparece, es que no lo tienen publicado.</p>`:""}
@@ -1174,6 +1173,52 @@ document.addEventListener("click",async e=>{
     t.disabled=false; render();
     if(fatal){ alert("❌ Google rechazó la clave:\n\n\""+fatal+"\"\n\nCasi siempre es una de estas:\n1) No está activada la 'Places API (New)' en tu proyecto.\n2) No está activada la facturación (aunque no te cobren).\n3) La clave tiene restricciones que la bloquean.\nArréglalo y vuelve a pulsar."); }
     else alert("✅ Google rellenó "+n+" de "+faltan.length+" bares (teléfono, web, ciudad y valoración oficiales).\n✖ Cerrados detectados: "+cerr+"\n⚠ De otra zona / no localizados (marcados para revisar): "+otra); return; }
+  // ===== PASO 1 (barato): gratis + Google. Rellena tel/web/ciudad oficiales y DETECTA cerrados. NO toca Serper ni Gemini. =====
+  if(t.id==="auto1"){ if(!(AJ().gkey||"").trim()){ alert("Para el PASO 1 necesitas tu clave de Google (Places) en ⚙️ Ajustes."); return; }
+    { const Lx=LEADS(); let rec=0; Lx.forEach(l=>{ const mv=movilEnNotas(l); if(mv){ l.whatsapp="34"+mv; if(!l.tel)l.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); rec++; } }); if(rec){ setLeads(Lx); } } // gratis: WhatsApp de las notas
+    const cand=leadsFiltrados().filter(l=>!estaCerrado(l)&&!l.gChecked);
+    if(!cand.length){ render(); toast("Paso 1: nada que comprobar con Google ✓"); return; }
+    const resp=await pedir("PASO 1 (barato, Google): rellena tel/web/ciudad y DETECTA cerrados. Hay "+cand.length+" sin comprobar. ¿De cuántos AHORA? (dentro de tu crédito gratis de Google; NO gasta Serper ni Gemini).", String(Math.min(50,cand.length)));
+    if(resp===null) return; let cuantos=parseInt(String(resp).replace(/[^0-9]/g,""),10); if(isNaN(cuantos)||cuantos<=0) return;
+    const faltan=cand.slice(0,cuantos);
+    const esGC=c=>/(las palmas|palmas de gran|arucas|firgas|moya|teror|valleseco|valsequillo|guia|galdar|agaete|aldea|artenara|tejeda|telde|mogan|san bartolome|santa lucia|aguimes|ingenio|vecindario|maspalomas|meloneras|tablero|puerto rico|banaderos|puertillo|san andres|tamaraceite|tafira|gran canaria|sardina|playa del ingles)/.test(String(c||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase());
+    t.disabled=true; let n=0,cerr=0,otra=0,fatal="";
+    for(let i=0;i<faltan.length;i++){ t.textContent="1️⃣ Google "+(i+1)+"/"+faltan.length+"…";
+      try{ const d=await googleFill(faltan[i].nombre, faltan[i].ciudad); const p={gChecked:true};
+        if(d && !d.nomatch){ const fueraGC=d.ciudad&&!esGC(d.ciudad);
+          if(!fueraGC){ if(d.tel&&!faltan[i].tel){p.tel=d.tel;n++;} if(d.whatsapp&&!waDe(faltan[i]))p.whatsapp=d.whatsapp; if(d.web&&!faltan[i].web)p.web=d.web; if(d.rating&&!faltan[i].rating)p.rating=d.rating; if(d.ciudad){p.ciudad=d.ciudad;p.ciudadReal=true;} }
+          if(d.cerrado){ cerr++; p.cerrado=d.cerrado; p.notas="*** CERRADO "+d.cerrado.toUpperCase()+" (Google) *** "+(faltan[i].notas||""); }
+          else if(fueraGC){ otra++; p.notas="(Google lo ubica en "+d.ciudad+", otra zona — revisar) "+(faltan[i].notas||""); }
+        } else if(d&&d.nomatch){ otra++; p.notas="(Google no lo localizó — revisar) "+(faltan[i].notas||""); }
+        upLead(faltan[i].id,p);
+      }catch(e){ const m=String(e.message||""); if(/key|API|denied|permission|billing|disabled|SERVICE|authoriz|PERMISSION/i.test(m)){ fatal=m; break; } }
+      await new Promise(r=>setTimeout(r,250)); }
+    t.disabled=false; render();
+    if(fatal){ alert("❌ Google rechazó la clave:\n\""+fatal+"\"\n\nActiva la 'Places API (New)' + la facturación en tu proyecto y reintenta."); }
+    else alert("PASO 1 hecho.\n✅ Tel/datos nuevos: "+n+"\n🚫 Cerrados detectados: "+cerr+" (ya puedes ocultarlos con el botón de arriba)\n⚠ Otra zona/no localizados: "+otra+"\n\nLo que siga sin email → dale al 2️⃣."); return; }
+  // ===== PASO 2: termina lo que faltó (sobre todo EMAILS). Worker (lee su web) + Gemini. Gasta Serper/Gemini SOLO en estos. =====
+  if(t.id==="auto2"){ const hayWorker=!!(AJ().cfWorker||"").trim()||!!(AJ().jinaKey||"").trim(); const hayGem=!!(AJ().geminiKey||AJ().gkey||"").trim();
+    if(!hayWorker && !hayGem){ alert("Para el PASO 2 necesitas el Worker (URL/clave Jina) o la clave Gemini en ⚙️ Ajustes."); return; }
+    const cand=leadsFiltrados().filter(l=>!estaCerrado(l)&&!l.email);
+    if(!cand.length){ toast("Paso 2: los filtrados (no cerrados) ya tienen email ✓"); return; }
+    const resp=await pedir("PASO 2 (termina lo que faltó, sobre todo EMAILS): el Worker lee su web y, si hace falta, Gemini razona. Gasta cupo de Serper/Gemini SOLO en estos. Hay "+cand.length+" sin email. ¿De cuántos AHORA?", String(Math.min(30,cand.length)));
+    if(resp===null) return; let cuantos=parseInt(String(resp).replace(/[^0-9]/g,""),10); if(isNaN(cuantos)||cuantos<=0) return;
+    const faltan=cand.slice(0,cuantos);
+    t.disabled=true; let n=0, gemOn=hayGem;
+    for(let i=0;i<faltan.length;i++){ const l=faltan[i]; t.textContent="2️⃣ "+(i+1)+"/"+faltan.length+" · "+n+" emails";
+      try{
+        const d=await conTope(buscarDatosWeb(l.nombre,l.ciudad),45000); const patch=datosPatch(d,l);
+        if(Object.keys(patch).length) upLead(l.id,patch);
+        let cur=LEADS().find(x=>x.id===l.id)||l;
+        if(!cur.email && gemOn){
+          try{ const g=await gemBuscaLeadMejorado(cur); if(g&&g.patch&&g.patch.email){ upLead(l.id,g.patch); } }
+          catch(e){ if(/quota|exceeded|RESOURCE_EXHAUSTED|429|limit: 0|dailyLimit|per day/i.test(e.message||"")){ gemOn=false; } }
+          await new Promise(r=>setTimeout(r,1500)); // respiro para el cupo de Gemini
+        }
+        cur=LEADS().find(x=>x.id===l.id)||l; if(cur.email) n++;
+      }catch(e){}
+      await new Promise(r=>setTimeout(r,400)); }
+    t.disabled=false; render(); alert("PASO 2 hecho.\n✉️ Emails nuevos: "+n+" de "+faltan.length+".\n\nLos que sigan sin email casi seguro no lo tienen publicado → míralos a mano (🔮 IA Google / 🤖 Gemini) o déjalos."+((!gemOn&&hayGem)?"\n\n(Gemini se quedó sin cupo a mitad; sigue mañana.)":"")); return; }
   if(t.id==="recuperaWa"){ const L=LEADS(); let n=0;
     L.forEach(l=>{ const mv=movilEnNotas(l); if(mv){ l.whatsapp="34"+mv; if(!l.tel)l.tel="+34 "+mv.replace(/(\d{3})(\d{2})(\d{2})(\d{2})/,"$1 $2 $3 $4"); n++; } });
     if(n){ setLeads(L); render(); }
