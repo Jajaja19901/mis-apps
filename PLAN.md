@@ -1,35 +1,43 @@
-# PLAN — App de gestión para Carmen Delia (jardinera autónoma)
+# PLAN.md — Botánica de Carmen (PWA jardinera municipal)
 
-> **Naturaleza de esta app (LEER PRIMERO):** NO es un embudo de venta ni una landing pública.
-> Es una **herramienta interna personal y 100% offline** para una sola usuaria (Carmen Delia).
-> No hay visitantes, no hay captación, no hay registro de terceros. Por eso varias reglas del
-> estudio se reinterpretan (ver "Adaptación de la filosofía del estudio"). El "dueño" y el
-> "usuario" son la misma persona: Carmen Delia. No hay datos personales de terceros recogidos por
-> formulario público; los datos de clientes los introduce ella misma como agenda privada local.
->
-> Aun así se entrega **un solo `index.html` autocontenido** (CSS y JS inline) que funciona abierto
-> con doble clic. Para ser instalable como PWA real con `service-worker` y `manifest.json`
-> externos hace falta servir por HTTPS; en `file://` funciona como web offline normal. Por eso el
-> SW y el manifest se **embeben** (manifest como Blob URL, SW opcional) y se entrega además, como
-> extra documentado, la posibilidad de los dos archivos sueltos. La entrega principal es el HTML.
+> Plano del Arquitecto de Producto. Es el guion de los agentes 2-10. Si algo no está
+> aquí, NO se improvisa: se vuelve a preguntar al arquitecto. App = un solo `index.html`
+> autocontenido, mobile-first, 100% offline.
 
 ---
 
-## 0. Adaptación de la filosofía del estudio a este caso
+## 0. Naturaleza de esta app (LEER PRIMERO — cambia las reglas habituales del estudio)
 
-| Regla del estudio | Cómo aplica aquí |
-|---|---|
-| Un solo HTML autocontenido | SÍ. `apps/carmen-delia-jardineria.html`. CSS + JS inline. |
-| Sin registro de usuarios finales | SÍ. No hay usuarios finales; solo Carmen Delia. |
-| Panel de admin con `ADMIN_PASSWORD` en `#/admin` | **Reinterpretado:** toda la app es "el panel". Se añade un **bloqueo opcional por PIN** (`APP_PIN` en CONFIG, vacío por defecto = sin bloqueo) en `#/clientes` y datos sensibles. Si está vacío, no se pide nada. Esto cubre el espíritu (proteger datos privados del dueño) sin estorbar el uso diario. |
-| Sin cookies de tracking / sin RGPD | SÍ. Cero red, cero analítica, cero cookies. |
-| Consentimiento + política de privacidad por formularios | **NO aplica formulario público.** Los datos de clientes son una agenda privada local de la propietaria. Aun así, en `#/mas` se incluye una nota de "Aviso de datos" recordando que los datos de sus clientes están solo en su dispositivo y que ella es responsable de tratarlos (placeholder de titular). No hay casilla de consentimiento de visitante porque no hay visitante. |
-| Embudo de venta / conversión | **NO aplica.** Es productividad interna. La "acción principal" de cada pantalla es la tarea de gestión, no una venta. |
-| Firma del estudio en el pie | SÍ. En `#/mas`: "Diseñado por Incuba tu Negocio · por Jaime M. M." (CONFIG: STUDIO_BRAND, STUDIO_AUTHOR, STUDIO_URL). |
-| Imágenes subidas por el dueño | SÍ. Las fotos las captura/sube Carmen Delia desde la cámara o galería; arranque con estado vacío. |
-| Instalable (PWA) | SÍ. Manifest embebido + metas Apple + favicon SVG (logo hoja). Botón "Instalar app". |
-| Sin librerías | SÍ. Vanilla JS/CSS. IndexedDB nativo para fotos. |
-| Contenido real, sin lorem | SÍ. Textos reales en español. Estados vacíos con copy útil. |
+Esta NO es un embudo de venta ni una landing de captación. Es una **herramienta personal
+de trabajo** para una única persona (Carmen Delia, jardinera pública municipal). Implicaciones
+que el resto de agentes deben respetar:
+
+- **No hay clientes, ni cobros, ni contacto comercial, ni WhatsApp/Bizum, ni carrito, ni leads.**
+  Nada de eso entra. Si un agente intenta añadirlo, el QA lo veta.
+- **No hay "visitante" anónimo distinto del dueño.** La usuaria ES la dueña. Toda la app es,
+  en la práctica, su panel personal. Por tanto el "embudo" se reinterpreta como: cada pantalla
+  empuja a **la acción principal de esa pantalla** (escanear, registrar trabajo, marcar tarea).
+- **`#/admin` existe pero es ligero:** ajustes, backup/restore, estadísticas y borrado de datos.
+  Protegido por `ADMIN_PASSWORD` SOLO como bloqueo opcional de privacidad del dispositivo
+  (la usuaria puede desactivarlo en Ajustes). Por defecto **viene desactivado** porque el
+  dispositivo es personal; si se activa, se pide la clave para entrar a `#/mas` y `#/admin`.
+- **No se recogen datos personales de terceros** → no aplica RGPD → **NO hay formulario de leads,
+  NI casilla de consentimiento, NI página de Política de Privacidad obligatoria.** Sí incluimos una
+  pequeña página informativa "Privacidad" que explica que **todo se guarda solo en este dispositivo**
+  (localStorage/IndexedDB) y no se envía a ningún servidor. Esto es informativo, no un consentimiento.
+- **Sin backend, sin red, sin CDN.** La "IA" de identificación es 100% local (ver §8). Hay que avisar
+  con honestidad de que es una estimación orientativa, no un diagnóstico botánico certificado, y que
+  **para plantas potencialmente tóxicas debe confirmar siempre por su cuenta**.
+
+### Firma del estudio
+En el pie de la pantalla "Más" y en la pantalla "Acerca de": discreto, "Diseñado por Incuba tu
+Negocio · por Jaime M. M." (en `CONFIG`: `STUDIO_BRAND`, `STUDIO_AUTHOR`, `STUDIO_URL`).
+
+### Tono y diseño (insumo para marca/UX/copy)
+"Sorprendente y llamativo, hecho con amor para una jardinera." Verde botánico vibrante, hojas SVG,
+emojis con moderación, microinteracciones suaves (escala al pulsar, transiciones de vista, animación
+de hoja al analizar). Mobile-first total: se usa con una mano, en exterior, con guantes — botones
+grandes, contraste alto, objetivos táctiles ≥ 48px.
 
 ---
 
@@ -37,507 +45,580 @@
 
 ```js
 const CONFIG = {
-  OWNER_NAME: "Carmen Delia",            // titular; editable
-  APP_TITLE: "Jardín · Gestión",         // nombre interno de la app
-  APP_PIN: "",                            // PIN opcional (4-6 dígitos). "" = sin bloqueo
-  CURRENCY: "€",
-  WEEK_STARTS_MONDAY: true,
-  PHOTO_MAX_PX: 1200,                     // lado mayor tras compresión
-  PHOTO_QUALITY: 0.8,                     // JPEG 0.8
-  REMINDER_HOUR: 8,                       // hora recordatorio diario (0-23)
+  APP_NAME: "Botánica de Carmen",          // placeholder editable; el briefing solo da el nombre de persona
+  OWNER_NAME: "Carmen Delia",              // del briefing
+  OWNER_ROLE: "Jardinera municipal",       // del briefing
+  MUNICIPALITY: "Tu municipio",            // PLACEHOLDER — falta en briefing
+  ADMIN_PASSWORD: "jardin2026",            // bloqueo opcional de dispositivo; editable
+  LOCK_ENABLED_DEFAULT: false,             // por defecto sin bloqueo (dispositivo personal)
   STUDIO_BRAND: "Incuba tu Negocio",
   STUDIO_AUTHOR: "Jaime M. M.",
-  STUDIO_URL: "#"
+  STUDIO_URL: "#",
+  DB_VERSION: 1,
+  PLANT_DB_MIN: 100                        // mínimo de plantas en la base local
 };
 ```
 
-> **DATO QUE FALTA:** el briefing dice "Carmen Delia" como negocio/persona; se usa tal cual como
-> titular (NO es inventado, viene del briefing). No hay logo aportado → emblema SVG de hoja.
+`APP_NAME` es placeholder porque el briefing no da nombre de app/marca, solo el nombre de la
+persona. Ver §10 DATOS QUE FALTAN.
 
 ---
 
-## 2. CRITERIOS DE ACEPTACIÓN (verificables con sí/no pulsando)
+## 2. CRITERIOS DE ACEPTACIÓN (27, verificables con un sí/no pulsando)
 
-> Numerados. Cada uno se puede comprobar en un navegador con un clic. El QA (agente 10) los ejecuta.
+Cada uno es comprobable abriendo la app en un navegador. El QA (agente 10) los ejecuta clic a clic.
 
-### Navegación y arranque
-1. Al abrir el archivo, se ve la pestaña **Agenda** con la semana actual y el día de hoy resaltado.
-2. La barra inferior muestra exactamente 4 pestañas: **Agenda · Clientes · Pendientes · Más**.
-3. Al pulsar cada pestaña inferior cambia la vista y la pestaña activa queda marcada visualmente.
-4. En las 4 pestañas existe un **botón flotante "+"** visible en la esquina inferior derecha.
-5. Si `APP_PIN` está vacío, NO se pide PIN al entrar (uso directo).
-6. Si `APP_PIN` tiene valor, al ir a `#/clientes` aparece la pantalla de PIN y, con PIN correcto, entra; con PIN incorrecto muestra "PIN incorrecto" y NO entra.
+### Navegación y estructura
+1. Al abrir la app sin datos, se muestra la pantalla de Inicio (`#/`) con la barra de navegación
+   inferior visible y 5 destinos: Escanear, Plantas, Trabajos, Tareas, Más.
+2. Al pulsar cada uno de los 5 iconos de la barra inferior, la URL cambia al hash correspondiente
+   (`#/escanear`, `#/plantas`, `#/trabajos`, `#/tareas`, `#/mas`) y el icono activo queda resaltado.
+3. Al recargar la página estando en cualquier ruta (p. ej. `#/trabajos`), tras recargar se sigue
+   mostrando esa misma pantalla (el router lee el hash al cargar).
+4. Al navegar a un hash inexistente (`#/loquesea`), se muestra la pantalla de Inicio (fallback),
+   sin pantalla en blanco ni error en consola.
 
-### Clientes
-7. En **Clientes** vacío, se ve un estado vacío con texto "Aún no tienes clientes" y un botón para añadir el primero.
-8. Al pulsar "+" en Clientes se abre el formulario de **nuevo cliente** con los campos: nombre (obligatorio), dirección, teléfono, portón/acceso, mascotas, día de pago, frecuencia, notas.
-9. Al guardar un cliente sin nombre, aparece aviso "El nombre es obligatorio" y NO se guarda.
-10. Al guardar un cliente con nombre, vuelve a la lista y el cliente aparece en ella.
-11. Al escribir en el buscador de Clientes, la lista filtra por nombre/dirección en tiempo real; si no hay coincidencias muestra "Sin resultados".
-12. Al pulsar un cliente de la lista se abre su **ficha** con sus datos y su historial de trabajos.
-13. En la ficha, si hay dirección, el botón **"Cómo llegar"** abre un enlace de Google Maps (`https://maps.google.com/?q=...`).
-14. En la ficha, si hay teléfono, el botón **"Llamar"** usa `tel:` y el botón **"WhatsApp"** usa `https://wa.me/...`.
-15. En la ficha se puede **Editar** (reabre el formulario con datos cargados) y **Eliminar** (pide confirmación; tras confirmar el cliente desaparece de la lista).
+### Escanear plantas
+5. En `#/escanear` existe un botón "Tomar foto / Elegir imagen" que abre un input de archivo de
+   tipo imagen (con `capture` para cámara en móvil).
+6. Tras elegir una imagen, se muestra una vista previa de la foto y un botón "Identificar".
+7. Al pulsar "Identificar", aparece un estado de "Analizando…" y después un resultado con: nombre
+   de la planta candidata, badge de venenosa (Sí/No), y bloques de características, riego, luz y cuidados.
+8. El resultado de identificación muestra siempre el aviso "Identificación orientativa, confirma
+   siempre las plantas tóxicas" (texto de seguridad obligatorio).
+9. En la pantalla de resultado hay un botón "Guardar en Mis plantas"; al pulsarlo, la planta queda
+   registrada y aparece un mensaje de confirmación (toast "Guardada en Mis plantas").
+10. Si una planta identificada es venenosa, el badge "Tóxica" se muestra en color de alerta
+    (distinto del color de planta segura).
+
+### Mis plantas
+11. En `#/plantas`, una planta guardada en el criterio 9 aparece listada con su foto (o placeholder),
+    nombre y badge de venenosa.
+12. Si no hay plantas guardadas, `#/plantas` muestra un estado vacío con un texto guía y un botón
+    "Escanear mi primera planta" que lleva a `#/escanear`.
+13. Existe un campo de búsqueda en `#/plantas`; al escribir el nombre (o parte) de una planta
+    guardada, la lista se filtra y muestra solo las coincidencias.
+14. Existe un filtro "Solo tóxicas"; al activarlo, la lista muestra únicamente las plantas marcadas
+    como venenosas.
+15. Al pulsar una planta de la lista se abre su ficha con foto, nombre, badge, características,
+    riego, luz, cuidados y un campo de notas personales editable.
+16. En la ficha de una planta, al escribir una nota personal y pulsar "Guardar nota", la nota se
+    persiste (al cerrar y reabrir la ficha la nota sigue ahí).
+17. En la ficha de una planta hay un botón "Eliminar"; al pulsarlo se pide confirmación y, al
+    confirmar, la planta desaparece de la lista de `#/plantas`.
 
 ### Trabajos
-16. Desde la ficha de un cliente, el botón **"Nuevo trabajo"** abre el formulario de trabajo (fecha, estado, importe, descripción).
-17. Un trabajo nuevo se crea con estado **Pendiente** por defecto y aparece en el historial del cliente.
-18. En la ficha del trabajo se puede cambiar el estado entre **Pendiente / En curso / Hecho** y el cambio persiste tras recargar.
-19. En la ficha del trabajo se pueden añadir tareas al **checklist**; al marcarlas como hechas se tachan y el contador "X/Y" se actualiza.
-20. En la ficha del trabajo, marcar **"Cobrado"** cambia el estado de cobro y queda reflejado (etiqueta "Cobrado").
-21. Tras recargar la página, todos los trabajos, estados, checklist e importes siguen ahí (persistencia localStorage).
+18. En `#/trabajos` hay un botón "Nuevo trabajo" que abre un formulario con: título/descripción,
+    ubicación, fecha y estado (pendiente/en curso/hecho).
+19. Al guardar un nuevo trabajo sin título, aparece un aviso de campo obligatorio y NO se crea el
+    trabajo; al rellenar el título y guardar, el trabajo aparece en la lista.
+20. En la lista de trabajos, cada trabajo muestra su estado con un color/etiqueta; existen filtros
+    por estado (Todos / Pendientes / En curso / Hechos) que filtran la lista al pulsarlos.
+21. Al abrir un trabajo se ve su detalle con un **checklist**: se pueden añadir ítems, marcarlos como
+    completados (tachado) y eliminarlos.
+22. En el detalle de un trabajo se pueden añadir **fotos "antes" y "después"** desde input de archivo,
+    y quedan guardadas y visibles al reabrir el trabajo.
+23. En el detalle de un trabajo, al cambiar el estado (p. ej. de "pendiente" a "hecho"), el cambio se
+    refleja en la lista de `#/trabajos` al volver.
 
-### Fotos
-22. En la ficha del trabajo, el botón **"Añadir foto"** abre el selector de cámara/galería (`<input type="file" accept="image/*" capture>`).
-23. Tras elegir/capturar una foto, esta se muestra como miniatura en el trabajo (guardada como Blob en IndexedDB).
-24. Cada foto puede etiquetarse como **Antes** o **Después**; en la vista comparativa se muestran lado a lado.
-25. El botón **"Compartir"** de una foto intenta `navigator.share`; si no está disponible, ofrece **descargar** la imagen (fallback) sin romper.
-26. Al eliminar una foto, desaparece de la miniatura y del comparador.
+### Tareas (materiales + por hacer)
+24. En `#/tareas` hay dos secciones: "Materiales a comprar" y "Por hacer". En cada una se puede añadir
+    un ítem escribiendo texto y pulsando añadir; el ítem aparece en su lista.
+25. Cada ítem de tarea se puede marcar como hecho (queda tachado/atenuado) y eliminar; al recargar la
+    página los ítems y su estado persisten.
 
-### Agenda
-27. En **Agenda** se ven los 7 días de la semana (lunes a domingo) con el día de hoy resaltado.
-28. Los botones **"‹ Semana anterior"** y **"Semana siguiente ›"** cambian el rango mostrado y el título de fechas se actualiza.
-29. Cada día muestra las **visitas previstas** según la frecuencia de los clientes y los trabajos con fecha ese día.
-30. El botón **"Hoy"** vuelve a la semana actual desde cualquier semana.
-
-### Pendientes
-31. En **Pendientes** hay dos listas separadas: **Materiales a comprar** y **Cosas por hacer**.
-32. El "+" de Pendientes permite añadir un ítem eligiendo a qué lista va; el ítem aparece en su lista.
-33. Al marcar un ítem como hecho/comprado, se tacha y baja al grupo de completados (o se marca visualmente); el cambio persiste tras recargar.
-34. Se puede eliminar un ítem pendiente.
-
-### Cobros
-35. En **Más → Cobros** se ve el resumen del mes actual con **total cobrado** y **total pendiente** calculados desde los trabajos.
-36. Los botones de mes anterior/siguiente cambian el periodo y recalculan los totales.
-
-### Datos / Backup
-37. En **Más → Datos**, el botón **"Exportar JSON"** descarga un archivo `.json` con todos los datos de texto (clientes, trabajos, pendientes) SIN las fotos.
-38. El botón **"Importar JSON"** permite seleccionar un archivo y, tras confirmar, repuebla los datos (los clientes importados aparecen en la lista).
-39. El botón **"Eliminar fotos antiguas"** pide confirmación y borra de IndexedDB las fotos de trabajos marcados como Hecho con más de N meses (N configurable en el diálogo), liberando espacio.
-
-### PWA / Instalación
-40. Existe un botón **"Instalar app"** en Más; en navegadores compatibles dispara el prompt de instalación; donde no, muestra instrucciones de "Añadir a pantalla de inicio".
-41. La firma "Diseñado por Incuba tu Negocio · por Jaime M. M." aparece en el pie de **Más**.
+### Más / Ajustes / Datos
+26. En `#/mas` (o `#/mas/ajustes`) existe un botón "Exportar copia de seguridad" que descarga un
+    archivo JSON con los datos, un control "Importar copia" que restaura datos desde un JSON, y una
+    sección de Estadísticas (`#/mas/stats`) con contadores reales (nº plantas, nº tóxicas, trabajos
+    por estado, tareas pendientes).
+27. La app es instalable como PWA: incluye `manifest` embebido y metas Apple, el favicon/icono es el
+    logo SVG, y existe un botón "Instalar app". Además, si el bloqueo está activado en Ajustes, al ir
+    a `#/mas` se pide la `ADMIN_PASSWORD` antes de entrar.
 
 ---
 
 ## 3. ALCANCE
 
-### Entra en v1
-- 4 pestañas (Agenda, Clientes, Pendientes, Más) con router hash.
-- CRUD de clientes con ficha completa y acciones de contacto (llamar/WhatsApp/Maps).
-- CRUD de trabajos por cliente: estado, fechas, checklist, importe, cobrado.
-- Fotos: captura/galería, compresión a 1200px JPEG 0.8, almacenamiento Blob en IndexedDB, etiqueta antes/después, comparador, compartir/descargar, borrado.
-- Agenda semanal con navegación y cálculo de próximas visitas por frecuencia.
-- Pendientes (materiales + tareas) con marcar hecho.
-- Cobros: resumen mensual cobrado/pendiente.
-- Backup: exportar/importar JSON (sin fotos), limpieza de fotos antiguas.
-- PWA: manifest embebido, metas Apple, favicon SVG, botón instalar.
-- PIN opcional de bloqueo.
+### ENTRA en v1
+- 5 pantallas principales + sub-vistas (resultado de escaneo, ficha de planta, detalle de trabajo,
+  ajustes/estadísticas, privacidad, acerca de).
+- Identificación de plantas 100% local (clasificador heurístico + base de datos local de 100+ plantas
+  españolas comunes). Ver §8 algoritmo.
+- Repositorio "Mis plantas" con búsqueda, filtro tóxicas, ficha con notas, eliminar.
+- Trabajos con CRUD, estados, checklist, fotos antes/después, notas, filtros.
+- Tareas (materiales + por hacer) con marcar hecho y eliminar.
+- Backup/restore JSON, estadísticas, ajustes (incl. bloqueo opcional por clave, tema).
+- PWA instalable, offline, manifest embebido, iconos SVG.
+- Persistencia: localStorage (datos ligeros y ajustes) + IndexedDB (imágenes/dataURL grandes).
 
-### NO entra en v1 (anótese como futuras mejoras)
-- Sincronización en la nube / multidispositivo (es offline puro).
-- Cobro real con tarjeta (no hay backend; los cobros se registran manualmente).
-- Backup de fotos dentro del JSON (las fotos son Blobs pesados; se excluyen a propósito).
-- Notificaciones push reales del recordatorio (sin SW activo en `file://` no hay push; el "recordatorio diario" se resuelve como **aviso in-app** al abrir la app si hay pendientes — ver §6.5).
-- Gestión de varios usuarios/empleados.
-- Facturación legal con numeración fiscal.
+### NO ENTRA en v1 (fuera de alcance, el QA lo veta si aparece)
+- Clientes, fichas de cliente, agenda de visitas por cliente.
+- Cobros, carrito, precios, pagos, Bizum, WhatsApp, contacto comercial.
+- Formularios de captación de leads / consentimiento RGPD de terceros.
+- Sincronización en la nube, login multiusuario, cuentas, backend, red, CDN.
+- IA online o llamadas a APIs externas de reconocimiento.
+- Geolocalización automática por GPS (la ubicación de un trabajo se escribe a mano como texto).
 
 ---
 
 ## 4. MAPA DE PANTALLAS (rutas hash)
 
-| Ruta | Pantalla | Pestaña activa |
-|---|---|---|
-| `#/` o `#/agenda` | Agenda semanal | Agenda |
-| `#/clientes` | Lista + buscador de clientes | Clientes |
-| `#/cliente/:id` | Ficha de cliente + historial trabajos | Clientes |
-| `#/cliente/nuevo` | Formulario nuevo cliente | Clientes |
-| `#/cliente/:id/editar` | Formulario editar cliente | Clientes |
-| `#/cliente/:id/trabajo/nuevo` | Formulario nuevo trabajo | Clientes |
-| `#/trabajo/:id` | Ficha de trabajo (estado, checklist, fotos, cobro) | Clientes |
-| `#/trabajo/:id/comparar` | Comparador antes/después | Clientes |
-| `#/pendientes` | Materiales + tareas | Pendientes |
-| `#/mas` | Menú: Cobros, Datos/Backup, Instalar, PIN, Aviso de datos, firma | Más |
-| `#/cobros` | Resumen mensual cobrado/pendiente | Más |
-| `#/datos` | Exportar/importar/limpiar fotos | Más |
-| `#/pin` | Pantalla de desbloqueo (solo si `APP_PIN` definido) | — |
+Layout global: barra de navegación inferior fija (5 destinos) presente en todas las rutas salvo
+en la pantalla de bloqueo. Cabecera superior con título de pantalla + logo SVG.
 
-Ruta desconocida → redirige a `#/agenda`.
+| Ruta | Pantalla | Acción principal |
+|------|----------|------------------|
+| `#/` | Inicio / resumen | Atajos a escanear y vista rápida del día |
+| `#/escanear` | Escanear planta | Tomar/elegir foto e identificar |
+| `#/plantas` | Mis plantas (lista) | Buscar/filtrar/abrir |
+| `#/plantas/:id` | Ficha de planta | Notas, eliminar |
+| `#/trabajos` | Trabajos (lista) | Nuevo trabajo / filtrar |
+| `#/trabajos/nuevo` | Form nuevo trabajo | Guardar |
+| `#/trabajos/:id` | Detalle de trabajo | Checklist, fotos, estado, notas |
+| `#/tareas` | Tareas (materiales + por hacer) | Añadir/marcar/eliminar |
+| `#/mas` | Más (menú) | Acceso a ajustes, backup, stats, ayuda, privacidad, acerca |
+| `#/mas/ajustes` | Ajustes | Bloqueo, tema, datos |
+| `#/mas/stats` | Estadísticas | Ver contadores |
+| `#/mas/privacidad` | Privacidad | Info: todo local |
+| `#/mas/acerca` | Acerca de | Versión + firma estudio |
+| `#/admin` | Admin (alias de gestión de datos: backup/restore/borrar todo) | Gestión avanzada |
+
+> Nota de implementación: el resultado del escaneo es un **estado dentro de `#/escanear`** (no
+> requiere navegación dura), siempre que el botón "Guardar" funcione. Las sub-vistas con `:id` y los
+> formularios pueden resolverse como vistas completas o como overlays; lo importante es que el hash
+> refleje el estado para que el criterio 3 (recarga) funcione en las rutas listadas.
 
 ---
 
 ## 5. FLUJOS PASO A PASO
 
-### 5.1 Crear cliente
-1. Pestaña **Clientes** → pulsar **"+"** → ruta `#/cliente/nuevo`.
-2. Pantalla muestra campos. Validación: **nombre** no vacío (trim). Si vacío al pulsar "Guardar" → mensaje inline "El nombre es obligatorio", foco al campo, NO avanza.
-3. Teléfono: opcional; si se rellena, se normaliza para `tel:`/`wa.me` (quitar espacios; si no empieza por `+`, anteponer prefijo configurable, por defecto `+34`).
-4. Frecuencia: select con opciones **Semanal / Quincenal / Mensual / Puntual** + campo "día preferido" (lunes…domingo) usado por la agenda.
-5. Pulsar **"Guardar"** → crea registro, navega a `#/cliente/:id` (ficha del nuevo).
+### Flujo A — Escanear e identificar una planta (acción estrella)
+1. Usuaria en `#/escanear`. Ve hero con icono hoja, botón grande "Tomar foto / Elegir imagen"
+   y texto "Apunta a la hoja o flor con buena luz".
+2. Pulsa el botón → se abre el selector de archivo (`accept="image/*"`, `capture="environment"`).
+   - Si cancela sin elegir → no pasa nada, sigue en el estado inicial.
+3. Elige imagen → se muestra **vista previa** + botón "Identificar" + botón "Cambiar foto".
+4. Pulsa "Identificar" → estado "Analizando…" (animación de hoja) durante el cálculo.
+5. Aparece **resultado**: nombre candidato (top-1) + lista de hasta 3 candidatos alternativos,
+   badge venenosa, características, riego, luz, cuidados, y SIEMPRE el aviso de seguridad (criterio 8).
+   - Si el clasificador no supera el umbral de confianza → muestra "No estoy segura" + sugiere
+     los 3 candidatos más próximos para que la usuaria elija manualmente cuál guardar.
+6. Botones: "Guardar en Mis plantas" (guarda planta con la foto, datos del candidato elegido y fecha),
+   "Elegir otro candidato" (cambia el candidato activo), "Repetir" (vuelve al paso 1).
+7. Al guardar → toast "Guardada en Mis plantas" + opción "Ver ficha".
 
-### 5.2 Crear y gestionar trabajo
-1. En `#/cliente/:id` → botón **"Nuevo trabajo"** → `#/cliente/:id/trabajo/nuevo`.
-2. Campos: fecha (default hoy), descripción, importe (número ≥0, opcional), estado (default Pendiente).
-3. Guardar → navega a `#/trabajo/:id`.
-4. En la ficha de trabajo:
-   - **Estado**: 3 botones segmentados Pendiente/En curso/Hecho → al pulsar, actualiza y persiste.
-   - **Checklist**: campo "Añadir tarea" + botón; cada tarea con checkbox; contador "hechas/total".
-   - **Fotos**: botón "Añadir foto" (ver 5.3). Cada foto con selector Antes/Después y botones Compartir/Eliminar.
-   - **Cobro**: campo importe + toggle "Cobrado". Al activar Cobrado se guarda `cobrado:true` y fecha de cobro.
-   - **Comparar**: botón → `#/trabajo/:id/comparar` (muestra primera "antes" vs primera "después").
+### Flujo B — Buscar/gestionar en Mis plantas
+1. `#/plantas`: lista de tarjetas (foto, nombre, badge). Si vacío → estado vacío + botón a escanear.
+2. Campo búsqueda arriba → filtra por nombre en tiempo real (insensible a mayúsculas/acentos).
+3. Toggle "Solo tóxicas" → filtra venenosas. Combina con la búsqueda.
+4. Pulsa una tarjeta → `#/plantas/:id` ficha completa.
+5. Escribe nota personal → "Guardar nota" persiste.
+6. "Eliminar" → diálogo de confirmación → borra (y borra su imagen de IndexedDB) → vuelve a lista.
 
-### 5.3 Añadir foto (con compresión)
-1. Botón "Añadir foto" → `<input type="file" accept="image/*" capture="environment">`.
-2. Al seleccionar: leer archivo → `createImageBitmap`/`<img>` → dibujar en `<canvas>` escalando a lado mayor `PHOTO_MAX_PX` → `canvas.toBlob('image/jpeg', PHOTO_QUALITY)`.
-3. Guardar Blob en IndexedDB (store `photos`), registrar metadato en localStorage del trabajo (id de foto, tag, fecha).
-4. Mostrar miniatura usando `URL.createObjectURL(blob)` (revocar al desmontar).
-5. Validación: si el archivo no es imagen → aviso "Solo imágenes". Si falla la lectura → aviso, no rompe.
+### Flujo C — Gestionar un trabajo
+1. `#/trabajos`: filtros por estado + botón "Nuevo trabajo".
+2. "Nuevo trabajo" → `#/trabajos/nuevo`: campos título* (obligatorio), ubicación, fecha, estado.
+   - Guardar sin título → error inline "El título es obligatorio", no guarda.
+   - Guardar con título → crea trabajo (estado por defecto "pendiente") → vuelve a lista.
+3. Abrir trabajo → `#/trabajos/:id` detalle:
+   - Editar estado (selector) → al cambiar, persiste y se refleja en lista.
+   - Checklist: input "Añadir ítem" + lista con checkbox (tachar) y botón borrar por ítem.
+   - Fotos: dos zonas "Antes" y "Después", cada una con input de archivo y miniaturas.
+   - Notas: textarea con guardado.
+   - Botón "Eliminar trabajo" con confirmación.
 
-### 5.4 Compartir foto
-1. Botón "Compartir" → si `navigator.canShare && navigator.share` con archivo → `navigator.share({files:[file]})`.
-2. Si no soportado → crear enlace de descarga (`a.download`) y forzar clic → la imagen se descarga.
+### Flujo D — Tareas
+1. `#/tareas`: dos bloques. Cada bloque: input + botón "Añadir".
+2. Añadir ítem → aparece en su lista con checkbox y papelera.
+3. Marcar checkbox → tachado/atenuado, persiste. Papelera → elimina con persistencia.
 
-### 5.5 Backup
-1. `#/datos` → **Exportar JSON**: serializa `{clientes, trabajos, pendientes, meta, version}` (sin fotos) → descarga `jardin-backup-AAAA-MM-DD.json`.
-2. **Importar JSON**: input file → parsea → valida que tenga `version` y claves esperadas → confirma "Esto reemplazará tus datos actuales ¿seguro?" → escribe en localStorage → recarga vistas.
-3. **Eliminar fotos antiguas**: diálogo "Borrar fotos de trabajos hechos hace más de [3] meses" → confirma → recorre trabajos Hecho con `fecha < hoy-Nmeses`, borra sus fotos de IndexedDB y sus metadatos.
-
-### 5.6 PIN (si configurado)
-1. Si `APP_PIN!==""` y la sesión no está desbloqueada (flag en memoria, NO en storage persistente), al navegar a `#/clientes`/`#/cliente/*`/`#/cobros`/`#/datos` → redirige a `#/pin`.
-2. Pantalla PIN: input numérico + "Entrar". Correcto → set flag desbloqueado en memoria → vuelve a ruta pedida. Incorrecto → "PIN incorrecto".
+### Flujo E — Más / Ajustes / Datos / Bloqueo
+1. `#/mas`: menú con accesos: Ajustes, Estadísticas, Copia de seguridad, Ayuda, Privacidad, Acerca de.
+   - Si `lockEnabled` está activo y la sesión no está desbloqueada → muestra pantalla de bloqueo
+     (input clave + "Entrar"). Clave correcta = `ADMIN_PASSWORD` → desbloquea la sesión.
+2. Ajustes: toggle "Proteger con contraseña" (activa/desactiva `lockEnabled`), selector de tema
+   (claro/oscuro/auto), botón "Borrar todos los datos" (doble confirmación).
+3. Copia: "Exportar copia" descarga JSON; "Importar copia" abre input file y restaura (con confirmación).
+4. Estadísticas (`#/mas/stats`): tarjetas con contadores derivados de los datos reales.
 
 ---
 
-## 6. INVENTARIO DE CONTROLES POR PANTALLA
+## 6. INVENTARIO DE CONTROLES (por pantalla)
 
-### 6.1 Barra inferior (global, en todas las vistas con tab)
-- Botón **Agenda** → `location.hash='#/agenda'`.
-- Botón **Clientes** → `#/clientes`.
-- Botón **Pendientes** → `#/pendientes`.
-- Botón **Más** → `#/mas`.
-- La activa recibe clase `.active`.
+> IDs/clases reales que deben existir en el HTML (los usa el QA y los tests).
 
-### 6.2 FAB "+" (contextual según pestaña)
-- En Agenda → abre nuevo trabajo rápido (elige cliente) o nuevo cliente (menú de 2 opciones).
-- En Clientes → `#/cliente/nuevo`.
-- En Pendientes → abre diálogo "nuevo pendiente" (tipo material/tarea + texto).
-- En Más → oculto (no FAB en Más).
+### Barra de navegación inferior (global) `#bottomnav`
+- `#nav-escanear` (a `#/escanear`), `#nav-plantas` (a `#/plantas`), `#nav-trabajos` (a `#/trabajos`),
+  `#nav-tareas` (a `#/tareas`), `#nav-mas` (a `#/mas`). El activo recibe clase `.active`.
 
-### 6.3 Agenda (`#/agenda`)
-- **‹ / ›**: cambia `weekOffset` ±1, re-render.
-- **Hoy**: `weekOffset=0`, re-render.
-- Cada tarjeta de visita → al pulsar abre `#/cliente/:id` (si es por frecuencia) o `#/trabajo/:id` (si es trabajo concreto).
+### `#/` Inicio — vista `#view-home`
+- `#home-scan-cta` (botón grande) → navega a `#/escanear`.
+- Tarjetas resumen del día (trabajos pendientes hoy, nº plantas) → enlaces a `#/trabajos` / `#/plantas`.
 
-### 6.4 Clientes (`#/clientes`)
-- **Buscador** (input): `oninput` filtra array por `nombre` y `direccion` (case-insensitive, sin acentos).
-- **Tarjeta cliente** → `#/cliente/:id`.
-- **FAB +** → `#/cliente/nuevo`.
-- Estado vacío: botón **"Añadir primer cliente"** → `#/cliente/nuevo`.
+### `#/escanear` — vista `#view-scan`
+- `#scan-file` (input file `accept="image/*" capture="environment"`) — disparado por `#scan-pick-btn`.
+- `#scan-pick-btn` (botón "Tomar foto / Elegir imagen") → abre `#scan-file`.
+- `#scan-preview` (img) — vista previa tras elegir.
+- `#scan-identify-btn` (botón "Identificar") → ejecuta clasificador → muestra `#scan-result`.
+- `#scan-change-btn` ("Cambiar foto") → reabre selector.
+- `#scan-result` (contenedor de resultado) con: `#scan-name`, `#scan-badge` (`.badge-toxic`/`.badge-safe`),
+  `#scan-traits`, `#scan-water`, `#scan-light`, `#scan-care`, `#scan-warning` (aviso seguridad),
+  `#scan-candidates` (lista de candidatos), `#scan-save-btn` ("Guardar en Mis plantas"),
+  `#scan-repeat-btn` ("Repetir").
 
-### 6.5 Ficha cliente (`#/cliente/:id`)
-- **‹ Volver** → `#/clientes`.
-- **Llamar** (`tel:`), **WhatsApp** (`wa.me`), **Cómo llegar** (`maps.google.com/?q=`) — solo visibles si hay dato.
-- **Editar** → `#/cliente/:id/editar`.
-- **Eliminar** → confirm → borra cliente + sus trabajos + fotos asociadas → `#/clientes`.
-- **Nuevo trabajo** → `#/cliente/:id/trabajo/nuevo`.
-- Lista de trabajos → cada uno a `#/trabajo/:id`.
+### `#/plantas` — vista `#view-plants`
+- `#plants-search` (input búsqueda).
+- `#plants-toxic-toggle` (checkbox/botón "Solo tóxicas").
+- `#plants-list` (contenedor de tarjetas; cada tarjeta `.plant-card[data-id]` → abre `#/plantas/:id`).
+- `#plants-empty` (estado vacío) con `#plants-empty-cta` → `#/escanear`.
 
-### 6.6 Formulario cliente (nuevo/editar)
-- Campos: `nombre*`, `direccion`, `telefono`, `acceso` (portón/código), `mascotas`, `diaPago`, `frecuencia` (select), `diaPreferido` (select), `notas` (textarea).
-- **Guardar** → valida nombre → crea/actualiza → navega a ficha.
-- **Cancelar** → vuelve atrás sin guardar.
+### `#/plantas/:id` — vista `#view-plant-detail`
+- `#plant-detail-photo`, `#plant-detail-name`, `#plant-detail-badge`, `#plant-detail-traits`,
+  `#plant-detail-water`, `#plant-detail-light`, `#plant-detail-care`.
+- `#plant-notes` (textarea), `#plant-notes-save` ("Guardar nota").
+- `#plant-delete` ("Eliminar") → confirm → borra.
+- `#plant-back` → volver a `#/plantas`.
 
-### 6.7 Ficha trabajo (`#/trabajo/:id`)
-- **Volver** → ficha cliente.
-- **Estado** (3 botones segmentados) → set estado.
-- **Importe** (input number) + **Cobrado** (toggle) → set cobro.
-- **Checklist**: input + "Añadir" → push tarea; checkbox por tarea → toggle hecho; "x" → borra tarea.
-- **Añadir foto** → input file (ver 5.3).
-- Por foto: select **Antes/Después**, **Compartir**, **Eliminar**.
-- **Comparar** → `#/trabajo/:id/comparar`.
-- **Eliminar trabajo** → confirm → borra trabajo + fotos.
+### `#/trabajos` — vista `#view-jobs`
+- `#jobs-new-btn` ("Nuevo trabajo") → `#/trabajos/nuevo`.
+- Filtros: `#jobs-filter-all`, `#jobs-filter-pending`, `#jobs-filter-doing`, `#jobs-filter-done`.
+- `#jobs-list` (tarjetas `.job-card[data-id]` con `.job-status`). `#jobs-empty` estado vacío.
 
-### 6.8 Pendientes (`#/pendientes`)
-- Dos secciones: **Materiales** / **Tareas**.
-- Por ítem: checkbox (hecho/comprado) → toggle; "x" → borra.
-- **FAB +** → diálogo: tipo (radio material/tarea) + texto + "Añadir".
+### `#/trabajos/nuevo` — vista `#view-job-form`
+- Form `#jobForm` con: `#job-title` (obligatorio), `#job-location`, `#job-date` (date),
+  `#job-status` (select), `#job-title-err` (mensaje error). Botón submit `#job-save` ("Guardar").
+- `#job-cancel` → volver.
 
-### 6.9 Más (`#/mas`)
-- Enlaces: **Cobros** (`#/cobros`), **Datos y copias** (`#/datos`).
-- **PIN**: toggle/campo para fijar o quitar PIN (se guarda en localStorage `meta.pin`; CONFIG es el valor inicial por defecto).
-- **Instalar app** → `deferredPrompt.prompt()` o instrucciones.
-- **Recordatorio diario** (toggle): si ON, al abrir la app después de `REMINDER_HOUR` y si hay pendientes/visitas hoy, muestra un banner "Tienes X visitas y Y pendientes hoy".
-- Sección **Aviso de datos** (texto fijo).
-- **Firma del estudio** en el pie.
+### `#/trabajos/:id` — vista `#view-job-detail`
+- `#job-d-title`, `#job-d-location`, `#job-d-date`.
+- `#job-d-status` (select) → onchange persiste.
+- Checklist: `#job-check-input` + `#job-check-add` (botón) → añade a `#job-check-list`
+  (cada ítem `.check-item` con checkbox `.check-done` y botón `.check-del`).
+- Fotos: `#job-photo-before` (input file) zona `#job-before-list`; `#job-photo-after` (input file)
+  zona `#job-after-list`.
+- Notas: `#job-d-notes` (textarea) + `#job-d-notes-save`.
+- `#job-delete` ("Eliminar trabajo") → confirm.
+- `#job-back` → `#/trabajos`.
 
-### 6.10 Cobros (`#/cobros`)
-- **‹ / ›** mes → cambia `monthOffset`, recalcula.
-- Muestra: total **Cobrado**, total **Pendiente**, nº trabajos, lista de trabajos del mes con su importe y estado.
+### `#/tareas` — vista `#view-tasks`
+- Materiales: `#mat-input` + `#mat-add` → `#mat-list` (ítems `.task-item` con `.task-done`, `.task-del`).
+- Por hacer: `#todo-input` + `#todo-add` → `#todo-list` (mismos controles).
 
-### 6.11 Datos (`#/datos`)
-- **Exportar JSON**, **Importar JSON** (input file), **Eliminar fotos antiguas** (input meses + confirmar).
+### `#/mas` — vista `#view-more`
+- Menú con enlaces: `#more-settings` → `#/mas/ajustes`, `#more-stats` → `#/mas/stats`,
+  `#more-help`, `#more-privacy` → `#/mas/privacidad`, `#more-about` → `#/mas/acerca`,
+  `#more-install` ("Instalar app").
+- Si bloqueo activo: `#lock-screen` con `#lock-pass` (input) + form `#lockForm` + `#lock-enter`.
 
-### 6.12 PIN (`#/pin`)
-- Input PIN + **Entrar**. Mensaje de error inline.
+### `#/mas/ajustes` — vista `#view-settings`
+- `#set-lock-toggle` (checkbox bloqueo), `#set-theme` (select claro/oscuro/auto).
+- `#set-export` ("Exportar copia") → descarga JSON.
+- `#set-import-file` (input file) + `#set-import-btn` ("Importar copia") → restaura con confirm.
+- `#set-wipe` ("Borrar todos los datos") → doble confirm.
+
+### `#/mas/stats` — vista `#view-stats`
+- `#stat-plants`, `#stat-toxic`, `#stat-jobs-pending`, `#stat-jobs-doing`, `#stat-jobs-done`,
+  `#stat-tasks-pending` (contadores derivados).
+
+### `#/admin` — vista `#view-admin`
+- Alias práctico de gestión de datos: muestra export/import/wipe (reutiliza controles de ajustes).
+  Si bloqueo activo, exige clave igual que `#/mas`.
+
+### Globales
+- `#toast` (mensajes), `#confirm-dialog` (diálogo de confirmación reutilizable con `#confirm-ok`/`#confirm-cancel`).
 
 ---
 
 ## 7. MODELO DE DATOS
 
-### localStorage (claves)
-- `jd_clientes` → `Cliente[]`
-- `jd_trabajos` → `Trabajo[]`
-- `jd_pendientes` → `Pendiente[]`
-- `jd_meta` → `Meta` (config persistida por el usuario)
+### Almacenamiento
+- **localStorage** (JSON serializado) para datos ligeros y ajustes.
+- **IndexedDB** (object store `images`) para las imágenes en dataURL (fotos de plantas y de trabajos),
+  porque pueden superar el límite de localStorage. Cada imagen se referencia por `imageId`.
+- **IDs únicos:** `id = Date.now().toString(36) + Math.random().toString(36).slice(2,7)`.
+
+### Claves de localStorage
+| Clave | Contenido |
+|-------|-----------|
+| `cdb.plants` | `Plant[]` |
+| `cdb.jobs` | `Job[]` |
+| `cdb.tasksMaterials` | `TaskItem[]` |
+| `cdb.tasksTodo` | `TaskItem[]` |
+| `cdb.settings` | `Settings` |
 
 ### IndexedDB
-- DB `jardin_db`, versión 1.
-- Object store **`photos`**, keyPath `id`. Registro: `{ id:string, trabajoId:string, blob:Blob, tag:"antes"|"despues"|"sin", fecha:number }`.
+- DB: `cdb-images`, version `CONFIG.DB_VERSION`, store `images` (keyPath `imageId`), value `{ imageId, dataUrl }`.
 
-### Tipos
-
-```ts
-Cliente = {
-  id: string,            // "c_" + Date.now().toString(36) + rnd
-  nombre: string,        // obligatorio
-  direccion: string,     // ""
-  telefono: string,      // "" (guardado tal cual; normalizado al usar)
-  acceso: string,        // portón/código/llave; ""
-  mascotas: string,      // "" (texto libre: "Perro grande suelto")
-  diaPago: string,       // "" texto libre o día del mes
-  frecuencia: "semanal"|"quincenal"|"mensual"|"puntual",
-  diaPreferido: ""|"lun"|"mar"|"mie"|"jue"|"vie"|"sab"|"dom",
-  notas: string,         // ""
-  creado: number,        // Date.now()
-  ultimaVisita: number|null  // se actualiza al marcar trabajo Hecho
+### Tipos (forma exacta)
+```
+Plant {
+  id: string,
+  name: string,            // nombre común elegido
+  scientific: string,      // nombre científico (de la BD local)
+  toxic: boolean,          // venenosa sí/no
+  traits: string,          // características
+  water: string,           // riego
+  light: string,           // luz
+  care: string,            // cuidados
+  notes: string,           // nota personal (editable)
+  imageId: string|null,    // referencia a IndexedDB (foto del escaneo)
+  matchKey: string,        // clave de la planta en la BD local (para re-consulta)
+  createdAt: number        // timestamp
 }
 
-Trabajo = {
-  id: string,            // "t_" + ...
-  clienteId: string,
-  fecha: number,         // timestamp del día del trabajo
-  descripcion: string,
-  estado: "pendiente"|"curso"|"hecho",
-  checklist: [{ id:string, texto:string, hecho:boolean }],
-  importe: number,       // 0 si no aplica
-  cobrado: boolean,
-  fechaCobro: number|null,
-  fotos: [{ id:string, tag:"antes"|"despues"|"sin", fecha:number }], // metadatos; Blob en IndexedDB
-  creado: number
+Job {
+  id: string,
+  title: string,           // obligatorio
+  location: string,        // texto libre (sin GPS)
+  date: string,            // 'YYYY-MM-DD' o ''
+  status: 'pending'|'doing'|'done',
+  checklist: ChecklistItem[],
+  notes: string,
+  photosBefore: string[],  // array de imageId
+  photosAfter: string[],   // array de imageId
+  createdAt: number
 }
 
-Pendiente = {
-  id: string,            // "p_" + ...
-  tipo: "material"|"tarea",
-  texto: string,
-  hecho: boolean,        // hecho/comprado
-  creado: number
-}
+ChecklistItem { id: string, text: string, done: boolean }
 
-Meta = {
-  pin: string,           // "" si no hay
-  recordatorio: boolean, // toggle recordatorio diario
-  prefijoTel: string,    // "+34" por defecto
-  version: 1
+TaskItem { id: string, text: string, done: boolean, createdAt: number }
+
+Settings {
+  lockEnabled: boolean,    // default CONFIG.LOCK_ENABLED_DEFAULT
+  theme: 'light'|'dark'|'auto',  // default 'auto'
+  installed: boolean
 }
 ```
 
-### Generación de IDs
-`function uid(p){ return p + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }`
-Prefijos: clientes `c_`, trabajos `t_`, fotos `f_`, pendientes `p_`, tareas `k_`.
-
-### Export JSON (forma)
-```json
-{ "version": 1, "exportado": "2026-06-17T10:00:00Z",
-  "clientes": [...], "trabajos": [...], "pendientes": [...], "meta": {...} }
+### Formato del backup (export/import)
 ```
-Las fotos NO se incluyen (solo metadatos dentro de cada trabajo).
+{
+  app: "botanica-de-carmen",
+  version: 1,
+  exportedAt: number,
+  data: { plants:[...], jobs:[...], tasksMaterials:[...], tasksTodo:[...], settings:{...} },
+  images: [ { imageId, dataUrl }, ... ]   // se vuelcan también las imágenes de IndexedDB
+}
+```
+Al importar: validar `app`/`version`, confirmar sobrescritura, restaurar localStorage e IndexedDB.
 
 ---
 
-## 8. ALGORITMO DE AGENDA SEMANAL
+## 8. ALGORITMO DE IDENTIFICACIÓN DE PLANTAS (100% offline)
 
-**Objetivo:** dado un `weekOffset`, mostrar lunes→domingo de esa semana con (a) trabajos con fecha
-en ese rango y (b) "visitas previstas" por frecuencia de cada cliente.
+> El briefing pide TensorFlow.js + base local. **Restricción dura del estudio: sin CDN, sin red,
+> un solo HTML.** Cargar un modelo TF.js real (MobileNet, decenas de MB) embebido en un HTML no es
+> viable ni rápido (<2s). Por tanto el algoritmo entregable es un **clasificador heurístico de
+> características visuales 100% local**, presentado a la usuaria como "identificación inteligente".
+> Es honesto: SIEMPRE muestra el aviso de que es orientativa. Esto cumple el espíritu del briefing
+> (offline, base de 100+ plantas, resultado con venenosa/riego/luz/cuidados) dentro de las reglas
+> del estudio. Ver §10 — esto se anota como decisión de diseño a confirmar.
 
-### Cálculo del rango de semana
+### 8.1 Base de datos local de plantas (`PLANT_DB`, ≥100 entradas)
+Array de objetos embebido en el JS. Cada entrada:
 ```
-hoy = new Date(); hoy.setHours(0,0,0,0)
-diaSemana = (hoy.getDay()+6)%7        // 0=lunes ... 6=domingo (WEEK_STARTS_MONDAY)
-lunesActual = hoy - diaSemana días
-inicio = lunesActual + (weekOffset*7) días
-fin = inicio + 6 días
+{
+  key: 'adelfa',
+  name: 'Adelfa',
+  scientific: 'Nerium oleander',
+  toxic: true,
+  traits: 'Arbusto perenne de hojas lanceoladas y flores rosas/blancas.',
+  water: 'Moderado; resiste sequía una vez establecida.',
+  light: 'Pleno sol.',
+  care: 'Toda la planta es muy tóxica; usar guantes al podar. No quemar restos.',
+  // huella visual para el matcher heurístico:
+  features: {
+    dominantHue: 'green',        // green|red|purple|yellow|white|mixed
+    flowerColor: 'pink',         // none|white|yellow|red|pink|purple|blue|mixed
+    leafShape: 'lanceolate',     // round|lanceolate|lobed|needle|heart|compound|grass|succulent
+    form: 'shrub',               // tree|shrub|herb|grass|succulent|climber|palm
+    brightness: 'medium'         // light|medium|dark
+  }
+}
 ```
+Debe incluir 100+ plantas comunes en jardinería pública española. Incluir un set claro de TÓXICAS
+relevantes para una jardinera municipal (adelfa, hortensia, ricino, tejo, durillo, hiedra, aro,
+estramonio, dedalera, glicinia, narciso, dieffenbachia, etc.) y comunes seguras (romero, lavanda,
+geranio, rosal, olivo, encina, jara, aligustre, buganvilla, etc.). El agente de datos completa
+la lista hasta ≥100 con datos botánicos reales (cero lorem ipsum).
 
-### Para cada día D del rango (7 días)
-1. **Trabajos del día:** `trabajos` cuyo `fecha` cae en D (mismo día natural). Cualquier estado; los Hechos se muestran atenuados.
-2. **Visitas previstas por frecuencia:** para cada cliente con `frecuencia != "puntual"`:
-   - Determinar si "toca" ese día según frecuencia y `diaPreferido`:
-     - **semanal**: toca si `diaPreferido` coincide con el día de la semana de D (si no hay diaPreferido, no se proyecta — se anota como "sin día asignado" en una lista aparte de la agenda).
-     - **quincenal**: toca si coincide `diaPreferido` Y el número de semana ISO de D es par respecto a una semana base (base = semana de `cliente.creado`); fórmula: `((semanaISO(D) - semanaISO(creado)) mod 2)===0`.
-     - **mensual**: toca si coincide `diaPreferido` Y es la **primera ocurrencia** de ese día de la semana dentro del mes de D (o, si `diaPago`/regla mensual define día del mes, ese día). Por defecto: primera semana del mes.
-   - Si "toca" y NO existe ya un trabajo de ese cliente ese día (para no duplicar), se añade una tarjeta "Visita prevista — {cliente}" enlazando a `#/cliente/:id` con botón rápido "Crear trabajo".
-3. Orden dentro del día: trabajos primero (por hora/orden de creación), luego visitas previstas.
+### 8.2 Extracción de características de la foto (canvas, sin librerías)
+1. Cargar la imagen en un `<canvas>` reducido (p. ej. 64×64) para rendimiento.
+2. Recorrer píxeles y calcular: histograma de tono (HSV) → `dominantHue`; brillo medio → `brightness`;
+   proporción de píxeles "verdes" vs "florales" (saturados no verdes) → estima `flowerColor`/`hasFlower`;
+   varianza/bordes simple (diferencia entre píxeles vecinos) → pista de `leafShape`/textura.
+3. Construir un objeto `observed` con las mismas claves que `features`.
 
-### Día de hoy
-Se resalta la columna/tarjeta cuyo D === hoy (solo cuando `weekOffset===0`).
+### 8.3 Scoring y candidatos
+1. Para cada entrada de `PLANT_DB`, calcular `score` = suma ponderada de coincidencias entre
+   `observed` y `entry.features` (p. ej. dominantHue 30%, flowerColor 30%, brightness 15%,
+   leafShape 15%, form 10%).
+2. Ordenar descendente. Top-1 = candidato principal; mostrar top-3.
+3. Umbral de confianza: si `topScore < UMBRAL` → estado "No estoy segura", invitar a elegir
+   manualmente entre los 3 candidatos o repetir foto.
+4. El resultado SIEMPRE incluye `#scan-warning` (aviso de seguridad), independientemente de la confianza.
 
-### Próximas visitas (resumen superior de Agenda)
-Lista compacta de las siguientes 5 visitas previstas a partir de hoy (recorriendo días hacia delante hasta 30 días, aplicando la misma regla "toca").
+> Honestidad obligatoria (la verifica seguridad/QA): el texto nunca afirma certeza médica/botánica;
+> usa "podría ser", "candidata más probable", y el aviso de confirmar tóxicas siempre visible.
 
-> Nota de robustez: el cálculo es determinista y no usa red. Si un cliente no tiene `diaPreferido`,
-> nunca se proyecta (se evita inventar visitas). Esto se documenta para que UX muestre un aviso
-> "Asigna un día preferido para verlo en la agenda".
+### 8.4 Hook de pruebas
+Exponer `window.__testIdentify(plantKey)` que simule un resultado de identificación con la planta
+indicada (rellena `#scan-result` como si el clasificador la hubiera elegido), para que el QA pueda
+probar los criterios 7-10 sin tener que inyectar un archivo en el `<input type=file>` headless.
 
 ---
 
 ## 9. SUPUESTOS
+- El dispositivo es personal de Carmen Delia → bloqueo por contraseña desactivado por defecto.
+- "Identificación por IA" se entrega como clasificador heurístico local honesto (ver §8) por la
+  restricción de un único HTML sin CDN. Cumple offline + base 100+ + datos por planta.
+- La ubicación de los trabajos es texto libre (no GPS) por privacidad y por no depender de permisos.
+- "Más" agrupa ayuda/ajustes/backup/stats; `#/admin` es un alias de gestión de datos, no un panel
+  de negocio (esta app no tiene negocio que gestionar).
+- Tema por defecto "auto"; verde botánico vibrante como color de marca (lo concreta el agente de marca).
+- Las imágenes se guardan como dataURL en IndexedDB; el backup las incluye para que la copia sea completa.
 
-1. Un solo dispositivo, una sola usuaria; sin concurrencia.
-2. El recordatorio "diario" se implementa como **aviso in-app al abrir** (no push real en `file://`).
-3. Prefijo telefónico por defecto `+34` (España) — editable en Meta.
-4. La compresión usa `<canvas>`+`toBlob`; si el navegador no soporta `toBlob` con jpeg, fallback a `toDataURL` y conversión a Blob.
-5. IndexedDB disponible (todos los navegadores modernos); si falla, las fotos se avisan como no disponibles y el resto de la app funciona.
-6. Cobros = registro manual; no hay pasarela de pago.
-7. La frecuencia "quincenal/mensual" usa la fecha de alta del cliente como ancla; es una previsión orientativa, no una cita fija.
-8. PIN es disuasorio local (no cifra datos); se documenta como tal.
-
----
-
-## 10. DATOS QUE FALTAN (placeholders usados)
-
-| Dato | Estado | Placeholder usado |
-|---|---|---|
-| Nombre titular | Dado en briefing | "Carmen Delia" |
-| Logo / marca | No aportado | Emblema SVG (hoja) + texto "Jardín · Gestión" |
-| Teléfono propio del negocio | No aplica (app interna) | — |
-| Prefijo país | No aportado | `+34` (editable) |
-| Color de marca | "verde natural + neutros" (briefing) | verde `#3f7d52` aprox + neutros |
-| Titular para aviso de datos | No aportado | "[Carmen Delia]" placeholder |
+## 10. DATOS QUE FALTAN (placeholders, a confirmar con Carmen Delia)
+1. **Nombre de la app / marca**: no hay. Placeholder `APP_NAME: "Botánica de Carmen"`. Confirmar
+   o dejar genérico.
+2. **Municipio** donde trabaja: placeholder `MUNICIPALITY: "Tu municipio"`. Útil para encabezados/stats.
+3. **¿Quiere bloqueo por contraseña?** Por defecto NO. Si lo quiere, confirmar la clave (placeholder
+   `ADMIN_PASSWORD: "jardin2026"`).
+4. **Listado real de 100+ plantas**: el agente de datos lo construye con datos botánicos verificados;
+   confirmar que cubre las especies que ella maneja en su municipio.
+5. **Decisión técnica IA**: confirmar que acepta clasificador heurístico local (orientativo) en lugar
+   de TF.js online, dado el requisito de un único HTML offline.
+6. **Logo**: no hay; se usa emblema SVG de hoja. Confirmar si tiene logotipo propio.
 
 ---
 
-## 11. TESTS DE ACEPTACIÓN EJECUTABLES (embeber en el HTML)
-
-> El constructor debe pegar este bloque en el HTML final y usar EXACTAMENTE estos selectores/IDs.
-> Convención de IDs obligatoria para los demás agentes:
-> - Pestañas: `#tab-agenda #tab-clientes #tab-pendientes #tab-mas`
-> - FAB: `#fab`
-> - Buscador clientes: `#cli-buscar`
-> - Form cliente: `#form-cliente`, campo nombre `#cli-nombre`, tel `#cli-tel`, dirección `#cli-dir`,
->   frecuencia `#cli-frec`, día preferido `#cli-dia`, guardar `#cli-guardar`.
-> - Estado vacío clientes: texto "Aún no tienes clientes".
-> - Form trabajo: `#form-trabajo`, importe `#tr-importe`, guardar `#tr-guardar`.
-> - Estado trabajo: botones `#est-pendiente #est-curso #est-hecho`.
-> - Checklist: input `#chk-input`, botón `#chk-add`.
-> - Cobrado: `#tr-cobrado`.
-> - Pendientes: FAB abre diálogo con `#pend-tipo-material #pend-tipo-tarea`, texto `#pend-texto`, add `#pend-add`.
-> - Agenda nav: `#wk-prev #wk-next #wk-hoy`.
-> - Cobros nav: `#mes-prev #mes-next`.
-> - Datos: `#btn-export #btn-import #btn-limpiar-fotos`.
-> - PIN: form `#form-pin`, campo `#pin-input`.
+## 11. TESTS DE ACEPTACIÓN EJECUTABLES (a embeber en el HTML)
 
 ```html
 <script type="application/json" id="acceptance-tests">
 [
-  { "name": "Arranca en Agenda con 4 pestañas", "steps": [
+  { "name": "1-4 Navegacion entre las 5 pantallas y fallback", "steps": [
     { "goto": "#/" },
-    { "expect": "Agenda" },
-    { "expectVisible": "#tab-clientes" },
-    { "expectVisible": "#tab-pendientes" },
-    { "expectVisible": "#tab-mas" },
-    { "expectVisible": "#fab" }
+    { "expectVisible": "#bottomnav" },
+    { "click": "#nav-trabajos" }, { "expectHash": "#/trabajos" },
+    { "click": "#nav-plantas" }, { "expectHash": "#/plantas" },
+    { "click": "#nav-tareas" }, { "expectHash": "#/tareas" },
+    { "click": "#nav-mas" }, { "expectHash": "#/mas" },
+    { "click": "#nav-escanear" }, { "expectHash": "#/escanear" },
+    { "goto": "#/loquesea" }, { "expectVisible": "#view-home" }
   ]},
-  { "name": "Clientes vacio muestra estado vacio", "steps": [
-    { "goto": "#/clientes" },
-    { "expect": "Aún no tienes clientes" }
+  { "name": "3 Recarga mantiene la ruta", "steps": [
+    { "goto": "#/trabajos" }, { "reload": true }, { "expectVisible": "#view-jobs" }
   ]},
-  { "name": "Nuevo cliente valida nombre obligatorio", "steps": [
-    { "goto": "#/cliente/nuevo" },
-    { "click": "#cli-guardar" },
-    { "expect": "El nombre es obligatorio" }
+  { "name": "5-6 Escanear muestra picker y guia", "steps": [
+    { "goto": "#/escanear" },
+    { "expectVisible": "#scan-pick-btn" },
+    { "expect": "Apunta" }
   ]},
-  { "name": "Crea cliente y aparece en la lista", "steps": [
-    { "goto": "#/cliente/nuevo" },
-    { "fill": { "sel": "#cli-nombre", "value": "María Jardín" } },
-    { "fill": { "sel": "#cli-dir", "value": "Calle Olivo 4" } },
-    { "click": "#cli-guardar" },
-    { "goto": "#/clientes" },
-    { "expect": "María Jardín" }
+  { "name": "7-10 Identificacion simulada muestra datos, aviso y badge", "steps": [
+    { "goto": "#/escanear" },
+    { "eval": "window.__testIdentify('adelfa')" },
+    { "expectVisible": "#scan-result" },
+    { "expect": "Adelfa" },
+    { "expectVisible": "#scan-warning" },
+    { "expectVisible": ".badge-toxic" },
+    { "expectVisible": "#scan-save-btn" }
   ]},
-  { "name": "Buscador filtra clientes", "steps": [
-    { "goto": "#/clientes" },
-    { "fill": { "sel": "#cli-buscar", "value": "zzzznoexiste" } },
-    { "expect": "Sin resultados" },
-    { "fill": { "sel": "#cli-buscar", "value": "María" } },
-    { "expect": "María Jardín" }
+  { "name": "9-11 Guardar planta aparece en Mis plantas", "steps": [
+    { "goto": "#/escanear" },
+    { "eval": "window.__testIdentify('adelfa')" },
+    { "click": "#scan-save-btn" },
+    { "goto": "#/plantas" },
+    { "expect": "Adelfa" }
   ]},
-  { "name": "Crea trabajo y cambia estado a Hecho persistente", "steps": [
-    { "goto": "#/clientes" },
-    { "clickText": "María Jardín" },
-    { "clickText": "Nuevo trabajo" },
-    { "fill": { "sel": "#tr-importe", "value": "45" } },
-    { "click": "#tr-guardar" },
-    { "click": "#est-hecho" },
+  { "name": "12 Estado vacio de Mis plantas guia a escanear", "steps": [
+    { "eval": "localStorage.removeItem('cdb.plants')" },
+    { "goto": "#/plantas" },
     { "reload": true },
-    { "expect": "Hecho" }
+    { "expectVisible": "#plants-empty" },
+    { "click": "#plants-empty-cta" },
+    { "expectHash": "#/escanear" }
   ]},
-  { "name": "Checklist suma tareas", "steps": [
-    { "clickText": "María Jardín" },
-    { "clickText": "Ver trabajo" },
-    { "fill": { "sel": "#chk-input", "value": "Podar seto" } },
-    { "click": "#chk-add" },
-    { "expect": "Podar seto" }
+  { "name": "13-14 Busqueda y filtro toxicas en Mis plantas", "steps": [
+    { "goto": "#/escanear" }, { "eval": "window.__testIdentify('adelfa')" }, { "click": "#scan-save-btn" },
+    { "goto": "#/escanear" }, { "eval": "window.__testIdentify('romero')" }, { "click": "#scan-save-btn" },
+    { "goto": "#/plantas" },
+    { "fill": { "sel": "#plants-search", "value": "adel" } },
+    { "expect": "Adelfa" },
+    { "expectGone": "Romero" },
+    { "fill": { "sel": "#plants-search", "value": "" } },
+    { "check": "#plants-toxic-toggle" },
+    { "expect": "Adelfa" },
+    { "expectGone": "Romero" }
   ]},
-  { "name": "Pendientes anade material", "steps": [
-    { "goto": "#/pendientes" },
-    { "click": "#fab" },
-    { "check": "#pend-tipo-material" },
-    { "fill": { "sel": "#pend-texto", "value": "Comprar abono" } },
-    { "click": "#pend-add" },
-    { "expect": "Comprar abono" }
+  { "name": "16 Nota de planta persiste", "steps": [
+    { "goto": "#/plantas" },
+    { "clickText": "Adelfa" },
+    { "fill": { "sel": "#plant-notes", "value": "Vista en parque norte" } },
+    { "click": "#plant-notes-save" },
+    { "reload": true },
+    { "expect": "Vista en parque norte" }
   ]},
-  { "name": "Agenda navega semanas y vuelve a hoy", "steps": [
-    { "goto": "#/agenda" },
-    { "click": "#wk-next" },
-    { "click": "#wk-hoy" },
-    { "expectHash": "#/agenda" }
+  { "name": "17 Eliminar planta la quita de la lista", "steps": [
+    { "goto": "#/plantas" },
+    { "clickText": "Romero" },
+    { "click": "#plant-delete" },
+    { "click": "#confirm-ok" },
+    { "expectHash": "#/plantas" },
+    { "expectGone": "Romero" }
   ]},
-  { "name": "Cobros muestra resumen del mes", "steps": [
-    { "goto": "#/cobros" },
-    { "expect": "Cobrado" },
-    { "expect": "Pendiente" }
+  { "name": "18-19 Nuevo trabajo valida titulo obligatorio", "steps": [
+    { "goto": "#/trabajos" },
+    { "click": "#jobs-new-btn" },
+    { "expectHash": "#/trabajos/nuevo" },
+    { "submit": "#jobForm" },
+    { "expect": "obligatorio" },
+    { "fill": { "sel": "#job-title", "value": "Poda parque central" } },
+    { "submit": "#jobForm" },
+    { "expectHash": "#/trabajos" },
+    { "expect": "Poda parque central" }
   ]},
-  { "name": "Datos ofrece exportar e importar", "steps": [
-    { "goto": "#/datos" },
-    { "expectVisible": "#btn-export" },
-    { "expectVisible": "#btn-import" },
-    { "expectVisible": "#btn-limpiar-fotos" }
+  { "name": "20-23 Filtros y detalle de trabajo con checklist y estado", "steps": [
+    { "goto": "#/trabajos" },
+    { "click": "#jobs-filter-pending" },
+    { "expect": "Poda parque central" },
+    { "clickText": "Poda parque central" },
+    { "expectVisible": "#job-d-status" },
+    { "fill": { "sel": "#job-check-input", "value": "Recoger restos" } },
+    { "click": "#job-check-add" },
+    { "expect": "Recoger restos" }
   ]},
-  { "name": "Mas muestra firma del estudio", "steps": [
+  { "name": "24-25 Tareas anade material y persiste", "steps": [
+    { "goto": "#/tareas" },
+    { "fill": { "sel": "#mat-input", "value": "Tijeras de podar" } },
+    { "click": "#mat-add" },
+    { "expect": "Tijeras de podar" },
+    { "reload": true },
+    { "expect": "Tijeras de podar" }
+  ]},
+  { "name": "26 Estadisticas muestra contadores reales", "steps": [
     { "goto": "#/mas" },
-    { "expect": "Incuba tu Negocio" },
-    { "expect": "Jaime M. M." }
+    { "expectVisible": "#more-stats" },
+    { "click": "#more-stats" },
+    { "expectVisible": "#stat-plants" },
+    { "expectVisible": "#stat-toxic" }
+  ]},
+  { "name": "27 Bloqueo opcional pide clave cuando se activa", "steps": [
+    { "goto": "#/mas/ajustes" },
+    { "check": "#set-lock-toggle" },
+    { "goto": "#/mas" },
+    { "expectVisible": "#lock-pass" },
+    { "fill": { "sel": "#lock-pass", "value": "jardin2026" } },
+    { "submit": "#lockForm" },
+    { "expectVisible": "#view-more" }
   ]}
 ]
 </script>
 ```
 
-> Nota para QA: los tests de fotos (cámara) NO se automatizan con clic real (requieren archivo
-> nativo); se verifican manualmente. Los criterios 22-26 quedan como verificación manual + los
-> selectores existen (`#tr-foto-input`, `#foto-compartir`, `#foto-eliminar`).
-
----
-
-## 12. RESUMEN PARA LOS SIGUIENTES AGENTES
-
-- **Marca:** verde natural (briefing). Base `#3f7d52`, fondos neutros claros, system-ui. App interna, look limpio tipo herramienta, no landing.
-- **UX:** mobile-first 6", tabs inferiores fijas, FAB contextual, microanimaciones suaves, estados vacíos con copy útil, confirmaciones en borrados.
-- **Copy:** español natural, tono práctico de uso diario ("Hoy toca…", "Sin cobrar"), cero lorem.
-- **Frontend:** una sola HTML, router hash, vistas inyectadas en `#app`, sin librerías.
-- **Datos:** localStorage (texto) + IndexedDB (fotos Blob), CRUD según §6/§7, export/import JSON.
-- **Seguridad:** escapar todo texto de usuario al pintar (XSS), no usar `innerHTML` con datos sin escapar; PIN disuasorio.
-- **Rendimiento:** comprimir fotos antes de guardar; usar `objectURL` y revocar; render por vista.
-- **Accesibilidad:** roles de tab, foco gestionado al cambiar de vista, labels en inputs, contraste AA, `prefers-reduced-motion`.
-- **QA:** ejecutar §11 + verificación manual de fotos; comprobar persistencia tras recarga.
+> Nota para el constructor: varios tests usan `window.__testIdentify(plantKey)` (hook §8.4) porque
+> inyectar un archivo en `<input type=file>` desde el verificador headless es frágil. El hook DEBE
+> existir para que el QA pueda probar los criterios 7-11, 13-14 sin foto real. Si el verificador del
+> estudio no soporta el paso `eval`, sustituirlo por un botón oculto de demo equivalente; mantener el
+> resto de tests intacto.
