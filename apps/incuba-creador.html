@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<title>Incuba tu Negocio · Creador de Reels y Fotos</title>
+<meta name="description" content="Mete tu negocio y te genera el guion del reel, el prompt de la foto y el prompt del vídeo, listos para pegar en la IA.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Creador">
+<style>
+  :root{--bg:#0b1020;--bg2:#0e1530;--surface:#131b35;--surface2:#1a2342;--line:#26315a;--text:#eaf0ff;--muted:#9aa6c8;--muted2:#717ea8;--brand:#22c55e;--brand-d:#16a34a;--lime:#a3e635;--accent:#38bdf8;--r:16px}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:radial-gradient(1100px 560px at 80% -10%,#16224a,var(--bg) 55%) fixed,var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,Arial,sans-serif;line-height:1.55;padding-bottom:40px}
+  .wrap{max-width:720px;margin:0 auto;padding:0 16px}
+  header{padding:22px 0 6px;text-align:center}
+  .mk{width:54px;height:54px;margin:0 auto 10px;border-radius:15px;background:linear-gradient(135deg,var(--brand),var(--lime));display:grid;place-items:center}
+  .mk svg{width:34px;height:34px}
+  h1{font-size:clamp(23px,6vw,32px);letter-spacing:-.4px;margin:4px 0}
+  .sub{color:var(--muted);font-size:14.5px;margin:0 auto;max-width:48ch}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-top:16px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .field{margin:11px 0}
+  .field label{display:block;font-size:13.5px;font-weight:700;color:var(--muted);margin-bottom:6px}
+  input,select{width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:13px 14px;font-size:16px;font-family:inherit}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .chip{cursor:pointer;font-size:13px;font-weight:800;padding:9px 13px;border-radius:999px;border:1px solid var(--line);background:var(--surface2);color:var(--muted)}
+  .chip.active{background:linear-gradient(135deg,var(--brand),var(--lime));color:#05230f;border-color:transparent}
+  button{font-family:inherit}
+  .btn{cursor:pointer;border-radius:12px;padding:12px 16px;font-size:14.5px;font-weight:800;border:1px solid transparent;transition:transform .06s}
+  .btn:active{transform:translateY(1px)}
+  .btn.primary{background:linear-gradient(135deg,var(--brand),var(--brand-d));color:#05230f}
+  .btn.ghost{background:var(--surface2);color:var(--text);border:1px solid var(--line)}
+  .btn.sm{padding:8px 12px;font-size:12.5px;border-radius:9px}
+  .btn.block{display:block;width:100%;text-align:center}
+  .btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .btn.ok{background:rgba(34,197,94,.16);border-color:var(--brand);color:var(--brand)}
+  .out{background:#0a0f22;border:1px solid var(--line);border-radius:12px;padding:13px;font-size:13.5px;color:#dfe7ff;white-space:pre-wrap;margin-top:8px;font-family:ui-monospace,Menlo,Consolas,monospace;line-height:1.5}
+  .blk{margin-top:16px}
+  .blk h3{font-size:15px;margin:0 0 2px;display:flex;align-items:center;gap:8px}
+  .blk .tip{color:var(--muted2);font-size:12.5px;margin:2px 0 0}
+  .hide{display:none}
+  .tool{display:inline-flex;align-items:center;gap:6px}
+  .note{background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.25);border-radius:12px;padding:12px 14px;color:#cfe6ff;font-size:13px;margin-top:14px}
+  footer{border-top:1px solid var(--line);margin-top:22px;padding-top:16px;color:var(--muted2);font-size:12.5px;text-align:center}
+  footer b{color:var(--lime)}
+  .msg{color:var(--brand);font-weight:700;font-size:13px;min-height:18px;margin-top:8px;text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="mk"><svg viewBox="0 0 24 24" fill="none"><path d="M12 21V11" stroke="#05230f" stroke-width="2.2" stroke-linecap="round"/><path d="M12 12c-1.2-3.4-4-4.4-6.5-4.2C5.2 11 7.6 13 12 13Z" fill="#05230f"/><path d="M12 10c1-2.8 3.4-3.7 5.6-3.5C17.4 9.2 15.4 11 12 11Z" fill="#05230f"/></svg></div>
+    <h1>Creador de Reels y Fotos</h1>
+    <p class="sub">Escribe tu negocio, elige el tipo y pulsa <b style="color:var(--text)">Crear</b>. Te genera el guion del reel + el prompt de la foto + el prompt del vídeo, listos para pegar.</p>
+  </header>
+
+  <form class="card" id="form" autocomplete="off">
+    <div class="field">
+      <label for="neg">¿De qué es tu negocio? (cuanto más concreto, mejor)</label>
+      <input type="text" id="neg" placeholder="Ej.: peluquería en Madrid · clínica de logopedia · floristería">
+    </div>
+    <div class="field">
+      <label>¿Qué tipo de contenido?</label>
+      <div class="chips" id="chips"></div>
+      <input type="hidden" id="tipo" value="trucos">
+    </div>
+    <button class="btn primary block" type="submit" style="margin-top:6px">⚡ Crear</button>
+  </form>
+
+  <div id="result" class="hide">
+    <div class="card">
+      <div class="blk">
+        <h3>🎬 Guion del reel</h3>
+        <p class="tip">Cópialo y úsalo para grabar o para montar el vídeo.</p>
+        <div class="out" id="out-guion"></div>
+        <div class="btnrow"><button class="btn primary sm" data-copy="out-guion">Copiar guion</button></div>
+      </div>
+      <div class="blk">
+        <h3>🎙️ Locución (la voz)</h3>
+        <p class="tip">Pégalo en ElevenLabs o Revid para la voz en off.</p>
+        <div class="out" id="out-voz"></div>
+        <div class="btnrow"><button class="btn ghost sm" data-copy="out-voz">Copiar voz</button><a class="btn ghost sm" target="_blank" rel="noopener" href="https://www.google.com/search?q=Revid+ai">▶ Abrir Revid (vídeo+voz)</a></div>
+      </div>
+      <div class="blk">
+        <h3>🖼️ Prompt para la FOTO</h3>
+        <p class="tip">Pégalo en Ideogram o Freepik para generar la imagen.</p>
+        <div class="out" id="out-foto"></div>
+        <div class="btnrow"><button class="btn ghost sm" data-copy="out-foto">Copiar foto</button><a class="btn ghost sm" target="_blank" rel="noopener" href="https://www.google.com/search?q=Ideogram+ai">Abrir Ideogram</a></div>
+      </div>
+      <div class="blk">
+        <h3>📹 Prompt para el VÍDEO</h3>
+        <p class="tip">Pégalo en Kling o Freepik (modo imagen→vídeo) para darle vida.</p>
+        <div class="out" id="out-video"></div>
+        <div class="btnrow"><button class="btn ghost sm" data-copy="out-video">Copiar vídeo</button><a class="btn ghost sm" target="_blank" rel="noopener" href="https://www.google.com/search?q=Kling+ai">Abrir Kling</a></div>
+      </div>
+      <div class="blk">
+        <h3>#️⃣ Hashtags</h3>
+        <div class="out" id="out-tags"></div>
+        <div class="btnrow"><button class="btn ghost sm" data-copy="out-tags">Copiar hashtags</button></div>
+      </div>
+      <div class="btnrow" style="margin-top:14px"><button class="btn primary block" data-copy="out-todo">📋 Copiar TODO de golpe</button></div>
+      <div class="msg" id="msg"></div>
+    </div>
+    <div class="note">Esto te lo deja todo listo para pegar. El vídeo/foto final lo crea la IA (Revid, Kling, Ideogram) con 1 clic — pulsa los botones de “Abrir”. Genera varios y quédate el que más te guste.</div>
+  </div>
+
+  <footer>Diseñado por <b>Incuba tu Negocio</b> · por Jaime M. M.</footer>
+</div>
+
+<script type="application/json" id="acceptance-tests">
+[
+  {"name":"Genera contenido a partir del negocio","steps":[{"fill":{"sel":"#neg","value":"peluquería en Madrid"}},{"clickText":"⚡ Crear"},{"expect":"GANCHO"},{"expectVisible":"#out-foto"}]},
+  {"name":"Cambiar de tipo y crear funciona","steps":[{"fill":{"sel":"#neg","value":"floristería"}},{"clickText":"Humor"},{"clickText":"⚡ Crear"},{"expect":"GANCHO"}]},
+  {"name":"Copiar el guion da feedback","steps":[{"fill":{"sel":"#neg","value":"clínica"}},{"clickText":"⚡ Crear"},{"clickText":"Copiar guion"},{"expect":"Copiado"}]}
+]
+</script>
+<script>
+"use strict";
+const $=(s,r=document)=>r.querySelector(s);
+const cap=s=>String(s||"").trim()||"tu negocio";
+const lc=s=>cap(s).toLowerCase();
+
+const TIPOS=[
+  {id:"trucos", n:"3 trucos (valor)"},
+  {id:"antes",  n:"Antes / después"},
+  {id:"humor",  n:"Humor"},
+  {id:"demo",   n:"Demostración"},
+  {id:"foto",   n:"Foto de marca"},
+  {id:"frase",  n:"Frase / cita"}
+];
+
+/* render chips */
+$("#chips").innerHTML=TIPOS.map((t,i)=>`<button type="button" class="chip ${i===0?"active":""}" data-tipo="${t.id}">${t.n}</button>`).join("");
+
+function gen(neg,tipo){
+  const N=cap(neg), n=lc(neg);
+  const tags=["#"+n.replace(/[^a-záéíóúñ0-9]+/gi,"")||"#negocio","#negocios","#emprendedores","#pymes","#marketingdigital","#reels"].filter(Boolean).slice(0,6).join(" ");
+  let guion,voz,foto,video;
+  if(tipo==="trucos"){
+    guion=`GANCHO (0-2s): "3 cosas que ${N} debería tener en su web (y seguro no tiene)."\n\n[2-6s] 1. Que puedan pedir cita o información a cualquier hora, sin llamar.\n[6-10s] 2. Que se vea perfecta en el móvil (ahí mira todo el mundo).\n[10-14s] 3. Que te lleguen los clientes directos por WhatsApp.\n\nCTA (14-17s): "¿Tu web hace esto? Si no, te la monto. Escríbeme WEB."`;
+    voz=`Tres cosas que ${N} debería tener en su web y seguro no tiene. Uno: que puedan pedir cita a cualquier hora sin llamar. Dos: que se vea perfecta en el móvil. Tres: que los clientes te escriban directo por WhatsApp. Si tu web no hace esto, te la monto. Escríbeme la palabra web.`;
+    foto=`Vertical 9:16. Ambiente profesional y atractivo relacionado con ${N}, iluminación cálida y cuidada, aspecto moderno y limpio, mucha calidad, sin texto superpuesto.`;
+    video=`Anima esta imagen (imagen→vídeo): travelling suave hacia el sujeto, ambiente de ${N}, luz cálida, movimiento fluido y elegante, 4-5 segundos, formato 9:16.`;
+  } else if(tipo==="antes"){
+    guion=`GANCHO (0-3s): "Así estaba ${N} sin web... y así con la que le hice." (pantalla partida feo/bonito)\n\n[3-10s] Antes: nadie la encontraba, perdía clientes. Después: la encuentran, reservan y le escriben.\n[10-15s] Muestra el móvil: "Pedir cita" → WhatsApp en 1 toque.\n\nCTA: "¿Quieres el antes y después de la tuya? Te lo hago gratis. Escríbeme."`;
+    voz=`Así estaba ${N} sin una buena web. Y así con la que le hice. Antes nadie la encontraba. Ahora la encuentran, reservan y le escriben directo por WhatsApp. ¿Quieres ver el antes y después de la tuya? Te lo hago gratis. Escríbeme.`;
+    foto=`Vertical 9:16, pantalla partida: a la izquierda una web vieja y sosa, a la derecha una web moderna y elegante de ${N} en un móvil. Contraste claro, look profesional, sin texto.`;
+    video=`Anima: transición de barrido de la versión vieja a la nueva en la pantalla del móvil, un dedo pulsa un botón. 4-5 s, 9:16, fluido.`;
+  } else if(tipo==="humor"){
+    guion=`GANCHO (0-3s): "POV: la competencia de ${N} tiene web y tú apuntas todo en una libreta del 2003." (cara de agobio)\n\n[3-9s] Enseña el caos: papeles, llamadas perdidas, citas olvidadas.\n[9-13s] Corte a la competencia tranquila viendo reservas entrar solas en el móvil.\n\nCTA: "Jubila la libreta 😂 te monto la web. Escríbeme WEB."`;
+    voz=`Te lo digo con cariño: si ${N} sigue apuntando las citas en una libreta mientras la competencia tiene web, estás regalando clientes. Jubila la libreta. Te monto la web. Escríbeme la palabra web.`;
+    foto=`Vertical 9:16, tono cómico realista: persona agobiada de ${N} detrás de un mostrador con una libreta enorme llena de post-its y un teléfono sonando. Luz natural, estilo UGC casero.`;
+    video=`Anima: ligero movimiento de cámara en mano, la persona gesticula agobiada, papeles cayendo. Natural, cómico, 4-5 s, 9:16.`;
+  } else if(tipo==="demo"){
+    guion=`GANCHO (0-3s): "Mira lo que puede hacer la web de ${N} ella sola."\n\n[3-10s] Muestra en el móvil: reserva de cita / catálogo de productos / pedido por WhatsApp, paso a paso.\n[10-15s] "Y el dueño lo ve todo desde su panel, sin liarse."\n\nCTA: "Quiero una así para mi negocio → escríbeme WEB."`;
+    voz=`Mira lo que puede hacer la web de ${N} ella sola. El cliente entra, elige, reserva o pide por WhatsApp, y al dueño le llega todo a su panel sin liarse. ¿Quieres una así? Escríbeme la palabra web.`;
+    foto=`Vertical 9:16, primer plano de un móvil mostrando una web limpia de ${N} con un botón verde de acción. Mesa clara, luz natural, look confiable, sin texto.`;
+    video=`Anima: un dedo pulsa el botón de la web y aparece una confirmación; leve zoom. Fluido, 4-5 s, 9:16.`;
+  } else if(tipo==="foto"){
+    guion=`Idea de FOTO de marca para ${N} (post o portada).\nTexto sugerido encima (ponlo en Canva/CapCut): "${N}, ahora también online."`;
+    voz=`(Para una foto no hace falta locución. Si la animas, una frase: "${N}, ahora también online.")`;
+    foto=`Vertical 9:16 o cuadrada. Imagen de marca aspiracional y profesional de ${N}: ambiente cuidado, iluminación de estudio suave, colores ricos, mucho espacio limpio para poner texto encima. Alta calidad, sin texto generado.`;
+    video=`(Opcional) Anima la foto con un movimiento sutil y elegante (leve zoom o parallax). 3-4 s, 9:16.`;
+  } else {
+    guion=`GANCHO: una frase potente para ${N} sobre fondo bonito.\nFrase: "Tu ${n} se merece que lo encuentren. No que se pierda en un cajón."\n\nCTA: "Te ayudo a que te encuentren. Escríbeme."`;
+    voz=`Tu ${n} se merece que lo encuentren, no que se pierda en un cajón. Te ayudo a que te encuentren online. Escríbeme.`;
+    foto=`Vertical 9:16, fondo cinematográfico y elegante relacionado con ${N}, con mucho espacio limpio para poner una frase encima. Luz suave, atmósfera premium, sin texto.`;
+    video=`Anima: movimiento ambiental suave (luz, partículas), atmósfera premium. 4-5 s, 9:16.`;
+  }
+  return {guion,voz,foto,video,tags};
+}
+
+let last=null;
+function render(neg,tipo){
+  const r=gen(neg,tipo); last=r;
+  $("#out-guion").textContent=r.guion;
+  $("#out-voz").textContent=r.voz;
+  $("#out-foto").textContent=r.foto;
+  $("#out-video").textContent=r.video;
+  $("#out-tags").textContent=r.tags;
+  $("#result").classList.remove("hide");
+  $("#result").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+/* feedback + copiar */
+function flash(btn,t){if(!btn)return;const o=btn.getAttribute("data-l")||btn.textContent;btn.setAttribute("data-l",o);btn.textContent=t;btn.classList.add("ok");setTimeout(()=>{btn.textContent=o;btn.classList.remove("ok");},1500);}
+function note(t){const m=$("#msg");if(m){m.textContent=t;setTimeout(()=>{if(m.textContent===t)m.textContent="";},2200);}}
+function fb(t){try{const ta=document.createElement("textarea");ta.value=t;ta.style.position="fixed";ta.style.top="-1000px";document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();}catch(e){}}
+function copy(t,btn){try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(()=>flash(btn,"Copiado ✓")).catch(()=>{fb(t);flash(btn,"Copiado ✓");});}else{fb(t);flash(btn,"Copiado ✓");}}catch(e){fb(t);flash(btn,"Copiado ✓");}}
+function todo(){if(!last)return"";return "🎬 GUION:\n"+last.guion+"\n\n🎙️ VOZ:\n"+last.voz+"\n\n🖼️ FOTO:\n"+last.foto+"\n\n📹 VÍDEO:\n"+last.video+"\n\n#️⃣ "+last.tags;}
+
+document.addEventListener("click",(e)=>{
+  const c=e.target.closest(".chip");
+  if(c){document.querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));c.classList.add("active");$("#tipo").value=c.getAttribute("data-tipo");return;}
+  const cp=e.target.closest("[data-copy]");
+  if(cp){const id=cp.getAttribute("data-copy");const txt=id==="out-todo"?todo():($("#"+id)?$("#"+id).textContent:"");copy(txt,cp);if(id==="out-todo")note("Todo copiado ✓");}
+});
+document.addEventListener("submit",(e)=>{if(e.target.id==="form"){e.preventDefault();render($("#neg")?$("#neg").value:"",$("#tipo")?$("#tipo").value:"trucos");}});
+
+/* favicon */
+(function(){const svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#0b1020"/><path d="M32 54V28" stroke="#22c55e" stroke-width="4" stroke-linecap="round"/><path d="M32 34c-4-9-12-11-19-10C13 33 21 39 32 39Z" fill="#22c55e"/><path d="M32 30c3-8 10-10 16-9C47 28 41 33 32 33Z" fill="#a3e635"/></svg>';const f=document.createElement("link");f.rel="icon";f.type="image/svg+xml";f.href="data:image/svg+xml;utf8,"+encodeURIComponent(svg);document.head.appendChild(f);})();
+</script>
+</body>
+</html>
