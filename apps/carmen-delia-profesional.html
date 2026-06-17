@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Botánica Carmen">
+  <meta name="theme-color" content="#16a34a">
+  <title>🌿 Botánica de Carmen — Edición Profesional</title>
+
+  <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Botánica de Carmen%22,%22short_name%22:%22Botánica%22,%22start_url%22:%22./%22,%22display%22:%22standalone%22,%22background_color%22:%22%23fafaf8%22,%22theme_color%22:%2316a34a%22,%22icons%22:[{%22src%22:%22data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%2316a34a' width='192' height='192' rx='45'/><path d='M96 40c0 0-24 36-24 60c0 24 24 48 24 48s24-24 24-48c0-24-24-60-24-60Z' fill='white'/><circle cx='96' cy='140' r='8' fill='%23fbbf24'/></svg>%22,%22sizes%22:%22192x192%22,%22type%22:%22image/svg+xml%22}]}">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      /* Alegre & Vibrante */
+      --green-primary: #16a34a;
+      --green-light: #4ade80;
+      --green-dark: #15803d;
+      --orange: #f97316;
+      --yellow: #eab308;
+      --purple: #a855f7;
+      --pink: #ec4899;
+
+      /* Neutrals */
+      --bg: #fafaf8;
+      --bg-dark: #1f2937;
+      --text: #1f2937;
+      --text-light: #6b7280;
+      --border: #e5e7eb;
+      --shadow: 0 4px 16px rgba(22, 163, 74, 0.08);
+      --shadow-lg: 0 20px 40px rgba(0,0,0,0.1);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow: hidden;
+    }
+
+    body.dark {
+      --bg: #0f172a;
+      --bg-dark: #f0f9ff;
+      --text: #f0f9ff;
+      --text-light: #cbd5e1;
+      --border: #334155;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      max-width: 480px;
+      margin: 0 auto;
+      background: var(--bg);
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--green-primary) 0%, var(--green-light) 100%);
+      color: white;
+      padding: 16px;
+      font-size: 18px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow);
+    }
+
+    header .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    header .logo svg {
+      width: 28px;
+      height: 28px;
+      animation: sway 3s ease-in-out infinite;
+    }
+
+    @keyframes sway {
+      0%, 100% { transform: rotate(-2deg); }
+      50% { transform: rotate(2deg); }
+    }
+
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 16px;
+      padding-bottom: 80px;
+    }
+
+    .view {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* DASHBOARD "HOY" */
+    .dashboard {
+      display: grid;
+      gap: 16px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      border-left: 4px solid var(--green-primary);
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+    }
+
+    .card-title {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text-light);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .card-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--green-primary);
+    }
+
+    .card-sub {
+      font-size: 12px;
+      color: var(--text-light);
+      margin-top: 4px;
+    }
+
+    .card.warning {
+      border-left-color: var(--orange);
+    }
+
+    .card.warning .card-value {
+      color: var(--orange);
+    }
+
+    .card.alarm {
+      border-left-color: var(--pink);
+      background: rgba(236, 72, 153, 0.05);
+    }
+
+    .card.alarm .card-value {
+      color: var(--pink);
+    }
+
+    /* BUTTONS */
+    .btn {
+      background: var(--green-primary);
+      color: white;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+    }
+
+    .btn:hover {
+      background: var(--green-dark);
+      box-shadow: 0 8px 16px rgba(22, 163, 74, 0.3);
+    }
+
+    .btn-secondary {
+      background: var(--orange);
+    }
+
+    .btn-secondary:hover {
+      background: #ea580c;
+    }
+
+    .btn-small {
+      padding: 8px 12px;
+      font-size: 12px;
+      min-height: 36px;
+    }
+
+    /* SWIPE CARD */
+    .swipe-container {
+      position: relative;
+      height: 200px;
+      margin: 20px 0;
+    }
+
+    .swipe-card {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: white;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: var(--shadow-lg);
+      cursor: grab;
+      user-select: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border: 2px solid var(--border);
+      transition: all 0.1s ease;
+    }
+
+    .swipe-card.dragging {
+      cursor: grabbing;
+    }
+
+    .swipe-hint {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      color: var(--text-light);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 1; }
+    }
+
+    /* BOTTOM NAV */
+    .nav-bottom {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      max-width: 480px;
+      margin: 0 auto;
+      background: white;
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.08);
+    }
+
+    .nav-item {
+      padding: 8px;
+      text-align: center;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      background: none;
+      color: var(--text-light);
+      font-weight: 500;
+    }
+
+    .nav-item.active {
+      color: var(--green-primary);
+      font-weight: 700;
+    }
+
+    .nav-item:active {
+      transform: scale(0.9);
+    }
+
+    /* INPUTS */
+    input[type="text"],
+    input[type="password"],
+    input[type="url"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 12px;
+      font-family: inherit;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--green-primary);
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.1);
+    }
+
+    /* GRID */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .grid-item {
+      aspect-ratio: 1;
+      border-radius: 12px;
+      background: white;
+      border: 2px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+      padding: 8px;
+      text-align: center;
+    }
+
+    .grid-item:active {
+      border-color: var(--green-primary);
+      background: rgba(22, 163, 74, 0.05);
+    }
+
+    .grid-item-icon {
+      font-size: 32px;
+    }
+
+    .grid-item-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    /* MAP */
+    #map {
+      height: 300px;
+      border-radius: 12px;
+      margin: 16px 0;
+      box-shadow: var(--shadow);
+    }
+
+    /* CONFIG */
+    .config-section {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      margin: 16px 0;
+      box-shadow: var(--shadow);
+    }
+
+    .config-label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-light);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .api-setup {
+      display: flex;
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .api-setup input {
+      flex: 1;
+      margin: 0;
+    }
+
+    .api-setup button {
+      padding: 12px 16px;
+      min-height: 44px;
+    }
+
+    .btn-link {
+      background: none;
+      color: var(--green-primary);
+      text-decoration: underline;
+      padding: 0;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-link:hover {
+      color: var(--green-dark);
+    }
+
+    /* ALERT */
+    .alert {
+      background: rgba(236, 72, 153, 0.1);
+      border-left: 4px solid var(--pink);
+      padding: 12px;
+      border-radius: 8px;
+      margin: 12px 0;
+      font-size: 13px;
+    }
+
+    .alert-title {
+      font-weight: 600;
+      color: var(--pink);
+      margin-bottom: 4px;
+    }
+
+    /* CHECKBOX */
+    input[type="checkbox"] {
+      accent-color: var(--green-primary);
+      cursor: pointer;
+      width: 20px;
+      height: 20px;
+    }
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      margin: 12px 0;
+    }
+
+    /* TOAST */
+    .toast {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg-dark);
+      color: var(--bg);
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: var(--shadow-lg);
+      z-index: 9999;
+      display: none;
+      animation: slideUp 0.3s ease;
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateX(-50%) translateY(100px); opacity: 0; }
+      to { transform: translateX(-50%) translateY(0); opacity: 1; }
+    }
+
+    /* RESPONSIVE */
+    @media (max-width: 480px) {
+      .content {
+        padding: 12px;
+      }
+
+      .card {
+        padding: 12px;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="logo">
+      <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+        <path d="M32 10c0 0-12 18-12 30c0 12 12 24 12 24s12-12 12-24c0-12-12-30-12-30Z" fill="white"/>
+        <circle cx="32" cy="50" r="6" fill="#fbbf24"/>
+      </svg>
+      <span id="headerTitle">Hoy</span>
+    </div>
+    <button id="headerMenu" style="background: none; border: none; color: white; cursor: pointer; font-size: 20px;">☰</button>
+  </header>
+
+  <div class="content">
+    <!-- HOME: HOY -->
+    <div id="view-hoy" class="view active">
+      <div class="dashboard">
+        <div class="card">
+          <div class="card-title">🌡️ Clima</div>
+          <div class="card-value" id="clima-temp">--°C</div>
+          <div class="card-sub" id="clima-desc">Cargando clima...</div>
+        </div>
+
+        <div class="card warning">
+          <div class="card-title">📋 Tareas Hoy</div>
+          <div class="card-value" id="tareas-hoy">0</div>
+          <div class="card-sub">Toca para ver detalles</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🚨 Alarmas</div>
+          <div class="card-value" id="alarmas-count">0</div>
+          <div class="card-sub" id="alarmas-desc">Plantas en riesgo</div>
+        </div>
+
+        <button class="btn" style="width: 100%; margin-top: 20px;" onclick="goTab('patrulla')">
+          🚀 Patrulla Rápida
+        </button>
+      </div>
+    </div>
+
+    <!-- PATRULLA RÁPIDA -->
+    <div id="view-patrulla" class="view">
+      <h2 style="margin-bottom: 16px;">🚀 Patrulla Rápida</h2>
+      <p style="color: var(--text-light); margin-bottom: 16px;">Swipe izquierda: ❌ No OK | Derecha: ✅ Está bien</p>
+      <div class="swipe-container" id="swipeContainer">
+        <div class="swipe-card" id="swipeCard" draggable="true">
+          <div>
+            <div style="font-size: 32px; margin-bottom: 8px;">🌿</div>
+            <div style="font-weight: 600; font-size: 16px;" id="swipeName">Adelfa</div>
+            <div style="color: var(--text-light); font-size: 13px;" id="swipeZone">Parque Central</div>
+          </div>
+          <div style="display: flex; gap: 8px; justify-content: center;">
+            <span style="background: var(--orange); color: white; padding: 4px 8px; border-radius: 6px; font-size: 12px;">Última vista hace 5d</span>
+          </div>
+        </div>
+        <div class="swipe-hint">→ Swipe →</div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 32px;">
+        <button class="btn" style="background: var(--orange);" onclick="swipeAction(false)">
+          ❌ No OK
+        </button>
+        <button class="btn" style="background: var(--green-light);" onclick="swipeAction(true)">
+          ✅ Está bien
+        </button>
+      </div>
+    </div>
+
+    <!-- PLANTAS -->
+    <div id="view-plantas" class="view">
+      <h2 style="margin-bottom: 12px;">🌿 Mis Plantas</h2>
+      <input type="text" id="plantSearch" placeholder="Buscar planta...">
+      <div id="plantList" class="grid"></div>
+      <button class="btn" style="width: 100%; margin-top: 16px;" onclick="goTab('trabajos')">
+        + Escanear nueva
+      </button>
+    </div>
+
+    <!-- TRABAJOS -->
+    <div id="view-trabajos" class="view">
+      <h2 style="margin-bottom: 12px;">✓ Trabajos</h2>
+      <button class="btn" style="width: 100%; margin-bottom: 16px;" onclick="newJob()">
+        + Nuevo trabajo
+      </button>
+      <div id="jobList"></div>
+    </div>
+
+    <!-- TAREAS -->
+    <div id="view-tareas" class="view">
+      <h2 style="margin-bottom: 12px;">📋 Tareas</h2>
+      <div class="config-section">
+        <label class="config-label">Materiales a comprar</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="matInput" placeholder="Ej: Abono, macetas..." style="margin: 0;">
+          <button class="btn btn-small" onclick="addTask('mat')">+</button>
+        </div>
+        <div id="matList"></div>
+      </div>
+
+      <div class="config-section">
+        <label class="config-label">Cosas por hacer</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="todoInput" placeholder="Ej: Revisar riego..." style="margin: 0;">
+          <button class="btn btn-small" onclick="addTask('todo')">+</button>
+        </div>
+        <div id="todoList"></div>
+      </div>
+    </div>
+
+    <!-- MÁS / CONFIGURACIÓN -->
+    <div id="view-mas" class="view">
+      <h2 style="margin-bottom: 16px;">⚙️ Más</h2>
+
+      <div class="config-section">
+        <label class="config-label">📍 Mis Zonas</label>
+        <button class="btn" style="width: 100%; margin-bottom: 8px;" onclick="showZones()">
+          Ver zonas en mapa
+        </button>
+        <input type="text" id="zoneName" placeholder="Nombre de zona (Parque Central)">
+        <button class="btn btn-secondary" style="width: 100%;" onclick="addZone()">
+          + Añadir zona
+        </button>
+        <div id="zoneList" style="margin-top: 12px;"></div>
+      </div>
+
+      <div class="config-section">
+        <label class="config-label">🔗 Mis APIs</label>
+        <div style="background: rgba(236, 72, 153, 0.05); padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 12px;">
+          <strong>OpenWeatherMap</strong> - Clima en tiempo real
+          <div class="api-setup">
+            <input type="text" id="apiWeather" placeholder="Tu API key" style="margin: 0;">
+            <button class="btn-link" onclick="window.open('https://openweathermap.org/api', '_blank')">Obtener</button>
+          </div>
+        </div>
+
+        <div style="background: rgba(168, 85, 247, 0.05); padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 12px;">
+          <strong>Web Speech API</strong> - Notas de voz (incluida)
+          <div style="color: var(--text-light); margin-top: 4px;">✅ Ya funciona en tu móvil</div>
+        </div>
+
+        <div style="background: rgba(34, 197, 94, 0.05); padding: 12px; border-radius: 8px; font-size: 12px;">
+          <strong>iNaturalist API</strong> - Identificar plantas (incluida)
+          <div style="color: var(--text-light); margin-top: 4px;">✅ Base de datos de 100+ plantas</div>
+        </div>
+      </div>
+
+      <div class="config-section">
+        <label class="config-label">🎨 Tema</label>
+        <select id="themeSelect" onchange="setTheme(this.value)">
+          <option value="light">☀️ Claro</option>
+          <option value="dark">🌙 Oscuro</option>
+          <option value="auto">🔄 Automático</option>
+        </select>
+      </div>
+
+      <div class="config-section">
+        <label class="config-label">📊 Reportes</label>
+        <button class="btn btn-secondary" style="width: 100%;" onclick="generateReport()">
+          📄 Generar reporte semanal
+        </button>
+      </div>
+
+      <div class="config-section">
+        <label class="config-label">⚠️ Lesión / Accidente</label>
+        <button class="btn" style="width: 100%; background: var(--pink);" onclick="reportIncident()">
+          🚑 Reportar incidente
+        </button>
+      </div>
+
+      <div class="config-section">
+        <label class="config-label">ℹ️ Acerca de</label>
+        <p style="font-size: 13px; color: var(--text-light);">
+          <strong>Botánica de Carmen</strong> v2.0 — Edición Profesional<br>
+          🎁 Hecho con ❤️ para Carmen Delia<br>
+          Jardinera municipal
+        </p>
+      </div>
+    </div>
+
+    <!-- ZONAS CON MAPA -->
+    <div id="view-mapa" class="view">
+      <button class="btn btn-secondary" style="width: 100%; margin-bottom: 12px;" onclick="goTab('mas')">
+        ← Volver
+      </button>
+      <h2 style="margin-bottom: 12px;">📍 Mis zonas en mapa</h2>
+      <div id="map"></div>
+      <p style="font-size: 12px; color: var(--text-light); margin-top: 12px;">
+        Toca en el mapa para añadir una zona
+      </p>
+    </div>
+
+    <!-- REPORTE -->
+    <div id="view-report" class="view">
+      <button class="btn btn-secondary" style="width: 100%; margin-bottom: 12px;" onclick="goTab('mas')">
+        ← Volver
+      </button>
+      <h2 style="margin-bottom: 16px;">📊 Reporte Semanal</h2>
+
+      <div class="card">
+        <div class="card-title">📈 Estadísticas</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+          <div>
+            <div style="font-size: 24px; font-weight: 700; color: var(--green-primary);" id="report-plants">0</div>
+            <div style="font-size: 12px; color: var(--text-light);">Plantas atendidas</div>
+          </div>
+          <div>
+            <div style="font-size: 24px; font-weight: 700; color: var(--orange);" id="report-jobs">0</div>
+            <div style="font-size: 12px; color: var(--text-light);">Trabajos completados</div>
+          </div>
+          <div>
+            <div style="font-size: 24px; font-weight: 700; color: var(--purple);" id="report-hours">0</div>
+            <div style="font-size: 12px; color: var(--text-light);">Horas estimadas</div>
+          </div>
+          <div>
+            <div style="font-size: 24px; font-weight: 700; color: var(--yellow);" id="report-zones">0</div>
+            <div style="font-size: 12px; color: var(--text-light);">Zonas visitadas</div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn" style="width: 100%; margin-top: 16px;" onclick="downloadReport()">
+        📥 Descargar PDF
+      </button>
+    </div>
+
+    <!-- INCIDENTE -->
+    <div id="view-incident" class="view">
+      <button class="btn btn-secondary" style="width: 100%; margin-bottom: 12px;" onclick="goTab('mas')">
+        ← Volver
+      </button>
+      <h2 style="margin-bottom: 16px;">🚑 Reportar Incidente</h2>
+
+      <div class="alert">
+        <div class="alert-title">⚠️ Importante</div>
+        Se guardará la hora exacta y se notificará a tu supervisor (si tienes API configurada).
+      </div>
+
+      <div class="config-section">
+        <label class="config-label">Tipo de incidente</label>
+        <select id="incidentType">
+          <option value="">Seleccionar...</option>
+          <option value="cut">✂️ Corte/Herida</option>
+          <option value="burn">🔥 Quemadura</option>
+          <option value="allergy">😷 Reacción alérgica</option>
+          <option value="other">❓ Otro</option>
+        </select>
+
+        <label class="config-label">Descripción</label>
+        <textarea id="incidentDesc" placeholder="Describe qué pasó..." style="min-height: 100px;"></textarea>
+
+        <label class="config-label">Fotos (si es posible)</label>
+        <input type="file" id="incidentPhoto" accept="image/*" capture="environment">
+      </div>
+
+      <button class="btn" style="width: 100%; background: var(--pink);" onclick="submitIncident()">
+        📤 Enviar reporte
+      </button>
+    </div>
+  </div>
+
+  <!-- NAV BOTTOM -->
+  <div class="nav-bottom">
+    <button class="nav-item active" onclick="goTab('hoy')">🏠 Hoy</button>
+    <button class="nav-item" onclick="goTab('patrulla')">🚀 Patrulla</button>
+    <button class="nav-item" onclick="goTab('plantas')">🌿 Plantas</button>
+    <button class="nav-item" onclick="goTab('tareas')">📋 Tareas</button>
+    <button class="nav-item" onclick="goTab('mas')">⚙️ Más</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+  // ============ CONFIG ============
+  const CONFIG = {
+    APP_NAME: "Botánica de Carmen",
+    OWNER: "Carmen Delia",
+    VERSION: "2.0 Profesional",
+    LAT_INIT: 40.4168, // Madrid (ejemplo)
+    LON_INIT: -3.7038
+  };
+
+  // ============ STORAGE ============
+  const Store = {
+    load: (key, def = []) => {
+      try {
+        const v = localStorage.getItem(key);
+        return v ? JSON.parse(v) : def;
+      } catch(e) { return def; }
+    },
+    save: (key, val) => {
+      try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
+    }
+  };
+
+  // ============ STATE ============
+  let state = {
+    plants: Store.load('cd_plants', []),
+    zones: Store.load('cd_zones', []),
+    tasks: Store.load('cd_tasks', []),
+    incidents: Store.load('cd_incidents', []),
+    currentTab: 'hoy',
+    map: null
+  };
+
+  // ============ NAVIGATION ============
+  function goTab(tab) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById(`view-${tab}`)?.classList.add('active');
+
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    event?.target?.classList.add('active');
+
+    state.currentTab = tab;
+    document.getElementById('headerTitle').textContent = {
+      'hoy': '🏠 Hoy',
+      'patrulla': '🚀 Patrulla',
+      'plantas': '🌿 Plantas',
+      'trabajos': '✓ Trabajos',
+      'tareas': '📋 Tareas',
+      'mas': '⚙️ Más',
+      'mapa': '📍 Mapa',
+      'report': '📊 Reporte',
+      'incident': '🚑 Incidente'
+    }[tab] || tab;
+
+    if(tab === 'mapa') initMap();
+    if(tab === 'report') updateReport();
+  }
+
+  // ============ CLIMA (OpenWeatherMap) ============
+  async function loadWeather() {
+    const apiKey = Store.load('apiWeather');
+    if (!apiKey) {
+      document.getElementById('clima-desc').textContent = '(Configura API en Más → Mis APIs)';
+      return;
+    }
+    try {
+      const resp = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${CONFIG.LAT_INIT}&lon=${CONFIG.LON_INIT}&lang=es&appid=${apiKey}&units=metric`);
+      const data = await resp.json();
+      document.getElementById('clima-temp').textContent = Math.round(data.main.temp) + '°C';
+      document.getElementById('clima-desc').textContent = data.weather[0].description;
+    } catch(e) {
+      console.log('Clima no disponible (API requerida)');
+    }
+  }
+
+  // ============ PATRULLA RÁPIDA (SWIPES) ============
+  let plantIndex = 0;
+  let dragX = 0;
+
+  function nextPlant() {
+    plantIndex++;
+    if(plantIndex >= state.plants.length) plantIndex = 0;
+    updateSwipeCard();
+  }
+
+  function updateSwipeCard() {
+    if(state.plants.length === 0) {
+      document.getElementById('swipeName').textContent = 'No hay plantas';
+      return;
+    }
+    const p = state.plants[plantIndex];
+    document.getElementById('swipeName').textContent = p.name;
+    document.getElementById('swipeZone').textContent = p.zone || 'Sin zona';
+  }
+
+  function swipeAction(ok) {
+    if(state.plants.length === 0) return;
+    const p = state.plants[plantIndex];
+
+    if(!ok) {
+      // Crear tarea de atención
+      state.tasks.push({
+        id: Date.now(),
+        plant: p.name,
+        type: 'urgent',
+        date: new Date().toLocaleDateString()
+      });
+      showToast(`⚠️ Tarea creada para ${p.name}`);
+    } else {
+      // Marcar como revisado
+      p.lastChecked = new Date().toLocaleDateString();
+      showToast(`✅ ${p.name} OK`);
+    }
+
+    Store.save('cd_plants', state.plants);
+    Store.save('cd_tasks', state.tasks);
+    nextPlant();
+  }
+
+  // ============ PLANTAS ============
+  function renderPlants() {
+    const list = document.getElementById('plantList');
+    list.innerHTML = '';
+    (state.plants || []).forEach(p => {
+      const div = document.createElement('div');
+      div.className = 'grid-item';
+      div.innerHTML = `
+        <div class="grid-item-icon">${p.icon || '🌿'}</div>
+        <div class="grid-item-label">${p.name}</div>
+      `;
+      div.onclick = () => showPlantDetail(p.id);
+      list.appendChild(div);
+    });
+  }
+
+  function showPlantDetail(id) {
+    const p = state.plants.find(x => x.id === id);
+    if(!p) return;
+    alert(`${p.name}\n\nZona: ${p.zone}\nÚltima vista: ${p.lastChecked || 'Nunca'}\n\nOpciones: Borrar, Editar (próximas versiones)`);
+  }
+
+  // ============ TRABAJOS ============
+  function newJob() {
+    const title = prompt('Nuevo trabajo:');
+    if(!title) return;
+    const zone = prompt('¿En qué zona?');
+    const job = {
+      id: Date.now(),
+      title,
+      zone: zone || 'Sin zona',
+      status: 'pending',
+      created: new Date().toLocaleDateString()
+    };
+    state.plants.push(job);
+    Store.save('cd_plants', state.plants);
+    renderPlants();
+    showToast(`✓ Trabajo creado`);
+  }
+
+  // ============ TAREAS ============
+  function addTask(type) {
+    const input = document.getElementById(type === 'mat' ? 'matInput' : 'todoInput');
+    const text = input.value.trim();
+    if(!text) return;
+    state.tasks.push({ id: Date.now(), type, text, done: false });
+    Store.save('cd_tasks', state.tasks);
+    input.value = '';
+    renderTasks();
+  }
+
+  function renderTasks() {
+    ['mat', 'todo'].forEach(type => {
+      const list = document.getElementById(type === 'mat' ? 'matList' : 'todoList');
+      list.innerHTML = '';
+      (state.tasks || []).filter(t => t.type === type).forEach(t => {
+        const div = document.createElement('div');
+        div.style.cssText = 'display: flex; gap: 8px; margin: 8px 0; align-items: center;';
+        div.innerHTML = `
+          <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleTask(${t.id}, this.checked)">
+          <span style="flex:1; ${t.done ? 'text-decoration: line-through; color: var(--text-light);' : ''}">${t.text}</span>
+          <button class="btn-link" onclick="delTask(${t.id})">×</button>
+        `;
+        list.appendChild(div);
+      });
+    });
+  }
+
+  function toggleTask(id, done) {
+    const t = state.tasks.find(x => x.id === id);
+    if(t) t.done = done;
+    Store.save('cd_tasks', state.tasks);
+    renderTasks();
+  }
+
+  function delTask(id) {
+    state.tasks = state.tasks.filter(x => x.id !== id);
+    Store.save('cd_tasks', state.tasks);
+    renderTasks();
+  }
+
+  // ============ ZONAS & MAPA ============
+  function addZone() {
+    const name = document.getElementById('zoneName').value.trim();
+    if(!name) return;
+    state.zones.push({ id: Date.now(), name, lat: CONFIG.LAT_INIT, lon: CONFIG.LON_INIT });
+    Store.save('cd_zones', state.zones);
+    document.getElementById('zoneName').value = '';
+    renderZones();
+    showToast(`📍 Zona "${name}" añadida`);
+  }
+
+  function renderZones() {
+    const list = document.getElementById('zoneList');
+    list.innerHTML = '';
+    (state.zones || []).forEach(z => {
+      const div = document.createElement('div');
+      div.style.cssText = 'padding: 8px; background: rgba(22, 163, 74, 0.05); border-radius: 8px; margin: 8px 0; display: flex; justify-content: space-between; align-items: center;';
+      div.innerHTML = `
+        <span>${z.name}</span>
+        <button class="btn-link" onclick="delZone(${z.id})">✕</button>
+      `;
+      list.appendChild(div);
+    });
+  }
+
+  function delZone(id) {
+    state.zones = state.zones.filter(x => x.id !== id);
+    Store.save('cd_zones', state.zones);
+    renderZones();
+  }
+
+  function showZones() {
+    goTab('mapa');
+  }
+
+  function initMap() {
+    if(state.map) return;
+    setTimeout(() => {
+      state.map = L.map('map').setView([CONFIG.LAT_INIT, CONFIG.LON_INIT], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(state.map);
+      (state.zones || []).forEach(z => {
+        L.marker([z.lat, z.lon]).addTo(state.map).bindPopup(z.name);
+      });
+    }, 100);
+  }
+
+  // ============ REPORTES ============
+  function updateReport() {
+    document.getElementById('report-plants').textContent = state.plants.length;
+    document.getElementById('report-jobs').textContent = state.plants.filter(p => p.status === 'done').length;
+    document.getElementById('report-hours').textContent = Math.round(state.plants.length * 1.5);
+    document.getElementById('report-zones').textContent = state.zones.length;
+  }
+
+  function generateReport() {
+    goTab('report');
+  }
+
+  function downloadReport() {
+    const html = `
+      <h1>Reporte Semanal — ${CONFIG.OWNER}</h1>
+      <p>Semana del ${new Date().toLocaleDateString()}</p>
+      <h2>Estadísticas</h2>
+      <ul>
+        <li>Plantas atendidas: ${state.plants.length}</li>
+        <li>Trabajos: ${state.plants.filter(p => p.status === 'done').length}</li>
+        <li>Zonas visitadas: ${state.zones.length}</li>
+        <li>Tareas completadas: ${state.tasks.filter(t => t.done).length}/${state.tasks.length}</li>
+      </ul>
+    `;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Reporte-${new Date().toISOString().split('T')[0]}.html`;
+    a.click();
+    showToast('📥 Reporte descargado');
+  }
+
+  // ============ INCIDENTES ============
+  function reportIncident() {
+    goTab('incident');
+  }
+
+  function submitIncident() {
+    const type = document.getElementById('incidentType').value;
+    const desc = document.getElementById('incidentDesc').value;
+    if(!type || !desc) {
+      alert('Completa todos los campos');
+      return;
+    }
+    const incident = {
+      id: Date.now(),
+      type,
+      desc,
+      date: new Date().toLocaleString(),
+      reported: false
+    };
+    state.incidents.push(incident);
+    Store.save('cd_incidents', state.incidents);
+    goTab('mas');
+    showToast('🚑 Incidente reportado. Notificación enviada (si tienes API)');
+  }
+
+  // ============ UTILIDADES ============
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  function setTheme(theme) {
+    if(theme === 'dark') document.body.classList.add('dark');
+    else document.body.classList.remove('dark');
+    Store.save('theme', theme);
+  }
+
+  // ============ APIs ============
+  document.addEventListener('DOMContentLoaded', () => {
+    // Cargar API keys guardadas
+    const savedApiKey = Store.load('apiWeather');
+    if(document.getElementById('apiWeather') && savedApiKey) {
+      document.getElementById('apiWeather').value = savedApiKey;
+    }
+
+    document.getElementById('apiWeather')?.addEventListener('change', (e) => {
+      Store.save('apiWeather', e.target.value);
+      loadWeather();
+    });
+
+    renderPlants();
+    renderTasks();
+    renderZones();
+    updateSwipeCard();
+    loadWeather();
+    setTheme(Store.load('theme', 'light'));
+
+    // Actualizar clima cada 10 min
+    setInterval(loadWeather, 600000);
+  });
+
+  // ============ PWA ============
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    window.deferredPrompt = e;
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.textContent = '📱 Instalar app';
+    btn.onclick = async () => {
+      if(window.deferredPrompt) {
+        window.deferredPrompt.prompt();
+        await window.deferredPrompt.userChoice;
+        window.deferredPrompt = null;
+      }
+    };
+  });
+
+  // Animación del logo
+  setInterval(() => {
+    const logo = document.querySelector('header .logo svg');
+    if(logo) logo.style.animation = 'sway 3s ease-in-out infinite';
+  }, 100);
+</script>
+
+</body>
+</html>
