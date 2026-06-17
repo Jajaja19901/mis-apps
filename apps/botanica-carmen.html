@@ -9,6 +9,8 @@
   <meta name="theme-color" content="#2d5016">
   <title>Botánica de Carmen</title>
 
+  <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Botánica de Carmen%22,%22short_name%22:%22Botánica%22,%22start_url%22:%22./%22,%22display%22:%22standalone%22,%22background_color%22:%22%23ffffff%22,%22theme_color%22:%222d5016%22,%22icons%22:[{%22src%22:%22data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%232d5016' width='192' height='192' rx='45'/><path d='M96 40c0 0-24 36-24 60c0 24 24 48 24 48s24-24 24-48c0-24-24-60-24-60Z' fill='white'/></svg>%22,%22sizes%22:%22192x192%22,%22type%22:%22image/svg+xml%22,%22purpose%22:%22any%22}]}">
+
   <style>
     * {
       margin: 0;
@@ -88,7 +90,7 @@
       border-radius: 8px;
       font-size: 14px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: transform 0.2s, background-color 0.2s;
       min-height: 48px;
     }
 
@@ -171,7 +173,7 @@
       margin-bottom: 12px;
       box-shadow: var(--shadow);
       cursor: pointer;
-      transition: all 0.2s;
+      transition: transform 0.2s, box-shadow 0.2s;
     }
 
     body.dark .card {
@@ -227,7 +229,7 @@
       text-decoration: none;
       color: var(--text-light);
       font-size: 11px;
-      transition: all 0.2s;
+      transition: color 0.2s, font-weight 0.2s;
       cursor: pointer;
     }
 
@@ -446,7 +448,7 @@
       border-radius: 6px;
       margin-bottom: 8px;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: background 0.2s, border-color 0.2s;
     }
 
     .candidate-item:hover {
@@ -514,6 +516,13 @@
 
       .stats-grid {
         grid-template-columns: 1fr;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation: none !important;
+        transition: none !important;
       }
     }
   </style>
@@ -882,6 +891,28 @@
       <p style="margin: 20px 0;">Botánica de Carmen v1.0</p>
       <p style="margin: 20px 0;">Herramienta de trabajo para jardinera municipal.</p>
       <p style="margin: 20px 0; font-size: 13px; color: var(--text-light);">Diseñado por <strong>Incuba tu Negocio</strong> · por Jaime M. M.</p>
+    </div>
+
+    <!-- AYUDA -->
+    <div id="view-help" class="view">
+      <button onclick="goTo('#/mas')" class="btn-secondary" style="margin-bottom: 15px;">← Volver</button>
+      <h2>Ayuda</h2>
+      <div style="margin: 20px 0;">
+        <h3 style="margin-top: 15px; margin-bottom: 8px;">📸 Escanear plantas</h3>
+        <p style="font-size: 14px; color: var(--text-light);">Toca el botón de cámara para escanear una planta. La app identificará automáticamente qué planta es y te mostrará su información: si es tóxica, cuánta agua necesita, luz recomendada y cuidados.</p>
+
+        <h3 style="margin-top: 15px; margin-bottom: 8px;">🌿 Mis plantas</h3>
+        <p style="font-size: 14px; color: var(--text-light);">Aquí aparecen todas las plantas que has escaneado. Puedes buscar por nombre, ver detalles, añadir notas personales y eliminar si quieres.</p>
+
+        <h3 style="margin-top: 15px; margin-bottom: 8px;">✓ Trabajos</h3>
+        <p style="font-size: 14px; color: var(--text-light);">Registra los trabajos que te asignan. Puedes añadir fotos antes/después, crear checklists, añadir notas y cambiar el estado (Pendiente, En curso, Hecho).</p>
+
+        <h3 style="margin-top: 15px; margin-bottom: 8px;">📋 Tareas</h3>
+        <p style="font-size: 14px; color: var(--text-light);">Crea dos listas: materiales a comprar y cosas por hacer. Marca como completadas cuando termines.</p>
+
+        <h3 style="margin-top: 15px; margin-bottom: 8px;">⚙️ Ajustes</h3>
+        <p style="font-size: 14px; color: var(--text-light);">Personaliza el tema (claro/oscuro), activa bloqueo por contraseña, y haz backup/restore de tus datos.</p>
+      </div>
     </div>
 
     <!-- ADMIN -->
@@ -1912,6 +1943,7 @@
       else if (hash === '#/mas/stats') targetView = '#view-stats';
       else if (hash === '#/mas/privacidad') targetView = '#view-privacy';
       else if (hash === '#/mas/acerca') targetView = '#view-about';
+      else if (hash === '#/mas/ayuda') targetView = '#view-help';
       else if (hash === '#/admin') targetView = '#view-admin';
       else targetView = '#view-home';
 
@@ -2502,6 +2534,18 @@
     document.getElementById('more-stats').onclick = () => goTo('#/mas/stats');
     document.getElementById('more-privacy').onclick = () => goTo('#/mas/privacidad');
     document.getElementById('more-about').onclick = () => goTo('#/mas/acerca');
+    document.getElementById('more-help').onclick = () => goTo('#/mas/ayuda');
+    document.getElementById('more-install').onclick = () => {
+      if (window.deferredPrompt) {
+        window.deferredPrompt.prompt();
+        window.deferredPrompt.userChoice.then(choice => {
+          if (choice.outcome === 'accepted') showToast('App instalada');
+          window.deferredPrompt = null;
+        });
+      } else {
+        showToast('Instalar: Compartir → Añadir a pantalla de inicio');
+      }
+    };
 
     document.getElementById('set-lock-toggle').onchange = () => {
       const settings = loadSettings();
@@ -2687,6 +2731,12 @@
           }
         };
       }
+
+      // PWA: Capture beforeinstallprompt for install button
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        window.deferredPrompt = e;
+      });
 
       window.addEventListener('hashchange', updateRoute);
 
