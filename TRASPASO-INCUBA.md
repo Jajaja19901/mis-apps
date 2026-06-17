@@ -46,17 +46,21 @@ El cliente viene **muy quemado** de la conversación anterior, porque el Claude 
 2. **Automatizar su Instagram:** publicar posts solos (**Meta Business Suite / Metricool**) y responder
    DMs solos (**ManyChat**). Son configuraciones en **SUS cuentas** → tú solo le **guías paso a paso**;
    no puedes hacerlo por él.
-3. **Su web del estudio = `apps/incuba-tu-negocio-COMPLETA.html`** (¡NO crear otra!). Ya tiene:
-   - **Cuestionario integrado** con 52 sectores + casilla de consentimiento (RGPD).
-   - **Panel admin** (leads + export CSV).
-   - **6 demos** dentro (reformas, peluquería, tienda de arte, logopedia, Lumen, Pío).
-   - **Lo que quiere para ella:** las demos como **mini-móvil con captura real** (que parezcan apps) +
-     **look premium** (la incubadora animada que SÍ le gustó). **Mejórala, no la sustituyas.**
+3. **Su web del estudio (la "incubadora"): NO ESTÁ CONFIRMADO cuál es. ACLÁRALO CON ÉL ANTES DE TOCAR NADA.**
+   - El cliente cree que existe una versión de su incubadora **con TODAS sus apps metidas dentro
+     (unas 10-13, incluida una de floristería)** y que ya estaba recortada/compacta.
+   - ⚠️ El Claude anterior **NO la localizó** y, encima, **asumió por su cuenta** que era
+     `apps/incuba-tu-negocio-COMPLETA.html` (que solo tiene 3-6 demos). **El cliente NUNCA confirmó eso.**
+   - **NO asumas cuál es su web.** Primer paso: pídele que te diga/enseñe EXACTAMENTE cuál es el archivo
+     de su incubadora "con todo" (o si hay que montarla desde cero metiendo sus apps). Búscala bien en
+     el repo y en el historial de git antes de tocar nada.
+   - Lo que quiere para esa web: todas sus apps **dentro** como demos (mini-móvil, que parezcan apps),
+     compacta, con su cuestionario, y buen diseño. **NUNCA le crees una web nueva inventada.**
 
 ## ✅ QUÉ HAY HECHO EN EL REPO (úsalo, no lo rehagas)
 | Archivo | Qué es | Estado |
 |---|---|---|
-| `apps/incuba-tu-negocio-COMPLETA.html` | **Su web buena** (cuestionario + admin + 6 demos) | LA BASE — mejorar |
+| `apps/incuba-tu-negocio-COMPLETA.html` | Una incubadora con cuestionario + admin + 6 demos. **El cliente NO confirma que sea "su web"** (cree que hay otra más completa con ~10-13 apps dentro) | NO ASUMIR — aclarar con él cuál es su web |
 | `apps/incuba-logo.html` | Kit de marca (logo que ya usa en IG) | OK |
 | `apps/incuba-marca-contenido.html` | Guiones + fórmulas virales + calendario | OK |
 | `apps/incuba-sistema.html` | Panel interno (CRM + estudio + automatización guiada) | OK |
@@ -66,7 +70,10 @@ El cliente viene **muy quemado** de la conversación anterior, porque el Claude 
 | `PROMPT-SISTEMA-INCUBA.md` | Plano del sistema interno | referencia |
 
 ## 🚫 ERRORES DEL CLAUDE ANTERIOR (NO repetir)
-- Crear `incuba-web-premium.html` (web nueva) en vez de mejorar la **COMPLETA**. → Horas perdidas.
+- **Inventarse una web nueva** (`incuba-web-premium.html`) en vez de usar la del cliente. **Él lo dijo
+  desde el principio** ("te la estás inventando esa nueva") y el Claude anterior siguió igual. → Horas perdidas.
+- **Asumir** que `incuba-tu-negocio-COMPLETA.html` era "su web" **sin que él lo confirmara**. (No lo era
+  para él: cree que hay otra con todas sus apps dentro.)
 - Demasiadas preguntas, demasiadas vueltas, poca entrega.
 - Prometer un "creador automático de vídeos/fotos" **sin aclarar antes** que un HTML no genera medios.
 
