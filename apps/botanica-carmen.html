@@ -591,9 +591,6 @@
           <button id="scan-save-btn" style="flex: 1;">💾 Guardar en Mis plantas</button>
           <button id="scan-repeat-btn" class="btn-secondary" style="flex: 1;">Repetir</button>
         </div>
-        <!-- Hidden test buttons -->
-        <button id="test-identify-adelfa" style="display: none;" onclick="window.__testIdentify('adelfa')"></button>
-        <button id="test-identify-romero" style="display: none;" onclick="window.__testIdentify('romero')"></button>
       </div>
     </div>
 
@@ -921,6 +918,10 @@
 
   <script>
     // ========== CONFIG ==========
+    // NOTE: ADMIN_PASSWORD provides basic UI lock only for demo purposes.
+    // It does NOT provide cryptographic protection. All data is stored unencrypted
+    // in localStorage/IndexedDB and is accessible via browser devtools.
+    // Do NOT use for sensitive real secrets.
     const CONFIG = {
       APP_NAME: "Botánica de Carmen",
       OWNER_NAME: "Carmen Delia",
@@ -1633,45 +1634,85 @@
 
     // ========== LOCALSTORAGE FUNCTIONS ==========
     function loadPlants() {
-      const data = localStorage.getItem('cdb.plants');
-      return data ? JSON.parse(data) : [];
+      try {
+        const data = localStorage.getItem('cdb.plants');
+        return data ? JSON.parse(data) : [];
+      } catch (e) {
+        console.error('Failed to load plants:', e);
+        return [];
+      }
     }
 
     function savePlants(plants) {
-      localStorage.setItem('cdb.plants', JSON.stringify(plants));
+      try {
+        localStorage.setItem('cdb.plants', JSON.stringify(plants));
+      } catch (e) {
+        console.error('Failed to save plants:', e);
+      }
     }
 
     function loadJobs() {
-      const data = localStorage.getItem('cdb.jobs');
-      return data ? JSON.parse(data) : [];
+      try {
+        const data = localStorage.getItem('cdb.jobs');
+        return data ? JSON.parse(data) : [];
+      } catch (e) {
+        console.error('Failed to load jobs:', e);
+        return [];
+      }
     }
 
     function saveJobs(jobs) {
-      localStorage.setItem('cdb.jobs', JSON.stringify(jobs));
+      try {
+        localStorage.setItem('cdb.jobs', JSON.stringify(jobs));
+      } catch (e) {
+        console.error('Failed to save jobs:', e);
+      }
     }
 
     function loadTasks(type) {
-      const key = type === 'materials' ? 'cdb.tasksMaterials' : 'cdb.tasksTodo';
-      const data = localStorage.getItem(key);
-      return data ? JSON.parse(data) : [];
+      try {
+        const key = type === 'materials' ? 'cdb.tasksMaterials' : 'cdb.tasksTodo';
+        const data = localStorage.getItem(key);
+        return data ? JSON.parse(data) : [];
+      } catch (e) {
+        console.error('Failed to load tasks:', e);
+        return [];
+      }
     }
 
     function saveTasks(type, tasks) {
-      const key = type === 'materials' ? 'cdb.tasksMaterials' : 'cdb.tasksTodo';
-      localStorage.setItem(key, JSON.stringify(tasks));
+      try {
+        const key = type === 'materials' ? 'cdb.tasksMaterials' : 'cdb.tasksTodo';
+        localStorage.setItem(key, JSON.stringify(tasks));
+      } catch (e) {
+        console.error('Failed to save tasks:', e);
+      }
     }
 
     function loadSettings() {
-      const data = localStorage.getItem('cdb.settings');
-      return data ? JSON.parse(data) : {
-        lockEnabled: CONFIG.LOCK_ENABLED_DEFAULT,
-        theme: 'auto',
-        installed: false
-      };
+      try {
+        const data = localStorage.getItem('cdb.settings');
+        return data ? JSON.parse(data) : {
+          lockEnabled: CONFIG.LOCK_ENABLED_DEFAULT,
+          theme: 'auto',
+          installed: false
+        };
+      } catch (e) {
+        console.error('Failed to load settings:', e);
+        return {
+          lockEnabled: CONFIG.LOCK_ENABLED_DEFAULT,
+          theme: 'auto',
+          installed: false
+        };
+      }
     }
 
     function saveSettings(settings) {
-      localStorage.setItem('cdb.settings', JSON.stringify(settings));
+      try {
+        localStorage.setItem('cdb.settings', JSON.stringify(settings));
+      } catch (e) {
+        console.error('Failed to save settings:', e);
+      }
     }
 
     // ========== ID GENERATOR ==========
@@ -1832,16 +1873,12 @@
       return true; // For test compatibility
     };
 
-    // Support for test runner eval
-    window.runEval = function(code) {
-      try {
-        eval(code);
-        return true;
-      } catch (e) {
-        console.error('Eval error:', e);
-        return false;
-      }
-    };
+    // Escape HTML to prevent XSS
+    function escapeHTML(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
 
     // ========== ROUTER ==========
     function goTo(hash) {
@@ -1926,11 +1963,22 @@
           card.style.cursor = 'pointer';
           card.onclick = () => goTo(`#/plantas/${plant.id}`);
 
-          card.innerHTML = `
-            <img src="${plant.photoDataUrl || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23f0f0f0" width="100" height="100"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%23999" font-size="12">Sin foto</text></svg>'}" onerror="this.src='data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><rect fill=\"%23f0f0f0\" width=\"100\" height=\"100\"/></svg>'">
-            <div class="name">${plant.name}</div>
-            <span class="badge ${plant.toxic ? 'badge-toxic' : 'badge-safe'}">${plant.toxic ? 'Tóxica' : 'Segura'}</span>
-          `;
+          const img = document.createElement('img');
+          const placeholderSvg = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23f0f0f0" width="100" height="100"/><text x="50" y="50" text-anchor="middle" dy=".3em" fill="%23999" font-size="12">Sin foto</text></svg>';
+          img.src = (plant.photoDataUrl && plant.photoDataUrl.startsWith('data:')) ? plant.photoDataUrl : placeholderSvg;
+          img.onerror = () => { img.src = placeholderSvg; };
+
+          const nameDiv = document.createElement('div');
+          nameDiv.className = 'name';
+          nameDiv.textContent = plant.name;
+
+          const badge = document.createElement('span');
+          badge.className = `badge ${plant.toxic ? 'badge-toxic' : 'badge-safe'}`;
+          badge.textContent = plant.toxic ? 'Tóxica' : 'Segura';
+
+          card.appendChild(img);
+          card.appendChild(nameDiv);
+          card.appendChild(badge);
           list.appendChild(card);
         });
       }
@@ -1950,7 +1998,7 @@
       document.getElementById('plant-detail-care').textContent = plant.care;
       document.getElementById('plant-notes').value = plant.notes || '';
 
-      if (plant.photoDataUrl) {
+      if (plant.photoDataUrl && plant.photoDataUrl.startsWith('data:')) {
         document.getElementById('plant-detail-photo').src = plant.photoDataUrl;
         document.getElementById('plant-detail-photo').style.display = 'block';
       }
@@ -1997,11 +2045,23 @@
           card.onclick = () => goTo(`#/trabajos/${job.id}`);
 
           const statusLabel = { pending: 'Pendiente', doing: 'En curso', done: 'Hecho' }[job.status];
-          card.innerHTML = `
-            <div style="font-weight: 600;">${job.title}</div>
-            <div style="color: var(--text-light); font-size: 13px;">${job.location || '-'}</div>
-            <div class="job-status ${job.status}">${statusLabel}</div>
-          `;
+
+          const titleDiv = document.createElement('div');
+          titleDiv.style.fontWeight = '600';
+          titleDiv.textContent = job.title;
+          card.appendChild(titleDiv);
+
+          const locDiv = document.createElement('div');
+          locDiv.style.color = 'var(--text-light)';
+          locDiv.style.fontSize = '13px';
+          locDiv.textContent = job.location || '-';
+          card.appendChild(locDiv);
+
+          const statusDiv = document.createElement('div');
+          statusDiv.className = `job-status ${job.status}`;
+          statusDiv.textContent = statusLabel;
+          card.appendChild(statusDiv);
+
           list.appendChild(card);
         });
       }
@@ -2030,11 +2090,36 @@
       (job.checklist || []).forEach(item => {
         const div = document.createElement('div');
         div.className = 'checklist-item' + (item.done ? ' done' : '');
-        div.innerHTML = `
-          <input type="checkbox" ${item.done ? 'checked' : ''} onchange="toggleCheckItem('${job.id}', '${item.id}', this.checked)">
-          <span>${item.text}</span>
-          <button class="btn-secondary del-btn" onclick="deleteCheckItem('${job.id}', '${item.id}')">-</button>
-        `;
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = item.done;
+        checkbox.onchange = (e) => {
+          const jobs = loadJobs();
+          const j = jobs.find(x => x.id === job.id);
+          const i = j.checklist.find(x => x.id === item.id);
+          i.done = e.target.checked;
+          saveJobs(jobs);
+          renderJobDetail(job.id);
+        };
+
+        const span = document.createElement('span');
+        span.textContent = item.text;
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn-secondary del-btn';
+        delBtn.textContent = '-';
+        delBtn.onclick = () => {
+          const jobs = loadJobs();
+          const j = jobs.find(x => x.id === job.id);
+          j.checklist = j.checklist.filter(x => x.id !== item.id);
+          saveJobs(jobs);
+          renderJobDetail(job.id);
+        };
+
+        div.appendChild(checkbox);
+        div.appendChild(span);
+        div.appendChild(delBtn);
         checkList.appendChild(div);
       });
 
@@ -2163,11 +2248,36 @@
         tasks.forEach(task => {
           const div = document.createElement('div');
           div.className = 'checklist-item' + (task.done ? ' done' : '');
-          div.innerHTML = `
-            <input type="checkbox" ${task.done ? 'checked' : ''} onchange="toggleTask('${type}', '${task.id}', this.checked)">
-            <span>${task.text}</span>
-            <button class="btn-secondary del-btn" onclick="deleteTask('${type}', '${task.id}')">-</button>
-          `;
+
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.checked = task.done;
+          const taskId = task.id;
+          const taskType = type;
+          checkbox.onchange = (e) => {
+            const ts = loadTasks(taskType);
+            const t = ts.find(x => x.id === taskId);
+            if (t) t.done = e.target.checked;
+            saveTasks(taskType, ts);
+            renderTasks();
+          };
+
+          const span = document.createElement('span');
+          span.textContent = task.text;
+
+          const delBtn = document.createElement('button');
+          delBtn.className = 'btn-secondary del-btn';
+          delBtn.textContent = '-';
+          delBtn.onclick = () => {
+            const ts = loadTasks(taskType);
+            const filtered = ts.filter(x => x.id !== taskId);
+            saveTasks(taskType, filtered);
+            renderTasks();
+          };
+
+          div.appendChild(checkbox);
+          div.appendChild(span);
+          div.appendChild(delBtn);
           container.appendChild(div);
         });
       };
@@ -2441,31 +2551,92 @@
       reader.onload = (evt) => {
         try {
           const backup = JSON.parse(evt.target.result);
-          if (backup.app !== 'botanica-de-carmen') {
+          if (backup.app !== 'botanica-de-carmen' || !backup.data) {
             showToast('Archivo no válido', 3000);
             return;
           }
 
+          // Validate backup structure
+          const validateArray = (arr, maxLength = 10000) => {
+            if (!Array.isArray(arr)) return [];
+            return arr.slice(0, maxLength);
+          };
+
+          const validateString = (str, maxLength = 500) => {
+            if (typeof str !== 'string') return '';
+            return str.slice(0, maxLength);
+          };
+
+          const validatePlants = (plants) => {
+            return validateArray(plants).map(p => ({
+              ...p,
+              id: validateString(p.id),
+              name: validateString(p.name),
+              scientificName: validateString(p.scientificName),
+              photoDataUrl: (p.photoDataUrl && typeof p.photoDataUrl === 'string' && p.photoDataUrl.startsWith('data:image/')) ? p.photoDataUrl : null
+            }));
+          };
+
+          const validateJobs = (jobs) => {
+            return validateArray(jobs).map(j => ({
+              ...j,
+              id: validateString(j.id),
+              title: validateString(j.title),
+              location: validateString(j.location),
+              notes: validateString(j.notes),
+              checklist: validateArray(j.checklist || []).map(c => ({
+                ...c,
+                id: validateString(c.id),
+                text: validateString(c.text)
+              }))
+            }));
+          };
+
+          const validateTasks = (tasks) => {
+            return validateArray(tasks).map(t => ({
+              ...t,
+              id: validateString(t.id),
+              text: validateString(t.text)
+            }));
+          };
+
           showConfirm('¿Sobrescribir todos los datos con esta copia?', () => {
-            localStorage.clear();
-            indexedDB.deleteDatabase('cdb-images');
+            try {
+              localStorage.clear();
+              indexedDB.deleteDatabase('cdb-images');
 
-            savePlants(backup.data.plants || []);
-            saveJobs(backup.data.jobs || []);
-            saveTasks('materials', backup.data.tasksMaterials || []);
-            saveTasks('todo', backup.data.tasksTodo || []);
-            saveSettings(backup.data.settings || {});
+              const cleanPlants = validatePlants(backup.data.plants || []);
+              const cleanJobs = validateJobs(backup.data.jobs || []);
+              const cleanMaterials = validateTasks(backup.data.tasksMaterials || []);
+              const cleanTodos = validateTasks(backup.data.tasksTodo || []);
 
-            // Restaurar imágenes
-            initIndexedDB().then(() => {
-              (backup.images || []).forEach(img => {
-                savePhoto(img.imageId, img.dataUrl);
+              savePlants(cleanPlants);
+              saveJobs(cleanJobs);
+              saveTasks('materials', cleanMaterials);
+              saveTasks('todo', cleanTodos);
+              saveSettings(backup.data.settings || {});
+
+              // Restaurar imágenes
+              initIndexedDB().then(() => {
+                (backup.images || []).forEach(img => {
+                  if (img.dataUrl && typeof img.dataUrl === 'string' && img.dataUrl.startsWith('data:')) {
+                    savePhoto(validateString(img.imageId), img.dataUrl);
+                  }
+                });
+                showToast('Copia restaurada');
+                setTimeout(() => location.reload(), 1000);
+              }).catch(err => {
+                console.error('IndexedDB restore error:', err);
+                showToast('Error al restaurar imágenes, pero datos guardados', 3000);
+                setTimeout(() => location.reload(), 1500);
               });
-              showToast('Copia restaurada');
-              setTimeout(() => location.reload(), 1000);
-            });
+            } catch (restoreErr) {
+              console.error('Restore error:', restoreErr);
+              showToast('Error durante la restauración', 3000);
+            }
           });
         } catch (err) {
+          console.error('Import parse error:', err);
           showToast('Error al importar', 3000);
         }
       };
