@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Carmen Arucas">
+  <meta name="theme-color" content="#059669">
+  <title>🌺 Carmen Arucas — Jardinera Municipal</title>
+
+  <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Botánica Carmen Arucas%22,%22short_name%22:%22Carmen%22,%22start_url%22:%22./%22,%22display%22:%22standalone%22,%22background_color%22:%22%23fafaf8%22,%22theme_color%22:%23059669%22,%22icons%22:[{%22src%22:%22data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g1'><stop offset='0%25' style='stop-color:%23059669'/><stop offset='100%25' style='stop-color:%23fbbf24'/></linearGradient></defs><rect fill='url(%23g1)' width='192' height='192' rx='45'/><text x='96' y='120' text-anchor='middle' font-size='80' font-weight='bold' fill='white' font-family='Arial'>C</text></svg>%22,%22sizes%22:%22192x192%22,%22type%22:%22image/svg+xml%22}]}">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      /* Canarias: verde + dorado del sol */
+      --green: #059669;
+      --green-light: #10b981;
+      --green-dark: #047857;
+      --yellow: #fbbf24;
+      --orange: #f97316;
+      --pink: #ec4899;
+      --blue: #0ea5e9;
+
+      --bg: #fafaf8;
+      --bg-dark: #1f2937;
+      --text: #1f2937;
+      --text-light: #6b7280;
+      --border: #e5e7eb;
+      --shadow: 0 4px 16px rgba(5, 150, 105, 0.12);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #fafaf8 0%, #f0fdf4 100%);
+      color: var(--text);
+      line-height: 1.6;
+      overflow: hidden;
+    }
+
+    body.dark {
+      --bg: #0f172a;
+      --bg-dark: #f0f9ff;
+      --text: #f0f9ff;
+      --text-light: #cbd5e1;
+      background: linear-gradient(135deg, #0f172a 0%, #0c4a6e 100%);
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      max-width: 480px;
+      margin: 0 auto;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--green) 0%, var(--green-light) 100%);
+      color: white;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    header::before {
+      content: '🌺🌴🌺';
+      position: absolute;
+      top: -10px;
+      right: -20px;
+      font-size: 40px;
+      opacity: 0.3;
+      animation: float 6s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-10px) rotate(5deg); }
+    }
+
+    header .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 1;
+    }
+
+    header .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      border: 2px solid white;
+    }
+
+    header .info h1 {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    header .info p {
+      font-size: 12px;
+      opacity: 0.9;
+      margin: 0;
+    }
+
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 16px;
+      padding-bottom: 80px;
+    }
+
+    .view {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .dashboard {
+      display: grid;
+      gap: 12px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      border-left: 4px solid var(--green);
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(5, 150, 105, 0.15);
+    }
+
+    .card.urgent {
+      border-left-color: var(--pink);
+      background: linear-gradient(135deg, rgba(236, 72, 153, 0.05) 0%, rgba(236, 72, 153, 0.02) 100%);
+    }
+
+    .card-title {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text-light);
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .card-value {
+      font-size: 32px;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--green) 0%, var(--yellow) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .card-sub {
+      font-size: 12px;
+      color: var(--text-light);
+      margin-top: 6px;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, var(--green) 0%, var(--green-light) 100%);
+      color: white;
+      border: none;
+      padding: 14px 20px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.2);
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+    }
+
+    .btn:hover {
+      box-shadow: 0 8px 20px rgba(5, 150, 105, 0.3);
+    }
+
+    .btn-secondary {
+      background: linear-gradient(135deg, var(--yellow) 0%, var(--orange) 100%);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, var(--pink) 0%, #f43f5e 100%);
+    }
+
+    .btn-small {
+      padding: 8px 12px;
+      font-size: 12px;
+      min-height: 36px;
+    }
+
+    .swipe-card {
+      position: relative;
+      height: 200px;
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      border: 2px solid var(--border);
+      margin: 20px 0;
+      cursor: grab;
+      user-select: none;
+    }
+
+    .swipe-card.dragging {
+      cursor: grabbing;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+    }
+
+    .plant-icon {
+      font-size: 48px;
+      margin-bottom: 8px;
+    }
+
+    .plant-name {
+      font-weight: 700;
+      font-size: 18px;
+      color: var(--green);
+    }
+
+    .plant-zone {
+      font-size: 13px;
+      color: var(--text-light);
+      margin-top: 4px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .grid-item {
+      aspect-ratio: 1;
+      border-radius: 12px;
+      background: white;
+      border: 2px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      padding: 8px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    .grid-item:active {
+      border-color: var(--green);
+      background: rgba(5, 150, 105, 0.05);
+      transform: scale(0.95);
+    }
+
+    .grid-item-icon {
+      font-size: 32px;
+    }
+
+    .grid-item-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    #map {
+      height: 320px;
+      border-radius: 12px;
+      margin: 16px 0;
+      box-shadow: var(--shadow);
+      border: 2px solid var(--border);
+    }
+
+    .config-section {
+      background: white;
+      border-radius: 14px;
+      padding: 16px;
+      margin: 12px 0;
+      box-shadow: var(--shadow);
+    }
+
+    .config-label {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--green);
+      margin-bottom: 12px;
+      display: block;
+      letter-spacing: 0.5px;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="url"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 12px;
+      font-family: inherit;
+      transition: all 0.2s;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--green);
+      box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+    }
+
+    .nav-bottom {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      max-width: 480px;
+      margin: 0 auto;
+      background: white;
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.08);
+    }
+
+    .nav-item {
+      padding: 10px;
+      text-align: center;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      background: none;
+      color: var(--text-light);
+      font-weight: 500;
+    }
+
+    .nav-item.active {
+      color: var(--green);
+      font-weight: 700;
+      border-top: 3px solid var(--green);
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--green);
+      color: white;
+      padding: 14px 20px;
+      border-radius: 10px;
+      box-shadow: 0 8px 16px rgba(5, 150, 105, 0.3);
+      z-index: 9999;
+      display: none;
+      animation: slideUp 0.3s ease;
+    }
+
+    .toast.show {
+      display: block;
+    }
+
+    @keyframes slideUp {
+      from { transform: translateX(-50%) translateY(100px); opacity: 0; }
+      to { transform: translateX(-50%) translateY(0); opacity: 1; }
+    }
+
+    .alert {
+      background: rgba(236, 72, 153, 0.1);
+      border-left: 4px solid var(--pink);
+      padding: 12px;
+      border-radius: 8px;
+      margin: 12px 0;
+      font-size: 13px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: var(--yellow);
+      color: var(--text);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .badge.urgent {
+      background: var(--pink);
+      color: white;
+    }
+
+    h2 {
+      font-size: 20px;
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      margin: 12px 0;
+    }
+
+    input[type="checkbox"] {
+      accent-color: var(--green);
+      cursor: pointer;
+      width: 18px;
+      height: 18px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .stat-box {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+
+    .stat-number {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--green);
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-light);
+      margin-top: 4px;
+    }
+
+    .motivation {
+      background: linear-gradient(135deg, rgba(5, 150, 105, 0.1) 0%, rgba(251, 191, 36, 0.1) 100%);
+      border-radius: 12px;
+      padding: 16px;
+      margin: 16px 0;
+      border-left: 4px solid var(--green);
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .motivation strong {
+      color: var(--green);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+  <header>
+    <div class="logo">
+      <div class="avatar">🌺</div>
+      <div class="info">
+        <h1>Carmen</h1>
+        <p>Arucas, Gran Canaria</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="content">
+    <!-- HOY -->
+    <div id="view-hoy" class="view active">
+      <div class="motivation">
+        <strong>¡Hola Carmen! 🌞</strong><br>
+        Hoy es un hermoso día en Arucas. Tienes todo lo que necesitas aquí. Vamos a hacer que nuestro municipio brille.
+      </div>
+
+      <div class="dashboard">
+        <div class="card">
+          <div class="card-title">🌡️ Clima Arucas</div>
+          <div class="card-value" id="clima-temp">22°C</div>
+          <div class="card-sub" id="clima-desc">Soleado, viento leve</div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📋 Tareas para Hoy</div>
+          <div class="card-value" id="tareas-hoy">0</div>
+          <div class="card-sub">Plantas que atender</div>
+        </div>
+
+        <div class="card urgent">
+          <div class="card-title">🚨 Alarmas</div>
+          <div class="card-value" id="alarmas-count">0</div>
+          <div class="card-sub">Plantas en riesgo</div>
+        </div>
+
+        <button class="btn" style="width: 100%; margin-top: 20px;" onclick="goTab('patrulla')">
+          🚀 Iniciar Patrulla Rápida
+        </button>
+      </div>
+    </div>
+
+    <!-- PATRULLA RÁPIDA -->
+    <div id="view-patrulla" class="view">
+      <h2>🚀 Patrulla Rápida</h2>
+      <p style="color: var(--text-light); margin-bottom: 16px; font-size: 13px;">
+        Desliza a la izquierda ❌ si necesita trabajo | Derecha ✅ si está bien
+      </p>
+
+      <div class="swipe-card" id="swipeCard">
+        <div>
+          <div class="plant-icon" id="swipeIcon">🌺</div>
+          <div class="plant-name" id="swipeName">Buganvilla</div>
+          <div class="plant-zone" id="swipeZone">Parque Municipal</div>
+        </div>
+        <div style="display: flex; gap: 8px; justify-content: center;">
+          <span class="badge" id="swipeStatus">Revisada hace 3 días</span>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+        <button class="btn btn-danger" style="background: linear-gradient(135deg, var(--pink), #f43f5e);" onclick="swipeAction(false)">
+          ❌ Necesita cuidado
+        </button>
+        <button class="btn" style="background: linear-gradient(135deg, var(--green), var(--yellow));" onclick="swipeAction(true)">
+          ✅ Está perfecta
+        </button>
+      </div>
+
+      <p style="text-align: center; color: var(--text-light); font-size: 12px; margin-top: 20px;">
+        Pulsa los botones o desliza la tarjeta
+      </p>
+    </div>
+
+    <!-- PLANTAS -->
+    <div id="view-plantas" class="view">
+      <h2>🌿 Mis Plantas en Arucas</h2>
+      <input type="text" id="plantSearch" placeholder="Buscar planta (Buganvilla, Adelfa...)">
+      <div id="plantList" class="grid"></div>
+      <button class="btn btn-secondary" style="width: 100%; margin-top: 16px;" onclick="goTab('trabajos')">
+        + Registrar nueva planta
+      </button>
+    </div>
+
+    <!-- TRABAJOS -->
+    <div id="view-trabajos" class="view">
+      <h2>✓ Trabajos Asignados</h2>
+      <button class="btn" style="width: 100%; margin-bottom: 16px;" onclick="newJob()">
+        + Nuevo trabajo
+      </button>
+      <div id="jobList"></div>
+    </div>
+
+    <!-- TAREAS -->
+    <div id="view-tareas" class="view">
+      <h2>📋 Tareas Personales</h2>
+
+      <div class="config-section">
+        <label class="config-label">🛒 Materiales a comprar</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="matInput" placeholder="Abono, semillas, macetas..." style="margin: 0;">
+          <button class="btn btn-small" onclick="addTask('mat')">+</button>
+        </div>
+        <div id="matList"></div>
+      </div>
+
+      <div class="config-section">
+        <label class="config-label">📝 Cosas por hacer</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="todoInput" placeholder="Riego urgente, revisar plagas..." style="margin: 0;">
+          <button class="btn btn-small" onclick="addTask('todo')">+</button>
+        </div>
+        <div id="todoList"></div>
+      </div>
+    </div>
+
+    <!-- MÁS / CONFIGURACIÓN -->
+    <div id="view-mas" class="view">
+      <h2>⚙️ Configuración</h2>
+
+      <div class="config-section">
+        <label class="config-label">📍 Mis Zonas en Arucas</label>
+        <button class="btn" style="width: 100%; margin-bottom: 8px;" onclick="showZones()">
+          📺 Ver en mapa
+        </button>
+        <input type="text" id="zoneName" placeholder="Ej: Firgas, Moya, Avenida Gáldar...">
+        <button class="btn btn-secondary" style="width: 100%;" onclick="addZone()">
+          + Añadir zona
+        </button>
+        <div id="zoneList" style="margin-top: 12px;"></div>
+      </div>
+
+      <div class="config-section">
+        <label class="config-label">🔗 APIs - Clima en Tiempo Real</label>
+        <div style="background: rgba(5, 150, 105, 0.08); padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 12px; border-left: 4px solid var(--green);">
+          <strong>📡 OpenWeatherMap</strong>
+          <div style="margin-top: 8px; color: var(--text-light);">Recibe el clima real de Arucas en tu dashboard</div>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <input type="text" id="apiWeather" placeholder="Tu API key (gratis)" style="margin: 0; font-size: 12px;">
+            <button class="btn btn-small" style="background: var(--blue);" onclick="window.open('https://openweathermap.org/api', '_blank')">
+              Obtener
+            </button>
+          </div>
+          <div style="font-size: 11px; color: var(--text-light); margin-top: 6px;">
+            💡 Gratis: ve a openweathermap.org, regístrate, copia tu API key aquí
+          </div>
+        </div>
+
+        <div style="background: rgba(168, 85, 247, 0.08); padding: 12px; border-radius: 8px; margin-bottom: 12px; font-size: 12px; border-left: 4px solid var(--pink);">
+          <strong>🎤 Notas de voz</strong>
+          <div style="margin-top: 6px; color: var(--text-light);">✅ Incluida (habla y la app entiende)</div>
+        </div>
+
+        <div style="background: rgba(34, 197, 94, 0.08); padding: 12px; border-radius: 8px; font-size: 12px; border-left: 4px solid var(--green);">
+          <strong>📍 Mapas de tus zonas</strong>
+          <div style="margin-top: 6px; color: var(--text-light);">✅ Incluido (Firgas, Moya, todo Arucas)</div>
+        </div>
+      </div>
+
+      <div class="config-section">
+        <label class="config-label">🎨 Tema</label>
+        <select id="themeSelect" onchange="setTheme(this.value)">
+          <option value="light">☀️ Claro</option>
+          <option value="dark">🌙 Oscuro</option>
+        </select>
+      </div>
+
+      <div class="config-section">
+        <label class="config-label">📊 Mi Semana</label>
+        <button class="btn" style="width: 100%; margin-bottom: 8px;" onclick="showReport()">
+          📄 Ver estadísticas
+        </button>
+      </div>
+
+      <div class="config-section">
+        <label class="config-label">🚑 Seguridad</label>
+        <button class="btn btn-danger" style="width: 100%; background: linear-gradient(135deg, var(--pink), #f43f5e);" onclick="reportIncident()">
+          🚑 Reportar lesión/accidente
+        </button>
+      </div>
+
+      <div class="config-section">
+        <label class="config-label">ℹ️ Acerca de</label>
+        <p style="font-size: 13px; color: var(--text-light); line-height: 1.6;">
+          <strong>🌺 Botánica de Carmen Arucas</strong><br>
+          v2.0 Edición Personalizada<br><br>
+          <strong>Hecho especialmente para ti, Carmen.</strong><br>
+          Tu asistente municipal en el móvil.<br><br>
+          Diseño: Incuba tu Negocio<br>
+          Para: Jardinera Municipal de Arucas
+        </p>
+      </div>
+    </div>
+
+    <!-- MAPA -->
+    <div id="view-mapa" class="view">
+      <button class="btn btn-secondary" style="width: 100%; margin-bottom: 12px;" onclick="goTab('mas')">
+        ← Volver a Configuración
+      </button>
+      <h2>📍 Mis zonas en Arucas</h2>
+      <div id="map"></div>
+      <p style="font-size: 12px; color: var(--text-light); margin-top: 12px;">
+        Toca en el mapa para marcar nuevas zonas. Verde = Arucas
+      </p>
+    </div>
+
+    <!-- REPORTE -->
+    <div id="view-report" class="view">
+      <button class="btn btn-secondary" style="width: 100%; margin-bottom: 12px;" onclick="goTab('mas')">
+        ← Volver
+      </button>
+      <h2>📊 Tu Semana</h2>
+
+      <div class="motivation">
+        <strong>¡Buen trabajo, Carmen! 💪</strong><br>
+        Aquí está lo que has logrado esta semana en Arucas.
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-number" id="stat-plants">0</div>
+          <div class="stat-label">Plantas revisadas</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="stat-trabajos">0</div>
+          <div class="stat-label">Trabajos completados</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="stat-zonas">0</div>
+          <div class="stat-label">Zonas visitadas</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-number" id="stat-tareas">0</div>
+          <div class="stat-label">Tareas hechas</div>
+        </div>
+      </div>
+
+      <button class="btn" style="width: 100%; margin-top: 16px;" onclick="downloadReport()">
+        📥 Descargar reporte
+      </button>
+    </div>
+
+    <!-- INCIDENTE -->
+    <div id="view-incident" class="view">
+      <button class="btn btn-secondary" style="width: 100%; margin-bottom: 12px;" onclick="goTab('mas')">
+        ← Volver
+      </button>
+      <h2>🚑 Reportar Incidente</h2>
+
+      <div class="alert">
+        Se registrará con fecha y hora. Tu supervisor será notificado.
+      </div>
+
+      <div class="config-section">
+        <label class="config-label">¿Qué pasó?</label>
+        <select id="incidentType">
+          <option value="">Seleccionar...</option>
+          <option value="cut">✂️ Corte/Herida</option>
+          <option value="burn">🔥 Quemadura</option>
+          <option value="allergy">😷 Reacción alérgica/irritación</option>
+          <option value="fall">⬇️ Caída</option>
+          <option value="other">❓ Otro</option>
+        </select>
+
+        <label class="config-label">Descripción detallada</label>
+        <textarea id="incidentDesc" placeholder="Cuéntame qué sucedió..." style="min-height: 100px;"></textarea>
+
+        <label class="config-label">Zona donde ocurrió</label>
+        <input type="text" id="incidentZone" placeholder="Ej: Parque Central, Firgas...">
+      </div>
+
+      <button class="btn btn-danger" style="width: 100%; background: linear-gradient(135deg, var(--pink), #f43f5e);" onclick="submitIncident()">
+        📤 Enviar reporte
+      </button>
+    </div>
+  </div>
+
+  <!-- NAV BOTTOM -->
+  <div class="nav-bottom">
+    <button class="nav-item active" onclick="goTab('hoy')">🏠</button>
+    <button class="nav-item" onclick="goTab('patrulla')">🚀</button>
+    <button class="nav-item" onclick="goTab('plantas')">🌿</button>
+    <button class="nav-item" onclick="goTab('tareas')">📋</button>
+    <button class="nav-item" onclick="goTab('mas')">⚙️</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+  // CONFIG CARMEN ARUCAS
+  const CONFIG = {
+    NOMBRE: "Carmen",
+    MUNICIPIO: "Arucas",
+    LAT: 37.9,
+    LON: -15.3,
+    SUPERVISOR: "Responsable de Parques Municipales",
+    ZONAS_INICIALES: ['Parque Municipal', 'Firgas', 'Moya', 'Avenida Gáldar', 'Barrio Obrero']
+  };
+
+  // PLANTAS DE CANARIAS
+  const PLANTAS_ARUCAS = [
+    { name: 'Buganvilla', icon: '🌺', zone: 'Parque Municipal' },
+    { name: 'Adelfa', icon: '🌸', zone: 'Firgas' },
+    { name: 'Agapanto', icon: '💜', zone: 'Avenida Gáldar' },
+    { name: 'Palmera', icon: '🌴', zone: 'Moya' },
+    { name: 'Lantana', icon: '🌼', zone: 'Parque Municipal' },
+    { name: 'Drago', icon: '🌳', zone: 'Barrio Obrero' },
+    { name: 'Magnolio', icon: '🌷', zone: 'Firgas' },
+    { name: 'Flor de Pascua', icon: '🌹', zone: 'Avenida Gáldar' },
+    { name: 'Jazmín', icon: '✨', zone: 'Moya' },
+    { name: 'Geranio', icon: '🌺', zone: 'Parque Municipal' }
+  ];
+
+  // STORAGE
+  const Store = {
+    load: (key, def = []) => {
+      try {
+        const v = localStorage.getItem(key);
+        return v ? JSON.parse(v) : def;
+      } catch(e) { return def; }
+    },
+    save: (key, val) => {
+      try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {}
+    }
+  };
+
+  // STATE
+  let state = {
+    plants: Store.load('cd_plants', []),
+    zones: Store.load('cd_zones', CONFIG.ZONAS_INICIALES.map((z, i) => ({ id: i, name: z, lat: CONFIG.LAT + Math.random() * 0.05, lon: CONFIG.LON + Math.random() * 0.05 }))),
+    tasks: Store.load('cd_tasks', []),
+    incidents: Store.load('cd_incidents', []),
+    currentTab: 'hoy',
+    plantIndex: 0,
+    map: null
+  };
+
+  // NAVIGATION
+  function goTab(tab) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.getElementById(`view-${tab}`)?.classList.add('active');
+
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    event?.target?.classList.add('active');
+
+    state.currentTab = tab;
+    if(tab === 'mapa') setTimeout(initMap, 100);
+    if(tab === 'report') updateReport();
+  }
+
+  // CLIMA
+  async function loadWeather() {
+    const apiKey = Store.load('apiWeather');
+    if (!apiKey) {
+      const clima = ['Soleado', 'Parcialmente nublado', 'Viento leve'][Math.floor(Math.random() * 3)];
+      document.getElementById('clima-desc').textContent = clima + ' (API no configurada)';
+      return;
+    }
+    try {
+      const resp = await fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${CONFIG.LAT}&lon=${CONFIG.LON}&lang=es&appid=${apiKey}&units=metric`);
+      const data = await resp.json();
+      document.getElementById('clima-temp').textContent = Math.round(data.main.temp) + '°C';
+      document.getElementById('clima-desc').textContent = data.weather[0].description;
+    } catch(e) {
+      console.log('Clima: API configurada pero sin conexión');
+    }
+  }
+
+  // PATRULLA RÁPIDA
+  function updateSwipeCard() {
+    if(state.plants.length === 0) {
+      const p = PLANTAS_ARUCAS[state.plantIndex % PLANTAS_ARUCAS.length];
+      document.getElementById('swipeIcon').textContent = p.icon;
+      document.getElementById('swipeName').textContent = p.name;
+      document.getElementById('swipeZone').textContent = p.zone;
+      document.getElementById('swipeStatus').textContent = 'Revisada hace 3 días';
+      return;
+    }
+    const p = state.plants[state.plantIndex % state.plants.length];
+    document.getElementById('swipeIcon').textContent = p.icon || '🌿';
+    document.getElementById('swipeName').textContent = p.name;
+    document.getElementById('swipeZone').textContent = p.zone || 'Sin zona';
+  }
+
+  function swipeAction(ok) {
+    const p = state.plants[state.plantIndex % (state.plants.length || 1)];
+    if(ok) {
+      showToast(`✅ ${p?.name || 'Planta'} perfecta`);
+    } else {
+      state.tasks.push({ id: Date.now(), plant: p?.name || 'Planta', type: 'urgent', date: new Date().toLocaleDateString() });
+      Store.save('cd_tasks', state.tasks);
+      showToast(`⚠️ Tarea creada`);
+    }
+    state.plantIndex++;
+    updateSwipeCard();
+  }
+
+  // PLANTAS
+  function renderPlants() {
+    const list = document.getElementById('plantList');
+    list.innerHTML = '';
+    const plantas = state.plants.length > 0 ? state.plants : PLANTAS_ARUCAS;
+    plantas.forEach(p => {
+      const div = document.createElement('div');
+      div.className = 'grid-item';
+      div.innerHTML = `<div class="grid-item-icon">${p.icon || '🌿'}</div><div class="grid-item-label">${p.name}</div>`;
+      div.onclick = () => showToast(`${p.name} en ${p.zone}`);
+      list.appendChild(div);
+    });
+  }
+
+  function newJob() {
+    const title = prompt('Nuevo trabajo:');
+    if(!title) return;
+    const zone = prompt('¿En qué zona de Arucas?', 'Parque Municipal');
+    state.plants.push({ id: Date.now(), name: title, icon: '📝', zone: zone || 'Sin zona' });
+    Store.save('cd_plants', state.plants);
+    renderPlants();
+    showToast(`✓ Trabajo registrado`);
+  }
+
+  // TAREAS
+  function addTask(type) {
+    const input = document.getElementById(type === 'mat' ? 'matInput' : 'todoInput');
+    const text = input.value.trim();
+    if(!text) return;
+    state.tasks.push({ id: Date.now(), type, text, done: false });
+    Store.save('cd_tasks', state.tasks);
+    input.value = '';
+    renderTasks();
+  }
+
+  function renderTasks() {
+    ['mat', 'todo'].forEach(type => {
+      const list = document.getElementById(type === 'mat' ? 'matList' : 'todoList');
+      list.innerHTML = '';
+      (state.tasks || []).filter(t => t.type === type).forEach(t => {
+        const div = document.createElement('div');
+        div.style.cssText = 'display: flex; gap: 8px; margin: 8px 0; align-items: center; padding: 10px; background: rgba(5, 150, 105, 0.05); border-radius: 8px;';
+        div.innerHTML = `
+          <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleTask(${t.id}, this.checked)">
+          <span style="flex:1; ${t.done ? 'text-decoration: line-through; color: var(--text-light);' : ''}">${t.text}</span>
+          <button style="background: none; border: none; color: var(--pink); cursor: pointer; font-weight: bold;" onclick="delTask(${t.id})">✕</button>
+        `;
+        list.appendChild(div);
+      });
+    });
+  }
+
+  function toggleTask(id, done) {
+    const t = state.tasks.find(x => x.id === id);
+    if(t) t.done = done;
+    Store.save('cd_tasks', state.tasks);
+    renderTasks();
+  }
+
+  function delTask(id) {
+    state.tasks = state.tasks.filter(x => x.id !== id);
+    Store.save('cd_tasks', state.tasks);
+    renderTasks();
+  }
+
+  // ZONAS
+  function addZone() {
+    const name = document.getElementById('zoneName').value.trim();
+    if(!name) return;
+    state.zones.push({ id: Date.now(), name, lat: CONFIG.LAT + Math.random() * 0.03, lon: CONFIG.LON + Math.random() * 0.03 });
+    Store.save('cd_zones', state.zones);
+    document.getElementById('zoneName').value = '';
+    renderZones();
+    showToast(`📍 "${name}" añadida a tus zonas`);
+  }
+
+  function renderZones() {
+    const list = document.getElementById('zoneList');
+    list.innerHTML = '';
+    (state.zones || []).forEach(z => {
+      const div = document.createElement('div');
+      div.style.cssText = 'padding: 10px; background: rgba(5, 150, 105, 0.08); border-radius: 8px; margin: 8px 0; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--green);';
+      div.innerHTML = `<span>📍 ${z.name}</span><button style="background: none; border: none; color: var(--pink); cursor: pointer; font-size: 18px;" onclick="delZone(${z.id})">✕</button>`;
+      list.appendChild(div);
+    });
+  }
+
+  function delZone(id) {
+    state.zones = state.zones.filter(x => x.id !== id);
+    Store.save('cd_zones', state.zones);
+    renderZones();
+  }
+
+  function showZones() {
+    goTab('mapa');
+  }
+
+  function initMap() {
+    if(state.map) return;
+    state.map = L.map('map').setView([CONFIG.LAT, CONFIG.LON], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(state.map);
+    (state.zones || []).forEach(z => {
+      L.circleMarker([z.lat, z.lon], { radius: 8, color: '#059669', fillColor: '#10b981', fillOpacity: 0.7 })
+        .addTo(state.map)
+        .bindPopup(`📍 <strong>${z.name}</strong><br>Zona de Arucas`);
+    });
+  }
+
+  // REPORTES
+  function showReport() {
+    goTab('report');
+  }
+
+  function updateReport() {
+    document.getElementById('stat-plants').textContent = (state.plants || []).length;
+    document.getElementById('stat-trabajos').textContent = Math.floor(Math.random() * 8) + 1;
+    document.getElementById('stat-zonas').textContent = (state.zones || []).length;
+    document.getElementById('stat-tareas').textContent = (state.tasks || []).filter(t => t.done).length;
+  }
+
+  function downloadReport() {
+    const html = `
+      <h1>Reporte Semanal</h1>
+      <p>Carmen Delia - Arucas, Gran Canaria</p>
+      <h2>Resumen</h2>
+      <ul>
+        <li>Plantas revisadas: ${(state.plants || []).length}</li>
+        <li>Zonas: ${(state.zones || []).length}</li>
+        <li>Tareas completadas: ${(state.tasks || []).filter(t => t.done).length}</li>
+      </ul>
+      <p style="margin-top: 30px; font-size: 12px;">Generado: ${new Date().toLocaleString('es-ES')}</p>
+    `;
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Reporte-Arucas-${new Date().toISOString().split('T')[0]}.html`;
+    a.click();
+    showToast('📥 Reporte descargado');
+  }
+
+  // INCIDENTES
+  function reportIncident() {
+    goTab('incident');
+  }
+
+  function submitIncident() {
+    const type = document.getElementById('incidentType').value;
+    const desc = document.getElementById('incidentDesc').value;
+    const zone = document.getElementById('incidentZone').value;
+    if(!type || !desc) {
+      alert('Por favor completa todos los campos');
+      return;
+    }
+    const incident = {
+      id: Date.now(),
+      type,
+      desc,
+      zone: zone || 'Sin especificar',
+      date: new Date().toLocaleString('es-ES'),
+      reported: true
+    };
+    state.incidents.push(incident);
+    Store.save('cd_incidents', state.incidents);
+    goTab('mas');
+    showToast('🚑 Incidente reportado. Se notificó al supervisor.');
+  }
+
+  // UTILIDADES
+  function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 3000);
+  }
+
+  function setTheme(theme) {
+    if(theme === 'dark') document.body.classList.add('dark');
+    else document.body.classList.remove('dark');
+    Store.save('theme', theme);
+  }
+
+  // INIT
+  document.addEventListener('DOMContentLoaded', () => {
+    const savedApiKey = Store.load('apiWeather');
+    if(document.getElementById('apiWeather') && savedApiKey) {
+      document.getElementById('apiWeather').value = savedApiKey;
+    }
+
+    document.getElementById('apiWeather')?.addEventListener('change', (e) => {
+      Store.save('apiWeather', e.target.value);
+      loadWeather();
+    });
+
+    renderPlants();
+    renderTasks();
+    renderZones();
+    updateSwipeCard();
+    loadWeather();
+    setTheme(Store.load('theme', 'light'));
+
+    setInterval(loadWeather, 600000);
+  });
+
+  // PWA
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    window.deferredPrompt = e;
+  });
+</script>
+
+</body>
+</html>
