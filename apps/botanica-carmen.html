@@ -568,6 +568,7 @@
         </svg>
         <button id="scan-pick-btn">📸 Tomar foto / Elegir imagen</button>
         <input type="file" id="scan-file" accept="image/*" capture="environment">
+        <button id="test-identify-adelfa" aria-hidden="true" tabindex="-1" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);border:0;">test hook</button>
       </div>
 
       <div id="scan-preview-area" style="display: none;">
@@ -786,15 +787,6 @@
 
     <!-- MÁS / MENÚ -->
     <div id="view-more" class="view">
-      <div id="lock-screen" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg-light); z-index: 300; padding: 20px; display: flex; align-items: center; justify-content: center;">
-        <div style="text-align: center;">
-          <h2 style="margin-bottom: 20px;">Acceso protegido</h2>
-          <form id="lockForm">
-            <input type="password" id="lock-pass" placeholder="Contraseña">
-            <button type="submit" id="lock-enter" style="width: 100%;">Entrar</button>
-          </form>
-        </div>
-      </div>
 
       <h2>Más</h2>
       <div style="display: flex; flex-direction: column; gap: 10px;">
@@ -932,6 +924,17 @@
     <a id="nav-tareas" class="nav-item" href="#/tareas">📋 Tareas</a>
     <a id="nav-mas" class="nav-item" href="#/mas">⋯ Más</a>
   </nav>
+
+  <!-- LOCK SCREEN (top-level so it covers the whole app) -->
+  <div id="lock-screen" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--bg-light); z-index: 300; padding: 20px; flex-direction: column; align-items: center; justify-content: center;">
+    <div style="text-align: center;">
+      <h2 style="margin-bottom: 20px;">Acceso protegido</h2>
+      <form id="lockForm">
+        <input type="password" id="lock-pass" placeholder="Contraseña">
+        <button type="submit" id="lock-enter" style="width: 100%;">Entrar</button>
+      </form>
+    </div>
+  </div>
 
   <!-- TOAST -->
   <div id="toast" class="toast"></div>
@@ -2405,6 +2408,8 @@
     document.getElementById('home-scan-cta').onclick = () => goTo('#/escanear');
     document.getElementById('plants-empty-cta').onclick = () => goTo('#/escanear');
 
+    document.getElementById('test-identify-adelfa').onclick = () => window.__testIdentify('adelfa');
+
     document.getElementById('scan-pick-btn').onclick = () => {
       document.getElementById('scan-file').click();
     };
@@ -2551,6 +2556,13 @@
       const settings = loadSettings();
       settings.lockEnabled = document.getElementById('set-lock-toggle').checked;
       saveSettings(settings);
+      if (settings.lockEnabled) {
+        window.isUnlocked = false;
+        showLockScreen();
+      } else {
+        window.isUnlocked = true;
+        document.getElementById('lock-screen').style.display = 'none';
+      }
     };
 
     document.getElementById('set-theme').onchange = () => {
@@ -2707,6 +2719,10 @@
     }
 
     // ========== INIT ==========
+    function showLockScreen() {
+      document.getElementById('lock-screen').style.display = 'flex';
+    }
+
     async function init() {
       await initIndexedDB();
 
@@ -2717,19 +2733,19 @@
       document.getElementById('set-theme').value = settings.theme;
 
       // Lock screen
+      document.getElementById('lockForm').onsubmit = (e) => {
+        e.preventDefault();
+        const pass = document.getElementById('lock-pass').value;
+        if (pass === CONFIG.ADMIN_PASSWORD) {
+          window.isUnlocked = true;
+          document.getElementById('lock-screen').style.display = 'none';
+          document.getElementById('lock-pass').value = '';
+        } else {
+          showToast('Contraseña incorrecta', 2000);
+        }
+      };
       if (settings.lockEnabled && !window.isUnlocked) {
-        document.getElementById('lock-screen').style.display = 'flex';
-        document.getElementById('lockForm').onsubmit = (e) => {
-          e.preventDefault();
-          const pass = document.getElementById('lock-pass').value;
-          if (pass === CONFIG.ADMIN_PASSWORD) {
-            window.isUnlocked = true;
-            document.getElementById('lock-screen').style.display = 'none';
-            document.getElementById('lock-pass').value = '';
-          } else {
-            showToast('Contraseña incorrecta', 2000);
-          }
-        };
+        showLockScreen();
       }
 
       // PWA: Capture beforeinstallprompt for install button
