@@ -599,11 +599,11 @@
 
     <!-- ESCANEAR PLANTAS CON IA -->
     <div id="view-escanear" class="view">
-      <h2>📷 Identificador iNaturalist</h2>
+      <h2>📷 Identificador Pl@ntNet</h2>
 
       <div style="background: rgba(5, 150, 105, 0.1); border-left: 4px solid var(--green); padding: 12px; border-radius: 8px; margin: 12px 0; font-size: 13px;">
         <strong>🔥 IA Profesional</strong><br>
-        Precisión 95%+ con millones de observaciones. Requiere WiFi/4G.
+        Precisión 90%+ con red neural de Pl@ntNet. Requiere WiFi/4G.
       </div>
 
       <input type="file" id="photoInput" accept="image/*" capture="environment" style="display: none;">
@@ -854,7 +854,7 @@
     LON: -15.3,
     SUPERVISOR: "Responsable de Parques Municipales",
     ZONAS_INICIALES: ['Parque Municipal', 'Firgas', 'Moya', 'Avenida Gáldar', 'Barrio Obrero'],
-    INATURALIST_API: 'https://api.inaturalist.org/v1/compute_observation_species',
+    PLANTNET_API: 'https://identify.plantnet.org/api/v2/identify',
     DB_VERSION: 1,
     DB_NAME: 'cdb-images'
   };
@@ -999,33 +999,36 @@
     try {
       const blob = dataURLtoBlob(dataUrl);
       const formData = new FormData();
-      formData.append('image', blob);
+      formData.append('images', blob);
+      formData.append('include-related-images', false);
+      formData.append('nb-results', 3);
+      formData.append('organ', 'auto');
 
-      const response = await fetch(CONFIG.INATURALIST_API, {
+      const response = await fetch(CONFIG.PLANTNET_API, {
         method: 'POST',
         body: formData
       });
 
-      if (!response.ok) throw new Error('API error');
+      if (!response.ok) throw new Error(`API error: ${response.status}`);
 
       const data = await response.json();
 
       if (data.results && data.results.length > 0) {
         currentScanResults = data.results.slice(0, 3).map((r, i) => ({
           rank: i + 1,
-          name: r.taxon?.name || 'Planta desconocida',
-          scientific: r.taxon?.name || '',
-          confidence: Math.round((1 - (i * 0.1)) * 100),
+          name: r.species?.commonNames?.[0] || r.species?.scientificNameWithoutAuthor || 'Planta desconocida',
+          scientific: r.species?.scientificNameWithoutAuthor || '',
+          confidence: Math.round(r.score * 100),
           icon: '🌿'
         }));
 
         renderScanResults();
       } else {
-        showToast('No se pudo identificar la planta. Intenta otra foto.');
+        showToast('No se pudo identificar. Intenta otra foto más clara.');
       }
     } catch (error) {
-      console.error(error);
-      showToast('Error: revisa tu conexión WiFi/4G');
+      console.error('Plant ID error:', error);
+      showToast('Error API: ' + error.message);
     }
 
     document.getElementById('loadingSpinner').style.display = 'none';

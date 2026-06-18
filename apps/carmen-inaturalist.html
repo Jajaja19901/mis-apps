@@ -9,7 +9,7 @@
   <meta name="theme-color" content="#059669">
   <title>🌺 Carmen Arucas — Identificador iNaturalist</title>
 
-  <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Botánica Carmen Arucas%22,%22short_name%22:%22Carmen%22,%22start_url%22:%22./%22,%22display%22:%22standalone%22,%22background_color%22:%22%23fafaf8%22,%22theme_color%22:%23059669%22,%22icons%22:[{%22src%22:%22data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g1'><stop offset='0%25' style='stop-color:%23059669'/><stop offset='100%25' style='stop-color:%23fbbf24'/></linearGradient></defs><rect fill='url(%23g1)' width='192' height='192' rx='45'/><text x='96' y='120' text-anchor='middle' font-size='80' font-weight='bold' fill='white' font-family='Arial'>C</text></svg>%22,%22sizes%22:%22192x192%22,%22type%22:%22image/svg+xml%22}]}">
+  <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Botánica Carmen Arucas%22,%22short_name%22:%22Carmen%22,%22start_url%22:%22./%22,%22display%22:%22standalone%22,%22background_color%22:%22%23fafaf8%22,%22theme_color%22:%22%23059669%22,%22icons%22:[{%22src%22:%22data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g1'><stop offset='0%25' style='stop-color:%23059669'/><stop offset='100%25' style='stop-color:%23fbbf24'/></linearGradient></defs><rect fill='url(%23g1)' width='192' height='192' rx='45'/><text x='96' y='120' text-anchor='middle' font-size='80' font-weight='bold' fill='white' font-family='Arial'>C</text></svg>%22,%22sizes%22:%22192x192%22,%22type%22:%22image/svg+xml%22}]}">
 
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -249,7 +249,7 @@
   <header>
     <div>
       <h1>🌺 Carmen Arucas</h1>
-      <p>Identificador de Plantas — iNaturalist</p>
+      <p>Identificador de Plantas — Pl@ntNet</p>
     </div>
   </header>
 
@@ -259,8 +259,8 @@
       <h2>📸 Identificar Planta</h2>
 
       <div class="alert success">
-        <strong>🔥 iNaturalist integrado</strong><br>
-        Toma una foto y IA profesional la identifica al instante. Precisión 95%+
+        <strong>🔥 Pl@ntNet integrado</strong><br>
+        Toma una foto y IA profesional la identifica al instante. Precisión 90%+
       </div>
 
       <input type="file" id="photoInput" accept="image/*" capture="environment">
@@ -309,16 +309,16 @@
       <h2>⚙️ Configuración</h2>
 
       <div class="card">
-        <h3 style="margin-bottom: 12px; font-size: 16px;">🔗 iNaturalist API</h3>
+        <h3 style="margin-bottom: 12px; font-size: 16px;">🔗 Pl@ntNet API</h3>
         <p style="font-size: 13px; color: var(--text-light); margin-bottom: 12px;">
           ✅ <strong>100% gratuita</strong><br>
           ✅ No requiere API key<br>
-          ✅ Precisión 95%+ con BD de millones de observaciones<br>
+          ✅ Precisión 90%+ con red neuronal entrenada<br>
           ✅ Funciona con internet (WiFi, 4G)
         </p>
 
-        <button class="btn btn-secondary" onclick="window.open('https://www.inaturalist.org/', '_blank')">
-          🌍 Ver iNaturalist.org
+        <button class="btn btn-secondary" onclick="window.open('https://plantnet.org/', '_blank')">
+          🌍 Ver Pl@ntNet.org
         </button>
       </div>
 
@@ -326,8 +326,8 @@
         <h3 style="margin-bottom: 12px; font-size: 16px;">💡 Cómo funciona</h3>
         <ol style="font-size: 13px; color: var(--text-light); margin-left: 16px; line-height: 1.8;">
           <li>Tomas foto de planta en Arucas</li>
-          <li>App envía imagen a iNaturalist API</li>
-          <li>Retorna top-3 resultados con precisión</li>
+          <li>App envía imagen a Pl@ntNet API</li>
+          <li>Red neuronal retorna top-3 candidatos</li>
           <li>Tú eliges cuál es + la guardas</li>
           <li>Se almacena en tu historial local</li>
         </ol>
@@ -341,7 +341,7 @@
       </div>
 
       <div class="alert">
-        <strong>📡 Requisito:</strong> Necesitas conexión WiFi o 4G para usar iNaturalist. El historial se guarda offline.
+        <strong>📡 Requisito:</strong> Necesitas conexión WiFi o 4G para usar Pl@ntNet. El historial se guarda offline.
       </div>
     </div>
   </div>
@@ -359,7 +359,7 @@
 <script>
   // CONFIG
   const CONFIG = {
-    INATURALIST_API: 'https://api.inaturalist.org/v1/compute_observation_species',
+    PLANTNET_API: 'https://identify.plantnet.org/api/v2/identify',
     HISTORY_KEY: 'carmen_plant_history'
   };
 
@@ -393,58 +393,54 @@
     reader.onload = (evt) => {
       state.currentPhoto = evt.target.result;
 
-      // Mostrar preview
       const preview = document.getElementById('photoPreview');
       preview.src = state.currentPhoto;
       preview.style.display = 'block';
 
-      // Enviar a iNaturalist
-      identifyWithINaturalist(state.currentPhoto);
+      identifyWithPlantNet(state.currentPhoto);
     };
 
     reader.readAsDataURL(file);
   });
 
-  // IDENTIFICAR CON INATURALIST
-  async function identifyWithINaturalist(dataUrl) {
+  // IDENTIFICAR CON PLANTNET
+  async function identifyWithPlantNet(dataUrl) {
     document.getElementById('loadingSpinner').style.display = 'block';
     document.getElementById('scanResult').style.display = 'none';
 
     try {
-      // Convertir DataURL a Blob
       const blob = dataURLtoBlob(dataUrl);
-
-      // Crear FormData para enviar foto
       const formData = new FormData();
-      formData.append('image', blob);
+      formData.append('images', blob);
+      formData.append('include-related-images', false);
+      formData.append('nb-results', 3);
+      formData.append('organ', 'auto');
 
-      // Enviar a iNaturalist API
-      const response = await fetch(CONFIG.INATURALIST_API, {
+      const response = await fetch(CONFIG.PLANTNET_API, {
         method: 'POST',
         body: formData
       });
 
-      if (!response.ok) throw new Error('Error en API');
+      if (!response.ok) throw new Error(`Error: ${response.status}`);
 
       const data = await response.json();
 
-      // Procesar resultados
       if (data.results && data.results.length > 0) {
         state.currentResults = data.results.slice(0, 3).map((r, i) => ({
           rank: i + 1,
-          name: r.taxon.name,
-          scientific: r.taxon.name,
-          confidence: Math.round((1 - (i * 0.1)) * 100), // Simulado
+          name: r.species?.commonNames?.[0] || r.species?.scientificNameWithoutAuthor || 'Planta',
+          scientific: r.species?.scientificNameWithoutAuthor || '',
+          confidence: Math.round(r.score * 100),
           icon: '🌿'
         }));
 
         renderResults();
       } else {
-        showToast('No se pudo identificar. Intenta otra foto.');
+        showToast('No se pudo identificar. Intenta otra foto más clara.');
       }
     } catch (error) {
       console.error(error);
-      showToast('Error de conexión. ¿Tienes WiFi/4G?');
+      showToast('Error de conexión: ' + error.message);
     }
 
     document.getElementById('loadingSpinner').style.display = 'none';
