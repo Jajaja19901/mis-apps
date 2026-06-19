@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weekend Gallery - Transiciones Bonitas</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background: rgba(15, 15, 30, 0.9);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 100, 200, 0.3);
+            padding: 24px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #ff0080, #00f0ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 32px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+        .gallery-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+            margin-bottom: 24px;
+            perspective: 1000px;
+        }
+        .gallery-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        .photo-slide {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            opacity: 0;
+            transform: scale(1);
+        }
+        .photo-slide.active {
+            opacity: 1;
+            z-index: 10;
+        }
+        .photo-slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .counter {
+            position: absolute;
+            bottom: 16px;
+            right: 16px;
+            background: rgba(0, 0, 0, 0.7);
+            color: #00f0ff;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            z-index: 20;
+            font-weight: bold;
+        }
+        .upload-section {
+            margin-bottom: 24px;
+        }
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+        .file-input-label {
+            display: block;
+            padding: 16px 24px;
+            background: linear-gradient(135deg, #00f0ff, #0fbdff);
+            color: #000;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            width: 100%;
+        }
+        .file-input-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 240, 255, 0.4);
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .photo-thumbnail {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.3s;
+        }
+        .photo-thumbnail:hover {
+            border-color: #ff0080;
+            transform: scale(1.05);
+        }
+        .photo-thumbnail.active {
+            border-color: #00f0ff;
+            box-shadow: 0 0 16px rgba(0, 240, 255, 0.5);
+        }
+        .photo-thumbnail img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .controls {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #ff0080, #ff6ec7);
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(255, 0, 128, 0.4);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .slideshow-toggle {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+        .slideshow-toggle:hover {
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+        }
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+        .nav-btn {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        .info {
+            text-align: center;
+            color: #888;
+            font-size: 13px;
+            margin-top: 16px;
+        }
+        .empty-state {
+            text-align: center;
+            color: #666;
+            padding: 40px 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎬 Weekend Gallery</h1>
+        <p class="subtitle">Transiciones bonitas para tus mejores momentos</p>
+
+        <div class="upload-section">
+            <label class="file-input-label">
+                📸 Subir fotos
+                <input type="file" id="fileInput" accept="image/*" multiple>
+            </label>
+        </div>
+
+        <div class="gallery-container">
+            <div class="gallery-inner" id="galleryInner"></div>
+            <div class="counter" id="counter"></div>
+        </div>
+
+        <div class="photo-grid" id="photoGrid"></div>
+
+        <div class="controls">
+            <div class="nav-buttons">
+                <button class="nav-btn" id="prevBtn" title="Anterior">◀</button>
+                <button class="slideshow-toggle" id="slideshowBtn">▶ Slideshow</button>
+                <button class="nav-btn" id="nextBtn" title="Siguiente">▶</button>
+            </div>
+        </div>
+
+        <div class="info" id="info">
+            Sube fotos para comenzar ✨
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const galleryInner = document.getElementById('galleryInner');
+        const photoGrid = document.getElementById('photoGrid');
+        const counter = document.getElementById('counter');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const slideshowBtn = document.getElementById('slideshowBtn');
+        const info = document.getElementById('info');
+
+        let photos = [];
+        let currentIndex = 0;
+        let isSlideshow = false;
+        let slideshowInterval = null;
+
+        // Transiciones disponibles
+        const transitions = [
+            'fadeSlide',
+            'flipH',
+            'flipV',
+            'zoomIn',
+            'slideLeft',
+            'slideRight',
+            'rotateRight',
+            'blur'
+        ];
+        let currentTransition = 0;
+
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    photos.push(event.target.result);
+                    if (photos.length === 1) {
+                        currentIndex = 0;
+                        showPhoto(0);
+                    }
+                    renderThumbnails();
+                    updateUI();
+                };
+                reader.readAsDataURL(file);
+            });
+        });
+
+        function renderPhotos() {
+            galleryInner.innerHTML = photos.map((photo, idx) => `
+                <div class="photo-slide ${idx === currentIndex ? 'active' : ''}" data-index="${idx}">
+                    <img src="${photo}" alt="Foto ${idx + 1}">
+                </div>
+            `).join('');
+        }
+
+        function renderThumbnails() {
+            photoGrid.innerHTML = photos.map((photo, idx) => `
+                <div class="photo-thumbnail ${idx === currentIndex ? 'active' : ''}" data-index="${idx}">
+                    <img src="${photo}" alt="Thumb ${idx + 1}">
+                </div>
+            `).join('');
+
+            document.querySelectorAll('.photo-thumbnail').forEach(thumb => {
+                thumb.addEventListener('click', () => {
+                    const idx = parseInt(thumb.dataset.index);
+                    showPhoto(idx);
+                });
+            });
+        }
+
+        function applyTransition(fromIdx, toIdx) {
+            const slides = document.querySelectorAll('.photo-slide');
+            const fromSlide = slides[fromIdx];
+            const toSlide = slides[toIdx];
+
+            const transition = transitions[currentTransition % transitions.length];
+            currentTransition++;
+
+            fromSlide.style.animation = `none`;
+            toSlide.style.animation = `none`;
+
+            setTimeout(() => {
+                fromSlide.classList.remove('active');
+                toSlide.classList.add('active');
+
+                switch (transition) {
+                    case 'fadeSlide':
+                        toSlide.style.animation = 'fadeSlide 0.8s ease-out forwards';
+                        break;
+                    case 'flipH':
+                        toSlide.style.animation = 'flipH 0.8s ease-out forwards';
+                        break;
+                    case 'flipV':
+                        toSlide.style.animation = 'flipV 0.8s ease-out forwards';
+                        break;
+                    case 'zoomIn':
+                        toSlide.style.animation = 'zoomIn 0.8s ease-out forwards';
+                        break;
+                    case 'slideLeft':
+                        toSlide.style.animation = 'slideLeft 0.8s ease-out forwards';
+                        break;
+                    case 'slideRight':
+                        toSlide.style.animation = 'slideRight 0.8s ease-out forwards';
+                        break;
+                    case 'rotateRight':
+                        toSlide.style.animation = 'rotateRight 0.8s ease-out forwards';
+                        break;
+                    case 'blur':
+                        toSlide.style.animation = 'blur 0.8s ease-out forwards';
+                        break;
+                }
+            }, 10);
+        }
+
+        function showPhoto(idx) {
+            if (photos.length === 0) return;
+            if (idx < 0) idx = photos.length - 1;
+            if (idx >= photos.length) idx = 0;
+
+            applyTransition(currentIndex, idx);
+            currentIndex = idx;
+            updateCounter();
+            updateThumbnails();
+        }
+
+        function updateCounter() {
+            if (photos.length > 0) {
+                counter.textContent = `${currentIndex + 1} / ${photos.length}`;
+            }
+        }
+
+        function updateThumbnails() {
+            document.querySelectorAll('.photo-thumbnail').forEach((thumb, idx) => {
+                thumb.classList.toggle('active', idx === currentIndex);
+            });
+        }
+
+        function updateUI() {
+            const hasPhotos = photos.length > 0;
+            prevBtn.disabled = !hasPhotos;
+            nextBtn.disabled = !hasPhotos;
+            slideshowBtn.disabled = !hasPhotos;
+            galleryInner.style.display = hasPhotos ? 'block' : 'none';
+            photoGrid.style.display = hasPhotos ? 'grid' : 'none';
+            counter.style.display = hasPhotos ? 'block' : 'none';
+            info.style.display = hasPhotos ? 'none' : 'block';
+        }
+
+        prevBtn.addEventListener('click', () => showPhoto(currentIndex - 1));
+        nextBtn.addEventListener('click', () => showPhoto(currentIndex + 1));
+
+        slideshowBtn.addEventListener('click', () => {
+            if (!isSlideshow) {
+                isSlideshow = true;
+                slideshowBtn.textContent = '⏸ Parar';
+                slideshowInterval = setInterval(() => {
+                    showPhoto(currentIndex + 1);
+                }, 3000);
+            } else {
+                isSlideshow = false;
+                slideshowBtn.textContent = '▶ Slideshow';
+                clearInterval(slideshowInterval);
+            }
+        });
+
+        updateUI();
+
+        // CSS para transiciones
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes fadeSlide {
+                from { opacity: 0; transform: translateX(30px); }
+                to { opacity: 1; transform: translateX(0); }
+            }
+            @keyframes flipH {
+                from { transform: rotateY(90deg) scale(0.8); opacity: 0; }
+                to { transform: rotateY(0) scale(1); opacity: 1; }
+            }
+            @keyframes flipV {
+                from { transform: rotateX(90deg) scale(0.8); opacity: 0; }
+                to { transform: rotateX(0) scale(1); opacity: 1; }
+            }
+            @keyframes zoomIn {
+                from { transform: scale(0.3); opacity: 0; }
+                to { transform: scale(1); opacity: 1; }
+            }
+            @keyframes slideLeft {
+                from { transform: translateX(100%); }
+                to { transform: translateX(0); }
+            }
+            @keyframes slideRight {
+                from { transform: translateX(-100%); }
+                to { transform: translateX(0); }
+            }
+            @keyframes rotateRight {
+                from { transform: rotate(-15deg) scale(0.9); opacity: 0; }
+                to { transform: rotate(0) scale(1); opacity: 1; }
+            }
+            @keyframes blur {
+                from { filter: blur(10px); opacity: 0; }
+                to { filter: blur(0); opacity: 1; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
