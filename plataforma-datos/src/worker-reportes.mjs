@@ -69,6 +69,21 @@ function error(codigo, mensaje, status, requestId, detalles = {}) {
   return json({ error: { codigo, mensaje, request_id: requestId, detalles } }, status, requestId);
 }
 
+/**
+ * Limitador de tasa por clave (anti-sondeo del catálogo/preview). Usa el KV
+ * `env.RATE_LIMIT` si está disponible; si no hay binding, NO limita (no rompe
+ * en local ni en tests). Ventana fija simple: suficiente para frenar el barrido.
+ */
+async function limitarTasa(env, clave, limite, ventanaSeg) {
+  const kv = env && env.RATE_LIMIT;
+  if (!kv || typeof kv.get !== 'function') return { ok: true };
+  const k = `rl:${clave}`;
+  const actual = Number(await kv.get(k)) || 0;
+  if (actual >= limite) return { ok: false };
+  await kv.put(k, String(actual + 1), { expirationTtl: ventanaSeg });
+  return { ok: true };
+}
+
 /** HMAC-SHA256 en hex (no repudio del resultado_hash). Si no hay secreto
  *  configurado, no firma (devuelve null): el motor ya aporta el FNV-1a. */
 async function firmarHmac(secreto, mensaje) {
@@ -303,6 +318,10 @@ async function handlerCatalogo(request, env, requestId) {
     return error(auth.codigo, auth.mensaje, auth.status, requestId);
   }
 
+  // Anti-sondeo: limitamos también la frecuencia del catálogo por agencia.
+  const rlCat = await limitarTasa(env, `catalogo:${auth.agencia.id}`, 120, 60);
+  if (!rlCat.ok) return error('demasiadas_peticiones', 'Demasiadas peticiones; inténtalo más tarde.', 429, requestId);
+
   // Lista blanca de categorías (categoria + descripcion). es_especial nunca se expone.
   const cats = await env.PLATAFORMA_DB.prepare(
     `SELECT categoria, descripcion FROM categorias_permitidas ORDER BY categoria`,
@@ -367,6 +386,10 @@ async function handlerPreview(request, env, requestId) {
     return error(auth.codigo, auth.mensaje, auth.status, requestId);
   }
   const agencia = auth.agencia;
+
+  // Anti-sondeo: el preview es gratis y repetible -> limitamos su frecuencia.
+  const rl = await limitarTasa(env, `preview:${agencia.id}`, 60, 60);
+  if (!rl.ok) return error('demasiadas_peticiones', 'Límite de previsualizaciones alcanzado; inténtalo más tarde.', 429, requestId);
 
   let cuerpo;
   try {

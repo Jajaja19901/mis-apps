@@ -518,4 +518,26 @@ await prueba('(h) categoría fuera de la lista blanca -> 422 categoria_no_permit
   assert.equal(db._tablas.reportes.length, 0);
 });
 
+await prueba('(i) rate-limit: el preview se corta con 429 al superar el límite por agencia', async () => {
+  const db = crearD1({
+    agencias: [AGENCIA_OK],
+    contribuciones: contribs(80, { region: 'Madrid', categoria: 'compras_online' }),
+  });
+  // KV en memoria que cuenta (ignora expirationTtl en el test).
+  const store = new Map();
+  const RATE_LIMIT = {
+    async get(k) { return store.has(k) ? store.get(k) : null; },
+    async put(k, v) { store.set(k, v); },
+  };
+  const env = { PLATAFORMA_DB: db, REPORTES: crearR2(), RATE_LIMIT };
+  const cuerpo = { definicion: { filtros: { region: 'Madrid', categoria: 'compras_online' } } };
+
+  let ultimo;
+  for (let i = 0; i < 61; i++) {
+    ultimo = await worker.fetch(pedir('POST', '/v1/segmentos/preview', { token: AGENCIA_OK.id, body: cuerpo }), env);
+  }
+  assert.equal(ultimo.status, 429, 'la petición 61 debe cortarse con 429');
+  assert.equal((await ultimo.json()).error.codigo, 'demasiadas_peticiones');
+});
+
 console.log(`\n${pasados} pruebas OK ✅`);

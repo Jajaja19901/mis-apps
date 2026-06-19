@@ -30,10 +30,16 @@
  * =============================================================================
  */
 
+import { ejecutarRepartoMensual } from './reparto-mensual.mjs';
+import { crearClienteStripe } from './worker-pagos.mjs';
+
 // ---------------------------------------------------------------------------
-// CONSTANTE DE CONTRASEÑA ADMIN (cambia antes de desplegar)
+// CREDENCIAL ADMIN
 // ---------------------------------------------------------------------------
-const ADMIN_PASSWORD = 'CAMBIAR_ANTES_DE_DESPLEGAR_admin2026!';
+// Este es un Worker de SERVIDOR: NO hay credenciales en el código. El token de
+// admin se inyecta SIEMPRE por secreto (env.ADMIN_TOKEN, p.ej. `wrangler secret put
+// ADMIN_TOKEN`). Si el secreto no está configurado, el Worker NO autentica a nadie
+// y responde 500 'config_incompleta'. Nunca hay un fallback hardcodeado.
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -50,19 +56,17 @@ async function sha256hex(texto) {
     .join('');
 }
 
-/** Crea un UUID v4 simple (válido en Workers con Web Crypto). */
-function uuidv4() {
-  return crypto.randomUUID();
-}
-
-/** Responde JSON con cabeceras CORS restringidas. */
+/**
+ * Responde JSON. El panel de admin se sirve same-origin, así que NO se emiten
+ * cabeceras CORS (nunca 'null', que habilitaría a cualquier origen opaco/sandbox).
+ * Si en el futuro se necesitara CORS, usar una allowlist concreta por env
+ * (env.ADMIN_CORS_ORIGIN) — jamás un comodín ni 'null'.
+ */
 function jsonResp(data, status = 200) {
   return new Response(JSON.stringify(data, null, 2), {
     status,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
-      // CORS: solo orígenes internos (restringir en producción)
-      'Access-Control-Allow-Origin': 'null',
       'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',
     },
@@ -111,27 +115,39 @@ async function hashIp(ip, pepper) {
   }
 }
 
+/**
+ * Escapa los comodines de LIKE (% _ \) en un valor de usuario para que se traten
+ * como literales. Debe combinarse con  ESCAPE '\'  en la consulta. Evita que un
+ * filtro como "%" o "a_b" se interprete como patrón (LIKE-injection).
+ */
+function escaparLike(texto) {
+  return String(texto).replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
 // ---------------------------------------------------------------------------
 // Autenticación admin
 // ---------------------------------------------------------------------------
 
 /**
- * Verifica el token admin.
- * Compara contra env.ADMIN_TOKEN (secreto en wrangler) O contra la constante
- * ADMIN_PASSWORD de desarrollo (modo demo).
- * Devuelve { ok: true, actor } | { ok: false, mensaje }
+ * Verifica el token admin contra env.ADMIN_TOKEN (secreto de Cloudflare).
+ * NO existe fallback a ninguna constante del código: si el secreto no está
+ * configurado, se devuelve { ok:false, configIncompleta:true } y el router
+ * responde 500 'config_incompleta' SIN autenticar a nadie.
+ * Devuelve { ok:true, actor } | { ok:false, mensaje } | { ok:false, configIncompleta:true }
  */
 async function autenticarAdmin(request, env) {
+  // Sin secreto de servidor configurado -> no se autentica a nadie (fail-closed).
+  const tokenEsperado = env.ADMIN_TOKEN;
+  if (!tokenEsperado || typeof tokenEsperado !== 'string') {
+    return { ok: false, configIncompleta: true };
+  }
+
   const authHeader = request.headers.get('Authorization') ?? '';
   const match = authHeader.match(/^Bearer (.+)$/i);
   if (!match) {
     return { ok: false, mensaje: 'Cabecera Authorization ausente o malformada.' };
   }
   const token = match[1].trim();
-
-  // En producción usa env.ADMIN_TOKEN (secret Cloudflare).
-  // En demo/desarrollo compara con la constante local.
-  const tokenEsperado = env.ADMIN_TOKEN ?? ADMIN_PASSWORD;
 
   // Comparación de tiempo constante (evita timing attacks).
   if (token.length !== tokenEsperado.length) {
@@ -174,20 +190,21 @@ export default {
       return errResp('ruta_no_encontrada', 'Ruta no encontrada.', 404);
     }
 
-    // CORS preflight
+    // Preflight: el panel es same-origin, así que NO se emiten cabeceras CORS.
+    // Respondemos 204 sin Access-Control-* (jamás 'null'). Un origen cruzado no
+    // recibirá permiso y el navegador bloqueará la petición, que es lo deseado.
     if (request.method === 'OPTIONS') {
       return new Response(null, {
         status: 204,
-        headers: {
-          'Access-Control-Allow-Origin': 'null',
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Authorization, Content-Type',
-        },
+        headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' },
       });
     }
 
-    // Autenticación
+    // Autenticación. Si falta el secreto de servidor -> 500, sin autenticar.
     const auth = await autenticarAdmin(request, env);
+    if (auth.configIncompleta) {
+      return errResp('config_incompleta', 'El servidor no tiene configurado ADMIN_TOKEN; acceso deshabilitado.', 500);
+    }
     if (!auth.ok) {
       return errResp('auth_invalida', auth.mensaje, 401);
     }
@@ -271,7 +288,7 @@ export default {
     // -----------------------------------------------------------------------
     const matchRepartoEjecutar = subpath.match(/^\/reparto\/([^/]+)\/ejecutar$/);
     if (matchRepartoEjecutar && request.method === 'POST') {
-      return handleRepartoEjecutar(db, matchRepartoEjecutar[1], request, actor, ipHash);
+      return handleRepartoEjecutar(db, matchRepartoEjecutar[1], request, env, actor, ipHash);
     }
 
     // -----------------------------------------------------------------------
@@ -376,8 +393,9 @@ async function handleAuditoria(db, url, actor, ipHash) {
   const condiciones = [];
   const binds = [];
 
-  if (filtroActor) { condiciones.push('actor LIKE ?'); binds.push(`%${filtroActor}%`); }
-  if (filtroAccion) { condiciones.push('accion LIKE ?'); binds.push(`%${filtroAccion}%`); }
+  // LIKE con comodines escapados + ESCAPE '\' para tratar % _ \ como literales.
+  if (filtroActor) { condiciones.push("actor LIKE ? ESCAPE '\\'"); binds.push(`%${escaparLike(filtroActor)}%`); }
+  if (filtroAccion) { condiciones.push("accion LIKE ? ESCAPE '\\'"); binds.push(`%${escaparLike(filtroAccion)}%`); }
   if (filtroEntidad) { condiciones.push('entidad = ?'); binds.push(filtroEntidad); }
   if (filtroEntidadId) { condiciones.push('entidad_id = ?'); binds.push(filtroEntidadId); }
   if (desde) { condiciones.push('creado_en >= ?'); binds.push(desde); }
@@ -440,9 +458,13 @@ async function handleContribucionesHuerfanas(db, url, actor, ipHash) {
   const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '100', 10), 500);
   const offset = parseInt(url.searchParams.get('offset') ?? '0', 10);
 
+  // PRIVACIDAD: el panel CUANTIFICA y MARCA la cuarentena; NO expone personas.
+  // Por eso NO se devuelve usuario_id ni cuasi-identificadores (region, banda_edad,
+  // genero, categoria) a nivel de fila —eso sería una fuga de PII—. Solo el id de
+  // la contribución, su consentimiento_id y cuándo se recogió, para poder localizar
+  // y purgar la fila; más un recuento agregado total.
   const { results } = await db.prepare(
-    `SELECT c.id, c.usuario_id, c.consentimiento_id, c.recogido_en,
-            c.categoria, c.banda_edad, c.region, c.genero
+    `SELECT c.id, c.consentimiento_id, c.recogido_en
      FROM contribuciones c
      WHERE NOT EXISTS (
        SELECT 1 FROM consentimientos cs
@@ -463,7 +485,7 @@ async function handleContribucionesHuerfanas(db, url, actor, ipHash) {
   ).first();
 
   return jsonResp({
-    nota: 'Estas contribuciones NO tienen consentimiento activo. Deben ser rechazadas o eliminadas. NUNCA se venden ni procesan.',
+    nota: 'Estas contribuciones NO tienen consentimiento activo. Deben ser rechazadas o eliminadas. NUNCA se venden ni procesan. El panel solo las cuantifica/marca: no se expone usuario_id ni cuasi-identificadores (PII).',
     total_huerfanas: total?.n ?? 0,
     items: results ?? [],
     limit,
@@ -628,7 +650,7 @@ async function handleKyc(db, agenciaId, request, actor, ipHash) {
 // ---------------------------------------------------------------------------
 // I.4 — Ejecutar reparto de un periodo
 // ---------------------------------------------------------------------------
-async function handleRepartoEjecutar(db, periodo, request, actor, ipHash) {
+async function handleRepartoEjecutar(db, periodo, request, env, actor, ipHash) {
   if (!/^\d{4}-\d{2}$/.test(periodo)) {
     return errResp('formato_invalido', 'El periodo debe ser YYYY-MM.', 400);
   }
@@ -637,102 +659,43 @@ async function handleRepartoEjecutar(db, periodo, request, actor, ipHash) {
   try { body = await request.json(); } catch { body = {}; }
   const dryRun = body.dry_run === true;
 
-  // Calcular pool total del periodo
-  const poolRow = await db
-    .prepare(
-      `SELECT COALESCE(SUM(pool_usuarios_centimos), 0) AS total
-       FROM transacciones
-       WHERE estado = 'pagada'
-         AND strftime('%Y-%m', creado_en) = ?`
-    )
-    .bind(periodo)
-    .first();
+  // El reparto de DINERO REAL vive en un único sitio: ejecutarRepartoMensual().
+  // Reparte con el algoritmo del MAYOR RESTO (cuadra al céntimo), solo paga a
+  // usuarios con payout_estado='verificado' y stripe_account_id, crea los transfers
+  // de Stripe con reintentos y es idempotente por UNIQUE(periodo, usuario_id).
+  // Aquí NO se recalcula nada a mano: se delega y se devuelve su resultado.
 
-  const poolTotal = poolRow?.total ?? 0;
-
-  // Calcular pesos por contribución en reportes entregados del periodo
-  // (proxy: usuarios distintos con contribuciones en reportes entregados)
-  const { results: pesos } = await db
-    .prepare(
-      `SELECT c.usuario_id,
-              COUNT(c.id) * 1.0 / (SELECT COUNT(*) FROM contribuciones
-                WHERE recogido_en >= ? AND recogido_en < ?) AS peso_contrib
-       FROM contribuciones c
-       JOIN reportes r ON r.definicion_segmento LIKE '%' -- simplificado: todas las contribs del periodo
-       WHERE c.recogido_en >= ? AND c.recogido_en < ?
-       GROUP BY c.usuario_id`
-    )
-    .bind(`${periodo}-01`, `${periodo}-31`, `${periodo}-01`, `${periodo}-31`)
-    .all();
-
-  // Fallback: distribución uniforme si no hay pesos por reporte
-  const { results: usuariosActivos } = await db
-    .prepare(
-      `SELECT DISTINCT c.usuario_id
-       FROM contribuciones c
-       WHERE strftime('%Y-%m', c.recogido_en) = ?`
-    )
-    .bind(periodo)
-    .all();
-
-  const nUsuarios = usuariosActivos.length;
-  if (nUsuarios === 0) {
-    return jsonResp({
-      periodo,
-      pool_total_centimos: poolTotal,
-      usuarios_con_reparto: 0,
-      creados: 0,
-      ya_existentes: 0,
-      dry_run: dryRun,
-      nota: 'Sin usuarios con contribuciones en este periodo.',
-    });
-  }
-
-  const importePorUsuario = Math.floor(poolTotal / nUsuarios);
-  const pesoPorUsuario = nUsuarios > 0 ? 1.0 / nUsuarios : 0;
-
-  let creados = 0;
-  let yaExistentes = 0;
-
+  // Fuera de dry_run hace falta el cliente Stripe (mueve dinero). Si falta la clave,
+  // no se ejecuta el pago real.
+  let stripe = null;
   if (!dryRun) {
-    for (const u of usuariosActivos) {
-      const repartoId = uuidv4();
-      try {
-        await db
-          .prepare(
-            `INSERT INTO repartos (id, periodo, usuario_id, importe_centimos, peso_contribucion, estado)
-             VALUES (?, ?, ?, ?, ?, 'pendiente')`
-          )
-          .bind(repartoId, periodo, u.usuario_id, importePorUsuario, pesoPorUsuario)
-          .run();
-        creados++;
-      } catch (e) {
-        // UNIQUE(periodo, usuario_id) ya existe → idempotente
-        if (String(e).includes('UNIQUE')) {
-          yaExistentes++;
-        } else {
-          throw e;
-        }
-      }
+    if (!env || !env.STRIPE_SECRET_KEY) {
+      return errResp('config_incompleta', 'Falta STRIPE_SECRET_KEY para ejecutar el reparto real. Usa dry_run para simular.', 500);
     }
-
-    await auditLog(
-      db, actor, 'reparto.ejecutado',
-      'repartos', null,
-      { periodo, pool_total_centimos: poolTotal, usuarios: nUsuarios, creados, ya_existentes: yaExistentes },
-      ipHash
-    );
+    stripe = crearClienteStripe(env.STRIPE_SECRET_KEY);
   }
 
-  return jsonResp({
-    periodo,
-    pool_total_centimos: poolTotal,
-    usuarios_con_reparto: nUsuarios,
-    importe_por_usuario_centimos: importePorUsuario,
-    creados: dryRun ? 0 : creados,
-    ya_existentes: dryRun ? 0 : yaExistentes,
-    dry_run: dryRun,
-  });
+  // Traza de QUIÉN dispara el reparto (el orquestador audita como 'sistema'; aquí
+  // dejamos constancia del admin que lo lanzó).
+  await auditLog(
+    db, actor, dryRun ? 'reparto.disparado_simulacion' : 'reparto.disparado',
+    'repartos', periodo,
+    { periodo, dry_run: dryRun },
+    ipHash
+  );
+
+  let resultado;
+  try {
+    resultado = await ejecutarRepartoMensual(periodo, {
+      db,
+      stripe,
+      opciones: { dryRun },
+    });
+  } catch (e) {
+    return errResp('reparto_error', `No se pudo ejecutar el reparto: ${String(e?.message || e)}`, 500);
+  }
+
+  return jsonResp(resultado);
 }
 
 // ---------------------------------------------------------------------------
@@ -753,7 +716,7 @@ async function handleRepartoEstado(db, periodo, actor, ipHash) {
     .bind(periodo)
     .all();
 
-  const totales = results.reduce(
+  const totales = (results ?? []).reduce(
     (acc, r) => {
       acc.total_centimos += r.importe_centimos;
       acc[`estado_${r.estado}`] = (acc[`estado_${r.estado}`] ?? 0) + 1;
@@ -762,11 +725,38 @@ async function handleRepartoEstado(db, periodo, actor, ipHash) {
     { total_centimos: 0 }
   );
 
+  // PRIVACIDAD: no se devuelve usuario_id en claro por fila. Se tokeniza con un
+  // hash truncado (estable dentro del periodo) para poder distinguir/agrupar filas
+  // sin exponer el identificador seudónimo del usuario en el panel.
+  const items = [];
+  for (const r of (results ?? [])) {
+    const usuarioToken = r.usuario_id
+      ? (await sha256hex(`${r.usuario_id}|${periodo}`)).slice(0, 16)
+      : null;
+    items.push({
+      id: r.id,
+      usuario_token: usuarioToken,
+      importe_centimos: r.importe_centimos,
+      peso_contribucion: r.peso_contribucion,
+      estado: r.estado,
+      stripe_transfer_id: r.stripe_transfer_id,
+      creado_en: r.creado_en,
+    });
+  }
+
+  // Se AUDITA el acceso, como el resto de endpoints sensibles.
+  await auditLog(
+    db, actor, 'reparto.estado_consultado',
+    'repartos', periodo,
+    { periodo, filas: items.length },
+    ipHash
+  );
+
   return jsonResp({
     periodo,
-    filas: results.length,
+    filas: items.length,
     totales,
-    items: results,
+    items,
   });
 }
 

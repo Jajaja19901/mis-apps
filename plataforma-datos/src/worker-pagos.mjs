@@ -213,7 +213,14 @@ export function calcularReparto7030(importeCentimos) {
 function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', ...extraHeaders },
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      // Nunca cachear respuestas de pago (pueden llevar client_secret) ni dejar
+      // que el navegador adivine el tipo de contenido.
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+      ...extraHeaders,
+    },
   });
 }
 
@@ -388,6 +395,14 @@ async function webhookStripe(request, env, requestId) {
     return error('firma_webhook_invalida', e.message, 400, requestId);
   }
 
+  // En PRODUCCIÓN (clave secreta sk_live_...) solo se aceptan eventos reales:
+  // un evento con livemode !== true es de test y NO debe mover dinero real.
+  const esClaveLive = typeof env.STRIPE_SECRET_KEY === 'string' && env.STRIPE_SECRET_KEY.startsWith('sk_live_');
+  if (esClaveLive && evento.livemode !== true) {
+    await auditar(db, { accion: 'webhook.rechazado_test_en_live', entidad: 'transacciones', entidad_id: evento.id, detalles: { type: evento.type, livemode: evento.livemode } });
+    return error('evento_no_live', 'Evento de test recibido en entorno live; descartado.', 400, requestId);
+  }
+
   // Idempotencia por event.id en KV: si ya se procesó, 200 sin reprocesar.
   if (env.RATE_LIMIT && evento.id) {
     const visto = await env.RATE_LIMIT.get(`evt:${evento.id}`);
@@ -417,6 +432,43 @@ async function procesarEvento(db, evento) {
   const obj = evento.data && evento.data.object ? evento.data.object : {};
   switch (evento.type) {
     case 'payment_intent.succeeded': {
+      // DINERO REAL: antes de marcar 'pagada' se comprueba que lo realmente cobrado
+      // (amount_received + moneda) coincide con lo que registramos en la transacción.
+      // Si no cuadra, NO se confirma: se audita la discrepancia para revisión manual.
+      const tx = await db
+        .prepare(`SELECT id, importe_centimos, estado FROM transacciones WHERE stripe_payment_intent = ?1`)
+        .bind(obj.id)
+        .first();
+
+      if (!tx) {
+        // No tenemos la transacción (evento de otra integración o aún no insertada).
+        await auditar(db, { accion: 'transaccion.pago_sin_registro', entidad: 'transacciones', entidad_id: obj.id, detalles: { stripe_payment_intent: obj.id } });
+        break;
+      }
+
+      const recibido = Number(obj.amount_received);
+      const moneda = typeof obj.currency === 'string' ? obj.currency.toLowerCase() : null;
+      const importeOk = Number.isInteger(recibido) && recibido === tx.importe_centimos;
+      const monedaOk = moneda === 'eur'; // la plataforma cobra siempre en EUR
+
+      if (!importeOk || !monedaOk) {
+        // Descuadre de importe o moneda: NO se confirma el pago.
+        await auditar(db, {
+          accion: 'transaccion.discrepancia_importe',
+          entidad: 'transacciones',
+          entidad_id: tx.id,
+          detalles: {
+            stripe_payment_intent: obj.id,
+            importe_esperado_centimos: tx.importe_centimos,
+            amount_received: obj.amount_received,
+            currency: obj.currency ?? null,
+            importe_ok: importeOk,
+            moneda_ok: monedaOk,
+          },
+        });
+        break;
+      }
+
       await actualizarTxPorPaymentIntent(db, obj.id, 'pendiente', 'pagada', 'transaccion.pagada');
       // Entregar el reporte queda a cargo de w-reportes (fuera de este Worker).
       break;
