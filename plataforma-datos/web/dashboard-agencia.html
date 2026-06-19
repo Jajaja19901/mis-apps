@@ -1,0 +1,1867 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Dashboard de agencia — Plataforma de datos consent-first" />
+  <title>Dashboard Agencia — Plataforma de Datos</title>
+  <style>
+    /* ===== TOKENS ===== */
+    :root {
+      --color-primary:     #2563eb;
+      --color-primary-dk:  #1d4ed8;
+      --color-secondary:   #0891b2;
+      --color-accent:      #7c3aed;
+      --color-success:     #059669;
+      --color-warning:     #d97706;
+      --color-danger:      #dc2626;
+      --color-bg:          #f8fafc;
+      --color-surface:     #ffffff;
+      --color-border:      #e2e8f0;
+      --color-text:        #1e293b;
+      --color-text-muted:  #64748b;
+      --color-text-light:  #94a3b8;
+      --color-demo-bg:     #fef3c7;
+      --color-demo-border: #f59e0b;
+      --color-demo-text:   #92400e;
+      --radius-sm:         4px;
+      --radius-md:         8px;
+      --radius-lg:         12px;
+      --shadow-sm:         0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+      --shadow-md:         0 4px 12px rgba(0,0,0,.10), 0 2px 4px rgba(0,0,0,.06);
+      --shadow-lg:         0 10px 28px rgba(0,0,0,.12), 0 4px 8px rgba(0,0,0,.06);
+      --font-sans:         'Segoe UI', system-ui, -apple-system, sans-serif;
+      --font-mono:         'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+      --transition:        0.18s ease;
+    }
+
+    /* ===== RESET ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; scroll-behavior: smooth; }
+    body {
+      font-family: var(--font-sans);
+      background: var(--color-bg);
+      color: var(--color-text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+    a { color: var(--color-primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    img { display: block; max-width: 100%; }
+    button { cursor: pointer; font-family: inherit; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; }
+
+    /* ===== FOCUS VISIBLE ===== */
+    :focus-visible {
+      outline: 3px solid var(--color-primary);
+      outline-offset: 2px;
+      border-radius: var(--radius-sm);
+    }
+
+    /* ===== BANNER DEMO ===== */
+    #demo-banner {
+      background: var(--color-demo-bg);
+      border-bottom: 2px solid var(--color-demo-border);
+      color: var(--color-demo-text);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    #demo-banner .demo-icon { font-size: 1.1rem; }
+    #demo-banner.oculto { display: none; }
+    #btn-toggle-demo {
+      margin-left: auto;
+      background: var(--color-demo-border);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 4px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    #btn-toggle-demo:hover { background: #b45309; }
+
+    /* ===== CABECERA ===== */
+    header {
+      background: var(--color-surface);
+      border-bottom: 1px solid var(--color-border);
+      box-shadow: var(--shadow-sm);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 20px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .logo {
+      font-weight: 800;
+      font-size: 1.15rem;
+      color: var(--color-primary);
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1rem;
+    }
+    .agency-pill {
+      margin-left: auto;
+      background: #eff6ff;
+      color: var(--color-primary);
+      border: 1px solid #bfdbfe;
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    #kyc-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.75rem;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    #kyc-badge.verificada { background: #d1fae5; color: #065f46; }
+    #kyc-badge.pendiente  { background: #fef3c7; color: #92400e; }
+
+    /* ===== LAYOUT PRINCIPAL ===== */
+    .page-wrapper {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+    }
+    .page-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--color-text);
+      margin-bottom: 4px;
+    }
+    .page-subtitle {
+      color: var(--color-text-muted);
+      font-size: 0.9rem;
+      margin-bottom: 28px;
+    }
+
+    /* ===== GRID PRINCIPAL ===== */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+    @media (min-width: 900px) {
+      .main-grid {
+        grid-template-columns: 340px 1fr;
+      }
+    }
+
+    /* ===== PANEL / TARJETA ===== */
+    .panel {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-sm);
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 16px 20px 12px;
+      border-bottom: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .panel-header h2 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--color-text);
+      flex: 1;
+    }
+    .panel-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.9rem;
+      flex-shrink: 0;
+    }
+    .panel-icon.blue   { background: #eff6ff; color: var(--color-primary); }
+    .panel-icon.violet { background: #f5f3ff; color: var(--color-accent); }
+    .panel-icon.cyan   { background: #ecfeff; color: var(--color-secondary); }
+    .panel-icon.green  { background: #ecfdf5; color: var(--color-success); }
+    .panel-body { padding: 20px; }
+
+    /* ===== FORMULARIO FILTROS ===== */
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .field label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .field select,
+    .field input[type="text"] {
+      appearance: none;
+      -webkit-appearance: none;
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 9px 12px;
+      font-size: 0.9rem;
+      color: var(--color-text);
+      width: 100%;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .field select:focus,
+    .field input[type="text"]:focus {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.15);
+      outline: none;
+    }
+    .field select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 34px;
+    }
+    .field-hint {
+      font-size: 0.78rem;
+      color: var(--color-text-light);
+    }
+
+    /* ===== DIMENSIONES CHECKBOXES ===== */
+    .checkboxes-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      transition: background var(--transition), border-color var(--transition);
+      font-size: 0.875rem;
+    }
+    .checkbox-item:hover { background: #f0f9ff; border-color: #93c5fd; }
+    .checkbox-item input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--color-primary);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .checkbox-label { flex: 1; font-weight: 500; }
+    .checkbox-code { font-family: var(--font-mono); font-size: 0.75rem; color: var(--color-text-muted); }
+
+    /* ===== BOTONES ===== */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: 0.875rem;
+      font-weight: 600;
+      padding: 10px 18px;
+      transition: background var(--transition), transform var(--transition), opacity var(--transition);
+      white-space: nowrap;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-primary { background: var(--color-primary); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--color-primary-dk); }
+    .btn-secondary {
+      background: var(--color-bg);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+    }
+    .btn-secondary:hover:not(:disabled) { background: #f1f5f9; }
+    .btn-success { background: var(--color-success); color: #fff; }
+    .btn-success:hover:not(:disabled) { background: #047857; }
+    .btn-danger { background: var(--color-danger); color: #fff; }
+    .btn-lg { padding: 12px 24px; font-size: 0.95rem; }
+    .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+    .btn-full { width: 100%; }
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* ===== SPINNER ===== */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255,255,255,.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+    .spinner.dark {
+      border-color: rgba(37,99,235,.2);
+      border-top-color: var(--color-primary);
+    }
+
+    /* ===== ESTADOS ===== */
+    .estado-box {
+      padding: 24px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .estado-icon { font-size: 2.5rem; }
+    .estado-titulo { font-size: 1rem; font-weight: 700; color: var(--color-text); }
+    .estado-desc { font-size: 0.875rem; color: var(--color-text-muted); max-width: 340px; }
+
+    /* ===== ALERTA K<50 ===== */
+    .alerta-k50 {
+      background: #fff7ed;
+      border: 2px solid #fdba74;
+      border-radius: var(--radius-md);
+      padding: 16px 18px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .alerta-k50 .alerta-icono { font-size: 1.4rem; flex-shrink: 0; }
+    .alerta-k50 .alerta-titulo { font-weight: 700; font-size: 0.9rem; color: #9a3412; }
+    .alerta-k50 .alerta-texto { font-size: 0.85rem; color: #7c2d12; margin-top: 2px; }
+
+    /* ===== ALERTA GENÉRICA ERROR ===== */
+    .alerta-error {
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      color: #991b1b;
+      font-size: 0.875rem;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    /* ===== ALERTA ÉXITO ===== */
+    .alerta-ok {
+      background: #ecfdf5;
+      border: 1px solid #6ee7b7;
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      color: #065f46;
+      font-size: 0.875rem;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    /* ===== PREVIEW CARD ===== */
+    .preview-card {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .preview-card-header {
+      background: #f8fafc;
+      padding: 12px 16px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      border-bottom: 1px solid var(--color-border);
+    }
+    .preview-stats {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1px;
+      background: var(--color-border);
+    }
+    .preview-stat {
+      background: var(--color-surface);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .preview-stat-label { font-size: 0.75rem; color: var(--color-text-muted); font-weight: 600; }
+    .preview-stat-value { font-size: 1.3rem; font-weight: 800; color: var(--color-text); }
+    .preview-stat-value.highlight { color: var(--color-success); }
+    .preview-stat-value.price { color: var(--color-primary); }
+
+    /* ===== TABLA RESULTADOS ===== */
+    .tabla-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tabla-resultados {
+      width: 100%;
+      font-size: 0.875rem;
+    }
+    .tabla-resultados thead th {
+      background: #f8fafc;
+      padding: 10px 14px;
+      font-weight: 700;
+      font-size: 0.78rem;
+      color: var(--color-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 2px solid var(--color-border);
+    }
+    .tabla-resultados tbody td {
+      padding: 11px 14px;
+      border-bottom: 1px solid #f1f5f9;
+      vertical-align: middle;
+    }
+    .tabla-resultados tbody tr:last-child td { border-bottom: none; }
+    .tabla-resultados tbody tr:hover td { background: #f8fafc; }
+
+    /* Barra de porcentaje */
+    .pct-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 140px; }
+    .pct-bar {
+      flex: 1;
+      height: 6px;
+      background: #e2e8f0;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .pct-bar-fill { height: 100%; background: var(--color-primary); border-radius: 3px; transition: width 0.5s ease; }
+    .pct-valor { font-size: 0.8rem; font-weight: 700; color: var(--color-primary); white-space: nowrap; }
+
+    /* Badge de celdas suprimidas */
+    .badge-suprimidas {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #fef3c7;
+      color: #92400e;
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    /* ===== TAG DE ESTADO REPORTE ===== */
+    .tag-estado {
+      display: inline-block;
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .tag-estado.pendiente_pago    { background: #fef3c7; color: #92400e; }
+    .tag-estado.pagado_generando  { background: #eff6ff; color: #1d4ed8; }
+    .tag-estado.entregado         { background: #d1fae5; color: #065f46; }
+    .tag-estado.no_entregable     { background: #fee2e2; color: #991b1b; }
+    .tag-estado.anulado           { background: #f1f5f9; color: #64748b; }
+
+    /* ===== CATÁLOGO SEGMENTOS ===== */
+    .catalogo-list { display: flex; flex-direction: column; gap: 8px; }
+    .catalogo-item {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      cursor: pointer;
+      transition: border-color var(--transition), box-shadow var(--transition);
+    }
+    .catalogo-item:hover, .catalogo-item:focus-within {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.08);
+    }
+    .catalogo-item-name {
+      font-weight: 700;
+      font-size: 0.875rem;
+      font-family: var(--font-mono);
+      color: var(--color-primary);
+    }
+    .catalogo-item-desc { font-size: 0.82rem; color: var(--color-text-muted); }
+
+    /* ===== VALORES DISPONIBLES ===== */
+    .valores-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .chip {
+      background: #f1f5f9;
+      color: var(--color-text-muted);
+      border-radius: 20px;
+      padding: 2px 10px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      font-family: var(--font-mono);
+    }
+
+    /* ===== HISTORIAL REPORTES ===== */
+    .historial-list { display: flex; flex-direction: column; gap: 10px; }
+    .historial-item {
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .historial-item-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .historial-id {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--color-text-muted);
+      flex: 1;
+    }
+    .historial-item-meta { font-size: 0.8rem; color: var(--color-text-muted); }
+    .historial-item-filtros { font-size: 0.82rem; color: var(--color-text); }
+    .historial-btn-ver {
+      padding: 5px 12px;
+      font-size: 0.8rem;
+      align-self: flex-start;
+    }
+
+    /* ===== SECCIÓN RESULTADO FINAL ===== */
+    .resultado-section { display: flex; flex-direction: column; gap: 20px; }
+    .resultado-meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+    }
+    .meta-box {
+      background: var(--color-bg);
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .meta-box-label { font-size: 0.75rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .meta-box-value { font-size: 1.1rem; font-weight: 800; color: var(--color-text); }
+    .meta-box-value.green { color: var(--color-success); }
+    .meta-box-value.blue  { color: var(--color-primary); }
+
+    /* Aviso privacidad */
+    .aviso-privacidad {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      font-size: 0.8rem;
+      color: #166534;
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+
+    /* ===== SEPARADOR ===== */
+    .divider { border: none; border-top: 1px solid var(--color-border); margin: 16px 0; }
+
+    /* ===== UTILIDADES ===== */
+    .hidden { display: none !important; }
+    .text-muted { color: var(--color-text-muted); }
+    .text-mono  { font-family: var(--font-mono); }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    .fw-bold { font-weight: 700; }
+    .mt-8  { margin-top: 8px; }
+    .mt-12 { margin-top: 12px; }
+    .mt-16 { margin-top: 16px; }
+    .mt-20 { margin-top: 20px; }
+    .gap-8  { gap: 8px; }
+
+    /* ===== INDICADOR DE CARGA GLOBAL ===== */
+    #progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: var(--color-primary);
+      width: 0;
+      transition: width 0.4s ease;
+      z-index: 9999;
+    }
+
+    /* ===== PIE ===== */
+    footer {
+      text-align: center;
+      padding: 28px 20px;
+      font-size: 0.78rem;
+      color: var(--color-text-light);
+      border-top: 1px solid var(--color-border);
+      margin-top: 60px;
+    }
+
+    /* ===== RESPONSIVE AJUSTES ===== */
+    @media (max-width: 600px) {
+      .preview-stats { grid-template-columns: 1fr 1fr; }
+      .btn-group { flex-direction: column; }
+      .btn-group .btn { width: 100%; }
+    }
+
+    /* ===== MODAL (resultado de compra) ===== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,.6);
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal {
+      background: var(--color-surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      width: 100%;
+      max-width: 720px;
+      margin: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .modal-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--color-border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .modal-header h2 { font-size: 1.05rem; font-weight: 700; flex: 1; }
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: var(--color-bg);
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      color: var(--color-text-muted);
+      flex-shrink: 0;
+    }
+    .modal-close:hover { background: #f1f5f9; color: var(--color-text); }
+    .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--color-border);
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Barra de progreso superior -->
+<div id="progress-bar" role="progressbar" aria-label="Cargando..."></div>
+
+<!-- Banner modo demo -->
+<div id="demo-banner" role="alert" aria-live="polite">
+  <span class="demo-icon" aria-hidden="true">🧪</span>
+  <span><strong>MODO DEMO ACTIVO</strong> — Datos simulados. Sin conexión a la API real. Los números son ficticios.</span>
+  <button id="btn-toggle-demo" type="button">Desactivar demo</button>
+</div>
+
+<!-- Cabecera -->
+<header>
+  <div class="header-inner">
+    <div class="logo">
+      <div class="logo-icon" aria-hidden="true">◈</div>
+      <span>DataPlataforma</span>
+    </div>
+    <span class="agency-pill" id="agency-name">AGENCIA_PLACEHOLDER</span>
+    <span id="kyc-badge" class="kyc-badge verificada" aria-label="Estado KYC: verificada">
+      <span aria-hidden="true">✓</span> KYC Verificada
+    </span>
+  </div>
+</header>
+
+<!-- Contenido principal -->
+<main class="page-wrapper" id="main-content">
+  <h1 class="page-title">Dashboard de Compra de Reportes</h1>
+  <p class="page-subtitle">Segmenta, previsualiza y solicita agregados de datos anonimizados (k≥50).</p>
+
+  <div class="main-grid">
+
+    <!-- ========== COLUMNA IZQUIERDA: filtros ========== -->
+    <aside aria-label="Panel de filtros y segmentación">
+
+      <!-- Catálogo de categorías -->
+      <div class="panel" style="margin-bottom:20px">
+        <div class="panel-header">
+          <div class="panel-icon blue" aria-hidden="true">📋</div>
+          <h2>Catálogo de Segmentos</h2>
+          <button class="btn btn-sm btn-secondary" id="btn-refrescar-catalogo" aria-label="Refrescar catálogo">
+            ↻
+          </button>
+        </div>
+        <div class="panel-body">
+          <div id="catalogo-estado-carga" class="estado-box hidden">
+            <div class="spinner dark" role="status" aria-label="Cargando catálogo..."></div>
+            <p class="estado-desc">Consultando dimensiones disponibles…</p>
+          </div>
+          <div id="catalogo-estado-error" class="alerta-error hidden" role="alert">
+            <span aria-hidden="true">⚠</span>
+            <span id="catalogo-error-msg">Error al cargar el catálogo.</span>
+          </div>
+          <div id="catalogo-contenido">
+            <p class="text-muted" style="font-size:.82rem;margin-bottom:10px">Categorías disponibles:</p>
+            <div class="catalogo-list" id="catalogo-lista" role="list"></div>
+            <hr class="divider"/>
+            <p class="text-muted" style="font-size:.82rem;margin-bottom:8px">Dimensiones de segmentación:</p>
+            <div id="catalogo-dims"></div>
+            <p style="font-size:.75rem;color:var(--color-text-muted);margin-top:10px">
+              k mínimo legal: <strong>50 usuarios</strong>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Formulario de filtros -->
+      <div class="panel">
+        <div class="panel-header">
+          <div class="panel-icon violet" aria-hidden="true">⚙</div>
+          <h2>Configurar Segmento</h2>
+        </div>
+        <div class="panel-body">
+          <form id="form-filtros" novalidate>
+            <div class="field-group">
+
+              <div class="field">
+                <label for="filtro-region">Región</label>
+                <select id="filtro-region" name="region" aria-describedby="hint-region">
+                  <option value="">— Sin filtro —</option>
+                  <option>Madrid</option>
+                  <option>Cataluña</option>
+                  <option>Andalucía</option>
+                  <option>País Vasco</option>
+                  <option>Valencia</option>
+                  <option>Galicia</option>
+                  <option>Aragón</option>
+                  <option>Castilla y León</option>
+                  <option>Murcia</option>
+                  <option>Navarra</option>
+                </select>
+                <span class="field-hint" id="hint-region">Comunidad autónoma. Cuasi-identificador generalizado.</span>
+              </div>
+
+              <div class="field">
+                <label for="filtro-banda-edad">Banda de edad</label>
+                <select id="filtro-banda-edad" name="banda_edad" aria-describedby="hint-edad">
+                  <option value="">— Sin filtro —</option>
+                  <option>18-24</option>
+                  <option>25-34</option>
+                  <option>35-44</option>
+                  <option>45-54</option>
+                  <option>55-64</option>
+                  <option>65+</option>
+                </select>
+                <span class="field-hint" id="hint-edad">Generalizada; nunca fecha de nacimiento exacta.</span>
+              </div>
+
+              <div class="field">
+                <label for="filtro-genero">Género</label>
+                <select id="filtro-genero" name="genero" aria-describedby="hint-genero">
+                  <option value="">— Sin filtro —</option>
+                  <option value="F">F — Femenino</option>
+                  <option value="M">M — Masculino</option>
+                  <option value="X">X — No binario / Otro</option>
+                </select>
+                <span class="field-hint" id="hint-genero">Cuasi-identificador declarado.</span>
+              </div>
+
+              <div class="field">
+                <label for="filtro-categoria">Categoría <span aria-hidden="true">*</span></label>
+                <select id="filtro-categoria" name="categoria" required aria-required="true" aria-describedby="hint-categoria">
+                  <option value="">— Selecciona categoría —</option>
+                  <option value="compras_online">compras_online</option>
+                  <option value="preferencia_ocio">preferencia_ocio</option>
+                  <option value="rango_gasto_mensual">rango_gasto_mensual</option>
+                </select>
+                <span class="field-hint" id="hint-categoria">Obligatorio. Solo categorías de la lista blanca (no datos art. 9).</span>
+              </div>
+
+              <fieldset>
+                <legend style="font-size:.82rem;font-weight:600;color:var(--color-text-muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">
+                  Dimensiones del agregado
+                </legend>
+                <div class="checkboxes-grid" id="dims-checkboxes" role="group" aria-label="Selecciona las dimensiones del reporte">
+                  <label class="checkbox-item">
+                    <input type="checkbox" name="dimensiones" value="banda_edad" aria-describedby="dim-desc-banda_edad">
+                    <span class="checkbox-label">Banda de edad</span>
+                    <span class="checkbox-code" id="dim-desc-banda_edad">banda_edad</span>
+                  </label>
+                  <label class="checkbox-item">
+                    <input type="checkbox" name="dimensiones" value="region" aria-describedby="dim-desc-region">
+                    <span class="checkbox-label">Región</span>
+                    <span class="checkbox-code" id="dim-desc-region">region</span>
+                  </label>
+                  <label class="checkbox-item">
+                    <input type="checkbox" name="dimensiones" value="genero" aria-describedby="dim-desc-genero">
+                    <span class="checkbox-label">Género</span>
+                    <span class="checkbox-code" id="dim-desc-genero">genero</span>
+                  </label>
+                </div>
+                <p class="field-hint mt-8">El reporte agrupará los datos por las dimensiones marcadas.</p>
+              </fieldset>
+
+              <div class="field">
+                <label for="filtro-metrica">Métrica</label>
+                <select id="filtro-metrica" name="metrica" aria-describedby="hint-metrica">
+                  <option value="valor">valor (media)</option>
+                </select>
+                <span class="field-hint" id="hint-metrica">Métrica a agregar. El reporte mostrará la media por celda.</span>
+              </div>
+
+              <!-- Errores de validación -->
+              <div id="form-error" class="alerta-error hidden" role="alert">
+                <span aria-hidden="true">⚠</span>
+                <span id="form-error-msg">Debes seleccionar una categoría.</span>
+              </div>
+
+              <div class="btn-group">
+                <button type="submit" class="btn btn-secondary btn-full" id="btn-preview">
+                  <span aria-hidden="true">🔍</span> Vista previa
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ========== COLUMNA DERECHA: resultado ========== -->
+    <section aria-label="Resultados y flujo de compra">
+
+      <!-- Panel VISTA PREVIA -->
+      <div class="panel" id="panel-preview">
+        <div class="panel-header">
+          <div class="panel-icon cyan" aria-hidden="true">👁</div>
+          <h2>Vista Previa del Segmento</h2>
+        </div>
+        <div class="panel-body">
+
+          <!-- Estado vacío -->
+          <div id="preview-empty" class="estado-box">
+            <div class="estado-icon" aria-hidden="true">📊</div>
+            <p class="estado-titulo">Sin segmento configurado</p>
+            <p class="estado-desc">Elige una categoría y pulsa <strong>Vista previa</strong> para comprobar si el segmento es entregable antes de comprar.</p>
+          </div>
+
+          <!-- Estado cargando -->
+          <div id="preview-loading" class="estado-box hidden" role="status" aria-label="Calculando vista previa…">
+            <div class="spinner dark"></div>
+            <p class="estado-titulo">Consultando disponibilidad…</p>
+            <p class="estado-desc">Verificando k-anonimato (k≥50). Esto puede tardar unos segundos.</p>
+          </div>
+
+          <!-- Estado: NO entregable (k<50) -->
+          <div id="preview-k50" class="hidden">
+            <div class="alerta-k50" role="alert" aria-live="assertive">
+              <div class="alerta-icono" aria-hidden="true">🚫</div>
+              <div>
+                <p class="alerta-titulo">Segmento NO entregable — k insuficiente</p>
+                <p class="alerta-texto" id="preview-k50-msg">
+                  El segmento tiene menos de 50 usuarios distintos. Por ley (k-anonimato, k≥50)
+                  no es posible generar ni entregar este reporte. No se realizará ningún cargo.
+                </p>
+                <p class="alerta-texto mt-8">
+                  <strong>Solución:</strong> amplía el segmento: elimina filtros de región, edad o género,
+                  o elige una categoría con más cobertura.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Estado: Entregable -->
+          <div id="preview-ok" class="hidden">
+            <div class="preview-card" role="region" aria-label="Resultado de vista previa">
+              <div class="preview-card-header">Resumen del segmento</div>
+              <div class="preview-stats">
+                <div class="preview-stat">
+                  <span class="preview-stat-label">Usuarios distintos</span>
+                  <span class="preview-stat-value highlight" id="prev-n-usuarios">—</span>
+                </div>
+                <div class="preview-stat">
+                  <span class="preview-stat-label">K aplicado</span>
+                  <span class="preview-stat-value" id="prev-k">50</span>
+                </div>
+                <div class="preview-stat">
+                  <span class="preview-stat-label">Celdas estimadas</span>
+                  <span class="preview-stat-value" id="prev-celdas-ok">—</span>
+                </div>
+                <div class="preview-stat">
+                  <span class="preview-stat-label">Celdas suprimidas est.</span>
+                  <span class="preview-stat-value" id="prev-celdas-sup">—</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-16" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+              <div>
+                <p class="text-muted" style="font-size:.82rem;margin-bottom:2px">Precio estimado</p>
+                <p style="font-size:1.6rem;font-weight:800;color:var(--color-success)" id="prev-precio">—</p>
+                <p class="text-muted" style="font-size:.75rem" id="prev-precio-nota">(IVA no incluido)</p>
+              </div>
+              <button class="btn btn-success btn-lg" id="btn-comprar" aria-label="Iniciar compra del reporte">
+                <span aria-hidden="true">🛒</span> Solicitar reporte
+              </button>
+            </div>
+
+            <div class="mt-12 alerta-ok" role="note">
+              <span aria-hidden="true">🔒</span>
+              <span>Solo recibirás <strong>datos agregados</strong> (medias y recuentos por celda).
+                Cada celda entregada tendrá ≥50 usuarios. Ningún dato individual es accesible.</span>
+            </div>
+          </div>
+
+          <!-- Estado: error de API en preview -->
+          <div id="preview-error" class="alerta-error hidden" role="alert">
+            <span aria-hidden="true">⚠</span>
+            <span id="preview-error-msg">Error al consultar la API. Intenta de nuevo.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel HISTORIAL DE REPORTES -->
+      <div class="panel mt-20" id="panel-historial">
+        <div class="panel-header">
+          <div class="panel-icon green" aria-hidden="true">📁</div>
+          <h2>Mis Reportes</h2>
+          <button class="btn btn-sm btn-secondary" id="btn-refrescar-historial" aria-label="Refrescar historial de reportes">
+            ↻
+          </button>
+        </div>
+        <div class="panel-body">
+          <div id="historial-loading" class="estado-box hidden" role="status" aria-label="Cargando historial…">
+            <div class="spinner dark"></div>
+            <p class="estado-desc">Cargando reportes…</p>
+          </div>
+          <div id="historial-empty" class="estado-box hidden">
+            <div class="estado-icon" aria-hidden="true">📭</div>
+            <p class="estado-titulo">Sin reportes todavía</p>
+            <p class="estado-desc">Configura un segmento y solicita tu primer reporte.</p>
+          </div>
+          <div id="historial-error" class="alerta-error hidden" role="alert">
+            <span aria-hidden="true">⚠</span>
+            <span id="historial-error-msg">Error al cargar reportes.</span>
+          </div>
+          <div class="historial-list" id="historial-lista" role="list" aria-label="Lista de reportes"></div>
+        </div>
+      </div>
+
+    </section>
+  </div>
+</main>
+
+<!-- ===== MODAL: flujo de compra / resultado del reporte ===== -->
+<div class="modal-overlay hidden" id="modal-compra" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="panel-icon blue" aria-hidden="true">📄</div>
+      <h2 id="modal-titulo">Resultado del Reporte</h2>
+      <button class="modal-close" id="modal-cerrar" aria-label="Cerrar modal">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body">
+      <!-- Contenido dinámico -->
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="modal-btn-cerrar2">Cerrar</button>
+      <a class="btn btn-primary hidden" id="modal-btn-descarga" href="#" target="_blank" rel="noopener noreferrer">
+        <span aria-hidden="true">⬇</span> Descargar JSON
+      </a>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>Plataforma de Datos Consent-First — PLACEHOLDER_EMPRESA · <a href="#">Política de Privacidad</a> · <a href="#">Aviso Legal</a></p>
+  <p style="margin-top:4px">Todos los datos son agregados anonimizados (k≥50). Sin datos individuales.</p>
+</footer>
+
+<script>
+/* ========================================================
+   CONFIGURACIÓN
+   ======================================================== */
+const CONFIG = {
+  API_BASE:       'https://api.PLACEHOLDER-dominio/v1',
+  AGENCY_JWT:     'PLACEHOLDER_JWT_AGENCIA',        // Bearer token de la agencia
+  DEMO_MODE:      true,                              // true = datos simulados (sin backend)
+};
+
+/* ========================================================
+   DATOS DEMO (simulan respuestas de la API)
+   ======================================================== */
+const DEMO = {
+  segmentos: {
+    dimensiones: ['region', 'banda_edad', 'genero'],
+    categorias: [
+      { categoria: 'compras_online',      descripcion: 'Frecuencia / interés de compra online (no especial)' },
+      { categoria: 'preferencia_ocio',    descripcion: 'Preferencias de ocio declaradas (no especial)' },
+      { categoria: 'rango_gasto_mensual', descripcion: 'Banda de gasto mensual declarada (no especial)' },
+    ],
+    valores_ejemplo: {
+      region:     ['Madrid', 'Cataluña', 'Andalucía', 'País Vasco', 'Valencia', 'Galicia'],
+      banda_edad: ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'],
+      genero:     ['F', 'M', 'X'],
+    },
+    k_minimo_legal: 50,
+  },
+
+  generarPreview(filtros, dimensiones) {
+    // Simula más o menos usuarios según los filtros aplicados
+    const numFiltros = Object.values(filtros).filter(v => v).length;
+    const nUsuarios = Math.max(10, 2400 - numFiltros * 620 + Math.floor(Math.random() * 80));
+    if (nUsuarios < 50) {
+      return {
+        entregable: false,
+        motivo: `segmento con ${nUsuarios} usuarios (< k=50)`,
+        n_usuarios: nUsuarios,
+      };
+    }
+    const celdasTotal = Math.max(1, dimensiones.length * 4);
+    const celdasSup   = Math.floor(celdasTotal * 0.2);
+    return {
+      entregable: true,
+      n_usuarios: nUsuarios,
+      k_aplicado: 50,
+      celdas_estimadas_entregables: celdasTotal - celdasSup,
+      celdas_estimadas_suprimidas:  celdasSup,
+      precio_estimado_centimos:     4990 + (dimensiones.length * 2000),
+    };
+  },
+
+  reportes: [
+    {
+      reporte_id: 'r5d4a1b2-demo-0001-0000-000000000001',
+      estado: 'entregado',
+      k_aplicado: 50,
+      n_usuarios: 1840,
+      generado_en: '2026-06-18T09:30:00Z',
+      resultado_hash: 'a1b2c3d4e5f6',
+      definicion_segmento: { filtros: { region: 'Madrid', categoria: 'compras_online' }, dimensiones: ['banda_edad'], metrica: 'valor' },
+      resultado: {
+        celdas: [
+          { banda_edad: '18-24', n_usuarios: 290,  media_valor: 2.10 },
+          { banda_edad: '25-34', n_usuarios: 820,  media_valor: 3.21 },
+          { banda_edad: '35-44', n_usuarios: 610,  media_valor: 2.98 },
+          { banda_edad: '45-54', n_usuarios: 120,  media_valor: 1.75 },
+        ],
+        celdas_suprimidas: 2,
+      },
+    },
+    {
+      reporte_id: 'r5d4a1b2-demo-0002-0000-000000000002',
+      estado: 'pendiente_pago',
+      k_aplicado: null,
+      n_usuarios: null,
+      generado_en: null,
+      resultado_hash: null,
+      definicion_segmento: { filtros: { genero: 'F', categoria: 'preferencia_ocio' }, dimensiones: ['region', 'banda_edad'], metrica: 'valor' },
+      resultado: null,
+    },
+  ],
+
+  crearReporte(definicion) {
+    const id = 'r-demo-' + Date.now();
+    const r = {
+      reporte_id: id,
+      estado: 'pendiente_pago',
+      precio_centimos: 4990,
+      checkout_url: '#demo-checkout',
+      transaccion_id: 't-demo-' + Date.now(),
+    };
+    // Simulamos que tras unos instantes queda "entregado"
+    const nTotal = 320 + Math.floor(Math.random() * 500);
+    const celdas = [];
+    const dims = definicion.dimensiones || [];
+    if (dims.includes('banda_edad')) {
+      const bandas = ['18-24','25-34','35-44','45-54'];
+      bandas.forEach(b => {
+        const n = Math.floor(nTotal / bandas.length) + Math.floor(Math.random()*20-10);
+        if (n >= 50) celdas.push({ banda_edad: b, n_usuarios: n, media_valor: +(1.5 + Math.random()*2).toFixed(2) });
+      });
+    } else if (dims.includes('region')) {
+      ['Madrid','Cataluña','Andalucía'].forEach(reg => {
+        const n = Math.floor(nTotal / 3) + Math.floor(Math.random()*30-15);
+        if (n >= 50) celdas.push({ region: reg, n_usuarios: n, media_valor: +(2 + Math.random()*1.5).toFixed(2) });
+      });
+    } else {
+      celdas.push({ n_usuarios: nTotal, media_valor: +(2.5 + Math.random()).toFixed(2) });
+    }
+    return { r, resultado: { celdas, celdas_suprimidas: 1 }, n_usuarios: nTotal, k_aplicado: 50 };
+  },
+};
+
+/* ========================================================
+   ESTADO GLOBAL
+   ======================================================== */
+const Estado = {
+  modoDemo:       CONFIG.DEMO_MODE,
+  catalogoCargado: false,
+  previewActual:  null,
+  reportes:       [],
+};
+
+/* ========================================================
+   UTILIDADES
+   ======================================================== */
+function euros(centimos) {
+  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(centimos / 100);
+}
+
+function fechaCorta(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' });
+}
+
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function mostrar(...ids) { ids.forEach(id => document.getElementById(id).classList.remove('hidden')); }
+function ocultar(...ids) { ids.forEach(id => document.getElementById(id).classList.add('hidden')); }
+
+function setProgreso(pct) {
+  const bar = document.getElementById('progress-bar');
+  bar.style.width = pct + '%';
+  if (pct >= 100) setTimeout(() => { bar.style.width = '0'; }, 600);
+}
+
+function apiHeaders() {
+  return {
+    'Content-Type':  'application/json',
+    'Authorization': `Bearer ${CONFIG.AGENCY_JWT}`,
+    'X-Request-Id':  crypto.randomUUID(),
+  };
+}
+
+/* ========================================================
+   API: CATÁLOGO DE SEGMENTOS  →  GET /v1/segmentos
+   ======================================================== */
+async function cargarCatalogo() {
+  ocultar('catalogo-estado-error');
+  mostrar('catalogo-estado-carga');
+  document.getElementById('catalogo-contenido').style.display = 'none';
+  setProgreso(30);
+
+  try {
+    let data;
+    if (Estado.modoDemo) {
+      await pausa(400);
+      data = DEMO.segmentos;
+    } else {
+      const res = await fetch(`${CONFIG.API_BASE}/segmentos`, { headers: apiHeaders() });
+      if (!res.ok) throw await errorDesdRespuesta(res);
+      data = await res.json();
+    }
+    renderCatalogo(data);
+    Estado.catalogoCargado = true;
+  } catch (err) {
+    ocultar('catalogo-estado-carga');
+    mostrar('catalogo-estado-error');
+    document.getElementById('catalogo-error-msg').textContent = err.message || 'Error al cargar el catálogo.';
+  } finally {
+    setProgreso(100);
+  }
+}
+
+function renderCatalogo(data) {
+  ocultar('catalogo-estado-carga');
+  document.getElementById('catalogo-contenido').style.display = '';
+
+  // Categorías
+  const lista = document.getElementById('catalogo-lista');
+  lista.innerHTML = '';
+  (data.categorias || []).forEach(cat => {
+    const div = document.createElement('div');
+    div.className = 'catalogo-item';
+    div.setAttribute('role', 'listitem');
+    div.setAttribute('tabindex', '0');
+    div.setAttribute('aria-label', `Categoría ${cat.categoria}: ${cat.descripcion}`);
+    div.innerHTML = `
+      <span class="catalogo-item-name">${esc(cat.categoria)}</span>
+      <span class="catalogo-item-desc">${esc(cat.descripcion)}</span>
+    `;
+    // Clic → preselecciona en el formulario
+    div.addEventListener('click', () => {
+      document.getElementById('filtro-categoria').value = cat.categoria;
+    });
+    div.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        document.getElementById('filtro-categoria').value = cat.categoria;
+      }
+    });
+    lista.appendChild(div);
+  });
+
+  // Dimensiones con valores de ejemplo
+  const dimsEl = document.getElementById('catalogo-dims');
+  dimsEl.innerHTML = '';
+  (data.dimensiones || []).forEach(dim => {
+    const vals = (data.valores_ejemplo || {})[dim] || [];
+    dimsEl.innerHTML += `
+      <p style="font-size:.82rem;font-weight:600;margin:6px 0 4px;color:var(--color-text)">${esc(dim)}</p>
+      <div class="valores-chips">${vals.map(v => `<span class="chip">${esc(v)}</span>`).join('')}</div>
+    `;
+  });
+
+  // Actualiza también el select de categorías con los valores reales
+  const selectCat = document.getElementById('filtro-categoria');
+  const val = selectCat.value;
+  selectCat.innerHTML = '<option value="">— Selecciona categoría —</option>';
+  (data.categorias || []).forEach(cat => {
+    const opt = document.createElement('option');
+    opt.value = cat.categoria;
+    opt.textContent = cat.categoria;
+    if (cat.categoria === val) opt.selected = true;
+    selectCat.appendChild(opt);
+  });
+}
+
+/* ========================================================
+   API: PREVIEW  →  POST /v1/segmentos/preview
+   ======================================================== */
+async function ejecutarPreview(definicion) {
+  // Mostrar estado cargando
+  ocultar('preview-empty', 'preview-k50', 'preview-ok', 'preview-error');
+  mostrar('preview-loading');
+  setProgreso(20);
+
+  try {
+    let data;
+    if (Estado.modoDemo) {
+      await pausa(700);
+      data = DEMO.generarPreview(definicion.filtros, definicion.dimensiones);
+    } else {
+      const res = await fetch(`${CONFIG.API_BASE}/segmentos/preview`, {
+        method:  'POST',
+        headers: apiHeaders(),
+        body:    JSON.stringify({ definicion }),
+      });
+      // El contrato devuelve 200 tanto si es entregable como si no
+      if (!res.ok) throw await errorDesdRespuesta(res);
+      data = await res.json();
+    }
+
+    ocultar('preview-loading');
+    Estado.previewActual = { definicion, resultado: data };
+
+    if (data.entregable) {
+      renderPreviewOk(data);
+      mostrar('preview-ok');
+    } else {
+      renderPreviewK50(data);
+      mostrar('preview-k50');
+    }
+  } catch (err) {
+    ocultar('preview-loading');
+    mostrar('preview-error');
+    document.getElementById('preview-error-msg').textContent =
+      err.message || 'Error al consultar la API de preview.';
+    Estado.previewActual = null;
+  } finally {
+    setProgreso(100);
+  }
+}
+
+function renderPreviewOk(data) {
+  document.getElementById('prev-n-usuarios').textContent =
+    data.n_usuarios.toLocaleString('es-ES');
+  document.getElementById('prev-k').textContent = data.k_aplicado;
+  document.getElementById('prev-celdas-ok').textContent =
+    data.celdas_estimadas_entregables ?? '—';
+  document.getElementById('prev-celdas-sup').textContent =
+    data.celdas_estimadas_suprimidas ?? '—';
+  document.getElementById('prev-precio').textContent =
+    datos => euros(data.precio_estimado_centimos);
+  // Arreglo limpio:
+  document.getElementById('prev-precio').textContent =
+    euros(data.precio_estimado_centimos);
+}
+
+function renderPreviewK50(data) {
+  const n = data.n_usuarios;
+  document.getElementById('preview-k50-msg').innerHTML =
+    `Este segmento tiene <strong>${n.toLocaleString('es-ES')} usuario${n === 1 ? '' : 's'} distintos</strong>,
+    por debajo del mínimo legal de <strong>k=50</strong>. No es posible generar ni entregar
+    ningún reporte con este segmento. No se realizará cargo alguno.`;
+}
+
+/* ========================================================
+   API: COMPRA  →  POST /v1/reportes
+   ======================================================== */
+async function iniciarCompra(definicion) {
+  const btn = document.getElementById('btn-comprar');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner" aria-hidden="true"></span> Procesando…';
+  setProgreso(15);
+
+  try {
+    let data;
+    if (Estado.modoDemo) {
+      await pausa(900);
+      const demo = DEMO.crearReporte(definicion);
+      // Simula respuesta de POST /v1/reportes
+      data = demo.r;
+      // Guarda el resultado simulado para mostrarlo luego
+      Estado._demoResultadoPendiente = demo;
+    } else {
+      const idempotencyKey = crypto.randomUUID();
+      const res = await fetch(`${CONFIG.API_BASE}/reportes`, {
+        method:  'POST',
+        headers: { ...apiHeaders(), 'Idempotency-Key': idempotencyKey },
+        body:    JSON.stringify({ definicion_segmento: definicion }),
+      });
+      if (!res.ok) {
+        const err = await errorDesdRespuesta(res);
+        // Error especial: segmento_no_entregable (validación post-preview del servidor)
+        if (err.codigo === 'segmento_no_entregable') {
+          throw new Error('El servidor rechazó el segmento: k insuficiente en el momento del cobro. Sin cargo.');
+        }
+        throw err;
+      }
+      data = await res.json();
+    }
+
+    setProgreso(60);
+    // Con backend real: redirige a Stripe Checkout
+    // En demo: abrimos directamente el resultado
+    if (!Estado.modoDemo && data.checkout_url && data.checkout_url !== '#demo-checkout') {
+      window.location.href = data.checkout_url;
+      return;
+    }
+
+    // Modo demo: simular el "pago" y mostrar resultado inmediatamente
+    await pausa(600);
+    const demo = Estado._demoResultadoPendiente;
+    mostrarResultadoReporte({
+      reporte_id:      data.reporte_id,
+      estado:          'entregado',
+      k_aplicado:      demo.k_aplicado,
+      n_usuarios:      demo.n_usuarios,
+      generado_en:     new Date().toISOString(),
+      resultado_hash:  'hash-demo-' + Date.now(),
+      definicion_segmento: definicion,
+      resultado:       demo.resultado,
+      descarga_url:    null,
+      descarga_expira_en: null,
+    });
+
+    // Añadir al historial
+    cargarHistorial();
+
+  } catch (err) {
+    abrirModalError(err.message || 'Error al iniciar la compra. Intenta de nuevo.');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span aria-hidden="true">🛒</span> Solicitar reporte';
+    setProgreso(100);
+  }
+}
+
+/* ========================================================
+   API: GET REPORTE  →  GET /v1/reportes/{id}
+   ======================================================== */
+async function verReporte(reporteId) {
+  abrirModalCargando('Cargando reporte…');
+  setProgreso(20);
+
+  try {
+    let data;
+    if (Estado.modoDemo) {
+      await pausa(500);
+      data = DEMO.reportes.find(r => r.reporte_id === reporteId);
+      if (!data) throw new Error('Reporte no encontrado en los datos demo.');
+    } else {
+      const res = await fetch(`${CONFIG.API_BASE}/reportes/${reporteId}`, { headers: apiHeaders() });
+      if (!res.ok) throw await errorDesdRespuesta(res);
+      data = await res.json();
+    }
+
+    mostrarResultadoReporte(data);
+  } catch (err) {
+    abrirModalError(err.message || 'Error al obtener el reporte.');
+  } finally {
+    setProgreso(100);
+  }
+}
+
+/* ========================================================
+   HISTORIAL DE REPORTES (simulado; en producción requeriría
+   un endpoint GET /v1/reportes que lista los de la agencia)
+   ======================================================== */
+async function cargarHistorial() {
+  ocultar('historial-error', 'historial-empty');
+  mostrar('historial-loading');
+  document.getElementById('historial-lista').innerHTML = '';
+
+  try {
+    let items;
+    if (Estado.modoDemo) {
+      await pausa(350);
+      items = DEMO.reportes;
+    } else {
+      // El contrato no expone GET /v1/reportes (lista). Se consultaría si existiese.
+      // Aquí se podría usar localStorage como caché de IDs propios.
+      const idsLocales = JSON.parse(localStorage.getItem('mis_reportes') || '[]');
+      items = await Promise.all(idsLocales.map(id =>
+        fetch(`${CONFIG.API_BASE}/reportes/${id}`, { headers: apiHeaders() })
+          .then(r => r.ok ? r.json() : null)
+      ));
+      items = items.filter(Boolean);
+    }
+
+    Estado.reportes = items;
+    ocultar('historial-loading');
+
+    if (items.length === 0) {
+      mostrar('historial-empty');
+      return;
+    }
+
+    renderHistorial(items);
+  } catch (err) {
+    ocultar('historial-loading');
+    mostrar('historial-error');
+    document.getElementById('historial-error-msg').textContent =
+      err.message || 'Error al cargar el historial.';
+  }
+}
+
+function renderHistorial(items) {
+  const lista = document.getElementById('historial-lista');
+  lista.innerHTML = '';
+  items.forEach(rep => {
+    const def = rep.definicion_segmento || {};
+    const filtros = def.filtros || {};
+    const dims = def.dimensiones || [];
+    const filtroStr = Object.entries(filtros).map(([k,v]) => `${k}=${v}`).join(', ') || 'Sin filtros';
+    const dimsStr = dims.length ? `Dims: ${dims.join(', ')}` : '';
+
+    const item = document.createElement('div');
+    item.className = 'historial-item';
+    item.setAttribute('role', 'listitem');
+    item.innerHTML = `
+      <div class="historial-item-top">
+        <span class="historial-id text-mono" title="${esc(rep.reporte_id)}">${esc(rep.reporte_id.substring(0,20))}…</span>
+        <span class="tag-estado ${esc(rep.estado)}">${esc(rep.estado.replace(/_/g,' '))}</span>
+      </div>
+      <div class="historial-item-filtros">${esc(filtroStr)} ${dimsStr ? '· ' + esc(dimsStr) : ''}</div>
+      <div class="historial-item-meta" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span>${rep.generado_en ? 'Generado: ' + fechaCorta(rep.generado_en) : 'Pendiente de pago'}</span>
+        ${rep.estado === 'entregado'
+          ? `<button class="btn btn-primary btn-sm historial-btn-ver" data-id="${esc(rep.reporte_id)}" aria-label="Ver resultados del reporte ${esc(rep.reporte_id)}">Ver resultados</button>`
+          : rep.estado === 'pendiente_pago'
+            ? `<span class="text-muted" style="font-size:.8rem">En espera de pago</span>`
+            : `<span class="text-muted" style="font-size:.8rem">${esc(rep.estado)}</span>`
+        }
+      </div>
+    `;
+    lista.appendChild(item);
+  });
+
+  // Eventos de botones "ver"
+  lista.querySelectorAll('.historial-btn-ver').forEach(btn => {
+    btn.addEventListener('click', () => verReporte(btn.dataset.id));
+  });
+}
+
+/* ========================================================
+   MODAL: mostrar resultado del reporte
+   ======================================================== */
+function mostrarResultadoReporte(data) {
+  const modal = document.getElementById('modal-compra');
+  const body  = document.getElementById('modal-body');
+  const btnDl = document.getElementById('modal-btn-descarga');
+
+  document.getElementById('modal-titulo').textContent =
+    data.estado === 'entregado' ? 'Reporte Entregado' :
+    data.estado === 'no_entregable' ? 'Reporte No Entregable' :
+    'Estado del Reporte';
+
+  btnDl.classList.add('hidden');
+
+  if (data.estado === 'no_entregable') {
+    body.innerHTML = `
+      <div class="alerta-k50" role="alert" aria-live="assertive">
+        <div class="alerta-icono" aria-hidden="true">🚫</div>
+        <div>
+          <p class="alerta-titulo">Segmento no entregable — reembolso emitido</p>
+          <p class="alerta-texto">${esc(data.motivo || 'El segmento no supera el umbral k=50.')}</p>
+          <p class="alerta-texto mt-8">Tu pago ha sido reembolsado automáticamente. No se ha generado ningún dato.</p>
+        </div>
+      </div>
+    `;
+  } else if (data.estado === 'pendiente_pago' || data.estado === 'pagado_generando') {
+    body.innerHTML = `
+      <div class="estado-box">
+        <div class="spinner dark" role="status" aria-label="Generando reporte…"></div>
+        <p class="estado-titulo">Procesando…</p>
+        <p class="estado-desc">El reporte está siendo generado. Recibirás una notificación cuando esté listo.</p>
+        <p class="text-mono" style="font-size:.8rem;color:var(--color-text-muted)">ID: ${esc(data.reporte_id)}</p>
+      </div>
+    `;
+  } else if (data.estado === 'entregado' && data.resultado) {
+    const celdas = data.resultado.celdas || [];
+    const suprimidas = data.resultado.celdas_suprimidas || 0;
+    const nTotal = data.n_usuarios || celdas.reduce((s,c) => s + c.n_usuarios, 0);
+    const def = data.definicion_segmento || {};
+    const filtros = def.filtros || {};
+    const dims = def.dimensiones || [];
+
+    // Detectar columnas dinámicamente
+    const colsDim = dims.length
+      ? dims.filter(d => celdas.some(c => c[d] !== undefined))
+      : Object.keys(celdas[0] || {}).filter(k => !['n_usuarios','media_valor'].includes(k));
+
+    const cabecerasCols = colsDim.map(d => `<th scope="col">${esc(d)}</th>`).join('');
+    const filas = celdas.map(celda => {
+      const pct = nTotal > 0 ? ((celda.n_usuarios / nTotal) * 100).toFixed(1) : 0;
+      const dimCols = colsDim.map(d => `<td>${esc(celda[d] ?? '—')}</td>`).join('');
+      return `
+        <tr>
+          ${dimCols}
+          <td>${celda.n_usuarios.toLocaleString('es-ES')}</td>
+          <td>
+            <div class="pct-bar-wrap" aria-label="${pct}%">
+              <div class="pct-bar"><div class="pct-bar-fill" style="width:${pct}%" role="presentation"></div></div>
+              <span class="pct-valor">${pct}%</span>
+            </div>
+          </td>
+          <td>${celda.media_valor !== undefined ? celda.media_valor.toFixed(2) : '—'}</td>
+        </tr>
+      `;
+    }).join('');
+
+    body.innerHTML = `
+      <div class="resultado-section">
+
+        <div class="aviso-privacidad" role="note">
+          <span aria-hidden="true">🔒</span>
+          <span>Estos datos son <strong>exclusivamente agregados</strong>. Cada celda contiene
+          ≥50 usuarios. No se exponen ni identificadores ni filas individuales.</span>
+        </div>
+
+        <div class="resultado-meta" role="region" aria-label="Metadatos del reporte">
+          <div class="meta-box">
+            <span class="meta-box-label">Usuarios totales</span>
+            <span class="meta-box-value green">${nTotal.toLocaleString('es-ES')}</span>
+          </div>
+          <div class="meta-box">
+            <span class="meta-box-label">K aplicado</span>
+            <span class="meta-box-value">${data.k_aplicado ?? 50}</span>
+          </div>
+          <div class="meta-box">
+            <span class="meta-box-label">Celdas entregadas</span>
+            <span class="meta-box-value blue">${celdas.length}</span>
+          </div>
+          <div class="meta-box">
+            <span class="meta-box-label">Generado</span>
+            <span class="meta-box-value" style="font-size:.9rem">${fechaCorta(data.generado_en)}</span>
+          </div>
+        </div>
+
+        ${Object.keys(filtros).length > 0 ? `
+        <div>
+          <p style="font-size:.82rem;font-weight:700;color:var(--color-text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em">Filtros aplicados</p>
+          <div class="valores-chips">
+            ${Object.entries(filtros).map(([k,v]) => `<span class="chip">${esc(k)}=${esc(v)}</span>`).join('')}
+          </div>
+        </div>
+        ` : ''}
+
+        <div>
+          <p style="font-size:.82rem;font-weight:700;color:var(--color-text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.05em">
+            Agregados por ${dims.join(', ') || 'segmento'}
+          </p>
+          <div class="tabla-wrap">
+            <table class="tabla-resultados" aria-label="Datos agregados del reporte">
+              <thead>
+                <tr>
+                  ${cabecerasCols}
+                  <th scope="col">Usuarios</th>
+                  <th scope="col">% del total</th>
+                  <th scope="col">Media valor</th>
+                </tr>
+              </thead>
+              <tbody>${filas}</tbody>
+            </table>
+          </div>
+          ${suprimidas > 0 ? `
+          <div class="mt-12" style="display:flex;align-items:center;gap:8px">
+            <span class="badge-suprimidas" aria-label="${suprimidas} celda${suprimidas===1?'':'s'} suprimida${suprimidas===1?'':'s'} por k-anonimato">
+              ⚠ ${suprimidas} celda${suprimidas===1?'':'s'} suprimida${suprimidas===1?'':'s'}
+            </span>
+            <span style="font-size:.78rem;color:var(--color-text-muted)">
+              (grupos con &lt;50 usuarios, suprimidos por ley)
+            </span>
+          </div>
+          ` : ''}
+        </div>
+
+        ${data.resultado_hash ? `
+        <div>
+          <p style="font-size:.75rem;color:var(--color-text-muted)">
+            Hash de integridad: <span class="text-mono">${esc(data.resultado_hash)}</span>
+          </p>
+        </div>
+        ` : ''}
+
+      </div>
+    `;
+
+    // Botón de descarga si hay URL
+    if (data.descarga_url) {
+      btnDl.href = data.descarga_url;
+      btnDl.classList.remove('hidden');
+    }
+  } else {
+    body.innerHTML = `
+      <div class="estado-box">
+        <div class="estado-icon" aria-hidden="true">❓</div>
+        <p class="estado-titulo">Estado desconocido</p>
+        <p class="texto-mono" style="font-size:.82rem;color:var(--color-text-muted)">${esc(data.estado)}</p>
+      </div>
+    `;
+  }
+
+  abrirModal();
+}
+
+/* ========================================================
+   MODAL: utilidades
+   ======================================================== */
+function abrirModal() {
+  const modal = document.getElementById('modal-compra');
+  modal.classList.remove('hidden');
+  modal.querySelector('.modal-close').focus();
+  document.body.style.overflow = 'hidden';
+}
+
+function cerrarModal() {
+  const modal = document.getElementById('modal-compra');
+  modal.classList.add('hidden');
+  document.body.style.overflow = '';
+  document.getElementById('btn-comprar').focus();
+}
+
+function abrirModalCargando(msg) {
+  document.getElementById('modal-titulo').textContent = msg || 'Cargando…';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="estado-box">
+      <div class="spinner dark" role="status" aria-label="${esc(msg || 'Cargando')}"></div>
+      <p class="estado-desc">${esc(msg || 'Por favor espera…')}</p>
+    </div>
+  `;
+  document.getElementById('modal-btn-descarga').classList.add('hidden');
+  abrirModal();
+}
+
+function abrirModalError(msg) {
+  document.getElementById('modal-titulo').textContent = 'Error';
+  document.getElementById('modal-body').innerHTML = `
+    <div class="alerta-error" role="alert">
+      <span aria-hidden="true">⚠</span>
+      <span>${esc(msg)}</span>
+    </div>
+  `;
+  document.getElementById('modal-btn-descarga').classList.add('hidden');
+  abrirModal();
+}
+
+/* ========================================================
+   ERRORES DE API
+   ======================================================== */
+async function errorDesdRespuesta(res) {
+  let body;
+  try { body = await res.json(); } catch (_) { body = null; }
+  const codigo  = body?.error?.codigo  || res.status.toString();
+  const mensaje = body?.error?.mensaje || `Error HTTP ${res.status}`;
+  const err = new Error(mensaje);
+  err.codigo = codigo;
+  return err;
+}
+
+/* ========================================================
+   PAUSA (demo)
+   ======================================================== */
+function pausa(ms) {
+  return new Promise(res => setTimeout(res, ms));
+}
+
+/* ========================================================
+   VALIDACIÓN DEL FORMULARIO
+   ======================================================== */
+function leerFormulario() {
+  const cat     = document.getElementById('filtro-categoria').value.trim();
+  const region  = document.getElementById('filtro-region').value.trim();
+  const banda   = document.getElementById('filtro-banda-edad').value.trim();
+  const genero  = document.getElementById('filtro-genero').value.trim();
+  const metrica = document.getElementById('filtro-metrica').value.trim();
+  const dims    = [...document.querySelectorAll('#dims-checkboxes input[type=checkbox]:checked')]
+                    .map(c => c.value);
+
+  return { cat, region, banda, genero, metrica, dims };
+}
+
+function construirDefinicion(campos) {
+  const { cat, region, banda, genero, metrica, dims } = campos;
+  const filtros = {};
+  if (cat)    filtros.categoria = cat;
+  if (region) filtros.region    = region;
+  if (banda)  filtros.banda_edad = banda;
+  if (genero) filtros.genero    = genero;
+
+  return {
+    filtros,
+    dimensiones: dims,
+    metrica:     metrica || 'valor',
+  };
+}
+
+function validarFormulario(campos) {
+  if (!campos.cat) return 'Debes seleccionar una categoría antes de continuar.';
+  return null;
+}
+
+/* ========================================================
+   EVENTOS
+   ======================================================== */
+document.addEventListener('DOMContentLoaded', () => {
+  // Inicio
+  cargarCatalogo();
+  cargarHistorial();
+
+  // Formulario: envío = vista previa
+  document.getElementById('form-filtros').addEventListener('submit', e => {
+    e.preventDefault();
+    ocultar('form-error');
+    const campos = leerFormulario();
+    const err = validarFormulario(campos);
+    if (err) {
+      mostrar('form-error');
+      document.getElementById('form-error-msg').textContent = err;
+      document.getElementById('filtro-categoria').focus();
+      return;
+    }
+    const def = construirDefinicion(campos);
+    ejecutarPreview(def);
+  });
+
+  // Botón comprar
+  document.getElementById('btn-comprar').addEventListener('click', () => {
+    if (!Estado.previewActual) return;
+    if (!Estado.previewActual.resultado.entregable) return;
+    iniciarCompra(Estado.previewActual.definicion);
+  });
+
+  // Refrescar catálogo
+  document.getElementById('btn-refrescar-catalogo').addEventListener('click', cargarCatalogo);
+
+  // Refrescar historial
+  document.getElementById('btn-refrescar-historial').addEventListener('click', cargarHistorial);
+
+  // Modal: cerrar
+  document.getElementById('modal-cerrar').addEventListener('click',       cerrarModal);
+  document.getElementById('modal-btn-cerrar2').addEventListener('click',  cerrarModal);
+  document.getElementById('modal-compra').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-compra')) cerrarModal();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !document.getElementById('modal-compra').classList.contains('hidden')) {
+      cerrarModal();
+    }
+  });
+
+  // Banner demo: toggle
+  document.getElementById('btn-toggle-demo').addEventListener('click', () => {
+    Estado.modoDemo = !Estado.modoDemo;
+    const banner = document.getElementById('demo-banner');
+    const btn    = document.getElementById('btn-toggle-demo');
+    if (Estado.modoDemo) {
+      banner.innerHTML = `
+        <span class="demo-icon" aria-hidden="true">🧪</span>
+        <span><strong>MODO DEMO ACTIVO</strong> — Datos simulados. Sin conexión a la API real.</span>
+        <button id="btn-toggle-demo" type="button" class="btn" style="margin-left:auto;background:var(--color-demo-border);color:#fff;border:none;border-radius:var(--radius-sm);padding:4px 12px;font-size:.8rem;font-weight:600">Desactivar demo</button>
+      `;
+      document.getElementById('btn-toggle-demo').addEventListener('click', () => {
+        Estado.modoDemo = false;
+        cargarBannerReal();
+        cargarCatalogo();
+        cargarHistorial();
+      });
+    } else {
+      cargarBannerReal();
+    }
+    // Reset vistas
+    ocultar('preview-empty','preview-loading','preview-k50','preview-ok','preview-error');
+    mostrar('preview-empty');
+    Estado.previewActual = null;
+    cargarCatalogo();
+    cargarHistorial();
+  });
+
+  function cargarBannerReal() {
+    const banner = document.getElementById('demo-banner');
+    banner.innerHTML = `
+      <span class="demo-icon" aria-hidden="true">🔴</span>
+      <span><strong>MODO PRODUCCIÓN</strong> — Conectado a la API real. Configura el JWT en CONFIG.AGENCY_JWT.</span>
+      <button id="btn-toggle-demo" type="button" class="btn" style="margin-left:auto;background:#6b7280;color:#fff;border:none;border-radius:4px;padding:4px 12px;font-size:.8rem;font-weight:600">Activar demo</button>
+    `;
+    document.getElementById('btn-toggle-demo').addEventListener('click', () => {
+      Estado.modoDemo = true;
+      location.reload(); // más sencillo que re-renderizar todo
+    });
+  }
+});
+</script>
+</body>
+</html>
