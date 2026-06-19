@@ -1,0 +1,1518 @@
+<!DOCTYPE html>
+<html lang="es" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<title>Panel de Cumplimiento — Plataforma Datos</title>
+<meta name="description" content="Panel interno de cumplimiento RGPD para la plataforma consent-first">
+<style>
+/* ===== RESET & BASE ===== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --c-bg:#0f1117;
+  --c-surface:#181c27;
+  --c-surface2:#1f2435;
+  --c-border:#2a3148;
+  --c-text:#e8eaf0;
+  --c-muted:#7b84a3;
+  --c-accent:#4f80ff;
+  --c-accent-dim:#2a3f7a;
+  --c-ok:#22c55e;
+  --c-ok-dim:#14532d;
+  --c-warn:#f59e0b;
+  --c-warn-dim:#451a03;
+  --c-danger:#ef4444;
+  --c-danger-dim:#450a0a;
+  --c-info:#38bdf8;
+  --c-info-dim:#0c3048;
+  --radius:6px;
+  --radius-lg:10px;
+  --shadow:0 2px 12px rgba(0,0,0,.4);
+  --font:'Segoe UI',system-ui,-apple-system,sans-serif;
+  --mono:'Cascadia Code','Fira Mono',monospace;
+}
+body{font-family:var(--font);background:var(--c-bg);color:var(--c-text);min-height:100vh;font-size:15px;line-height:1.5}
+a{color:var(--c-accent);text-decoration:none}
+a:hover{text-decoration:underline}
+button{cursor:pointer;font-family:inherit}
+input,select,textarea{font-family:inherit;font-size:inherit}
+h1{font-size:1.5rem;font-weight:700}
+h2{font-size:1.15rem;font-weight:600}
+h3{font-size:1rem;font-weight:600}
+code{font-family:var(--mono);font-size:.88em;background:var(--c-surface2);padding:.1em .35em;border-radius:3px}
+:focus-visible{outline:2px solid var(--c-accent);outline-offset:2px}
+
+/* ===== LAYOUT ===== */
+#app{display:flex;min-height:100vh}
+#sidebar{width:220px;flex-shrink:0;background:var(--c-surface);border-right:1px solid var(--c-border);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+#main{flex:1;overflow-x:hidden;padding:0}
+.page{display:none;padding:28px 24px;max-width:1100px}
+.page.active{display:block}
+
+/* ===== SIDEBAR ===== */
+.sidebar-header{padding:20px 16px 12px;border-bottom:1px solid var(--c-border)}
+.sidebar-header .logo{font-size:1rem;font-weight:700;color:var(--c-text);letter-spacing:.02em}
+.sidebar-header .logo span{display:block;font-size:.7rem;font-weight:400;color:var(--c-muted);margin-top:1px}
+.sidebar-header .demo-badge{display:inline-block;margin-top:8px;background:var(--c-warn-dim);border:1px solid var(--c-warn);color:var(--c-warn);font-size:.7rem;font-weight:700;padding:.15em .5em;border-radius:3px;letter-spacing:.04em}
+.nav-section{padding:10px 0 4px}
+.nav-label{padding:2px 16px;font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-muted)}
+.nav-btn{display:flex;align-items:center;gap:9px;width:100%;background:none;border:none;padding:8px 16px;color:var(--c-muted);font-size:.9rem;text-align:left;transition:background .15s,color .15s;border-radius:0}
+.nav-btn:hover{background:var(--c-surface2);color:var(--c-text)}
+.nav-btn.active{background:var(--c-accent-dim);color:var(--c-accent);font-weight:600}
+.nav-btn .icon{font-style:normal;width:18px;text-align:center;flex-shrink:0;font-size:1rem}
+.nav-badge{margin-left:auto;background:var(--c-danger);color:#fff;border-radius:99px;font-size:.68rem;font-weight:700;padding:.05em .45em;min-width:18px;text-align:center}
+.sidebar-footer{margin-top:auto;padding:12px 16px;border-top:1px solid var(--c-border);font-size:.75rem;color:var(--c-muted)}
+
+/* ===== TOPBAR ===== */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--c-border);background:var(--c-surface);position:sticky;top:0;z-index:10}
+.topbar-title{font-weight:600;font-size:1rem}
+.topbar-actions{display:flex;align-items:center;gap:10px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:.4em .85em;border-radius:var(--radius);border:none;font-size:.88rem;font-weight:600;transition:background .15s,opacity .15s;cursor:pointer}
+.btn-ghost{background:transparent;color:var(--c-muted);border:1px solid var(--c-border)}
+.btn-ghost:hover{background:var(--c-surface2);color:var(--c-text)}
+.btn-primary{background:var(--c-accent);color:#fff}
+.btn-primary:hover{opacity:.88}
+.btn-danger{background:var(--c-danger);color:#fff}
+.btn-danger:hover{opacity:.88}
+.btn-ok{background:var(--c-ok);color:#fff}
+.btn-ok:hover{opacity:.88}
+.btn-warn{background:var(--c-warn);color:#000}
+.btn-warn:hover{opacity:.88}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+
+/* ===== LOGIN ===== */
+#login-screen{position:fixed;inset:0;background:var(--c-bg);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px}
+.login-box{background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--radius-lg);padding:36px 32px;width:100%;max-width:360px;box-shadow:var(--shadow)}
+.login-box h1{font-size:1.3rem;margin-bottom:4px}
+.login-box p{color:var(--c-muted);font-size:.88rem;margin-bottom:24px}
+.login-box .field{margin-bottom:16px}
+.login-box label{display:block;font-size:.82rem;font-weight:600;color:var(--c-muted);margin-bottom:5px}
+.login-box input{width:100%;background:var(--c-bg);border:1px solid var(--c-border);border-radius:var(--radius);padding:.5em .75em;color:var(--c-text)}
+.login-box input:focus{border-color:var(--c-accent)}
+.login-box .error{background:var(--c-danger-dim);border:1px solid var(--c-danger);border-radius:var(--radius);padding:.5em .75em;font-size:.85rem;color:var(--c-danger);margin-bottom:14px;display:none}
+.login-box .btn{width:100%;justify-content:center;padding:.6em;font-size:1rem;margin-top:4px}
+.demo-notice{background:var(--c-warn-dim);border:1px solid var(--c-warn);border-radius:var(--radius);padding:.55em .75em;font-size:.8rem;color:var(--c-warn);margin-bottom:18px}
+
+/* ===== CARDS & GRID ===== */
+.cards{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-bottom:24px}
+.card{background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--radius-lg);padding:18px 20px}
+.card-label{font-size:.75rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--c-muted);margin-bottom:6px}
+.card-value{font-size:1.9rem;font-weight:700;line-height:1;margin-bottom:4px}
+.card-sub{font-size:.8rem;color:var(--c-muted)}
+.card.ok .card-value{color:var(--c-ok)}
+.card.warn .card-value{color:var(--c-warn)}
+.card.danger .card-value{color:var(--c-danger)}
+.card.info .card-value{color:var(--c-info)}
+
+/* ===== ALERTAS ===== */
+.alerts{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.alert{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-radius:var(--radius);border:1px solid}
+.alert.danger{background:var(--c-danger-dim);border-color:var(--c-danger);color:var(--c-danger)}
+.alert.warn{background:var(--c-warn-dim);border-color:var(--c-warn);color:var(--c-warn)}
+.alert.ok{background:var(--c-ok-dim);border-color:var(--c-ok);color:var(--c-ok)}
+.alert.info{background:var(--c-info-dim);border-color:var(--c-info);color:var(--c-info)}
+.alert .alert-icon{font-size:1.1rem;flex-shrink:0;margin-top:.1em}
+.alert strong{display:block;font-size:.9rem;font-weight:700}
+.alert p{font-size:.82rem;margin-top:2px;opacity:.9}
+
+/* ===== TABLA ===== */
+.table-wrap{overflow-x:auto;border:1px solid var(--c-border);border-radius:var(--radius-lg);margin-bottom:18px}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+thead th{background:var(--c-surface2);padding:10px 12px;text-align:left;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--c-muted);white-space:nowrap;border-bottom:1px solid var(--c-border)}
+tbody tr:nth-child(even){background:rgba(255,255,255,.025)}
+tbody tr:hover{background:var(--c-surface2)}
+tbody td{padding:9px 12px;border-bottom:1px solid var(--c-border);vertical-align:top;max-width:320px;overflow-wrap:anywhere}
+tbody tr:last-child td{border-bottom:none}
+.td-mono{font-family:var(--mono);font-size:.78em;color:var(--c-muted)}
+
+/* ===== CHIPS/BADGES ===== */
+.chip{display:inline-block;padding:.1em .5em;border-radius:99px;font-size:.75rem;font-weight:700;letter-spacing:.03em}
+.chip-ok{background:var(--c-ok-dim);color:var(--c-ok);border:1px solid var(--c-ok)}
+.chip-danger{background:var(--c-danger-dim);color:var(--c-danger);border:1px solid var(--c-danger)}
+.chip-warn{background:var(--c-warn-dim);color:var(--c-warn);border:1px solid var(--c-warn)}
+.chip-info{background:var(--c-info-dim);color:var(--c-info);border:1px solid var(--c-info)}
+.chip-muted{background:var(--c-surface2);color:var(--c-muted);border:1px solid var(--c-border)}
+
+/* ===== SECTION HEADER ===== */
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.section-header h2{display:flex;align-items:center;gap:8px}
+.section-header .section-desc{font-size:.82rem;color:var(--c-muted);margin-top:3px}
+
+/* ===== CHECKLIST ===== */
+.checklist{display:flex;flex-direction:column;gap:0}
+.check-item{display:flex;align-items:flex-start;gap:12px;padding:11px 16px;border-bottom:1px solid var(--c-border);font-size:.88rem}
+.check-item:last-child{border-bottom:none}
+.check-icon{font-size:1rem;flex-shrink:0;margin-top:.1em}
+.check-label{flex:1}
+.check-ref{font-size:.75rem;color:var(--c-muted);margin-top:2px}
+.check-panel{background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--radius-lg);margin-bottom:20px}
+.check-panel-header{padding:12px 16px;border-bottom:1px solid var(--c-border);font-weight:700;font-size:.9rem;display:flex;align-items:center;justify-content:space-between}
+
+/* ===== FORMS ===== */
+.form-row{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:14px}
+.form-field{display:flex;flex-direction:column;gap:4px;flex:1;min-width:160px}
+.form-field label{font-size:.8rem;font-weight:600;color:var(--c-muted)}
+.form-field input,.form-field select,.form-field textarea{background:var(--c-bg);border:1px solid var(--c-border);border-radius:var(--radius);padding:.45em .65em;color:var(--c-text);width:100%}
+.form-field input:focus,.form-field select:focus,.form-field textarea:focus{border-color:var(--c-accent)}
+.form-field textarea{resize:vertical;min-height:80px}
+.form-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+
+/* ===== CARGA/VALIDACION ===== */
+.resultado-carga{margin-top:18px}
+.fila-aprobada{background:rgba(34,197,94,.07)!important}
+.fila-rechazada{background:rgba(239,68,68,.08)!important}
+
+/* ===== LOGS ===== */
+.log-filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--radius-lg);padding:14px 16px}
+.paginacion{display:flex;align-items:center;gap:10px;justify-content:flex-end;margin-top:12px}
+.paginacion span{font-size:.83rem;color:var(--c-muted)}
+
+/* ===== ESTADO VACÍO ===== */
+.empty{text-align:center;padding:48px 20px;color:var(--c-muted)}
+.empty .empty-icon{font-size:2.5rem;margin-bottom:12px}
+.empty p{font-size:.9rem}
+
+/* ===== CUMPLIMIENTO LEGAL PANEL ===== */
+.legal-bloque{margin-bottom:20px}
+.legal-bloque-title{font-size:.9rem;font-weight:700;padding:10px 16px;background:var(--c-surface2);border:1px solid var(--c-border);border-radius:var(--radius-lg) var(--radius-lg) 0 0;display:flex;align-items:center;justify-content:space-between}
+.legal-items{border:1px solid var(--c-border);border-top:none;border-radius:0 0 var(--radius-lg) var(--radius-lg)}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:700px){
+  #sidebar{width:100%;height:auto;position:static;border-right:none;border-bottom:1px solid var(--c-border);flex-direction:row;flex-wrap:wrap;padding:8px}
+  #app{flex-direction:column}
+  .nav-btn{padding:6px 10px;font-size:.8rem}
+  .nav-label{display:none}
+  .sidebar-header{padding:8px 12px;border-bottom:none}
+  .page{padding:16px 14px}
+  .cards{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+}
+
+/* ===== DEMO WATERMARK ===== */
+.demo-banner{background:var(--c-warn-dim);border-bottom:1px solid var(--c-warn);color:var(--c-warn);padding:6px 16px;font-size:.8rem;font-weight:700;text-align:center;letter-spacing:.04em}
+
+/* ===== SPINNER ===== */
+.spinner{display:inline-block;width:18px;height:18px;border:2px solid var(--c-border);border-top-color:var(--c-accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading{display:flex;align-items:center;gap:10px;color:var(--c-muted);font-size:.9rem;padding:20px 0}
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN ===== -->
+<div id="login-screen" role="dialog" aria-modal="true" aria-labelledby="login-title">
+  <div class="login-box">
+    <h1 id="login-title">Panel de Cumplimiento</h1>
+    <p>Acceso restringido — DPO / Admin</p>
+    <div class="demo-notice" role="note">
+      <strong>MODO DEMO:</strong> Los datos son simulados. Contraseña: <code>demo2026</code>
+    </div>
+    <div class="error" id="login-error" role="alert"></div>
+    <div class="field">
+      <label for="login-pass">Contraseña de administrador</label>
+      <input type="password" id="login-pass" autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <button class="btn btn-primary" onclick="intentarLogin()">Entrar</button>
+  </div>
+</div>
+
+<!-- ===== APP ===== -->
+<div id="app" aria-hidden="true">
+
+  <!-- Sidebar nav -->
+  <nav id="sidebar" aria-label="Navegación principal">
+    <div class="sidebar-header">
+      <div class="logo">
+        PLACEHOLDER_PLATAFORMA
+        <span>Panel de Cumplimiento</span>
+      </div>
+      <span class="demo-badge" id="demo-badge">MODO DEMO</span>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Cumplimiento</div>
+      <button class="nav-btn active" onclick="navegar('dashboard')" id="nav-dashboard" aria-current="page">
+        <i class="icon" aria-hidden="true">📊</i>Dashboard
+      </button>
+      <button class="nav-btn" onclick="navegar('legal')" id="nav-legal">
+        <i class="icon" aria-hidden="true">⚖️</i>Checklist Legal
+      </button>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Datos</div>
+      <button class="nav-btn" onclick="navegar('consentimientos')" id="nav-consentimientos">
+        <i class="icon" aria-hidden="true">✅</i>Consentimientos
+      </button>
+      <button class="nav-btn" onclick="navegar('contribuciones')" id="nav-contribuciones">
+        <i class="icon" aria-hidden="true">📦</i>Contribuciones
+        <span class="nav-badge" id="badge-huerfanas" hidden>!</span>
+      </button>
+      <button class="nav-btn" onclick="navegar('carga')" id="nav-carga">
+        <i class="icon" aria-hidden="true">🔒</i>Validar Carga
+      </button>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Reportes y Pagos</div>
+      <button class="nav-btn" onclick="navegar('reportes')" id="nav-reportes">
+        <i class="icon" aria-hidden="true">📋</i>Reportes
+      </button>
+      <button class="nav-btn" onclick="navegar('reparto')" id="nav-reparto">
+        <i class="icon" aria-hidden="true">💰</i>Reparto
+      </button>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Derechos y Agencias</div>
+      <button class="nav-btn" onclick="navegar('derechos')" id="nav-derechos">
+        <i class="icon" aria-hidden="true">📬</i>Solicitudes RGPD
+        <span class="nav-badge" id="badge-derechos" hidden>!</span>
+      </button>
+      <button class="nav-btn" onclick="navegar('agencias')" id="nav-agencias">
+        <i class="icon" aria-hidden="true">🏢</i>Agencias KYC
+      </button>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Auditoría</div>
+      <button class="nav-btn" onclick="navegar('logs')" id="nav-logs">
+        <i class="icon" aria-hidden="true">🗒️</i>Logs Auditoría
+      </button>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost" onclick="cerrarSesion()" style="width:100%;justify-content:center;font-size:.8rem">
+        Cerrar sesión
+      </button>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <div id="main">
+    <div class="demo-banner" id="demo-banner" role="status">
+      ⚠ MODO DEMO — Datos simulados. No conectado a API real.
+    </div>
+
+    <!-- ===== DASHBOARD ===== -->
+    <div id="page-dashboard" class="page active">
+      <div class="topbar">
+        <div>
+          <div class="topbar-title">Dashboard de Cumplimiento</div>
+        </div>
+        <div class="topbar-actions">
+          <button class="btn btn-ghost" onclick="cargarDashboard()">↻ Actualizar</button>
+        </div>
+      </div>
+      <div style="padding:24px">
+        <div id="alerts-container" class="alerts"></div>
+
+        <div class="cards" id="cards-metricas">
+          <div class="card info">
+            <div class="card-label">Usuarios activos</div>
+            <div class="card-value" id="m-usuarios">—</div>
+            <div class="card-sub">Estado activo en BD</div>
+          </div>
+          <div class="card ok">
+            <div class="card-label">Consentimientos activos</div>
+            <div class="card-value" id="m-consent-activos">—</div>
+            <div class="card-sub">No revocados</div>
+          </div>
+          <div class="card warn">
+            <div class="card-label">Revocaciones este mes</div>
+            <div class="card-value" id="m-revocaciones">—</div>
+            <div class="card-sub">Consentimientos retirados</div>
+          </div>
+          <div class="card danger">
+            <div class="card-label">Contrib. huérfanas</div>
+            <div class="card-value" id="m-huerfanas">—</div>
+            <div class="card-sub">Sin consent. activo → rechazar</div>
+          </div>
+        </div>
+
+        <div class="cards">
+          <div class="card ok">
+            <div class="card-label">Reportes entregados / mes</div>
+            <div class="card-value" id="m-reportes">—</div>
+            <div class="card-sub">k-anonimato k≥50 garantizado</div>
+          </div>
+          <div class="card info">
+            <div class="card-label">Ingresos (mes actual)</div>
+            <div class="card-value" id="m-ingresos">—</div>
+            <div class="card-sub">Céntimos cobrados</div>
+          </div>
+          <div class="card ok">
+            <div class="card-label">Pool usuarios (mes)</div>
+            <div class="card-value" id="m-pool">—</div>
+            <div class="card-sub">30 % para repartir</div>
+          </div>
+        </div>
+
+        <h2 style="margin-bottom:12px">Estado de garantías técnicas</h2>
+        <div class="check-panel" style="margin-bottom:24px">
+          <div class="check-panel-header">
+            Invariantes del esquema — activos 24/7 en base de datos
+            <span class="chip chip-ok">ACTIVOS</span>
+          </div>
+          <div>
+            <div class="check-item">
+              <span class="check-icon" aria-hidden="true">✅</span>
+              <div class="check-label">
+                <strong>Trigger <code>trg_contrib_consent_valido</code></strong>
+                <div class="check-ref">Toda contribución debe ligarse a un consentimiento ACTIVO del mismo usuario. Si no, la BD aborta el INSERT.</div>
+              </div>
+            </div>
+            <div class="check-item">
+              <span class="check-icon" aria-hidden="true">✅</span>
+              <div class="check-label">
+                <strong>CHECK k-anonimato (n_usuarios ≥ 50 y k_aplicado ≥ 50)</strong>
+                <div class="check-ref">Imposible persistir un reporte con menos de 50 usuarios. La BD lo rechaza.</div>
+              </div>
+            </div>
+            <div class="check-item">
+              <span class="check-icon" aria-hidden="true">✅</span>
+              <div class="check-label">
+                <strong>CHECK categorías especiales (es_especial = 0)</strong>
+                <div class="check-ref">Prohibición absoluta de categorías del art. 9 RGPD. No existe ninguna categoría especial en la lista blanca.</div>
+              </div>
+            </div>
+            <div class="check-item">
+              <span class="check-icon" aria-hidden="true">✅</span>
+              <div class="check-label">
+                <strong>CHECK reparto exacto (comisión + pool = importe)</strong>
+                <div class="check-ref">Ninguna transacción puede descuadrar el reparto 70/30. La BD lo garantiza.</div>
+              </div>
+            </div>
+            <div class="check-item">
+              <span class="check-icon" aria-hidden="true">✅</span>
+              <div class="check-label">
+                <strong>Logs append-only (5 años de retención)</strong>
+                <div class="check-ref">No existen endpoints de edición o borrado de auditoría.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== CHECKLIST LEGAL ===== -->
+    <div id="page-legal" class="page">
+      <div class="topbar">
+        <div class="topbar-title">Checklist de Cumplimiento Legal</div>
+        <div class="topbar-actions">
+          <span class="chip chip-warn">Requiere revisión DPO</span>
+        </div>
+      </div>
+      <div style="padding:24px">
+        <div class="alert warn" style="margin-bottom:20px">
+          <span class="alert-icon" aria-hidden="true">⚠</span>
+          <div>
+            <strong>Documento orientativo — no es asesoramiento jurídico</strong>
+            <p>Consulte con abogado especializado en privacidad y con un DPO certificado antes de operar comercialmente.</p>
+          </div>
+        </div>
+        <div id="checklist-container"></div>
+      </div>
+    </div>
+
+    <!-- ===== CONSENTIMIENTOS ===== -->
+    <div id="page-consentimientos" class="page">
+      <div class="topbar">
+        <div class="topbar-title">Consentimientos</div>
+        <div class="topbar-actions">
+          <button class="btn btn-ghost" onclick="cargarConsentimientos()">↻ Actualizar</button>
+        </div>
+      </div>
+      <div style="padding:24px">
+        <div class="cards" id="cards-consentimientos">
+          <div class="card ok">
+            <div class="card-label">Activos</div>
+            <div class="card-value" id="c-activos">—</div>
+            <div class="card-sub">No revocados</div>
+          </div>
+          <div class="card danger">
+            <div class="card-label">Revocados</div>
+            <div class="card-value" id="c-revocados">—</div>
+            <div class="card-sub">Retirados por el usuario</div>
+          </div>
+        </div>
+        <div class="section-header">
+          <div>
+            <h2>Por propósito</h2>
+            <div class="section-desc">Desglose de consentimientos activos/revocados por finalidad registrada en el ledger.</div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table aria-label="Consentimientos por propósito">
+            <thead><tr><th>Propósito</th><th>Activos</th><th>Revocados</th><th>Total</th></tr></thead>
+            <tbody id="tbody-consentimientos"><tr><td colspan="4"><div class="loading"><span class="spinner"></span> Cargando...</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== CONTRIBUCIONES ===== -->
+    <div id="page-contribuciones" class="page">
+      <div class="topbar">
+        <div class="topbar-title">Contribuciones</div>
+        <div class="topbar-actions">
+          <button class="btn btn-ghost" onclick="cargarContribuciones()">↻ Actualizar</button>
+        </div>
+      </div>
+      <div style="padding:24px">
+        <div class="alert danger" id="alerta-huerfanas" hidden>
+          <span class="alert-icon" aria-hidden="true">🚫</span>
+          <div>
+            <strong>Contribuciones huérfanas detectadas</strong>
+            <p>Estas filas no tienen consentimiento activo verificable. Deben ser rechazadas y eliminadas. <strong>No se procesan, no se venden, no se incluyen en reportes.</strong></p>
+          </div>
+        </div>
+        <div class="section-header">
+          <div>
+            <h2>Contribuciones sin consentimiento activo</h2>
+            <div class="section-desc">Solo lectura. Cada fila listada aquí es un dato que <strong>debe rechazarse</strong>.</div>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table aria-label="Contribuciones huérfanas">
+            <thead>
+              <tr>
+                <th>ID</th><th>Usuario</th><th>Consentimiento</th><th>Categoría</th><th>Recogido</th><th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-huerfanas">
+              <tr><td colspan="6"><div class="loading"><span class="spinner"></span> Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="paginacion">
+          <button class="btn btn-ghost" id="btn-huerfanas-prev" onclick="paginaHuerfanas(-1)" disabled>← Anterior</button>
+          <span id="pag-huerfanas-info"></span>
+          <button class="btn btn-ghost" id="btn-huerfanas-next" onclick="paginaHuerfanas(1)">Siguiente →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== VALIDAR CARGA ===== -->
+    <div id="page-carga" class="page">
+      <div class="topbar">
+        <div class="topbar-title">Validación de Cargas — Puerta de Consentimiento</div>
+      </div>
+      <div style="padding:24px">
+        <div class="alert danger" style="margin-bottom:20px">
+          <span class="alert-icon" aria-hidden="true">🛑</span>
+          <div>
+            <strong>PRINCIPIO DE RECHAZO AUTOMÁTICO</strong>
+            <p>Cualquier fila sin consentimiento activo verificable es <strong>RECHAZADA</strong>. No existe ninguna opción de "importar sin consentimiento", "procesar sin consentimiento" ni "vender sin consentimiento". El sistema hace cumplir, no elude.</p>
+          </div>
+        </div>
+        <div class="check-panel" style="margin-bottom:20px">
+          <div class="check-panel-header">Pega el lote a validar (JSON)</div>
+          <div style="padding:16px">
+            <div class="form-field">
+              <label for="carga-json">Array de ítems (<code>usuario_id</code>, <code>consentimiento_id</code>, <code>categoria</code>)</label>
+              <textarea id="carga-json" rows="8" placeholder='[
+  {"usuario_id": "uuid-1", "consentimiento_id": "consent-uuid-1", "categoria": "compras_online"},
+  {"usuario_id": "uuid-2", "consentimiento_id": "consent-uuid-2", "categoria": "preferencia_ocio"}
+]'></textarea>
+            </div>
+            <div class="form-actions" style="margin-top:12px">
+              <button class="btn btn-primary" onclick="validarCarga()">Validar carga</button>
+              <button class="btn btn-ghost" onclick="cargarEjemploCarga()">Cargar ejemplo demo</button>
+            </div>
+          </div>
+        </div>
+        <div id="resultado-carga" class="resultado-carga" hidden>
+          <div class="cards">
+            <div class="card ok">
+              <div class="card-label">Aprobados</div>
+              <div class="card-value" id="rc-aprobados">0</div>
+              <div class="card-sub">Con consent. activo verificado</div>
+            </div>
+            <div class="card danger">
+              <div class="card-label">Rechazados</div>
+              <div class="card-value" id="rc-rechazados">0</div>
+              <div class="card-sub">Sin consent. → no se importan</div>
+            </div>
+            <div class="card warn">
+              <div class="card-label">Tasa de rechazo</div>
+              <div class="card-value" id="rc-tasa">0%</div>
+              <div class="card-sub">Del total enviado</div>
+            </div>
+          </div>
+          <div id="rc-advertencia" hidden class="alert danger" style="margin-bottom:16px">
+            <span class="alert-icon" aria-hidden="true">🚫</span>
+            <div>
+              <strong id="rc-adv-text"></strong>
+              <p>Los datos rechazados quedan en cuarentena. No se procesan ni venden bajo ningún concepto.</p>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table aria-label="Resultado de validación de carga">
+              <thead>
+                <tr><th>#</th><th>Usuario</th><th>Consentimiento</th><th>Estado</th><th>Motivo / Consent. verificado</th></tr>
+              </thead>
+              <tbody id="tbody-carga"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== REPORTES ===== -->
+    <div id="page-reportes" class="page">
+      <div class="topbar">
+        <div class="topbar-title">Reportes</div>
+        <div class="topbar-actions">
+          <button class="btn btn-ghost" onclick="cargarReportes()">↻ Actualizar</button>
+        </div>
+      </div>
+      <div style="padding:24px">
+        <div class="alert info" style="margin-bottom:20px">
+          <span class="alert-icon" aria-hidden="true">ℹ</span>
+          <div>
+            <strong>k-anonimato garantizado por la base de datos</strong>
+            <p>Ningún reporte puede persistirse con n_usuarios &lt; 50 (CHECK de esquema). Los bloqueados se reembolsan automáticamente.</p>
+          </div>
+        </div>
+        <div class="section-header">
+          <h2>Transacciones con reporte bloqueado (k &lt; 50)</h2>
+        </div>
+        <div class="table-wrap">
+          <table aria-label="Reportes bloqueados por k-anonimato">
+            <thead>
+              <tr><th>TX ID</th><th>Agencia</th><th>Reporte ID</th><th>Importe</th><th>Estado TX</th><th>Fecha</th></tr>
+            </thead>
+            <tbody id="tbody-reportes">
+              <tr><td colspan="6"><div class="loading"><span class="spinner"></span> Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== REPARTO ===== -->
+    <div id="page-reparto" class="page">
+      <div class="topbar">
+        <div class="topbar-title">Reparto — Data Dividend</div>
+      </div>
+      <div style="padding:24px">
+        <div class="check-panel" style="margin-bottom:20px">
+          <div class="check-panel-header">Ejecutar / consultar reparto</div>
+          <div style="padding:16px">
+            <div class="form-row">
+              <div class="form-field" style="max-width:160px">
+                <label for="reparto-periodo">Periodo (YYYY-MM)</label>
+                <input type="month" id="reparto-periodo" value="">
+              </div>
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-ghost" onclick="consultarReparto()">Ver estado</button>
+              <button class="btn btn-warn" onclick="ejecutarReparto(true)">Simular (dry-run)</button>
+              <button class="btn btn-ok" onclick="ejecutarReparto(false)">Ejecutar reparto real</button>
+            </div>
+          </div>
+        </div>
+        <div id="resultado-reparto" hidden>
+          <div class="cards" id="cards-reparto"></div>
+          <div class="table-wrap">
+            <table aria-label="Filas de reparto">
+              <thead>
+                <tr><th>Usuario (seud.)</th><th>Importe (c.)</th><th>Peso contrib.</th><th>Estado</th><th>Transfer Stripe</th></tr>
+              </thead>
+              <tbody id="tbody-reparto"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== DERECHOS RGPD ===== -->
+    <div id="page-derechos" class="page">
+      <div class="topbar">
+        <div class="topbar-title">Solicitudes de Derechos RGPD</div>
+        <div class="topbar-actions">
+          <span style="font-size:.82rem;color:var(--c-muted)">Plazo legal: 30 días</span>
+          <button class="btn btn-ghost" onclick="cargarDerechos()">↻ Actualizar</button>
+        </div>
+      </div>
+      <div style="padding:24px">
+        <div class="alert info" style="margin-bottom:20px">
+          <span class="alert-icon" aria-hidden="true">ℹ</span>
+          <div>
+            <strong>Arts. 15–22 RGPD</strong>
+            <p>Acceso (15), rectificación (16), supresión/olvido (17), limitación (18), portabilidad (20), oposición (21). Plazo de respuesta: 1 mes, prorrogable 2 meses con notificación.</p>
+          </div>
+        </div>
+        <div id="alerta-derechos-pendientes" hidden class="alert danger" style="margin-bottom:16px">
+          <span class="alert-icon" aria-hidden="true">⏰</span>
+          <div>
+            <strong id="txt-derechos-pendientes"></strong>
+            <p>Revise y resuelva antes de que expire el plazo legal.</p>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table aria-label="Solicitudes de derechos RGPD">
+            <thead>
+              <tr><th>ID Log</th><th>Tipo</th><th>Actor</th><th>Fecha</th><th>Estado</th><th>Acción</th></tr>
+            </thead>
+            <tbody id="tbody-derechos">
+              <tr><td colspan="6"><div class="loading"><span class="spinner"></span> Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== AGENCIAS ===== -->
+    <div id="page-agencias" class="page">
+      <div class="topbar">
+        <div class="topbar-title">Agencias — KYC</div>
+        <div class="topbar-actions">
+          <button class="btn btn-ghost" onclick="cargarAgencias()">↻ Actualizar</button>
+        </div>
+      </div>
+      <div style="padding:24px">
+        <div class="log-filters">
+          <div class="form-field" style="min-width:140px;max-width:200px">
+            <label for="filtro-kyc">Filtrar por KYC</label>
+            <select id="filtro-kyc" onchange="cargarAgencias()">
+              <option value="">Todos</option>
+              <option value="pendiente">Pendiente</option>
+              <option value="verificada">Verificada</option>
+              <option value="rechazada">Rechazada</option>
+            </select>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table aria-label="Agencias y estado KYC">
+            <thead>
+              <tr><th>Razón Social</th><th>CIF</th><th>País</th><th>KYC</th><th>Contrato firmado</th><th>Creada</th><th>Acción</th></tr>
+            </thead>
+            <tbody id="tbody-agencias">
+              <tr><td colspan="7"><div class="loading"><span class="spinner"></span> Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== LOGS ===== -->
+    <div id="page-logs" class="page">
+      <div class="topbar">
+        <div class="topbar-title">Logs de Auditoría</div>
+        <div class="topbar-actions">
+          <span class="chip chip-muted">Solo lectura — append-only</span>
+          <button class="btn btn-ghost" onclick="cargarLogs()">↻ Actualizar</button>
+        </div>
+      </div>
+      <div style="padding:24px">
+        <div class="log-filters">
+          <div class="form-field">
+            <label for="log-accion">Acción</label>
+            <input type="text" id="log-accion" placeholder="ej: reporte.generado" oninput="cargarLogs()">
+          </div>
+          <div class="form-field">
+            <label for="log-actor">Actor</label>
+            <input type="text" id="log-actor" placeholder="ej: admin, sistema" oninput="cargarLogs()">
+          </div>
+          <div class="form-field">
+            <label for="log-entidad">Entidad</label>
+            <input type="text" id="log-entidad" placeholder="ej: reportes" oninput="cargarLogs()">
+          </div>
+          <div class="form-field">
+            <label for="log-desde">Desde</label>
+            <input type="datetime-local" id="log-desde" oninput="cargarLogs()">
+          </div>
+          <div class="form-field">
+            <label for="log-hasta">Hasta</label>
+            <input type="datetime-local" id="log-hasta" oninput="cargarLogs()">
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table aria-label="Logs de auditoría">
+            <thead>
+              <tr><th>ID</th><th>Actor</th><th>Acción</th><th>Entidad</th><th>Entidad ID</th><th>Detalles</th><th>IP hash</th><th>Fecha</th></tr>
+            </thead>
+            <tbody id="tbody-logs">
+              <tr><td colspan="8"><div class="loading"><span class="spinner"></span> Cargando...</div></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="paginacion">
+          <button class="btn btn-ghost" id="btn-logs-prev" onclick="paginaLogs('prev')" disabled>← Anterior</button>
+          <span id="pag-logs-info"></span>
+          <button class="btn btn-ghost" id="btn-logs-next" onclick="paginaLogs('next')" disabled>Siguiente →</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// =============================================================================
+// CONFIG
+// =============================================================================
+const ADMIN_PASSWORD = 'demo2026'; // Contraseña local de demo (cambiar en producción)
+const API_BASE = ''; // URL base de la API real; vacío = solo modo demo
+const MODO_DEMO = true; // true = datos simulados, no llama a la API real
+
+// =============================================================================
+// DATOS DE DEMO
+// =============================================================================
+const DEMO = {
+  metricas: {
+    periodo_actual: '2026-06',
+    usuarios_activos: 12840,
+    consentimientos_activos: 12810,
+    revocaciones_mes: 31,
+    reportes_entregados_mes: 36,
+    ingresos_centimos_mes: 1796400,
+    pool_usuarios_centimos_mes: 538920,
+    contribuciones_totales: 482310,
+    contribuciones_huerfanas: 3,
+    alerta_contribuciones_huerfanas: true
+  },
+  consentimientosResumen: {
+    total_activos: 12810,
+    total_revocados: 198,
+    por_proposito: [
+      { proposito: 'venta_datos_agregados', activos: 12810, revocados: 198 },
+      { proposito: 'uso_del_servicio', activos: 12840, revocados: 12 }
+    ]
+  },
+  contribucionesHuerfanas: {
+    nota: 'Estas contribuciones NO tienen consentimiento activo.',
+    total_huerfanas: 3,
+    items: [
+      { id: 'c001', usuario_id: 'usr-aaa', consentimiento_id: 'con-xxx', categoria: 'compras_online', banda_edad: '25-34', region: 'Madrid', recogido_en: '2026-06-10T09:12:00Z' },
+      { id: 'c002', usuario_id: 'usr-bbb', consentimiento_id: 'con-yyy', categoria: 'preferencia_ocio', banda_edad: '35-44', region: 'Cataluña', recogido_en: '2026-06-11T14:33:00Z' },
+      { id: 'c003', usuario_id: 'usr-ccc', consentimiento_id: 'con-zzz', categoria: 'rango_gasto_mensual', banda_edad: '45-54', region: 'Andalucía', recogido_en: '2026-06-12T18:00:00Z' }
+    ]
+  },
+  reportesBloqueados: {
+    nota: 'Transacciones cuyos reportes no se entregaron (k < 50)',
+    items: [
+      { transaccion_id: 'tx-001', agencia_id: 'ag-aaa', reporte_id: 'rpt-001', importe_centimos: 49900, estado_transaccion: 'reembolsada', creado_en: '2026-06-05T10:00:00Z' }
+    ]
+  },
+  agencias: {
+    items: [
+      { id: 'ag-aaa', razon_social: 'DataInsights S.L.', cif: 'B12345678', pais: 'ES', kyc_estado: 'verificada', contrato_firmado_en: '2026-05-01T09:00:00Z', creado_en: '2026-04-15T08:00:00Z' },
+      { id: 'ag-bbb', razon_social: 'MktData Corp', cif: 'B98765432', pais: 'ES', kyc_estado: 'pendiente', contrato_firmado_en: null, creado_en: '2026-06-18T11:22:00Z' },
+      { id: 'ag-ccc', razon_social: 'Analítica Norte S.A.', cif: 'A11223344', pais: 'ES', kyc_estado: 'rechazada', contrato_firmado_en: null, creado_en: '2026-06-01T15:00:00Z' }
+    ]
+  },
+  derechos: {
+    pendientes_urgentes: 2,
+    plazo_legal_dias: 30,
+    items: [
+      { id: 1200, actor: 'usuario:usr-ddd', accion: 'derecho.supresion', entidad: 'usuarios', entidad_id: 'usr-ddd', creado_en: '2026-06-15T09:00:00Z', detalles: { estado: 'pendiente', articulo: '17' } },
+      { id: 1201, actor: 'usuario:usr-eee', accion: 'derecho.portabilidad', entidad: 'usuarios', entidad_id: 'usr-eee', creado_en: '2026-06-17T14:30:00Z', detalles: { estado: 'pendiente', articulo: '20' } },
+      { id: 1199, actor: 'usuario:usr-fff', accion: 'derecho.acceso', entidad: 'usuarios', entidad_id: 'usr-fff', creado_en: '2026-06-10T10:00:00Z', detalles: { estado: 'resuelta', articulo: '15' } }
+    ]
+  },
+  logs: {
+    items: [
+      { id: 1201, actor: 'admin:4f2a...', accion: 'agencia.kyc', entidad: 'agencias', entidad_id: 'ag-aaa', detalles: { kyc_estado: 'verificada' }, ip_hash: '9f86...', creado_en: '2026-06-19T08:00:00Z' },
+      { id: 1200, actor: 'sistema', accion: 'reporte.generado', entidad: 'reportes', entidad_id: 'rpt-002', detalles: { k_aplicado: 50, n_usuarios: 1840 }, ip_hash: null, creado_en: '2026-06-18T12:00:00Z' },
+      { id: 1199, actor: 'sistema', accion: 'carga.validacion', entidad: 'contribuciones', entidad_id: null, detalles: { total_enviados: 10, aprobados: 8, rechazados: 2 }, ip_hash: '7c31...', creado_en: '2026-06-18T10:00:00Z' },
+      { id: 1198, actor: 'usuario:usr-ddd', accion: 'derecho.supresion', entidad: 'usuarios', entidad_id: 'usr-ddd', detalles: { estado: 'pendiente', articulo: '17' }, ip_hash: 'a3bc...', creado_en: '2026-06-15T09:00:00Z' },
+      { id: 1197, actor: 'sistema', accion: 'consent.revocado', entidad: 'consentimientos', entidad_id: 'con-zzz', detalles: {}, ip_hash: null, creado_en: '2026-06-14T16:00:00Z' }
+    ],
+    siguiente_cursor: null
+  },
+  repartoEjemplo: {
+    periodo: '2026-05',
+    pool_total_centimos: 538920,
+    usuarios_con_reparto: 9120,
+    importe_por_usuario_centimos: 59,
+    creados: 9120,
+    ya_existentes: 0,
+    dry_run: true,
+    items: [
+      { usuario_id: 'usr-aaa', importe_centimos: 59, peso_contribucion: 0.0001, estado: 'pendiente', stripe_transfer_id: null },
+      { usuario_id: 'usr-bbb', importe_centimos: 59, peso_contribucion: 0.0001, estado: 'pagado', stripe_transfer_id: 'tr_stripe_001' }
+    ]
+  }
+};
+
+// =============================================================================
+// ESTADO
+// =============================================================================
+let paginaActual = 'dashboard';
+let logsCursor = null;
+let logsCursorStack = [];
+let offsetHuerfanas = 0;
+const LIMIT_HUERFANAS = 50;
+
+// =============================================================================
+// LOGIN
+// =============================================================================
+function intentarLogin() {
+  const pass = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  if (pass === ADMIN_PASSWORD) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').removeAttribute('aria-hidden');
+    inicializarApp();
+  } else {
+    errEl.style.display = 'block';
+    errEl.textContent = 'Contraseña incorrecta. Acceso denegado.';
+    document.getElementById('login-pass').value = '';
+    document.getElementById('login-pass').focus();
+  }
+}
+
+document.getElementById('login-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') intentarLogin();
+});
+
+function cerrarSesion() {
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app').setAttribute('aria-hidden', 'true');
+  document.getElementById('login-pass').value = '';
+}
+
+// =============================================================================
+// NAV
+// =============================================================================
+function navegar(pagina) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => {
+    b.classList.remove('active');
+    b.removeAttribute('aria-current');
+  });
+  document.getElementById('page-' + pagina).classList.add('active');
+  const navBtn = document.getElementById('nav-' + pagina);
+  if (navBtn) { navBtn.classList.add('active'); navBtn.setAttribute('aria-current', 'page'); }
+  paginaActual = pagina;
+  // Cargar datos de la sección
+  const loaders = {
+    dashboard: cargarDashboard,
+    consentimientos: cargarConsentimientos,
+    contribuciones: cargarContribuciones,
+    reportes: cargarReportes,
+    derechos: cargarDerechos,
+    agencias: cargarAgencias,
+    logs: cargarLogs,
+    legal: cargarChecklist
+  };
+  if (loaders[pagina]) loaders[pagina]();
+}
+
+// =============================================================================
+// API helper (demo o real)
+// =============================================================================
+async function apiGet(ruta) {
+  if (MODO_DEMO) return demoGet(ruta);
+  const res = await fetch(API_BASE + ruta, {
+    headers: { 'Authorization': 'Bearer ' + ADMIN_PASSWORD }
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+async function apiPost(ruta, body) {
+  if (MODO_DEMO) return demoPost(ruta, body);
+  const res = await fetch(API_BASE + ruta, {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + ADMIN_PASSWORD, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+function demoGet(ruta) {
+  if (ruta.includes('/metricas')) return Promise.resolve(DEMO.metricas);
+  if (ruta.includes('/consentimientos/resumen')) return Promise.resolve(DEMO.consentimientosResumen);
+  if (ruta.includes('/contribuciones/huerfanas')) return Promise.resolve(DEMO.contribucionesHuerfanas);
+  if (ruta.includes('/reportes/bloqueados')) return Promise.resolve(DEMO.reportesBloqueados);
+  if (ruta.includes('/agencias')) return Promise.resolve(DEMO.agencias);
+  if (ruta.includes('/derechos/solicitudes')) return Promise.resolve(DEMO.derechos);
+  if (ruta.includes('/auditoria')) return Promise.resolve(DEMO.logs);
+  if (ruta.includes('/reparto/')) return Promise.resolve(DEMO.repartoEjemplo);
+  return Promise.resolve({});
+}
+
+function demoPost(ruta, body) {
+  if (ruta.includes('/carga/validar')) {
+    return Promise.resolve(simularValidacionCarga(body.items || []));
+  }
+  if (ruta.includes('/reparto/') && ruta.includes('/ejecutar')) {
+    return Promise.resolve({ ...DEMO.repartoEjemplo, dry_run: body.dry_run === true, periodo: body.periodo || '2026-05' });
+  }
+  if (ruta.includes('/kyc')) {
+    return Promise.resolve({ id: 'ag-bbb', kyc_estado: body.kyc_estado, contrato_firmado_en: body.contrato_firmado_en || null });
+  }
+  if (ruta.includes('/resolver')) {
+    return Promise.resolve({ resolucion: body.resolucion, resuelto_en: new Date().toISOString() });
+  }
+  return Promise.resolve({ ok: true });
+}
+
+function simularValidacionCarga(items) {
+  // Simula: los que tienen consentimiento_id que empiece por 'con-valid' → aprobados
+  const resultados = items.map((item, i) => {
+    const tieneConsent = item.consentimiento_id && item.consentimiento_id.startsWith('con-valid');
+    const tieneIds = item.usuario_id && item.consentimiento_id;
+    if (!tieneIds) return { indice: i, usuario_id: item.usuario_id || null, estado: 'RECHAZADO', motivo: 'Faltan usuario_id o consentimiento_id.' };
+    if (!tieneConsent) return { indice: i, usuario_id: item.usuario_id, consentimiento_id: item.consentimiento_id, estado: 'RECHAZADO', motivo: 'No existe consentimiento ACTIVO para este usuario. Dato RECHAZADO. No se importará ni procesará.' };
+    return { indice: i, usuario_id: item.usuario_id, consentimiento_id: item.consentimiento_id, estado: 'APROBADO', consentimiento: { proposito: 'venta_datos_agregados', politica_version: '2026-06-01', otorgado_en: '2026-01-10T10:00:00Z' } };
+  });
+  const aprobados = resultados.filter(r => r.estado === 'APROBADO').length;
+  const rechazados = resultados.filter(r => r.estado === 'RECHAZADO').length;
+  return {
+    resumen: { total_enviados: items.length, aprobados, rechazados, tasa_rechazo_pct: items.length > 0 ? Math.round(rechazados / items.length * 100) : 0 },
+    advertencia_rechazados: rechazados > 0 ? `⚠ ${rechazados} filas RECHAZADAS por ausencia de consentimiento activo verificable. No se importarán ni procesarán bajo ningún concepto.` : null,
+    declaracion_cumplimiento: 'NINGÚN dato sin consentimiento activo puede ser importado, procesado o vendido.',
+    items: resultados
+  };
+}
+
+// =============================================================================
+// INICIALIZACIÓN
+// =============================================================================
+function inicializarApp() {
+  // Periodo por defecto para reparto
+  const hoy = new Date();
+  const periodoAnt = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+  const ym = periodoAnt.toISOString().slice(0, 7);
+  document.getElementById('reparto-periodo').value = ym;
+  cargarDashboard();
+  cargarChecklist();
+}
+
+// =============================================================================
+// DASHBOARD
+// =============================================================================
+async function cargarDashboard() {
+  try {
+    const m = await apiGet('/v1/admin/metricas');
+    document.getElementById('m-usuarios').textContent = fmt(m.usuarios_activos);
+    document.getElementById('m-consent-activos').textContent = fmt(m.consentimientos_activos);
+    document.getElementById('m-revocaciones').textContent = fmt(m.revocaciones_mes);
+    document.getElementById('m-huerfanas').textContent = fmt(m.contribuciones_huerfanas);
+    document.getElementById('m-reportes').textContent = fmt(m.reportes_entregados_mes);
+    document.getElementById('m-ingresos').textContent = fmtCentimos(m.ingresos_centimos_mes);
+    document.getElementById('m-pool').textContent = fmtCentimos(m.pool_usuarios_centimos_mes);
+
+    // Badge de huérfanas en sidebar
+    const badge = document.getElementById('badge-huerfanas');
+    if (m.contribuciones_huerfanas > 0) { badge.hidden = false; badge.textContent = m.contribuciones_huerfanas; }
+    else badge.hidden = true;
+
+    // Alertas
+    const alertas = [];
+    if (m.alerta_contribuciones_huerfanas || m.contribuciones_huerfanas > 0) {
+      alertas.push({ tipo: 'danger', icono: '🚫', titulo: `${m.contribuciones_huerfanas} contribuciones sin consentimiento activo`, desc: 'Deben ser rechazadas. Revisa la sección "Contribuciones".' });
+    }
+    if (m.revocaciones_mes > 50) {
+      alertas.push({ tipo: 'warn', icono: '⚠', titulo: `Alta tasa de revocaciones este mes (${m.revocaciones_mes})`, desc: 'Revisar si hay problemas con el flujo de consentimiento.' });
+    }
+    if (alertas.length === 0) {
+      alertas.push({ tipo: 'ok', icono: '✅', titulo: 'Sin alertas críticas de cumplimiento', desc: 'Todos los indicadores dentro de los parámetros normales.' });
+    }
+    renderAlertas(alertas);
+  } catch (e) {
+    renderAlertas([{ tipo: 'danger', icono: '⚠', titulo: 'Error al cargar métricas', desc: String(e) }]);
+  }
+}
+
+function renderAlertas(alertas) {
+  document.getElementById('alerts-container').innerHTML = alertas.map(a =>
+    `<div class="alert ${a.tipo}" role="alert">
+      <span class="alert-icon" aria-hidden="true">${a.icono}</span>
+      <div><strong>${esc(a.titulo)}</strong><p>${esc(a.desc)}</p></div>
+    </div>`
+  ).join('');
+}
+
+// =============================================================================
+// CHECKLIST LEGAL
+// =============================================================================
+const CHECKLIST_DATA = [
+  { bloque: 'BLOQUE 1 — Base jurídica y consentimiento (RGPD art. 6, 7)', items: [
+    { id: '1.1', texto: 'Base jurídica: consentimiento explícito (art. 6.1.a), separado por finalidad. Rechazar la venta no impide el servicio.', estado: 'pendiente' },
+    { id: '1.2', texto: 'Consentimiento libre, específico, informado, inequívoco y separado. Sin casillas pre-marcadas ni bundling.', estado: 'pendiente' },
+    { id: '1.3', texto: 'Doble opt-in para consentimiento de venta: prueba fehaciente de timestamp, IP, versión de texto.', estado: 'pendiente' },
+    { id: '1.4', texto: 'Retirar consentimiento tan fácil como darlo (art. 7.3). Botón prominente, sin penalizaciones.', estado: 'pendiente' },
+    { id: '1.5', texto: 'Registro de consentimientos con timestamp, versión de texto, canal e IP anonimizada.', estado: 'ok' },
+    { id: '1.6', texto: 'Cambio de texto de consentimiento → nuevo consentimiento activo de usuarios existentes.', estado: 'pendiente' }
+  ]},
+  { bloque: 'BLOQUE 2 — Anonimización y k-anonimato', items: [
+    { id: '2.1', texto: 'Reportes vendidos son estrictamente anónimos (C.26 RGPD). Anonimización irreversible documentada.', estado: 'ok' },
+    { id: '2.2', texto: 'k-anonimato k ≥ 50 garantizado por CHECK de esquema y motor k-anonimato.mjs.', estado: 'ok' },
+    { id: '2.3', texto: 'Verificación adicional contra l-diversity o t-closeness para atributos sensibles. ⚠ Pendiente.', estado: 'pendiente' },
+    { id: '2.4', texto: 'Agencias reciben solo el agregado final. Sin acceso a microdatos ni seudónimos.', estado: 'ok' },
+    { id: '2.5', texto: 'Contrato con agencias incluye prohibición expresa de reidentificación y auditoría de uso.', estado: 'pendiente' },
+    { id: '2.6', texto: 'Técnicas de anonimización documentadas en el RAT (generalización, supresión).', estado: 'pendiente' }
+  ]},
+  { bloque: 'BLOQUE 3 — Registro de Actividades de Tratamiento (RAT, art. 30)', items: [
+    { id: '3.1', texto: 'RAT interno con: responsable, finalidades, categorías, destinatarios, transferencias, plazos, seguridad.', estado: 'pendiente' },
+    { id: '3.2', texto: 'RAT diferencia tres actividades: gestión usuarios/servicio, reportes anónimos, pagos/contabilidad.', estado: 'pendiente' },
+    { id: '3.3', texto: 'RAT actualizado cuando cambia el tratamiento.', estado: 'pendiente' }
+  ]},
+  { bloque: 'BLOQUE 4 — DPO / DPD (art. 37 RGPD, art. 34 LOPDGDD)', items: [
+    { id: '4.1', texto: 'Analizar obligatoriedad de DPD (gran escala). Si miles de usuarios y es el núcleo del negocio → probable obligación.', estado: 'pendiente' },
+    { id: '4.2', texto: 'Si se designa DPD: notificar a la AEPD (sede.agpd.gob.es, art. 37.7).', estado: 'pendiente' },
+    { id: '4.3', texto: 'DPD independiente, con acceso a dirección, sin instrucciones sobre sus funciones, con recursos.', estado: 'pendiente' },
+    { id: '4.4', texto: 'Si no se designa DPD: decisión razonada documentada en el RAT.', estado: 'pendiente' }
+  ]},
+  { bloque: 'BLOQUE 5 — DPIA y consulta previa (art. 35, 36)', items: [
+    { id: '5.1', texto: 'Evaluación de Impacto (DPIA) antes de iniciar tratamiento. Muy probablemente obligatoria.', estado: 'pendiente' },
+    { id: '5.2', texto: 'DPIA incluye: descripción, finalidades, necesidad/proporcionalidad, riesgos, medidas de mitigación.', estado: 'pendiente' },
+    { id: '5.3', texto: 'Si riesgos residuales altos: consulta previa a la AEPD (art. 36) antes de procesar.', estado: 'pendiente' },
+    { id: '5.4', texto: 'DPIA se revisa cuando cambia el tratamiento significativamente.', estado: 'pendiente' }
+  ]},
+  { bloque: 'BLOQUE 6 — Minimización, categorías especiales, seudonimización', items: [
+    { id: '6.1', texto: 'Minimización (art. 5.1.c): solo campos estrictamente necesarios. Schema revisado.', estado: 'ok' },
+    { id: '6.2', texto: 'Categorías especiales (art. 9): ninguna categoría especial en la lista blanca. CHECK es_especial = 0.', estado: 'ok' },
+    { id: '6.3', texto: 'Seudonimización ≠ anonimización: datos internos son seudónimos. Controles de acceso estrictos.', estado: 'ok' },
+    { id: '6.4', texto: 'Datos seudónimos en BD cifrada (AES-256). Claves separadas de los datos.', estado: 'pendiente' }
+  ]},
+  { bloque: 'BLOQUE 7 — Derechos de los interesados (art. 15–22)', items: [
+    { id: '7.1', texto: 'Canal (email + formulario): acceso (15), rectificación (16), supresión (17), limitación (18), portabilidad (20), oposición (21).', estado: 'pendiente' },
+    { id: '7.2', texto: 'Plazo de respuesta: 1 mes (prorrogable 2 meses con notificación). Endpoint GET /v1/yo implementado.', estado: 'ok' },
+    { id: '7.3', texto: 'Derecho de supresión: borra seudónimos. Reportes anónimos ya vendidos se conservan (C.26). Explicado en política.', estado: 'ok' },
+    { id: '7.4', texto: 'Portabilidad: export JSON/CSV via POST /v1/yo/portabilidad. Formato estructurado.', estado: 'ok' },
+    { id: '7.5', texto: 'Deber de información (art. 13): identidad responsable, finalidades, base jurídica, destinatarios, plazos, derechos, AEPD.', estado: 'pendiente' }
+  ]},
+  { bloque: 'BLOQUE 8 — Encargados y transferencias internacionales (art. 28, 46)', items: [
+    { id: '8.1', texto: 'DPA firmado con Cloudflare + SCC para transferencias a EE.UU.', estado: 'pendiente' },
+    { id: '8.2', texto: 'DPA firmado con Stripe + SCC para transferencias a EE.UU.', estado: 'pendiente' },
+    { id: '8.3', texto: 'Todos los encargados registrados en el RAT con base de transferencia.', estado: 'pendiente' },
+    { id: '8.4', texto: 'Agencias NO son encargadas (reciben datos ya anónimos). Contrato mercantil + cláusula anti-reidentificación.', estado: 'pendiente' }
+  ]},
+  { bloque: 'BLOQUE 9 — KYC de agencias y AML (Ley 10/2010)', items: [
+    { id: '9.1', texto: 'Verificar si la plataforma es sujeto obligado AML. Si no lo es, documentarlo.', estado: 'pendiente' },
+    { id: '9.2', texto: 'Stripe aplica su propio KYC/AML sobre pagos. Colaboración ante requerimientos Stripe.', estado: 'ok' },
+    { id: '9.3', texto: 'KYC básico de negocio para agencias: CIF, razón social, contacto, persona responsable.', estado: 'ok' }
+  ]},
+  { bloque: 'BLOQUE 10 — Retención y supresión (art. 5.1.e)', items: [
+    { id: '10.1', texto: 'Logs de auditoría / transacciones: 5 años (política de retención en schema).', estado: 'ok' },
+    { id: '10.2', texto: 'Documentación contable y fiscal: 6 años (Cco art. 30, Ley 58/2003 art. 66).', estado: 'pendiente' },
+    { id: '10.3', texto: 'Datos de perfil: mientras el usuario esté activo + 3-5 años tras baja. Luego suprimir o anonimizar.', estado: 'pendiente' },
+    { id: '10.4', texto: 'Cada categoría de dato tiene su finalidad, plazo y responsable en el RAT.', estado: 'pendiente' }
+  ]},
+  { bloque: 'BLOQUE 11 — Fiscalidad del reparto a usuarios', items: [
+    { id: '11.1', texto: 'Calificación fiscal del 30 % para el usuario (¿rendimiento capital mobiliario o actividad?). Consultar gestor.', estado: 'pendiente' },
+    { id: '11.2', texto: 'Obligación modelo 347 o retención si se superan 300 €/año por usuario. Consultar gestor.', estado: 'pendiente' },
+    { id: '11.3', texto: 'Justificante de cada pago a usuario (importe, fecha, concepto) para acreditar ante Hacienda.', estado: 'pendiente' },
+    { id: '11.4', texto: 'Usuarios informados de su posible obligación de declarar estos ingresos en IRPF.', estado: 'pendiente' }
+  ]},
+  { bloque: 'BLOQUE 12 — LSSI-CE y cookies', items: [
+    { id: '12.1', texto: 'Aviso Legal accesible desde todas las páginas (Ley 34/2002 art. 10): razón social, NIF, domicilio, email.', estado: 'pendiente' },
+    { id: '12.2', texto: 'Política de Privacidad completa (art. 13 RGPD + LOPDGDD).', estado: 'pendiente' },
+    { id: '12.3', texto: 'Si se usan cookies no esenciales: banner antes de cargarlas, rechazo por categoría.', estado: 'pendiente' },
+    { id: '12.4', texto: 'Sin comunicaciones comerciales sin consentimiento previo y expreso (art. 21 LSSI-CE).', estado: 'pendiente' }
+  ]}
+];
+
+function cargarChecklist() {
+  const container = document.getElementById('checklist-container');
+  const totalItems = CHECKLIST_DATA.reduce((s, b) => s + b.items.length, 0);
+  const okItems = CHECKLIST_DATA.reduce((s, b) => s + b.items.filter(i => i.estado === 'ok').length, 0);
+  const pct = Math.round(okItems / totalItems * 100);
+
+  container.innerHTML = `
+    <div class="cards" style="margin-bottom:20px">
+      <div class="card ok"><div class="card-label">Cumplidos</div><div class="card-value">${okItems}</div><div class="card-sub">De ${totalItems} ítems</div></div>
+      <div class="card warn"><div class="card-label">Pendientes</div><div class="card-value">${totalItems - okItems}</div><div class="card-sub">Requieren acción</div></div>
+      <div class="card ${pct >= 70 ? 'ok' : pct >= 40 ? 'warn' : 'danger'}"><div class="card-label">Progreso</div><div class="card-value">${pct}%</div><div class="card-sub">Completado</div></div>
+    </div>
+  ` + CHECKLIST_DATA.map(bloque => {
+    const okB = bloque.items.filter(i => i.estado === 'ok').length;
+    return `
+    <div class="legal-bloque">
+      <div class="legal-bloque-title">
+        <span>${esc(bloque.bloque)}</span>
+        <span class="chip ${okB === bloque.items.length ? 'chip-ok' : okB > 0 ? 'chip-warn' : 'chip-muted'}">${okB}/${bloque.items.length}</span>
+      </div>
+      <div class="legal-items">
+        ${bloque.items.map(item => `
+        <div class="check-item">
+          <span class="check-icon" aria-hidden="true">${item.estado === 'ok' ? '✅' : '⏳'}</span>
+          <div class="check-label">
+            <span>[${esc(item.id)}]</span> ${esc(item.texto)}
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// =============================================================================
+// CONSENTIMIENTOS
+// =============================================================================
+async function cargarConsentimientos() {
+  try {
+    const d = await apiGet('/v1/admin/consentimientos/resumen');
+    document.getElementById('c-activos').textContent = fmt(d.total_activos);
+    document.getElementById('c-revocados').textContent = fmt(d.total_revocados);
+    const tbody = document.getElementById('tbody-consentimientos');
+    if (!d.por_proposito || d.por_proposito.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4"><div class="empty"><p>Sin datos</p></div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = d.por_proposito.map(r =>
+      `<tr>
+        <td><code>${esc(r.proposito)}</code></td>
+        <td><span class="chip chip-ok">${fmt(r.activos)}</span></td>
+        <td><span class="chip chip-danger">${fmt(r.revocados)}</span></td>
+        <td>${fmt((r.activos || 0) + (r.revocados || 0))}</td>
+      </tr>`
+    ).join('');
+  } catch (e) {
+    document.getElementById('tbody-consentimientos').innerHTML = `<tr><td colspan="4"><div class="alert danger">${esc(String(e))}</div></td></tr>`;
+  }
+}
+
+// =============================================================================
+// CONTRIBUCIONES HUÉRFANAS
+// =============================================================================
+async function cargarContribuciones() {
+  try {
+    const d = await apiGet(`/v1/admin/contribuciones/huerfanas?limit=${LIMIT_HUERFANAS}&offset=${offsetHuerfanas}`);
+    const alerta = document.getElementById('alerta-huerfanas');
+    alerta.hidden = (d.total_huerfanas || 0) === 0;
+    const tbody = document.getElementById('tbody-huerfanas');
+    if (!d.items || d.items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="empty-icon" aria-hidden="true">✅</div><p>Sin contribuciones huérfanas.</p></div></td></tr>';
+    } else {
+      tbody.innerHTML = d.items.map(r =>
+        `<tr>
+          <td class="td-mono">${esc(r.id)}</td>
+          <td class="td-mono">${esc(r.usuario_id)}</td>
+          <td class="td-mono">${esc(r.consentimiento_id)}</td>
+          <td><code>${esc(r.categoria || '—')}</code></td>
+          <td>${esc(r.recogido_en ? fmtFecha(r.recogido_en) : '—')}</td>
+          <td><span class="chip chip-danger">RECHAZADO</span></td>
+        </tr>`
+      ).join('');
+    }
+    const info = document.getElementById('pag-huerfanas-info');
+    const total = d.total_huerfanas || 0;
+    info.textContent = `${offsetHuerfanas + 1}–${Math.min(offsetHuerfanas + LIMIT_HUERFANAS, total)} de ${total}`;
+    document.getElementById('btn-huerfanas-prev').disabled = offsetHuerfanas === 0;
+    document.getElementById('btn-huerfanas-next').disabled = offsetHuerfanas + LIMIT_HUERFANAS >= total;
+  } catch (e) {
+    document.getElementById('tbody-huerfanas').innerHTML = `<tr><td colspan="6">${esc(String(e))}</td></tr>`;
+  }
+}
+
+function paginaHuerfanas(dir) {
+  offsetHuerfanas = Math.max(0, offsetHuerfanas + dir * LIMIT_HUERFANAS);
+  cargarContribuciones();
+}
+
+// =============================================================================
+// VALIDAR CARGA
+// =============================================================================
+function cargarEjemploCarga() {
+  document.getElementById('carga-json').value = JSON.stringify([
+    { usuario_id: 'usr-001', consentimiento_id: 'con-valid-001', categoria: 'compras_online' },
+    { usuario_id: 'usr-002', consentimiento_id: 'con-valid-002', categoria: 'preferencia_ocio' },
+    { usuario_id: 'usr-003', consentimiento_id: 'con-sin-consent', categoria: 'compras_online' },
+    { usuario_id: 'usr-004', consentimiento_id: null, categoria: 'rango_gasto_mensual' }
+  ], null, 2);
+}
+
+async function validarCarga() {
+  let items;
+  try {
+    items = JSON.parse(document.getElementById('carga-json').value);
+    if (!Array.isArray(items)) throw new Error('Debe ser un array JSON.');
+  } catch (e) {
+    alert('JSON inválido: ' + e.message);
+    return;
+  }
+  try {
+    const d = await apiPost('/v1/admin/carga/validar', { items });
+    document.getElementById('resultado-carga').hidden = false;
+    document.getElementById('rc-aprobados').textContent = d.resumen.aprobados;
+    document.getElementById('rc-rechazados').textContent = d.resumen.rechazados;
+    document.getElementById('rc-tasa').textContent = d.resumen.tasa_rechazo_pct + '%';
+    const advEl = document.getElementById('rc-advertencia');
+    if (d.advertencia_rechazados) {
+      advEl.hidden = false;
+      document.getElementById('rc-adv-text').textContent = d.advertencia_rechazados;
+    } else {
+      advEl.hidden = true;
+    }
+    const tbody = document.getElementById('tbody-carga');
+    tbody.innerHTML = d.items.map(r =>
+      `<tr class="${r.estado === 'APROBADO' ? 'fila-aprobada' : 'fila-rechazada'}">
+        <td>${r.indice + 1}</td>
+        <td class="td-mono">${esc(r.usuario_id || '—')}</td>
+        <td class="td-mono">${esc(r.consentimiento_id || '—')}</td>
+        <td><span class="chip ${r.estado === 'APROBADO' ? 'chip-ok' : 'chip-danger'}">${esc(r.estado)}</span></td>
+        <td style="font-size:.82rem">${r.estado === 'APROBADO'
+          ? `<span style="color:var(--c-ok)">✓ Consent. activo: ${esc(r.consentimiento?.proposito || '')} v${esc(r.consentimiento?.politica_version || '')}</span>`
+          : `<span style="color:var(--c-danger)">${esc(r.motivo || '')}</span>`
+        }</td>
+      </tr>`
+    ).join('');
+  } catch (e) {
+    alert('Error al validar: ' + e.message);
+  }
+}
+
+// =============================================================================
+// REPORTES BLOQUEADOS
+// =============================================================================
+async function cargarReportes() {
+  try {
+    const d = await apiGet('/v1/admin/reportes/bloqueados');
+    const tbody = document.getElementById('tbody-reportes');
+    if (!d.items || d.items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><div class="empty-icon">✅</div><p>Sin reportes bloqueados.</p></div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = d.items.map(r =>
+      `<tr>
+        <td class="td-mono">${esc(r.transaccion_id)}</td>
+        <td class="td-mono">${esc(r.agencia_id)}</td>
+        <td class="td-mono">${esc(r.reporte_id || '—')}</td>
+        <td>${fmtCentimos(r.importe_centimos)}</td>
+        <td><span class="chip ${r.estado_transaccion === 'reembolsada' ? 'chip-ok' : 'chip-warn'}">${esc(r.estado_transaccion)}</span></td>
+        <td>${esc(fmtFecha(r.creado_en))}</td>
+      </tr>`
+    ).join('');
+  } catch (e) {
+    document.getElementById('tbody-reportes').innerHTML = `<tr><td colspan="6">${esc(String(e))}</td></tr>`;
+  }
+}
+
+// =============================================================================
+// REPARTO
+// =============================================================================
+async function consultarReparto() {
+  const periodo = document.getElementById('reparto-periodo').value;
+  if (!periodo) { alert('Indica el periodo.'); return; }
+  try {
+    const d = await apiGet(`/v1/admin/reparto/${periodo}`);
+    mostrarResultadoReparto(d, false);
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+async function ejecutarReparto(dryRun) {
+  const periodo = document.getElementById('reparto-periodo').value;
+  if (!periodo) { alert('Indica el periodo.'); return; }
+  if (!dryRun && !confirm(`¿Ejecutar reparto real para ${periodo}? Esta acción crea filas en la BD.`)) return;
+  try {
+    const d = await apiPost(`/v1/admin/reparto/${periodo}/ejecutar`, { dry_run: dryRun, periodo });
+    mostrarResultadoReparto(d, dryRun);
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+function mostrarResultadoReparto(d, dryRun) {
+  document.getElementById('resultado-reparto').hidden = false;
+  document.getElementById('cards-reparto').innerHTML = `
+    <div class="card info"><div class="card-label">Periodo</div><div class="card-value" style="font-size:1.3rem">${esc(d.periodo || '—')}</div>${dryRun ? '<div class="card-sub">DRY-RUN (simulación)</div>' : ''}</div>
+    <div class="card info"><div class="card-label">Pool total</div><div class="card-value" style="font-size:1.3rem">${fmtCentimos(d.pool_total_centimos)}</div><div class="card-sub">30% de ingresos</div></div>
+    <div class="card ok"><div class="card-label">Usuarios</div><div class="card-value">${fmt(d.usuarios_con_reparto)}</div><div class="card-sub">Con contribuciones</div></div>
+    <div class="card ok"><div class="card-label">Importe/usuario</div><div class="card-value" style="font-size:1.3rem">${fmtCentimos(d.importe_por_usuario_centimos)}</div></div>
+    <div class="card ok"><div class="card-label">Creados</div><div class="card-value">${fmt(d.creados)}</div></div>
+    <div class="card muted"><div class="card-label">Ya existentes</div><div class="card-value">${fmt(d.ya_existentes)}</div><div class="card-sub">Idempotentes</div></div>
+  `;
+  const items = d.items || [];
+  const tbody = document.getElementById('tbody-reparto');
+  if (items.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty"><p>Sin filas de reparto para este periodo.</p></div></td></tr>';
+  } else {
+    tbody.innerHTML = items.map(r =>
+      `<tr>
+        <td class="td-mono">${esc(r.usuario_id)}</td>
+        <td>${fmtCentimos(r.importe_centimos)}</td>
+        <td>${(r.peso_contribucion * 100).toFixed(4)}%</td>
+        <td><span class="chip ${r.estado === 'pagado' ? 'chip-ok' : r.estado === 'fallido' ? 'chip-danger' : 'chip-warn'}">${esc(r.estado)}</span></td>
+        <td class="td-mono">${esc(r.stripe_transfer_id || '—')}</td>
+      </tr>`
+    ).join('');
+  }
+}
+
+// =============================================================================
+// DERECHOS RGPD
+// =============================================================================
+async function cargarDerechos() {
+  try {
+    const d = await apiGet('/v1/admin/derechos/solicitudes');
+    const badge = document.getElementById('badge-derechos');
+    if (d.pendientes_urgentes > 0) { badge.hidden = false; badge.textContent = d.pendientes_urgentes; }
+    else badge.hidden = true;
+    const alertaEl = document.getElementById('alerta-derechos-pendientes');
+    if (d.pendientes_urgentes > 0) {
+      alertaEl.hidden = false;
+      document.getElementById('txt-derechos-pendientes').textContent = `${d.pendientes_urgentes} solicitud(es) pendiente(s). Plazo legal: ${d.plazo_legal_dias} días.`;
+    } else {
+      alertaEl.hidden = true;
+    }
+    const tbody = document.getElementById('tbody-derechos');
+    if (!d.items || d.items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6"><div class="empty"><p>Sin solicitudes de derechos.</p></div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = d.items.map(r => {
+      const det = typeof r.detalles === 'object' ? r.detalles : {};
+      const estado = det.estado || 'pendiente';
+      return `<tr>
+        <td class="td-mono">${r.id}</td>
+        <td><code>${esc(r.accion.replace('derecho.', ''))}</code>${det.articulo ? ` <span class="chip chip-muted">art. ${esc(det.articulo)}</span>` : ''}</td>
+        <td class="td-mono">${esc(r.actor)}</td>
+        <td>${esc(fmtFecha(r.creado_en))}</td>
+        <td><span class="chip ${estado === 'resuelta' ? 'chip-ok' : 'chip-danger'}">${esc(estado)}</span></td>
+        <td>${estado !== 'resuelta'
+          ? `<button class="btn btn-ok" style="font-size:.78rem;padding:.2em .6em" onclick="resolverDerecho(${r.id})">Marcar resuelta</button>`
+          : '—'
+        }</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    document.getElementById('tbody-derechos').innerHTML = `<tr><td colspan="6">${esc(String(e))}</td></tr>`;
+  }
+}
+
+async function resolverDerecho(id) {
+  const nota = prompt('Nota de resolución (opcional, sin datos personales):') ?? '';
+  try {
+    await apiPost(`/v1/admin/derechos/solicitudes/${id}/resolver`, { resolucion: 'resuelta', nota });
+    cargarDerechos();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+// =============================================================================
+// AGENCIAS
+// =============================================================================
+async function cargarAgencias() {
+  const kyc = document.getElementById('filtro-kyc').value;
+  const ruta = '/v1/admin/agencias' + (kyc ? `?kyc_estado=${encodeURIComponent(kyc)}` : '');
+  try {
+    const d = await apiGet(ruta);
+    const tbody = document.getElementById('tbody-agencias');
+    if (!d.items || d.items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><p>Sin agencias.</p></div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = d.items.map(r =>
+      `<tr>
+        <td><strong>${esc(r.razon_social)}</strong></td>
+        <td class="td-mono">${esc(r.cif)}</td>
+        <td>${esc(r.pais)}</td>
+        <td><span class="chip ${r.kyc_estado === 'verificada' ? 'chip-ok' : r.kyc_estado === 'rechazada' ? 'chip-danger' : 'chip-warn'}">${esc(r.kyc_estado)}</span></td>
+        <td>${r.contrato_firmado_en ? esc(fmtFecha(r.contrato_firmado_en)) : '<span style="color:var(--c-muted)">—</span>'}</td>
+        <td>${esc(fmtFecha(r.creado_en))}</td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap">
+          ${r.kyc_estado !== 'verificada'
+            ? `<button class="btn btn-ok" style="font-size:.78rem;padding:.2em .6em" onclick="verificarKyc('${esc(r.id)}','verificada')">Verificar</button>`
+            : ''}
+          ${r.kyc_estado !== 'rechazada'
+            ? `<button class="btn btn-danger" style="font-size:.78rem;padding:.2em .6em" onclick="verificarKyc('${esc(r.id)}','rechazada')">Rechazar</button>`
+            : ''}
+        </td>
+      </tr>`
+    ).join('');
+  } catch (e) {
+    document.getElementById('tbody-agencias').innerHTML = `<tr><td colspan="7">${esc(String(e))}</td></tr>`;
+  }
+}
+
+async function verificarKyc(agenciaId, estado) {
+  if (!confirm(`¿Marcar agencia como "${estado}"?`)) return;
+  try {
+    await apiPost(`/v1/admin/agencias/${agenciaId}/kyc`, {
+      kyc_estado: estado,
+      contrato_firmado_en: estado === 'verificada' ? new Date().toISOString() : null
+    });
+    cargarAgencias();
+  } catch (e) { alert('Error: ' + e.message); }
+}
+
+// =============================================================================
+// LOGS DE AUDITORÍA
+// =============================================================================
+async function cargarLogs(resetCursor) {
+  if (resetCursor) { logsCursor = null; logsCursorStack = []; }
+  const accion = document.getElementById('log-accion').value;
+  const actor = document.getElementById('log-actor').value;
+  const entidad = document.getElementById('log-entidad').value;
+  const desde = document.getElementById('log-desde').value;
+  const hasta = document.getElementById('log-hasta').value;
+  let ruta = '/v1/admin/auditoria?limit=50';
+  if (accion) ruta += `&accion=${encodeURIComponent(accion)}`;
+  if (actor) ruta += `&actor=${encodeURIComponent(actor)}`;
+  if (entidad) ruta += `&entidad=${encodeURIComponent(entidad)}`;
+  if (desde) ruta += `&desde=${encodeURIComponent(desde.replace('T', ' '))}`;
+  if (hasta) ruta += `&hasta=${encodeURIComponent(hasta.replace('T', ' '))}`;
+  if (logsCursor) ruta += `&cursor=${logsCursor}`;
+  try {
+    const d = await apiGet(ruta);
+    const tbody = document.getElementById('tbody-logs');
+    if (!d.items || d.items.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8"><div class="empty"><p>Sin resultados.</p></div></td></tr>';
+    } else {
+      tbody.innerHTML = d.items.map(r =>
+        `<tr>
+          <td class="td-mono">${r.id}</td>
+          <td class="td-mono">${esc(r.actor)}</td>
+          <td><code>${esc(r.accion)}</code></td>
+          <td>${esc(r.entidad || '—')}</td>
+          <td class="td-mono">${esc(r.entidad_id || '—')}</td>
+          <td style="font-size:.78rem;max-width:220px"><code>${esc(JSON.stringify(r.detalles || {}))}</code></td>
+          <td class="td-mono">${esc((r.ip_hash || '—').slice(0, 10))}…</td>
+          <td style="white-space:nowrap">${esc(fmtFecha(r.creado_en))}</td>
+        </tr>`
+      ).join('');
+    }
+    document.getElementById('btn-logs-next').disabled = !d.siguiente_cursor;
+    document.getElementById('btn-logs-prev').disabled = logsCursorStack.length === 0;
+    document.getElementById('pag-logs-info').textContent = d.items?.length ? `${d.items.length} entradas` : '';
+    window._logsSigCursor = d.siguiente_cursor;
+  } catch (e) {
+    document.getElementById('tbody-logs').innerHTML = `<tr><td colspan="8">${esc(String(e))}</td></tr>`;
+  }
+}
+
+function paginaLogs(dir) {
+  if (dir === 'next' && window._logsSigCursor) {
+    logsCursorStack.push(logsCursor);
+    logsCursor = window._logsSigCursor;
+  } else if (dir === 'prev' && logsCursorStack.length > 0) {
+    logsCursor = logsCursorStack.pop();
+  }
+  cargarLogs(false);
+}
+
+// Recarga logs al cambiar filtros con debounce
+let _logDebounce;
+['log-accion','log-actor','log-entidad','log-desde','log-hasta'].forEach(id => {
+  document.getElementById(id).addEventListener('input', () => {
+    clearTimeout(_logDebounce);
+    _logDebounce = setTimeout(() => cargarLogs(true), 400);
+  });
+});
+
+// =============================================================================
+// UTILIDADES
+// =============================================================================
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function fmt(n) { return n == null ? '—' : Number(n).toLocaleString('es-ES'); }
+function fmtCentimos(c) {
+  if (c == null) return '—';
+  return (c / 100).toLocaleString('es-ES', { style: 'currency', currency: 'EUR' });
+}
+function fmtFecha(s) {
+  if (!s) return '—';
+  try { return new Date(s).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' }); }
+  catch { return s; }
+}
+</script>
+</body>
+</html>
