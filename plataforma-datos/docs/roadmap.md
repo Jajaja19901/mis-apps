@@ -19,22 +19,22 @@ Responsable: dirección + abogado/DPO. **No se trata ni un dato real hasta cerra
 - [x] Contrato de API (`api-contrato.md`) y arquitectura (`arquitectura.md`).
 **Criterio:** tests del motor en verde. ✅
 
-## Fase 2 — Ingesta consent-first ⏳ PENDIENTE (backend)
-- [ ] Worker de **contribuciones** (`/v1/contribuciones`): valida consentimiento ACTIVO antes de aceptar.
-- [ ] Worker de **consentimiento** (`/v1/consentimientos`, alta + revocar) con doble opt-in.
-- [ ] **Derechos** del usuario (`/v1/yo`, acceso/portabilidad/supresión).
-- [ ] Integración con la app de consumo (proyecto 1) para el opt-in de venta.
-**Criterio:** un usuario puede aceptar, contribuir, ver y revocar; nada entra sin consentimiento.
+## Fase 2 — Ingesta consent-first ✅ HECHO (`worker-ingesta.mjs`, 13/13)
+- [x] Worker de **contribuciones** (`/v1/contribuciones`): valida consentimiento ACTIVO (código + trigger de BD) y rechaza PII directa.
+- [x] Worker de **consentimiento** (`/v1/consentimientos`, alta + revocar art. 7.3) con doble opt-in (simulado).
+- [x] **Derechos** del usuario (`/v1/yo`: acceso art. 15, portabilidad art. 20, supresión art. 17 en cascada).
+- [ ] Integración con la app de consumo (proyecto 1) para el opt-in de venta. *(depende de esa app)*
+**Criterio:** un usuario puede aceptar, contribuir, ver y revocar; nada entra sin consentimiento. ✅
 
 ## Fase 3 — Catálogo y captación de agencias ✅/⏳
 - [x] Landing B2B (`web/landing.html`) y dashboard de agencia (`web/dashboard-agencia.html`).
 - [ ] Backend de **alta de agencia** (`/v1/agencias`) + flujo de KYC.
 **Criterio:** una agencia se registra, pasa KYC y firma contrato antes de poder comprar.
 
-## Fase 4 — Reportes ✅/⏳
-- [x] Motor de reportes Worker (`/v1/segmentos`, `/v1/segmentos/preview`, `/v1/reportes`) con doble barrera k≥50, auditoría, R2. **9/9 tests.**
-- [ ] **Reconciliar compra asíncrona** (contrato F.1: iniciar compra → Stripe → materializar tras webhook) con la generación actual (síncrona). *(Decisión de integración pendiente.)*
-**Criterio:** una agencia compra → paga → recibe el agregado; nunca <50 ni datos individuales.
+## Fase 4 — Reportes ✅ HECHO
+- [x] Motor de reportes Worker (`/v1/segmentos`, `/v1/segmentos/preview`, `/v1/reportes`) con doble barrera k≥50, auditoría, R2. **11/11 tests.**
+- [x] **Compra asíncrona** (contrato F.1/F.2/F.3): `POST /v1/reportes` crea `pendiente_pago`; el webhook de pago dispara `materializarReporte`; `GET /v1/reportes/{id}` entrega el agregado tras pagar.
+**Criterio:** una agencia compra → paga → recibe el agregado; nunca <50 ni datos individuales. ✅
 
 ## Fase 5 — Pagos y reparto ✅/⏳
 - [x] Cobro Stripe + webhook (firma, anti-replay, idempotencia, verifica importe). 
@@ -47,10 +47,12 @@ Responsable: dirección + abogado/DPO. **No se trata ni un dato real hasta cerra
 - [ ] Configurar `ADMIN_TOKEN` (secreto) y allowlist de IP.
 **Criterio:** el panel hace cumplir (no eludir); todo acceso queda auditado.
 
-## Fase 7 — Endurecimiento y QA final ⏳ PENDIENTE
-- [ ] Sustituir el Bearer = `agencia_id` por **tokens opacos / JWT firmado** (ALTO de seguridad).
-- [ ] Preview: **binning / privacidad diferencial** del recuento (además del rate-limit ya puesto).
-- [ ] Afinar CSP, cabeceras y CORS; pen-test; backoff del reparto fuera del Worker (cola/cron robusto).
-- [ ] QA E2E en navegador (incl. `tools/verificar-app.mjs` sobre las webs en modo demo).
+## Fase 7 — Endurecimiento y QA final ⏳ EN CURSO
+- [x] Sustituido el Bearer = `agencia_id` por **tokens opacos** (`api_tokens`, hash SHA-256). *(JWT firmado, opcional como mejora.)*
+- [x] Preview: **binning** del recuento (`n_usuarios_min`, múltiplos de 50) + rate-limit por agencia.
+- [x] CSP en las webs; CORS `'null'` eliminado; saneado anti-XSS; cabeceras `no-store`/`nosniff`.
+- [ ] **Privacidad diferencial** (presupuesto ε) además del binning; pen-test externo.
+- [ ] Backoff del reparto fuera del Worker (cola/cron robusto, no `waitUntil`).
+- [ ] QA E2E en navegador (`tools/verificar-app.mjs` sobre las webs en modo demo).
 - [ ] Revisión legal final y despliegue.
 **Criterio:** pen-test sin críticos + dictamen legal + checklist de cumplimiento al 100%.

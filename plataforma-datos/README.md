@@ -22,10 +22,11 @@ plataforma-datos/
 ├─ db/schema.sql            Esquema D1 (consentimiento, k≥50 por CHECK, auditoría)
 ├─ src/
 │  ├─ k-anonimato.mjs       Motor de agregación k≥50 (+ tests)
-│  ├─ worker-reportes.mjs   API de catálogo/preview/reportes (+ tests)
-│  ├─ worker-pagos.mjs      Cobro Stripe + webhook
+│  ├─ worker-reportes.mjs   API segmentos/preview/compra asíncrona, tokens (+ tests)
+│  ├─ worker-pagos.mjs      Cobro Stripe + webhook (materializa el reporte al pagar)
 │  ├─ reparto-mensual.mjs   Reparto 30/70 mensual, mayor resto (+ tests)
-│  └─ worker-admin.mjs      API de cumplimiento (validación, auditoría, KYC)
+│  ├─ worker-admin.mjs      API de cumplimiento (validación, auditoría, KYC)
+│  └─ worker-ingesta.mjs    Consentimiento/contribuciones/derechos RGPD (+ tests)
 ├─ web/
 │  ├─ landing.html          Captación de agencias
 │  ├─ dashboard-agencia.html Compra de reportes (modo demo incluido)
@@ -40,22 +41,25 @@ Lógica crítica cubierta por **tests sin red** (corren con Node, sin dependenci
 
 ```bash
 node plataforma-datos/src/k-anonimato.test.mjs        # 7/7
-node plataforma-datos/src/worker-reportes.test.mjs    # 9/9
+node plataforma-datos/src/worker-reportes.test.mjs    # 11/11
 node plataforma-datos/src/reparto-mensual.test.mjs    # 20/20
+node plataforma-datos/src/worker-ingesta.test.mjs     # 13/13
 ```
+**Total: 51 pruebas en verde** (sin red, sin dependencias).
 
 | Pieza | Estado |
 |---|---|
 | Esquema D1 + garantías a nivel BD | ✅ |
 | Motor k-anonimato (k≥50, supresión robusta) | ✅ 7/7 |
-| Motor de reportes (catálogo/preview/reportes) | ✅ 9/9 |
+| Motor de reportes (segmentos/preview/compra asíncrona) | ✅ 11/11 |
 | Pagos Stripe + reparto 30/70 mensual | ✅ 20/20 |
+| Ingesta consent-first (consentimiento/contribuciones/derechos) | ✅ 13/13 |
 | Panel admin de cumplimiento | ✅ |
 | Landing + dashboard de agencia | ✅ |
 | Auditoría de seguridad + correcciones críticas | ✅ |
-| Ingesta consent-first (contribuciones/derechos) | ⏳ Fase 2 |
-| Compra asíncrona Stripe ↔ reporte | ⏳ Fase 4 |
-| Tokens de agencia (no usar `agencia_id`), binning preview | ⏳ Fase 7 |
+| Compra asíncrona Stripe ↔ reporte (pago → materializar) | ✅ |
+| Tokens opacos de agencia + binning del preview | ✅ |
+| QA en navegador, pen-test y despliegue | ⏳ Fase 7 |
 | Legal: DPIA, DPO, DPAs, revisión abogado | ⏳ Fase 0 |
 
 ## Cómo se despliega (resumen)
