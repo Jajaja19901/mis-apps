@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'">
   <meta name="description" content="Dashboard de agencia — Plataforma de datos consent-first" />
   <title>Dashboard Agencia — Plataforma de Datos</title>
   <style>
@@ -334,6 +335,7 @@
       border-top-color: #fff;
       border-radius: 50%;
       animation: spin 0.6s linear infinite;
+      will-change: transform;
     }
     .spinner.dark {
       border-color: rgba(37,99,235,.2);
@@ -1552,7 +1554,9 @@ function mostrarResultadoReporte(data) {
   } else if (data.estado === 'entregado' && data.resultado) {
     const celdas = data.resultado.celdas || [];
     const suprimidas = data.resultado.celdas_suprimidas || 0;
-    const nTotal = data.n_usuarios || celdas.reduce((s,c) => s + c.n_usuarios, 0);
+    const nTotal = Number.isFinite(Number(data.n_usuarios)) && Number(data.n_usuarios) > 0
+      ? Number(data.n_usuarios)
+      : celdas.reduce((s, c) => s + (Number.isFinite(Number(c.n_usuarios)) ? Number(c.n_usuarios) : 0), 0);
     const def = data.definicion_segmento || {};
     const filtros = def.filtros || {};
     const dims = def.dimensiones || [];
@@ -1564,19 +1568,23 @@ function mostrarResultadoReporte(data) {
 
     const cabecerasCols = colsDim.map(d => `<th scope="col">${esc(d)}</th>`).join('');
     const filas = celdas.map(celda => {
-      const pct = nTotal > 0 ? ((celda.n_usuarios / nTotal) * 100).toFixed(1) : 0;
+      const nUsuarios = Number.isFinite(Number(celda.n_usuarios)) ? Number(celda.n_usuarios) : 0;
+      const mediaValor = Number.isFinite(Number(celda.media_valor)) ? Number(celda.media_valor) : null;
+      const pctRaw = nTotal > 0 ? (nUsuarios / nTotal) * 100 : 0;
+      const pctSafe = Math.min(100, Math.max(0, Number.isFinite(pctRaw) ? pctRaw : 0));
+      const pct = pctSafe.toFixed(1);
       const dimCols = colsDim.map(d => `<td>${esc(celda[d] ?? '—')}</td>`).join('');
       return `
         <tr>
           ${dimCols}
-          <td>${celda.n_usuarios.toLocaleString('es-ES')}</td>
+          <td>${nUsuarios.toLocaleString('es-ES')}</td>
           <td>
             <div class="pct-bar-wrap" aria-label="${pct}%">
               <div class="pct-bar"><div class="pct-bar-fill" style="width:${pct}%" role="presentation"></div></div>
               <span class="pct-valor">${pct}%</span>
             </div>
           </td>
-          <td>${celda.media_valor !== undefined ? celda.media_valor.toFixed(2) : '—'}</td>
+          <td>${mediaValor !== null ? mediaValor.toFixed(2) : '—'}</td>
         </tr>
       `;
     }).join('');

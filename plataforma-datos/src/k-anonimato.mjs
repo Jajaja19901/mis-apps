@@ -117,11 +117,15 @@ export function generarReporteAgregado(contribuciones, definicion = {}, opciones
     (registro.n_usuarios >= k ? entregadas : suprimidas).push(registro);
   }
 
-  // 6) Anti divulgación complementaria: si solo se suprimió 1 celda, suprimir
-  //    también la entregable más pequeña (evita despejarla por resta del total).
-  if (suprimidas.length === 1 && entregadas.length > 0) {
+  // 6) Anti divulgación complementaria: el conjunto suprimido debe agregar
+  //    >= k usuarios; de lo contrario se despejaría por resta respecto al total.
+  //    Movemos celdas entregables (de menor a mayor) a suprimidas hasta lograrlo.
+  if (suprimidas.length > 0) {
     entregadas.sort((a, b) => a.n_usuarios - b.n_usuarios);
-    suprimidas.push(entregadas.shift());
+    const usuariosSuprimidos = () => suprimidas.reduce((s, c) => s + c.n_usuarios, 0);
+    while (entregadas.length > 0 && usuariosSuprimidos() < k) {
+      suprimidas.push(entregadas.shift());
+    }
   }
 
   // 7) Salida: SOLO agregados, ordenados, sin ningún identificador

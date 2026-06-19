@@ -65,6 +65,20 @@ prueba('una sola celda suprimida -> se suprime una segunda (anti divulgación co
   assert.equal(r.reporte.celdas.length, 1);
 });
 
+prueba('2+ celdas pequeñas que SUMAN < k fuerzan supresión extra (no despejable por resta)', () => {
+  const r = generarReporteAgregado(hacer([
+    { usuarios: 200, region: 'Madrid', banda_edad: '25-34' },
+    { usuarios: 60,  region: 'Madrid', banda_edad: '35-44' },
+    { usuarios: 30,  region: 'Madrid', banda_edad: '45-54' }, // < 50
+    { usuarios: 15,  region: 'Madrid', banda_edad: '65+'  },  // < 50  (30+15 = 45 < 50)
+  ]), { filtros: { region: 'Madrid' }, dimensiones: ['banda_edad'] });
+  // Lo suprimido suma 45 (<50): se suprime además la entregable más pequeña (60)
+  // hasta que lo oculto agregue >= 50. Queda entregable solo la celda de 200.
+  assert.equal(r.reporte.celdas.length, 1);
+  assert.equal(r.reporte.celdas[0].banda_edad, '25-34');
+  assert.equal(r.reporte.celdas_suprimidas, 3);
+});
+
 prueba('k no puede bajar de 50 aunque se pida k=5', () => {
   const r = generarReporteAgregado(hacer([{ usuarios: 49, region: 'Madrid' }]), { filtros: { region: 'Madrid' } }, { k: 5 });
   assert.equal(r.entregable, false);
