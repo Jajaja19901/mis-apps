@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>After Party FX - Photo Transformation</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #0f0f1e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #fff;
+        }
+        .container {
+            max-width: 800px;
+            width: 100%;
+            background: rgba(15, 15, 30, 0.8);
+            border-radius: 16px;
+            border: 1px solid rgba(255, 100, 200, 0.3);
+            padding: 24px;
+            backdrop-filter: blur(10px);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 8px;
+            font-size: 28px;
+            background: linear-gradient(135deg, #ff0080, #ff6ec7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+        .canvas-container {
+            position: relative;
+            margin-bottom: 24px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #000;
+            aspect-ratio: 16/9;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        .timeline-container {
+            margin-bottom: 24px;
+        }
+        .timeline-label {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .timeline-input {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 100, 200, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+        .timeline-input::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff0080, #ff6ec7);
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(255, 0, 128, 0.5);
+        }
+        .timeline-input::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff0080, #ff6ec7);
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 8px rgba(255, 0, 128, 0.5);
+        }
+        .clock {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            color: #00f0ff;
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+            z-index: 10;
+        }
+        .stamp {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-25deg);
+            font-size: 48px;
+            font-weight: bold;
+            color: transparent;
+            text-shadow: 0 0 0 rgba(255, 0, 128, 0.3);
+            letter-spacing: 4px;
+            font-family: Arial, sans-serif;
+            z-index: 5;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        button {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #ff0080, #ff6ec7);
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(255, 0, 128, 0.4);
+        }
+        button.secondary {
+            background: rgba(255, 100, 200, 0.2);
+            border: 1px solid rgba(255, 100, 200, 0.5);
+        }
+        button.secondary:hover {
+            background: rgba(255, 100, 200, 0.3);
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .file-input-label {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #00f0ff, #0fbdff);
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 14px;
+            text-align: center;
+        }
+        .file-input-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 240, 255, 0.4);
+        }
+        .info {
+            font-size: 12px;
+            color: #888;
+            line-height: 1.6;
+        }
+        .info-block {
+            margin-top: 20px;
+            padding: 16px;
+            background: rgba(255, 100, 200, 0.1);
+            border-left: 3px solid rgba(255, 100, 200, 0.5);
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎉 After Party FX</h1>
+        <p class="subtitle">De fresco → Destrozado (en 6 segundos)</p>
+
+        <div class="canvas-container">
+            <canvas id="canvas"></canvas>
+            <div class="clock" id="clock">23:00</div>
+            <div class="stamp" id="stamp">SUPERVIVIENTE</div>
+        </div>
+
+        <div class="timeline-container">
+            <div class="timeline-label">
+                <span>Progreso</span>
+                <span id="progress-percent">0%</span>
+            </div>
+            <input type="range" class="timeline-input" id="timeline" min="0" max="100" value="0">
+        </div>
+
+        <div class="controls">
+            <label class="file-input-label">
+                📸 Subir foto
+                <input type="file" id="fileInput" accept="image/*">
+            </label>
+            <button class="secondary" id="resetBtn">ANTES (Original)</button>
+            <button id="downloadBtn">💾 Guardar</button>
+        </div>
+
+        <div class="info-block">
+            <div class="info">
+                <strong>Cómo usarlo:</strong><br>
+                1. Sube una foto tuya<br>
+                2. Arrastra la barra para ver la transformación (de fresco a destrozado)<br>
+                3. Descarga tu versión "After Party"
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Seeded RNG for procedural effects
+        function mulberry32(a) {
+            return function() {
+                a |= 0; a = a + 0x6d2b79f5 | 0;
+                let t = Math.imul(a ^ a >>> 15, 1 | a);
+                t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+                return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            }
+        }
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const fileInput = document.getElementById('fileInput');
+        const timeline = document.getElementById('timeline');
+        const clockEl = document.getElementById('clock');
+        const stampEl = document.getElementById('stamp');
+        const resetBtn = document.getElementById('resetBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const progressPercent = document.getElementById('progress-percent');
+
+        let originalImage = null;
+        let isPlaying = false;
+        let startTime = null;
+        const duration = 6000; // 6 seconds
+        let animationId = null;
+
+        // Resize canvas
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        // Load image
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        originalImage = img;
+                        updateProgress(0);
+                        isPlaying = false;
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Timeline control
+        timeline.addEventListener('input', (e) => {
+            isPlaying = false;
+            updateProgress(parseInt(e.target.value));
+        });
+
+        // Reset button
+        resetBtn.addEventListener('click', () => {
+            isPlaying = false;
+            timeline.value = 0;
+            updateProgress(0);
+        });
+
+        // Download button
+        downloadBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL('image/png');
+            link.download = `after-party-${Date.now()}.png`;
+            link.click();
+        });
+
+        function updateProgress(progress) {
+            if (!originalImage) {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#888';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Sube una foto para empezar', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            const progress01 = progress / 100;
+
+            // Clear canvas
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw image with effects
+            drawImageWithEffects(progress01);
+
+            // Update clock
+            const hours = Math.floor(23 + progress01 * 7);
+            const minutes = Math.floor((progress01 * 60) % 60);
+            clockEl.textContent = `${hours % 24}:${String(minutes).padStart(2, '0')}`;
+
+            // Show stamp at 82% progress
+            if (progress01 >= 0.82) {
+                stampEl.style.opacity = Math.min(1, (progress01 - 0.82) / 0.18);
+            } else {
+                stampEl.style.opacity = 0;
+            }
+
+            // Update progress text
+            progressPercent.textContent = `${progress}%`;
+            timeline.value = progress;
+        }
+
+        function drawImageWithEffects(progress) {
+            // Calculate dimensions
+            const imgRatio = originalImage.width / originalImage.height;
+            const canvasRatio = canvas.width / canvas.height;
+            let drawWidth, drawHeight, x, y;
+
+            if (imgRatio > canvasRatio) {
+                drawHeight = canvas.height;
+                drawWidth = drawHeight * imgRatio;
+                x = (canvas.width - drawWidth) / 2;
+                y = 0;
+            } else {
+                drawWidth = canvas.width;
+                drawHeight = drawWidth / imgRatio;
+                x = 0;
+                y = (canvas.height - drawHeight) / 2;
+            }
+
+            // Save context
+            ctx.save();
+
+            // 1. Apply color grading filter
+            const saturation = 1 - 0.45 * progress;
+            const contrast = 1 + 0.35 * progress;
+            const brightness = 1 - 0.28 * progress;
+            const sepia = 0.35 * progress;
+            const hue = -12 * progress;
+
+            ctx.filter = `saturate(${saturation}) contrast(${contrast}) brightness(${brightness}) sepia(${sepia}) hue-rotate(${hue}deg)`;
+
+            // Draw original image
+            ctx.drawImage(originalImage, x, y, drawWidth, drawHeight);
+
+            ctx.filter = 'none';
+
+            // 2. Add neon leaks with screen blend
+            ctx.globalCompositeOperation = 'screen';
+
+            // Pink neon leak
+            const pinkGrad = ctx.createRadialGradient(canvas.width * 0.2, canvas.height * 0.3, 0, canvas.width * 0.2, canvas.height * 0.3, canvas.width * 0.6);
+            pinkGrad.addColorStop(0, `rgba(255, 0, 128, ${0.3 * progress})`);
+            pinkGrad.addColorStop(1, 'rgba(255, 0, 128, 0)');
+            ctx.fillStyle = pinkGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Cyan neon leak
+            const cyanGrad = ctx.createRadialGradient(canvas.width * 0.8, canvas.height * 0.7, 0, canvas.width * 0.8, canvas.height * 0.7, canvas.width * 0.5);
+            cyanGrad.addColorStop(0, `rgba(0, 240, 255, ${0.2 * progress})`);
+            cyanGrad.addColorStop(1, 'rgba(0, 240, 255, 0)');
+            ctx.fillStyle = cyanGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.globalCompositeOperation = 'source-over';
+
+            // 3. Add procedural stains
+            if (progress > 0.1) {
+                ctx.globalCompositeOperation = 'multiply';
+                const rng = mulberry32(42);
+                for (let i = 0; i < Math.floor(5 * progress); i++) {
+                    const stainProgress = (progress - 0.1) / 0.9;
+                    if (stainProgress > 0) {
+                        const sx = rng() * canvas.width;
+                        const sy = rng() * canvas.height;
+                        const sr = 20 + rng() * 80;
+
+                        ctx.fillStyle = `rgba(${Math.floor(50 + rng() * 100)}, 0, 0, ${0.3 * stainProgress})`;
+                        ctx.beginPath();
+                        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+                ctx.globalCompositeOperation = 'source-over';
+            }
+
+            // 4. Add sweat highlights with screen blend
+            if (progress > 0.3) {
+                ctx.globalCompositeOperation = 'screen';
+                const sweata = (progress - 0.3) / 0.7;
+
+                // Forehead
+                const fgx = x + drawWidth * 0.5;
+                const fgy = y + drawHeight * 0.25;
+                const fg = ctx.createRadialGradient(fgx, fgy, 0, fgx, fgy, 40);
+                fg.addColorStop(0, `rgba(200, 200, 200, ${0.4 * sweata})`);
+                fg.addColorStop(1, 'rgba(200, 200, 200, 0)');
+                ctx.fillStyle = fg;
+                ctx.fillRect(fgx - 50, fgy - 50, 100, 100);
+            }
+
+            // 5. Add grain texture overlay
+            if (progress > 0.2) {
+                ctx.globalCompositeOperation = 'overlay';
+                const grainAlpha = 0.3 * progress;
+                const imageData = ctx.createImageData(canvas.width, canvas.height);
+                const data = imageData.data;
+                const rng2 = mulberry32(123);
+                for (let i = 0; i < data.length; i += 4) {
+                    const grain = (rng2() - 0.5) * 100;
+                    data[i] += grain;
+                    data[i + 1] += grain;
+                    data[i + 2] += grain;
+                    data[i + 3] = 255;
+                }
+                ctx.putImageData(imageData, 0, 0);
+                ctx.globalCompositeOperation = 'source-over';
+            }
+
+            // 6. Add glitch effect
+            if (progress > 0.5) {
+                const glitchAlpha = (progress - 0.5) / 0.5;
+                ctx.globalAlpha = glitchAlpha * 0.2;
+                const offset = Math.sin(progress * Math.PI * 4) * 3;
+                ctx.drawImage(originalImage, x + offset, y, drawWidth, drawHeight);
+                ctx.globalAlpha = 1;
+            }
+
+            // 7. Add vignette
+            ctx.globalCompositeOperation = 'multiply';
+            const vignette = ctx.createRadialGradient(canvas.width / 2, canvas.height / 2, 0, canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height) * 0.7);
+            vignette.addColorStop(0, `rgba(0, 0, 0, ${0 * progress})`);
+            vignette.addColorStop(1, `rgba(0, 0, 0, ${0.4 * progress})`);
+            ctx.fillStyle = vignette;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            ctx.restore();
+        }
+
+        // Auto-play on first load if image exists
+        function playAnimation() {
+            isPlaying = true;
+            startTime = null;
+
+            function animate(timestamp) {
+                if (!startTime) startTime = timestamp;
+                const elapsed = timestamp - startTime;
+                const progress = Math.min(100, (elapsed / duration) * 100);
+
+                updateProgress(progress);
+
+                if (progress < 100 && isPlaying) {
+                    animationId = requestAnimationFrame(animate);
+                } else {
+                    isPlaying = false;
+                }
+            }
+
+            animationId = requestAnimationFrame(animate);
+        }
+
+        // Initial render
+        updateProgress(0);
+    </script>
+</body>
+</html>
