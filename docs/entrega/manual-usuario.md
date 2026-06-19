@@ -435,7 +435,7 @@ Contiene:
 
 ## Versión Imprimible
 
-**[revisar al cierre]** Esta documentación también existe en `manual-usuario.html` con estilos mínimos para imprimir a PDF desde el navegador.
+Esta documentación también existe en `manual-usuario.html` con estilos mínimos para imprimir a PDF desde el navegador.
 
 1. Abre `manual-usuario.html` en navegador
 2. Ctrl+P (imprimir)

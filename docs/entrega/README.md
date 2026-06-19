@@ -199,19 +199,21 @@ MIS-DATOS **cumple íntegramente** con:
 
 ## Pantallas de la App (Mapa de Rutas)
 
-| Ruta | Descripción | Estado [revisar al cierre] |
+| Ruta | Descripción | Estado |
 |---|---|---|
-| `#/` | **Home/Onboarding**. Explica qué es, cuánto puede ganar, invita a registrarse. | Pendiente de UI final |
-| `#/registro` | **Formulario de Registro**. Email, contraseña, verificación de edad (18+), aceptación de política de privacidad. | Pendiente |
-| `#/login` | **Login**. Email + contraseña. Recordar sesión. | Pendiente |
-| `#/consentimiento` | **Panel de Consentimiento Granular**. 5 bloques (demográficos, hábitos de compra, navegación, ubicación, opiniones). Cada uno con toggle + info de ganancia. | Pendiente |
-| `#/perfil` | **Mi Perfil**. Editar email, contraseña, nombre. Ver resumen de datos cedidos. | Pendiente |
-| `#/dashboard` | **Mis Ganancias**. Gráfico de evolución, total acumulado, payout status, botón "Solicitar pago" (simulado). | Pendiente |
-| `#/transparencia` | **Transparencia de Datos**. Historial de cada cesión: fecha, tipo de dato, comprador (anonimizado), dinero ganado. Exportar a CSV. | Pendiente |
-| `#/derechos` | **Tus Derechos GDPR**. Botones para Acceso, Rectificación, Borrado, Portabilidad (todos simulados / a formulario email). | Pendiente |
-| `#/privacidad` | **Política de Privacidad** (scroll largo, completo, con enlaces a AEPD). | Pendiente |
-| `#/legal` | **Aviso Legal + Términos**. Plantilla con placeholders del titular. | Pendiente |
-| `#/admin` | **Panel de Admin** (protegido con contraseña). Ver usuarios, exportar CSV, cambiar config, subir logo. | Pendiente |
+| `#/` | **Home/registro**. Propuesta honesta, "cómo funciona", FAQ y alta ligera (alias, confirmación +18 y casilla de política). | ✅ Funcional |
+| `#/consentimiento` | **Consentimiento granular**. 5 categorías (sociodemográfico, hábitos de compra, navegación, geolocalización, encuestas), toggles OFF por defecto, con finalidad, destinatarios y ganancia estimada. | ✅ Funcional |
+| `#/perfil` | **Mi perfil**. Editar alias/email; ver categorías activas. | ✅ Funcional |
+| `#/dashboard` | **Mis ganancias**. Saldo, desglose por categoría, evolución, tier por actividad y "Cobrar" (simulado). | ✅ Funcional |
+| `#/encuestas` | **Participación activa**. Encuestas retribuidas que suman al saldo. | ✅ Funcional |
+| `#/transparencia` | **Transparencia**. Historial de cesiones: fecha, dato, comprador, precio de venta y tu parte. | ✅ Funcional |
+| `#/derechos` | **Tus derechos GDPR**. 9 derechos accionables: acceso/descarga (JSON), rectificación, borrado en 2 pasos, oposición, limitación, portabilidad, revocación, no decisiones automatizadas y reclamación AEPD. | ✅ Funcional |
+| `#/legal/privacidad` | **Política de privacidad**. | ✅ Funcional |
+| `#/legal/terminos` | **Términos y condiciones**. | ✅ Funcional |
+| `#/legal/cookies` | **Aviso de cookies** (solo `localStorage` técnico, sin tracking). | ✅ Funcional |
+| `#/admin` | **Panel del dueño** (login con `ADMIN_PASSWORD`). Stats, clientes B2B + lanzar campañas, solicitudes RGPD y export CSV. | ✅ Funcional |
+
+> Nota: no hay login/contraseña de usuario final (filosofía "sin registro de usuarios finales"); el alta es ligera (solo un alias). El único acceso privado es el panel del dueño en `#/admin`.
 
 ---
 
