@@ -120,8 +120,28 @@ CREATE TABLE IF NOT EXISTS agencias (
 );
 
 -- ----------------------------------------------------------------------------
+-- API TOKENS — credenciales OPACAS de agencia (Bearer).
+--   El Bearer que presenta la agencia NO es su agencia_id (identificador): es un
+--   SECRETO aleatorio. Aquí NUNCA se guarda el token en claro, solo su hash
+--   SHA-256 (hex). El Worker resuelve la agencia por token_hash = sha256(bearer)
+--   con revocado_en IS NULL. Revocar = poner revocado_en (no se borra la fila).
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS api_tokens (
+  id            TEXT PRIMARY KEY,
+  agencia_id    TEXT NOT NULL REFERENCES agencias(id) ON DELETE CASCADE,
+  token_hash    TEXT UNIQUE NOT NULL,                       -- SHA-256 hex del token (jamás el token en claro)
+  creado_en     TEXT NOT NULL DEFAULT (datetime('now')),
+  revocado_en   TEXT,                                       -- NULL = token activo
+  ultimo_uso_en TEXT
+);
+
+-- ----------------------------------------------------------------------------
 -- REPORTES — agregados generados. NUNCA filas individuales.
 --   k-anonimato a nivel ESQUEMA: imposible guardar un reporte de < 50 usuarios.
+--   Compra ASÍNCRONA (contrato F.1/F.2): la fila nace en 'pendiente_pago' cuando
+--   la agencia inicia la compra desde el preview (n y k YA fijados y >= 50), pasa
+--   a 'pagado_generando' cuando el webhook de Stripe confirma el cobro y, tras la
+--   materialización del motor, queda 'entregado' (o 'anulado' si se revierte).
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS reportes (
   id                  TEXT PRIMARY KEY,
@@ -133,8 +153,10 @@ CREATE TABLE IF NOT EXISTS reportes (
   resultado_hash      TEXT NOT NULL,                        -- integridad / no repudio
   precio_centimos     INTEGER NOT NULL CHECK (precio_centimos >= 0),
   estado              TEXT NOT NULL DEFAULT 'generado'
-                        CHECK (estado IN ('generado','entregado','anulado')),
+                        CHECK (estado IN ('pendiente_pago','pagado_generando','generado','entregado','anulado')),
   -- ===== SUELO LEGAL DE k-ANONIMATO (>= 50) A NIVEL DE BASE DE DATOS =====
+  --  n_usuarios se fija al INICIAR la compra desde el preview y ya es >= 50:
+  --  un segmento de < 50 nunca llega a comprarse (se rechaza antes de insertar).
   CHECK (n_usuarios >= 50),
   CHECK (k_aplicado >= 50)
 );
@@ -197,6 +219,7 @@ CREATE INDEX IF NOT EXISTS idx_consent_usuario   ON consentimientos(usuario_id, 
 CREATE INDEX IF NOT EXISTS idx_contrib_usuario   ON contribuciones(usuario_id);
 CREATE INDEX IF NOT EXISTS idx_contrib_segmento  ON contribuciones(categoria, region, banda_edad, genero);
 CREATE INDEX IF NOT EXISTS idx_reportes_agencia  ON reportes(agencia_id, generado_en);
+CREATE INDEX IF NOT EXISTS idx_apitokens_agencia  ON api_tokens(agencia_id, revocado_en);
 CREATE INDEX IF NOT EXISTS idx_tx_agencia        ON transacciones(agencia_id, creado_en);
 CREATE INDEX IF NOT EXISTS idx_reparto_periodo   ON repartos(periodo);
 CREATE INDEX IF NOT EXISTS idx_audit_entidad     ON logs_auditoria(entidad, entidad_id, creado_en);

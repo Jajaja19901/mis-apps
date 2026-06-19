@@ -925,7 +925,7 @@
               <div class="preview-card-header">Resumen del segmento</div>
               <div class="preview-stats">
                 <div class="preview-stat">
-                  <span class="preview-stat-label">Usuarios distintos</span>
+                  <span class="preview-stat-label">Usuarios distintos (aprox.)</span>
                   <span class="preview-stat-value highlight" id="prev-n-usuarios">—</span>
                 </div>
                 <div class="preview-stat">
@@ -1067,9 +1067,14 @@ const DEMO = {
     }
     const celdasTotal = Math.max(1, dimensiones.length * 4);
     const celdasSup   = Math.floor(celdasTotal * 0.2);
+    // ANTI-SONDEO: el preview gratuito NO expone el n exacto, solo un tamaño
+    // BINADO a múltiplos de 50 (floor(n/50)*50) y una etiqueta «≥N». El n exacto
+    // solo aparece en el reporte YA COMPRADO (F.2). Replica la respuesta real.
+    const nMin = Math.floor(nUsuarios / 50) * 50;
     return {
       entregable: true,
-      n_usuarios: nUsuarios,
+      n_usuarios_min:      nMin,
+      n_usuarios_etiqueta: `≥${nMin}`,
       k_aplicado: 50,
       celdas_estimadas_entregables: celdasTotal - celdasSup,
       celdas_estimadas_suprimidas:  celdasSup,
@@ -1315,16 +1320,17 @@ async function ejecutarPreview(definicion) {
 }
 
 function renderPreviewOk(data) {
-  document.getElementById('prev-n-usuarios').textContent =
-    data.n_usuarios.toLocaleString('es-ES');
+  // ANTI-SONDEO: el preview gratuito solo trae un tamaño APROXIMADO (binado a
+  // múltiplos de 50). Mostramos la etiqueta «≥N» (o «≥n_usuarios_min»); nunca el
+  // n exacto, que solo aparece en el reporte ya comprado.
+  const etiqueta = data.n_usuarios_etiqueta
+    || (Number.isFinite(Number(data.n_usuarios_min)) ? `≥${Number(data.n_usuarios_min).toLocaleString('es-ES')}` : '—');
+  document.getElementById('prev-n-usuarios').textContent = etiqueta;
   document.getElementById('prev-k').textContent = data.k_aplicado;
   document.getElementById('prev-celdas-ok').textContent =
     data.celdas_estimadas_entregables ?? '—';
   document.getElementById('prev-celdas-sup').textContent =
     data.celdas_estimadas_suprimidas ?? '—';
-  document.getElementById('prev-precio').textContent =
-    datos => euros(data.precio_estimado_centimos);
-  // Arreglo limpio:
   document.getElementById('prev-precio').textContent =
     euros(data.precio_estimado_centimos);
 }
@@ -1374,31 +1380,43 @@ async function iniciarCompra(definicion) {
     }
 
     setProgreso(60);
-    // Con backend real: redirige a Stripe Checkout
-    // En demo: abrimos directamente el resultado
-    if (!Estado.modoDemo && data.checkout_url && data.checkout_url !== '#demo-checkout') {
-      window.location.href = data.checkout_url;
-      return;
+
+    if (!Estado.modoDemo) {
+      // FLUJO ASÍNCRONO (contrato F.1): POST /v1/reportes INICIA la compra y
+      // devuelve estado 'pendiente_pago'. El reporte NO se entrega aquí: primero
+      // se cobra por Stripe Checkout y, tras el webhook, w-reportes lo materializa.
+      // Si el backend abre Checkout, redirigimos; si no, mostramos "pendiente de
+      // pago" y dejamos que el historial refleje el estado real (F.2).
+      if (data.checkout_url && data.checkout_url !== '#demo-checkout') {
+        window.location.href = data.checkout_url;
+        return;
+      }
+      mostrarResultadoReporte({
+        reporte_id:          data.reporte_id,
+        estado:              data.estado || 'pendiente_pago',
+        definicion_segmento: definicion,
+        resultado:           null,
+      });
+      cargarHistorial();
+    } else {
+      // Modo demo: simular el "pago" y mostrar resultado inmediatamente.
+      await pausa(600);
+      const demo = Estado._demoResultadoPendiente;
+      mostrarResultadoReporte({
+        reporte_id:      data.reporte_id,
+        estado:          'entregado',
+        k_aplicado:      demo.k_aplicado,
+        n_usuarios:      demo.n_usuarios,
+        generado_en:     new Date().toISOString(),
+        resultado_hash:  'hash-demo-' + Date.now(),
+        definicion_segmento: definicion,
+        resultado:       demo.resultado,
+        descarga_url:    null,
+        descarga_expira_en: null,
+      });
+      // Añadir al historial
+      cargarHistorial();
     }
-
-    // Modo demo: simular el "pago" y mostrar resultado inmediatamente
-    await pausa(600);
-    const demo = Estado._demoResultadoPendiente;
-    mostrarResultadoReporte({
-      reporte_id:      data.reporte_id,
-      estado:          'entregado',
-      k_aplicado:      demo.k_aplicado,
-      n_usuarios:      demo.n_usuarios,
-      generado_en:     new Date().toISOString(),
-      resultado_hash:  'hash-demo-' + Date.now(),
-      definicion_segmento: definicion,
-      resultado:       demo.resultado,
-      descarga_url:    null,
-      descarga_expira_en: null,
-    });
-
-    // Añadir al historial
-    cargarHistorial();
 
   } catch (err) {
     abrirModalError(err.message || 'Error al iniciar la compra. Intenta de nuevo.');

@@ -84,6 +84,14 @@ async function limitarTasa(env, clave, limite, ventanaSeg) {
   return { ok: true };
 }
 
+/** SHA-256 en hex (Web Crypto). Se usa para resolver el token OPACO de agencia:
+ *  el Bearer es un secreto y en BD solo vive su hash (jamás el token en claro). */
+async function sha256Hex(mensaje) {
+  const datos = new TextEncoder().encode(String(mensaje));
+  const buf = await crypto.subtle.digest('SHA-256', datos);
+  return [...new Uint8Array(buf)].map((x) => x.toString(16).padStart(2, '0')).join('');
+}
+
 /** HMAC-SHA256 en hex (no repudio del resultado_hash). Si no hay secreto
  *  configurado, no firma (devuelve null): el motor ya aporta el FNV-1a. */
 async function firmarHmac(secreto, mensaje) {
@@ -137,13 +145,16 @@ function leerBearer(request) {
 }
 
 /**
- * Resuelve la agencia a partir del token y verifica que esté habilitada.
+ * Resuelve la agencia a partir del token OPACO y verifica que esté habilitada.
  *
- * Nota de diseño: en producción el token es un JWT de agencia firmado y aquí
- * se valida la firma para sacar el `agencia_id`. En este Worker tratamos el
- * Bearer como el identificador de la agencia (UUID `agencias.id`) y SIEMPRE
- * comprobamos contra D1 que existe y cumple KYC + contrato; así la puerta de
- * autorización vive en datos verificables, no en la cortesía del cliente.
+ * Seguridad: el Bearer ya NO es el `agencia_id` (un identificador, no un secreto).
+ * Es un SECRETO aleatorio del que en BD solo vive su hash. Aquí se calcula
+ * `token_hash = sha256(bearer)` y se busca en `api_tokens` (revocado_en IS NULL);
+ * de ahí sale el `agencia_id`. Después se sigue validando KYC + contrato igual
+ * que antes, leyendo la agencia por su id. Así un identificador filtrado no abre
+ * la puerta: hace falta el token secreto, que nunca se guarda en claro.
+ *
+ * Consultas SIEMPRE parametrizadas: ni el token ni su hash se concatenan al SQL.
  *
  * @returns {{ok:true, agencia}} | {ok:false, status, codigo, mensaje}
  */
@@ -153,17 +164,42 @@ async function autenticarAgencia(request, env) {
     return { ok: false, status: 401, codigo: 'auth_invalida', mensaje: 'Falta cabecera Authorization: Bearer.' };
   }
 
-  // Consulta PARAMETRIZADA: el token nunca se concatena en el SQL.
+  // El token es un secreto: lo resolvemos por su HASH, nunca por su texto.
+  const tokenHash = await sha256Hex(token);
+  const fila = await env.PLATAFORMA_DB.prepare(
+    `SELECT id, agencia_id
+       FROM api_tokens
+      WHERE token_hash = ? AND revocado_en IS NULL`,
+  )
+    .bind(tokenHash)
+    .first();
+
+  if (!fila) {
+    return { ok: false, status: 401, codigo: 'auth_invalida', mensaje: 'Credencial de agencia no válida.' };
+  }
+
+  // De aquí en adelante operamos con la agencia dueña del token.
   const agencia = await env.PLATAFORMA_DB.prepare(
     `SELECT id, razon_social, kyc_estado, contrato_firmado_en
        FROM agencias
       WHERE id = ?`,
   )
-    .bind(token)
+    .bind(fila.agencia_id)
     .first();
 
   if (!agencia) {
     return { ok: false, status: 401, codigo: 'auth_invalida', mensaje: 'Credencial de agencia no válida.' };
+  }
+
+  // Marca de último uso del token (telemetría/forense). Nunca tumba la petición.
+  try {
+    await env.PLATAFORMA_DB.prepare(
+      `UPDATE api_tokens SET ultimo_uso_en = datetime('now') WHERE id = ?`,
+    )
+      .bind(fila.id)
+      .run();
+  } catch {
+    /* el sello de último uso es best-effort */
   }
 
   // Puerta de autorización B2B: KYC verificada + contrato firmado (no nulo).
@@ -429,10 +465,18 @@ async function handlerPreview(request, env, requestId) {
   }
 
   // Entregable: estimaciones SIN valores (cuántas celdas saldrían/se suprimirían).
+  // ANTI-SONDEO: el preview es gratis y repetible. Si devolviéramos el n EXACTO,
+  // una agencia podría afinar filtros y deducir recuentos finos (incluso de celdas
+  // suprimidas) por diferencias. Por eso el preview SOLO expone un tamaño BINADO:
+  // n_usuarios_min = floor(n/50)*50 (múltiplo de 50, nunca el valor exacto) y una
+  // etiqueta «≥N». El n EXACTO solo aparece en el reporte YA COMPRADO (F.2).
+  const nExacto = r.reporte.n_usuarios;
+  const nUsuariosMin = Math.floor(nExacto / 50) * 50;
   return json(
     {
       entregable: true,
-      n_usuarios: r.reporte.n_usuarios,
+      n_usuarios_min: nUsuariosMin,
+      n_usuarios_etiqueta: `≥${nUsuariosMin}`,
       k_aplicado: r.reporte.k_aplicado,
       celdas_estimadas_entregables: r.reporte.celdas.length,
       celdas_estimadas_suprimidas: r.reporte.celdas_suprimidas,
@@ -450,17 +494,35 @@ function precioSegmento(env) {
 }
 
 /**
- * POST /v1/reportes
- * Genera el reporte:
- *   1. Autentica la agencia (KYC + contrato).
- *   2. Valida definición y categoría (lista blanca).
- *   3. Carga contribuciones de D1 y llama al MOTOR.
- *   4a. NO entregable -> 422 + auditoría del intento bloqueado. No persiste.
- *   4b. Entregable -> firma HMAC, INSERT en `reportes` (la BD revalida CHECK>=50),
- *       sube el JSON a R2, audita 'reporte.generado' y devuelve el agregado.
- * NUNCA devuelve filas individuales ni `usuario_id`.
+ * Reparto 70/30 que CUADRA al céntimo (mismo criterio que w-pagos y el CHECK del
+ * esquema): la comisión de plataforma se redondea y el pool es el RESTO exacto, de
+ * modo que comision + pool == importe SIEMPRE. Se calcula aquí (sin importar
+ * w-pagos) para NO crear un import circular: w-pagos importa a w-reportes, nunca al
+ * revés.
  */
-async function handlerGenerar(request, env, requestId) {
+function reparto7030(importeCentimos) {
+  const importe = Number(importeCentimos);
+  const comision = Math.round(importe * 0.70);
+  const pool = importe - comision; // resto exacto
+  return { comision_plataforma_centimos: comision, pool_usuarios_centimos: pool };
+}
+
+/**
+ * POST /v1/reportes  (contrato F.1) — INICIA la compra (no entrega dato alguno).
+ *   1. Autentica la agencia (token opaco + KYC + contrato).
+ *   2. Valida definición y categoría (lista blanca).
+ *   3. Carga contribuciones de D1 y llama al MOTOR para REVALIDAR k>=50.
+ *      Un segmento de < 50 se rechaza AQUÍ (422) y jamás llega a comprarse.
+ *   4. Entregable -> fija n_usuarios (>=50) y k=50, inserta `reportes` en estado
+ *      'pendiente_pago' (resultado_hash placeholder; se firma al materializar),
+ *      registra la `transacciones` 70/30 en estado 'pendiente' y devuelve los
+ *      datos de pago. NO se ejecuta el k-anon final ni se entrega nada todavía.
+ *
+ * La GENERACIÓN real (k-anon + persistencia del resultado + R2 + auditoría
+ * 'reporte.generado') vive en materializarReporte(), que dispara el webhook de
+ * pago una vez confirmado el cobro. NUNCA se entrega un reporte sin pago.
+ */
+async function handlerIniciarCompra(request, env, requestId) {
   const auth = await autenticarAgencia(request, env);
   if (!auth.ok) {
     // Si conocemos la agencia (existe pero sin KYC/contrato), auditamos el rechazo.
@@ -493,11 +555,12 @@ async function handlerGenerar(request, env, requestId) {
   const cat = await categoriaPermitida(env.PLATAFORMA_DB, definicion.filtros);
   if (!cat.ok) return error(cat.codigo, cat.mensaje, cat.status, requestId);
 
-  // 3) Cargar contribuciones seudónimas del segmento y ejecutar el MOTOR.
+  // 3) Cargar contribuciones seudónimas del segmento y REVALIDAR con el MOTOR.
+  //    Aquí solo nos interesa la PUERTA DURA (n>=50): no se entrega ni un agregado.
   const contribuciones = await cargarContribuciones(env.PLATAFORMA_DB, definicion.filtros);
   const r = generarReporteAgregado(contribuciones, definicion, { k: K_MINIMO_LEGAL });
 
-  // 4a) NO entregable -> 422 + auditoría del intento bloqueado. No se persiste.
+  // 3a) NO entregable -> 422 + auditoría del intento bloqueado. No se inicia compra.
   if (!r.entregable) {
     await auditar(env.PLATAFORMA_DB, {
       actor: `agencia:${agencia.id}`,
@@ -516,20 +579,160 @@ async function handlerGenerar(request, env, requestId) {
     });
   }
 
-  // 4b) Entregable. Firmamos el resultado_hash con HMAC del servidor (no repudio).
+  // 4) Entregable. Fijamos n (>=50) y k=50 AHORA (se persisten en la fila); el
+  //    agregado real se genera tras el pago (materializarReporte).
   const reporteId = uuid();
-  const hmac = await firmarHmac(env.HMAC_REPORTE, `${reporteId}:${r.reporte.resultado_hash}`);
-  // El hash que persiste/entrega es el del motor; si hay HMAC, lo encadenamos.
-  const resultadoHash = hmac ? `${r.reporte.resultado_hash}.${hmac}` : r.reporte.resultado_hash;
-
+  const nUsuarios = r.reporte.n_usuarios; // >= 50 garantizado por la puerta
+  const kAplicado = r.reporte.k_aplicado; // = 50
   const precioCentimos = precioSegmento(env);
   const definicionJson = JSON.stringify(definicion);
 
-  // El cuerpo que se entrega/guarda: SOLO agregados (espejo de la salida del motor).
-  // Construido campo a campo para NO arrastrar nada inesperado del motor.
+  // INSERT del reporte en 'pendiente_pago'. resultado_hash es NOT NULL en el
+  // esquema: usamos un placeholder ('pendiente') que se reemplaza al materializar.
+  try {
+    await env.PLATAFORMA_DB.prepare(
+      `INSERT INTO reportes
+         (id, agencia_id, definicion_segmento, k_aplicado, n_usuarios, resultado_hash, precio_centimos, estado)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente_pago')`,
+    )
+      .bind(reporteId, agencia.id, definicionJson, kAplicado, nUsuarios, 'pendiente', precioCentimos)
+      .run();
+  } catch (e) {
+    // P.ej. el CHECK de BD (n>=50/k>=50) vetó la fila (doble barrera). Auditar y 500.
+    await auditar(env.PLATAFORMA_DB, {
+      actor: `agencia:${agencia.id}`,
+      accion: 'reporte.bloqueado',
+      entidad: 'reportes',
+      entidad_id: reporteId,
+      detalles: { motivo: 'rechazo_persistencia', error: String(e && e.message ? e.message : e) },
+    });
+    return error('error_interno', 'No se pudo iniciar la compra del reporte.', 500, requestId);
+  }
+
+  // Registrar la transacción 70/30 en estado 'pendiente' (el cobro lo confirma el
+  // webhook de Stripe; aquí solo se deja la referencia con el reparto que cuadra).
+  const transaccionId = uuid();
+  const { comision_plataforma_centimos, pool_usuarios_centimos } = reparto7030(precioCentimos);
+  try {
+    await env.PLATAFORMA_DB.prepare(
+      `INSERT INTO transacciones
+         (id, agencia_id, reporte_id, importe_centimos,
+          comision_plataforma_centimos, pool_usuarios_centimos, estado)
+       VALUES (?, ?, ?, ?, ?, ?, 'pendiente')`,
+    )
+      .bind(transaccionId, agencia.id, reporteId, precioCentimos, comision_plataforma_centimos, pool_usuarios_centimos)
+      .run();
+  } catch (e) {
+    await auditar(env.PLATAFORMA_DB, {
+      actor: `agencia:${agencia.id}`,
+      accion: 'transaccion.error_insert',
+      entidad: 'transacciones',
+      entidad_id: transaccionId,
+      detalles: { reporte_id: reporteId, error: String(e && e.message ? e.message : e) },
+    });
+    return error('error_interno', 'No se pudo registrar la transacción.', 500, requestId);
+  }
+
+  // Auditoría del inicio de compra (sin datos del agregado: aún no existe).
+  await auditar(env.PLATAFORMA_DB, {
+    actor: `agencia:${agencia.id}`,
+    accion: 'reporte.compra_iniciada',
+    entidad: 'reportes',
+    entidad_id: reporteId,
+    detalles: { n_usuarios: nUsuarios, k_aplicado: kAplicado, precio_centimos: precioCentimos, transaccion_id: transaccionId },
+  });
+
+  // 201 Creado: referencias de seguimiento + datos de pago. NINGÚN agregado.
+  return json(
+    {
+      reporte_id: reporteId,
+      estado: 'pendiente_pago',
+      precio_centimos: precioCentimos,
+      transaccion_id: transaccionId,
+    },
+    201,
+    requestId,
+  );
+}
+
+/**
+ * materializarReporte(env, reporteId)  (contrato F.3 — interno, NO ruta pública)
+ * --------------------------------------------------------------------------
+ * Lo dispara el webhook de Stripe TRAS confirmar el cobro de la transacción. Aquí
+ * es donde por fin se EJECUTA el motor y se ENTREGA el agregado:
+ *   1. Carga el reporte 'pendiente_pago'/'pagado_generando' (idempotente: si ya
+ *      está 'entregado', no rehace nada).
+ *   2. Marca 'pagado_generando'.
+ *   3. Carga contribuciones del segmento y llama al MOTOR (k-anon >= 50).
+ *      Si dejó de ser entregable -> 'anulado' + auditoría (la transacción la
+ *      reembolsa el flujo de pagos).
+ *   4. Firma HMAC, persiste el resultado (resultado_hash real + estado 'entregado'),
+ *      sube el JSON a R2 «REPORTES» y audita 'reporte.generado'.
+ *
+ * Garantía: el JSON entregado NUNCA contiene `usuario_id` ni filas individuales.
+ *
+ * @returns {Promise<{ok:true, estado:'entregado', reporte_id}>
+ *                  | {ok:false, estado:'anulado'|'no_encontrado'|'ya_entregado'|'error', motivo?}>}
+ */
+export async function materializarReporte(env, reporteId) {
+  const db = env.PLATAFORMA_DB;
+
+  const rep = await db
+    .prepare(
+      `SELECT id, agencia_id, definicion_segmento, estado FROM reportes WHERE id = ?`,
+    )
+    .bind(reporteId)
+    .first();
+
+  if (!rep) {
+    return { ok: false, estado: 'no_encontrado', reporte_id: reporteId };
+  }
+  // Idempotencia: si ya se entregó, no se vuelve a generar ni a tocar R2.
+  if (rep.estado === 'entregado') {
+    return { ok: true, estado: 'entregado', reporte_id: reporteId, idempotente: true };
+  }
+  if (rep.estado === 'anulado') {
+    return { ok: false, estado: 'anulado', reporte_id: reporteId };
+  }
+
+  let definicion;
+  try {
+    definicion = JSON.parse(rep.definicion_segmento);
+  } catch {
+    definicion = {};
+  }
+
+  // Marcar 'pagado_generando' antes de calcular (estado visible en F.2).
+  await db
+    .prepare(`UPDATE reportes SET estado = 'pagado_generando' WHERE id = ? AND estado <> 'entregado'`)
+    .bind(reporteId)
+    .run();
+
+  // Cargar contribuciones del segmento y ejecutar el MOTOR (autoridad de k-anon).
+  const contribuciones = await cargarContribuciones(db, definicion.filtros);
+  const r = generarReporteAgregado(contribuciones, definicion, { k: K_MINIMO_LEGAL });
+
+  // Si dejó de ser entregable (el segmento cambió entre compra y pago) -> anular.
+  if (!r.entregable) {
+    await db.prepare(`UPDATE reportes SET estado = 'anulado' WHERE id = ?`).bind(reporteId).run();
+    await auditar(db, {
+      actor: `agencia:${rep.agencia_id}`,
+      accion: 'reporte.no_entregable',
+      entidad: 'reportes',
+      entidad_id: reporteId,
+      detalles: { motivo: r.motivo, n_usuarios: r.auditoria.n_usuarios_segmento },
+    });
+    return { ok: false, estado: 'anulado', reporte_id: reporteId, motivo: r.motivo };
+  }
+
+  // Firmar el resultado_hash del motor con HMAC del servidor (no repudio).
+  const hmac = await firmarHmac(env.HMAC_REPORTE, `${reporteId}:${r.reporte.resultado_hash}`);
+  const resultadoHash = hmac ? `${r.reporte.resultado_hash}.${hmac}` : r.reporte.resultado_hash;
+
+  // Cuerpo entregado/guardado: SOLO agregados (espejo de la salida del motor).
   const resultado = {
     reporte_id: reporteId,
-    agencia_id: agencia.id,
+    agencia_id: rep.agencia_id,
     k_aplicado: r.reporte.k_aplicado,
     n_usuarios: r.reporte.n_usuarios,
     generado_en: r.auditoria.generado_en,
@@ -541,43 +744,29 @@ async function handlerGenerar(request, env, requestId) {
     },
   };
 
-  // BLINDAJE FINAL: jamás entregar nada que contenga 'usuario_id'. Si por un bug
-  // del motor apareciera, abortamos con 500 y dejamos rastro (no se filtra).
+  // BLINDAJE FINAL: jamás guardar/entregar nada que contenga 'usuario_id'.
   const serializado = JSON.stringify(resultado);
   if (serializado.includes('usuario_id')) {
-    await auditar(env.PLATAFORMA_DB, {
-      actor: `agencia:${agencia.id}`,
+    await auditar(db, {
+      actor: `agencia:${rep.agencia_id}`,
       accion: 'reporte.abortado_fuga',
       entidad: 'reportes',
       entidad_id: reporteId,
       detalles: { motivo: 'salida contiene usuario_id' },
     });
-    return error('error_interno', 'Error interno generando el reporte.', 500, requestId);
+    // No marcamos 'entregado': queda 'pagado_generando' (recuperable) y no se filtra nada.
+    return { ok: false, estado: 'error', reporte_id: reporteId, motivo: 'fuga_usuario_id' };
   }
 
-  // Persistencia: INSERT en `reportes` (la BD revalida CHECK n>=50 y k>=50) y
-  // subida del JSON a R2. Si la BD rechazara por el CHECK, capturamos y 500.
-  try {
-    await env.PLATAFORMA_DB.prepare(
-      `INSERT INTO reportes
-         (id, agencia_id, definicion_segmento, k_aplicado, n_usuarios, resultado_hash, precio_centimos, estado)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'entregado')`,
+  // Persistir el resultado: hash real + estado 'entregado' (la BD ya validó n/k>=50
+  // al insertar la fila). Subir el JSON a R2.
+  await db
+    .prepare(
+      `UPDATE reportes SET resultado_hash = ?, estado = 'entregado', generado_en = datetime('now') WHERE id = ?`,
     )
-      .bind(reporteId, agencia.id, definicionJson, r.reporte.k_aplicado, r.reporte.n_usuarios, resultadoHash, precioCentimos)
-      .run();
-  } catch (e) {
-    // P.ej. el CHECK de BD vetó el reporte (doble barrera). Auditar y 500.
-    await auditar(env.PLATAFORMA_DB, {
-      actor: `agencia:${agencia.id}`,
-      accion: 'reporte.bloqueado',
-      entidad: 'reportes',
-      entidad_id: reporteId,
-      detalles: { motivo: 'rechazo_persistencia', error: String(e && e.message ? e.message : e) },
-    });
-    return error('error_interno', 'No se pudo persistir el reporte.', 500, requestId);
-  }
+    .bind(resultadoHash, reporteId)
+    .run();
 
-  // Subir el agregado a R2 «REPORTES». Clave: reportes/{reporte_id}.json.
   if (env.REPORTES && typeof env.REPORTES.put === 'function') {
     await env.REPORTES.put(`reportes/${reporteId}.json`, serializado, {
       httpMetadata: { contentType: 'application/json; charset=utf-8' },
@@ -585,8 +774,8 @@ async function handlerGenerar(request, env, requestId) {
   }
 
   // Auditoría OBLIGATORIA de la entrega (siempre, con resultado_hash).
-  await auditar(env.PLATAFORMA_DB, {
-    actor: `agencia:${agencia.id}`,
+  await auditar(db, {
+    actor: `agencia:${rep.agencia_id}`,
     accion: 'reporte.generado',
     entidad: 'reportes',
     entidad_id: reporteId,
@@ -596,12 +785,90 @@ async function handlerGenerar(request, env, requestId) {
       celdas_entregadas: r.reporte.celdas.length,
       celdas_suprimidas: r.reporte.celdas_suprimidas,
       resultado_hash: resultadoHash,
-      precio_centimos: precioCentimos,
     },
   });
 
-  // 201 Creado con el agregado (espejo del contrato F.2).
-  return json({ ...resultado, estado: 'entregado' }, 201, requestId);
+  return { ok: true, estado: 'entregado', reporte_id: reporteId };
+}
+
+/**
+ * GET /v1/reportes/{id}  (contrato F.2) — estado + entrega del agregado.
+ *   - Solo a la AGENCIA DUEÑA del reporte (si no, 404: ni se confirma su existencia).
+ *   - 'entregado' -> devuelve el agregado (leído de R2) + metadatos.
+ *   - otros estados -> solo el estado (pendiente_pago / pagado_generando / anulado).
+ * NUNCA expone `usuario_id` ni filas individuales (el agregado ya viene del motor).
+ */
+async function handlerObtenerReporte(request, env, requestId, reporteId) {
+  const auth = await autenticarAgencia(request, env);
+  if (!auth.ok) {
+    if (auth.agencia) {
+      await auditar(env.PLATAFORMA_DB, {
+        actor: `agencia:${auth.agencia.id}`,
+        accion: 'reporte.consulta_bloqueada',
+        entidad: 'agencias',
+        entidad_id: auth.agencia.id,
+        detalles: { motivo: auth.codigo },
+      });
+    }
+    return error(auth.codigo, auth.mensaje, auth.status, requestId);
+  }
+  const agencia = auth.agencia;
+
+  const rep = await env.PLATAFORMA_DB.prepare(
+    `SELECT id, agencia_id, definicion_segmento, k_aplicado, n_usuarios,
+            generado_en, resultado_hash, estado
+       FROM reportes WHERE id = ?`,
+  )
+    .bind(reporteId)
+    .first();
+
+  // No existe o NO es de esta agencia -> 404 (no se distingue, evita enumeración).
+  if (!rep || rep.agencia_id !== agencia.id) {
+    return error('no_encontrado', 'Reporte no encontrado.', 404, requestId);
+  }
+
+  // Aún sin entregar: solo el estado (mapea pendiente_pago/pagado_generando/anulado).
+  if (rep.estado !== 'entregado') {
+    const estado = rep.estado === 'anulado' ? 'no_entregable' : rep.estado;
+    const salida = { reporte_id: rep.id, estado };
+    if (rep.estado === 'anulado') salida.motivo = 'segmento dejó de ser entregable (k<50)';
+    return json(salida, 200, requestId);
+  }
+
+  // Entregado: el agregado vive en R2. El reporte YA COMPRADO sí muestra el n EXACTO.
+  let cuerpoR2 = null;
+  if (env.REPORTES && typeof env.REPORTES.get === 'function') {
+    const obj = await env.REPORTES.get(`reportes/${rep.id}.json`);
+    if (obj) {
+      try {
+        cuerpoR2 = JSON.parse(await obj.text());
+      } catch {
+        cuerpoR2 = null;
+      }
+    }
+  }
+
+  let definicion;
+  try {
+    definicion = JSON.parse(rep.definicion_segmento);
+  } catch {
+    definicion = {};
+  }
+
+  return json(
+    {
+      reporte_id: rep.id,
+      estado: 'entregado',
+      k_aplicado: rep.k_aplicado,
+      n_usuarios: rep.n_usuarios,
+      generado_en: rep.generado_en,
+      resultado_hash: rep.resultado_hash,
+      definicion_segmento: definicion,
+      resultado: cuerpoR2 ? cuerpoR2.resultado : null,
+    },
+    200,
+    requestId,
+  );
 }
 
 // ----------------------------------------------------------------------------
@@ -616,7 +883,14 @@ async function enrutar(request, env, requestId) {
 
   if (ruta === '/v1/segmentos' && metodo === 'GET') return handlerCatalogo(request, env, requestId);
   if (ruta === '/v1/segmentos/preview' && metodo === 'POST') return handlerPreview(request, env, requestId);
-  if (ruta === '/v1/reportes' && metodo === 'POST') return handlerGenerar(request, env, requestId);
+  if (ruta === '/v1/reportes' && metodo === 'POST') return handlerIniciarCompra(request, env, requestId);
+
+  // GET /v1/reportes/{id} (F.2): estado + entrega del agregado a la agencia dueña.
+  const mReporte = /^\/v1\/reportes\/([^/]+)$/.exec(ruta);
+  if (mReporte) {
+    if (metodo === 'GET') return handlerObtenerReporte(request, env, requestId, decodeURIComponent(mReporte[1]));
+    return error('metodo_no_permitido', `Método ${metodo} no permitido en ${ruta}.`, 405, requestId);
+  }
 
   // Ruta conocida pero método incorrecto -> 405; si no, 404.
   const rutasConocidas = {
@@ -657,4 +931,5 @@ export default {
 };
 
 // Exportes nombrados para pruebas unitarias (no afectan al runtime del Worker).
-export { enrutar, autenticarAgencia, validarDefinicion, cargarContribuciones, auditar };
+// materializarReporte se exporta arriba (la usa el webhook de w-pagos tras el cobro).
+export { enrutar, autenticarAgencia, validarDefinicion, cargarContribuciones, auditar, sha256Hex };

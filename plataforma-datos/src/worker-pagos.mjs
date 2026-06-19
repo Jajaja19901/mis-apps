@@ -25,6 +25,9 @@
 // ============================================================================
 
 import { ejecutarRepartoMensual } from './reparto-mensual.mjs';
+// IMPORTA a w-reportes (NO al revés): w-reportes nunca importa w-pagos -> sin ciclo.
+// El webhook de cobro dispara aquí la materialización del reporte ya pagado.
+import { materializarReporte } from './worker-reportes.mjs';
 
 const STRIPE_API = 'https://api.stripe.com/v1';
 
@@ -412,7 +415,7 @@ async function webhookStripe(request, env, requestId) {
   }
 
   try {
-    await procesarEvento(db, evento);
+    await procesarEvento(db, evento, env);
   } catch (e) {
     // Error al aplicar el efecto: NO marcamos el evento como visto para que Stripe
     // reintente, y devolvemos 500 (Stripe reintentará con backoff).
@@ -428,7 +431,7 @@ async function webhookStripe(request, env, requestId) {
 }
 
 /** Aplica el efecto de cada tipo de evento sobre las tablas. */
-async function procesarEvento(db, evento) {
+async function procesarEvento(db, evento, env) {
   const obj = evento.data && evento.data.object ? evento.data.object : {};
   switch (evento.type) {
     case 'payment_intent.succeeded': {
@@ -436,7 +439,7 @@ async function procesarEvento(db, evento) {
       // (amount_received + moneda) coincide con lo que registramos en la transacción.
       // Si no cuadra, NO se confirma: se audita la discrepancia para revisión manual.
       const tx = await db
-        .prepare(`SELECT id, importe_centimos, estado FROM transacciones WHERE stripe_payment_intent = ?1`)
+        .prepare(`SELECT id, importe_centimos, estado, reporte_id FROM transacciones WHERE stripe_payment_intent = ?1`)
         .bind(obj.id)
         .first();
 
@@ -470,7 +473,34 @@ async function procesarEvento(db, evento) {
       }
 
       await actualizarTxPorPaymentIntent(db, obj.id, 'pendiente', 'pagada', 'transaccion.pagada');
-      // Entregar el reporte queda a cargo de w-reportes (fuera de este Worker).
+
+      // Tras confirmar el cobro, DISPARAR la materialización del reporte asociado
+      // (F.3): w-reportes ejecuta el k-anon, persiste el agregado y lo sube a R2.
+      // Si la materialización falla, el reporte queda en estado RECUPERABLE y se
+      // audita; NO se rompe la idempotencia del webhook (el cobro ya está aplicado,
+      // así que dejamos el evento como procesado y la entrega se reintenta aparte).
+      if (tx.reporte_id) {
+        try {
+          const mat = await materializarReporte(env, tx.reporte_id);
+          if (!mat || mat.ok !== true) {
+            await auditar(db, {
+              accion: 'reporte.materializacion_pendiente',
+              entidad: 'reportes',
+              entidad_id: tx.reporte_id,
+              detalles: { resultado: mat ? mat.estado : 'sin_resultado', motivo: mat ? mat.motivo : undefined },
+            });
+          }
+        } catch (e) {
+          // El reporte ya está 'pendiente_pago'/'pagado_generando' (recuperable):
+          // se reintenta su materialización por otra vía, sin tocar el cobro.
+          await auditar(db, {
+            accion: 'reporte.materializacion_error',
+            entidad: 'reportes',
+            entidad_id: tx.reporte_id,
+            detalles: { error: String(e && e.message ? e.message : e) },
+          });
+        }
+      }
       break;
     }
     case 'payment_intent.payment_failed': {
