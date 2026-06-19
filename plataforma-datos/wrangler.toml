@@ -1,0 +1,174 @@
+# =============================================================================
+#  wrangler.toml — Plataforma de Datos *consent-first*  (EJEMPLO COMENTADO)
+# -----------------------------------------------------------------------------
+#  Config de Cloudflare Workers para el Worker principal de la API /v1.
+#  Bindings: D1 (SQLite) + R2 (objetos) + KV (parámetros/rate-limit) + Queues
+#  (trabajo asíncrono). Incluye el TRIGGER CRON del reparto mensual.
+#
+#  Los valores ‹PLACEHOLDER› se sustituyen con datos reales antes de desplegar.
+#  Los IDs (database_id, kv id, etc.) los da Cloudflare al crear cada recurso:
+#     wrangler d1 create        plataforma-db
+#     wrangler r2 bucket create plataforma-reportes
+#     wrangler r2 bucket create plataforma-exports
+#     wrangler kv namespace create RATE_LIMIT
+#     wrangler kv namespace create CONFIG
+#     wrangler queues create     plataforma-jobs
+#
+#  SECRETOS (NUNCA en este archivo; se cargan aparte):
+#     wrangler secret put PEPPER_PII
+#     wrangler secret put HMAC_REPORTE
+#     wrangler secret put STRIPE_SECRET_KEY
+#     wrangler secret put STRIPE_WEBHOOK_SECRET
+#     wrangler secret put JWT_FIRMA
+#     wrangler secret put ADMIN_TOKEN
+#
+#  Aplicar el esquema (CONTRATO) a D1:
+#     wrangler d1 execute plataforma-db --file=plataforma-datos/db/schema.sql
+# =============================================================================
+
+name = "plataforma-datos"               # ‹PLACEHOLDER› nombre del Worker/proyecto
+main = "src/worker.mjs"                  # punto de entrada (router que despacha a los módulos)
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"] # crypto / utilidades estándar; sin frameworks pesados
+
+# -----------------------------------------------------------------------------
+#  VARIABLES NO SECRETAS (visibles en el dashboard). Reglas legales -> NO van aquí.
+#  Los importes reales/precios se gestionan en KV «CONFIG» o en Stripe.
+# -----------------------------------------------------------------------------
+[vars]
+ENTORNO                 = "produccion"
+API_VERSION             = "v1"
+# Reparto: 30% usuarios / 70% plataforma. Es regla de negocio dura; se documenta
+# aquí por claridad, pero el CHECK de la tabla `transacciones` es quien la blinda.
+PORCENTAJE_POOL_USUARIOS = "30"
+PORCENTAJE_PLATAFORMA    = "70"
+# k-anonimato: el SUELO real es K_MINIMO_LEGAL=50 en src/k-anonimato.mjs y el CHECK
+# de `reportes`. Esta var solo sirve para mostrarlo en respuestas/UI; subir nunca baja.
+K_OBJETIVO               = "50"
+POLITICA_VERSION_VIGENTE = "2026-06-01"   # ‹PLACEHOLDER› versión del texto de consentimiento
+# Caducidad de enlaces de descarga (reportes R2) y de export de portabilidad.
+DESCARGA_REPORTE_TTL_SEG = "3600"         # ‹PLACEHOLDER› 1 h
+EXPORT_PORTABILIDAD_TTL_SEG = "86400"     # ‹PLACEHOLDER› 24 h
+RETENCION_AUDITORIA_ANYOS = "5"           # política del schema (logs append-only)
+# CORS / dominios permitidos del portal de agencias y de la app de consumo.
+ORIGENES_PERMITIDOS = "https://‹PLACEHOLDER-portal-agencias›,https://‹PLACEHOLDER-app-consumo›"
+
+# -----------------------------------------------------------------------------
+#  D1 — base de datos SQLite (fuente de verdad transaccional). Tablas = schema.sql
+# -----------------------------------------------------------------------------
+[[d1_databases]]
+binding       = "PLATAFORMA_DB"           # env.PLATAFORMA_DB en el Worker
+database_name = "plataforma-db"
+database_id   = "‹PLACEHOLDER-d1-database-id›"
+# migrations_dir = "plataforma-datos/db"  # opcional si se usan migraciones versionadas
+
+# -----------------------------------------------------------------------------
+#  R2 — objetos grandes e inmutables
+#    REPORTES : JSON/CSV del agregado entregado a la agencia (sello resultado_hash)
+#    EXPORTS  : ZIP de portabilidad del usuario (efímero, art. 20)
+# -----------------------------------------------------------------------------
+[[r2_buckets]]
+binding     = "REPORTES"                  # env.REPORTES
+bucket_name = "plataforma-reportes"
+
+[[r2_buckets]]
+binding     = "EXPORTS"                   # env.EXPORTS
+bucket_name = "plataforma-exports"
+
+# -----------------------------------------------------------------------------
+#  KV — estado pequeño y muy leído (NO para reglas legales; eventualmente consistente)
+#    RATE_LIMIT : contadores por IP/token + nonces anti-replay + idempotencia webhooks
+#    CONFIG     : parámetros editables sin desplegar (precio base, flags, versión política)
+# -----------------------------------------------------------------------------
+[[kv_namespaces]]
+binding = "RATE_LIMIT"                    # env.RATE_LIMIT
+id      = "‹PLACEHOLDER-kv-id-rate-limit›"
+
+[[kv_namespaces]]
+binding = "CONFIG"                        # env.CONFIG
+id      = "‹PLACEHOLDER-kv-id-config›"
+
+# -----------------------------------------------------------------------------
+#  QUEUES — trabajo asíncrono con reintentos (export ZIP, supresión diferida,
+#  reportes pesados, transfers del reparto). El Worker PRODUCE y CONSUME.
+# -----------------------------------------------------------------------------
+[[queues.producers]]
+binding    = "JOBS"                       # env.JOBS.send(...)
+queue      = "plataforma-jobs"
+
+[[queues.consumers]]
+queue                 = "plataforma-jobs"
+max_batch_size        = 10
+max_batch_timeout     = 30                # segundos
+max_retries           = 5
+dead_letter_queue     = "plataforma-jobs-dlq"
+
+# -----------------------------------------------------------------------------
+#  CRON — REPARTO MENSUAL ("data dividend"). Calcula el pool del mes, el peso de
+#  cada usuario y crea filas en `repartos` (idempotente por UNIQUE(periodo,usuario_id)),
+#  lanzando los transfers de Stripe Connect.
+#    "5 3 1 * *" = a las 03:05 UTC del día 1 de cada mes (reparte el periodo anterior).
+#  El handler `scheduled` del Worker lee event.cron y ejecuta w-reparto.
+# -----------------------------------------------------------------------------
+[triggers]
+crons = ["5 3 1 * *"]
+
+# -----------------------------------------------------------------------------
+#  OBSERVABILIDAD
+# -----------------------------------------------------------------------------
+[observability]
+enabled = true
+
+# =============================================================================
+#  ENTORNOS
+#  Despliegue:  wrangler deploy                      (producción, este bloque base)
+#               wrangler deploy --env staging        (usa [env.staging])
+#  Cada entorno usa SUS PROPIOS recursos (otra D1, otros buckets, otras KV) para no
+#  mezclar datos reales con pruebas. Rellenar los IDs correspondientes.
+# =============================================================================
+[env.staging]
+name = "plataforma-datos-staging"
+
+[env.staging.vars]
+ENTORNO                 = "staging"
+API_VERSION             = "v1"
+PORCENTAJE_POOL_USUARIOS = "30"
+PORCENTAJE_PLATAFORMA    = "70"
+K_OBJETIVO               = "50"
+POLITICA_VERSION_VIGENTE = "2026-06-01"
+ORIGENES_PERMITIDOS      = "http://localhost:8788,https://staging.‹PLACEHOLDER›"
+
+[[env.staging.d1_databases]]
+binding       = "PLATAFORMA_DB"
+database_name = "plataforma-db-staging"
+database_id   = "‹PLACEHOLDER-d1-staging-id›"
+
+[[env.staging.r2_buckets]]
+binding     = "REPORTES"
+bucket_name = "plataforma-reportes-staging"
+
+[[env.staging.r2_buckets]]
+binding     = "EXPORTS"
+bucket_name = "plataforma-exports-staging"
+
+[[env.staging.kv_namespaces]]
+binding = "RATE_LIMIT"
+id      = "‹PLACEHOLDER-kv-staging-rate-limit›"
+
+[[env.staging.kv_namespaces]]
+binding = "CONFIG"
+id      = "‹PLACEHOLDER-kv-staging-config›"
+
+[[env.staging.queues.producers]]
+binding = "JOBS"
+queue   = "plataforma-jobs-staging"
+
+[[env.staging.queues.consumers]]
+queue             = "plataforma-jobs-staging"
+max_batch_size    = 10
+max_retries       = 5
+dead_letter_queue = "plataforma-jobs-staging-dlq"
+
+# En staging conviene un cron más frecuente para probar el reparto sin esperar al mes.
+[env.staging.triggers]
+crons = ["*/30 * * * *"]   # cada 30 min en staging (solo pruebas; en prod es mensual)
