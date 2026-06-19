@@ -15,8 +15,8 @@
 //      concatena SQL con datos de entrada.
 //
 //  Rutas (router por `/v1`):
-//    GET  /v1/catalogo            -> segmentos disponibles (recuento solo si >=50)
-//    POST /v1/reportes/preview    -> ¿entregable? + n_usuarios, SIN datos
+//    GET  /v1/segmentos            -> segmentos disponibles (recuento solo si >=50)
+//    POST /v1/segmentos/preview    -> ¿entregable? + n_usuarios, SIN datos
 //    POST /v1/reportes            -> genera, persiste (reportes+R2), audita y entrega
 //
 //  Bindings esperados (wrangler.toml):
@@ -283,7 +283,7 @@ async function cargarContribuciones(db, filtros) {
 // ----------------------------------------------------------------------------
 
 /**
- * GET /v1/catalogo
+ * GET /v1/segmentos
  * Dimensiones y categorías para construir segmentos. Para cada categoría
  * devuelve su nº de usuarios SOLO si >= K_MINIMO_LEGAL; jamás expone una
  * categoría con < 50 usuarios (ni siquiera con su recuento).
@@ -348,7 +348,7 @@ async function handlerCatalogo(request, env, requestId) {
 }
 
 /**
- * POST /v1/reportes/preview
+ * POST /v1/segmentos/preview
  * Dice si el segmento sería ENTREGABLE (n >= 50) y el nº de usuarios, SIN
  * generar ni devolver dato agregado alguno. Réplica de la puerta dura del motor.
  */
@@ -591,14 +591,14 @@ async function enrutar(request, env, requestId) {
   const ruta = url.pathname.replace(/\/+$/, '') || '/'; // sin barra final
   const metodo = request.method.toUpperCase();
 
-  if (ruta === '/v1/catalogo' && metodo === 'GET') return handlerCatalogo(request, env, requestId);
-  if (ruta === '/v1/reportes/preview' && metodo === 'POST') return handlerPreview(request, env, requestId);
+  if (ruta === '/v1/segmentos' && metodo === 'GET') return handlerCatalogo(request, env, requestId);
+  if (ruta === '/v1/segmentos/preview' && metodo === 'POST') return handlerPreview(request, env, requestId);
   if (ruta === '/v1/reportes' && metodo === 'POST') return handlerGenerar(request, env, requestId);
 
   // Ruta conocida pero método incorrecto -> 405; si no, 404.
   const rutasConocidas = {
-    '/v1/catalogo': ['GET'],
-    '/v1/reportes/preview': ['POST'],
+    '/v1/segmentos': ['GET'],
+    '/v1/segmentos/preview': ['POST'],
     '/v1/reportes': ['POST'],
   };
   if (rutasConocidas[ruta]) {

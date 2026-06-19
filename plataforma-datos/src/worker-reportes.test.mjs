@@ -433,7 +433,7 @@ await prueba('(e) sin cabecera Bearer -> 401 auth_invalida', async () => {
   assert.equal((await res.json()).error.codigo, 'auth_invalida');
 });
 
-await prueba('(f) GET /v1/catalogo oculta categorías con < 50 usuarios (sin recuento)', async () => {
+await prueba('(f) GET /v1/segmentos oculta categorías con < 50 usuarios (sin recuento)', async () => {
   const db = crearD1({
     agencias: [AGENCIA_OK],
     contribuciones: [
@@ -442,7 +442,7 @@ await prueba('(f) GET /v1/catalogo oculta categorías con < 50 usuarios (sin rec
     ],
   });
   const env = { PLATAFORMA_DB: db, REPORTES: crearR2() };
-  const res = await worker.fetch(pedir('GET', '/v1/catalogo', { token: AGENCIA_OK.id }), env);
+  const res = await worker.fetch(pedir('GET', '/v1/segmentos', { token: AGENCIA_OK.id }), env);
   assert.equal(res.status, 200);
   const cuerpo = await res.json();
   assert.equal(cuerpo.k_minimo_legal, 50);
@@ -456,7 +456,7 @@ await prueba('(f) GET /v1/catalogo oculta categorías con < 50 usuarios (sin rec
   assert.equal('n_usuarios' in ocio, false, 'categoría <50 NUNCA expone su recuento');
 });
 
-await prueba('(g) POST /v1/reportes/preview informa entregabilidad SIN datos de celdas', async () => {
+await prueba('(g) POST /v1/segmentos/preview informa entregabilidad SIN datos de celdas', async () => {
   const db = crearD1({
     agencias: [AGENCIA_OK],
     contribuciones: contribs(31, { region: 'Galicia', categoria: 'compras_online' }), // <50
@@ -465,7 +465,7 @@ await prueba('(g) POST /v1/reportes/preview informa entregabilidad SIN datos de 
 
   // No entregable: solo recuento del total, ninguna celda.
   const r1 = await worker.fetch(
-    pedir('POST', '/v1/reportes/preview', {
+    pedir('POST', '/v1/segmentos/preview', {
       token: AGENCIA_OK.id,
       body: { definicion: { filtros: { region: 'Galicia', categoria: 'compras_online' }, dimensiones: ['banda_edad'] } },
     }),
@@ -486,7 +486,7 @@ await prueba('(g) POST /v1/reportes/preview informa entregabilidad SIN datos de 
   });
   const env2 = { PLATAFORMA_DB: db2, REPORTES: crearR2() };
   const r2 = await worker.fetch(
-    pedir('POST', '/v1/reportes/preview', {
+    pedir('POST', '/v1/segmentos/preview', {
       token: AGENCIA_OK.id,
       body: { definicion: { filtros: { region: 'Galicia', categoria: 'compras_online' } } },
     }),
