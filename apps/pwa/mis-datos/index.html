@@ -320,8 +320,10 @@ select.field-input{appearance:none;background-image:url("data:image/svg+xml,%3Cs
 
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 /* ===== Efecto desintegración teléfono→dinero (home, scroll-driven) ===== */
-.dz-stage{position:relative;height:300vh;background:linear-gradient(180deg,#2C3E50 0%,#243240 55%,#1c6b43 120%)}
-.dz-sticky{position:sticky;top:0;height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.dz-stage{position:relative;height:230vh;background:linear-gradient(180deg,#2C3E50 0%,#243240 55%,#1c6b43 120%)}
+.dz-pin{position:absolute;top:0;left:50%;transform:translateX(-50%);width:min(100vw,520px);height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.dz-pin.dz-fixed{position:fixed;top:0}
+.dz-pin.dz-bottom{position:absolute;top:auto;bottom:0}
 .dz-scene{position:relative;width:min(90vw,640px);aspect-ratio:16/9;filter:drop-shadow(0 24px 55px rgba(0,0,0,.4))}
 .dz-layer2{position:absolute;inset:0;background:url("assets/img2-telefono-dolares.png") center center/contain no-repeat;opacity:0;will-change:opacity}
 .dz-grid{position:absolute;inset:0;display:grid}
@@ -677,7 +679,7 @@ function viewHome(){
   return SIM_BANNER + header(CONFIG.BUSINESS_NAME,{action:`<a href="#/dashboard" class="header-action">${u?"Mi panel":"Acceder"}</a>`}) + `
   <div class="view">
     <section class="dz-stage" id="dzStage" aria-hidden="true">
-      <div class="dz-sticky">
+      <div class="dz-pin" id="dzPin">
         <div class="dz-scene">
           <div class="dz-layer2"></div>
           <div class="dz-grid" id="dzGrid"></div>
@@ -769,11 +771,12 @@ viewBinders.home=function(){
 function initDesintegracion(){
   if(window.__dzCleanup) window.__dzCleanup();
   const stage=document.getElementById("dzStage");
+  const pin=document.getElementById("dzPin");
   const grid=document.getElementById("dzGrid");
   const layer2=document.querySelector(".dz-layer2");
   const copy=document.getElementById("dzCopy");
   const copyEnd=document.getElementById("dzCopyEnd");
-  if(!stage||!grid||!layer2) return;
+  if(!stage||!pin||!grid||!layer2) return;
   const reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   const COLS=6, ROWS=4;
   grid.style.gridTemplateColumns=`repeat(${COLS},1fr)`;
@@ -798,9 +801,13 @@ function initDesintegracion(){
   function apply(){
     ticking=false;
     const rect=stage.getBoundingClientRect();
-    const total=rect.height-window.innerHeight;
+    const vh=window.innerHeight;
+    const total=rect.height-vh;
     const p=total>0?clamp(-rect.top/total,0,1):0;
-    if(Math.abs(p-lastP)<0.0015) return; lastP=p;
+    // PIN manual: fija la escena mientras la sección cruza la pantalla (robusto en cualquier layout)
+    if(rect.top>0){ pin.classList.remove("dz-fixed","dz-bottom"); }
+    else if(rect.bottom<=vh){ pin.classList.remove("dz-fixed"); pin.classList.add("dz-bottom"); }
+    else { pin.classList.remove("dz-bottom"); pin.classList.add("dz-fixed"); }
     if(reduce){
       grid.style.opacity=`${1-p}`;
       layer2.style.opacity=`${p}`;
