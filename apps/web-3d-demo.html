@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05070d">
+<title>Web 3D · Demo del efecto al hacer scroll</title>
+<style>
+  /* ===== CONFIG rápida (cámbialo en 1 minuto) =====
+     --acento: color principal · BUSINESS_NAME en el HTML = "Tu Negocio" (placeholder) */
+  :root{
+    --bg:#05070d; --bg2:#0a0f1c; --tinta:#eaf0ff; --suave:#9fb0d0;
+    --acento:#46e6c8; --acento2:#6aa8ff; --linea:rgba(120,150,200,.18);
+    --persp:1100px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg); color:var(--tinta);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    line-height:1.5; overflow-x:hidden; -webkit-font-smoothing:antialiased;
+  }
+  a{color:inherit}
+  /* lluvia de letras de fondo, fija */
+  #matrix{position:fixed; inset:0; width:100%; height:100%; z-index:0; opacity:.35; pointer-events:none}
+  .capa{position:relative; z-index:1}
+
+  /* ---- NAV ---- */
+  header{
+    position:fixed; top:0; left:0; right:0; z-index:10;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px; backdrop-filter:blur(8px);
+    background:linear-gradient(180deg,rgba(5,7,13,.85),rgba(5,7,13,0));
+  }
+  .marca{font-weight:800; letter-spacing:.5px; font-size:1.05rem}
+  .marca b{color:var(--acento)}
+  .nav-cta{
+    border:1px solid var(--linea); padding:8px 16px; border-radius:999px;
+    font-size:.85rem; font-weight:600; text-decoration:none;
+    transition:transform .15s ease, border-color .15s ease, background .15s ease;
+  }
+  .nav-cta:hover{transform:translateY(-2px); border-color:var(--acento); background:rgba(70,230,200,.08)}
+
+  /* ---- HERO 3D ---- */
+  .hero{
+    min-height:100svh; display:grid; place-items:center; text-align:center;
+    padding:90px 20px 60px; position:relative; perspective:var(--persp);
+  }
+  .hero-inner{transform-style:preserve-3d; will-change:transform}
+  .kicker{
+    color:var(--acento); font-weight:700; letter-spacing:3px; text-transform:uppercase;
+    font-size:.78rem; margin-bottom:18px;
+  }
+  .hero h1{
+    font-size:clamp(2.6rem,9vw,6.4rem); line-height:.98; font-weight:850; letter-spacing:-2px;
+    /* profundidad 3D con capas de sombra */
+    text-shadow:
+      0 1px 0 #1b2740, 0 2px 0 #18223a, 0 3px 0 #141d31,
+      0 4px 0 #111829, 0 6px 12px rgba(0,0,0,.55);
+  }
+  .hero h1 .glow{color:var(--acento); text-shadow:0 0 24px rgba(70,230,200,.55)}
+  .hero p{max-width:620px; margin:22px auto 0; color:var(--suave); font-size:clamp(1rem,2.6vw,1.2rem)}
+  .botones{margin-top:34px; display:flex; gap:14px; justify-content:center; flex-wrap:wrap}
+  .btn{
+    text-decoration:none; font-weight:700; padding:14px 26px; border-radius:14px;
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .btn-1{background:linear-gradient(135deg,var(--acento),var(--acento2)); color:#04111a; box-shadow:0 10px 30px rgba(70,230,200,.3)}
+  .btn-2{border:1px solid var(--linea); color:var(--tinta)}
+  .btn:hover{transform:translateY(-3px)}
+  .cue{position:absolute; bottom:26px; left:50%; transform:translateX(-50%); color:var(--suave); font-size:.8rem; opacity:.8}
+  .cue span{display:block; width:22px; height:36px; border:2px solid var(--suave); border-radius:14px; margin:0 auto 8px; position:relative}
+  .cue span::after{content:""; position:absolute; top:6px; left:50%; width:4px; height:8px; background:var(--acento); border-radius:2px; transform:translateX(-50%); animation:rueda 1.4s infinite}
+  @keyframes rueda{0%{opacity:0; transform:translate(-50%,0)}40%{opacity:1}80%{opacity:0; transform:translate(-50%,12px)}}
+
+  /* ---- SECCIONES con revelado 3D al hacer scroll ---- */
+  .seccion{padding:90px 20px; perspective:var(--persp)}
+  .wrap{max-width:1040px; margin:0 auto}
+  .titulo{font-size:clamp(1.8rem,5vw,2.8rem); font-weight:800; letter-spacing:-1px; margin-bottom:10px}
+  .sub{color:var(--suave); max-width:620px; margin-bottom:40px}
+
+  .reveal{
+    opacity:0; transform:rotateX(28deg) translateY(60px) scale(.96);
+    transform-origin:center top; transition:opacity .7s ease, transform .7s cubic-bezier(.2,.7,.2,1);
+    will-change:transform,opacity;
+  }
+  .reveal.in{opacity:1; transform:rotateX(0) translateY(0) scale(1)}
+
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:18px}
+  .card{
+    background:linear-gradient(160deg,var(--bg2),#070b14);
+    border:1px solid var(--linea); border-radius:18px; padding:26px;
+    transform-style:preserve-3d; transition:transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+  }
+  .card .ic{
+    width:46px; height:46px; border-radius:12px; display:grid; place-items:center; margin-bottom:16px;
+    background:rgba(70,230,200,.12); color:var(--acento); font-size:1.3rem; transform:translateZ(40px);
+  }
+  .card h3{font-size:1.15rem; margin-bottom:8px; transform:translateZ(24px)}
+  .card p{color:var(--suave); font-size:.95rem; transform:translateZ(12px)}
+  .card:hover{border-color:rgba(70,230,200,.5); box-shadow:0 20px 50px rgba(0,0,0,.5)}
+
+  /* banda con paralaje 3D */
+  .banda{
+    margin:0 20px; border-radius:24px; padding:70px 26px; text-align:center;
+    background:radial-gradient(120% 120% at 50% 0%, #0e1830 0%, #06090f 70%);
+    border:1px solid var(--linea);
+  }
+  .banda h2{font-size:clamp(1.8rem,6vw,3.2rem); font-weight:850; letter-spacing:-1px}
+  .banda h2 .glow{color:var(--acento)}
+
+  footer{padding:50px 20px 40px; text-align:center; color:var(--suave); border-top:1px solid var(--linea); margin-top:40px}
+  footer .firma{display:block; margin-top:14px; font-size:.8rem; opacity:.7}
+
+  /* respeto a quien prefiere menos movimiento */
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto}
+    .reveal{opacity:1; transform:none; transition:none}
+    .cue span::after{animation:none}
+    #matrix{display:none}
+  }
+</style>
+</head>
+<body>
+<!-- BUSINESS_NAME: "Tu Negocio" (placeholder — sin marca inventada) -->
+<canvas id="matrix" aria-hidden="true"></canvas>
+
+<div class="capa">
+  <header>
+    <div class="marca">Tu<b>Negocio</b></div>
+    <a class="nav-cta" href="#contacto">Empezar</a>
+  </header>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-inner" id="heroInner">
+      <p class="kicker">Demo · efecto 3D al hacer scroll</p>
+      <h1>Tu web<br>en <span class="glow">3 dimensiones</span></h1>
+      <p>Baja con el dedo y mira: el fondo de letras, el título y las tarjetas se mueven en profundidad. Todo en un solo archivo, sin librerías pesadas.</p>
+      <div class="botones">
+        <a class="btn btn-1" href="#contacto">Quiero una así</a>
+        <a class="btn btn-2" href="#ventajas">Ver el efecto ↓</a>
+      </div>
+    </div>
+    <div class="cue" aria-hidden="true"><span></span>Desliza</div>
+  </section>
+
+  <!-- VENTAJAS con revelado 3D -->
+  <section class="seccion" id="ventajas">
+    <div class="wrap">
+      <div class="reveal">
+        <h2 class="titulo">El efecto que viste</h2>
+        <p class="sub">Cada bloque "entra" girando en 3D conforme aparece. Pasa el ratón por las tarjetas (o tócalas) para inclinarlas.</p>
+      </div>
+      <div class="grid">
+        <article class="card reveal tilt"><div class="ic">◆</div><h3>Profundidad real</h3><p>Perspectiva CSS y capas que flotan a distintas distancias.</p></article>
+        <article class="card reveal tilt"><div class="ic">↻</div><h3>Giro al entrar</h3><p>Las secciones rotan al hacer scroll, no solo se desvanecen.</p></article>
+        <article class="card reveal tilt"><div class="ic">⚡</div><h3>Ligero y rápido</h3><p>Sin Three.js ni librerías: vainilla, carga en menos de 1s.</p></article>
+        <article class="card reveal tilt"><div class="ic">📱</div><h3>Móvil primero</h3><p>Se ve perfecto en el teléfono y respeta "reducir movimiento".</p></article>
+      </div>
+    </div>
+  </section>
+
+  <!-- BANDA paralaje -->
+  <section class="seccion">
+    <div class="banda reveal">
+      <h2>Plain English → <span class="glow">web 3D</span></h2>
+      <p class="sub" style="margin:16px auto 0">Tú me dices el negocio y los textos; yo te lo dejo así, con tu marca y tus colores.</p>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="seccion" id="contacto">
+    <div class="wrap" style="text-align:center">
+      <div class="reveal">
+        <h2 class="titulo">¿La quieres para tu negocio?</h2>
+        <p class="sub" style="margin-left:auto;margin-right:auto">Dime el nombre, a qué te dedicas y tu WhatsApp, y te la entrego con tu contenido real.</p>
+        <a class="btn btn-1" href="#" onclick="return false">Pedir mi web 3D</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    © <span id="anio"></span> Tu Negocio — demo de plantilla.
+    <span class="firma">Diseñado por Incuba tu Negocio · por Jaime M. M.</span>
+  </footer>
+</div>
+
+<script>
+(function(){
+  var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  document.getElementById('anio').textContent = new Date().getFullYear();
+
+  /* ---- Revelado 3D al entrar en pantalla ---- */
+  var io = new IntersectionObserver(function(entradas){
+    entradas.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, {threshold:.18});
+  document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+
+  if(reduce) return; // a partir de aquí, solo movimiento
+
+  /* ---- Paralaje 3D del hero según el scroll y el ratón ---- */
+  var hero = document.getElementById('heroInner');
+  function onScroll(){
+    var y = window.scrollY;
+    if(y < window.innerHeight){
+      hero.style.transform = 'translateY('+(y*0.25)+'px) rotateX('+(y*0.02)+'deg)';
+      hero.style.opacity = String(Math.max(0, 1 - y/600));
+    }
+  }
+  window.addEventListener('scroll', onScroll, {passive:true});
+
+  window.addEventListener('pointermove', function(ev){
+    if(window.scrollY > window.innerHeight) return;
+    var cx = (ev.clientX/window.innerWidth - .5);
+    var cy = (ev.clientY/window.innerHeight - .5);
+    hero.style.transform = 'rotateY('+(cx*8)+'deg) rotateX('+(-cy*8)+'deg)';
+  });
+
+  /* ---- Inclinar tarjetas (efecto 3D con el puntero) ---- */
+  document.querySelectorAll('.tilt').forEach(function(card){
+    card.addEventListener('pointermove', function(ev){
+      var r = card.getBoundingClientRect();
+      var px = (ev.clientX - r.left)/r.width - .5;
+      var py = (ev.clientY - r.top)/r.height - .5;
+      card.style.transform = 'rotateY('+(px*12)+'deg) rotateX('+(-py*12)+'deg) translateZ(10px)';
+    });
+    card.addEventListener('pointerleave', function(){ card.style.transform=''; });
+  });
+
+  /* ---- Lluvia de letras (fondo "matrix") ---- */
+  var c = document.getElementById('matrix'), x = c.getContext('2d');
+  var letras = 'アイウエオカ01ABCDFHQRWZ#*+·'.split(''), col, gotas, paso=16;
+  function medir(){
+    c.width = innerWidth; c.height = innerHeight;
+    col = Math.floor(c.width/paso); gotas = Array(col).fill(1);
+  }
+  medir(); addEventListener('resize', medir, {passive:true});
+  function pintar(){
+    x.fillStyle='rgba(5,7,13,.08)'; x.fillRect(0,0,c.width,c.height);
+    x.fillStyle='#1fe0b8'; x.font=paso+'px monospace';
+    for(var i=0;i<gotas.length;i++){
+      x.fillText(letras[Math.floor(Math.random()*letras.length)], i*paso, gotas[i]*paso);
+      if(gotas[i]*paso > c.height && Math.random()>.975) gotas[i]=0;
+      gotas[i]++;
+    }
+    requestAnimationFrame(pintar);
+  }
+  requestAnimationFrame(pintar);
+})();
+</script>
+</body>
+</html>
