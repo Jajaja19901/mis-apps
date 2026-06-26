@@ -6653,6 +6653,16 @@ function subscribeToFirebase() {
 
   state.firebaseConnected = true;
 
+  // Asegurar el registro de push ahora que ya hay grupo y uid. El registro del
+  // arranque (registerServiceWorker) puede ejecutarse antes de que el login
+  // anónimo fije state.uid, en cuyo caso no llega a guardarse en pushSubs/.
+  // Aquí ya estamos dentro del grupo con uid, así que se completa el registro.
+  if (swRegistration && typeof Notification !== 'undefined'
+      && Notification.permission === 'granted'
+      && PUSH_VAPID_PUBLIC !== 'REEMPLAZAR_CON_TU_VAPID_PUBLIC') {
+    suscribirPush(swRegistration);
+  }
+
   // Inicial: cargar todas las anécdotas
   ref.once('value').then(function(snap) {
     state.anecdotas = [];
@@ -12363,7 +12373,7 @@ async function suscribirPush(reg) {
         ts: Date.now()
       });
     }
-  } catch(e) {}
+  } catch(e) { console.error('Push: no se pudo suscribir/registrar', e); }
 }
 
 function urlBase64ToUint8Array(base64String) {
