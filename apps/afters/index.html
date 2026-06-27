@@ -4461,7 +4461,7 @@ function subscribeToChatPrivado(uidOtro) {
         });
         if (msg.de !== state.uid) {
           showLocalNotif('📸 ' + (msg.apodo||'Alguien'), 'Te envió una foto efímera · expira en '+msg.duracion+'s');
-          if (navigator.vibrate) navigator.vibrate([200,100,200]);
+          if (navigator.vibrate) navigator.vibrate([600,120,600,120,600]);
         }
       } else {
         state.chatPrivadoMsgs.push({ de: msg.de, apodo: msg.apodo, claro: claro, ts: msg.ts, firebaseKey: snap.key, read_at: msg.read_at || 0 });
@@ -5559,7 +5559,7 @@ function subscribeToOla() {
       var miembros = Object.keys(state.miembros || {}).sort();
       var miPos = Math.max(0, miembros.indexOf(state.uid));
       setTimeout(function() {
-        if (navigator.vibrate) navigator.vibrate([500, 80, 500, 80, 300]);
+        if (navigator.vibrate) navigator.vibrate([800,100,800,100,800]);
         showAvisoGrande('🌊 LA OLA · ' + escapeHtml(v.by || 'alguien'), '🌊');
       }, miPos * 320);
     });
@@ -5797,7 +5797,7 @@ function subscribeToEfimeros() {
       // Mostrar el mensaje efímero
       state._efimeroActivo = { id: snap.key, foto: msg.foto, duracion: msg.duracion || 10, de: msg.de || '?', ts: Date.now() };
       render();
-      if (navigator.vibrate) navigator.vibrate([300, 100, 300]);
+      if (navigator.vibrate) navigator.vibrate([700,120,700]);
       // Auto-borrar de Firebase cuando expire
       setTimeout(function() {
         try { fbDatabase().ref('grupos/'+state.grupo+'/efimeros/'+state.uid+'/'+snap.key).remove(); } catch(e){}
@@ -6148,7 +6148,7 @@ function comprobarDistanciaGrupo() {
 
       // Aviso a quien se aleja (yo)
       if (avisarA === 'todos' || avisarA === 'elQueSeAleja') {
-        if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+        if (navigator.vibrate) navigator.vibrate([700,130,700]);
         showAvisoGrande('Te estás separando del grupo (' + Math.round(dist) + 'm). Están hacia el ' + compassDirection(state.myLocation.lat, state.myLocation.lng, centro.lat, centro.lng), '🧭');
       }
 
@@ -6185,7 +6185,7 @@ function subscribeToAlejados() {
       // Si era "solo admin", solo le salta al admin
       if (v.soloAdmin && !state.esAdmin) return;
       showAvisoGrande(v.apodo + ' se está separando del grupo (' + v.distancia + 'm)', '🚨');
-      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      if (navigator.vibrate) navigator.vibrate([600,120,600]);
       // Borrar el aviso para que no se repita
       try { fbDatabase().ref('grupos/' + state.grupo + '/alejados/' + snap.key).remove(); } catch (e) {}
     });
@@ -6227,7 +6227,7 @@ function subscribeToReagrupar() {
       // Si no soy quien lo lanzó, avisar
       if (v.uid !== state.uid && !state._reagruparVisto) {
         state._reagruparVisto = v.ts;
-        if (navigator.vibrate) navigator.vibrate([300, 150, 300, 150, 300]);
+        if (navigator.vibrate) navigator.vibrate([700,130,700,130,700]);
         showAvisoGrande(v.apodo + ' quiere reagrupar a todos. Toca para ir.', '📣');
       }
       if (state.view === 'map' && state.mapInstance) refreshMapMarkers();
@@ -6290,7 +6290,7 @@ function comprobarSiNecesitoAyuda() {
 
 function mostrarPreguntaEstasBien() {
   state.mostrandoPreguntaBien = true;
-  if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 500]);
+  if (navigator.vibrate) navigator.vibrate([800,150,800,150,800,150,800]);
   render();
   // Si no responde en 3 min, avisar al grupo
   state._timeoutAyuda = setTimeout(function() {
@@ -6421,7 +6421,7 @@ function subscribeToVolverACasa() {
           if (v.llego && !state['_llego_' + uid]) {
             state['_llego_' + uid] = true;
             showAvisoGrande(v.apodo + ' ha llegado bien a casa 🏠', '✅');
-            if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            if (navigator.vibrate) navigator.vibrate([600,120,600]);
           }
         }
       });
@@ -7271,7 +7271,7 @@ function subscribeToToques() {
       state.ultimoToqueVisto = toque.ts;
 
       // Vibrar fuerte, sonar y avisar EN GRANDE
-      if (navigator.vibrate) navigator.vibrate([400, 150, 400, 150, 400, 150, 600]);
+      if (navigator.vibrate) navigator.vibrate([800,130,800,130,800,130,900]);
       try { reproducirToqueSonido(); } catch (e) {}
       showAvisoGrande((toque.de || 'Alguien') + ' te ha dado un toque', '👋');
 
@@ -9019,7 +9019,7 @@ function sendSOS() {
   // A MÍ MISMO no me suena la alarma (me delataría y ya sé que lo activé).
   // Solo una vibración corta de confirmación de que se envió.
   if (navigator.vibrate) {
-    navigator.vibrate(200);
+    navigator.vibrate(600);
   }
 
   render();
@@ -9034,7 +9034,7 @@ function escucharQuienViene() {
       const v = snap.val();
       if (!v || !v.apodo) return;
       // Avisar en grande: alguien viene
-      if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+      if (navigator.vibrate) navigator.vibrate([700,130,700]);
       showAvisoGrande(v.apodo + ' viene de camino a ayudarte', '🚀');
     });
   } catch (e) {}
