@@ -1131,7 +1131,10 @@
     border-bottom-left-radius: 4px;
   }
   .cp-texto { font-size: 15px; line-height: 1.3; word-break: break-word; }
-  .cp-hora { font-size: 9px; opacity: 0.7; margin-top: 4px; text-align: right; }
+  .cp-hora { font-size: 9px; opacity: 0.7; margin-top: 4px; text-align: right; display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
+  .cp-tick { font-size: 10px; line-height: 1; }
+  .cp-tick.enviado { color: rgba(255,255,255,0.45); }
+  .cp-tick.leido { color: #00f0ff; }
   .cp-input-row {
     display: flex;
     gap: 8px;
@@ -4305,11 +4308,12 @@ async function enviarChatPrivado(texto) {
     de: state.uid,
     apodo: state.apodo,
     texto: paquete,  // va CIFRADO a Firebase
-    ts: Date.now()
+    ts: Date.now(),
+    read_at: 0
   };
 
-  // Mostrar en mi pantalla al instante (en claro, solo para mí)
-  state.chatPrivadoMsgs.push({ de: state.uid, apodo: state.apodo, claro: texto.trim(), ts: msg.ts });
+  // Mostrar en mi pantalla al instante (en claro, solo para mí); firebaseKey se rellena tras el push
+  state.chatPrivadoMsgs.push({ de: state.uid, apodo: state.apodo, claro: texto.trim(), ts: msg.ts, firebaseKey: null, read_at: 0 });
   state.chatPrivadoInput = '';
   const input = document.getElementById('chatPrivadoInput');
   if (input) input.value = '';
@@ -4318,7 +4322,10 @@ async function enviarChatPrivado(texto) {
   // Guardar cifrado en Firebase
   if (FIREBASE_CONFIGURED && db) {
     try {
-      await fbDatabase().ref('grupos/' + state.grupo + '/chatsPrivados/' + sala).push(msg);
+      const pushRef = await fbDatabase().ref('grupos/' + state.grupo + '/chatsPrivados/' + sala).push(msg);
+      // Guardar la key para poder detectar el ✓✓ cuando el otro la lea
+      const localMsg = state.chatPrivadoMsgs.find(function(m) { return m.ts === msg.ts && m.de === state.uid && !m.firebaseKey; });
+      if (localMsg) { localMsg.firebaseKey = pushRef.key; renderChatPrivadoMsgs(); }
     } catch (e) {
       showToast('❌ No se envió: ' + (e && e.message ? e.message : e));
     }
@@ -4330,42 +4337,69 @@ function subscribeToChatPrivado(uidOtro) {
   const sala = salaPrivadaId(state.uid, uidOtro);
   try {
     const ref = fbDatabase().ref('grupos/' + state.grupo + '/chatsPrivados/' + sala);
+
     ref.on('child_added', async function(snap) {
       const msg = snap.val();
       if (!msg || !msg.texto) return;
-      // Si el mensaje es MÍO, ya lo mostré al enviarlo (evitar duplicado)
+
+      // Mensaje MÍO: ya está en la UI desde el envío optimista.
+      // Solo actualizamos la firebaseKey si aún no la teníamos.
       if (msg.de === state.uid) {
-        // Marcar que ya está (por si acaso no estaba)
-        const yaEsta = state.chatPrivadoMsgs.some(m => m.ts === msg.ts && m.de === state.uid);
-        if (yaEsta) return;
+        const localMsg = state.chatPrivadoMsgs.find(function(m) { return m.ts === msg.ts && m.de === state.uid; });
+        if (localMsg && !localMsg.firebaseKey) {
+          localMsg.firebaseKey = snap.key;
+          renderChatPrivadoMsgs();
+        }
+        return;
       }
-      // Descifrar con la clave compartida
+
+      // Mensaje del otro: descifrar
       const clave = await derivarClaveCon(uidOtro);
       if (!clave) return;
       const claro = await descifrarE2E(clave, msg.texto);
-      if (claro === null) return;  // no se pudo descifrar
+      if (claro === null) return;
+
       // Evitar duplicados
-      if (state.chatPrivadoMsgs.some(m => m.ts === msg.ts && m.de === msg.de)) return;
-      // Tipo efímero (foto) vs texto normal
+      if (state.chatPrivadoMsgs.some(function(m) { return m.ts === msg.ts && m.de === msg.de; })) return;
+
       if (msg.tipo === 'efimero') {
         state.chatPrivadoMsgs.push({
           de: msg.de, apodo: msg.apodo, tipo: 'efimero',
-          claro: claro,           // foto descifrada en claro (base64)
+          claro: claro,
           duracion: msg.duracion || 10,
           firebaseKey: snap.key,
           abierto: false, ts: msg.ts
         });
-        // Notificar
         if (msg.de !== state.uid) {
           showLocalNotif('📸 ' + (msg.apodo||'Alguien'), 'Te envió una foto efímera · expira en '+msg.duracion+'s');
           if (navigator.vibrate) navigator.vibrate([200,100,200]);
         }
       } else {
-        state.chatPrivadoMsgs.push({ de: msg.de, apodo: msg.apodo, claro: claro, ts: msg.ts });
+        state.chatPrivadoMsgs.push({ de: msg.de, apodo: msg.apodo, claro: claro, ts: msg.ts, firebaseKey: snap.key, read_at: msg.read_at || 0 });
       }
+
       state.chatPrivadoMsgs.sort(function(a, b) { return a.ts - b.ts; });
       if (state.view === 'chatPrivado') renderChatPrivadoMsgs();
+
+      // Marcar como leído si el chat está abierto ahora mismo
+      if (state.view === 'chatPrivado' && !msg.read_at) {
+        try {
+          ref.child(snap.key).update({ read_at: Date.now() });
+        } catch(e) {}
+      }
     });
+
+    // Detectar cuando el otro lee mis mensajes (read_at pasa de 0 a un timestamp)
+    ref.on('child_changed', function(snap) {
+      const msg = snap.val();
+      if (!msg || msg.de !== state.uid || !msg.read_at) return;
+      const localMsg = state.chatPrivadoMsgs.find(function(m) { return m.firebaseKey === snap.key; });
+      if (localMsg && !localMsg.read_at) {
+        localMsg.read_at = msg.read_at;
+        if (state.view === 'chatPrivado') renderChatPrivadoMsgs();
+      }
+    });
+
   } catch (e) {}
 }
 
@@ -6269,6 +6303,12 @@ function subscribeToConexion() {
           if (state.shareLocationActive && !state.watchId) {
             reconectarUbicacionSiHaceFalta();
           }
+          // Forzar refresco de ubicaciones de los demás (el listener on('value')
+          // puede quedar mudo tras una caída de WebSocket en móvil)
+          try {
+            var rUbic = fbUbicacionesRef();
+            if (rUbic) rUbic.once('value', function(s) { procesarSnapshotUbicaciones(s); });
+          } catch(e) {}
         }
       }
     });
@@ -6728,71 +6768,66 @@ function subscribeToFirebase() {
   // Suscribirse a ubicaciones
   const locRef = fbUbicacionesRef();
   if (locRef) {
-    locRef.on('value', function(snap) {
-      const raw = snap.val() || {};
-      const decoded = {};
-      let totalEnFirebase = 0;
-      let desencriptadasOk = 0;
-      let fallosDesencriptado = 0;
-      // Ahora la CLAVE de cada entrada es el UID, y el apodo viene DENTRO del dato.
-      Object.keys(raw).forEach(function(uid) {
-        const entry = raw[uid];
-        if (!entry) return;
-        totalEnFirebase++;
-        // El nombre a mostrar: el apodo guardado dentro, o el UID si no hay
-        const nombre = entry.apodo || uid;
-        if (entry.data) {
-          // Ubicación encriptada: desencriptar
-          const loc = decryptLocation(entry.data);
-          if (loc) {
-            desencriptadasOk++;
-            decoded[nombre] = {
-              lat: loc.lat,
-              lng: loc.lng,
-              hasta: loc.until,
-              bateria: loc.bateria != null ? loc.bateria : null,
-              cargando: loc.cargando === true,
-              conexion: loc.conexion || null,
-              pantalla: loc.pantalla !== false,
-              velocidad: loc.velocidad != null ? loc.velocidad : null,
-              precision: loc.precision != null ? loc.precision : null,
-              direccion: loc.direccion != null ? loc.direccion : null,
-              altura: loc.altura != null ? loc.altura : null,
-              calidadNet: loc.calidadNet != null ? loc.calidadNet : null,
-              estado: entry.estado || '',
-              uid: uid,
-              ts: entry.ts
-            };
-          } else {
-            fallosDesencriptado++;
-          }
-        } else if (entry.lat != null) {
-          // Compatibilidad: ubicación vieja sin encriptar
-          desencriptadasOk++;
-          decoded[nombre] = entry;
-        }
-      });
-      // Guardar diagnóstico para mostrarlo en el mapa
-      state.diagUbic = { total: totalEnFirebase, ok: desencriptadasOk, fallos: fallosDesencriptado };
-      // Fusionar: actualizar lo que cambió, conservar mi propio punto local
-      const miApodo = state.apodo;
-      // Quitar de state.ubicaciones los que ya no están en Firebase (excepto yo)
-      Object.keys(state.ubicaciones).forEach(function(nombre) {
-        if (nombre !== miApodo && !decoded[nombre]) {
-          delete state.ubicaciones[nombre];
-        }
-      });
-      // Meter/actualizar los que llegan de Firebase
-      Object.keys(decoded).forEach(function(nombre) {
-        // Mi propio punto lo gestiono yo localmente, no lo piso con el de Firebase
-        if (nombre === miApodo && state.ubicaciones[miApodo]) return;
-        state.ubicaciones[nombre] = decoded[nombre];
-      });
-      // Si está abierto el mapa, refrescar
-      if (state.view === 'map' && state.mapInstance) {
-        refreshMapMarkers();
+    locRef.on('value', function(snap) { procesarSnapshotUbicaciones(snap); });
+  }
+}
+
+// Procesar un snapshot de Firebase de /ubicaciones y volcar en state.
+// Se llama tanto desde el listener en tiempo real como desde los refrescos manuales
+// (reconexión de Firebase, vuelta al primer plano).
+function procesarSnapshotUbicaciones(snap) {
+  const raw = snap.val() || {};
+  const decoded = {};
+  let totalEnFirebase = 0;
+  let desencriptadasOk = 0;
+  let fallosDesencriptado = 0;
+  Object.keys(raw).forEach(function(uid) {
+    const entry = raw[uid];
+    if (!entry) return;
+    totalEnFirebase++;
+    const nombre = entry.apodo || uid;
+    if (entry.data) {
+      const loc = decryptLocation(entry.data);
+      if (loc) {
+        desencriptadasOk++;
+        decoded[nombre] = {
+          lat: loc.lat,
+          lng: loc.lng,
+          hasta: loc.until,
+          bateria: loc.bateria != null ? loc.bateria : null,
+          cargando: loc.cargando === true,
+          conexion: loc.conexion || null,
+          pantalla: loc.pantalla !== false,
+          velocidad: loc.velocidad != null ? loc.velocidad : null,
+          precision: loc.precision != null ? loc.precision : null,
+          direccion: loc.direccion != null ? loc.direccion : null,
+          altura: loc.altura != null ? loc.altura : null,
+          calidadNet: loc.calidadNet != null ? loc.calidadNet : null,
+          estado: entry.estado || '',
+          uid: uid,
+          ts: entry.ts
+        };
+      } else {
+        fallosDesencriptado++;
       }
-    });
+    } else if (entry.lat != null) {
+      desencriptadasOk++;
+      decoded[nombre] = entry;
+    }
+  });
+  state.diagUbic = { total: totalEnFirebase, ok: desencriptadasOk, fallos: fallosDesencriptado };
+  const miApodo = state.apodo;
+  Object.keys(state.ubicaciones).forEach(function(nombre) {
+    if (nombre !== miApodo && !decoded[nombre]) {
+      delete state.ubicaciones[nombre];
+    }
+  });
+  Object.keys(decoded).forEach(function(nombre) {
+    if (nombre === miApodo && state.ubicaciones[miApodo]) return;
+    state.ubicaciones[nombre] = decoded[nombre];
+  });
+  if (state.view === 'map' && state.mapInstance) {
+    refreshMapMarkers();
   }
 }
 
@@ -11553,9 +11588,17 @@ function buildChatPrivadoMsgsHtml() {
     }
 
     // Mensaje de texto normal
+    var tick = '';
+    if (mio) {
+      if (m.read_at) {
+        tick = '<span class="cp-tick leido">✓✓</span>';
+      } else if (m.firebaseKey) {
+        tick = '<span class="cp-tick enviado">✓</span>';
+      }
+    }
     return '<div class="cp-burbuja ' + (mio ? 'cp-mia' : 'cp-suya') + '">'
       + '<div class="cp-texto">' + escapeHtml(m.claro) + '</div>'
-      + '<div class="cp-hora">' + hora + '</div>'
+      + '<div class="cp-hora"><span>' + hora + '</span>' + tick + '</div>'
       + '</div>';
   }).join('');
 }
@@ -15053,6 +15096,12 @@ function initBateria() {
         } else if (!state.shareLocationActive && state.grupo && state.estaAprobado) {
           try { reconectarUbicacionSiHaceFalta(); } catch (e) {}
         }
+        // Forzar refresco de ubicaciones de los demás al volver al frente
+        // (el listener puede estar obsoleto tras el tiempo en segundo plano)
+        try {
+          var rUbic2 = fbUbicacionesRef();
+          if (rUbic2) rUbic2.once('value', function(s) { procesarSnapshotUbicaciones(s); });
+        } catch(e) {}
       }
     });
   } catch (e) {}
