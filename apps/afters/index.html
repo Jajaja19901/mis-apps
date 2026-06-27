@@ -9773,7 +9773,7 @@ function renderGrupoSelector() {
     + '    <div class="welcome-eyebrow">BIENVENIDO AL</div>'
     + '    <h1 class="welcome-title">AFTERS</h1>'
     + '    <div class="welcome-subtitle">LO QUE PASA DE NOCHE, SE LEE DE DÍA</div>'
-    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 98 ✓</div>'
+    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 99 ✓</div>'
     + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:9px; letter-spacing:0.2em; color:' + modeColor + '; margin-bottom:40px;">' + modeLabel + '</div>'
     + '    <button id="crearGrupoBtn" class="btn-primary" style="margin-bottom:16px;">✨ CREAR GRUPO NUEVO</button>'
     + '    <button id="unirseGrupoBtn" class="btn-secondary">🔗 UNIRME A UN GRUPO</button>'
@@ -12694,10 +12694,18 @@ document.addEventListener('touchstart', function() {
 }, { passive: true });
 
 function vibrar(patron) {
+  if (!patron || patron === 0) {
+    if (navigator.vibrate) navigator.vibrate(0);
+    _pendingVibration = null;
+    return;
+  }
+  // Siempre encolar como respaldo: Chrome puede devolver true aunque ignore la llamada
+  _pendingVibration = patron;
   if (navigator.vibrate) {
-    var ok = navigator.vibrate(patron);
-    // Si devuelve false o undefined = bloqueado por falta de gesto → encolar
-    if (!ok) _pendingVibration = patron;
+    navigator.vibrate(patron);
+    // No borramos _pendingVibration aquí: si Chrome lo bloqueó en silencio,
+    // el touchstart del próximo toque lo ejecutará. Si sí vibró, el toque
+    // limpiará sin daño (vibrate(patron) repetida es inocua).
   }
   if (swRegistration && Notification.permission === 'granted') {
     try {
