@@ -1470,11 +1470,7 @@
     margin: 0 !important;
     width: 100% !important;
   }
-  .leaflet-popup-tip { background: #1a1a2a !important; }
-    color: #0a0a0f !important;
-    border-radius: 0 !important;
-  }
-  .leaflet-popup-tip { background: #ffd700 !important; }
+  .leaflet-popup-tip { background: #1a1a2a !important; border-radius: 0 !important; }
   .leaflet-container { background: #14141c !important; font-family: 'DM Sans', sans-serif; }
 
   .loc-section {
@@ -3788,7 +3784,7 @@
     font-size: 20px;
     font-weight: 700;
     cursor: grab;
-    z-index: 50;
+    z-index: 97;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -8371,23 +8367,15 @@ function startNavigating(apodo) {
     lng: u.lng
   };
   
-  state.navChat = [];  // Limpiar chat anterior
-  
-  // Activar brújula
+  state.navChat = [];
+  state._navChatSubscribed = false;
+  if (state.navigationInterval) clearInterval(state.navigationInterval);
   startDeviceOrientationListener();
-  
-  // Suscribirse al chat
   subscribeToNavChat();
-  
-  // GUÍA FLOTANTE: quedarse en el mapa con la flecha flotando encima (no pantalla aparte)
   state.guiaFlotante = true;
   if (state.view !== 'map') state.view = 'map';
   render();
-  
-  // Actualizar la flecha cada 500ms (sin redibujar el mapa entero)
-  state.navigationInterval = setInterval(function() {
-    actualizarFlechaFlotante();
-  }, 500);
+  state.navigationInterval = setInterval(function() { actualizarFlechaFlotante(); }, 500);
 }
 
 // Dibuja la tarjeta de la flecha flotante (HTML que se muestra sobre el mapa)
@@ -8649,9 +8637,11 @@ function stopNavigating() {
   state.deviceHeading = null;
   state.navChat = [];
   state.navChatInput = '';
-  // Si estaba la guía flotante, quedarse en el mapa (no salir al inicio)
+  state._navChatSubscribed = false;
   if (state.guiaFlotante) {
     state.guiaFlotante = false;
+    state.view = 'map';
+  } else if (state.view === 'navigating') {
     state.view = 'map';
   } else {
     state.view = 'main';
@@ -8693,16 +8683,17 @@ async function sendNavChat(mensaje) {
 
 function subscribeToNavChat() {
   if (!FIREBASE_CONFIGURED || !db || !state.navigatingTo) return;
-  
+  if (state._navChatSubscribed) return;
+  state._navChatSubscribed = true;
+
   try {
     const navChatRef = fbDatabase().ref('grupos/' + state.grupo + '/navChat/' + state.navigatingTo.apodo);
     navChatRef.on('child_added', function(snap) {
       const msg = snap.val();
-      if (msg && msg.timestamp > Date.now() - 60000) {  // Últimos 60 segundos
-        if (!state.navChat.find(m => m.timestamp === msg.timestamp && m.uid === msg.uid)) {
+      if (msg && msg.timestamp > Date.now() - 60000) {
+        if (!state.navChat.find(function(m) { return m.timestamp === msg.timestamp && m.uid === msg.uid; })) {
           state.navChat.push(msg);
-          render();
-          // Auto-scroll
+          if (state.view === 'navigating') render();
           setTimeout(function() {
             const container = document.querySelector('.nav-chat-messages');
             if (container) container.scrollTop = container.scrollHeight;
@@ -8711,6 +8702,49 @@ function subscribeToNavChat() {
       }
     });
   } catch (e) {}
+}
+
+// Actualiza la vista fullscreen de navegación (brújula + distancia) sin re-render completo
+function actualizarNavigatingView() {
+  if (!state.navigatingTo || !state.myLocation) return;
+  const u = state.ubicaciones[state.navigatingTo.apodo];
+  if (u && u.lat != null) { state.navigatingTo.lat = u.lat; state.navigatingTo.lng = u.lng; }
+  const dist = haversineDistance(state.myLocation.lat, state.myLocation.lng, state.navigatingTo.lat, state.navigatingTo.lng);
+  const bearing = calculateBearing(state.myLocation.lat, state.myLocation.lng, state.navigatingTo.lat, state.navigatingTo.lng);
+  const arrowRot = state.deviceHeading !== null ? (bearing - state.deviceHeading) : bearing;
+  const arrowEl = document.querySelector('.compass-arrow');
+  const distEl = document.querySelector('.nav-distance');
+  const instrEl = document.querySelector('.nav-instruction');
+  if (arrowEl) arrowEl.style.transform = 'rotate(' + arrowRot + 'deg)';
+  if (distEl) distEl.textContent = formatDistance(dist);
+  if (instrEl) instrEl.textContent = getNavigationInstruction(bearing, state.deviceHeading);
+}
+
+// Abre la navegación en pantalla completa (brújula grande + chat)
+function startNavigatingFullscreen(apodo) {
+  var u = state.ubicaciones[apodo];
+  if (!u) {
+    for (var ap in state.ubicaciones) {
+      if (state.ubicaciones[ap] && state.ubicaciones[ap].uid === apodo) { u = state.ubicaciones[ap]; apodo = ap; break; }
+    }
+  }
+  if (!u || u.lat == null || u.lng == null) { showToast('No tengo la ubicación de ' + apodo + ' todavía'); return; }
+  if (!state.myLocation && navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function(p) {
+      state.myLocation = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy };
+      actualizarNavigatingView();
+    }, function(){}, { enableHighAccuracy: true, timeout: 10000 });
+  }
+  if (state.navigationInterval) clearInterval(state.navigationInterval);
+  state.navigatingTo = { apodo: apodo, lat: u.lat, lng: u.lng };
+  state.navChat = [];
+  state._navChatSubscribed = false;
+  state.guiaFlotante = false;
+  state.view = 'navigating';
+  startDeviceOrientationListener();
+  subscribeToNavChat();
+  state.navigationInterval = setInterval(actualizarNavigatingView, 500);
+  render();
 }
 
 // (unsubscribeFromNavChat eliminada: no se usaba.)
@@ -12315,7 +12349,8 @@ function refreshMapMarkers() {
         // Estilo base de cada botón (cuadrícula): emoji arriba, palabra debajo. Compacto.
         const celda = 'display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px 4px;border:none;border-radius:9px;font-family:Bebas Neue,sans-serif;font-size:10px;line-height:1.1;letter-spacing:0.03em;cursor:pointer;font-weight:700;text-decoration:none;';
         popupHtml += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px;">';
-        popupHtml += '<button data-action="startNavigating" data-apodo="' + escapeHtml(apodo) + '" style="' + celda + 'background:#00f0ff;color:#0a0a0f;"><span style="font-size:18px;">🧭</span>NAVEGAR</button>';
+        popupHtml += '<button data-action="startNavigating" data-apodo="' + escapeHtml(apodo) + '" style="' + celda + 'background:#00f0ff;color:#0a0a0f;"><span style="font-size:18px;">🗺</span>FLOTANTE</button>';
+        popupHtml += '<button data-action="startNavigatingFullscreen" data-apodo="' + escapeHtml(apodo) + '" style="' + celda + 'background:#ff0080;color:#fff;"><span style="font-size:18px;">🧭</span>GUIAR</button>';
         if (state.rastros && state.rastros[apodo] && state.rastros[apodo].length > 1) {
           popupHtml += '<button data-action="mostrarRecorridoEstatico" data-apodo="' + escapeHtml(apodo) + '" style="' + celda + 'background:#7a5cff;color:#fff;"><span style="font-size:18px;">👣</span>PUNTOS</button>';
           popupHtml += '<button data-action="verRecorrido" data-apodo="' + escapeHtml(apodo) + '" style="' + celda + 'background:#5a3cdf;color:#fff;"><span style="font-size:18px;">▶</span>ANIMAR</button>';
@@ -13966,6 +14001,19 @@ function handleAction(action, el) {
       return;
     }
     startNavigating(apodo);
+  } else if (action === 'startNavigatingFullscreen') {
+    const apodo = el.getAttribute('data-apodo');
+    if (!state.myLocation) {
+      showToast('Buscando tu ubicación...');
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(p) {
+          state.myLocation = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy };
+          startNavigatingFullscreen(apodo);
+        }, function() { showToast('No pude obtener tu ubicación. Activa el GPS.'); }, { enableHighAccuracy: true, timeout: 10000 });
+      }
+      return;
+    }
+    startNavigatingFullscreen(apodo);
   } else if (action === 'mostrarRecorridoEstatico') {
     mostrarRecorridoEstatico(el.getAttribute('data-apodo'));
   } else if (action === 'verRecorrido') {
