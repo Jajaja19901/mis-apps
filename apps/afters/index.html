@@ -9738,7 +9738,7 @@ function renderGrupoSelector() {
     + '    <div class="welcome-eyebrow">BIENVENIDO AL</div>'
     + '    <h1 class="welcome-title">AFTERS</h1>'
     + '    <div class="welcome-subtitle">LO QUE PASA DE NOCHE, SE LEE DE DÍA</div>'
-    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 92 ✓</div>'
+    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 93 ✓</div>'
     + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:9px; letter-spacing:0.2em; color:' + modeColor + '; margin-bottom:40px;">' + modeLabel + '</div>'
     + '    <button id="crearGrupoBtn" class="btn-primary" style="margin-bottom:16px;">✨ CREAR GRUPO NUEVO</button>'
     + '    <button id="unirseGrupoBtn" class="btn-secondary">🔗 UNIRME A UN GRUPO</button>'
@@ -12686,15 +12686,24 @@ async function suscribirPush(reg) {
       applicationServerKey: urlBase64ToUint8Array(PUSH_VAPID_PUBLIC)
     });
     pushSubscription = sub;
-    // Guardar suscripción en Firebase para que el servidor pueda enviarle pushes
-    if (FIREBASE_CONFIGURED && db && state.grupo && state.uid) {
-      fbDatabase().ref('grupos/'+state.grupo+'/pushSubs/'+state.uid).set({
-        sub: JSON.stringify(sub),
-        apodo: state.apodo,
-        ts: Date.now()
-      });
-    }
+    guardarSuscripcionPush(sub);
   } catch(e) { console.error('Push: no se pudo suscribir/registrar', e); }
+}
+
+function guardarSuscripcionPush(sub, intento) {
+  if (!sub) return;
+  if (!FIREBASE_CONFIGURED || !db || !state.grupo || !state.uid) {
+    // uid/grupo aún no disponibles (auth pendiente) — reintentar en 2s
+    if ((intento || 0) < 5) {
+      setTimeout(function() { guardarSuscripcionPush(sub, (intento || 0) + 1); }, 2000);
+    }
+    return;
+  }
+  fbDatabase().ref('grupos/' + state.grupo + '/pushSubs/' + state.uid).set({
+    sub: JSON.stringify(sub),
+    apodo: state.apodo || '',
+    ts: Date.now()
+  }).catch(function(e) { console.error('Push: no se pudo guardar en Firebase', e); });
 }
 
 function urlBase64ToUint8Array(base64String) {
