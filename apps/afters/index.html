@@ -6416,6 +6416,7 @@ const state = {
   chatPrivadoMsgs: [],  // mensajes descifrados del chat privado abierto
   chatPrivadoInput: '',
   _rastrosRaw: {},  // rastros crudos { uid: {pushid:{lat,lng,ts}} } para estadísticas
+  _rastroArrows: [],  // marcadores de flecha del recorrido estático (para limpiarlos)
   _toquesEnviadosNoche: {},  // { apodo: nº toques enviados esta noche }
   miCoche: null,  // { lat, lng, nota, foto, ts } - mi coche privado (en localStorage)
   cochesGrupo: {},  // { uid: { apodo, lat, lng, nota, ts } } - coches compartidos del grupo
@@ -8012,7 +8013,61 @@ function stopDeviceOrientationListener() {
   state.deviceHeading = null;
 }
 
-// Dibuja en el mapa el recorrido (migas de pan) de una persona
+// Limpia las flechas del recorrido estático del mapa
+function limpiarFlechasRastro() {
+  if (state._rastroArrows && state._rastroArrows.length && state.mapInstance) {
+    state._rastroArrows.forEach(function(m) { try { state.mapInstance.removeLayer(m); } catch(e) {} });
+  }
+  state._rastroArrows = [];
+}
+
+// Muestra el recorrido como línea + flechas de dirección (vista estática, sin animación)
+function mostrarRecorridoEstatico(apodo) {
+  const puntos = state.rastros && state.rastros[apodo];
+  if (!puntos || puntos.length < 2 || !state.mapInstance) {
+    showToast('No hay recorrido de ' + apodo);
+    return;
+  }
+  detenerReproduccion(true);
+  if (state.rastroLayer) {
+    try { state.mapInstance.removeLayer(state.rastroLayer); } catch(e) {}
+    state.rastroLayer = null;
+  }
+  limpiarFlechasRastro();
+
+  // Línea del recorrido completo
+  const linea = L.polyline(puntos, { color: '#7a5cff', weight: 5, opacity: 0.88 }).addTo(state.mapInstance);
+  state.rastroLayer = linea;
+
+  // Punto de inicio (cyan) y fin (rosa)
+  try {
+    L.circleMarker(puntos[0], { radius: 8, color: '#00f0ff', fillColor: '#00f0ff', fillOpacity: 1, weight: 2 })
+      .addTo(state.mapInstance).bindPopup('🟢 Inicio · ' + escapeHtml(apodo));
+    L.circleMarker(puntos[puntos.length-1], { radius: 8, color: '#ff0080', fillColor: '#ff0080', fillOpacity: 1, weight: 2 })
+      .addTo(state.mapInstance).bindPopup('🔴 Fin · ' + escapeHtml(apodo));
+  } catch(e) {}
+
+  // Flechas de dirección cada ~10% del recorrido
+  var paso = Math.max(1, Math.floor(puntos.length / 10));
+  for (var i = 0; i < puntos.length - 1; i += paso) {
+    var p1 = puntos[i], p2 = puntos[Math.min(i + 1, puntos.length - 1)];
+    var ang = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]) * 180 / Math.PI;
+    var icono = L.divIcon({
+      className: '',
+      html: '<div style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;transform:rotate(' + ang + 'deg);font-size:18px;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.9));">➤</div>',
+      iconSize: [22, 22], iconAnchor: [11, 11]
+    });
+    try {
+      var mk = L.marker(p1, { icon: icono }).addTo(state.mapInstance);
+      state._rastroArrows.push(mk);
+    } catch(e) {}
+  }
+
+  state.mapInstance.fitBounds(L.latLngBounds(puntos), { padding: [55, 55], maxZoom: 16 });
+  showToast('👣 ' + escapeHtml(apodo) + ' · ' + puntos.length + ' puntos · toca el mapa para quitar');
+}
+
+// Dibuja en el mapa el recorrido animado (marcador que camina punto a punto)
 function verRecorrido(apodo) {
   iniciarReproduccion(apodo);
 }
@@ -8025,6 +8080,7 @@ function iniciarReproduccion(apodo) {
   }
   // Limpiar reproducción o rastro anterior
   detenerReproduccion(true);
+  limpiarFlechasRastro();
   if (state.rastroLayer) {
     try { state.mapInstance.removeLayer(state.rastroLayer); } catch(e) {}
     state.rastroLayer = null;
@@ -8119,6 +8175,7 @@ function detenerReproduccion(silencioso) {
   if (r.timer) clearTimeout(r.timer);
   try { state.mapInstance.removeLayer(r.trailLayer); } catch(e) {}
   try { state.mapInstance.removeLayer(r.markerAnim); } catch(e) {}
+  limpiarFlechasRastro();
   state.reproduccion = null;
   if (!silencioso) render();
 }
@@ -12127,7 +12184,8 @@ function refreshMapMarkers() {
         popupHtml += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px;">';
         popupHtml += '<button data-action="startNavigating" data-apodo="' + escapeHtml(apodo) + '" style="' + celda + 'background:#00f0ff;color:#0a0a0f;"><span style="font-size:18px;">🧭</span>NAVEGAR</button>';
         if (state.rastros && state.rastros[apodo] && state.rastros[apodo].length > 1) {
-          popupHtml += '<button data-action="verRecorrido" data-apodo="' + escapeHtml(apodo) + '" style="' + celda + 'background:#7a5cff;color:#fff;"><span style="font-size:18px;">👣</span>RECORRIDO</button>';
+          popupHtml += '<button data-action="mostrarRecorridoEstatico" data-apodo="' + escapeHtml(apodo) + '" style="' + celda + 'background:#7a5cff;color:#fff;"><span style="font-size:18px;">→</span>MAPA</button>';
+          popupHtml += '<button data-action="verRecorrido" data-apodo="' + escapeHtml(apodo) + '" style="' + celda + 'background:#5a3cdf;color:#fff;"><span style="font-size:18px;">▶</span>ANIMAR</button>';
         }
         const mapsUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + u.lat + ',' + u.lng + '&travelmode=walking';
         popupHtml += '<a href="' + mapsUrl + '" target="_blank" rel="noopener" style="' + celda + 'background:#ff0080;color:#fff;"><span style="font-size:18px;">🗺️</span>MAPS</a>';
@@ -13775,6 +13833,8 @@ function handleAction(action, el) {
       return;
     }
     startNavigating(apodo);
+  } else if (action === 'mostrarRecorridoEstatico') {
+    mostrarRecorridoEstatico(el.getAttribute('data-apodo'));
   } else if (action === 'verRecorrido') {
     iniciarReproduccion(el.getAttribute('data-apodo'));
   } else if (action === 'activarModoColocarPunto') {
