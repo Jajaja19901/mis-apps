@@ -5720,6 +5720,7 @@ function verEfimeroPrivado(msgId, fotoCifradaOClara, duracion) {
 }
 // ===== FIN FOTO EFÍMERA =====
 var _testigoStream = null;
+var _testigoVideo = null; // video persistente, siempre corriendo
 
 async function activarModoTestigo() {
   try {
@@ -5738,32 +5739,36 @@ async function activarModoTestigo() {
 function tomarFotoTestigo() {
   if (!_testigoStream) return;
   try {
-    var video = document.createElement('video');
-    video.srcObject = _testigoStream;
-    video.play();
-    video.addEventListener('playing', function() {
-      var canvas = document.createElement('canvas');
-      canvas.width = 640; canvas.height = 480;
-      canvas.getContext('2d').drawImage(video, 0, 0, 640, 480);
-      var foto = canvas.toDataURL('image/jpeg', 0.5);
-      var ts = new Date().toLocaleTimeString('es-ES', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
-      // Guardar en localStorage (máx 20 fotos)
-      try {
-        var fotos = JSON.parse(localStorage.getItem('afters_testigo') || '[]');
-        fotos.unshift({ foto: foto, ts: ts });
-        if (fotos.length > 20) fotos = fotos.slice(0, 20);
-        localStorage.setItem('afters_testigo', JSON.stringify(fotos));
-        state._testigoCount = fotos.length;
-        render();
-      } catch(e) {}
-      video.pause();
-    }, { once: true });
+    // Reusar siempre el mismo video en vez de crear uno nuevo cada vez
+    if (!_testigoVideo) {
+      _testigoVideo = document.createElement('video');
+      _testigoVideo.srcObject = _testigoStream;
+      _testigoVideo.muted = true;
+      _testigoVideo.playsInline = true;
+      _testigoVideo.play().catch(function(){});
+    }
+    // Captura directa sin esperar evento — el video ya está corriendo
+    var canvas = document.createElement('canvas');
+    canvas.width = 640; canvas.height = 480;
+    canvas.getContext('2d').drawImage(_testigoVideo, 0, 0, 640, 480);
+    var foto = canvas.toDataURL('image/jpeg', 0.5);
+    var ts = new Date().toLocaleTimeString('es-ES', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    var fotos = JSON.parse(localStorage.getItem('afters_testigo') || '[]');
+    fotos.unshift({ foto: foto, ts: ts });
+    if (fotos.length > 20) fotos = fotos.slice(0, 20);
+    localStorage.setItem('afters_testigo', JSON.stringify(fotos));
+    state._testigoCount = fotos.length;
+    // Actualizar solo el contador sin re-render completo
+    var countEl = document.getElementById('testigoCount');
+    if (countEl) countEl.textContent = '🕵️ TESTIGO · ' + state._testigoCount + ' FOTOS';
+    else render();
   } catch(e) {}
 }
 
 function desactivarModoTestigo() {
   state.modoTestigo = false;
   if (state._testigoTimer) { clearInterval(state._testigoTimer); state._testigoTimer = null; }
+  if (_testigoVideo) { _testigoVideo.pause(); _testigoVideo = null; }
   if (_testigoStream) { _testigoStream.getTracks().forEach(function(t){ t.stop(); }); _testigoStream = null; }
   showToast('🕵️ Modo Testigo desactivado · ' + state._testigoCount + ' fotos guardadas en tu móvil');
   render();
@@ -5790,7 +5795,7 @@ function exportarFotosTestigo() {
 function renderTestigoPanel() {
   if (!state.modoTestigo) return '';
   return '<div style="position:fixed;bottom:80px;right:12px;z-index:9996;background:rgba(10,10,15,0.95);border:1.5px solid #ffd23f;border-radius:12px;padding:10px 14px;backdrop-filter:blur(10px);">'
-    + '<div style="font-family:\'Bebas Neue\',sans-serif;font-size:13px;color:#ffd23f;letter-spacing:0.05em;">🕵️ TESTIGO · '+state._testigoCount+' FOTOS</div>'
+    + '<div id="testigoCount" style="font-family:\'Bebas Neue\',sans-serif;font-size:13px;color:#ffd23f;letter-spacing:0.05em;">🕵️ TESTIGO · '+state._testigoCount+' FOTOS</div>'
     + '<div style="display:flex;gap:6px;margin-top:6px;">'
     + '<button data-action="exportarTestigo" style="background:rgba(255,210,63,0.15);border:1px solid #ffd23f;color:#ffd23f;border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;">💾 Exportar</button>'
     + '<button data-action="desactivarTestigo" style="background:transparent;border:1px solid #ff0080;color:#ff0080;border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer;">✕ Parar</button>'
@@ -9768,7 +9773,7 @@ function renderGrupoSelector() {
     + '    <div class="welcome-eyebrow">BIENVENIDO AL</div>'
     + '    <h1 class="welcome-title">AFTERS</h1>'
     + '    <div class="welcome-subtitle">LO QUE PASA DE NOCHE, SE LEE DE DÍA</div>'
-    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 97 ✓</div>'
+    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 98 ✓</div>'
     + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:9px; letter-spacing:0.2em; color:' + modeColor + '; margin-bottom:40px;">' + modeLabel + '</div>'
     + '    <button id="crearGrupoBtn" class="btn-primary" style="margin-bottom:16px;">✨ CREAR GRUPO NUEVO</button>'
     + '    <button id="unirseGrupoBtn" class="btn-secondary">🔗 UNIRME A UN GRUPO</button>'
