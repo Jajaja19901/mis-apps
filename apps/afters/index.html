@@ -6640,6 +6640,7 @@ const state = {
   // SOS
   mostrandoSOSModal: false,
   sosModalActivo: null,  // {apodo, lat, lng, timestamp} cuando hay un SOS sin ver
+  sosAcknowledged: {},  // {uid_timestamp: true} SOS ya vistos/aceptados, no reaparecen
   sosAudioInterval: null,
   miSOSActivo: false,  // si YO tengo un SOS sonando ahora
   sosVibrateInterval: null,
@@ -8969,6 +8970,11 @@ function confirmeSOS() {
     } catch (e) {}
   }
 
+  // Marcar este SOS como visto para que no reaparezca si Firebase vuelve a disparar
+  if (sos.uid && sos.timestamp) {
+    state.sosAcknowledged[sos.uid + '_' + sos.timestamp] = true;
+  }
+
   // En MI pantalla: confirmar que voy, pero NO cerrar la guía (sigo viendo dónde está)
   showAvisoGrande('Vas de camino hacia ' + (sos.apodo || '') + '. ' + (sos.apodo || '') + ' ha sido avisado.', '🚀');
   // Cerrar solo el modal de alarma, pero seguir en el mapa guiando
@@ -9114,6 +9120,11 @@ function subscribeToSOS() {
     sosRef.on('value', function(snap) {
       const raw = snap.val() || {};
       const now = Date.now();
+      // Limpiar ACKs viejos (>10 min) para no acumular memoria
+      Object.keys(state.sosAcknowledged).forEach(function(k) {
+        const ts = parseInt(k.split('_').pop(), 10);
+        if (now - ts > 600000) delete state.sosAcknowledged[k];
+      });
       // La clave de cada SOS es el UID de quien lo lanzó
       let hayAlarmaDeOtro = false;
       let sosDeOtro = null;
@@ -9133,7 +9144,10 @@ function subscribeToSOS() {
       if (hayAlarmaDeOtro && sosDeOtro) {
         // ¿Ya estaba sonando este mismo SOS? No reabrir todo otra vez
         const yaActivo = state.sosModalActivo && state.sosModalActivo.timestamp === sosDeOtro.timestamp;
-        if (!yaActivo) {
+        // ¿Ya lo vio el usuario (confirmó o descartó)? No volver a mostrar aunque Firebase re-dispare
+        const sosKey = sosDeOtro._uid + '_' + sosDeOtro.timestamp;
+        const yaVisto = state.sosAcknowledged && state.sosAcknowledged[sosKey];
+        if (!yaActivo && !yaVisto) {
           // Aviso en pantalla SIEMPRE (esto no depende del sonido, que a veces el móvil bloquea)
           showToast('🚨 ' + String(sosDeOtro.apodo || 'Alguien').toUpperCase() + ' HA ACTIVADO EL SOS');
           // Sonar + vibrar fuerte (solo aquí, que es SOS de OTRO)
@@ -9724,7 +9738,7 @@ function renderGrupoSelector() {
     + '    <div class="welcome-eyebrow">BIENVENIDO AL</div>'
     + '    <h1 class="welcome-title">AFTERS</h1>'
     + '    <div class="welcome-subtitle">LO QUE PASA DE NOCHE, SE LEE DE DÍA</div>'
-    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 91 ✓</div>'
+    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 92 ✓</div>'
     + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:9px; letter-spacing:0.2em; color:' + modeColor + '; margin-bottom:40px;">' + modeLabel + '</div>'
     + '    <button id="crearGrupoBtn" class="btn-primary" style="margin-bottom:16px;">✨ CREAR GRUPO NUEVO</button>'
     + '    <button id="unirseGrupoBtn" class="btn-secondary">🔗 UNIRME A UN GRUPO</button>'
@@ -11888,6 +11902,7 @@ function renderMapModal() {
     + '  <div class="map-body">'
     +      avisoHttps
     +      avisoFirebase
+    +      renderNotifPrompt()
     +      (state.ubicacionFallo ? '<div class="aviso-gps-caido"><span>⚠️ Tu ubicación está desconectada</span><button class="btn-reactivar-gps" data-action="reactivarGps">REACTIVAR</button></div>' : '')
     + '    <div class="puntos-quedada-section">'
     + '      <div class="pq-header">'
@@ -14551,7 +14566,12 @@ function handleAction(action, el) {
   } else if (action === 'confirmeSOS') {
     confirmeSOS();
   } else if (action === 'descartarSOSRecibido') {
-    // Cierra el aviso de SOS sin ir a ayudar (pero el SOS del otro sigue activo en su móvil)
+    // Cierra el aviso de SOS sin ir a ayudar — marcar como visto para que no reaparezca
+    if (state.sosModalActivo && state.sosModalActivo.uid && state.sosModalActivo.timestamp) {
+      state.sosAcknowledged[state.sosModalActivo.uid + '_' + state.sosModalActivo.timestamp] = true;
+    }
+    stopSOSSound();
+    if (state.sosVibrateInterval) { clearInterval(state.sosVibrateInterval); state.sosVibrateInterval = null; }
     state.sosModalActivo = null;
     render();
   } else if (action === 'submitPuntoQuedada') {
