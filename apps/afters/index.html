@@ -9738,7 +9738,7 @@ function renderGrupoSelector() {
     + '    <div class="welcome-eyebrow">BIENVENIDO AL</div>'
     + '    <h1 class="welcome-title">AFTERS</h1>'
     + '    <div class="welcome-subtitle">LO QUE PASA DE NOCHE, SE LEE DE DÍA</div>'
-    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 94 ✓</div>'
+    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 95 ✓</div>'
     + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:9px; letter-spacing:0.2em; color:' + modeColor + '; margin-bottom:40px;">' + modeLabel + '</div>'
     + '    <button id="crearGrupoBtn" class="btn-primary" style="margin-bottom:16px;">✨ CREAR GRUPO NUEVO</button>'
     + '    <button id="unirseGrupoBtn" class="btn-secondary">🔗 UNIRME A UN GRUPO</button>'
@@ -10839,7 +10839,22 @@ function renderMasMenu() {
     + '<div data-action="openSearch" style="display:flex;align-items:center;gap:12px;background:#1c1c2e;border:1.5px solid rgba(255,255,255,0.22);border-radius:14px;padding:13px 14px;text-align:left;width:100%;cursor:pointer;box-sizing:border-box;margin-bottom:8px;"><span style="font-size:20px;flex-shrink:0;min-width:40px;height:40px;background:rgba(255,255,255,0.11);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;">🔍</span><div style="flex:1;text-align:left;min-width:0;"><span style="display:block;text-align:left;font-size:15px;font-weight:600;color:#f0f0f5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Buscar anécdotas</span><span style="display:block;text-align:left;font-size:12px;color:#9a9aa8;line-height:1.35;">Buscar en la historia del grupo</span></div></div>';
 
   // --- AJUSTES Y AYUDA ---
+  const notifPerm = getNotifPermission();
+  const notifLabel = notifPerm === 'granted'
+    ? '✅ Notificaciones activas'
+    : notifPerm === 'denied'
+      ? '🔕 Bloqueadas · actívalas en Ajustes del navegador'
+      : '🔔 Activar notificaciones de grupo';
+  const notifSub = notifPerm === 'granted'
+    ? 'SOS, ola y toque llegan aunque tengas la app cerrada'
+    : notifPerm === 'denied'
+      ? 'Ve a Ajustes del sitio y permite notificaciones'
+      : 'Avísate de SOS, ola y toque · necesario para móvil bloqueado';
+  const notifColor = notifPerm === 'granted' ? '#00d68f' : notifPerm === 'denied' ? '#ff5555' : '#ffd700';
+  const notifAction = notifPerm === 'denied' ? '' : 'data-action="enableNotifForce"';
+
   const itemsSeguridad = ''
+    + '<div ' + notifAction + ' style="display:flex;align-items:center;gap:12px;background:#1c1c2e;border:1.5px solid ' + notifColor + ';border-radius:14px;padding:13px 14px;text-align:left;width:100%;cursor:pointer;box-sizing:border-box;margin-bottom:8px;' + (notifPerm === 'denied' ? 'opacity:0.5;' : '') + '"><span style="font-size:20px;flex-shrink:0;min-width:40px;height:40px;background:rgba(255,255,255,0.11);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;">🔔</span><div style="flex:1;text-align:left;min-width:0;"><span style="display:block;text-align:left;font-size:15px;font-weight:600;color:' + notifColor + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + notifLabel + '</span><span style="display:block;text-align:left;font-size:12px;color:#9a9aa8;line-height:1.35;">' + notifSub + '</span></div></div>'
     + (state.modoTestigo
         ? '<div data-action="desactivarTestigo" style="display:flex;align-items:center;gap:12px;background:#1c1c2e;border:1.5px solid rgba(255,255,255,0.22);border-radius:14px;padding:13px 14px;text-align:left;width:100%;cursor:pointer;box-sizing:border-box;margin-bottom:8px;"><span style="font-size:20px;flex-shrink:0;min-width:40px;height:40px;background:rgba(255,255,255,0.11);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;">🕵️</span><div style="flex:1;text-align:left;min-width:0;"><span style="display:block;text-align:left;font-size:15px;font-weight:600;color:#f0f0f5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Testigo activo · ' + state._testigoCount + ' fotos</span><span style="display:block;text-align:left;font-size:12px;color:#9a9aa8;line-height:1.35;">Toca para desactivar y exportar</span></div></div>'
         : '<div data-action="activarTestigo" style="display:flex;align-items:center;gap:12px;background:#1c1c2e;border:1.5px solid rgba(255,255,255,0.22);border-radius:14px;padding:13px 14px;text-align:left;width:100%;cursor:pointer;box-sizing:border-box;margin-bottom:8px;"><span style="font-size:20px;flex-shrink:0;min-width:40px;height:40px;background:rgba(255,255,255,0.11);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;">🕵️</span><div style="flex:1;text-align:left;min-width:0;"><span style="display:block;text-align:left;font-size:15px;font-weight:600;color:#f0f0f5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Modo Testigo</span><span style="display:block;text-align:left;font-size:12px;color:#9a9aa8;line-height:1.35;">Foto automática cada 30s · solo en tu móvil · nunca en la nube</span></div></div>')
@@ -13816,6 +13831,11 @@ function handleAction(action, el) {
   } else if (action === 'markSeen') {
     markAllSeen();
   } else if (action === 'enableNotif') {
+    requestNotifPermission();
+  } else if (action === 'enableNotifForce') {
+    // Desde MÁS → siempre pedir aunque se hubiera descartado antes
+    state.notifDismissed = false;
+    try { localStorage.removeItem(STORAGE_KEY_NOTIF_DISMISS); } catch(e) {}
     requestNotifPermission();
   } else if (action === 'dismissNotif') {
     dismissNotifPrompt();
