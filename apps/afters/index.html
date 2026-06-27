@@ -4279,6 +4279,7 @@ function cerrarChatPrivado() {
   }
   state.chatPrivadoCon = null;
   state.chatPrivadoMsgs = [];
+  state.chatPrivadoSuscrito = null;  // permitir re-suscripción al reabrir
   state.view = 'map';
   render();
 }
@@ -4334,6 +4335,9 @@ async function enviarChatPrivado(texto) {
 
 function subscribeToChatPrivado(uidOtro) {
   if (!FIREBASE_CONFIGURED || !db || !state.uid || !state.grupo) return;
+  // Evitar listeners dobles si el usuario abre el mismo chat dos veces
+  if (state.chatPrivadoSuscrito === uidOtro) return;
+  state.chatPrivadoSuscrito = uidOtro;
   const sala = salaPrivadaId(state.uid, uidOtro);
   try {
     const ref = fbDatabase().ref('grupos/' + state.grupo + '/chatsPrivados/' + sala);
@@ -6704,6 +6708,9 @@ function fbUbicacionesRef() {
 function subscribeToFirebase() {
   const ref = fbAnecdotasRef();
   if (!ref) return;
+  // Evitar registrar listeners duplicados si ya se llamó antes
+  if (state.fbSubscribed) { state.firebaseConnected = true; return; }
+  state.fbSubscribed = true;
 
   state.firebaseConnected = true;
 
@@ -8047,18 +8054,13 @@ function mostrarRecorridoEstatico(apodo) {
       .addTo(state.mapInstance).bindPopup('🔴 Fin · ' + escapeHtml(apodo));
   } catch(e) {}
 
-  // Flechas de dirección cada ~10% del recorrido
-  var paso = Math.max(1, Math.floor(puntos.length / 10));
-  for (var i = 0; i < puntos.length - 1; i += paso) {
-    var p1 = puntos[i], p2 = puntos[Math.min(i + 1, puntos.length - 1)];
-    var ang = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]) * 180 / Math.PI;
-    var icono = L.divIcon({
-      className: '',
-      html: '<div style="width:22px;height:22px;display:flex;align-items:center;justify-content:center;transform:rotate(' + ang + 'deg);font-size:18px;filter:drop-shadow(0 1px 3px rgba(0,0,0,0.9));">➤</div>',
-      iconSize: [22, 22], iconAnchor: [11, 11]
-    });
+  // Puntito en cada punto GPS registrado (excepto el inicio y el fin, que ya tienen marcador)
+  for (var i = 1; i < puntos.length - 1; i++) {
     try {
-      var mk = L.marker(p1, { icon: icono }).addTo(state.mapInstance);
+      var mk = L.circleMarker(puntos[i], {
+        radius: 4, color: '#7a5cff', fillColor: '#c8b8ff',
+        fillOpacity: 1, weight: 1.5, opacity: 0.9
+      }).addTo(state.mapInstance);
       state._rastroArrows.push(mk);
     } catch(e) {}
   }
@@ -9928,6 +9930,7 @@ function salirAElegirGrupo() {
   }
   try { localStorage.removeItem(STORAGE_KEY_GRUPO); } catch (e) {}
   state.grupo = null;
+  state.fbSubscribed = false;  // permitir re-suscripción al entrar en otro grupo
   state.estaAprobado = false;
   state.esAdmin = false;
   state.authView = 'check';
@@ -11637,7 +11640,7 @@ function buildChatPrivadoMsgsHtml() {
       }
       // Del otro: botón para abrir
       return '<div class="cp-burbuja cp-suya">'
-        + '<button data-action="cpVerEfimero" data-msgid="' + escapeHtml(m.firebaseKey||'') + '" data-duracion="' + (m.duracion||10) + '" data-foto="' + (m.claro||'') + '" style="background:#ff0080;border:none;border-radius:10px;padding:12px 20px;color:#fff;font-family:\'Bebas Neue\',sans-serif;font-size:16px;letter-spacing:0.04em;cursor:pointer;display:flex;align-items:center;gap:8px;">'
+        + '<button data-action="cpVerEfimero" data-msgid="' + escapeHtml(m.firebaseKey||'') + '" data-duracion="' + (m.duracion||10) + '" data-foto="' + escapeHtml(m.claro||'') + '" style="background:#ff0080;border:none;border-radius:10px;padding:12px 20px;color:#fff;font-family:\'Bebas Neue\',sans-serif;font-size:16px;letter-spacing:0.04em;cursor:pointer;display:flex;align-items:center;gap:8px;">'
         + '📸 TAP PARA VER · ' + (m.duracion||10) + 's'
         + '</button>'
         + '<div class="cp-hora">' + hora + '</div>'
@@ -11874,14 +11877,38 @@ function actualizarMapa() {
     setTimeout(function() { btn.classList.remove('girando'); }, 600);
   }
 
-  // Volver a suscribirse a todo (por si alguna conexión se había caído)
-  try { subscribeToFirebase(); } catch (e) {}
-  try { subscribeToMiembrosYSolicitudes(); } catch (e) {}
-  try { subscribeToToques(); } catch (e) {}
-  try { subscribeToMapChat(); } catch (e) {}
-  try { subscribeToSOS(); } catch (e) {}
-  try { subscribeToRastros(); } catch (e) {}
-  try { subscribeToPuntosQuedada(); } catch (e) {}
+  // Forzar refresco puntual de datos (solo .once, sin duplicar listeners)
+  try {
+    var rUbicAct = fbUbicacionesRef();
+    if (rUbicAct) rUbicAct.once('value', function(s) { procesarSnapshotUbicaciones(s); });
+  } catch(e) {}
+  try {
+    var rRastros = fbGrupoRef() ? fbGrupoRef().child('rastros') : null;
+    if (rRastros) rRastros.once('value', function(snap) {
+      const raw = snap.val() || {};
+      state._rastrosRaw = raw;
+      const rastros = {};
+      const ahora = Date.now();
+      Object.keys(raw).forEach(function(uid) {
+        const puntosObj = raw[uid];
+        if (!puntosObj) return;
+        const lista = Object.values(puntosObj)
+          .filter(function(p) { return p && p.lat != null && p.ts && (ahora - p.ts < 24*3600*1000); })
+          .sort(function(a, b) { return a.ts - b.ts; })
+          .map(function(p) { return [p.lat, p.lng]; });
+        if (lista.length > 0) {
+          // Intentar obtener el apodo
+          var apodo = uid;
+          Object.keys(state.ubicaciones || {}).forEach(function(ap) {
+            if (state.ubicaciones[ap] && state.ubicaciones[ap].uid === uid) apodo = ap;
+          });
+          rastros[apodo] = lista;
+          rastros[uid] = lista;
+        }
+      });
+      state.rastros = rastros;
+    });
+  } catch(e) {}
 
   // Redibujar los puntos del mapa con lo más reciente
   try { refreshMapMarkers(); } catch (e) {}
@@ -12184,7 +12211,7 @@ function refreshMapMarkers() {
         popupHtml += '<div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:8px;">';
         popupHtml += '<button data-action="startNavigating" data-apodo="' + escapeHtml(apodo) + '" style="' + celda + 'background:#00f0ff;color:#0a0a0f;"><span style="font-size:18px;">🧭</span>NAVEGAR</button>';
         if (state.rastros && state.rastros[apodo] && state.rastros[apodo].length > 1) {
-          popupHtml += '<button data-action="mostrarRecorridoEstatico" data-apodo="' + escapeHtml(apodo) + '" style="' + celda + 'background:#7a5cff;color:#fff;"><span style="font-size:18px;">→</span>MAPA</button>';
+          popupHtml += '<button data-action="mostrarRecorridoEstatico" data-apodo="' + escapeHtml(apodo) + '" style="' + celda + 'background:#7a5cff;color:#fff;"><span style="font-size:18px;">👣</span>PUNTOS</button>';
           popupHtml += '<button data-action="verRecorrido" data-apodo="' + escapeHtml(apodo) + '" style="' + celda + 'background:#5a3cdf;color:#fff;"><span style="font-size:18px;">▶</span>ANIMAR</button>';
         }
         const mapsUrl = 'https://www.google.com/maps/dir/?api=1&destination=' + u.lat + ',' + u.lng + '&travelmode=walking';
