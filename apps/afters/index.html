@@ -13394,7 +13394,9 @@ function handleAction(action, el) {
     render();
   } else if (action === 'openAcciones') {
     cerrarModalesSueltos();
-    state._viewAntes = state.view;
+    // Solo recordar la vista de fondo si NO venimos de otro panel (mas/acciones),
+    // si no, al elegir una accion rebota al otro panel en vez de volver al mapa.
+    if (state.view !== 'acciones' && state.view !== 'mas') state._viewAntes = state.view;
     state.view = 'acciones';
     render();
   } else if (action === 'closeAcciones') {
@@ -13402,7 +13404,7 @@ function handleAction(action, el) {
     render();
   } else if (action === 'openMasMenu') {
     cerrarModalesSueltos();
-    state._viewAntes = state.view;
+    if (state.view !== 'acciones' && state.view !== 'mas') state._viewAntes = state.view;
     state.view = 'mas';
     render();
   } else if (action === 'closeMasMenu') {
