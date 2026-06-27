@@ -4461,7 +4461,7 @@ function subscribeToChatPrivado(uidOtro) {
         });
         if (msg.de !== state.uid) {
           showLocalNotif('📸 ' + (msg.apodo||'Alguien'), 'Te envió una foto efímera · expira en '+msg.duracion+'s');
-          if (navigator.vibrate) navigator.vibrate([600,120,600,120,600]);
+          vibrar([600,120,600,120,600]);
         }
       } else {
         state.chatPrivadoMsgs.push({ de: msg.de, apodo: msg.apodo, claro: claro, ts: msg.ts, firebaseKey: snap.key, read_at: msg.read_at || 0 });
@@ -5559,7 +5559,7 @@ function subscribeToOla() {
       var miembros = Object.keys(state.miembros || {}).sort();
       var miPos = Math.max(0, miembros.indexOf(state.uid));
       setTimeout(function() {
-        if (navigator.vibrate) navigator.vibrate([800,100,800,100,800]);
+        vibrar([800,100,800,100,800]);
         showAvisoGrande('🌊 LA OLA · ' + escapeHtml(v.by || 'alguien'), '🌊');
       }, miPos * 320);
     });
@@ -5797,7 +5797,7 @@ function subscribeToEfimeros() {
       // Mostrar el mensaje efímero
       state._efimeroActivo = { id: snap.key, foto: msg.foto, duracion: msg.duracion || 10, de: msg.de || '?', ts: Date.now() };
       render();
-      if (navigator.vibrate) navigator.vibrate([700,120,700]);
+      vibrar([700,120,700]);
       // Auto-borrar de Firebase cuando expire
       setTimeout(function() {
         try { fbDatabase().ref('grupos/'+state.grupo+'/efimeros/'+state.uid+'/'+snap.key).remove(); } catch(e){}
@@ -6148,7 +6148,7 @@ function comprobarDistanciaGrupo() {
 
       // Aviso a quien se aleja (yo)
       if (avisarA === 'todos' || avisarA === 'elQueSeAleja') {
-        if (navigator.vibrate) navigator.vibrate([700,130,700]);
+        vibrar([700,130,700]);
         showAvisoGrande('Te estás separando del grupo (' + Math.round(dist) + 'm). Están hacia el ' + compassDirection(state.myLocation.lat, state.myLocation.lng, centro.lat, centro.lng), '🧭');
       }
 
@@ -6185,7 +6185,7 @@ function subscribeToAlejados() {
       // Si era "solo admin", solo le salta al admin
       if (v.soloAdmin && !state.esAdmin) return;
       showAvisoGrande(v.apodo + ' se está separando del grupo (' + v.distancia + 'm)', '🚨');
-      if (navigator.vibrate) navigator.vibrate([600,120,600]);
+      vibrar([600,120,600]);
       // Borrar el aviso para que no se repita
       try { fbDatabase().ref('grupos/' + state.grupo + '/alejados/' + snap.key).remove(); } catch (e) {}
     });
@@ -6227,7 +6227,7 @@ function subscribeToReagrupar() {
       // Si no soy quien lo lanzó, avisar
       if (v.uid !== state.uid && !state._reagruparVisto) {
         state._reagruparVisto = v.ts;
-        if (navigator.vibrate) navigator.vibrate([700,130,700,130,700]);
+        vibrar([700,130,700,130,700]);
         showAvisoGrande(v.apodo + ' quiere reagrupar a todos. Toca para ir.', '📣');
       }
       if (state.view === 'map' && state.mapInstance) refreshMapMarkers();
@@ -6290,7 +6290,7 @@ function comprobarSiNecesitoAyuda() {
 
 function mostrarPreguntaEstasBien() {
   state.mostrandoPreguntaBien = true;
-  if (navigator.vibrate) navigator.vibrate([800,150,800,150,800,150,800]);
+  vibrar([800,150,800,150,800,150,800]);
   render();
   // Si no responde en 3 min, avisar al grupo
   state._timeoutAyuda = setTimeout(function() {
@@ -6335,7 +6335,7 @@ function subscribeToPosibleProblema() {
       if (snap.key === state.uid) return;
       if (Date.now() - v.ts > 120000) return;
       showAvisoGrande('⚠️ ' + v.apodo + ' lleva mucho rato sin moverse y no responde. Échale un ojo.', '🆘');
-      if (navigator.vibrate) navigator.vibrate([600, 200, 600, 200, 600]);
+      vibrar([600, 200, 600, 200, 600]);
     });
   } catch (e) {}
 }
@@ -6421,7 +6421,7 @@ function subscribeToVolverACasa() {
           if (v.llego && !state['_llego_' + uid]) {
             state['_llego_' + uid] = true;
             showAvisoGrande(v.apodo + ' ha llegado bien a casa 🏠', '✅');
-            if (navigator.vibrate) navigator.vibrate([600,120,600]);
+            vibrar([600,120,600]);
           }
         }
       });
@@ -7271,7 +7271,7 @@ function subscribeToToques() {
       state.ultimoToqueVisto = toque.ts;
 
       // Vibrar fuerte, sonar y avisar EN GRANDE
-      if (navigator.vibrate) navigator.vibrate([800,130,800,130,800,130,900]);
+      vibrar([800,130,800,130,800,130,900]);
       try { reproducirToqueSonido(); } catch (e) {}
       showAvisoGrande((toque.de || 'Alguien') + ' te ha dado un toque', '👋');
 
@@ -8953,7 +8953,7 @@ function confirmeSOS() {
   // Parar sonido y vibración
   stopSOSSound();
   if (state.sosVibrateInterval) { clearInterval(state.sosVibrateInterval); state.sosVibrateInterval = null; }
-  if (navigator.vibrate) navigator.vibrate(0);
+  vibrar(0);
 
   // Avisar a QUIEN PIDIÓ AYUDA que yo voy de camino.
   // Se escribe en sos/<uidDelQuePidio>/enCamino (ruta que las reglas permiten:
@@ -9018,9 +9018,7 @@ function sendSOS() {
 
   // A MÍ MISMO no me suena la alarma (me delataría y ya sé que lo activé).
   // Solo una vibración corta de confirmación de que se envió.
-  if (navigator.vibrate) {
-    navigator.vibrate(600);
-  }
+  vibrar([600,130,600,130,600]);
 
   render();
 }
@@ -9034,7 +9032,7 @@ function escucharQuienViene() {
       const v = snap.val();
       if (!v || !v.apodo) return;
       // Avisar en grande: alguien viene
-      if (navigator.vibrate) navigator.vibrate([700,130,700]);
+      vibrar([700,130,700]);
       showAvisoGrande(v.apodo + ' viene de camino a ayudarte', '🚀');
     });
   } catch (e) {}
@@ -9043,7 +9041,7 @@ function escucharQuienViene() {
 function pararMiSOS() {
   stopSOSSound();  // por si acaso quedó algo
   state.miSOSActivo = false;
-  if (navigator.vibrate) navigator.vibrate(0);
+  vibrar(0);
 
   // Quitar mi SOS de Firebase (ruta sos/uid) para que al resto le deje de sonar
   if (FIREBASE_CONFIGURED && db && state.uid) {
@@ -9139,13 +9137,10 @@ function subscribeToSOS() {
           // Aviso en pantalla SIEMPRE (esto no depende del sonido, que a veces el móvil bloquea)
           showToast('🚨 ' + String(sosDeOtro.apodo || 'Alguien').toUpperCase() + ' HA ACTIVADO EL SOS');
           // Sonar + vibrar fuerte (solo aquí, que es SOS de OTRO)
-          if (navigator.vibrate) {
-            // Vibración fuerte e insistente para quien RECIBE el SOS
-            navigator.vibrate([600, 200, 600, 200, 600]);  // primera tanda inmediata
+          vibrar([800,150,800,150,800]);
             state.sosVibrateInterval = setInterval(function() {
-              navigator.vibrate([600, 200, 600, 200, 600]);
+              vibrar([800,150,800,150,800]);
             }, 2000);
-          }
           playSOSSound();
 
           state.sosModalActivo = {
@@ -12623,6 +12618,29 @@ function isStandaloneIOS() {
 
 // ============ NOTIFICACIONES ============
 
+// Vibración fiable en Android: intenta navigator.vibrate y además usa notificación SW
+// (las notificaciones del sistema bypasean las restricciones de Chrome sobre vibración web)
+function vibrar(patron) {
+  vibrar(patron);
+  if (swRegistration && Notification.permission === 'granted') {
+    try {
+      swRegistration.showNotification('​', {
+        body: '​',
+        vibrate: patron,
+        silent: true,
+        tag: 'afters-haptic',
+        requireInteraction: false
+      }).then(function() {
+        setTimeout(function() {
+          swRegistration.getNotifications({ tag: 'afters-haptic' })
+            .then(function(ns) { ns.forEach(function(n) { n.close(); }); })
+            .catch(function(){});
+        }, 250);
+      }).catch(function(){});
+    } catch(e) {}
+  }
+}
+
 let swRegistration = null;
 let notifReady = false; // Se pone true después de carga inicial, para no disparar notif por las anécdotas existentes
 let pushSubscription = null;
@@ -13708,7 +13726,7 @@ function handleAction(action, el) {
     if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
       vibroSoportada = true;
       // Patrón largo y fuerte, fácil de notar
-      vibroOk = navigator.vibrate([600, 200, 600, 200, 600, 200, 800]);
+      vibroOk = vibrar([600, 200, 600, 200, 600, 200, 800]);
     }
     // 2) Luego el sonido
     let sonoOk = false;
@@ -14823,7 +14841,7 @@ function showAvisoGrande(message, emoji) {
 function openShareMenu(id) {
   state.shareTargetId = id;
   render();
-  if (navigator.vibrate) navigator.vibrate(30);
+  vibrar(30);
 }
 
 // ============ CONSENTIMIENTO ============
