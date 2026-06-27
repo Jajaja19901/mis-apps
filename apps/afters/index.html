@@ -9773,7 +9773,7 @@ function renderGrupoSelector() {
     + '    <div class="welcome-eyebrow">BIENVENIDO AL</div>'
     + '    <h1 class="welcome-title">AFTERS</h1>'
     + '    <div class="welcome-subtitle">LO QUE PASA DE NOCHE, SE LEE DE DÍA</div>'
-    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 101 ✓</div>'
+    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 102 ✓</div>'
     + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:9px; letter-spacing:0.2em; color:' + modeColor + '; margin-bottom:40px;">' + modeLabel + '</div>'
     + '    <button id="crearGrupoBtn" class="btn-primary" style="margin-bottom:16px;">✨ CREAR GRUPO NUEVO</button>'
     + '    <button id="unirseGrupoBtn" class="btn-secondary">🔗 UNIRME A UN GRUPO</button>'
@@ -12740,59 +12740,16 @@ var PUSH_VAPID_PUBLIC = 'BIAANtHrNtiGXCR1_s9NUK7BgDhaZ-9tKIQ4kGbXhO90MHGvWzuCQcL
 // URL del Cloudflare Worker de push
 var PUSH_WORKER_URL = 'https://aged-bar-11be.incubatunegociowebapps.workers.dev/push';
 
-// SW inline: se usa como fallback cuando sw.js no está disponible en el servidor
-// (Cloudflare Worker que solo sirve el HTML sin rutas estáticas adicionales)
-var SW_INLINE = [
-  "self.addEventListener('install',function(e){self.skipWaiting();});",
-  "self.addEventListener('activate',function(e){e.waitUntil(clients.claim());});",
-  "self.addEventListener('push',function(e){",
-  "  var d={};try{d=e.data?e.data.json():{};}catch(x){}",
-  "  var o={body:d.body||'Hay actividad en tu grupo',icon:d.icon||'/icon-192.png',",
-  "    badge:'/icon-192.png',tag:d.tag||'afters',data:d,requireInteraction:d.requireInteraction||false};",
-  "  if(d.tag==='sos'){o.vibrate=[500,200,500,200,500,200,500];o.requireInteraction=true;}",
-  "  else if(d.tag==='ola'){o.vibrate=[300,100,300,100,300];}",
-  "  else if(d.tag==='toque'){o.vibrate=[200,100,200];}",
-  "  else if(d.tag==='reagrupar'){o.vibrate=[400,100,400,100,400];}",
-  "  else{o.vibrate=[200];}",
-  "  e.waitUntil(self.registration.showNotification(d.title||'AFTERS',o));",
-  "});",
-  "self.addEventListener('notificationclick',function(e){",
-  "  e.notification.close();",
-  "  e.waitUntil(clients.matchAll({type:'window',includeUncontrolled:true}).then(function(c){",
-  "    for(var i=0;i<c.length;i++){if('focus'in c[i])return c[i].focus();}",
-  "    if(clients.openWindow)return clients.openWindow('/');",
-  "  }));",
-  "});"
-].join('\n');
-
-function _activarPushEnReg(reg) {
-  swRegistration = reg;
-  if (Notification.permission === 'granted' &&
-      PUSH_VAPID_PUBLIC !== 'REEMPLAZAR_CON_TU_VAPID_PUBLIC') {
-    suscribirPush(reg);
-  }
-}
-
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
   navigator.serviceWorker.register('sw.js').then(function(reg) {
-    console.log('[SW] registrado desde sw.js');
-    _activarPushEnReg(reg);
-  }).catch(function() {
-    // sw.js no servido (Worker solo sirve HTML) → registrar SW inline via blob URL
-    // El blob SW no controla páginas pero SÍ recibe push events (suficiente para notificaciones)
-    try {
-      var blob = new Blob([SW_INLINE], { type: 'application/javascript' });
-      var blobUrl = URL.createObjectURL(blob);
-      navigator.serviceWorker.register(blobUrl).then(function(reg) {
-        console.log('[SW] registrado inline (blob)');
-        _activarPushEnReg(reg);
-      }).catch(function(e) {
-        console.warn('[SW] no se pudo registrar:', e);
-      });
-    } catch(e) {
-      console.warn('[SW] blob no soportado:', e);
+    swRegistration = reg;
+    if (Notification.permission === 'granted' &&
+        PUSH_VAPID_PUBLIC !== 'REEMPLAZAR_CON_TU_VAPID_PUBLIC') {
+      suscribirPush(reg);
     }
+  }).catch(function() {
+    // sw.js no encontrado en el servidor (normal en algunos entornos locales)
   });
 }
 
