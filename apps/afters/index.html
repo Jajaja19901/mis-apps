@@ -9773,7 +9773,7 @@ function renderGrupoSelector() {
     + '    <div class="welcome-eyebrow">BIENVENIDO AL</div>'
     + '    <h1 class="welcome-title">AFTERS</h1>'
     + '    <div class="welcome-subtitle">LO QUE PASA DE NOCHE, SE LEE DE DÍA</div>'
-    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 99 ✓</div>'
+    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 100 ✓</div>'
     + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:9px; letter-spacing:0.2em; color:' + modeColor + '; margin-bottom:40px;">' + modeLabel + '</div>'
     + '    <button id="crearGrupoBtn" class="btn-primary" style="margin-bottom:16px;">✨ CREAR GRUPO NUEVO</button>'
     + '    <button id="unirseGrupoBtn" class="btn-secondary">🔗 UNIRME A UN GRUPO</button>'
@@ -12132,7 +12132,7 @@ function construirDatosPunto(u, esMiPunto) {
   // ¿La última señal es RECIENTE? (menos de 2 min). Si no, los datos de "ahora
   // mismo" (qué hace, mirando el móvil, velocidad) ya NO son válidos: están caducados.
   // Mi propio punto siempre es reciente.
-  const recienteDeVerdad = esMiPunto || !u.ts || (Date.now() - u.ts < 120000);
+  const recienteDeVerdad = esMiPunto || !u.ts || (Date.now() - u.ts < 240000);
 
   // ===== BÁSICO (siempre visible) =====
 
@@ -12299,8 +12299,8 @@ function refreshMapMarkers() {
     const isMe = apodo === state.apodo;
 
     // ¿Está "en vivo" o es su última posición conocida?
-    // Si su última actualización (ts) es de hace más de 2 min, está desconectado.
-    const desconectado = !isMe && u.ts && (now - u.ts > 120000);
+    // Si su última actualización (ts) es de hace más de 4 min, está desconectado.
+    const desconectado = !isMe && u.ts && (now - u.ts > 240000);
     // El color y emoji de avatar se calculan abajo junto con el avatarHtml
 
     // Indicador encima del punto: batería (en vivo) o "hace X" (desconectado)
@@ -15439,6 +15439,14 @@ function initBateria() {
       if (!state.pantallaActiva) {
         // App va al fondo: guardar timestamp
         state._backgroundDesde = Date.now();
+        // Avisar si no tiene notificaciones: sin ellas no recibirá nada en segundo plano
+        if (state.grupo && state.estaAprobado && Notification.permission !== 'granted') {
+          setTimeout(function() {
+            if (!state.pantallaActiva) {
+              showToast('🔕 Sin notificaciones no recibirás SOS ni avisos cuando estés fuera de AFTERS', 5000);
+            }
+          }, 800);
+        }
       } else {
         // App vuelve al frente
         var biometricActivo = localStorage.getItem('afters_biometric_ok') === '1';
@@ -15452,6 +15460,11 @@ function initBateria() {
           render();
           // Auto-lanzar la huella tras un pequeño delay (UX)
           setTimeout(function() { if (state.bloqueado) intentarDesbloquear(); }, 400);
+        }
+        // Avisar cuánto tiempo estuvo fuera (> 3 min)
+        if (tiempoFuera > 180000 && state.grupo && state.estaAprobado) {
+          var minFuera = Math.round(tiempoFuera / 60000);
+          showToast('Has estado ' + minFuera + ' min fuera · recargando mapa...', 3000);
         }
         // Reconectar ubicación si hace falta
         if (state.shareLocationActive && state.myLocation && FIREBASE_CONFIGURED) {
