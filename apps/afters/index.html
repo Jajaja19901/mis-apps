@@ -9775,7 +9775,7 @@ function renderGrupoSelector() {
     + '    <div class="welcome-eyebrow">BIENVENIDO AL</div>'
     + '    <h1 class="welcome-title">AFTERS</h1>'
     + '    <div class="welcome-subtitle">LO QUE PASA DE NOCHE, SE LEE DE DÍA</div>'
-    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 105 ✓</div>'
+    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 106 ✓</div>'
     + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:9px; letter-spacing:0.2em; color:' + modeColor + '; margin-bottom:40px;">' + modeLabel + '</div>'
     + '    <button id="crearGrupoBtn" class="btn-primary" style="margin-bottom:16px;">✨ CREAR GRUPO NUEVO</button>'
     + '    <button id="unirseGrupoBtn" class="btn-secondary">🔗 UNIRME A UN GRUPO</button>'
@@ -12864,26 +12864,44 @@ async function testPushCompleto() {
   showToast('🧪 Notif local ✅ · enviando push remoto · cierra la app 5 seg', 4000);
 
   // Paso 4: push remoto via Worker — deUid null para que llegue también al emisor
-  setTimeout(function() {
+  setTimeout(async function() {
     if (!PUSH_WORKER_URL || PUSH_WORKER_URL.indexOf('workers.dev') === -1) {
-      showToast('❌ PUSH_WORKER_URL no configurado', 4000);
+      alert('❌ PUSH_WORKER_URL no configurado');
       return;
     }
-    fetch(PUSH_WORKER_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        grupo: state.grupo,
-        tipo: 'test',
-        datos: { titulo: '🧪 Test push OK', body: 'Push remoto funcionando · cierra la app y lo verás', apodo: state.apodo },
-        deUid: null   // null = enviar a TODOS incluyendo el que hace el test
-      })
-    }).then(function(r) {
-      if (!r.ok) showToast('❌ Worker respondió ' + r.status + ' · revisa la config del Worker', 5000);
-    }).catch(function(e) {
-      showToast('❌ No se pudo contactar el Worker: ' + (e.message || e), 5000);
-    });
-  }, 1000);
+    // Verificar que la suscripción está guardada en Firebase
+    var subEnFirebase = null;
+    try {
+      var snap = await fbDatabase().ref('grupos/' + state.grupo + '/pushSubs/' + state.uid).once('value');
+      subEnFirebase = snap.val();
+    } catch(e) {}
+
+    var diagMsg = '— SW: ✅\n— Sub push local: ✅\n— Sub en Firebase: ' + (subEnFirebase ? '✅' : '❌ NO GUARDADA') + '\n\n';
+
+    try {
+      var r = await fetch(PUSH_WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          grupo: state.grupo,
+          tipo: 'test',
+          datos: { titulo: '🧪 Test push OK', body: 'Push funcionando', apodo: state.apodo },
+          deUid: null
+        })
+      });
+      var body = '';
+      try { body = await r.text(); } catch(e) {}
+      diagMsg += '— Worker HTTP: ' + r.status + '\n— Respuesta: ' + (body || '(vacía)');
+      if (r.ok) {
+        diagMsg += '\n\n✅ Worker OK · cierra la app y espera la notificación';
+      } else {
+        diagMsg += '\n\n❌ Worker rechazó la petición';
+      }
+    } catch(e) {
+      diagMsg += '— Worker: ❌ ERROR\n' + (e.message || e);
+    }
+    alert('🧪 DIAGNÓSTICO PUSH\n\n' + diagMsg);
+  }, 500);
 }
 
 async function requestNotifPermission() {
