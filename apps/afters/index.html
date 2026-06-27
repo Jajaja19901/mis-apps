@@ -3612,6 +3612,15 @@
     border-color: rgba(0, 214, 143, 0.75);
     box-shadow: 0 8px 32px rgba(0, 200, 120, 0.55), 0 0 0 1px rgba(0,214,143,0.25);
   }
+  .flecha-flotante.casicerca {
+    border-color: rgba(255, 149, 0, 0.8);
+    box-shadow: 0 8px 32px rgba(255, 149, 0, 0.5), 0 0 0 1px rgba(255,149,0,0.3);
+    animation: flecha-aparece 0.3s ease-out, casicerca-pulse 1s infinite;
+  }
+  @keyframes casicerca-pulse {
+    0%, 100% { box-shadow: 0 8px 32px rgba(255,149,0,0.5); }
+    50% { box-shadow: 0 8px 40px rgba(255,149,0,0.9), 0 0 0 4px rgba(255,149,0,0.2); }
+  }
   .flecha-flotante-cerrar {
     position: absolute;
     top: -11px;
@@ -8090,8 +8099,9 @@ function handleDeviceOrientation(event) {
     heading = event.webkitCompassHeading;
     state.brujulaFiable = true;
   } else if (event.alpha != null) {
-    // Android: alpha. Va al revés respecto al norte.
-    heading = 360 - event.alpha;
+    // Android: alpha en deviceorientationabsolute es horario desde el Norte (0=N, 90=E)
+    // Samsung S22 y la mayoría de Android lo reportan así directamente
+    heading = event.alpha;
     // Solo es fiable (apunta al norte real) si el evento es "absoluto"
     state.brujulaFiable = (event.absolute === true);
   } else {
@@ -8542,6 +8552,7 @@ function renderFlechaFlotante() {
   const dist = haversineDistance(state.myLocation.lat, state.myLocation.lng, target.lat, target.lng);
   const bearing = calculateBearing(state.myLocation.lat, state.myLocation.lng, target.lat, target.lng);
   const cerca = dist < 2;
+  const casicerca = dist < 15;
   const etaTxt = tiempoAndando(dist);
   const distTxt = formatDistance(dist);
 
@@ -8559,6 +8570,17 @@ function renderFlechaFlotante() {
       + '<div class="flecha-flotante-emoji">🎉</div>'
       + '<div class="flecha-flotante-dist">¡Ya casi!</div>'
       + '<div class="flecha-flotante-eta">Estás a menos de 2 m</div>'
+      + '</div>';
+  }
+
+  if (casicerca) {
+    return ''
+      + '<div id="flechaFlotante" class="flecha-flotante casicerca">'
+      + '<button class="flecha-flotante-cerrar" data-action="stopNavigating" title="Dejar de guiar">✕</button>'
+      + '<div class="flecha-flotante-nombre">→ ' + escapeHtml(target.apodo) + '</div>'
+      + '<div style="font-size:48px;margin:8px 0;animation:sosPulse 0.7s infinite;">📍</div>'
+      + '<div class="flecha-flotante-dist" style="color:#ff9500;font-size:22px;font-weight:700;">' + distTxt + '</div>'
+      + '<div class="flecha-flotante-eta" style="color:#ff9500;">¡Estás muy cerca!</div>'
       + '</div>';
   }
 
@@ -8612,6 +8634,7 @@ function actualizarFlechaFlotante() {
   let rot = hayBrujula ? (bearing - state.deviceHeading) : bearing;
   const distTxt = formatDistance(dist);
   const cerca = dist < 2;
+  const casicerca = dist < 15;
 
   const arrowEl = el.querySelector('.flecha-flotante-arrow');
   const distEl = el.querySelector('.flecha-flotante-dist');
@@ -8619,10 +8642,17 @@ function actualizarFlechaFlotante() {
   if (cerca) {
     if (!el.classList.contains('cerca')) {
       el.classList.add('cerca');
+      el.classList.remove('casicerca');
       const ring = el.querySelector('.brujula-ring');
       if (ring) ring.outerHTML = '<div class="flecha-flotante-emoji">🎉</div>';
       if (distEl) distEl.textContent = '¡Ya casi!';
       if (etaEl) etaEl.textContent = 'Estás a menos de 2 m';
+    }
+  } else if (casicerca) {
+    if (!el.classList.contains('casicerca')) {
+      render(); // re-render para mostrar la zona naranja
+    } else {
+      if (distEl) distEl.textContent = distTxt;
     }
   } else {
     if (arrowEl) arrowEl.style.transform = 'rotate(' + rot + 'deg)';
@@ -9738,7 +9768,7 @@ function renderGrupoSelector() {
     + '    <div class="welcome-eyebrow">BIENVENIDO AL</div>'
     + '    <h1 class="welcome-title">AFTERS</h1>'
     + '    <div class="welcome-subtitle">LO QUE PASA DE NOCHE, SE LEE DE DÍA</div>'
-    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 96 ✓</div>'
+    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 97 ✓</div>'
     + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:9px; letter-spacing:0.2em; color:' + modeColor + '; margin-bottom:40px;">' + modeLabel + '</div>'
     + '    <button id="crearGrupoBtn" class="btn-primary" style="margin-bottom:16px;">✨ CREAR GRUPO NUEVO</button>'
     + '    <button id="unirseGrupoBtn" class="btn-secondary">🔗 UNIRME A UN GRUPO</button>'
