@@ -3590,18 +3590,18 @@
   .mas-item-danger:active { border-color: #ff6666 !important; }
   .mas-item-danger .mas-text strong { color: #ff6666 !important; }
 
-  /* ===== FLECHA FLOTANTE DE GUÍA (sobre el mapa) ===== */
+  /* ===== BRÚJULA FLOTANTE DE GUÍA (sobre el mapa) ===== */
   .flecha-flotante {
     position: fixed;
-    bottom: 90px;
+    bottom: 110px;
     right: 16px;
-    width: 96px;
+    width: 200px;
     z-index: 95;
-    background: linear-gradient(135deg, #00f0ff, #0090ff);
-    border: 3px solid #fff;
-    border-radius: 18px;
-    padding: 10px 8px 12px;
-    box-shadow: 0 6px 24px rgba(0, 180, 255, 0.6);
+    background: rgba(6, 10, 28, 0.93);
+    border: 2px solid rgba(0, 240, 255, 0.55);
+    border-radius: 24px;
+    padding: 14px 14px 16px;
+    box-shadow: 0 8px 32px rgba(0, 160, 255, 0.45), 0 0 0 1px rgba(0,240,255,0.15);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -3609,77 +3609,166 @@
     touch-action: none;
     user-select: none;
     animation: flecha-aparece 0.3s ease-out;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
   .flecha-flotante.cerca {
-    background: linear-gradient(135deg, #00d68f, #00a86b);
-    box-shadow: 0 6px 24px rgba(0, 200, 120, 0.7);
+    border-color: rgba(0, 214, 143, 0.75);
+    box-shadow: 0 8px 32px rgba(0, 200, 120, 0.55), 0 0 0 1px rgba(0,214,143,0.25);
   }
   .flecha-flotante-cerrar {
     position: absolute;
-    top: -8px;
-    right: -8px;
-    width: 24px;
-    height: 24px;
+    top: -11px;
+    right: -11px;
+    width: 28px;
+    height: 28px;
     border-radius: 50%;
     background: #fff;
-    color: #0090ff;
-    font-size: 13px;
-    font-weight: 700;
+    color: #0070d8;
+    font-size: 14px;
+    font-weight: 900;
+    border: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    cursor: pointer;
+    z-index: 2;
   }
   .flecha-flotante-nombre {
     font-family: 'DM Sans', sans-serif;
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
-    color: #fff;
+    color: #00f0ff;
     text-align: center;
-    margin-bottom: 4px;
-    max-width: 80px;
+    margin-bottom: 10px;
+    max-width: 175px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
   }
-  .flecha-flotante-arrow {
-    font-size: 40px;
+  /* --- Anillo de la brújula --- */
+  .brujula-ring {
+    position: relative;
+    width: 158px;
+    height: 158px;
+    border-radius: 50%;
+    border: 2px solid rgba(0, 240, 255, 0.3);
+    background: radial-gradient(ellipse at center, rgba(0,60,100,0.45) 0%, rgba(2,8,22,0.85) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: inset 0 0 28px rgba(0,160,255,0.12), 0 0 16px rgba(0,160,255,0.18);
+    flex-shrink: 0;
+  }
+  .brujula-ring::before {
+    content: '';
+    position: absolute;
+    width: 136px;
+    height: 136px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.07);
+    pointer-events: none;
+  }
+  /* Letras cardinales (estáticas, decorativas) */
+  .brujula-cardinal {
+    position: absolute;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 13px;
+    color: rgba(255,255,255,0.45);
     line-height: 1;
-    transition: transform 0.3s ease-out;
+    pointer-events: none;
+  }
+  .brujula-cardinal.bN { top: 6px; left: 50%; transform: translateX(-50%); color: #ff5555; font-size: 15px; }
+  .brujula-cardinal.bS { bottom: 6px; left: 50%; transform: translateX(-50%); }
+  .brujula-cardinal.bE { right: 9px; top: 50%; transform: translateY(-50%); }
+  .brujula-cardinal.bO { left: 9px; top: 50%; transform: translateY(-50%); }
+  /* --- Contenedor de la aguja (rota) --- */
+  .flecha-flotante-arrow {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.22s ease-out;
+  }
+  /* Aguja de brújula (CSS puro) */
+  .brujula-aguja-wrap {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 10px;
+    height: 110px;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+  }
+  .brujula-aguja-punta {
+    width: 10px;
+    height: 55px;
+    background: linear-gradient(to top, rgba(0,220,255,0.55), #fff);
+    clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
+  }
+  .brujula-aguja-cola {
+    width: 10px;
+    height: 55px;
+    background: linear-gradient(to bottom, rgba(160,210,255,0.6), rgba(255,255,255,0.1));
+    clip-path: polygon(0% 0%, 100% 0%, 50% 100%);
+  }
+  /* Punto central de la brújula */
+  .brujula-centro {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2.5px solid #00d4ff;
+    box-shadow: 0 0 10px rgba(0,212,255,0.7);
+    pointer-events: none;
+    z-index: 2;
   }
   .flecha-flotante-emoji {
-    font-size: 40px;
+    font-size: 52px;
     line-height: 1;
+    margin: 10px 0;
     animation: flecha-fiesta 0.6s infinite alternate;
   }
   .flecha-flotante-dist {
     font-family: 'Bebas Neue', sans-serif;
-    font-size: 18px;
+    font-size: 30px;
     color: #fff;
-    margin-top: 4px;
-    letter-spacing: 0.05em;
+    margin-top: 10px;
+    letter-spacing: 0.07em;
+    text-shadow: 0 0 12px rgba(0,240,255,0.45);
+    line-height: 1;
   }
   .flecha-flotante-eta {
     font-family: 'DM Sans', sans-serif;
-    font-size: 10px;
-    color: rgba(255,255,255,0.85);
-    margin-top: 2px;
+    font-size: 11px;
+    color: rgba(255,255,255,0.65);
+    margin-top: 3px;
     text-align: center;
     line-height: 1.2;
   }
   .flecha-flotante-brujula {
     font-family: 'DM Sans', sans-serif;
-    font-size: 9px;
-    color: rgba(255,255,255,0.6);
-    margin-top: 3px;
+    font-size: 10px;
+    color: rgba(255,190,0,0.95);
+    margin-top: 7px;
     text-align: center;
-    background: rgba(0,0,0,0.3);
-    padding: 2px 6px;
+    background: rgba(255,150,0,0.13);
+    padding: 3px 9px;
     border-radius: 8px;
+    border: 1px solid rgba(255,180,0,0.28);
+    line-height: 1.3;
   }
   @keyframes flecha-aparece {
-    from { transform: scale(0.5); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
+    from { transform: scale(0.55) translateY(20px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
   }
   @keyframes flecha-fiesta {
     from { transform: scale(1) rotate(-8deg); }
@@ -8464,28 +8553,46 @@ function renderFlechaFlotante() {
   const dist = haversineDistance(state.myLocation.lat, state.myLocation.lng, target.lat, target.lng);
   const bearing = calculateBearing(state.myLocation.lat, state.myLocation.lng, target.lat, target.lng);
   const cerca = dist < 25;
-  const etaTxt = tiempoAndando(dist);  // tiempo estimado a pie
-
-  // ¿Tenemos brújula fiable? Si sí, la flecha apunta hacia la persona de verdad.
-  // Si no, apunta al norte geográfico y avisamos (sin engañar).
-  const hayBrujula = state.deviceHeading !== null && state.brujulaFiable;
-  let rot, avisoBrujula;
-  if (hayBrujula) {
-    rot = bearing - state.deviceHeading;  // hacia la persona, según hacia dónde miras
-    avisoBrujula = '';
-  } else {
-    rot = bearing;  // norte arriba
-    avisoBrujula = '<div class="flecha-flotante-brujula">⬆️ = Norte</div>';
-  }
+  const etaTxt = tiempoAndando(dist);
   const distTxt = formatDistance(dist);
 
+  const hayBrujula = state.deviceHeading !== null && state.brujulaFiable;
+  const rot = hayBrujula ? (bearing - state.deviceHeading) : bearing;
+  const avisoBrujula = hayBrujula
+    ? ''
+    : '<div class="flecha-flotante-brujula">⚠ Brújula no calibrada · apunta al Norte (' + Math.round(bearing) + '°)</div>';
+
+  if (cerca) {
+    return ''
+      + '<div id="flechaFlotante" class="flecha-flotante cerca">'
+      + '<button class="flecha-flotante-cerrar" data-action="stopNavigating" title="Dejar de guiar">✕</button>'
+      + '<div class="flecha-flotante-nombre">→ ' + escapeHtml(target.apodo) + '</div>'
+      + '<div class="flecha-flotante-emoji">🎉</div>'
+      + '<div class="flecha-flotante-dist">¡Ya casi!</div>'
+      + '<div class="flecha-flotante-eta">Estás a menos de 25 m</div>'
+      + '</div>';
+  }
+
   return ''
-    + '<div id="flechaFlotante" class="flecha-flotante' + (cerca ? ' cerca' : '') + '">'
-    + '  <button class="flecha-flotante-cerrar" data-action="stopNavigating" title="Dejar de guiar">✕</button>'
-    + '  <div class="flecha-flotante-nombre">' + escapeHtml(target.apodo) + '</div>'
-    + (cerca
-        ? '  <div class="flecha-flotante-emoji">🎉</div><div class="flecha-flotante-dist">¡Ya casi!</div>'
-        : '  <div class="flecha-flotante-arrow" style="transform: rotate(' + rot + 'deg);">⬆️</div><div class="flecha-flotante-dist">' + distTxt + '</div><div class="flecha-flotante-eta">' + etaTxt + '</div>' + avisoBrujula)
+    + '<div id="flechaFlotante" class="flecha-flotante">'
+    + '<button class="flecha-flotante-cerrar" data-action="stopNavigating" title="Dejar de guiar">✕</button>'
+    + '<div class="flecha-flotante-nombre">→ ' + escapeHtml(target.apodo) + '</div>'
+    + '<div class="brujula-ring">'
+    +   '<span class="brujula-cardinal bN">N</span>'
+    +   '<span class="brujula-cardinal bE">E</span>'
+    +   '<span class="brujula-cardinal bS">S</span>'
+    +   '<span class="brujula-cardinal bO">O</span>'
+    +   '<div class="flecha-flotante-arrow" style="transform:rotate(' + rot + 'deg);">'
+    +     '<div class="brujula-aguja-wrap">'
+    +       '<div class="brujula-aguja-punta"></div>'
+    +       '<div class="brujula-aguja-cola"></div>'
+    +     '</div>'
+    +   '</div>'
+    +   '<div class="brujula-centro"></div>'
+    + '</div>'
+    + '<div class="flecha-flotante-dist">' + distTxt + '</div>'
+    + '<div class="flecha-flotante-eta">' + etaTxt + '</div>'
+    + avisoBrujula
     + '</div>';
 }
 
@@ -8521,13 +8628,12 @@ function actualizarFlechaFlotante() {
   const distEl = el.querySelector('.flecha-flotante-dist');
   const etaEl = el.querySelector('.flecha-flotante-eta');
   if (cerca) {
-    // Llegó cerca: mostrar fiesta
     if (!el.classList.contains('cerca')) {
       el.classList.add('cerca');
-      const main = el.querySelector('.flecha-flotante-arrow');
-      if (main) main.outerHTML = '<div class="flecha-flotante-emoji">🎉</div>';
+      const ring = el.querySelector('.brujula-ring');
+      if (ring) ring.outerHTML = '<div class="flecha-flotante-emoji">🎉</div>';
       if (distEl) distEl.textContent = '¡Ya casi!';
-      if (etaEl) etaEl.textContent = '';
+      if (etaEl) etaEl.textContent = 'Estás a menos de 25 m';
     }
   } else {
     if (arrowEl) arrowEl.style.transform = 'rotate(' + rot + 'deg)';
