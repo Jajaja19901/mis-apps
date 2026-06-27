@@ -9738,7 +9738,7 @@ function renderGrupoSelector() {
     + '    <div class="welcome-eyebrow">BIENVENIDO AL</div>'
     + '    <h1 class="welcome-title">AFTERS</h1>'
     + '    <div class="welcome-subtitle">LO QUE PASA DE NOCHE, SE LEE DE DÍA</div>'
-    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 93 ✓</div>'
+    + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:14px; font-weight:700; color:#00ff88; margin:12px 0; letter-spacing:0.15em;">VERSIÓN 94 ✓</div>'
     + '    <div style="text-align:center; font-family: \'Space Mono\', monospace; font-size:9px; letter-spacing:0.2em; color:' + modeColor + '; margin-bottom:40px;">' + modeLabel + '</div>'
     + '    <button id="crearGrupoBtn" class="btn-primary" style="margin-bottom:16px;">✨ CREAR GRUPO NUEVO</button>'
     + '    <button id="unirseGrupoBtn" class="btn-secondary">🔗 UNIRME A UN GRUPO</button>'
@@ -12633,10 +12633,22 @@ function isStandaloneIOS() {
 
 // ============ NOTIFICACIONES ============
 
-// Vibración fiable en Android: intenta navigator.vibrate y además usa notificación SW
-// (las notificaciones del sistema bypasean las restricciones de Chrome sobre vibración web)
+// Vibración pendiente: Chrome bloquea vibrate() sin gesto de usuario (callbacks Firebase).
+// Se guarda el patrón y se dispara en el próximo toque del usuario.
+var _pendingVibration = null;
+document.addEventListener('touchstart', function() {
+  if (_pendingVibration && navigator.vibrate) {
+    navigator.vibrate(_pendingVibration);
+    _pendingVibration = null;
+  }
+}, { passive: true });
+
 function vibrar(patron) {
-  if (navigator.vibrate) navigator.vibrate(patron);
+  if (navigator.vibrate) {
+    var ok = navigator.vibrate(patron);
+    // Si devuelve false o undefined = bloqueado por falta de gesto → encolar
+    if (!ok) _pendingVibration = patron;
+  }
   if (swRegistration && Notification.permission === 'granted') {
     try {
       swRegistration.showNotification('​', {
