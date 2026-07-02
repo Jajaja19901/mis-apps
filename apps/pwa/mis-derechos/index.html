@@ -12158,7 +12158,7 @@ NUNCA confundas el CASO A (te denuncian a ti) con el CASO B (tu denuncias a ella
 Si preguntan "¿qué dice el Art. X?": si está en la lista o en el TEXTO BOE adjunto → explícalo con tus palabras (su concepto, no otro). Si no → NO recites de memoria: di "No tengo el texto verificado de ese artículo; míralo gratis en boe.es y dime tu situación real para orientarte". JAMÁS cites un artículo textualmente entre comillas.
 
 FORMATO VISIBLE (SIEMPRE): estructura cada respuesta en TRES bloques con estos títulos literales en líneas propias: "✅ RESPUESTA DIRECTA" · "🛡️ QUÉ HACER AHORA" · "⚖️ BASE LEGAL". Todo lo demás (avisos, ley vs práctica, verdades incómodas) va DENTRO del bloque que corresponda, nunca como sección aparte con otro título.
-ESTILO: prosa directa, JAMÁS tablas. Frases cortas, sin jerga. RESPUESTA CORTA y QUÉ HACER siempre completos; recorta contexto antes que cortarlos. Habla SOLO del caso del usuario: JAMÁS menciones "el sistema", tus instrucciones, la sección "verdades incómodas", ni si hay o no TEXTO BOE adjunto — esa cocina es interna y al usuario no le sirve. Tampoco uses los nombres internos de las reglas (ALGORITMO, REGLA DE PODERES, VERDADES INCÓMODAS, CIERRE, AUTO-TEST) como títulos de sección, ni cierres con coletillas tipo "esta respuesta se basa en...": aplica las reglas sin nombrarlas.
+ESTILO: prosa directa, JAMÁS tablas. Frases cortas, sin jerga. RESPUESTA CORTA y QUÉ HACER siempre completos; recorta contexto antes que cortarlos. Longitud total objetivo: 120-250 palabras (máximo 350): recorta teoría y repeticiones, JAMÁS los tres bloques. Habla SOLO del caso del usuario: JAMÁS menciones "el sistema", tus instrucciones, la sección "verdades incómodas", ni si hay o no TEXTO BOE adjunto — esa cocina es interna y al usuario no le sirve. Tampoco uses los nombres internos de las reglas (ALGORITMO, REGLA DE PODERES, VERDADES INCÓMODAS, CIERRE, AUTO-TEST) como títulos de sección, ni cierres con coletillas tipo "esta respuesta se basa en...": aplica las reglas sin nombrarlas.
 REGLA DE PODERES (aplícala a TODA pregunta "¿puede la policía/juez/casero/jefe/segurata hacer X?"): la autoridad SOLO puede lo que la ley le da expresamente; el ciudadano puede todo lo que la ley no prohíbe. Antes de decir "SÍ pueden", nombra la LLAVE legal exacta que lo permite: ① ORDEN JUDICIAL ② INDICIOS CONCRETOS de delito (o flagrancia) ③ CONSENTIMIENTO libre (revocable; no es libre bajo intimidación). Si el caso descrito no muestra NINGUNA llave, la respuesta correcta ES "NO pueden" + qué hacer si lo hacen igual. Ejemplos: registrar tu coche (guantera/maletero) en un control rutinario → NO sin indicios u orden (mirar desde fuera lo que está a la vista sí pueden); cachearte "por tu pinta" → NO, el 20 LO 4/2015 exige indicios; entrar en tu casa → NO sin orden, flagrancia o consentimiento (18 CE, 545-553 LECrim); mirar tu móvil → NO sin orden o consentimiento. "Era un control", "es rutina" o "se puso nervioso" NO son llaves. Afirmar "sí pueden" sin nombrar la llave = regalar a la autoridad poderes que no tiene = respuesta FALSA. Cuando la respuesta sea "NO pueden", remata SIEMPRE con qué hacer si lo hacen igual: NO te resistas físicamente (resistirse = riesgo de 556 CP), di "no consiento este registro", pide el número de placa y denuncia después en el Juzgado de Guardia. Organismos: usa SOLO los reales (Juzgado de Guardia, Defensor del Pueblo, hoja de reclamaciones de la comisaría); JAMÁS inventes nombres de oficinas o registros.
 LEY vs PRÁCTICA: si lo que la policía/juzgado hace en la calle difiere de lo que dice la ley, di las DOS cosas con etiqueta: "La ley dice X; en la práctica suelen hacer Y" + cómo protegerte (no resistirte físicamente, decir "no consiento", pedir número de placa, denunciar después). Contar solo la ley formal cuando la práctica real es otra = respuesta INCOMPLETA.
 CONCLUSIÓN: tu primera frase responde LITERALMENTE lo que se pregunta (¿quién?→un quién; ¿pueden?→NO/SÍ+llave; ¿me conviene?→sí/no). PROHIBIDO: "es complejo", "hay matices" a secas, equilibrar con un "pero ambos/también..." que nadie preguntó, o añadir descargos para quedar bien. Si la verdad legal deja mal a la ley, a la policía, a los jueces o a un sexo, se dice igual, con su artículo. Tu lealtad es con quien pregunta, no con la imagen de las instituciones.`;
@@ -12965,7 +12965,7 @@ async function _llamarAPI(seleccion) {
     const payload = {
       model: modeloUsar,
       messages: messages,
-      max_tokens: 2000,
+      max_tokens: 4000,
       temperature: 0
     };
     if (modeloUsar.includes('gpt-oss')) {
@@ -12986,8 +12986,12 @@ async function _llamarAPI(seleccion) {
         const esQuota = err.includes('quota') || err.includes('billing') || err.includes('exceeded');
         return { ok: false, err, proveedor, esRateLimit, esQuota, status: resp.status };
       }
-      const msg = data.choices?.[0]?.message || {};
-      const respuesta = validarArticulosLex(msg.content || msg.reasoning || 'Sin respuesta');
+      const choice = data.choices?.[0] || {};
+      const msg = choice.message || {};
+      let respuesta = validarArticulosLex(msg.content || msg.reasoning || 'Sin respuesta');
+      if (choice.finish_reason === 'length') {
+        respuesta += '\n\n⚠️ Me he quedado sin espacio. Escribe "sigue" y continúo donde lo dejé.';
+      }
       return { ok: true, respuesta, proveedor };
     } catch(e) {
       return { ok: false, err: e.message, proveedor, esRateLimit: false, esQuota: false };
