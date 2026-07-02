@@ -2,8 +2,10 @@
  * mh-collective-servidor.mjs — mini-servidor de sincronización para MH Collective (Node puro, cero deps).
  * Arranque:  node apps/mh-collective-servidor.mjs        (puerto 8787 por defecto; PORT=xxxx para otro)
  * Conexión:  en los móviles de la fiesta (misma WiFi), abrir la URL "LAN" que imprime la consola al arrancar.
- * Token:     MH_TOKEN=xxxx node apps/mh-collective-servidor.mjs → la API exige cabecera "x-mh-token: xxxx" (o ?token=xxxx).
- *            Sin MH_TOKEN la API queda ABIERTA: úsalo solo en una LAN/WiFi de confianza (la de la fiesta).
+ * Token:     MH_TOKEN=xxxx node apps/mh-collective-servidor.mjs → la API exige cabecera "x-mh-token: xxxx".
+ *            Sin MH_TOKEN solo se escucha en localhost (127.0.0.1). Para abrir en la WiFi de la fiesta
+ *            hay que poner MH_TOKEN y, además, MH_HOST=0.0.0.0 (así nadie de fuera lee la caja sin token).
+ * Red LAN:   MH_HOST=0.0.0.0 MH_TOKEN=loquesea node apps/mh-collective-servidor.mjs
  * Persiste el estado en mh-collective-datos.json, junto a este archivo. Estado inicial: null hasta que un cliente publique.
  */
 
@@ -11,6 +13,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -18,10 +21,25 @@ const __dirname = path.dirname(__filename);
 
 const PORT = Number(process.env.PORT) || 8787;
 const TOKEN = process.env.MH_TOKEN || '';
+// Sin token → solo loopback (nadie de la red lee/escribe sin querer). Con token → se puede exponer a la LAN.
+const HOST = process.env.MH_HOST || (TOKEN ? '0.0.0.0' : '127.0.0.1');
 const APP_HTML_PATH = path.join(__dirname, 'mh-collective-fiesta.html');
 const DATA_PATH = path.join(__dirname, 'mh-collective-datos.json');
-const MAX_BODY_BYTES = 2 * 1024 * 1024; // 2 MB
+const MAX_BODY_BYTES = 2 * 1024 * 1024;   // 2 MB de cuerpo bruto
+const MAX_STATE_BYTES = 512 * 1024;       // 512 KB de estado serializado (una fiesta real cabe de sobra)
+const MAX_DEPTH = 64;                      // profundidad máx del JSON del cuerpo (anti JSON-bomb)
+const MAX_SSE_CLIENTS = 60;                // tope de conexiones en vivo
 const SSE_PING_MS = 25000;
+
+// Hash del token en buffer fijo para comparar en tiempo constante (evita timing oracle).
+const TOKEN_HASH = TOKEN ? crypto.createHash('sha256').update(TOKEN).digest() : null;
+
+// Bind no-loopback SIN token = configuración insegura: abortar antes de exponer datos.
+if (TOKEN === '' && HOST !== '127.0.0.1' && HOST !== 'localhost' && HOST !== '::1') {
+  console.error('[mh-servidor] ABORTADO: escuchar en ' + HOST + ' sin MH_TOKEN dejaría la caja y la lista');
+  console.error('               accesibles a cualquiera de la red. Pon MH_TOKEN=xxxx para abrir en la LAN.');
+  process.exit(1);
+}
 
 // ---------- Persistencia (JSON en disco, escritura atómica tmp+rename) ----------
 let store = { version: 0, state: null };
@@ -38,11 +56,27 @@ function loadStore() {
       console.error(`[mh-servidor] No se pudo leer ${DATA_PATH}, se arranca con estado vacío:`, err.message);
     }
   }
+  // Limpia ficheros temporales huérfanos de un arranque anterior que muriera a medias.
+  try {
+    for (const f of fs.readdirSync(__dirname)) {
+      if (f.startsWith('.mh-collective-datos.tmp-')) {
+        try { fs.unlinkSync(path.join(__dirname, f)); } catch { /* da igual */ }
+      }
+    }
+  } catch { /* directorio ilegible: no es crítico */ }
 }
 
-function saveStore() {
+// Persiste de forma atómica Y durable. Recibe el objeto YA serializado para no volver a stringify
+// (así un estado no serializable se rechaza ANTES de tocar disco o memoria — ver handlePostState).
+function persist(serialized) {
   const tmpPath = path.join(__dirname, `.mh-collective-datos.tmp-${process.pid}-${Date.now()}.json`);
-  fs.writeFileSync(tmpPath, JSON.stringify(store), 'utf8');
+  const fd = fs.openSync(tmpPath, 'w');
+  try {
+    fs.writeSync(fd, serialized);
+    fs.fsyncSync(fd);          // fuerza el flush a disco: sobrevive a un corte de luz
+  } finally {
+    fs.closeSync(fd);
+  }
   fs.renameSync(tmpPath, DATA_PATH);
 }
 
@@ -63,15 +97,26 @@ function broadcastVersion(version) {
 }
 
 // ---------- Utilidades HTTP ----------
+// La app se sirve del MISMO origen que la API, así que no hace falta CORS abierto.
+// Solo respondemos a preflight con eco del método; sin Allow-Origin '*' (cierra exfiltración cross-origin).
 function setCors(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-mh-token');
+  res.setHeader('Vary', 'Origin');
 }
 
+// Blindado: si el objeto no es serializable (p.ej. estado envenenado), responde 500 simple
+// en vez de propagar el throw y dejar TODAS las lecturas caídas.
 function sendJson(res, status, obj) {
   if (res.writableEnded) return;
-  const body = JSON.stringify(obj);
+  let body;
+  try {
+    body = JSON.stringify(obj);
+  } catch {
+    if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end('{"error":"Respuesta no serializable."}');
+    return;
+  }
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Content-Length': Buffer.byteLength(body),
@@ -79,11 +124,34 @@ function sendJson(res, status, obj) {
   res.end(body);
 }
 
-function checkToken(req, url) {
-  if (!TOKEN) return true;
+// Comparación en tiempo constante sobre los hashes SHA-256 (longitud fija). Solo por cabecera:
+// el token en ?query= se filtra por logs/Referer, así que ya no se acepta.
+function checkToken(req) {
+  if (!TOKEN_HASH) return true;
   const header = req.headers['x-mh-token'];
-  const queryToken = url.searchParams.get('token');
-  return header === TOKEN || queryToken === TOKEN;
+  if (typeof header !== 'string' || header.length === 0) return false;
+  const got = crypto.createHash('sha256').update(header).digest();
+  return crypto.timingSafeEqual(got, TOKEN_HASH);
+}
+
+// Rechaza JSON con anidamiento abusivo ANTES de construir el árbol completo (anti JSON-bomb / DoS por pila).
+function tooDeep(raw, max) {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (c === '\\') escaped = true;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') inString = true;
+    else if (c === '[' || c === '{') { depth++; if (depth > max) return true; }
+    else if (c === ']' || c === '}') depth--;
+  }
+  return false;
 }
 
 function readJsonBody(req, res, onOk) {
@@ -110,6 +178,10 @@ function readJsonBody(req, res, onOk) {
       onOk({});
       return;
     }
+    if (tooDeep(raw, MAX_DEPTH)) {
+      sendJson(res, 400, { error: 'JSON demasiado anidado.' });
+      return;
+    }
     let parsed;
     try {
       parsed = JSON.parse(raw);
@@ -132,8 +204,7 @@ function serveApp(res) {
       res.writeHead(404, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(
         '<!doctype html><meta charset="utf-8"><h1>404</h1>' +
-          '<p>Todavía no existe <code>apps/mh-collective-fiesta.html</code>. ' +
-          'Genera primero la app y vuelve a cargar esta página.</p>',
+          '<p>La aplicación aún no está disponible en este servidor.</p>',
       );
       return;
     }
@@ -158,9 +229,22 @@ function handlePostState(req, res) {
       return;
     }
     const next = { version: store.version + 1, state: state ?? null };
+    // Serializa PRIMERO: si el estado no es serializable o es enorme, se rechaza sin tocar
+    // memoria ni disco (evita el envenenamiento persistente que dejaba todas las lecturas en 500).
+    let serialized;
     try {
-      store = next;
-      saveStore();
+      serialized = JSON.stringify(next);
+    } catch {
+      sendJson(res, 400, { error: 'Estado no serializable.' });
+      return;
+    }
+    if (Buffer.byteLength(serialized) > MAX_STATE_BYTES) {
+      sendJson(res, 413, { error: 'Estado demasiado grande.' });
+      return;
+    }
+    try {
+      persist(serialized);
+      store = next; // solo se compromete en memoria si el disco fue bien
     } catch (err) {
       console.error('[mh-servidor] Error persistiendo datos:', err.message);
       sendJson(res, 500, { error: 'No se pudo guardar el estado.' });
@@ -172,6 +256,10 @@ function handlePostState(req, res) {
 }
 
 function handleEvents(req, res) {
+  if (sseClients.size >= MAX_SSE_CLIENTS) {
+    sendJson(res, 503, { error: 'Demasiadas conexiones en vivo. Inténtalo en un momento.' });
+    return;
+  }
   res.writeHead(200, {
     'Content-Type': 'text/event-stream; charset=utf-8',
     'Cache-Control': 'no-cache',
@@ -221,8 +309,8 @@ const server = http.createServer((req, res) => {
     }
 
     if (pathname.startsWith('/api/')) {
-      if (!checkToken(req, url)) {
-        sendJson(res, 401, { error: 'Token inválido o ausente (x-mh-token / ?token=).' });
+      if (!checkToken(req)) {
+        sendJson(res, 401, { error: 'Token inválido o ausente (cabecera x-mh-token).' });
         return;
       }
 
@@ -252,6 +340,12 @@ const server = http.createServer((req, res) => {
   }
 });
 
+// Anti-slowloris y tope de sockets: un cliente lento no puede retener conexiones indefinidamente.
+server.headersTimeout = 10000;
+server.requestTimeout = 15000;
+server.keepAliveTimeout = 30000;
+server.maxConnections = 256;
+
 server.on('clientError', (err, socket) => {
   if (socket.writable) {
     socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
@@ -260,6 +354,15 @@ server.on('clientError', (err, socket) => {
 
 server.on('error', (err) => {
   console.error('[mh-servidor] Error del servidor:', err.message);
+});
+
+// Una excepción suelta en un callback async (socket que se cierra a mitad de escritura, etc.)
+// no debe tumbar todo el servidor y cortar la fiesta: se registra y se sigue.
+process.on('uncaughtException', (err) => {
+  console.error('[mh-servidor] Excepción no capturada (se continúa):', err && err.message);
+});
+process.on('unhandledRejection', (err) => {
+  console.error('[mh-servidor] Promesa rechazada sin gestionar (se continúa):', err && err.message);
 });
 
 function getLanIps() {
@@ -273,18 +376,23 @@ function getLanIps() {
   return ips;
 }
 
-server.listen(PORT, () => {
-  const ips = getLanIps();
-  console.log(`[mh-servidor] MH Collective escuchando en el puerto ${PORT}`);
+server.listen(PORT, HOST, () => {
+  const loopback = HOST === '127.0.0.1' || HOST === 'localhost' || HOST === '::1';
+  console.log(`[mh-servidor] MH Collective escuchando en ${HOST}:${PORT}`);
   console.log(`  Local:  http://localhost:${PORT}`);
-  if (ips.length) {
-    for (const ip of ips) console.log(`  LAN:    http://${ip}:${PORT}  (usa esta URL en los móviles de la fiesta)`);
-  } else {
-    console.log('  LAN:    (no se detectó ninguna IP de red local)');
+  if (!loopback) {
+    const ips = getLanIps();
+    if (ips.length) {
+      for (const ip of ips) console.log(`  LAN:    http://${ip}:${PORT}  (usa esta URL en los móviles de la fiesta)`);
+    } else {
+      console.log('  LAN:    (no se detectó ninguna IP de red local)');
+    }
   }
-  console.log(
-    TOKEN
-      ? '  Token MH_TOKEN activo: la API exige cabecera x-mh-token (o ?token=).'
-      : '  Sin MH_TOKEN: la API está ABIERTA (úsalo solo en una LAN de confianza).',
-  );
+  if (TOKEN && loopback) {
+    console.log('  Token activo, pero solo se escucha en localhost. Para la WiFi de la fiesta añade MH_HOST=0.0.0.0.');
+  } else if (TOKEN) {
+    console.log('  Token MH_TOKEN activo: la API exige la cabecera x-mh-token. Abierto a la LAN.');
+  } else {
+    console.log('  Sin MH_TOKEN: solo accesible desde este equipo (localhost). Pon MH_TOKEN + MH_HOST=0.0.0.0 para la LAN.');
+  }
 });
