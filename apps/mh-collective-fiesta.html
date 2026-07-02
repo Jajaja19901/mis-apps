@@ -176,6 +176,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .cart-menos{min-height:36px;min-width:36px;padding:0 10px}
 .carrito-vaciar{min-height:40px}
 .btn-cobrar{width:100%;min-height:60px;font-size:1.25rem;font-weight:700;border:none;border-radius:var(--radius-btn);background:var(--neon-verde);color:var(--bg);box-shadow:0 0 16px rgba(0,212,138,.2)}
+.btn-vender-bono{width:100%;min-height:52px;margin-top:10px;font-size:1.0625rem;font-weight:700;border:none;border-radius:var(--radius-btn);background:var(--vip-morado);color:#fff;box-shadow:0 0 16px rgba(176,38,255,.2)}
 .vista-barra h2{margin-bottom:12px}
 </style>
 </head>
@@ -695,7 +696,8 @@ function seedState() {
       nCamareros: 2,
       modulos: { qr: true, cierre: true, gastos: true, stock: true },
       productos: seedProductos(),
-      umbralStock: 10
+      umbralStock: 10,
+      bonoCfg: { ventaCamareros: false, copas: 5, precio: 20 }
     },
     perfilActivo: "vig-1",
     personas: seedPersonas(),
@@ -752,6 +754,7 @@ function migrar(s) {
   if (!s.config.productos) {
     s.config.productos = s.config.precios ? productosDesdePrecios(s.config.precios) : seedProductos();
   }
+  if (!s.config.bonoCfg) s.config.bonoCfg = { ventaCamareros: false, copas: 5, precio: 20 };
   if (s.config.umbralStock === undefined) s.config.umbralStock = 10;
 
   if (!s.perfilActivo) s.perfilActivo = "vig-1";
@@ -1549,6 +1552,10 @@ function renderBarra() {
         (cobrarDisabled ? ' disabled' : ' onclick="barraCobrar()"') + '>' +
         esc(cobrarTexto) +
       '</button>' +
+      ((state.config.bonoCfg && state.config.bonoCfg.ventaCamareros)
+        ? '<button type="button" class="btn-vender-bono" data-testid="btn-vender-bono" onclick="venderBonoBarra()">' +
+          'Vender bono: ' + esc(state.config.bonoCfg.copas) + ' copas · ' + esc(money(state.config.bonoCfg.precio)) + '</button>'
+        : '') +
       '<div class="consumiciones-panel" data-testid="consumiciones">' +
         '<h3>Consumiciones incluidas</h3>' +
         '<form id="consForm" onsubmit="return consBuscar()">' +
@@ -1934,6 +1941,14 @@ function seccionBonos() {
   var bonos = state.bonos || [];
   var html = '<section class="panel" data-testid="seccion-bonos"><h2>Bonos de copa</h2>';
   html += '<p class="nota">Vales de copas con su propio QR, para regalar o vender en mano. El camarero los canjea por código.</p>';
+  var bc = state.config.bonoCfg || { ventaCamareros: false, copas: 5, precio: 20 };
+  html += '<div class="switch"><label><input type="checkbox" id="bono-venta-camareros"' +
+    (bc.ventaCamareros ? ' checked' : '') + ' onchange="duenoBonoCfg()"> Los camareros pueden vender bonos en barra</label></div>';
+  html += '<div class="contador"><label>Copas por bono <input type="number" id="bono-cfg-copas" value="' + esc(bc.copas) +
+    '" min="1" max="99" onchange="duenoBonoCfg()" style="width:80px"></label> ';
+  html += '<label>Precio del bono (€) <input type="number" id="bono-cfg-precio" value="' + esc(bc.precio) +
+    '" min="0" onchange="duenoBonoCfg()" style="width:80px"></label></div>';
+  html += '<p class="nota">El camarero solo pulsa "Vender bono": las copas y el precio los fijas tú aquí.</p>';
   html += '<form id="bonoForm" onsubmit="return crearBono(event)">';
   html += '<label>Nº de copas<input type="number" id="bono-copas" value="5" min="1" max="99"></label>';
   html += '<label>Etiqueta (opcional)<input type="text" id="bono-etiqueta" placeholder="Ej: Cumpleaños de Marta"></label>';
@@ -1956,6 +1971,43 @@ function seccionBonos() {
   }
   html += '</section>';
   return html;
+}
+
+function duenoBonoCfg() {
+  var on = !!document.getElementById('bono-venta-camareros').checked;
+  var copas = parseInt(document.getElementById('bono-cfg-copas').value || '5', 10) || 5;
+  var precio = Number(document.getElementById('bono-cfg-precio').value) || 0;
+  mutate(function (s) {
+    var bc = s.config.bonoCfg || {};
+    if (bc.ventaCamareros !== on) {
+      addLog((on ? 'activó' : 'desactivó') + ' la venta de bonos por camareros', 'config');
+    }
+    if (bc.copas !== copas || bc.precio !== precio) {
+      addLog('fijó el bono de barra en ' + copas + ' copas por ' + precio + ' €', 'config');
+    }
+    s.config.bonoCfg = { ventaCamareros: on, copas: copas, precio: precio };
+  });
+}
+
+/* Venta en barra: crea el bono con las condiciones FIJADAS POR EL DUEÑO y cobra su precio. */
+function venderBonoBarra() {
+  var bc = state.config.bonoCfg || {};
+  var copas = bc.copas || 5;
+  var precio = bc.precio || 0;
+  var nuevoId = 'b' + Date.now();
+  mutate(function (s) {
+    if (!s.bonos) s.bonos = [];
+    var codigo = 'MH-B' + String(s.bonos.length + 1).padStart(2, '0');
+    s.bonos.push({ id: nuevoId, codigo: codigo, copas: copas, usadas: 0,
+      etiqueta: 'Vendido en barra', hora: nowHM(), anulado: false, precio: precio });
+    if (precio > 0) {
+      s.ingresosBarra = (s.ingresosBarra || 0) + precio;
+      s.recaudacionPorPerfil[s.perfilActivo] = (s.recaudacionPorPerfil[s.perfilActivo] || 0) + precio;
+    }
+    addLog('vendió bono ' + codigo + ' de ' + copas + ' copas (' + precio + ' €)', 'cobro');
+  });
+  toast('Bono vendido');
+  abreQRBono(nuevoId); // se lo enseña/manda al cliente al momento
 }
 
 function crearBono(ev) {
