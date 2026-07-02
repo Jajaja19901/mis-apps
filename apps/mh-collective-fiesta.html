@@ -1,0 +1,1965 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MH Collective</title>
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MH Collective">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20200%20200'%3E%3Ccircle%20cx='100'%20cy='100'%20r='95'%20fill='%230a0a0f'%20stroke='%23ffffff'%20stroke-width='2'/%3E%3Crect%20x='70'%20y='70'%20width='60'%20height='60'%20fill='none'%20stroke='%23ffffff'%20stroke-width='2.5'%20transform='rotate(45%20100%20100)'/%3E%3Ctext%20x='100'%20y='98'%20font-family='sans-serif'%20font-size='44'%20font-weight='bold'%20fill='%23ffffff'%20text-anchor='middle'%20dominant-baseline='middle'%3EMH%3C/text%3E%3Crect%20x='35'%20y='135'%20width='130'%20height='32'%20fill='%23ffffff'%20rx='5'/%3E%3Ctext%20x='100'%20y='154'%20font-family='sans-serif'%20font-size='13'%20font-weight='600'%20fill='%230a0a0f'%20text-anchor='middle'%20dominant-baseline='middle'%3ECollective%3C/text%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20200%20200'%3E%3Ccircle%20cx='100'%20cy='100'%20r='95'%20fill='%230a0a0f'%20stroke='%23ffffff'%20stroke-width='2'/%3E%3Crect%20x='70'%20y='70'%20width='60'%20height='60'%20fill='none'%20stroke='%23ffffff'%20stroke-width='2.5'%20transform='rotate(45%20100%20100)'/%3E%3Ctext%20x='100'%20y='98'%20font-family='sans-serif'%20font-size='44'%20font-weight='bold'%20fill='%23ffffff'%20text-anchor='middle'%20dominant-baseline='middle'%3EMH%3C/text%3E%3Crect%20x='35'%20y='135'%20width='130'%20height='32'%20fill='%23ffffff'%20rx='5'/%3E%3Ctext%20x='100'%20y='154'%20font-family='sans-serif'%20font-size='13'%20font-weight='600'%20fill='%230a0a0f'%20text-anchor='middle'%20dominant-baseline='middle'%3ECollective%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiTUggQ29sbGVjdGl2ZSIsInNob3J0X25hbWUiOiJNSCIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZF9jb2xvciI6IiMwYTBhMGYiLCJ0aGVtZV9jb2xvciI6IiMwYTBhMGYifQ==">
+<style>
+:root{--bg:#0a0a0f;--surface:#1a1a23;--border:#333340;--text:#ffffff;--text-dim:#a0a0b0;--neon-verde:#00d48a;--vip-morado:#b026ff;--ambar:#ffb600;--rojo:#ff3333;--radius-card:8px;--radius-pill:20px;--radius-btn:6px}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
+img,svg{max-width:100%;display:block}
+button,input,select,textarea{font-family:inherit;font-size:1rem;color:inherit}
+a{color:var(--neon-verde)}
+:focus-visible{outline:3px solid var(--neon-verde);outline-offset:2px}
+h1,h2,h3{margin:0 0 .5rem;font-weight:600}
+h1{font-size:clamp(1.5rem,5vw,2rem)}
+p{margin:0 0 .75rem;color:var(--text-dim)}
+/* Topbar */
+#topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;flex-wrap:wrap}
+#topbar>svg{width:40px;height:40px;flex-shrink:0}
+#rolChips{display:flex;gap:8px;flex-wrap:wrap;flex:1}
+.chip-rol{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:var(--radius-pill);padding:6px 12px;font-size:.8125rem;cursor:pointer;min-height:36px}
+.chip-rol.activo{background:var(--neon-verde);color:var(--bg);border-color:var(--neon-verde)}
+#topbar [data-testid="sync-estado"]{font-size:.8125rem;color:var(--text-dim)}
+#btnInstalar{background:transparent;border:1px solid var(--border);color:var(--text);border-radius:var(--radius-btn);padding:8px 12px;cursor:pointer;font-size:.8125rem}
+/* Buscador y filtros */
+#buscador{width:100%;padding:12px 14px;border-radius:var(--radius-btn);border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:1rem;margin-bottom:12px}
+.tabs-filtro{display:flex;gap:8px;border-bottom:2px solid var(--border);overflow-x:auto;margin-bottom:12px}
+.tab-filtro{background:none;border:none;color:var(--text-dim);padding:10px 6px;font-size:.9375rem;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap}
+.tab-filtro.activo{color:var(--text);border-bottom-color:var(--neon-verde)}
+/* Tarjetas persona */
+.tarjeta-persona{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);padding:14px;margin-bottom:10px;display:flex;flex-direction:column;gap:8px}
+.tarjeta-persona .fila{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+/* Badges de estado */
+.badge{display:inline-block;border-radius:var(--radius-pill);padding:8px 14px;font-size:.8125rem;font-weight:600}
+.badge-dentro{background:var(--neon-verde);color:var(--bg)}
+.badge-fuera{background:var(--border);color:var(--text)}
+.badge-pagado{background:var(--neon-verde);color:var(--bg)}
+.badge-pendiente{background:var(--ambar);color:var(--bg)}
+.badge-vip{background:var(--vip-morado);color:#ffffff;box-shadow:0 0 16px rgba(176,38,255,.15)}
+/* Botones */
+.btn{min-height:56px;font-size:1.125rem;padding:.75rem 1.5rem;border-radius:var(--radius-btn);border:none;cursor:pointer;font-weight:600}
+.btn-primario{background:var(--neon-verde);color:var(--bg);box-shadow:0 0 16px rgba(0,212,138,.15)}
+.btn-secundario{background:transparent;border:1px solid var(--border);color:var(--text)}
+.btn-peligro{background:var(--rojo);color:#ffffff}
+.btn-pendiente{background:var(--ambar);color:var(--bg)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+/* KPIs */
+.grid-kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);padding:14px;text-align:center}
+.kpi .valor{font-size:clamp(2rem,8vw,5rem);font-weight:700;line-height:1}
+.kpi .label{font-size:.8125rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em}
+/* Aforo */
+.barra-aforo{width:100%;height:14px;border-radius:var(--radius-pill);background:var(--border);overflow:hidden;margin:8px 0}
+.barra-aforo>span{display:block;height:100%;background:var(--neon-verde)}
+.barra-aforo.alerta>span{background:var(--rojo);animation:parpadeo 1s infinite}
+@keyframes parpadeo{0%,100%{opacity:1}50%{opacity:.3}}
+/* TPV */
+.grid-productos{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
+.btn-producto{min-height:80px;border-radius:var(--radius-card);border:1px solid var(--border);background:var(--surface);color:var(--text);display:flex;flex-direction:column;justify-content:center;gap:4px;cursor:pointer;padding:10px;text-align:center}
+.btn-producto.poco-stock{border-color:var(--ambar);color:var(--ambar)}
+.btn-producto.agotado{opacity:.4;cursor:not-allowed}
+/* Carrito */
+.carrito{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);padding:14px;margin-bottom:16px}
+.carrito-linea{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)}
+/* Tablas */
+table{width:100%;border-collapse:collapse;margin-bottom:16px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);font-size:.9375rem}
+th{color:var(--text-dim);font-weight:600;font-size:.8125rem;text-transform:uppercase}
+/* Modal/overlay */
+#modalRoot:empty{display:none}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);padding:20px;max-width:480px;width:100%;max-height:90vh;overflow:auto}
+/* Toasts */
+#toastRoot{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:var(--surface);border:1px solid var(--neon-verde);color:var(--text);padding:10px 18px;border-radius:var(--radius-pill);font-size:.9375rem}
+/* FAB */
+.fab{position:fixed;bottom:20px;right:20px;width:60px;height:60px;border-radius:50%;background:var(--neon-verde);color:var(--bg);font-size:2rem;line-height:1;border:none;cursor:pointer;box-shadow:0 0 16px rgba(0,212,138,.3);z-index:30}
+/* Layout */
+main#vista{max-width:960px;margin:0 auto;padding:16px}
+/* Footer */
+footer{padding:20px 16px;text-align:center;font-size:.8125rem;color:var(--text-dim);border-top:1px solid var(--border)}
+footer a{color:var(--text-dim);text-decoration:underline}
+</style>
+</head>
+<body>
+<header id="topbar">
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MH Collective">
+<defs><style>text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}</style></defs>
+<circle cx="100" cy="100" r="95" fill="#0a0a0f" stroke="#ffffff" stroke-width="2"/>
+<rect x="70" y="70" width="60" height="60" fill="none" stroke="#ffffff" stroke-width="2.5" transform="rotate(45 100 100)"/>
+<text x="100" y="98" font-size="44" font-weight="bold" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">MH</text>
+<rect x="35" y="135" width="130" height="32" fill="#ffffff" rx="5"/>
+<text x="100" y="154" font-size="13" font-weight="600" fill="#0a0a0f" text-anchor="middle" dominant-baseline="middle">Collective</text>
+</svg>
+<div id="rolChips"></div>
+<span data-testid="sync-estado">Solo este dispositivo</span>
+<button id="btnInstalar" type="button">Instalar app</button>
+</header>
+<main id="vista"></main>
+<div id="modalRoot"></div>
+<div id="toastRoot"></div>
+<footer>
+<p>Uso interno. Los datos se almacenan solo en este dispositivo.</p>
+<p>Diseñado por <a href="#">Incuba tu Negocio · por Jaime M. M.</a></p>
+</footer>
+<script type="application/json" id="acceptance-tests">
+[
+  { "name": "Dar acceso a invitado (Vigilante 1 por defecto)", "steps": [
+    { "goto": "#/puerta" },
+    { "fill": { "sel": "#buscador", "value": "Lucía" } },
+    { "expect": "Lucía Fernández" },
+    { "clickText": "Dar acceso" },
+    { "expect": "Dentro" } ]},
+  { "name": "Cobrar taquilla y ver caja subir en Dueño", "steps": [
+    { "goto": "#/puerta" },
+    { "fill": { "sel": "#buscador", "value": "Javier" } },
+    { "clickText": "Cobrar 20 € y entrar" },
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "expectVisible": "[data-testid=\"kpi-caja\"]" },
+    { "expect": "960" } ]},
+  { "name": "Cobrar pendiente de mesa VIP", "steps": [
+    { "goto": "#/puerta" },
+    { "fill": { "sel": "#buscador", "value": "Natalia" } },
+    { "clickText": "Cobrar pendiente (100 €) y entrar" },
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "expect": "1040" } ]},
+  { "name": "Alta express entra directa", "steps": [
+    { "goto": "#/puerta" },
+    { "click": "[data-testid=\"fab-express\"]" },
+    { "fill": { "sel": "#exp-nombre", "value": "Test" } },
+    { "fill": { "sel": "#exp-apellido", "value": "Uno" } },
+    { "submit": "#expressForm" },
+    { "expect": "Test Uno" },
+    { "expect": "Dentro" } ]},
+  { "name": "Cambio de precio en config queda en el log", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "fill": { "sel": "#cfg-precio-entrada", "value": "25" } },
+    { "submit": "#configForm" },
+    { "expectVisible": "[data-testid=\"log\"]" },
+    { "expect": "Precio entrada" },
+    { "expect": "25" } ]},
+  { "name": "Vigilante no ve la caja", "steps": [
+    { "goto": "#/puerta" },
+    { "expectVisible": "#buscador" },
+    { "expectGone": "[data-testid=\"kpi-caja\"]" } ]},
+  { "name": "PIN incorrecto no entra al panel", "steps": [
+    { "clickText": "Dueño" },
+    { "fill": { "sel": "#pin-dueno", "value": "0000" } },
+    { "submit": "#pinForm" },
+    { "expect": "incorrecto" },
+    { "expectGone": "[data-testid=\"kpi-caja\"]" } ]},
+  { "name": "Venta de barra completa como Camarero 1", "steps": [
+    { "clickText": "Camarero 1" },
+    { "expectHash": "#/barra" },
+    { "click": "[data-testid=\"prod-copa\"]" },
+    { "click": "[data-testid=\"prod-cerveza\"]" },
+    { "click": "[data-testid=\"prod-chupito\"]" },
+    { "clickText": "Cobrar 17 €" },
+    { "clickText": "Dueño" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "expect": "957" } ]},
+  { "name": "Carritos aislados entre camareros", "steps": [
+    { "clickText": "Camarero 1" },
+    { "click": "[data-testid=\"prod-copa\"]" },
+    { "click": "[data-testid=\"prod-chupito\"]" },
+    { "expect": "Cobrar 12 €" },
+    { "clickText": "Camarero 2" },
+    { "expect": "Carrito vacío" },
+    { "clickText": "Camarero 1" },
+    { "expect": "Cobrar 12 €" } ]},
+  { "name": "Camarero no ve caja ni invitados", "steps": [
+    { "clickText": "Camarero 1" },
+    { "expectHash": "#/barra" },
+    { "expectVisible": "[data-testid=\"prod-copa\"]" },
+    { "expectGone": "#buscador" },
+    { "expectGone": "[data-testid=\"kpi-caja\"]" } ]},
+  { "name": "+1 entrada a RRPP Dani con log y liquidación", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "click": "[data-testid=\"rrpp-mas-dani\"]" },
+    { "expect": "RRPP Dani" },
+    { "expect": "260" } ]},
+  { "name": "Subir vigilantes crea Vigilante 3", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "click": "[data-testid=\"vigilantes-mas\"]" },
+    { "expectVisible": "[data-testid=\"rol-vig-3\"]" },
+    { "expect": "Vigilante 3" } ]},
+  { "name": "Desactivar módulo Gastos oculta su sección", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "expectVisible": "[data-testid=\"seccion-gastos\"]" },
+    { "click": "#mod-gastos" },
+    { "expectGone": "[data-testid=\"seccion-gastos\"]" } ]},
+  { "name": "Alta de gasto baja el beneficio neto y queda en log", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "fill": { "sel": "#gasto-concepto", "value": "Hielo extra" } },
+    { "fill": { "sel": "#gasto-importe", "value": "137" } },
+    { "submit": "#gastoForm" },
+    { "expectVisible": "[data-testid=\"kpi-beneficio\"]" },
+    { "expect": "803" },
+    { "expect": "Hielo extra" } ]},
+  { "name": "Venta de barra descuenta stock visible", "steps": [
+    { "clickText": "Camarero 1" },
+    { "expectHash": "#/barra" },
+    { "click": "[data-testid=\"prod-copa\"]" },
+    { "clickText": "Cobrar 10 €" },
+    { "expectVisible": "[data-testid=\"prod-copa\"]" },
+    { "expect": "99" } ]},
+  { "name": "Teclear código MH-202 filtra a Elena Navarro", "steps": [
+    { "goto": "#/puerta" },
+    { "clickText": "Escanear QR" },
+    { "expectVisible": "#qr-codigo" },
+    { "fill": { "sel": "#qr-codigo", "value": "MH-202" } },
+    { "submit": "#qrForm" },
+    { "expect": "Elena Navarro" } ]},
+  { "name": "Cerrar evento crea entrada en histórico", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Cerrar evento" },
+    { "clickText": "Sí, cerrar y archivar" },
+    { "expectVisible": "[data-testid=\"historico-item\"]" } ]}
+]
+</script>
+<script>
+
+// ===== QR ENCODER =====
+/*
+ * qr-encoder.js — Generador de códigos QR en JavaScript puro, sin dependencias.
+ * Modo BYTE (Latin1/ASCII), niveles de corrección M (versiones 1-3) o L
+ * (versión 4), versión 1-4 elegida automáticamente según la longitud del
+ * texto. Máscara FIJA patrón 0 ((fila+col)%2===0) con los bits de formato
+ * correctos para el nivel EC y esa máscara (sin evaluar penalizaciones).
+ * Cada versión usa un único bloque Reed-Solomon (sin interleaving), lo cual
+ * es válido para L en versiones 1-4 y para M en versiones 1-3; para no tener
+ * que implementar la partición multibloque (México innecesario para textos
+ * cortos) la versión 4 usa nivel L en vez de M. Capacidad aprox.: v1M=14,
+ * v2M=26, v3M=42, v4L=78 caracteres. Pensado para códigos cortos tipo
+ * "MH-201" (máx. ~30-40 caracteres); si el texto no cabe en v1-4 lanza Error.
+ *
+ * API pública:
+ *   qrMatrix(text) -> boolean[][]   (true = módulo negro), cálculo puro.
+ *   drawQR(canvas, text, sizePx)    (pinta en <canvas> con zona de silencio
+ *                                    de 4 módulos, negro sobre blanco).
+ */
+(function (root, factory) {
+  var api = factory();
+  if (typeof module === 'object' && module.exports) module.exports = api;
+  if (root) { root.qrMatrix = api.qrMatrix; root.drawQR = api.drawQR; }
+})(typeof window !== 'undefined' ? window : (typeof self !== 'undefined' ? self : null), function () {
+  'use strict';
+
+  // ---------- Aritmética GF(256) para Reed-Solomon (polinomio 0x11D) ----------
+  var GF_EXP = new Array(512);
+  var GF_LOG = new Array(256);
+  (function initGF() {
+    var x = 1;
+    for (var i = 0; i < 255; i++) {
+      GF_EXP[i] = x;
+      GF_LOG[x] = i;
+      x <<= 1;
+      if (x & 0x100) x ^= 0x11d;
+    }
+    for (var j = 255; j < 512; j++) GF_EXP[j] = GF_EXP[j - 255];
+  })();
+
+  function gfMul(a, b) {
+    if (a === 0 || b === 0) return 0;
+    return GF_EXP[GF_LOG[a] + GF_LOG[b]];
+  }
+
+  function polyMulGF(p, q) {
+    var res = new Array(p.length + q.length - 1).fill(0);
+    for (var i = 0; i < p.length; i++) {
+      for (var j = 0; j < q.length; j++) res[i + j] ^= gfMul(p[i], q[j]);
+    }
+    return res;
+  }
+
+  function rsGeneratorPoly(ecLen) {
+    var g = [1];
+    for (var i = 0; i < ecLen; i++) g = polyMulGF(g, [1, GF_EXP[i]]);
+    return g;
+  }
+
+  function rsEncode(dataBytes, ecLen) {
+    var gen = rsGeneratorPoly(ecLen);
+    var buf = dataBytes.concat(new Array(ecLen).fill(0));
+    for (var i = 0; i < dataBytes.length; i++) {
+      var coef = buf[i];
+      if (coef !== 0) {
+        for (var j = 0; j < gen.length; j++) buf[i + j] ^= gfMul(gen[j], coef);
+      }
+    }
+    return buf.slice(dataBytes.length);
+  }
+
+  // ---------- Flujo de bits (modo byte) ----------
+  function buildDataBytes(bytes, dataCW) {
+    var bits = [];
+    function push(val, len) { for (var i = len - 1; i >= 0; i--) bits.push((val >> i) & 1); }
+    push(0x4, 4);            // indicador de modo: byte (0100)
+    push(bytes.length, 8);   // indicador de longitud (8 bits, válido v1-9)
+    for (var k = 0; k < bytes.length; k++) push(bytes[k], 8);
+    var maxBits = dataCW * 8;
+    var term = Math.min(4, maxBits - bits.length);
+    for (var t = 0; t < term; t++) bits.push(0);
+    while (bits.length % 8 !== 0) bits.push(0);
+    var pad = [0xEC, 0x11], pi = 0;
+    while (bits.length < maxBits) { push(pad[pi % 2], 8); pi++; }
+    var out = [];
+    for (var b = 0; b < bits.length; b += 8) {
+      var v = 0;
+      for (var j = 0; j < 8; j++) v = (v << 1) | bits[b + j];
+      out.push(v);
+    }
+    return out;
+  }
+
+  // ---------- Bits de información de formato (BCH(15,5)) ----------
+  function formatBits(ecLevelBits, maskPattern) {
+    var data5 = (ecLevelBits << 3) | maskPattern;
+    var rem = data5 << 10;
+    var g = 0x537; // x^10+x^8+x^5+x^4+x^2+x^1+1 (11 bits, grado 10)
+    for (var i = 14; i >= 10; i--) {
+      if ((rem >> i) & 1) rem ^= (g << (i - 10));
+    }
+    var full = (data5 << 10) | (rem & 0x3ff);
+    return full ^ 0x5412;
+  }
+
+  // ---------- Patrones fijos de la matriz ----------
+  function placeFinder(mat, reserved, size, r0, c0) {
+    for (var r = -1; r <= 7; r++) {
+      for (var c = -1; c <= 7; c++) {
+        var rr = r0 + r, cc = c0 + c;
+        if (rr < 0 || rr >= size || cc < 0 || cc >= size) continue;
+        reserved[rr][cc] = true;
+        var dark;
+        if (r < 0 || r > 6 || c < 0 || c > 6) dark = false; // separador
+        else if (r === 0 || r === 6 || c === 0 || c === 6) dark = true; // borde 7x7
+        else if (r >= 2 && r <= 4 && c >= 2 && c <= 4) dark = true; // núcleo 3x3
+        else dark = false; // anillo blanco intermedio
+        mat[rr][cc] = dark;
+      }
+    }
+  }
+
+  function placeTiming(mat, reserved, size) {
+    for (var i = 8; i < size - 8; i++) {
+      var dark = (i % 2 === 0);
+      mat[6][i] = dark; reserved[6][i] = true;
+      mat[i][6] = dark; reserved[i][6] = true;
+    }
+  }
+
+  var ALIGN_CENTER = { 1: null, 2: 18, 3: 22, 4: 26 };
+  function placeAlignment(mat, reserved, size, version) {
+    var center = ALIGN_CENTER[version];
+    if (center == null) return;
+    for (var r = -2; r <= 2; r++) {
+      for (var c = -2; c <= 2; c++) {
+        var rr = center + r, cc = center + c;
+        var d = Math.max(Math.abs(r), Math.abs(c));
+        mat[rr][cc] = (d !== 1); // anillo exterior y centro = negro, anillo medio = blanco
+        reserved[rr][cc] = true;
+      }
+    }
+  }
+
+  function placeFormatInfo(mat, reserved, size, fmtVal) {
+    var coordsA = [
+      [8, 0], [8, 1], [8, 2], [8, 3], [8, 4], [8, 5], [8, 7], [8, 8],
+      [7, 8], [5, 8], [4, 8], [3, 8], [2, 8], [1, 8], [0, 8]
+    ];
+    var coordsB = [
+      [size - 1, 8], [size - 2, 8], [size - 3, 8], [size - 4, 8], [size - 5, 8], [size - 6, 8], [size - 7, 8],
+      [8, size - 8], [8, size - 7], [8, size - 6], [8, size - 5], [8, size - 4], [8, size - 3], [8, size - 2], [8, size - 1]
+    ];
+    for (var i = 0; i < 15; i++) {
+      var bit = (fmtVal >> (14 - i)) & 1;
+      mat[coordsA[i][0]][coordsA[i][1]] = !!bit; reserved[coordsA[i][0]][coordsA[i][1]] = true;
+      mat[coordsB[i][0]][coordsB[i][1]] = !!bit; reserved[coordsB[i][0]][coordsB[i][1]] = true;
+    }
+  }
+
+  // ---------- Colocación de datos en zigzag con máscara 0 ----------
+  function placeData(mat, reserved, size, bits) {
+    var idx = 0, row = size - 1, dir = -1;
+    for (var col = size - 1; col > 0; col -= 2) {
+      if (col === 6) col--;
+      for (;;) {
+        for (var k = 0; k < 2; k++) {
+          var c = col - k;
+          if (!reserved[row][c]) {
+            var bit = idx < bits.length ? bits[idx] : 0;
+            idx++;
+            if ((row + c) % 2 === 0) bit ^= 1; // máscara 0
+            mat[row][c] = !!bit;
+          }
+        }
+        var next = row + dir;
+        if (next < 0 || next >= size) { dir = -dir; break; }
+        row = next;
+      }
+    }
+  }
+
+  // ---------- Selección de versión/nivel y ensamblado ----------
+  var OPTIONS = [
+    { version: 1, level: 'M', dataCW: 16, ecCW: 10 },
+    { version: 2, level: 'M', dataCW: 28, ecCW: 16 },
+    { version: 3, level: 'M', dataCW: 44, ecCW: 26 },
+    { version: 4, level: 'L', dataCW: 80, ecCW: 20 }
+  ];
+  var EC_LEVEL_BITS = { L: 0x1, M: 0x0, Q: 0x3, H: 0x2 };
+
+  function qrMatrix(text) {
+    if (typeof text !== 'string' || text.length === 0) {
+      throw new Error('qrMatrix: el texto debe ser una cadena no vacía');
+    }
+    var bytes = [];
+    for (var i = 0; i < text.length; i++) bytes.push(text.charCodeAt(i) & 0xff);
+
+    var chosen = null;
+    for (var o = 0; o < OPTIONS.length; o++) {
+      if (bytes.length <= OPTIONS[o].dataCW - 2) { chosen = OPTIONS[o]; break; }
+    }
+    if (!chosen) throw new Error('qrMatrix: texto demasiado largo para versiones 1-4 (máx. ~78 caracteres)');
+
+    var version = chosen.version, level = chosen.level, dataCW = chosen.dataCW, ecCW = chosen.ecCW;
+    var size = 4 * version + 17;
+
+    var dataBytes = buildDataBytes(bytes, dataCW);
+    var ecBytes = rsEncode(dataBytes, ecCW);
+    var allBytes = dataBytes.concat(ecBytes);
+    var finalBits = [];
+    for (var bi = 0; bi < allBytes.length; bi++) {
+      for (var bj = 7; bj >= 0; bj--) finalBits.push((allBytes[bi] >> bj) & 1);
+    }
+
+    var mat = [], reserved = [];
+    for (var r = 0; r < size; r++) { mat.push(new Array(size).fill(false)); reserved.push(new Array(size).fill(false)); }
+
+    placeFinder(mat, reserved, size, 0, 0);
+    placeFinder(mat, reserved, size, 0, size - 7);
+    placeFinder(mat, reserved, size, size - 7, 0);
+    placeTiming(mat, reserved, size);
+    placeAlignment(mat, reserved, size, version);
+    mat[size - 8][8] = true; reserved[size - 8][8] = true; // módulo oscuro fijo
+
+    var fmtVal = formatBits(EC_LEVEL_BITS[level], 0);
+    placeFormatInfo(mat, reserved, size, fmtVal);
+
+    placeData(mat, reserved, size, finalBits);
+
+    return mat;
+  }
+
+  // ---------- Dibujo en <canvas> ----------
+  function drawQR(canvas, text, sizePx) {
+    var matrix = qrMatrix(text);
+    var n = matrix.length;
+    var quiet = 4;
+    var total = n + quiet * 2;
+    var scale = Math.max(1, Math.floor((sizePx || total) / total));
+    var px = scale * total;
+    canvas.width = px;
+    canvas.height = px;
+    var ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, px, px);
+    ctx.fillStyle = '#000000';
+    for (var r = 0; r < n; r++) {
+      for (var c = 0; c < n; c++) {
+        if (matrix[r][c]) ctx.fillRect((c + quiet) * scale, (r + quiet) * scale, scale, scale);
+      }
+    }
+    return canvas;
+  }
+
+  return { qrMatrix: qrMatrix, drawQR: drawQR };
+});
+
+// ===== APP =====
+/* ===== frag-core-a.js — MH Collective =====
+   Responsabilidad ÚNICA de este fragmento: estado + persistencia.
+   NO define render*, save(), mutate() ni el router: eso vive en frag-core-b.js
+   (ver CONTRATO.md). Vanilla JS global, sin import/export. */
+
+var CONFIG = {
+  EVENT_NAME: "Fiesta MH Collective",
+  MAX_AFORO: 300,
+  PRECIO_ENTRADA: 20,
+  PRECIO_MESA_VIP: 150,
+  ADMIN_PASSWORD: "1234",
+  STUDIO_BRAND: "Incuba tu Negocio",
+  STUDIO_AUTHOR: "Jaime M. M.",
+  STUDIO_URL: "#"
+};
+
+var state = null;
+var duenoAutenticado = false;
+var LS_KEY = "mh_collective_v1";
+
+/* ---------- Seeds auxiliares ---------- */
+
+function seedProductos() {
+  return [
+    { id: "copa", nombre: "Copa/Combinado", precio: 10, stock: 100, stockInicial: 100 },
+    { id: "cerveza", nombre: "Cerveza", precio: 5, stock: 200, stockInicial: 200 },
+    { id: "refresco", nombre: "Refresco/Agua", precio: 3, stock: 150, stockInicial: 150 },
+    { id: "chupito", nombre: "Chupito", precio: 2, stock: 100, stockInicial: 100 }
+  ];
+}
+
+function seedRrpp() {
+  var datos = [
+    ["dani", "Dani", 12],
+    ["laura", "Laura", 8],
+    ["carlos", "Carlos", 5],
+    ["marta", "Marta", 0],
+    ["alex", "Álex", 15],
+    ["nuria", "Nuria", 3],
+    ["sergio", "Sergio", 0],
+    ["paula", "Paula", 7],
+    ["ivan", "Iván", 10],
+    ["cris", "Cris", 0]
+  ];
+  return datos.map(function (d) {
+    return { id: "rrpp-" + d[0], slug: d[0], nombre: d[1], vendidas: d[2], precio: 20, comision: 10 };
+  });
+}
+
+function seedPersonas() {
+  function persona(id, nombre, apellido, tipo, codigoReserva, mesa, importePagado, dentro, horaEntrada) {
+    return {
+      id: id,
+      nombre: nombre,
+      apellido: apellido,
+      tipo: tipo,
+      codigoReserva: codigoReserva,
+      mesa: mesa,
+      pagado: importePagado > 0,
+      importePagado: importePagado,
+      dentro: dentro,
+      horaEntrada: horaEntrada
+    };
+  }
+  return [
+    persona("p1", "Lucía", "Fernández", "invitado", "MH-101", null, 0, false, null),
+    persona("p2", "Marcos", "Delgado", "invitado", "MH-102", null, 0, false, null),
+    persona("p3", "Sofía", "Romero", "invitado", "MH-103", null, 0, false, null),
+    persona("p4", "Javier", "Moreno", "taquilla", "MH-201", null, 0, false, null),
+    persona("p5", "Elena", "Navarro", "taquilla", "MH-202", null, 20, false, null),
+    persona("p6", "Pablo", "Ortega", "taquilla", "MH-203", null, 20, true, "23:02"),
+    persona("p7", "Carla", "Ruiz", "taquilla", "MH-204", null, 0, false, null),
+    persona("p8", "Diego", "Santos", "taquilla", "MH-205", null, 0, false, null),
+    persona("p9", "Andrés", "Gil", "vip", "MH-301",
+      { numero: 1, acompanantesPermitidos: 4, acompanantesDentro: 0, total: 150, adelantado: 150 },
+      150, false, null),
+    persona("p10", "Natalia", "Vega", "vip", "MH-302",
+      { numero: 2, acompanantesPermitidos: 6, acompanantesDentro: 0, total: 200, adelantado: 100 },
+      100, false, null),
+    persona("p11", "Roberto", "Cano", "vip", "MH-303",
+      { numero: 3, acompanantesPermitidos: 4, acompanantesDentro: 0, total: 150, adelantado: 50 },
+      50, false, null),
+    persona("p12", "Beatriz", "Molina", "vip", "MH-304",
+      { numero: 4, acompanantesPermitidos: 8, acompanantesDentro: 0, total: 300, adelantado: 0 },
+      0, false, null)
+  ];
+}
+
+/* ---------- Estado inicial completo ---------- */
+
+function seedState() {
+  return {
+    version: 1,
+    config: {
+      eventName: CONFIG.EVENT_NAME,
+      maxAforo: CONFIG.MAX_AFORO,
+      precioEntrada: CONFIG.PRECIO_ENTRADA,
+      precioMesaVip: CONFIG.PRECIO_MESA_VIP,
+      nVigilantes: 2,
+      nCamareros: 2,
+      modulos: { qr: true, cierre: true, gastos: true, stock: true },
+      productos: seedProductos(),
+      umbralStock: 10
+    },
+    perfilActivo: "vig-1",
+    personas: seedPersonas(),
+    rrpp: seedRrpp(),
+    carritos: { "cam-1": [], "cam-2": [] },
+    recaudacionPorPerfil: { "vig-1": 0, "vig-2": 0, "cam-1": 0, "cam-2": 0 },
+    ingresosBarra: 0,
+    gastos: [],
+    historico: [],
+    log: [
+      { hora: "22:00", actor: "Sistema", texto: "Evento iniciado", tipo: "config" }
+    ]
+  };
+}
+
+/* ---------- Migración suave (v1/v2 -> forma actual) ---------- */
+
+function productosDesdePrecios(precios) {
+  var stockDefaults = { copa: 100, cerveza: 200, refresco: 150, chupito: 100 };
+  var nombres = { copa: "Copa/Combinado", cerveza: "Cerveza", refresco: "Refresco/Agua", chupito: "Chupito" };
+  var out = [];
+  for (var key in precios) {
+    if (!Object.prototype.hasOwnProperty.call(precios, key)) continue;
+    var stock = Object.prototype.hasOwnProperty.call(stockDefaults, key) ? stockDefaults[key] : 100;
+    out.push({ id: key, nombre: nombres[key] || key, precio: precios[key], stock: stock, stockInicial: stock });
+  }
+  return out.length ? out : seedProductos();
+}
+
+function ensureClavesPerfil(mapa, prefijo, cantidad, defecto) {
+  for (var i = 1; i <= cantidad; i++) {
+    var key = prefijo + "-" + i;
+    if (!Object.prototype.hasOwnProperty.call(mapa, key)) {
+      mapa[key] = (typeof defecto === "function") ? defecto() : defecto;
+    }
+  }
+  return mapa;
+}
+
+function migrar(s) {
+  if (!s || typeof s !== "object") return seedState();
+
+  if (!s.config || typeof s.config !== "object") s.config = {};
+  if (s.config.eventName === undefined) s.config.eventName = CONFIG.EVENT_NAME;
+  if (s.config.maxAforo === undefined) s.config.maxAforo = CONFIG.MAX_AFORO;
+  if (s.config.precioEntrada === undefined) s.config.precioEntrada = CONFIG.PRECIO_ENTRADA;
+  if (s.config.precioMesaVip === undefined) s.config.precioMesaVip = CONFIG.PRECIO_MESA_VIP;
+  if (s.config.nVigilantes === undefined) s.config.nVigilantes = 2;
+  if (s.config.nCamareros === undefined) s.config.nCamareros = 2;
+  if (!s.config.modulos) {
+    s.config.modulos = { qr: true, cierre: true, gastos: true, stock: true };
+  }
+  if (!s.config.productos) {
+    s.config.productos = s.config.precios ? productosDesdePrecios(s.config.precios) : seedProductos();
+  }
+  if (s.config.umbralStock === undefined) s.config.umbralStock = 10;
+
+  if (!s.perfilActivo) s.perfilActivo = "vig-1";
+  if (!Array.isArray(s.personas)) s.personas = [];
+  if (!Array.isArray(s.rrpp)) s.rrpp = seedRrpp();
+
+  if (!s.carritos || typeof s.carritos !== "object") s.carritos = {};
+  ensureClavesPerfil(s.carritos, "cam", s.config.nCamareros, function () { return []; });
+
+  if (!s.recaudacionPorPerfil || typeof s.recaudacionPorPerfil !== "object") s.recaudacionPorPerfil = {};
+  ensureClavesPerfil(s.recaudacionPorPerfil, "vig", s.config.nVigilantes, 0);
+  ensureClavesPerfil(s.recaudacionPorPerfil, "cam", s.config.nCamareros, 0);
+
+  if (s.ingresosBarra === undefined) s.ingresosBarra = 0;
+  if (!Array.isArray(s.gastos)) s.gastos = [];
+  if (!Array.isArray(s.historico)) s.historico = [];
+  if (s.version === undefined) s.version = 1;
+  if (!Array.isArray(s.log)) {
+    s.log = [{ hora: "22:00", actor: "Sistema", texto: "Evento iniciado", tipo: "config" }];
+  }
+
+  return s;
+}
+
+/* ---------- Carga / persistencia local ---------- */
+
+function load() {
+  try {
+    var raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      var parsed = JSON.parse(raw);
+      state = migrar(parsed);
+    } else {
+      state = seedState();
+    }
+  } catch (e) {
+    state = seedState();
+  }
+}
+
+function persistLocal() {
+  localStorage.setItem(LS_KEY, JSON.stringify(state));
+}
+
+/* frag-core-b.js — MH Collective: helpers globales + router + sync + boot.
+   Depende de globales de frag-core-a.js: state, CONFIG, load, persistLocal,
+   LS_KEY, duenoAutenticado. Las vistas (renderPuerta/renderDueno/renderBarra)
+   viven en otros fragmentos: aquí solo se LLAMAN. */
+
+/* ---------- Helpers básicos ---------- */
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function money(n) { return Math.round(n || 0) + ' €'; }
+function nowHM() {
+  var d = new Date();
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+function toast(msg) {
+  var root = document.getElementById('toastRoot');
+  if (!root) return;
+  var el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  root.appendChild(el);
+  setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 1500);
+}
+function showModal(html) {
+  var root = document.getElementById('modalRoot');
+  if (!root) return;
+  root.innerHTML = '<div class="modal-overlay" data-testid="modal-overlay"><div class="modal-content">' + html + '</div></div>';
+  root.classList.add('visible');
+  var overlay = root.querySelector('.modal-overlay');
+  if (overlay) overlay.addEventListener('click', function (e) { if (e.target === overlay) closeModal(); });
+}
+function closeModal() {
+  var root = document.getElementById('modalRoot');
+  if (!root) return;
+  root.innerHTML = '';
+  root.classList.remove('visible');
+}
+
+/* ---------- Perfiles / roles ---------- */
+function etiquetaPerfil(id) {
+  if (id === 'dueno') return 'Dueño';
+  var mv = /^vig-(\d+)$/.exec(id);
+  if (mv) return 'Vigilante ' + mv[1];
+  var mc = /^cam-(\d+)$/.exec(id);
+  if (mc) return 'Camarero ' + mc[1];
+  return id;
+}
+function perfilesLista() {
+  var lista = [{ id: 'dueno', label: 'Dueño' }];
+  var nv = (state.config && state.config.nVigilantes) || 2;
+  var nc = (state.config && state.config.nCamareros) || 2;
+  for (var i = 1; i <= nv; i++) lista.push({ id: 'vig-' + i, label: 'Vigilante ' + i });
+  for (var j = 1; j <= nc; j++) lista.push({ id: 'cam-' + j, label: 'Camarero ' + j });
+  return lista;
+}
+function addLog(texto, tipo) {
+  state.log.unshift({ hora: nowHM(), actor: etiquetaPerfil(state.perfilActivo), texto: texto, tipo: tipo || '' });
+}
+
+/* ---------- Caja / búsquedas ---------- */
+function cajaDesglose() {
+  var taquilla = 0, vip = 0;
+  (state.personas || []).forEach(function (p) {
+    if (p.tipo === 'taquilla') taquilla += p.importePagado || 0;
+    else if (p.tipo === 'vip') vip += p.importePagado || 0;
+  });
+  var barra = state.ingresosBarra || 0;
+  var netoRRPP = 0;
+  (state.rrpp || []).forEach(function (r) { netoRRPP += (r.vendidas || 0) * ((r.precio || 0) - (r.comision || 0)); });
+  return { taquilla: taquilla, vip: vip, barra: barra, netoRRPP: netoRRPP, total: taquilla + vip + barra + netoRRPP };
+}
+function productoPorId(id) {
+  var lista = (state.config && state.config.productos) || [];
+  for (var i = 0; i < lista.length; i++) if (lista[i].id === id) return lista[i];
+  return null;
+}
+function personaPorId(id) {
+  var lista = state.personas || [];
+  for (var i = 0; i < lista.length; i++) if (lista[i].id === id) return lista[i];
+  return null;
+}
+function _normalizaCod(s) {
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+}
+function personaPorCodigo(cod) {
+  var buscado = _normalizaCod(cod);
+  var lista = state.personas || [];
+  for (var i = 0; i < lista.length; i++) if (_normalizaCod(lista[i].codigoReserva) === buscado) return lista[i];
+  return null;
+}
+
+/* ---------- Persistencia / mutación ---------- */
+function save() {
+  persistLocal();
+  if (window.__mhSync && typeof window.__mhSync.push === 'function') window.__mhSync.push();
+}
+function mutate(fn) {
+  fn(state);
+  state.version = (state.version || 0) + 1;
+  save();
+  renderApp();
+}
+
+/* ---------- Personal dinámico (llamar envuelto en mutate) ---------- */
+function setVigilantes(n) {
+  n = Math.max(1, Math.min(9, Math.round(n) || 1));
+  state.config.nVigilantes = n;
+  state.recaudacionPorPerfil = state.recaudacionPorPerfil || {};
+  for (var i = 1; i <= n; i++) {
+    var id = 'vig-' + i;
+    if (!(id in state.recaudacionPorPerfil)) state.recaudacionPorPerfil[id] = 0;
+  }
+  if (!perfilesLista().some(function (p) { return p.id === state.perfilActivo; })) state.perfilActivo = 'vig-1';
+  addLog('[Dueño] ajustó nº de vigilantes a ' + n, 'personal');
+}
+function setCamareros(n) {
+  n = Math.max(1, Math.min(9, Math.round(n) || 1));
+  state.config.nCamareros = n;
+  state.recaudacionPorPerfil = state.recaudacionPorPerfil || {};
+  state.carritos = state.carritos || {};
+  for (var i = 1; i <= n; i++) {
+    var id = 'cam-' + i;
+    if (!(id in state.recaudacionPorPerfil)) state.recaudacionPorPerfil[id] = 0;
+    if (!state.carritos[id]) state.carritos[id] = [];
+  }
+  if (!perfilesLista().some(function (p) { return p.id === state.perfilActivo; })) state.perfilActivo = 'vig-1';
+  addLog('[Dueño] ajustó nº de camareros a ' + n, 'personal');
+}
+
+/* ---------- Router / render dispatcher ---------- */
+function renderApp() {
+  var rolChips = document.getElementById('rolChips');
+  if (rolChips) {
+    var activo = (location.hash === '#/dueno' && duenoAutenticado) ? 'dueno' : state.perfilActivo;
+    rolChips.innerHTML = perfilesLista().map(function (p) {
+      return '<button type="button" data-testid="rol-' + esc(p.id) + '" class="chip' +
+        (p.id === activo ? ' activo' : '') + '">' + esc(p.label) + '</button>';
+    }).join('');
+    Array.prototype.forEach.call(rolChips.querySelectorAll('button[data-testid^="rol-"]'), function (btn) {
+      var id = btn.getAttribute('data-testid').slice(4);
+      btn.onclick = function () {
+        if (id === 'dueno') {
+          location.hash = '#/dueno';
+        } else {
+          state.perfilActivo = id;
+          location.hash = id.startsWith('cam') ? '#/barra' : '#/puerta';
+        }
+        renderApp();
+      };
+    });
+  }
+
+  var syncEl = document.querySelector('[data-testid="sync-estado"]');
+  if (syncEl) syncEl.textContent = syncEstado();
+
+  var vista = document.getElementById('vista');
+  var hash = location.hash || '#/puerta';
+
+  if (hash === '#/dueno') {
+    if (!duenoAutenticado) {
+      if (vista) {
+        vista.innerHTML =
+          '<form id="pinForm" class="panel-pin"><label for="pin-dueno">PIN del dueño</label>' +
+          '<input id="pin-dueno" type="password" autocomplete="off">' +
+          '<button type="submit">Entrar</button><p id="pin-error" class="error" hidden></p></form>';
+        document.getElementById('pinForm').addEventListener('submit', function (e) {
+          e.preventDefault();
+          var val = document.getElementById('pin-dueno').value;
+          if (val === CONFIG.ADMIN_PASSWORD) {
+            duenoAutenticado = true;
+            renderApp();
+          } else {
+            var err = document.getElementById('pin-error');
+            if (err) { err.textContent = 'PIN incorrecto'; err.hidden = false; }
+          }
+        });
+      }
+    } else if (typeof renderDueno === 'function') {
+      renderDueno();
+    }
+  } else if (hash === '#/barra') {
+    if (typeof renderBarra === 'function') renderBarra();
+  } else {
+    if (typeof renderPuerta === 'function') renderPuerta();
+  }
+}
+
+/* ---------- Sync (local file:// vs servidor http) ---------- */
+function syncEstado() {
+  return location.protocol === 'file:' ? 'Solo este dispositivo' : 'Sincronizado';
+}
+function initSync() {
+  if (location.protocol === 'file:') {
+    window.addEventListener('storage', function (e) {
+      if (e.key === LS_KEY) { load(); renderApp(); }
+    });
+    return;
+  }
+  try {
+    fetch('/api/state').then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (data) { if (data && data.state) { state = data.state; renderApp(); } })
+      .catch(function () { /* degrada a local */ });
+
+    var es = new EventSource('/api/events');
+    es.onmessage = function (ev) {
+      try {
+        var data = JSON.parse(ev.data);
+        if (data && data.version !== state.version) {
+          fetch('/api/state').then(function (res) { return res.json(); })
+            .then(function (d) { if (d && d.state) { state = d.state; renderApp(); } })
+            .catch(function () {});
+        }
+      } catch (err) { /* evento malformado, ignorar */ }
+    };
+    es.onerror = function () { /* silencioso: sigue en local */ };
+
+    window.__mhSync = window.__mhSync || {};
+    window.__mhSync.push = function () {
+      var baseVersion = (state.version || 1) - 1;
+      return fetch('/api/state', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ baseVersion: baseVersion, state: state }),
+      }).then(function (res) {
+        if (res.status === 409) {
+          return res.json().then(function (data) {
+            if (data && data.state) { state = data.state; renderApp(); }
+            return fetch('/api/state', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ baseVersion: state.version, state: state }),
+            }).catch(function () {});
+          });
+        }
+        return res.json().then(function (data) { if (data && data.state) state = data.state; });
+      }).catch(function () { /* API caída: se queda en local */ });
+    };
+  } catch (err) { /* cualquier fallo de red: seguir solo con localStorage */ }
+}
+
+/* ---------- Arranque ---------- */
+function bootApp() {
+  load();
+  window.addEventListener('hashchange', renderApp);
+  initSync();
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    window.__deferredPrompt = e;
+  });
+  var btnInstalar = document.getElementById('btnInstalar');
+  if (btnInstalar) {
+    btnInstalar.onclick = function () {
+      if (window.__deferredPrompt) window.__deferredPrompt.prompt();
+      else toast('Para instalar: menú del navegador → Añadir a pantalla de inicio');
+    };
+  }
+  renderApp();
+}
+window.addEventListener('DOMContentLoaded', bootApp);
+
+/* ===== VISTA PUERTA (#/puerta) — MH Collective ===== */
+var _busq = "";
+var _filtro = "todos";
+
+function normTxt(s) {
+  return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
+function escJs(s) {
+  return String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
+function personasFiltradas() {
+  var list = state.personas.slice();
+  if (_filtro === "invitados") list = list.filter(function (p) { return p.tipo === "invitado"; });
+  else if (_filtro === "taquilla") list = list.filter(function (p) { return p.tipo === "taquilla"; });
+  else if (_filtro === "vip") list = list.filter(function (p) { return p.tipo === "vip"; });
+  else if (_filtro === "dentro") list = list.filter(function (p) { return p.dentro === true; });
+  else if (_filtro === "fuera") list = list.filter(function (p) { return p.dentro === false; });
+  var q = normTxt(_busq).trim();
+  if (q) {
+    list = list.filter(function (p) {
+      var hay = normTxt((p.nombre || "") + " " + (p.apellido || "") + " " + (p.codigoReserva || ""));
+      return hay.indexOf(q) !== -1;
+    });
+  }
+  return list;
+}
+
+function filtroTab(key, label) {
+  var activo = _filtro === key ? " activo" : "";
+  return '<button type="button" class="filtro-tab' + activo + '" data-testid="filtro-' + key +
+    '" onclick="setFiltro(\'' + key + '\')">' + esc(label) + "</button>";
+}
+
+function renderPuerta() {
+  var vista = document.getElementById("vista");
+  if (!vista) return;
+  var qrOn = !!(state.config && state.config.modulos && state.config.modulos.qr);
+  var html = "";
+  html += '<div class="puerta">';
+  html += '<div class="puerta-buscador-row">';
+  html += '<input id="buscador" type="text" placeholder="Nombre, apellido o código (MH-101…)" value="' +
+    esc(_busq) + '" oninput="onBuscadorInput(this.value)">';
+  if (qrOn) {
+    html += '<button type="button" class="btn-escanear" data-testid="btn-escanear" onclick="abreEscaner()">Escanear QR</button>';
+  }
+  html += "</div>";
+  html += '<div class="puerta-filtros">';
+  html += filtroTab("todos", "Todos");
+  html += filtroTab("invitados", "Invitados");
+  html += filtroTab("taquilla", "Taquilla");
+  html += filtroTab("vip", "Mesas VIP");
+  html += filtroTab("dentro", "Ya Dentro");
+  html += filtroTab("fuera", "Fuera");
+  html += "</div>";
+  html += '<div id="listaPersonas">' + renderListaPersonasHTML() + "</div>";
+  html += "</div>";
+  html += '<button type="button" class="fab-express" data-testid="fab-express" onclick="abreExpress()" aria-label="Alta rápida">+</button>';
+  vista.innerHTML = html;
+}
+
+function renderListaPersonasHTML() {
+  var list = personasFiltradas();
+  if (list.length === 0) {
+    return '<p class="lista-vacia">Sin resultados en este filtro</p>';
+  }
+  var html = "";
+  for (var i = 0; i < list.length; i++) html += renderPersonaCard(list[i]);
+  return html;
+}
+
+function labelAccion(p) {
+  if (p.dentro) return "Marcar salida";
+  if (p.tipo === "invitado") return "Dar acceso";
+  if (p.tipo === "taquilla") {
+    if ((p.importePagado || 0) === 0) return "Cobrar " + state.config.precioEntrada + " € y entrar";
+    return "Dar acceso";
+  }
+  if (p.tipo === "vip") {
+    var mesa = p.mesa || {};
+    var pend = (mesa.total || 0) - (p.importePagado || 0);
+    if (pend > 0) return "Cobrar pendiente (" + pend + " €) y entrar";
+    return "Dar acceso";
+  }
+  return "Dar acceso";
+}
+
+function renderPersonaCard(p) {
+  var tipoLabel = p.tipo === "invitado" ? "Invitado" : (p.tipo === "taquilla" ? "Taquilla" : "VIP");
+  var estadoBadge = p.dentro
+    ? '<span class="badge badge-dentro">Dentro</span>'
+    : '<span class="badge badge-fuera">Fuera</span>';
+  var cupoHtml = "";
+  if (p.tipo === "vip" && p.mesa) {
+    var dentroCount = (p.mesa.acompanantesDentro || 0) + (p.dentro ? 1 : 0);
+    var cupoTotal = (p.mesa.acompanantesPermitidos || 0) + 1;
+    cupoHtml = '<div class="persona-cupo">Cupo ' + dentroCount + "/" + cupoTotal + "</div>";
+  }
+  var qrOn = !!(state.config && state.config.modulos && state.config.modulos.qr);
+  var qrBtn = qrOn
+    ? '<button type="button" class="btn-qr" data-testid="qr-' + esc(p.id) + "\" onclick=\"abreQR('" +
+      escJs(p.id) + "')\">QR</button>"
+    : "";
+  var accionBtn = '<button type="button" class="btn-accion-persona" onclick="accionPrincipal(\'' +
+    escJs(p.id) + "')\">" + esc(labelAccion(p)) + "</button>";
+  var html = "";
+  html += '<div class="persona-card" data-testid="persona-' + esc(p.id) + '">';
+  html += '<div class="persona-info">';
+  html += '<div class="persona-nombre">' + esc(p.nombre + " " + p.apellido) + "</div>";
+  html += '<div class="persona-meta"><span class="badge badge-tipo">' + esc(tipoLabel) +
+    '</span> <span class="persona-codigo">' + esc(p.codigoReserva) + "</span> " + estadoBadge + "</div>";
+  html += cupoHtml;
+  html += "</div>";
+  html += '<div class="persona-acciones">' + accionBtn + qrBtn + "</div>";
+  html += "</div>";
+  return html;
+}
+
+function onBuscadorInput(value) {
+  _busq = value;
+  var cont = document.getElementById("listaPersonas");
+  if (cont) cont.innerHTML = renderListaPersonasHTML();
+}
+
+function setFiltro(key) {
+  _filtro = key;
+  renderPuerta();
+}
+
+function accionPrincipal(id) {
+  var p = personaPorId(id);
+  if (!p) return;
+  if (p.dentro) { marcarSalida(id); return; }
+  if (p.tipo === "invitado") { darAccesoSimple(id, "Invitado"); return; }
+  if (p.tipo === "taquilla") {
+    if ((p.importePagado || 0) === 0) cobrarYEntrar(id, state.config.precioEntrada);
+    else darAccesoSimple(id, "Taquilla");
+    return;
+  }
+  if (p.tipo === "vip") {
+    var mesa = p.mesa || {};
+    var pend = (mesa.total || 0) - (p.importePagado || 0);
+    if (pend > 0) cobrarYEntrar(id, pend);
+    else darAccesoSimple(id, "VIP");
+    return;
+  }
+}
+
+function darAccesoSimple(id, tipoLabel) {
+  mutate(function () {
+    var p = personaPorId(id);
+    if (!p || p.dentro) return;
+    p.dentro = true;
+    p.horaEntrada = nowHM();
+    addLog("registró entrada de " + p.nombre + " " + p.apellido + " (" + tipoLabel + ")", "entrada");
+  });
+  toast("Acceso dado");
+}
+
+function cobrarYEntrar(id, importe) {
+  mutate(function (s) {
+    var p = personaPorId(id);
+    if (!p || p.dentro) return;
+    var monto = importe;
+    p.importePagado = (p.importePagado || 0) + monto;
+    p.pagado = true;
+    p.dentro = true;
+    p.horaEntrada = nowHM();
+    s.recaudacionPorPerfil[s.perfilActivo] = (s.recaudacionPorPerfil[s.perfilActivo] || 0) + monto;
+    addLog("cobró " + monto + " € a " + p.nombre + " " + p.apellido, "cobro");
+  });
+  toast("Cobro registrado");
+}
+
+function marcarSalida(id) {
+  mutate(function () {
+    var p = personaPorId(id);
+    if (!p || !p.dentro) return;
+    p.dentro = false;
+    addLog("registró salida de " + p.nombre + " " + p.apellido, "salida");
+  });
+  toast("Salida marcada");
+}
+
+/* ===== ALTA EXPRESS ===== */
+function abreExpress() {
+  var html = "";
+  html += '<div class="modal-express">';
+  html += "<h2>Alta rápida</h2>";
+  html += '<form id="expressForm">';
+  html += '<label for="exp-nombre">Nombre</label>';
+  html += '<input id="exp-nombre" type="text" required>';
+  html += '<label for="exp-apellido">Apellido</label>';
+  html += '<input id="exp-apellido" type="text" required>';
+  html += '<label for="exp-tipo">Tipo de entrada</label>';
+  html += '<select id="exp-tipo" onchange="onExpressTipoChange(this.value)">';
+  html += '<option value="invitado">Invitado (autorizado por dueño, gratis)</option>';
+  html += '<option value="taquilla">Público general (paga tarifa)</option>';
+  html += '<option value="vip">Mesa VIP en el acto</option>';
+  html += "</select>";
+  html += '<div id="exp-acompanantes-wrap" style="display:none">';
+  html += '<label for="exp-acompanantes">Nº acompañantes</label>';
+  html += '<input id="exp-acompanantes" type="number" min="0" value="0">';
+  html += "</div>";
+  html += '<div class="modal-botones">';
+  html += '<button type="submit" class="btn-primario">Guardar y entrar</button>';
+  html += '<button type="button" onclick="closeModal()">Cancelar</button>';
+  html += "</div></form></div>";
+  showModal(html);
+  var form = document.getElementById("expressForm");
+  if (form) form.addEventListener("submit", onExpressSubmit);
+}
+
+function onExpressTipoChange(val) {
+  var wrap = document.getElementById("exp-acompanantes-wrap");
+  if (wrap) wrap.style.display = val === "vip" ? "block" : "none";
+}
+
+function onExpressSubmit(ev) {
+  ev.preventDefault();
+  var nombreEl = document.getElementById("exp-nombre");
+  var apellidoEl = document.getElementById("exp-apellido");
+  var tipoEl = document.getElementById("exp-tipo");
+  var acompEl = document.getElementById("exp-acompanantes");
+  var nombre = nombreEl ? nombreEl.value.trim() : "";
+  var apellido = apellidoEl ? apellidoEl.value.trim() : "";
+  var tipo = tipoEl ? tipoEl.value : "invitado";
+  var acompanantes = acompEl ? parseInt(acompEl.value || "0", 10) : 0;
+  if (isNaN(acompanantes)) acompanantes = 0;
+  mutate(function (s) {
+    var n = s.personas.length;
+    var persona = {
+      id: "p" + Date.now(),
+      nombre: nombre, apellido: apellido, tipo: tipo,
+      codigoReserva: "MH-5" + String(n).padStart(2, "0"),
+      mesa: null, pagado: false, importePagado: 0, dentro: true, horaEntrada: nowHM()
+    };
+    if (tipo === "taquilla") {
+      persona.importePagado = s.config.precioEntrada;
+      persona.pagado = true;
+      s.recaudacionPorPerfil[s.perfilActivo] = (s.recaudacionPorPerfil[s.perfilActivo] || 0) + s.config.precioEntrada;
+    } else if (tipo === "vip") {
+      persona.mesa = { numero: n + 1, acompanantesPermitidos: acompanantes, acompanantesDentro: 0, total: s.config.precioMesaVip, adelantado: 0 };
+      persona.importePagado = s.config.precioMesaVip;
+      persona.pagado = true;
+      s.recaudacionPorPerfil[s.perfilActivo] = (s.recaudacionPorPerfil[s.perfilActivo] || 0) + s.config.precioMesaVip;
+    }
+    s.personas.push(persona);
+    addLog("registró alta express " + nombre + " " + apellido + " (" + tipo + ")", "alta");
+  });
+  closeModal();
+  toast("Persona registrada y dentro");
+  _filtro = "todos";
+  _busq = "";
+}
+
+/* ===== QR POR PERSONA ===== */
+function abreQR(id) {
+  var p = personaPorId(id);
+  if (!p) return;
+  var tipoLabel = p.tipo === "invitado" ? "Invitado" : (p.tipo === "taquilla" ? "Taquilla" : "VIP");
+  var html = "";
+  html += '<div class="modal-qr" data-testid="qr-modal">';
+  html += "<h2>" + esc(p.nombre + " " + p.apellido) + "</h2>";
+  html += '<p class="qr-tipo">' + esc(tipoLabel) + "</p>";
+  html += '<canvas id="qrCanvas" width="220" height="220"></canvas>';
+  html += '<p class="qr-codigo">' + esc(p.codigoReserva) + "</p>";
+  html += '<div class="modal-botones">';
+  html += '<button type="button" id="btnCompartirQR">Compartir</button>';
+  html += '<button type="button" onclick="closeModal()">Cerrar</button>';
+  html += "</div></div>";
+  showModal(html);
+  var canvas = document.getElementById("qrCanvas");
+  if (canvas) { try { drawQR(canvas, p.codigoReserva, 220); } catch (e) {} }
+  var btnShare = document.getElementById("btnCompartirQR");
+  if (btnShare) btnShare.addEventListener("click", function () { compartirQR(canvas, p); });
+}
+
+function compartirQR(canvas, p) {
+  if (!canvas) return;
+  try {
+    if (navigator.share && canvas.toBlob) {
+      canvas.toBlob(function (blob) {
+        if (!blob) return;
+        try {
+          var file = new File([blob], "qr-" + p.codigoReserva + ".png", { type: "image/png" });
+          if (navigator.canShare && !navigator.canShare({ files: [file] })) { descargarCanvas(canvas, p); return; }
+          navigator.share({ files: [file], title: p.nombre + " " + p.apellido, text: p.codigoReserva }).catch(function () {});
+        } catch (e) { descargarCanvas(canvas, p); }
+      });
+    } else {
+      descargarCanvas(canvas, p);
+    }
+  } catch (e) { descargarCanvas(canvas, p); }
+}
+
+function descargarCanvas(canvas, p) {
+  try {
+    var a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = "qr-" + p.codigoReserva + ".png";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } catch (e) {}
+}
+
+/* ===== ESCÁNER QR (con fallback de teclado SIEMPRE visible) ===== */
+function abreEscaner() {
+  var html = "";
+  html += '<div class="modal-escaner">';
+  html += "<h2>Escanear QR</h2>";
+  html += '<p id="escanerAviso">Apunta la cámara al código o teclea el código manualmente.</p>';
+  html += '<div id="escanerVideoWrap"></div>';
+  html += '<form id="qrForm">';
+  html += '<label for="qr-codigo">Código</label>';
+  html += '<input id="qr-codigo" type="text" placeholder="MH-101" autocomplete="off">';
+  html += '<button type="submit">Buscar</button>';
+  html += "</form>";
+  html += '<div id="escanerResultado"></div>';
+  html += '<button type="button" onclick="closeModal()">Cerrar</button>';
+  html += "</div>";
+  showModal(html);
+  var form = document.getElementById("qrForm");
+  if (form) form.addEventListener("submit", onEscanerSubmit);
+  intentarCamaraQR();
+}
+
+function onEscanerSubmit(ev) {
+  ev.preventDefault();
+  var input = document.getElementById("qr-codigo");
+  var valor = input ? input.value.trim() : "";
+  if (!valor) return;
+  var p = personaPorCodigo(valor);
+  if (p) {
+    closeModal();
+    _busq = valor;
+    _filtro = "todos";
+    renderApp();
+  } else {
+    var resultado = document.getElementById("escanerResultado");
+    if (resultado) {
+      resultado.innerHTML = '<p class="escaner-no-encontrado">Código no encontrado</p>' +
+        '<button type="button" onclick="closeModal();abreExpress();">Dar de alta express</button>';
+    }
+  }
+}
+
+function intentarCamaraQR() {
+  try {
+    if (location.protocol === "file:") return;
+    if (typeof BarcodeDetector === "undefined") return;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+    var wrap = document.getElementById("escanerVideoWrap");
+    if (!wrap) return;
+    var video = document.createElement("video");
+    video.setAttribute("playsinline", "true");
+    video.autoplay = true;
+    video.style.width = "100%";
+    wrap.appendChild(video);
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function (stream) {
+      video.srcObject = stream;
+      var detector = new BarcodeDetector({ formats: ["qr_code"] });
+      var activo = true;
+      function detener() { activo = false; try { stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} }
+      function tick() {
+        if (!activo) return;
+        if (!document.body.contains(video)) { detener(); return; }
+        detector.detect(video).then(function (codes) {
+          if (codes && codes.length) {
+            var valor = codes[0].rawValue;
+            var input = document.getElementById("qr-codigo");
+            if (input) input.value = valor;
+            detener();
+            var p = personaPorCodigo(valor);
+            if (p) { closeModal(); _busq = valor; _filtro = "todos"; renderApp(); }
+            return;
+          }
+          if (activo) requestAnimationFrame(tick);
+        }).catch(function () { if (activo) requestAnimationFrame(tick); });
+      }
+      requestAnimationFrame(tick);
+    }).catch(function () {});
+  } catch (e) {}
+}
+
+/* frag-barra.js — TPV de Barra (#/barra), camareros + dueño.
+   Global vanilla JS. Usa: state, mutate, esc, money, addLog, toast, renderApp, productoPorId. */
+
+function renderBarra() {
+  var vista = document.getElementById('vista');
+  if (!vista) return;
+
+  var perfil = state.perfilActivo;
+  var carrito = state.carritos[perfil] || (state.carritos[perfil] = []);
+  var modulos = state.config.modulos || {};
+  var productos = state.config.productos || [];
+  var umbral = state.config.umbralStock || 10;
+
+  var botonesHtml = productos.map(function (p) {
+    var cls = 'btn-producto';
+    var extra = '';
+    var agotado = false;
+
+    if (modulos.stock) {
+      if (p.stock === 0) {
+        agotado = true;
+        extra = ' · Agotado';
+      } else {
+        extra = ' · ' + p.stock + ' uds';
+        if (p.stock <= umbral) {
+          cls += ' poco-stock';
+          extra += ' ¡Quedan ' + p.stock + '!';
+        }
+      }
+    }
+
+    return '<button type="button" class="' + cls + '" data-testid="prod-' + esc(p.id) + '"' +
+      (agotado ? ' disabled' : ' onclick="barraAgregar(\'' + esc(p.id) + '\')"') + '>' +
+      '<span class="prod-nombre">' + esc(p.nombre) + '</span> ' +
+      '<span class="prod-precio">' + money(p.precio) + '</span>' +
+      (extra ? '<span class="prod-stock">' + esc(extra) + '</span>' : '') +
+      '</button>';
+  }).join('');
+
+  var lineasHtml = carrito.map(function (l) {
+    return '<div class="carrito-linea">' +
+      '<span class="cl-nombre">' + esc(l.nombre) + '</span>' +
+      '<span class="cl-qty">x' + l.qty + '</span>' +
+      '<span class="cl-importe">' + money(l.precio * l.qty) + '</span>' +
+      '<button type="button" class="cart-menos" data-testid="cart-menos-' + esc(l.prodId) + '" ' +
+      'onclick="barraQuitar(\'' + esc(l.prodId) + '\')">−</button>' +
+      '</div>';
+  }).join('');
+
+  if (!lineasHtml) {
+    lineasHtml = '<p class="carrito-vacio-msg">Carrito vacío</p>';
+  }
+
+  var total = 0;
+  for (var i = 0; i < carrito.length; i++) {
+    total += carrito[i].precio * carrito[i].qty;
+  }
+
+  var cobrarDisabled = carrito.length === 0;
+  var cobrarTexto = cobrarDisabled ? 'Carrito vacío' : 'Cobrar ' + money(total);
+
+  vista.innerHTML =
+    '<section class="vista-barra">' +
+      '<h2>Barra</h2>' +
+      '<div class="productos-grid">' + botonesHtml + '</div>' +
+      '<div class="carrito" data-testid="carrito">' +
+        lineasHtml +
+        '<div class="carrito-footer">' +
+          '<button type="button" class="carrito-vaciar" data-testid="carrito-vaciar" ' +
+          'onclick="barraVaciar()">Vaciar carrito</button>' +
+          '<span class="carrito-total" data-testid="carrito-total">' + money(total) + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<button type="button" class="btn-cobrar" data-testid="btn-cobrar"' +
+        (cobrarDisabled ? ' disabled' : ' onclick="barraCobrar()"') + '>' +
+        esc(cobrarTexto) +
+      '</button>' +
+    '</section>';
+}
+
+function barraAgregar(prodId) {
+  mutate(function (s) {
+    var perfil = s.perfilActivo;
+    var carrito = s.carritos[perfil] || (s.carritos[perfil] = []);
+    var prod = productoPorId(prodId);
+    if (!prod) return;
+    if (s.config.modulos && s.config.modulos.stock && prod.stock <= 0) return;
+
+    var linea = null;
+    for (var i = 0; i < carrito.length; i++) {
+      if (carrito[i].prodId === prodId) { linea = carrito[i]; break; }
+    }
+    if (linea) {
+      linea.qty++;
+    } else {
+      carrito.push({ prodId: prod.id, nombre: prod.nombre, precio: prod.precio, qty: 1 });
+    }
+  });
+}
+
+function barraQuitar(prodId) {
+  mutate(function (s) {
+    var perfil = s.perfilActivo;
+    var carrito = s.carritos[perfil] || (s.carritos[perfil] = []);
+    for (var i = 0; i < carrito.length; i++) {
+      if (carrito[i].prodId === prodId) {
+        carrito[i].qty--;
+        if (carrito[i].qty <= 0) carrito.splice(i, 1);
+        break;
+      }
+    }
+  });
+}
+
+function barraVaciar() {
+  mutate(function (s) {
+    var perfil = s.perfilActivo;
+    var carrito = s.carritos[perfil] || (s.carritos[perfil] = []);
+    carrito.length = 0;
+  });
+}
+
+function barraCobrar() {
+  mutate(function (s) {
+    var perfil = s.perfilActivo;
+    var carrito = s.carritos[perfil] || (s.carritos[perfil] = []);
+    if (!carrito.length) return;
+
+    var total = 0;
+    var partes = [];
+    for (var i = 0; i < carrito.length; i++) {
+      var l = carrito[i];
+      total += l.precio * l.qty;
+      partes.push(l.qty + '× ' + l.nombre);
+    }
+
+    if (s.config.modulos && s.config.modulos.stock) {
+      for (var j = 0; j < carrito.length; j++) {
+        var prod = productoPorId(carrito[j].prodId);
+        if (prod) prod.stock = Math.max(0, prod.stock - carrito[j].qty);
+      }
+    }
+
+    s.ingresosBarra = (s.ingresosBarra || 0) + total;
+    s.recaudacionPorPerfil[perfil] = (s.recaudacionPorPerfil[perfil] || 0) + total;
+    addLog('vendió ' + partes.join(', ') + ' (' + total + ' €)', 'cobro');
+
+    carrito.length = 0;
+    toast('Cobro registrado');
+  });
+}
+
+/* ===== frag-dueno.js — MH Collective =====
+   renderDueno(): pinta el panel del dueño en #vista (#/dueno, ya autenticado).
+   Usa globales de frag-core: state, CONFIG, mutate, esc, money, nowHM, addLog,
+   toast, showModal, closeModal, renderApp, cajaDesglose, etiquetaPerfil,
+   perfilesLista, productoPorId, setVigilantes, setCamareros. Vanilla JS global. */
+
+var CATEGORIAS_GASTO = ["Bebida", "Personal", "Local", "DJ-Música", "Otros"];
+var MODULO_LABEL = { qr: "QR de entradas", cierre: "Cierre e informes", gastos: "Gastos", stock: "Stock de barra" };
+var duenoMostrandoConfirmarCierre = false;
+
+function renderDueno() {
+  var vista = document.getElementById("vista");
+  if (!vista) return;
+  var s = state;
+  var html = "";
+  html += seccionKpis();
+  html += seccionConfig();
+  html += seccionPersonal();
+  html += seccionModulos();
+  html += seccionRrpp();
+  html += seccionRecaudacion();
+  if (s.config.modulos.gastos) html += seccionGastos();
+  if (s.config.modulos.stock) html += seccionStock();
+  if (s.config.modulos.cierre) html += seccionCierre();
+  html += seccionLog();
+  html += '<button type="button" class="btn btn-ayuda" onclick="duenoAyuda()">Ayuda</button>';
+  vista.innerHTML = html;
+}
+
+/* ---------- 1. KPIs ---------- */
+
+function seccionKpis() {
+  var s = state;
+  var caja = cajaDesglose();
+  var dentro = s.personas.filter(function (p) { return p.dentro; }).length;
+  var totalPersonas = s.personas.length || 1;
+  var pct = Math.round((dentro / totalPersonas) * 100);
+  var pctAforo = s.config.maxAforo ? Math.min(100, Math.round((dentro / s.config.maxAforo) * 100)) : 0;
+  var alerta = s.config.maxAforo && dentro >= 0.9 * s.config.maxAforo ? " alerta" : "";
+  var html = '<section class="panel kpis">';
+  html += '<div class="kpi kpi-aforo' + alerta + '" data-testid="kpi-aforo"><h3>Aforo</h3>';
+  html += '<p class="kpi-big">' + esc(dentro) + ' / ' + esc(s.config.maxAforo) + ' dentro</p>';
+  html += '<div class="barra"><div class="barra-fill" style="width:' + pctAforo + '%"></div></div></div>';
+  html += '<div class="kpi" data-testid="kpi-caja"><h3>Caja total</h3><p class="kpi-big">' + esc(money(caja.total)) + '</p>';
+  html += '<ul class="desglose">';
+  html += '<li data-testid="caja-taquilla">Taquilla: ' + esc(money(caja.taquilla)) + '</li>';
+  html += '<li data-testid="caja-vip">Mesas VIP: ' + esc(money(caja.vip)) + '</li>';
+  html += '<li data-testid="caja-barra">Barra: ' + esc(money(caja.barra)) + '</li>';
+  html += '<li data-testid="caja-rrpp">RRPP: ' + esc(money(caja.netoRRPP)) + ' (pendiente de entrega)</li>';
+  html += '</ul></div>';
+  html += '<div class="kpi" data-testid="kpi-asistencia"><h3>Asistencia</h3><p class="kpi-big">' +
+    esc(dentro) + ' registrados (' + esc(pct) + '%)</p></div>';
+  if (s.config.modulos.gastos) {
+    var gastosTotal = s.gastos.reduce(function (a, g) { return a + g.importe; }, 0);
+    var beneficioNeto = caja.total - gastosTotal;
+    var beneficioCaja = caja.taquilla + caja.vip + caja.barra - gastosTotal;
+    html += '<div class="kpi" data-testid="kpi-beneficio"><h3>Beneficio neto</h3><p class="kpi-big">' + esc(money(beneficioNeto)) + '</p></div>';
+    html += '<div class="kpi" data-testid="kpi-beneficio-caja"><h3>Beneficio en caja</h3><p class="kpi-big">' + esc(money(beneficioCaja)) + '</p></div>';
+  }
+  html += '</section>';
+  return html;
+}
+
+/* ---------- 2. Configuración ---------- */
+
+function seccionConfig() {
+  var c = state.config;
+  var html = '<section class="panel" data-testid="seccion-config"><h2>Configuración</h2>';
+  html += '<form id="configForm" onsubmit="return duenoGuardarConfig(event)">';
+  html += '<label>Nombre del evento<input type="text" id="cfg-evento" value="' + esc(c.eventName) + '"></label>';
+  html += '<label>Aforo máximo<input type="number" id="cfg-aforo" value="' + esc(c.maxAforo) + '" min="1"></label>';
+  html += '<label>Precio entrada general<input type="number" id="cfg-precio-entrada" value="' + esc(c.precioEntrada) + '" min="0"></label>';
+  html += '<label>Precio base mesa VIP<input type="number" id="cfg-precio-vip" value="' + esc(c.precioMesaVip) + '" min="0"></label>';
+  html += '<button type="submit" class="btn btn-primary">Guardar configuración</button>';
+  html += '</form></section>';
+  return html;
+}
+
+function duenoGuardarConfig(ev) {
+  if (ev && ev.preventDefault) ev.preventDefault();
+  var evento = document.getElementById("cfg-evento").value.trim();
+  var aforo = Number(document.getElementById("cfg-aforo").value) || 0;
+  var precioEntrada = Number(document.getElementById("cfg-precio-entrada").value) || 0;
+  var precioVip = Number(document.getElementById("cfg-precio-vip").value) || 0;
+  mutate(function (s) {
+    var c = s.config;
+    if (evento && evento !== c.eventName) {
+      addLog("cambió Nombre evento: " + c.eventName + " → " + evento, "config");
+      c.eventName = evento;
+    }
+    if (aforo && aforo !== c.maxAforo) {
+      addLog("cambió Aforo: " + c.maxAforo + " → " + aforo, "config");
+      c.maxAforo = aforo;
+    }
+    if (precioEntrada !== c.precioEntrada) {
+      addLog("cambió Precio entrada: " + c.precioEntrada + " → " + precioEntrada, "config");
+      c.precioEntrada = precioEntrada;
+    }
+    if (precioVip !== c.precioMesaVip) {
+      addLog("cambió Precio mesa VIP: " + c.precioMesaVip + " → " + precioVip, "config");
+      c.precioMesaVip = precioVip;
+    }
+  });
+  toast("Configuración guardada");
+  return false;
+}
+
+/* ---------- 3. Personal ---------- */
+
+function seccionPersonal() {
+  var c = state.config;
+  var html = '<section class="panel" data-testid="seccion-personal"><h2>Personal</h2>';
+  html += '<div class="contador"><span>Vigilantes: <b data-testid="vigilantes-count">' + esc(c.nVigilantes) + '</b></span> ';
+  html += '<button type="button" data-testid="vigilantes-menos" onclick="duenoCambiarVigilantes(-1)">−</button> ';
+  html += '<button type="button" data-testid="vigilantes-mas" onclick="duenoCambiarVigilantes(1)">+</button></div>';
+  html += '<div class="contador"><span>Camareros: <b data-testid="camareros-count">' + esc(c.nCamareros) + '</b></span> ';
+  html += '<button type="button" data-testid="camareros-menos" onclick="duenoCambiarCamareros(-1)">−</button> ';
+  html += '<button type="button" data-testid="camareros-mas" onclick="duenoCambiarCamareros(1)">+</button></div>';
+  html += '</section>';
+  return html;
+}
+
+function duenoCambiarVigilantes(delta) {
+  var n = Math.max(1, Math.min(9, state.config.nVigilantes + delta));
+  mutate(function () { setVigilantes(n); });
+}
+
+function duenoCambiarCamareros(delta) {
+  var n = Math.max(1, Math.min(9, state.config.nCamareros + delta));
+  mutate(function () { setCamareros(n); });
+}
+
+/* ---------- 4. Módulos ---------- */
+
+function seccionModulos() {
+  var m = state.config.modulos;
+  var html = '<section class="panel" data-testid="seccion-modulos"><h2>Módulos</h2>';
+  ["qr", "cierre", "gastos", "stock"].forEach(function (key) {
+    html += '<label class="switch"><input type="checkbox" id="mod-' + key + '"' + (m[key] ? " checked" : "") +
+      ' onchange="duenoToggleModulo(\'' + key + '\')"> ' + esc(MODULO_LABEL[key]) + '</label>';
+  });
+  html += '</section>';
+  return html;
+}
+
+function duenoToggleModulo(key) {
+  mutate(function (s) {
+    s.config.modulos[key] = !s.config.modulos[key];
+    addLog((s.config.modulos[key] ? "activó" : "desactivó") + " módulo " + MODULO_LABEL[key], "modulo");
+  });
+}
+
+/* ---------- 5. RRPP ---------- */
+
+function seccionRrpp() {
+  var rrpp = state.rrpp;
+  var html = '<section class="panel" data-testid="rrpp"><h2>Gestión de RRPP / Promotores</h2>';
+  html += '<table class="tabla-rrpp"><thead><tr><th>RRPP</th><th>Vendidas</th><th>Precio</th><th>Comisión</th>' +
+    '<th>Total</th><th>Comisión €</th><th>Neto</th></tr></thead><tbody>';
+  var totVend = 0, totTotal = 0, totCom = 0, totNeto = 0;
+  rrpp.forEach(function (r) {
+    var total = r.vendidas * r.precio;
+    var com = r.vendidas * r.comision;
+    var neto = total - com;
+    totVend += r.vendidas; totTotal += total; totCom += com; totNeto += neto;
+    html += '<tr data-testid="rrpp-' + esc(r.slug) + '">';
+    html += '<td>RRPP ' + esc(r.nombre) + '</td>';
+    html += '<td>' + esc(r.vendidas) +
+      ' <button type="button" data-testid="rrpp-menos-' + esc(r.slug) + '" onclick="duenoRrppVendidas(\'' + r.slug + '\',-1)">−</button>' +
+      ' <button type="button" data-testid="rrpp-mas-' + esc(r.slug) + '" onclick="duenoRrppVendidas(\'' + r.slug + '\',1)">+</button></td>';
+    html += '<td><input type="number" id="rrpp-precio-' + esc(r.slug) + '" value="' + esc(r.precio) +
+      '" min="0" onchange="duenoRrppCampo(\'' + r.slug + '\',\'precio\',this.value)"></td>';
+    html += '<td><input type="number" id="rrpp-comision-' + esc(r.slug) + '" value="' + esc(r.comision) +
+      '" min="0" onchange="duenoRrppCampo(\'' + r.slug + '\',\'comision\',this.value)"></td>';
+    html += '<td>' + esc(money(total)) + '</td><td>' + esc(money(com)) + '</td><td>' + esc(money(neto)) + '</td>';
+    html += '</tr>';
+  });
+  html += '</tbody><tfoot><tr data-testid="rrpp-totales"><td>Total</td><td>' + esc(totVend) + '</td><td></td><td></td>' +
+    '<td>' + esc(money(totTotal)) + '</td><td>' + esc(money(totCom)) + '</td><td>' + esc(money(totNeto)) + '</td></tr></tfoot>';
+  html += '</table></section>';
+  return html;
+}
+
+function duenoRrppVendidas(slug, delta) {
+  mutate(function (s) {
+    var r = s.rrpp.find(function (x) { return x.slug === slug; });
+    if (!r) return;
+    r.vendidas = Math.max(0, r.vendidas + delta);
+    addLog("asignó " + (delta > 0 ? "+1" : "-1") + " entrada vendida a RRPP " + r.nombre, "rrpp");
+  });
+}
+
+function duenoRrppCampo(slug, campo, valor) {
+  var num = Number(valor) || 0;
+  mutate(function (s) {
+    var r = s.rrpp.find(function (x) { return x.slug === slug; });
+    if (!r || num === r[campo]) return;
+    var etiqueta = campo === "precio" ? "Precio" : "Comisión";
+    addLog("cambió " + etiqueta + " RRPP " + r.nombre + ": " + r[campo] + " → " + num, "rrpp");
+    r[campo] = num;
+  });
+}
+
+/* ---------- 6. Recaudación por terminal ---------- */
+
+function seccionRecaudacion() {
+  var mapa = state.recaudacionPorPerfil;
+  var html = '<section class="panel" data-testid="recaudacion-terminal"><h2>Recaudación por terminal</h2><table><tbody>';
+  Object.keys(mapa).sort().forEach(function (id) {
+    html += '<tr data-testid="terminal-' + esc(id) + '"><td>' + esc(etiquetaPerfil(id)) + '</td><td>' + esc(money(mapa[id])) + '</td></tr>';
+  });
+  html += '</tbody></table></section>';
+  return html;
+}
+
+/* ---------- 7. Gastos ---------- */
+
+function seccionGastos() {
+  var gastos = state.gastos;
+  var total = gastos.reduce(function (a, g) { return a + g.importe; }, 0);
+  var html = '<section class="panel" data-testid="seccion-gastos"><h2>Gastos</h2>';
+  html += '<form id="gastoForm" onsubmit="return duenoAltaGasto(event)">';
+  html += '<input type="text" id="gasto-concepto" placeholder="Concepto" required>';
+  html += '<input type="number" id="gasto-importe" placeholder="Importe" min="0" required>';
+  html += '<select id="gasto-categoria">';
+  CATEGORIAS_GASTO.forEach(function (cat) { html += '<option value="' + esc(cat) + '">' + esc(cat) + '</option>'; });
+  html += '</select>';
+  html += '<button type="submit" class="btn btn-primary">Añadir gasto</button></form>';
+  html += '<ul class="lista-gastos">';
+  gastos.forEach(function (g) {
+    html += '<li>' + esc(g.hora) + ' · ' + esc(g.concepto) + ' (' + esc(g.categoria) + ') ' + esc(money(g.importe)) +
+      ' <button type="button" data-testid="gasto-borrar-' + esc(g.id) + '" onclick="duenoBorrarGasto(\'' + g.id + '\')">Borrar</button></li>';
+  });
+  html += '</ul>';
+  html += '<p data-testid="gastos-total">Total gastos: ' + esc(money(total)) + '</p>';
+  html += '</section>';
+  return html;
+}
+
+function duenoAltaGasto(ev) {
+  if (ev && ev.preventDefault) ev.preventDefault();
+  var concepto = document.getElementById("gasto-concepto").value.trim();
+  var importe = Number(document.getElementById("gasto-importe").value) || 0;
+  var categoria = document.getElementById("gasto-categoria").value;
+  if (!concepto || importe <= 0) { toast("Falta concepto o importe"); return false; }
+  mutate(function (s) {
+    s.gastos.push({ id: "g" + Date.now(), concepto: concepto, importe: importe, categoria: categoria, hora: nowHM() });
+    addLog("registró gasto " + concepto + " (" + importe + " €)", "gasto");
+  });
+  return false;
+}
+
+function duenoBorrarGasto(id) {
+  mutate(function (s) {
+    var idx = s.gastos.findIndex(function (g) { return g.id === id; });
+    if (idx === -1) return;
+    var g = s.gastos[idx];
+    s.gastos.splice(idx, 1);
+    addLog("eliminó gasto " + g.concepto + " (" + g.importe + " €)", "gasto");
+  });
+}
+
+/* ---------- 8. Stock ---------- */
+
+function seccionStock() {
+  var html = '<section class="panel" data-testid="seccion-stock"><h2>Stock de barra</h2>';
+  state.config.productos.forEach(function (p) {
+    html += '<div class="fila-stock" data-testid="stock-' + esc(p.id) + '">' + esc(p.nombre) + ': ' + esc(p.stock) + ' uds' +
+      ' <button type="button" data-testid="stock-mas-' + esc(p.id) + '" onclick="duenoReponerStock(\'' + p.id + '\')">+10</button></div>';
+  });
+  html += '</section>';
+  return html;
+}
+
+function duenoReponerStock(id) {
+  mutate(function () {
+    var p = productoPorId(id);
+    if (!p) return;
+    p.stock += 10;
+    addLog("repuso 10 unidades de stock de " + p.nombre, "stock");
+  });
+}
+
+/* ---------- 9. Cierre + histórico + CSV ---------- */
+
+function seccionCierre() {
+  var html = '<section class="panel" data-testid="seccion-cierre"><h2>Cierre e informes</h2>';
+  html += '<button type="button" class="btn" data-testid="btn-informe-csv" onclick="duenoDescargarCsv()">Descargar informe (CSV)</button> ';
+  html += '<button type="button" class="btn btn-peligro" data-testid="btn-cerrar" onclick="duenoMostrarConfirmarCierre()">Cerrar evento</button>';
+  if (duenoMostrandoConfirmarCierre) {
+    html += '<div data-testid="confirmar-cierre" class="confirmar">' +
+      '<p>Esto archiva la fiesta en el histórico y resetea aforo, caja, RRPP, stock y gastos. ' +
+      'La configuración, el personal y los precios se conservan.</p>' +
+      '<button type="button" data-testid="btn-confirmar-cierre" onclick="duenoConfirmarCierre()">Sí, cerrar y archivar</button> ' +
+      '<button type="button" onclick="duenoCancelarCierre()">Cancelar</button></div>';
+  }
+  html += seccionHistorico();
+  html += '</section>';
+  return html;
+}
+
+function duenoMostrarConfirmarCierre() { duenoMostrandoConfirmarCierre = true; renderDueno(); }
+function duenoCancelarCierre() { duenoMostrandoConfirmarCierre = false; renderDueno(); }
+
+function duenoConfirmarCierre() {
+  duenoMostrandoConfirmarCierre = false;
+  mutate(function (s) {
+    var caja = cajaDesglose();
+    var gastosTotal = s.gastos.reduce(function (a, g) { return a + g.importe; }, 0);
+    var dentroCount = s.personas.filter(function (p) { return p.dentro; }).length;
+    s.historico.push({
+      id: "h" + Date.now(),
+      nombre: s.config.eventName,
+      fecha: nowHM(),
+      totales: caja,
+      recaudacionPorPerfil: JSON.parse(JSON.stringify(s.recaudacionPorPerfil)),
+      rrpp: JSON.parse(JSON.stringify(s.rrpp)),
+      gastos: JSON.parse(JSON.stringify(s.gastos)),
+      beneficioNeto: caja.total - gastosTotal,
+      asistentes: dentroCount,
+      log: JSON.parse(JSON.stringify(s.log))
+    });
+    s.personas = [];
+    Object.keys(s.carritos).forEach(function (k) { s.carritos[k] = []; });
+    Object.keys(s.recaudacionPorPerfil).forEach(function (k) { s.recaudacionPorPerfil[k] = 0; });
+    s.ingresosBarra = 0;
+    s.gastos = [];
+    s.rrpp.forEach(function (r) { r.vendidas = 0; });
+    s.config.productos.forEach(function (p) { p.stock = p.stockInicial; });
+    s.log = [];
+    addLog("cerró el evento y abrió uno nuevo", "cierre");
+  });
+  toast("Evento cerrado y archivado");
+}
+
+function seccionHistorico() {
+  var lista = state.historico;
+  var html = '<div data-testid="historico"><h3>Histórico de fiestas</h3>';
+  if (!lista.length) {
+    html += '<p>Sin fiestas archivadas todavía.</p>';
+  } else {
+    lista.slice().reverse().forEach(function (h) {
+      html += '<div class="historico-item" data-testid="historico-item"><p><b>' + esc(h.nombre) + '</b> · ' +
+        esc(h.fecha) + ' · Asistentes: ' + esc(h.asistentes) + ' · Beneficio neto: ' + esc(money(h.beneficioNeto)) + '</p>';
+      html += '<button type="button" data-testid="historico-csv-' + esc(h.id) + '" onclick="duenoDescargarCsvHistorico(\'' + h.id + '\')">Descargar CSV</button></div>';
+    });
+  }
+  html += '</div>';
+  return html;
+}
+
+function csvEscape(v) {
+  var s = String(v === null || v === undefined ? "" : v);
+  if (/[",\n;]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function construirCsv(d) {
+  var L = [];
+  L.push("Informe: " + d.nombre, "Fecha;" + d.fecha, "");
+  L.push("RESUMEN FINANCIERO");
+  L.push("Taquilla;" + d.totales.taquilla, "Mesas VIP;" + d.totales.vip, "Barra;" + d.totales.barra,
+    "RRPP (pendiente de entrega);" + d.totales.netoRRPP, "Total;" + d.totales.total,
+    "Gastos;" + d.gastosTotal, "Beneficio neto;" + d.beneficioNeto, "");
+  L.push("RECAUDACIÓN POR TERMINAL");
+  Object.keys(d.recaudacionPorPerfil).forEach(function (id) {
+    L.push(csvEscape(etiquetaPerfil(id)) + ";" + d.recaudacionPorPerfil[id]);
+  });
+  L.push("", "LIQUIDACIÓN RRPP", "Nombre;Vendidas;Precio;Comisión;Total;Neto");
+  d.rrpp.forEach(function (r) {
+    L.push(csvEscape(r.nombre) + ";" + r.vendidas + ";" + r.precio + ";" + r.comision + ";" +
+      (r.vendidas * r.precio) + ";" + (r.vendidas * r.precio - r.vendidas * r.comision));
+  });
+  L.push("", "GASTOS", "Concepto;Importe;Categoría;Hora");
+  d.gastos.forEach(function (g) { L.push(csvEscape(g.concepto) + ";" + g.importe + ";" + csvEscape(g.categoria) + ";" + g.hora); });
+  L.push("", "ASISTENTES");
+  if (d.personas) {
+    L.push("Nombre;Apellido;Tipo;Dentro;Hora entrada");
+    d.personas.forEach(function (p) {
+      L.push(csvEscape(p.nombre) + ";" + csvEscape(p.apellido) + ";" + csvEscape(p.tipo) + ";" +
+        (p.dentro ? "Sí" : "No") + ";" + csvEscape(p.horaEntrada || ""));
+    });
+  } else {
+    L.push("Asistentes registrados;" + d.asistentes);
+  }
+  L.push("", "LOG");
+  d.log.forEach(function (e) { L.push(csvEscape(e.hora) + ";" + csvEscape(e.actor) + ";" + csvEscape(e.texto)); });
+  return L.join("\n");
+}
+
+function descargarCsv(nombreArchivo, contenido) {
+  var blob = new Blob([contenido], { type: "text/csv;charset=utf-8;" });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = nombreArchivo;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function duenoDescargarCsv() {
+  var s = state;
+  var caja = cajaDesglose();
+  var gastosTotal = s.gastos.reduce(function (a, g) { return a + g.importe; }, 0);
+  var datos = {
+    nombre: s.config.eventName, fecha: nowHM(), totales: caja, gastosTotal: gastosTotal,
+    beneficioNeto: caja.total - gastosTotal, recaudacionPorPerfil: s.recaudacionPorPerfil,
+    rrpp: s.rrpp, gastos: s.gastos, personas: s.personas, log: s.log
+  };
+  descargarCsv("informe-" + s.config.eventName.replace(/\s+/g, "_") + ".csv", construirCsv(datos));
+}
+
+function duenoDescargarCsvHistorico(id) {
+  var h = state.historico.find(function (x) { return x.id === id; });
+  if (!h) return;
+  var datos = {
+    nombre: h.nombre, fecha: h.fecha, totales: h.totales,
+    gastosTotal: h.gastos.reduce(function (a, g) { return a + g.importe; }, 0),
+    beneficioNeto: h.beneficioNeto, recaudacionPorPerfil: h.recaudacionPorPerfil,
+    rrpp: h.rrpp, gastos: h.gastos, asistentes: h.asistentes, log: h.log
+  };
+  descargarCsv("informe-" + h.nombre.replace(/\s+/g, "_") + "-" + h.id + ".csv", construirCsv(datos));
+}
+
+/* ---------- 10. Log ---------- */
+
+function seccionLog() {
+  var html = '<section class="panel" data-testid="log"><h2>Registro de actividad</h2><p class="nota">Registro inmutable</p><ul class="log-lista">';
+  state.log.forEach(function (e) {
+    html += '<li>' + esc(e.hora) + ' · ' + esc(e.actor) + ' ' + esc(e.texto) + '</li>';
+  });
+  html += '</ul></section>';
+  return html;
+}
+
+/* ---------- 11. Ayuda ---------- */
+
+function duenoAyuda() {
+  var html = '<div class="modal-ayuda"><h2>Guía rápida del dueño</h2><ol>' +
+    '<li>Entra como Dueño con el PIN y ajusta nombre, aforo y precios en Configuración.</li>' +
+    '<li>Vigilantes usan #/puerta; camareros usan #/barra (TPV). Cambia de rol en los chips de arriba.</li>' +
+    '<li>Ajusta el nº de vigilantes/camareros y activa/desactiva módulos (QR, cierre, gastos, stock).</li>' +
+    '<li>RRPP: +/− entradas vendidas, precio y comisión; la app calcula el neto a entregarte.</li>' +
+    '<li>Vigila Caja total, Beneficio neto y Recaudación por terminal en todo momento.</li>' +
+    '<li>Da de alta gastos (bebida, personal, local, DJ, otros); se restan del beneficio.</li>' +
+    '<li>Repón stock de barra cuando esté bajo o agotado.</li>' +
+    '<li>Descarga el CSV antes de cerrar. "Cerrar evento" archiva la fiesta en Histórico y resetea aforo/caja/RRPP conservando tu configuración.</li>' +
+    '<li>El Log de actividad es inmutable: registra quién hizo qué y cuándo.</li>' +
+    '</ol><button type="button" onclick="closeModal()">Cerrar</button></div>';
+  showModal(html);
+}
+
+</script>
+</body>
+</html>
