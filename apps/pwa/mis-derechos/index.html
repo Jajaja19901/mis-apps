@@ -12131,7 +12131,7 @@ const LEX_NUCLEO = `Eres Lex, abogado español. Valor supremo: VERDAD LEGAL VERI
 P0 CLASIFICA: caso PERSONAL sin EL dato que cambia el régimen→UNA pregunta y para. Pregunta GENERAL→PROHIBIDO pedir contexto: verdad general directa + VERDAD INCÓMODA si aplica.
 P1 ✅ RESPUESTA DIRECTA: 1-3 frases, verdad práctica, probabilidad explícita ("SÍ","muy probable"). Llano ("calabozo","te despiden"). Sin teoría ni "depende" a secas; si depende: "Si A→X. Si B→Y."
 P2 🛡️ QUÉ HACER AHORA: pasos numerados por urgencia.
-P3 ⚖️ BASE LEGAL: SOLO artículos de tus APUNTES o del TEXTO BOE adjunto, cada uno para SU concepto; el resto→"verifícalo en BOE". JAMÁS inventes números, penas, plazos, horarios, organismos, trámites ni "modelos" de formularios. PROHIBIDO rellenar con CE genérica (14/18/24/33) que no aporte: mejor pocos artículos exactos.
+P3 ⚖️ BASE LEGAL: SOLO artículos de tus APUNTES o del TEXTO BOE adjunto, cada uno para SU concepto; el resto→"verifícalo en BOE". JAMÁS inventes números, penas, plazos, horarios, organismos, trámites ni "modelos" de formularios (los reales de cabecera: Juzgado de Guardia, Defensor del Pueblo, hoja de reclamaciones, AEPD, Inspección de Trabajo, SEPRONA). PROHIBIDO rellenar con CE genérica (14/18/24/33) que no aporte: mejor pocos artículos exactos.
 APUNTES BASE:
 CE: 14 igualdad · 17 libertad · 18 domicilio · 21 manifestación (derecho SIN autorización: solo comunicación previa de los ORGANIZADORES; al asistente pacífico de una no comunicada NO se le multa: responden los convocantes) · 24 tutela · 24.2 presunción de inocencia · 33 propiedad
 LO 4/2015: 16 identificación SOLO con indicios (negarse cuando procede=infracción 36.6+traslado a comisaría MÁX 6h SOLO para identificar — NO es delito; el 556 CP exige resistencia FÍSICA: 3m-1a, no inventes otra pena; NO llevar el DNI encima NO es sancionable: cabe identificarse por otros medios) · 18 comprobación de vehículos (indicios) · 20 cacheos (indicios y agente del MISMO SEXO salvo urgencia, 20.2; contrario sin urgencia=irregular, reclamable) · 36.23 GRABAR a agentes ES LEGAL (lo sancionable es DIFUNDIR poniendo en riesgo una operación)
@@ -13071,8 +13071,10 @@ function esRespuestaEvasivaLex(pregunta, respuesta) {
 
   // TEMA 4 (GENERAL): afirmar que la autoridad PUEDE hacer algo sin nombrar la LLAVE legal
   // (orden judicial / indicios / consentimiento). Es el fallo "sí pueden registrarte el coche".
-  const preguntaPoder = (/(puede|pueden|podria|tiene derecho|tienen derecho|es legal que|esta permitido que).{0,60}(polic|guardia civil|guardias|agente|vigilante|segurata|seguridad privada|municipal)|(polic|guardia civil|agente).{0,60}(puede|pueden|tiene derecho|es legal)/.test(p))
-    && /(registr|cachea|cacheo|entrar|entren|mirar|revisar|abrir|maletero|guantera|detener|retener|quitar|confiscar|requisar|identificar|esposar|movil|telefono)/.test(p);
+  const preguntaPoder = ((/(puede|pueden|podria|tiene derecho|tienen derecho|es legal que|esta permitido que).{0,60}(polic|guardia civil|guardias|agente|vigilante|segurata|seguridad privada|municipal)|(polic|guardia civil|agente).{0,60}(puede|pueden|tiene derecho|es legal)/.test(p))
+    && /(registr|cachea|cacheo|entrar|entren|mirar|revisar|abrir|maletero|guantera|detener|retener|quitar|confiscar|requisar|identificar|esposar|movil|telefono)/.test(p))
+    // policía implícita: "¿pueden registrarME el coche?" sin decir "policía" también es pregunta de poderes
+    || /(puede|pueden|podria|podrian)\s+(registrarme|cachearme|detenerme|retenerme|esposarme|identificarme|registrarnos|cachearnos|detenernos)|(me|nos)\s+(puede|pueden|podrian)\s+(registrar|cachear|detener|retener|esposar|identificar)\b/.test(p);
   if (preguntaPoder && !esDroga) {
     const afirmaPoder = /^si[,.:\s]|si[,.]? (pueden|puede)|si que (pueden|puede)|estan (autorizados|facultados)|tienen (la )?(facultad|potestad)|legalmente (pueden|puede)|(pueden|puede) (hacerlo|registrar(te|lo)?|cachear(te)?|entrar|mirar|revisar|abrir|detener(te)?|retener(te)?|identificar(te)?|requisar)/.test(r);
     const niega = /no (pueden|puede)|no estan autorizados|no es legal|prohibido/.test(r);
