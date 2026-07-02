@@ -12131,7 +12131,7 @@ const LEX_NUCLEO = `Eres Lex, abogado español. Valor supremo: VERDAD LEGAL VERI
 P0 CLASIFICA: caso PERSONAL sin EL dato que cambia el régimen→UNA pregunta y para. Pregunta GENERAL→PROHIBIDO pedir contexto: verdad general directa + VERDAD INCÓMODA si aplica.
 P1 ✅ RESPUESTA DIRECTA: 1-3 frases, verdad práctica, probabilidad explícita ("SÍ","muy probable"). Llano ("calabozo","te despiden"). Sin teoría ni "depende" a secas; si depende: "Si A→X. Si B→Y."
 P2 🛡️ QUÉ HACER AHORA: pasos numerados por urgencia.
-P3 ⚖️ BASE LEGAL: SOLO artículos de tus APUNTES o del TEXTO BOE adjunto, cada uno para SU concepto; el resto→"verifícalo en BOE". JAMÁS inventes números, penas, plazos, horarios ni organismos. PROHIBIDO rellenar con CE genérica (14/18/24/33) que no aporte: mejor pocos artículos exactos.
+P3 ⚖️ BASE LEGAL: SOLO artículos de tus APUNTES o del TEXTO BOE adjunto, cada uno para SU concepto; el resto→"verifícalo en BOE". JAMÁS inventes números, penas, plazos, horarios, organismos, trámites ni "modelos" de formularios. PROHIBIDO rellenar con CE genérica (14/18/24/33) que no aporte: mejor pocos artículos exactos.
 APUNTES BASE:
 CE: 14 igualdad · 17 libertad · 18 domicilio · 21 manifestación (derecho SIN autorización: solo comunicación previa de los ORGANIZADORES; al asistente pacífico de una no comunicada NO se le multa: responden los convocantes) · 24 tutela · 24.2 presunción de inocencia · 33 propiedad
 LO 4/2015: 16 identificación SOLO con indicios (negarse cuando procede=infracción 36.6+traslado a comisaría MÁX 6h SOLO para identificar — NO es delito; el 556 CP exige resistencia FÍSICA: 3m-1a, no inventes otra pena; NO llevar el DNI encima NO es sancionable: cabe identificarse por otros medios) · 18 comprobación de vehículos (indicios) · 20 cacheos (indicios y agente del MISMO SEXO salvo urgencia, 20.2; contrario sin urgencia=irregular, reclamable) · 36.23 GRABAR a agentes ES LEGAL (lo sancionable es DIFUNDIR poniendo en riesgo una operación)
@@ -13058,7 +13058,8 @@ function esRespuestaEvasivaLex(pregunta, respuesta) {
 
   // TEMA 5b: el 456 CP (denuncia falsa) usado como comodín para estafas/fraudes/bancos
   const mal456 = /456[^.]{0,90}(estafa|fraude|banco|entidad|empresa oculta|investigue)|((la |una )?estafa|el fraude)[^.]{0,50}\(?art(iculo|\.)? ?456/.test(r);
-  if (mal456) return true;
+  const mal337 = /apropiacion indebida[^.]{0,40}\(?art(iculo|\.)? ?337|337[^.]{0,50}apropiacion/.test(r);
+  if (mal456 || mal337) return true;
 
   // TEMA 6: multas de tráfico — artículos robados de otros conceptos y la trampa del 50%
   const esTrafico = /multa (de |del |de la )?(trafico|radar|velocidad|circulacion|aparcamiento|estacionamiento|dgt)|exceso de velocidad|zona azul|mal aparcado|puntos del carne/.test(p);
@@ -13198,8 +13199,8 @@ async function _llamarAPI(seleccion) {
       ordenCorreccion = 'CORRECCION OBLIGATORIA: tu respuesta sobre la multa de trafico tiene errores. Las multas de trafico van por la LSV (RDL 6/2015): JAMAS cites el 36.16 LO 4/2015 (drogas) ni articulos de la LECrim (penal) para una multa de circulacion. La disyuntiva CLAVE que debes explicar: pagar con 50%% de descuento en 20 dias naturales (art. 94 LSV) supone RENUNCIAR a alegar y cierra el procedimiento (solo quedaria contencioso); alegar (art. 95 LSV, 20 dias naturales) hace perder el descuento. O PAGAS O RECURRES, nunca ambas. Reescribe COMPLETA la respuesta con esa disyuntiva como eje.';
     } else if (/okupa|ocupa(cion|ron|do)|usurpacion|allanamiento/.test(pNorm)) {
       ordenCorreccion = 'CORRECCION OBLIGATORIA: tu respuesta esta INCOMPLETA. En ocupacion es OBLIGATORIO dar las DOS verdades juntas: (1) la via penal/civil que protege al propietario con sus plazos reales (8-18 meses), y (2) que la Ley 12/2023 SUSPENDE el lanzamiento si el ocupante acredita vulnerabilidad hasta que servicios sociales le busquen alternativa. Reescribe COMPLETA la respuesta incluyendo ambas, sin suavizar ninguna.';
-    } else if (/456[^.]{0,90}(estafa|fraude|banco|entidad|empresa|investigue)/.test(_normLex(resultado.respuesta))) {
-      ordenCorreccion = 'CORRECCION OBLIGATORIA: has usado el art. 456 CP (denuncia falsa) para un concepto que no es el suyo. La ESTAFA es 248-250 CP; el fraude a la Seguridad Social es 307 CP; el 456 SOLO sirve para denunciar a quien te denuncio en falso, tras absolucion firme. Reescribe la BASE LEGAL con cada articulo en su concepto exacto.';
+    } else if (/456[^.]{0,90}(estafa|fraude|banco|entidad|empresa|investigue)|apropiacion indebida[^.]{0,40}337|337[^.]{0,50}apropiacion/.test(_normLex(resultado.respuesta))) {
+      ordenCorreccion = 'CORRECCION OBLIGATORIA: has usado el art. 456 CP (denuncia falsa) para un concepto que no es el suyo. La ESTAFA es 248-250 CP; el fraude a la Seguridad Social es 307 CP; el 456 SOLO sirve para denunciar a quien te denuncio en falso, tras absolucion firme; la APROPIACION INDEBIDA es el 253 CP (el 337 es maltrato animal). Reescribe la BASE LEGAL con cada articulo en su concepto exacto.';
     } else {
       ordenCorreccion = 'CORRECCION OBLIGATORIA: tu respuesta fue evasiva y FALSA. Las VERDADES INCOMODAS del sistema lo prohiben. Reescribe COMPLETA la respuesta empezando literalmente por: "Sobre el papel (Art. 14 CE) son iguales; en el BOE real la mujer tiene mas protecciones y derechos especificos que el hombre en el ambito de pareja" y detalla Art. 153.1 CP (6m-1a) vs Art. 153.2 CP (3m-1a) y la LO 1/2004 (abogado gratis 20, ayudas 27, VioGen solo para ella). PROHIBIDO equilibrar con "pero ambos son iguales ante la ley" y PROHIBIDO usar la STC 59/2008 para relativizar (solo como dato final). Sin diplomacia.';
     }
