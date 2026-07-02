@@ -13037,11 +13037,15 @@ async function _llamarAPI(seleccion) {
     }
 
     try {
+      const ctrlIA = new AbortController();
+      const timerIA = setTimeout(function(){ ctrlIA.abort(); }, 45000);
       const resp = await fetch(cfg.endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: ctrlIA.signal
       });
+      clearTimeout(timerIA);
       const data = await resp.json();
       if (!resp.ok) {
         const err = data.error?.message || `Error ${resp.status}`;
@@ -13058,7 +13062,8 @@ async function _llamarAPI(seleccion) {
       }
       return { ok: true, respuesta, proveedor };
     } catch(e) {
-      return { ok: false, err: e.message, proveedor, esRateLimit: false, esQuota: false };
+      const esTimeout = e && e.name === 'AbortError';
+      return { ok: false, err: esTimeout ? 'timeout: el proveedor no responde' : e.message, proveedor, esRateLimit: false, esQuota: false, esTimeout };
     }
   }
 
@@ -13076,7 +13081,7 @@ async function _llamarAPI(seleccion) {
   let resultado = await _llamarAPI(elegida);
 
   // 2ª llamada (fallback) si la primera falló por rate limit o cuota, y hay key alternativa
-  if (!resultado.ok && (resultado.esRateLimit || resultado.esQuota)) {
+  if (!resultado.ok && (resultado.esRateLimit || resultado.esQuota || resultado.esTimeout)) {
     const fallback = elegirKeyFallback(resultado.proveedor, !!imagenBase64);
     if (fallback) {
       resultado = await _llamarAPI(fallback);
@@ -13121,6 +13126,9 @@ async function _llamarAPI(seleccion) {
   const err = resultado.err;
   document.getElementById('ia-typing')?.remove();
   historialIA.pop();
+  if (resultado.esTimeout) {
+    return `⏱️ **El proveedor de IA no responde**\n\nHe esperado 45 segundos sin respuesta (caída o sobrecarga puntual del servicio). Vuelve a preguntar en un momento; si persiste, revisa tus keys en ⚙️ IA.`;
+  }
   if (resultado.esRateLimit) {
     return `⏱️ **Límite temporal alcanzado en todos tus proveedores**\n\nHas alcanzado el límite de uso gratuito por minuto. Espera 30-60 segundos y vuelve a preguntar.\n\nPara evitar esto: en ⚙️ IA puedes tener configuradas **Groq + Cerebras** a la vez. Si una falla, la app usa la otra automáticamente.`;
   }
@@ -13237,7 +13245,13 @@ async function enviarPreguntaAsistente() {
 
   // ¿Tiene IA activa?
   if (tieneIA()) {
-    const respuesta = await enviarPreguntaConIA(pregunta, fotoParaEnviar);
+    let respuesta;
+    try {
+      respuesta = await enviarPreguntaConIA(pregunta, fotoParaEnviar);
+    } catch(e) {
+      document.getElementById('ia-typing')?.remove();
+      respuesta = '❌ Error inesperado procesando la pregunta: ' + (e && e.message ? e.message : e) + '\n\nVuelve a intentarlo. Si se repite, dime exactamente qué preguntaste.';
+    }
     if (respuesta) {
       const msgB = document.createElement('div');
       msgB.className = 'mensaje mensaje-bot';
