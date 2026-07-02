@@ -20,7 +20,7 @@ VERDADES INCÓMODAS – "¿Quién tiene más derechos?"→responde QUIÉN, sin p
 - Art. 153.1 CP vs Art. 153.2 CP — penas distintas según el sexo del agresor.
 - LO 1/2004 — protecciones solo para la mujer.`;
 
-let llamadasIA = 0, llamadasBOE = 0;
+let llamadasIA = 0, llamadasBOE = 0, llamadasBusqueda = 0;
 
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const page = await browser.newPage();
@@ -35,6 +35,13 @@ await page.route('**/*', async route => {
     const content = llamadasIA === 1 ? RESPUESTA_MALA : RESPUESTA_BUENA;
     return route.fulfill({ status: 200, contentType: 'application/json',
       body: JSON.stringify({ choices: [{ message: { content }, finish_reason: 'stop' }] }) });
+  }
+  if (url.includes('workers.dev') && url.includes('buscar=')) {
+    llamadasBusqueda++;
+    // 1ª vez: resultados reales; 2ª vez: worker caído (probar fallback)
+    if (llamadasBusqueda === 1) return route.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify([{ t: 'Instrucción 7/2025', d: 'Interior ordena no sancionar drogas en coche estacionado', u: 'https://ejemplo.es' }]) });
+    return route.fulfill({ status: 503, body: 'sin key' });
   }
   if (url.includes('workers.dev') || url.includes('boe.es')) {
     llamadasBOE++;
@@ -90,6 +97,24 @@ const msgs2 = await page.$$eval('#asistente-chat .mensaje-bot', els => els.map(e
 const final2 = msgs2[msgs2.length - 1] || '';
 T(llamadasIA - llamadasAntes === 1, `Pregunta neutra: sin corrección en falso (${llamadasIA - llamadasAntes} llamada)`);
 T(final2.length > 30, 'La respuesta neutra se muestra correctamente');
+
+// ESCENARIO 3: pregunta de actualidad → dispara la búsqueda web y responde
+await page.fill('#asistente-input', '¿Ha cambiado este año la ley sobre fumar porros en el coche parado?');
+await page.click('.asistente-enviar');
+await page.waitForFunction(() => !document.getElementById('ia-typing'), { timeout: 25000 });
+T(llamadasBusqueda === 1, 'Pregunta de actualidad: la app consultó la búsqueda web del worker');
+const msgs3 = await page.$$eval('#asistente-chat .mensaje-bot', els => els.map(e => e.innerText));
+T((msgs3[msgs3.length-1] || '').length > 30, 'Respondió con la búsqueda disponible');
+
+// ESCENARIO 4: misma pregunta con el worker de búsqueda CAÍDO (503) → fallback silencioso
+await page.fill('#asistente-input', '¿Sigue vigente la reforma sobre porros en el coche?');
+await page.click('.asistente-enviar');
+await page.waitForFunction(() => !document.getElementById('ia-typing'), { timeout: 25000 });
+T(llamadasBusqueda === 2, 'Segunda consulta de actualidad realizada (worker devolvió 503)');
+const msgs4 = await page.$$eval('#asistente-chat .mensaje-bot', els => els.map(e => e.innerText));
+T((msgs4[msgs4.length-1] || '').length > 30, 'Con la búsqueda caída, la app respondió igual (fallback silencioso)');
+const erroresFinales = erroresJS.filter(e => !/serviceworker|service worker|manifest|favicon|icon-|Failed to load resource/i.test(e));
+T(erroresFinales.length === 0, 'Cero errores de JavaScript también con la búsqueda activa y caída');
 
 await browser.close();
 const fallos = resultados.filter(([ok]) => !ok).length;

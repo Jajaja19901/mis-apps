@@ -12150,7 +12150,7 @@ PRINCIPIOS TRANSVERSALES (para las miles de leyes fuera de la LISTA):
 · LABORAL: plazos CORTOS (20 días hábiles despido); entre papel y realidad, gana la realidad.
 · CIVIL: prescripción general 5 años (1964 CC); quien afirma, prueba.
 · PENAL: sin prueba no hay condena (24.2 CE); la duda favorece al acusado.
-LÍMITES: tema fuera de LISTA y BOE adjunto→dilo ("lo regula la Ley X; verifícalo en BOE") y orienta con los PRINCIPIOS; JAMÁS aparentes precisión que no tienes. Si puede depender de reformas/sentencias/instrucciones RECIENTES: avisa "esto ha podido cambiar; verifícalo" (tu conocimiento tiene fecha de corte).
+LÍMITES: tema fuera de LISTA y BOE adjunto→dilo ("lo regula la Ley X; verifícalo en BOE") y orienta con los PRINCIPIOS; JAMÁS aparentes precisión que no tienes. Si puede depender de reformas/sentencias/instrucciones RECIENTES: avisa "esto ha podido cambiar; verifícalo" (tu conocimiento tiene fecha de corte). Si hay RESULTADOS WEB ACTUALES adjuntos: son más recientes que tu memoria — úsalos, di "según información reciente" y cita la fuente.
 
 "¿Qué dice el Art. X?": en LISTA o BOE adjunto→explícalo con tus palabras (su concepto). Si no→"No tengo el texto verificado; míralo gratis en boe.es y dime tu situación". JAMÁS cites artículos textualmente entre comillas.
 
@@ -12878,6 +12878,28 @@ async function _traerBloqueBOE(ley, num, maxChars, timeoutMs) {
   }
 }
 
+// ═══ BÚSQUEDA WEB DE ACTUALIDAD (opcional, via worker ?buscar=) ═══
+// Solo se activa si la pregunta huele a novedad legal. Fallback SILENCIOSO:
+// si el worker aún no tiene la ruta o no hay key, todo funciona como siempre.
+function preguntaPideActualidad(pregunta) {
+  const p = _normLex(pregunta);
+  return /ha cambiado|han cambiado|cambio reciente|novedad|nueva ley|nueva reforma|reforma de|ultima hora|sentencia (nueva|reciente)|instruccion (nueva|reciente)|sigue (siendo|vigente|en vigor)|entro en vigor|entra en vigor|todavia (es|se puede)|aun (es|se puede)|es legal ya|este ano|202[4-9]/.test(p);
+}
+async function buscarActualidadLex(pregunta) {
+  try {
+    if (!WORKER_BOE_URL || !preguntaPideActualidad(pregunta)) return '';
+    const ctrl = new AbortController();
+    const timer = setTimeout(function(){ ctrl.abort(); }, 4000);
+    const resp = await fetch(WORKER_BOE_URL + '?buscar=' + encodeURIComponent(pregunta.slice(0, 180) + ' España'), { signal: ctrl.signal });
+    clearTimeout(timer);
+    if (!resp.ok) return '';
+    const items = await resp.json();
+    if (!Array.isArray(items) || items.length === 0) return '';
+    const lineas = items.slice(0, 5).map(function(x){ return '- ' + (x.t || '') + ': ' + (x.d || '') + ' [' + (x.u || '') + ']'; });
+    return '\n\nRESULTADOS WEB ACTUALES (posiblemente posteriores a tu entrenamiento; usalos como actualidad citando la fuente, no como texto del BOE):\n' + lineas.join('\n');
+  } catch(e) { return ''; }
+}
+
 async function consultarArticuloBOE(pregunta) {
   try {
     // 1) Articulo pedido explicitamente -> ese, entero
@@ -13034,11 +13056,11 @@ async function _llamarAPI(seleccion) {
 
     const messages = imagenBase64
       ? [
-          { role: 'system', content: construirPromptLex(pregunta) + contextoApp + textoBOE },
+          { role: 'system', content: construirPromptLex(pregunta) + contextoApp + textoBOE + textoWeb },
           mensajeUsuario
         ]
       : [
-          { role: 'system', content: construirPromptLex(pregunta) + contextoApp + textoBOE },
+          { role: 'system', content: construirPromptLex(pregunta) + contextoApp + textoBOE + textoWeb },
           ...historialIA
         ];
 
@@ -13092,6 +13114,13 @@ async function _llamarAPI(seleccion) {
     }
     textoBOE = await consultarArticuloBOE(pregunta);
   } catch(e) { textoBOE = ''; }
+  let textoWeb = '';
+  try {
+    if (preguntaPideActualidad(pregunta)) {
+      setTyping('🌐 Buscando novedades legales...');
+      textoWeb = await buscarActualidadLex(pregunta);
+    }
+  } catch(e) { textoWeb = ''; }
 
   setTyping(imagenBase64 ? '⚡ Lex está analizando tu foto...' : '⚡ Lex está redactando...');
   let resultado = await _llamarAPI(elegida);
