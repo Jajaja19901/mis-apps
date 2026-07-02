@@ -704,6 +704,7 @@ function seedState() {
     recaudacionPorPerfil: { "vig-1": 0, "vig-2": 0, "cam-1": 0, "cam-2": 0 },
     ingresosBarra: 0,
     gastos: [],
+    bonos: [],
     historico: [],
     log: [
       { hora: "22:00", actor: "Sistema", texto: "Evento iniciado", tipo: "config" }
@@ -767,6 +768,7 @@ function migrar(s) {
   if (s.ingresosBarra === undefined) s.ingresosBarra = 0;
   if (!Array.isArray(s.gastos)) s.gastos = [];
   if (!Array.isArray(s.historico)) s.historico = [];
+  if (!Array.isArray(s.bonos)) s.bonos = [];
   if (s.version === undefined) s.version = 1;
   if (!Array.isArray(s.log)) {
     s.log = [{ hora: "22:00", actor: "Sistema", texto: "Evento iniciado", tipo: "config" }];
@@ -1577,6 +1579,20 @@ function consBuscar() {
   var inp = document.getElementById('cons-codigo');
   var cod = inp ? inp.value.trim() : '';
   var p = cod ? personaPorCodigo(cod) : null;
+  var b = (!p && cod && typeof bonoPorCodigo === 'function') ? bonoPorCodigo(cod) : null;
+  if (b) {
+    var rest = Math.max(0, (b.copas || 0) - (b.usadas || 0));
+    _consMsg = '<div class="cons-ficha"><strong>Bono ' + esc(b.codigo) + '</strong>' +
+      (b.etiqueta ? ' · ' + esc(b.etiqueta) : '') +
+      '<br>Copas: <b>' + rest + '</b> disponibles' +
+      (rest > 0
+        ? '<br><button type="button" class="btn-canjear" onclick="canjearBonoCopa(\'' + escJs(b.id) + '\')">Canjear 1 copa del bono</button>'
+        : '<br><span class="cons-cero">Bono agotado — cobrar normal</span>') +
+      '</div>';
+    var out0 = document.getElementById('cons-resultado');
+    if (out0) out0.innerHTML = _consMsg;
+    return false;
+  }
   if (!p) {
     _consMsg = '<p class="cons-no">Código no encontrado.</p>';
   } else {
@@ -1592,6 +1608,21 @@ function consBuscar() {
   if (out) out.innerHTML = _consMsg;
   return false;
 }
+function canjearBonoCopa(id) {
+  var b = null;
+  for (var i = 0; i < (state.bonos || []).length; i++) if (state.bonos[i].id === id) b = state.bonos[i];
+  if (!b || (b.copas - b.usadas) <= 0) { toast('Bono agotado'); return; }
+  mutate(function (s) {
+    var q = null;
+    for (var j = 0; j < (s.bonos || []).length; j++) if (s.bonos[j].id === id) q = s.bonos[j];
+    if (!q) return;
+    q.usadas = (q.usadas || 0) + 1;
+    addLog('canjeó 1 copa del bono ' + q.codigo + ' (quedan ' + Math.max(0, q.copas - q.usadas) + ')', 'cobro');
+  });
+  toast('Copa del bono canjeada');
+  consBuscar();
+}
+
 function canjearConsumicion(id) {
   var p = personaPorId(id);
   if (!p || consDisponibles(p) <= 0) { toast('Sin consumiciones'); return; }
@@ -1697,6 +1728,7 @@ function renderDueno() {
   html += seccionPersonal();
   html += seccionModulos();
   html += seccionRrpp();
+  html += seccionBonos();
   html += seccionRecaudacion();
   if (s.config.modulos.gastos) html += seccionGastos();
   if (s.config.modulos.stock) html += seccionStock();
@@ -1897,6 +1929,91 @@ function duenoRrppCampo(slug, campo, valor) {
 
 /* ---------- 6. Recaudación por terminal ---------- */
 
+/* ===== BONOS DE COPA (vales con su propio código/QR, independientes de la entrada) ===== */
+function seccionBonos() {
+  var bonos = state.bonos || [];
+  var html = '<section class="panel" data-testid="seccion-bonos"><h2>Bonos de copa</h2>';
+  html += '<p class="nota">Vales de copas con su propio QR, para regalar o vender en mano. El camarero los canjea por código.</p>';
+  html += '<form id="bonoForm" onsubmit="return crearBono(event)">';
+  html += '<label>Nº de copas<input type="number" id="bono-copas" value="5" min="1" max="99"></label>';
+  html += '<label>Etiqueta (opcional)<input type="text" id="bono-etiqueta" placeholder="Ej: Cumpleaños de Marta"></label>';
+  html += '<button type="submit" class="btn-primary">Crear bono</button>';
+  html += '</form>';
+  if (bonos.length) {
+    html += '<ul class="lista-gastos">';
+    bonos.forEach(function (b) {
+      var rest = Math.max(0, (b.copas || 0) - (b.usadas || 0));
+      html += '<li data-testid="bono-' + esc(b.id) + '"><span><b>' + esc(b.codigo) + '</b>' +
+        (b.etiqueta ? ' · ' + esc(b.etiqueta) : '') +
+        ' · quedan <b>' + rest + '</b>/' + esc(b.copas) + '</span>' +
+        '<span><button type="button" onclick="abreQRBono(\'' + escJs(b.id) + '\')">QR</button> ' +
+        '<button type="button" data-testid="bono-anular-' + esc(b.id) + '" onclick="anularBono(\'' +
+        escJs(b.id) + '\')">Anular</button></span></li>';
+    });
+    html += '</ul>';
+  } else {
+    html += '<p class="lista-vacia">Sin bonos creados</p>';
+  }
+  html += '</section>';
+  return html;
+}
+
+function crearBono(ev) {
+  if (ev && ev.preventDefault) ev.preventDefault();
+  var copas = parseInt(document.getElementById('bono-copas').value || '0', 10);
+  var etiqueta = (document.getElementById('bono-etiqueta').value || '').trim();
+  if (!copas || copas < 1) { toast('Pon el nº de copas'); return false; }
+  mutate(function (s) {
+    if (!s.bonos) s.bonos = [];
+    var num = s.bonos.length + 1;
+    var codigo = 'MH-B' + String(num).padStart(2, '0');
+    s.bonos.push({ id: 'b' + Date.now(), codigo: codigo, copas: copas, usadas: 0,
+      etiqueta: etiqueta, hora: nowHM(), anulado: false });
+    addLog('creó bono de ' + copas + ' copas (' + codigo + (etiqueta ? ' · ' + etiqueta : '') + ')', 'config');
+  });
+  toast('Bono creado');
+  return false;
+}
+
+function anularBono(id) {
+  mutate(function (s) {
+    var b = null;
+    for (var i = 0; i < (s.bonos || []).length; i++) if (s.bonos[i].id === id) b = s.bonos[i];
+    if (!b || b.anulado) return;
+    b.anulado = true;
+    b.usadas = b.copas; // sin copas restantes
+    addLog('anuló el bono ' + b.codigo, 'config');
+  });
+  toast('Bono anulado');
+}
+
+function bonoPorCodigo(cod) {
+  var buscado = _normalizaCod(cod);
+  var lista = state.bonos || [];
+  for (var i = 0; i < lista.length; i++) {
+    if (_normalizaCod(lista[i].codigo) === buscado) return lista[i];
+  }
+  return null;
+}
+
+function abreQRBono(id) {
+  var b = null;
+  for (var i = 0; i < (state.bonos || []).length; i++) if (state.bonos[i].id === id) b = state.bonos[i];
+  if (!b) return;
+  var rest = Math.max(0, (b.copas || 0) - (b.usadas || 0));
+  var html = '<div class="modal-qr" data-testid="qr-modal">';
+  html += '<h2>Bono de copas</h2>';
+  html += '<p class="qr-tipo">' + esc(b.etiqueta || 'Vale de ' + b.copas + ' copas') + ' · quedan ' + rest + '</p>';
+  html += '<canvas id="qrCanvasBono" width="220" height="220"></canvas>';
+  html += '<p class="qr-codigo">' + esc(b.codigo) + '</p>';
+  html += '<div class="modal-botones"><button type="button" onclick="closeModal()">Cerrar</button></div></div>';
+  showModal(html);
+  var canvas = document.getElementById('qrCanvasBono');
+  if (canvas && typeof drawQR === 'function') {
+    try { drawQR(canvas, b.codigo, 220); } catch (e) { /* el código en texto sigue visible */ }
+  }
+}
+
 function seccionRecaudacion() {
   var mapa = state.recaudacionPorPerfil;
   var html = '<section class="panel" data-testid="recaudacion-terminal"><h2>Recaudación por terminal</h2><table><tbody>';
@@ -2019,6 +2136,7 @@ function duenoConfirmarCierre() {
     Object.keys(s.recaudacionPorPerfil).forEach(function (k) { s.recaudacionPorPerfil[k] = 0; });
     s.ingresosBarra = 0;
     s.gastos = [];
+    s.bonos = [];
     s.rrpp.forEach(function (r) { r.vendidas = 0; });
     s.config.productos.forEach(function (p) { p.stock = p.stockInicial; });
     s.log = [];
