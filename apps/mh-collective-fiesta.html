@@ -1308,10 +1308,11 @@ function onExpressSubmit(ev) {
   var tipo = tipoEl ? tipoEl.value : "invitado";
   var acompanantes = acompEl ? parseInt(acompEl.value || "0", 10) : 0;
   if (isNaN(acompanantes)) acompanantes = 0;
+  var nuevoId = "p" + Date.now();
   mutate(function (s) {
     var n = s.personas.length;
     var persona = {
-      id: "p" + Date.now(),
+      id: nuevoId,
       nombre: nombre, apellido: apellido, tipo: tipo,
       codigoReserva: "MH-5" + String(n).padStart(2, "0"),
       mesa: null, pagado: false, importePagado: 0, dentro: true, horaEntrada: nowHM()
@@ -1333,6 +1334,10 @@ function onExpressSubmit(ev) {
   toast("Persona registrada y dentro");
   _filtro = "todos";
   _busq = "";
+  // Enseña al momento su QR/código (para copas incluidas y reentradas): 0 pasos extra en puerta.
+  if (state.config && state.config.modulos && state.config.modulos.qr) {
+    abreQR(nuevoId);
+  }
 }
 
 /* ===== QR POR PERSONA ===== */
