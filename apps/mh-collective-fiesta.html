@@ -90,6 +90,19 @@ main#vista{max-width:960px;margin:0 auto;padding:16px}
 /* Footer */
 footer{padding:20px 16px;text-align:center;font-size:.8125rem;color:var(--text-dim);border-top:1px solid var(--border)}
 footer a{color:var(--text-dim);text-decoration:underline}
+/* Cupo acompañante + consumiciones (mejoras) */
+.btn-acomp{min-height:44px;padding:.5rem 1rem;border-radius:6px;border:1px solid var(--vip-morado);background:transparent;color:var(--vip-morado);font-weight:600;cursor:pointer;margin-top:6px}
+.btn-acomp:hover{background:rgba(176,38,255,.12)}
+.consumiciones-panel{margin-top:20px;padding:14px;border:1px solid var(--border);border-radius:var(--radius-card);background:var(--surface)}
+.consumiciones-panel h3{margin:0 0 10px;font-size:1rem;color:var(--vip-morado)}
+#consForm{display:flex;gap:8px;margin-bottom:10px}
+#cons-codigo{flex:1;min-height:44px;padding:.5rem .75rem;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)}
+#consForm button{min-height:44px;padding:.5rem 1rem;border-radius:6px;border:none;background:var(--vip-morado);color:#fff;font-weight:600;cursor:pointer}
+.cons-hint{color:var(--text-dim);font-size:.875rem;margin:0}
+.cons-no{color:var(--ambar);margin:0}
+.cons-ficha{color:var(--text);line-height:1.6}
+.cons-cero{color:var(--text-dim)}
+.btn-canjear{margin-top:8px;min-height:48px;padding:.6rem 1.2rem;border-radius:6px;border:none;background:var(--neon-verde);color:var(--bg);font-weight:700;cursor:pointer}
 </style>
 </head>
 <body>
@@ -1073,6 +1086,12 @@ function renderPersonaCard(p) {
     : "";
   var accionBtn = '<button type="button" class="btn-accion-persona" onclick="accionPrincipal(\'' +
     escJs(p.id) + "')\">" + esc(labelAccion(p)) + "</button>";
+  var acompBtn = "";
+  if (p.tipo === "vip" && p.mesa && p.dentro &&
+      (p.mesa.acompanantesDentro || 0) < (p.mesa.acompanantesPermitidos || 0)) {
+    acompBtn = '<button type="button" class="btn-acomp" onclick="admitirAcompanante(\'' +
+      escJs(p.id) + "')\">+ Acompañante</button>";
+  }
   var html = "";
   html += '<div class="persona-card" data-testid="persona-' + esc(p.id) + '">';
   html += '<div class="persona-info">';
@@ -1081,7 +1100,7 @@ function renderPersonaCard(p) {
     '</span> <span class="persona-codigo">' + esc(p.codigoReserva) + "</span> " + estadoBadge + "</div>";
   html += cupoHtml;
   html += "</div>";
-  html += '<div class="persona-acciones">' + accionBtn + qrBtn + "</div>";
+  html += '<div class="persona-acciones">' + accionBtn + acompBtn + qrBtn + "</div>";
   html += "</div>";
   return html;
 }
@@ -1150,6 +1169,24 @@ function marcarSalida(id) {
     addLog("registró salida de " + p.nombre + " " + p.apellido, "salida");
   });
   toast("Salida marcada");
+}
+
+/* Cupo de mesa: admite acompañantes de una reserva VIP uno a uno hasta el tope. */
+function admitirAcompanante(id) {
+  var p = personaPorId(id);
+  if (!p || p.tipo !== "vip" || !p.mesa || !p.dentro) return;
+  var permit = p.mesa.acompanantesPermitidos || 0;
+  if ((p.mesa.acompanantesDentro || 0) >= permit) {
+    toast("Cupo completo (" + (permit + 1) + "/" + (permit + 1) + ")");
+    return;
+  }
+  mutate(function () {
+    var q = personaPorId(id);
+    q.mesa.acompanantesDentro = (q.mesa.acompanantesDentro || 0) + 1;
+    var dentro = q.mesa.acompanantesDentro + 1;
+    addLog("admitió acompañante de Mesa " + q.mesa.numero + " (" + dentro + "/" + (permit + 1) + ")", "entrada");
+  });
+  toast("Acompañante dentro");
 }
 
 /* ===== ALTA EXPRESS ===== */
@@ -1431,7 +1468,62 @@ function renderBarra() {
         (cobrarDisabled ? ' disabled' : ' onclick="barraCobrar()"') + '>' +
         esc(cobrarTexto) +
       '</button>' +
+      '<div class="consumiciones-panel" data-testid="consumiciones">' +
+        '<h3>Consumiciones incluidas</h3>' +
+        '<form id="consForm" onsubmit="return consBuscar()">' +
+          '<input id="cons-codigo" type="text" placeholder="Código (MH-301…)" autocomplete="off">' +
+          '<button type="submit">Ver</button>' +
+        '</form>' +
+        '<div id="cons-resultado">' + _consMsg + '</div>' +
+      '</div>' +
     '</section>';
+}
+
+/* ===== CONSUMICIONES: mismo código, el camarero canjea copas gratis ===== */
+var _consMsg = '<p class="cons-hint">Teclea el código de la entrada para ver sus copas incluidas.</p>';
+
+function consConfig() {
+  return (state.config && state.config.consumiciones) || { invitado: 0, taquilla: 1, vip: 2 };
+}
+function consIncluidas(p) {
+  var c = consConfig();
+  if (p.tipo === 'vip' && p.mesa) return (c.vip || 0) * ((p.mesa.acompanantesPermitidos || 0) + 1);
+  if (p.tipo === 'taquilla') return c.taquilla || 0;
+  return c.invitado || 0;
+}
+function consDisponibles(p) {
+  return Math.max(0, consIncluidas(p) - (p.consumicionesUsadas || 0));
+}
+function consBuscar() {
+  var inp = document.getElementById('cons-codigo');
+  var cod = inp ? inp.value.trim() : '';
+  var p = cod ? personaPorCodigo(cod) : null;
+  if (!p) {
+    _consMsg = '<p class="cons-no">Código no encontrado.</p>';
+  } else {
+    var disp = consDisponibles(p);
+    _consMsg = '<div class="cons-ficha"><strong>' + esc(p.nombre + ' ' + p.apellido) + '</strong>' +
+      ' · ' + esc(p.codigoReserva) + '<br>Consumiciones: <b>' + disp + '</b> disponibles' +
+      (disp > 0
+        ? '<br><button type="button" class="btn-canjear" onclick="canjearConsumicion(\'' + escJs(p.id) + '\')">Canjear 1 copa gratis</button>'
+        : '<br><span class="cons-cero">Sin consumiciones — cobrar normal</span>') +
+      '</div>';
+  }
+  var out = document.getElementById('cons-resultado');
+  if (out) out.innerHTML = _consMsg;
+  return false;
+}
+function canjearConsumicion(id) {
+  var p = personaPorId(id);
+  if (!p || consDisponibles(p) <= 0) { toast('Sin consumiciones'); return; }
+  mutate(function () {
+    var q = personaPorId(id);
+    q.consumicionesUsadas = (q.consumicionesUsadas || 0) + 1;
+    addLog('canjeó 1 consumición de ' + q.nombre + ' ' + q.apellido +
+      ' (quedan ' + consDisponibles(q) + ')', 'cobro');
+  });
+  toast('Consumición canjeada');
+  consBuscar();
 }
 
 function barraAgregar(prodId) {
@@ -1579,6 +1671,11 @@ function seccionConfig() {
   html += '<label>Aforo máximo<input type="number" id="cfg-aforo" value="' + esc(c.maxAforo) + '" min="1"></label>';
   html += '<label>Precio entrada general<input type="number" id="cfg-precio-entrada" value="' + esc(c.precioEntrada) + '" min="0"></label>';
   html += '<label>Precio base mesa VIP<input type="number" id="cfg-precio-vip" value="' + esc(c.precioMesaVip) + '" min="0"></label>';
+  var cc = c.consumiciones || { invitado: 0, taquilla: 1, vip: 2 };
+  html += '<h3>Consumiciones incluidas (copas gratis)</h3>';
+  html += '<label>Por invitado<input type="number" id="cfg-cons-invitado" value="' + esc(cc.invitado) + '" min="0"></label>';
+  html += '<label>Por entrada de taquilla<input type="number" id="cfg-cons-taquilla" value="' + esc(cc.taquilla) + '" min="0"></label>';
+  html += '<label>Por persona de mesa VIP<input type="number" id="cfg-cons-vip" value="' + esc(cc.vip) + '" min="0"></label>';
   html += '<button type="submit" class="btn btn-primary">Guardar configuración</button>';
   html += '</form></section>';
   return html;
@@ -1607,6 +1704,16 @@ function duenoGuardarConfig(ev) {
     if (precioVip !== c.precioMesaVip) {
       addLog("cambió Precio mesa VIP: " + c.precioMesaVip + " → " + precioVip, "config");
       c.precioMesaVip = precioVip;
+    }
+    var ci = Number(document.getElementById("cfg-cons-invitado").value) || 0;
+    var ct = Number(document.getElementById("cfg-cons-taquilla").value) || 0;
+    var cv = Number(document.getElementById("cfg-cons-vip").value) || 0;
+    if (!c.consumiciones) c.consumiciones = { invitado: 0, taquilla: 1, vip: 2 };
+    if (ci !== c.consumiciones.invitado || ct !== c.consumiciones.taquilla || cv !== c.consumiciones.vip) {
+      addLog("cambió Consumiciones incluidas (inv/taq/vip): " +
+        c.consumiciones.invitado + "/" + c.consumiciones.taquilla + "/" + c.consumiciones.vip +
+        " → " + ci + "/" + ct + "/" + cv, "config");
+      c.consumiciones = { invitado: ci, taquilla: ct, vip: cv };
     }
   });
   toast("Configuración guardada");
