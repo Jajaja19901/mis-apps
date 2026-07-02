@@ -285,8 +285,8 @@ async function main() {
     await p.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
   }
 
-  await pageA.goto(baseUrl + "/", { waitUntil: "networkidle0", timeout: 15000 });
-  await pageB.goto(baseUrl + "/", { waitUntil: "networkidle0", timeout: 15000 });
+  await pageA.goto(baseUrl + "/", { waitUntil: "domcontentloaded", timeout: 15000 });
+  await pageB.goto(baseUrl + "/", { waitUntil: "domcontentloaded", timeout: 15000 });
   await sleep(200);
 
   if (!appExiste) {
@@ -342,7 +342,7 @@ async function main() {
     log("[test-sync-mh] SSE en vivo: la caja de barra se actualizó sola en la página B. ✓");
   } else {
     log("[test-sync-mh] no se vio actualización en vivo en 5s; recargando página B para comprobar el dato...");
-    await pageB.reload({ waitUntil: "networkidle0", timeout: 15000 });
+    await pageB.reload({ waitUntil: "domcontentloaded", timeout: 15000 });
     await sleep(300);
     // tras recargar puede pedir PIN otra vez si la sesión no persiste
     if (await isVisible(pageB, "#pinForm")) {

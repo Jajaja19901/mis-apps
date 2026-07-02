@@ -901,6 +901,8 @@ function save() {
 function mutate(fn) {
   fn(state);
   state.version = (state.version || 0) + 1;
+  // En modo servidor, guarda la acción para poder RE-APLICARLA si otro móvil escribió antes (409).
+  if (window.__mhSync && window.__mhSync.pendientes) window.__mhSync.pendientes.push(fn);
   save();
   renderApp();
 }
@@ -1000,43 +1002,85 @@ function initSync() {
     });
     return;
   }
+  /* MODO SERVIDOR. Claves del diseño:
+     - `srvVersion` es la versión del ALMACÉN del servidor (independiente de state.version, que
+       es un contador local de mutaciones). El POST siempre usa srvVersion como baseVersion.
+     - `pendientes` guarda las funciones-acción locales aún no confirmadas por el servidor: si
+       otro móvil escribió antes (409), se adopta su estado y se RE-APLICAN las acciones encima
+       (no se pierde la venta, no se machaca lo del otro).
+     - `perfilActivo` es DE ESTE MÓVIL: al adoptar estado remoto se conserva el local (que el
+       vigilante no le cambie el rol al camarero). */
   try {
+    var srvVersion = 0;
+    var pushing = false;
+
+    function adoptar(remoto) {
+      if (!remoto) return;
+      var perfilLocal = state ? state.perfilActivo : null;
+      state = remoto;
+      if (perfilLocal) state.perfilActivo = perfilLocal;
+      var pend = window.__mhSync.pendientes;
+      for (var i = 0; i < pend.length; i++) {
+        try { pend[i](state); state.version = (state.version || 0) + 1; } catch (e) { /* acción no re-aplicable */ }
+      }
+      persistLocal();
+      renderApp();
+    }
+
+    function pushLoop(intentos) {
+      if (pushing) return;
+      pushing = true;
+      var enviadas = window.__mhSync.pendientes.length; // las acciones que incluye ESTE envío
+      fetch('/api/state', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ baseVersion: srvVersion, state: state }),
+      }).then(function (res) {
+        if (res.status === 409) {
+          return res.json().then(function (d) {
+            srvVersion = d.version;
+            adoptar(d.state); // conserva perfil local y re-aplica TODAS las pendientes
+            pushing = false;
+            if ((intentos || 0) < 5 && window.__mhSync.pendientes.length) pushLoop((intentos || 0) + 1);
+          });
+        }
+        return res.json().then(function (d) {
+          if (d && typeof d.version === 'number') srvVersion = d.version;
+          // Solo se confirman las que viajaron; las llegadas en vuelo siguen pendientes.
+          window.__mhSync.pendientes.splice(0, enviadas);
+          pushing = false;
+          if (window.__mhSync.pendientes.length) pushLoop(0);
+        });
+      }).catch(function () { pushing = false; /* API caída: se queda en local y reintenta al próximo cambio */ });
+    }
+
+    window.__mhSync = { pendientes: [], push: function () { pushLoop(0); } };
+
+    // Carga inicial: si el servidor ya tiene estado, se adopta; si está vacío, subimos el nuestro.
     fetch('/api/state').then(function (res) { return res.ok ? res.json() : null; })
-      .then(function (data) { if (data && data.state) { state = data.state; renderApp(); } })
+      .then(function (data) {
+        if (!data) return;
+        srvVersion = data.version || 0;
+        if (data.state) adoptar(data.state);
+        else pushLoop(0);
+      })
       .catch(function () { /* degrada a local */ });
 
     var es = new EventSource('/api/events');
     es.onmessage = function (ev) {
       try {
         var data = JSON.parse(ev.data);
-        if (data && data.version !== state.version) {
+        if (data && typeof data.version === 'number' && data.version !== srvVersion) {
           fetch('/api/state').then(function (res) { return res.json(); })
-            .then(function (d) { if (d && d.state) { state = d.state; renderApp(); } })
+            .then(function (d) {
+              if (!d) return;
+              srvVersion = d.version || srvVersion;
+              if (d.state) adoptar(d.state);
+            })
             .catch(function () {});
         }
       } catch (err) { /* evento malformado, ignorar */ }
     };
     es.onerror = function () { /* silencioso: sigue en local */ };
-
-    window.__mhSync = window.__mhSync || {};
-    window.__mhSync.push = function () {
-      var baseVersion = (state.version || 1) - 1;
-      return fetch('/api/state', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ baseVersion: baseVersion, state: state }),
-      }).then(function (res) {
-        if (res.status === 409) {
-          return res.json().then(function (data) {
-            if (data && data.state) { state = data.state; renderApp(); }
-            return fetch('/api/state', {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ baseVersion: state.version, state: state }),
-            }).catch(function () {});
-          });
-        }
-        return res.json().then(function (data) { if (data && data.state) state = data.state; });
-      }).catch(function () { /* API caída: se queda en local */ });
-    };
   } catch (err) { /* cualquier fallo de red: seguir solo con localStorage */ }
 }
 
@@ -1559,7 +1603,7 @@ function renderBarra() {
       '<div class="consumiciones-panel" data-testid="consumiciones">' +
         '<h3>Consumiciones incluidas</h3>' +
         '<form id="consForm" onsubmit="return consBuscar()">' +
-          '<input id="cons-codigo" type="text" placeholder="Código (MH-301…)" autocomplete="off">' +
+          '<input id="cons-codigo" type="text" placeholder="Código (MH-301…)" autocomplete="off" value="' + esc(_consCod) + '">' +
           '<button type="submit">Ver</button>' +
         '</form>' +
         '<div id="cons-resultado">' + _consMsg + '</div>' +
@@ -1569,6 +1613,7 @@ function renderBarra() {
 
 /* ===== CONSUMICIONES: mismo código, el camarero canjea copas gratis ===== */
 var _consMsg = '<p class="cons-hint">Teclea el código de la entrada para ver sus copas incluidas.</p>';
+var _consCod = ''; // último código consultado: sobrevive a los re-render (el canje repinta la vista)
 
 function consConfig() {
   return (state.config && state.config.consumiciones) || { invitado: 0, taquilla: 1, vip: 2 };
@@ -1584,7 +1629,8 @@ function consDisponibles(p) {
 }
 function consBuscar() {
   var inp = document.getElementById('cons-codigo');
-  var cod = inp ? inp.value.trim() : '';
+  var cod = inp && inp.value.trim() ? inp.value.trim() : _consCod;
+  _consCod = cod;
   var p = cod ? personaPorCodigo(cod) : null;
   var b = (!p && cod && typeof bonoPorCodigo === 'function') ? bonoPorCodigo(cod) : null;
   if (b) {
