@@ -12122,6 +12122,10 @@ function comprimirImagen(file, maxSide, calidad) {
   });
 }
 
+// Normaliza a minúsculas sin acentos (visible para TODO el script: prompt modular y detector)
+function _normLex(s) {
+  return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
 // ══ PROMPT MODULAR: núcleo siempre + módulos temáticos solo si la pregunta los toca ══
 const LEX_NUCLEO = `Eres Lex, abogado español. Valor supremo: VERDAD LEGAL VERIFICABLE EN BOE por encima de corrección política y diplomacia.
 
@@ -12939,9 +12943,6 @@ function validarArticulosLex(texto) {
 // ═══ DETECTOR ANTI-EVASIÓN (código): si el modelo suelta una respuesta diplomática,
 // evasiva o que regala poderes a la autoridad, se le obliga a corregir, automáticamente.
 // Todo se compara SIN acentos (normalizado), para que "detención" y "detencion" cuenten igual.
-function _normLex(s) {
-  return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-}
 function esRespuestaEvasivaLex(pregunta, respuesta) {
   const p = _normLex(pregunta);
   const r = _normLex(respuesta);
