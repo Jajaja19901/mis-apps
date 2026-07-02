@@ -13153,11 +13153,22 @@ async function _llamarAPI(seleccion) {
     historialIA.push({ role: 'user', content: ordenCorreccion });
     _lexPromptCompleto = true; // el reintento va con TODAS las reglas cargadas
     setTyping('🔍 Afinando la respuesta...');
-    const correccion = await _llamarAPI(elegida);
+    let correccion = await _llamarAPI(elegida);
+    // Si el primer reintento tampoco pasa el control, una bala más con el OTRO proveedor
+    if (!(correccion.ok && !esRespuestaEvasivaLex(pregunta, correccion.respuesta))) {
+      const alternativa = elegirKeyFallback(elegida.proveedor, !!imagenBase64);
+      if (alternativa) {
+        setTyping('🔍 Verificando con el segundo proveedor...');
+        correccion = await _llamarAPI(alternativa);
+      }
+    }
     _lexPromptCompleto = false;
     historialIA.pop(); historialIA.pop();
     if (correccion.ok && !esRespuestaEvasivaLex(pregunta, correccion.respuesta)) {
       resultado = correccion;
+    } else {
+      // Nada pasó el control: se entrega, pero AVISADO — nunca basura disfrazada de buena
+      resultado.respuesta = '⚠️ **AVISO DE CALIDAD**: esta respuesta no ha superado mis verificaciones automáticas (el modelo falló dos correcciones). Tómala con cautela, contrasta los puntos clave en las fichas de la app o en boe.es, y vuelve a preguntar en un minuto — suele salir bien al reintentar.\n\n' + resultado.respuesta;
     }
   }
 
