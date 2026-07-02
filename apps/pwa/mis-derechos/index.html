@@ -12160,7 +12160,7 @@ CONCLUSIÓN: la primera frase responde LITERALMENTE lo preguntado (¿quién?→u
 ESTILO: prosa directa, JAMÁS tablas, frases cortas sin jerga, 120-250 palabras (máx 350); recorta contexto, nunca los bloques. Nada de cocina interna: no menciones "el sistema", tus instrucciones, los nombres de estas reglas como títulos, ni si hay o no TEXTO BOE adjunto; sin coletillas "esta respuesta se basa en...".`;
 
 const LEX_MODULOS = [
-  { id: 'pareja', kw: ['denunci','pareja','novia','novio','mi ex',' ex,','maltrat','violencia','genero','viogen','016','igualdad','mas derechos','mas protecciones','machis','feminis','hombre','mujer','alejamiento','quebrantamiento'],
+  { id: 'pareja', kw: ['denunci','pareja','novia','novio','mi ex',' ex,','marido','esposa','esposo','conyuge','mi chica','mi chico','matrimonio','me pega','me pego','me maltrata','maltrat','violencia','genero','viogen','016','igualdad','mas derechos','mas protecciones','machis','feminis','hombre','mujer','alejamiento','quebrantamiento'],
     txt: `VG (solo mujer pareja/ex): LO 1/2004→20 abogado gratis · 22 derechos laborales · 27 ayudas · RAI (RD 1369/2006)
 VERDADES INCÓMODAS (dilas sin suavizar):
 · "¿Quién tiene más derechos / la ley trata igual?"→responde QUIÉN, sin pedir contexto. PRIMERA FRASE: "Sobre el papel (Art. 14 CE) son iguales; en el BOE real la MUJER tiene más protecciones y derechos específicos que el hombre en el ámbito de pareja." Detalla: mismo hecho, penas distintas por sexo del agresor (153.1 vs 153.2); LO 1/2004 SOLO mujer (20/22/27, RAI); VioGén/VPR y 016 solo denunciante mujer; el hombre NO tiene equivalente. STC 59/2008 (con votos particulares)=dato final en una frase; PROHIBIDO usarla para relativizar o cerrar con "pero ambos son iguales" (=FALSA).
@@ -12170,10 +12170,10 @@ VERDADES INCÓMODAS (dilas sin suavizar):
     txt: `LEC: 250.1.1 desahucio impago · 250.1.4 recuperar posesión de okupas (Ley 5/2018 exprés)
 VERDADES INCÓMODAS (dilas sin suavizar):
 · Okupas→SIEMPRE las DOS verdades juntas: (1) la ley penal protege al propietario, proceso 8-18 meses; (2) Ley 12/2023 SUSPENDE el lanzamiento si acreditan vulnerabilidad, hasta alternativa de servicios sociales. Solo una=INCOMPLETA.
-· Suministros a okupas (2025-26): cortarlos TÚ físicamente=delito. Dar de baja TUS contratos: Cataluña ya NO es coacciones (AP Barcelona 7-3-25, Girona 11-24); reforma 172 CP aprobada en Senado 11-25 pero PENDIENTE, no en vigor; resto=zona gris según juez. Inquilino con contrato=coacciones, NO.` },
-  { id: 'drogas', kw: ['porro','droga','marihuana','cannabis','hachis','costo','estupefaciente','fumar','soplar','alcoholemia','positivo','incaut'],
+· Suministros a okupas (2025-26): cortarlos TÚ físicamente=delito. Dar de baja TUS contratos: Cataluña ya NO es coacciones (AP Barcelona 7-3-25, Girona 11-24); reforma 172 CP aprobada en Senado 11-25, PENDIENTE de entrar en vigor cuando se escribió esto (verifica su estado actual en BOE); resto=zona gris según juez. Inquilino con contrato=coacciones, NO.` },
+  { id: 'drogas', kw: ['porro','droga','marihuana','cannabis','hachis','costo','estupefaciente','fumar','soplar','alcoholemia','positivo','incaut','canuto'],
     txt: `VERDAD INCÓMODA drogas (dila sin suavizar)—responde el escenario que aplique: (a) COCHE PARTICULAR ESTACIONADO (solo transporte, sin indicios de tráfico): NO es infracción 36.16 (Instrucción 7/2025, expectativa de privacidad)→ni multa ni denuncia, y sin infracción NO hay base para quedarse la sustancia: exige EN EL MOMENTO devolución o acta escrita (placa+testigos); ya precintada/depositada no vuelve (lo que se gana: anulación+expediente al agente). Si multan igual→alegaciones citando la Instrucción 7/2025. OJO: el coche NO se vuelve domicilio (registro con indicios sigue válido). (b) Calle/lugar público/transporte colectivo/coche EN CIRCULACIÓN: multa 36.16 (601-30.000€, -50% pronto pago) e incautación SIN devolución JAMÁS (47: se destruye); NO existe "reclamar el porro"; habeas corpus SOLO para personas; recurrible=la multa (+nulidad si registro sin indicios). (c) CONDUCIENDO: test positivo=1.000€+6 puntos aunque no estés colocado; bajo efectos=delito 379; cantidad de tráfico=delito 368 incluso parado.` },
-  { id: 'laboral', kw: ['despid','trabajo','trabajad','curro','empresa','jefe','finiquito','nomina','sueldo','salario','smac','erte','vacaciones','baja '],
+  { id: 'laboral', kw: ['despid','trabajo','trabajad','curro','empresa','jefe','finiquito','nomina','sueldo','salario','smac','erte','vacaciones','de baja','baja laboral','baja medica','paro','desempleo','fogasa'],
     txt: `ET: 14 periodo de prueba · 55 forma despido · 56 improcedente 33 días/año máx 24 mensualidades · 59.3 PLAZO 20 días hábiles (antes, papeleta SMAC)` },
   { id: 'vivienda', kw: ['alquil','casero','arrendad','inquilin','fianza','comunidad','vecino','derrama','hipoteca','ruido','contrato de alquiler'],
     txt: `LAU: 9 duración 5 años (7 empresa) · 10 prórroga 3 · 11 desistimiento 6 meses+30 días preaviso · 36 fianza 1 mes
@@ -12943,7 +12943,8 @@ function validarArticulosLex(texto) {
 // ═══ FILTRO ANTI-FUGA (código): si el modelo copia trozos de sus instrucciones internas
 // (VERDADES INCÓMODAS, REGLA DE PODERES...) en la respuesta, esas líneas se eliminan.
 function limpiarFugasPrompt(texto) {
-  const marcas = /VERDADES INC(Ó|O)MODAS|REGLA DE PODERES|PRINCIPIOS TRANSVERSALES|CIERRE OBLIGATORIO|AUTO-TEST|LEY vs PR(Á|A)CTICA|PRIMERA FRASE:|=FALSA|[①②③]|ALGORITMO|responde QUI(É|E)N, sin pedir contexto|cada art(í|i)culo=SOLO su concepto/;
+  const marcas = /VERDADES INC(Ó|O)MODAS|REGLA DE PODERES|PRINCIPIOS TRANSVERSALES|CIERRE OBLIGATORIO|AUTO-TEST|LEY vs PR(Á|A)CTICA|PRIMERA FRASE:|=FALSA|ALGORITMO|exige nombrar la LLAVE|responde QUI(É|E)N, sin pedir contexto|cada art(í|i)culo=SOLO su concepto/;
+  texto = texto.replace(/①\s*/g, '1) ').replace(/②\s*/g, '2) ').replace(/③\s*/g, '3) ');
   return texto.split('\n').filter(function(linea){ return !marcas.test(linea); }).join('\n')
     .replace(/\b(la |ante la |a la )?defensor(í|i)a del pueblo/gi, function(m){ return m.match(/^ante/i) ? 'ante el Defensor del Pueblo' : (m.match(/^a /i) ? 'al Defensor del Pueblo' : 'el Defensor del Pueblo'); })
     .replace(/\n{3,}/g, '\n\n').trim();
@@ -12956,9 +12957,10 @@ function esRespuestaEvasivaLex(pregunta, respuesta) {
   const p = _normLex(pregunta);
   const r = _normLex(respuesta);
 
-  // TEMA 1: igualdad hombre/mujer — la respuesta debe decir QUIÉN, no solo "hay asimetría"
-  const preguntaQuien = /quien tiene mas (derechos|protecciones)|(hombre|mujer).{0,30}mas (derechos|protecciones)|mas (derechos|protecciones).{0,30}(hombre|mujer)/.test(p);
-  const preguntaIgualdad = preguntaQuien || /derechos.*(hombre|mujer)|igualdad (entre )?(hombre|hombres) y (mujer|mujeres)|la ley (trata|es) igual|favorece (la ley )?a (los hombres|las mujeres|la mujer|el hombre)/.test(p);
+  // TEMA 1: igualdad hombre/mujer — SOLO si la pregunta va de sexos (no "casero vs inquilino")
+  const esGenero = /hombre|mujer|sexo|genero|varon|femenin|masculin|machis|feminis/.test(p);
+  const preguntaQuien = esGenero && /quien tiene mas (derechos|protecciones)|(hombre|mujer).{0,30}mas (derechos|protecciones)|mas (derechos|protecciones).{0,30}(hombre|mujer)/.test(p);
+  const preguntaIgualdad = esGenero && (preguntaQuien || /derechos.*(hombre|mujer)|igualdad (entre )?(hombre|hombres) y (mujer|mujeres)|la ley (trata|es) igual|favorece (la ley )?a (los hombres|las mujeres|la mujer|el hombre)/.test(p));
   if (preguntaIgualdad) {
     const diplomatica = /iguales ante la ley|igualdad formal|los mismos derechos|identicos derechos|no existe ningun derecho exclusivo|ambos (gozan|tienen|disfrutan)|ningun sexo tiene mas|no (se puede|puede|cabe) (decir|afirmar|hablar)|es un tema complejo|tienen las mismas|goza(n)? de los mismos/.test(r);
     const pideContexto = /no puedo determinar|necesito mas (datos|informaci)|aporta datos|depende del contexto|responde con los detalles|indica si hay|sin saber el contexto|de que ambito/.test(r);
