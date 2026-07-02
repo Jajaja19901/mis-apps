@@ -12182,6 +12182,8 @@ LPH: 7.2 actividades molestas · 9 obligaciones propietario · 17 mayorías · 2
     txt: `CC: 348 propiedad · 806-808 legítima (hijos 2/3) · 912 sin testamento · 988 aceptar/repudiar libre · 81/85-89 separación/divorcio · 90 convenio · 92 custodia · 94 régimen de visitas (incumplimientos REITERADOS del ex→ejecución de sentencia con multas coercitivas y pueden justificar MODIFICACIÓN de medidas, incluida la custodia) · 97 pensión compensatoria · 142 alimentos · 154 patria potestad · 1101 incumplimiento · 1108 interés mora · 1124 resolución · 1902 daños · 1964 prescripción 5 años
 LEC: 812 monitorio (puedes presentarlo TÚ sin abogado ni procurador, sea cual sea la cantidad) · 250.1.1 desahucio impago
 LCS: 76 acción DIRECTA contra aseguradora del culpable` },
+  { id: 'trafico', kw: ['multa de trafico','multa del radar','multa de la dgt','radar','exceso de velocidad','semaforo','zona azul','mal aparcado','estacionamiento','puntos del carne','puntos del carnet','itv caducada','sin itv','me han multado conduciendo','multa de circulacion','multa de aparcamiento'],
+    txt: `LSV (RDL 6/2015, tráfico): 94 pronto pago 50% en 20 días naturales = RENUNCIA a alegar, FIN del procedimiento y agota la vía administrativa (después solo contencioso) · 95 alegaciones 20 días naturales (procedimiento ordinario, sin descuento) · 77 infracciones muy graves (algunas sin derecho a descuento) · 14 alcohol/drogas al volante. REGLA DE ORO: O PAGAS CON DESCUENTO O RECURRES — NUNCA ambas; pagar el 50% cierra la puerta a alegar. Las multas de tráfico van por la LSV: JAMÁS cites el 36.16 LO 4/2015 (eso es drogas) ni la LECrim (eso es penal) para una multa de circulación. Tras resolución: reposición 1 mes (124 LPAC) y contencioso 2 meses (LJCA, Ley 29/1998).` },
   { id: 'extranjeria', kw: ['extranjer','papeles','nie ',' nie','expulsi','al cie','el cie','un cie','internamiento','asilo','residencia','nacionalidad','frontera'],
     txt: `EXTRANJERÍA LO 4/2000: estancia irregular NO es delito=infracción (53.1.a) · multa 501-10.000€ preferente, no expulsión automática (55) · expulsión solo expediente+proporcionalidad (57.1); condena >1 año (57.2) · CIE solo juez, máx 60 días (62) · abogado GRATIS+intérprete (22) · no expulsables (57.5) · recursos: reposición 1 mes/contencioso 2 · frontera=retorno (60)` }
 ];
@@ -12938,7 +12940,7 @@ const ARTICULOS_VERIFICADOS = {
   'LCS':   [76],
   'LPAC':  [21,24,30,40,47,53,68,112,121,122,123,124],
   'LGT':   [66,222,223],
-  'LSV':   [14]
+  'LSV':   [14,77,94,95]
 };
 const ARTICULOS_LO = {
   '1/2004': [20,22,27],
@@ -13038,6 +13040,14 @@ function esRespuestaEvasivaLex(pregunta, respuesta) {
     const contextoValido = /instruccion 7\/2025|sin base (legal|para)|no (hay|es) infraccion|en el (momento|acto)/.test(r);
     if (habeasObjetos) return true;
     if (!niegaDevolucion && !contextoValido && prometeDevolucion) return true;
+  }
+
+  // TEMA 6: multas de tráfico — artículos robados de otros conceptos y la trampa del 50%
+  const esTrafico = /multa (de |del |de la )?(trafico|radar|velocidad|circulacion|aparcamiento|estacionamiento|dgt)|exceso de velocidad|zona azul|mal aparcado|puntos del carne/.test(p);
+  if (esTrafico) {
+    const articuloRobado = /36\.16/.test(r) || /(489|49[0-2]).{0,70}(administrativ|reposicion|alzada|recurso)/.test(r) || /lecrim.{0,90}(administrativ|reposicion|alzada|recursos)/.test(r);
+    const trampa5050 = /(50\s?%|cincuenta por ciento|pronto pago|descuento)/.test(r) && !/renuncia|no podras (alegar|recurrir)|o pagas o (alegas|recurres)|cierra la puerta|incompatible|se tendran por no presentadas/.test(r);
+    if (articuloRobado || trampa5050) return true;
   }
 
   // TEMA 4 (GENERAL): afirmar que la autoridad PUEDE hacer algo sin nombrar la LLAVE legal
@@ -13166,6 +13176,8 @@ async function _llamarAPI(seleccion) {
       ordenCorreccion = 'CORRECCION OBLIGATORIA: tu respuesta sobre drogas es INCORRECTA. Distingue los tres escenarios y responde con el que aplique: (a) coche particular ESTACIONADO usado solo como transporte y sin indicios de trafico: NO es infraccion del 36.16 (Instruccion 7/2025 de Interior tras jurisprudencia del TS) — ni multa ni denuncia, y sin infraccion tampoco hay base legal para quedarse la sustancia: puede exigir EN EL MOMENTO su devolucion o un acta escrita (placa y testigos); una vez precintada y depositada formalmente ya no vuelve. Si le multan igual, alegaciones citando la Instruccion 7/2025. (b) calle, lugar publico, transporte colectivo o coche EN CIRCULACION: multa 36.16 (601-30.000 EUR, -50%% pronto pago) e incautacion sin devolucion JAMAS (47 LO 4/2015, se destruye); NO existe "reclamar el porro" y el habeas corpus es solo para personas, nunca para objetos. (c) conduciendo: test positivo = 1.000 EUR + 6 puntos aunque no este colocado; bajo efectos = delito 379 CP; cantidad de trafico = delito 368 CP. REGLA CLAVE: el indicio debe ser PREVIO al cacheo; lo encontrado jamas lo justifica retroactivamente — sin indicio previo, la actuacion es irregular y la multa se impugna por nulidad. Reescribe COMPLETA la respuesta con el escenario correcto, sin prometer devoluciones ni validar cacheos con su resultado';
     } else if (/(puede|pueden|podria|tiene derecho|tienen derecho|es legal que|esta permitido que).{0,60}(polic|guardia civil|guardias|agente|vigilante|segurata|seguridad privada|municipal)|(polic|guardia civil|agente).{0,60}(puede|pueden|tiene derecho|es legal)/.test(pNorm)) {
       ordenCorreccion = 'CORRECCION OBLIGATORIA: has afirmado que la autoridad PUEDE hacer algo sin nombrar la LLAVE legal que lo permite. Eso es regalar a la autoridad poderes que la ley no le da: respuesta FALSA. Reescribe COMPLETA la respuesta aplicando la REGLA DE PODERES: la autoridad solo puede con (1) ORDEN JUDICIAL, (2) INDICIOS CONCRETOS de delito o flagrancia, o (3) CONSENTIMIENTO libre. Si el caso descrito no muestra ninguna llave, empieza literalmente por "NO pueden" y explica que llave necesitarian y que hacer si lo hacen igual (no resistirse fisicamente, decir "no consiento", pedir numero de placa, denunciar despues). Sin diplomacia.';
+    } else if (/multa (de |del |de la )?(trafico|radar|velocidad|circulacion|aparcamiento|estacionamiento|dgt)|exceso de velocidad|zona azul|mal aparcado/.test(pNorm)) {
+      ordenCorreccion = 'CORRECCION OBLIGATORIA: tu respuesta sobre la multa de trafico tiene errores. Las multas de trafico van por la LSV (RDL 6/2015): JAMAS cites el 36.16 LO 4/2015 (drogas) ni articulos de la LECrim (penal) para una multa de circulacion. La disyuntiva CLAVE que debes explicar: pagar con 50%% de descuento en 20 dias naturales (art. 94 LSV) supone RENUNCIAR a alegar y cierra el procedimiento (solo quedaria contencioso); alegar (art. 95 LSV, 20 dias naturales) hace perder el descuento. O PAGAS O RECURRES, nunca ambas. Reescribe COMPLETA la respuesta con esa disyuntiva como eje.';
     } else if (/okupa|ocupa(cion|ron|do)|usurpacion|allanamiento/.test(pNorm)) {
       ordenCorreccion = 'CORRECCION OBLIGATORIA: tu respuesta esta INCOMPLETA. En ocupacion es OBLIGATORIO dar las DOS verdades juntas: (1) la via penal/civil que protege al propietario con sus plazos reales (8-18 meses), y (2) que la Ley 12/2023 SUSPENDE el lanzamiento si el ocupante acredita vulnerabilidad hasta que servicios sociales le busquen alternativa. Reescribe COMPLETA la respuesta incluyendo ambas, sin suavizar ninguna.';
     } else {
