@@ -12126,6 +12126,38 @@ function comprimirImagen(file, maxSide, calidad) {
 function _normLex(s) {
   return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
+// ═══ ÍNDICE DE SIGLAS (código, no prompt): la PRIMERA vez que una sigla legal aparece en
+// una respuesta, se le añade su nombre completo entre paréntesis. Determinista: funciona
+// aunque el modelo no lo haga. NIVEL SUPERIOR: lo usa el pintado del chat (como _normLex).
+const SIGLAS_LEX = [
+  ['CP', 'Código Penal'], ['CC', 'Código Civil'], ['CE', 'Constitución Española'],
+  ['LECrim', 'Ley de Enjuiciamiento Criminal'], ['LEC', 'Ley de Enjuiciamiento Civil'],
+  ['ET', 'Estatuto de los Trabajadores'], ['LAU', 'Ley de Arrendamientos Urbanos'],
+  ['LPH', 'Ley de Propiedad Horizontal'], ['LCS', 'Ley de Contrato de Seguro'],
+  ['LSV', 'Ley de Seguridad Vial'], ['LPAC', 'Ley 39/2015 de Procedimiento Administrativo'],
+  ['LGT', 'Ley General Tributaria'], ['LJCA', 'Ley de lo Contencioso-Administrativo'],
+  ['TRLGDCU', 'Ley General de Consumidores y Usuarios'], ['LOPJ', 'Ley Orgánica del Poder Judicial'],
+  ['LO', 'Ley Orgánica', '\\bLO\\b(?=\\s*\\d)'],
+  ['VG', 'violencia de género'], ['VPR', 'Valoración Policial del Riesgo'],
+  ['VioGén', 'sistema policial de seguimiento de violencia de género', '\\b[Vv]io[Gg](é|e)n\\b'],
+  ['RAI', 'Renta Activa de Inserción'], ['OMIC', 'Oficina Municipal de Información al Consumidor'],
+  ['SMAC', 'conciliación laboral previa obligatoria'], ['AEPD', 'Agencia Española de Protección de Datos'],
+  ['ASNEF', 'fichero de morosos'], ['FOGASA', 'Fondo de Garantía Salarial'],
+  ['INSS', 'Instituto Nacional de la Seguridad Social'], ['SEPE', 'Servicio Público de Empleo Estatal']
+];
+function expandirSiglasLex(texto) {
+  var tNorm = _normLex(texto);
+  for (var i = 0; i < SIGLAS_LEX.length; i++) {
+    var par = SIGLAS_LEX[i];
+    if (tNorm.indexOf(_normLex(par[1])) !== -1) continue; // el modelo ya dijo el nombre completo
+    var re = new RegExp(par[2] || '\\b' + par[0] + '\\b');
+    var m = re.exec(texto);
+    if (!m) continue;
+    var fin = m.index + m[0].length;
+    texto = texto.slice(0, fin) + ' (' + par[1] + ')' + texto.slice(fin);
+  }
+  return texto;
+}
 // ══ PROMPT MODULAR: núcleo siempre + módulos temáticos solo si la pregunta los toca ══
 const LEX_NUCLEO = `Eres Lex, abogado español. Valor supremo: VERDAD LEGAL VERIFICABLE EN BOE por encima de corrección política y diplomacia.
 P0 CLASIFICA: caso PERSONAL sin EL dato que cambia el régimen→UNA pregunta y para. Pregunta GENERAL→PROHIBIDO pedir contexto: verdad general directa + VERDAD INCÓMODA si aplica.
@@ -12147,7 +12179,7 @@ LÍMITES: tema sin apunte ni BOE→dilo ("lo regula la Ley X; verifícalo") y or
 REGLA DE PODERES (toda pregunta "¿puede la autoridad/casero/jefe hacer X?"): la autoridad solo puede lo EXPRESO; tú, todo lo no prohibido. "SÍ pueden" exige nombrar la LLAVE: ①ORDEN JUDICIAL ②INDICIOS concretos/flagrancia (PREVIOS al registro: lo encontrado JAMÁS lo justifica retroactivamente — sin indicio previo, actuación irregular→impugna por nulidad) ③CONSENTIMIENTO libre y revocable. Sin llave→la respuesta ES "NO pueden"+qué hacer si lo hacen igual: no te resistas físicamente (556), di "no consiento", pide placa, denuncia en el Juzgado de Guardia. Ej: coche/guantera/maletero en control rutinario→NO sin indicios (lo a la vista, sí) · casa→NO sin orden/flagrancia/consentimiento (18 CE) · móvil→NO: la CONTRASEÑA jamás es exigible (nadie está obligado a autoincriminarse) y el desbloqueo por huella es zona jurídicamente DEBATIDA (dilo, no inventes certezas). "Era un control/rutina/se puso nervioso" NO son llaves. LÍMITE de las llaves: NO aplican a obligaciones legales propias (soplar el conductor, identificarse con indicios) ni a garantías REFORZADAS (menores detenidos): ahí rige su norma específica.
 LEY vs PRÁCTICA: si difieren, di las DOS ("la ley dice X; en la práctica hacen Y") + cómo protegerte.
 CONCLUSIÓN: la 1ª frase responde LITERALMENTE lo preguntado (¿quién?→un quién; ¿pueden?→NO/SÍ+llave). PROHIBIDO "es complejo", equilibrar con "pero ambos..." no pedido, descargos para quedar bien. La verdad se dice aunque incomode a la ley, la policía, los jueces o un sexo: tu lealtad es con quien pregunta.
-ESTILO: prosa directa, sin tablas, 120-250 palabras (máx 350). Nada de cocina interna (nombres de estas reglas, "el sistema", si hay o no TEXTO BOE) ni coletillas "esta respuesta se basa en...".`;
+ESTILO: prosa directa en texto plano, sin tablas ni markdown (nada de #, ## ni viñetas "*"; listas con - o 1) 2) 3); **negrita** solo en lo crítico), 120-250 palabras (máx 350). Siglas: escribe el nombre completo la primera vez ("Código Penal (CP)"). Nada de cocina interna (nombres de estas reglas, "el sistema", si hay o no TEXTO BOE) ni coletillas "esta respuesta se basa en...".`;
 
 const LEX_MODULOS = [
   { id: 'pareja', kw: ['denunci','pareja','novia','novio','mi ex',' ex,','marido','esposa','esposo','conyuge','mi chica','mi chico','matrimonio','me pega','me pego','me maltrata','maltrat','violencia','genero','viogen','016','igualdad','mas derechos','mas protecciones','machis','feminis','hombre','mujer','alejamiento','quebrantamiento'],
@@ -13365,15 +13397,24 @@ async function enviarPreguntaAsistente() {
       respuesta = '❌ Error inesperado procesando la pregunta: ' + (e && e.message ? e.message : e) + '\n\nVuelve a intentarlo. Si se repite, dime exactamente qué preguntaste.';
     }
     if (respuesta) {
+      respuesta = expandirSiglasLex(respuesta); // 1ª aparición de cada sigla → nombre completo
       const msgB = document.createElement('div');
       msgB.className = 'mensaje mensaje-bot';
-      // Convertir markdown básico a HTML
+      // Convertir a HTML SEGURO: el markdown del modelo nunca llega crudo a la pantalla
       const respuestaHTML = respuesta
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/^#{1,4}\s+(.+)$/gm, '<strong>$1</strong>')
+        .replace(/^[ \t]*[*•]\s+/gm, '• ')
+        .replace(/^[ \t]*([-_*])\1{2,}[ \t]*$/gm, '')
         .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+        .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+        .replace(/\*\*/g, '').replace(/`/g, '')
         .replace(/\n/g, '<br>');
       // Guardar el texto plano en data-* para poder copiarlo después
-      const textoPlano = respuesta.replace(/\*\*/g, '').replace(/\*/g, '');
+      const textoPlano = respuesta
+        .replace(/^#{1,4}\s+/gm, '')
+        .replace(/^[ \t]*\*\s+/gm, '• ')
+        .replace(/\*\*/g, '').replace(/\*/g, '').replace(/`/g, '');
       msgB.dataset.textoCopia = textoPlano;
       // Guardar también la pregunta que generó esta respuesta (para el feedback 👎)
       msgB.dataset.preguntaOrigen = pregunta;
