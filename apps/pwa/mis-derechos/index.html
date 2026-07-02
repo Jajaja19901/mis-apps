@@ -12176,7 +12176,7 @@ AVISO OBLIGATORIO si hay detención/atestado/juicio penal (cópialo en lenguaje 
   { id: 'vivienda', kw: ['alquil','casero','arrendad','inquilin','fianza','comunidad','vecino','derrama','hipotec','ejecucion hipotecaria','cuotas del banco','ruido','contrato de alquiler','ascensor','camara'],
     txt: `MORADA DEL INQUILINO: el casero NO puede entrar ni con SUS llaves (=allanamiento 202 CP); puedes cambiar el bombín (conservando el original) · AVAL de alquiler: casi siempre SOLIDARIO con renuncia a excusión=pueden reclamar DIRECTAMENTE al avalista (mira el contrato); tras pagar, reembolso contra el avalado; fianza CC 1822ss (verifica) — jamás cites 1902/LCS para un aval.
 LAU: 36 fianza (devolver al fin del contrato; +1 mes de retraso=interés legal; solo daños PROBADOS, no desgaste normal) · 9 duración 5 años (7 empresa) · 10 prórroga 3 · 11 desistimiento 6 meses+30 días preaviso.
-LPH: 7.2 actividades molestas (acción de CESACIÓN: el juez puede privar del uso de la vivienda hasta 3 AÑOS; horarios de ruido=ORDENANZA municipal, no los inventes) · 9.1.e al COMPRAR respondes de deudas de comunidad del año + 3 anteriores (pide certificado) · 17 mayorías (acuerdo válido vincula a todos; accesibilidad con mayores/discapacidad puede ser obligatoria hasta 12 mensualidades) · 21 impagos.
+LPH: 7.2 actividades molestas (acción de CESACIÓN: el juez puede privar del uso de la vivienda hasta 3 AÑOS; horarios de ruido=ORDENANZA municipal, no los inventes) · 9.1.e al COMPRAR respondes de deudas de comunidad del año + 3 anteriores (pide certificado) · 17 mayorías (ASCENSOR=mayoría simple de propietarios y cuotas, no 3/5; acuerdo válido vincula a todos; accesibilidad con mayores de 70/discapacidad puede ser OBLIGATORIA hasta 12 mensualidades) · 18 IMPUGNAR acuerdos: 3 MESES (1 año si es contrario a la ley) — jamás digas "1 mes"; mientras, paga para no ser moroso · 21 impagos.
 HIPOTECA: ejecución exige 12 CUOTAS o 3% del capital (1ª mitad; 15/7% en 2ª — Ley 5/2019): con 3 impagos NO pueden (ley vieja derogada); antes: Código de Buenas Prácticas (reestructuración/dación) y oposición por cláusulas abusivas · GASTOS de constitución reclamables (tasación+gestoría+registro+½notaría; AJD no) — no digas que prescribió (se discute).
 CÁMARA del vecino enfocando tu puerta o zonas comunes=infracción de protección de datos→denuncia AEPD+retirada (solo puede grabar su propiedad estricta).
 HIJO ADULTO que no se va: desahucio por PRECARIO (vive sin título); no hay obligación de mantener a un adulto capaz.` },
@@ -12942,7 +12942,7 @@ const ARTICULOS_VERIFICADOS = {
   'CE':    [14,15,17,18,21,24,33,53,120,163],
   'ET':    [8,14,49,55,56,59],
   'LAU':   [9,10,11,36],
-  'LPH':   [7,9,17,21],
+  'LPH':   [7,9,17,18,21],
   'LCS':   [16,76],
   'LPAC':  [21,24,30,40,47,53,68,112,121,122,123,124],
   'LGT':   [66,222,223],
@@ -13054,6 +13054,10 @@ function esRespuestaEvasivaLex(pregunta, respuesta) {
       if (aconsejaNoConsiento || olvida383) return true;
     }
   }
+
+  // TEMA 5b: el 456 CP (denuncia falsa) usado como comodín para estafas/fraudes/bancos
+  const mal456 = /456[^.]{0,90}(estafa|fraude|banco|entidad|empresa oculta|investigue)|((la |una )?estafa|el fraude)[^.]{0,50}\(?art(iculo|\.)? ?456/.test(r);
+  if (mal456) return true;
 
   // TEMA 6: multas de tráfico — artículos robados de otros conceptos y la trampa del 50%
   const esTrafico = /multa (de |del |de la )?(trafico|radar|velocidad|circulacion|aparcamiento|estacionamiento|dgt)|exceso de velocidad|zona azul|mal aparcado|puntos del carne/.test(p);
@@ -13193,6 +13197,8 @@ async function _llamarAPI(seleccion) {
       ordenCorreccion = 'CORRECCION OBLIGATORIA: tu respuesta sobre la multa de trafico tiene errores. Las multas de trafico van por la LSV (RDL 6/2015): JAMAS cites el 36.16 LO 4/2015 (drogas) ni articulos de la LECrim (penal) para una multa de circulacion. La disyuntiva CLAVE que debes explicar: pagar con 50%% de descuento en 20 dias naturales (art. 94 LSV) supone RENUNCIAR a alegar y cierra el procedimiento (solo quedaria contencioso); alegar (art. 95 LSV, 20 dias naturales) hace perder el descuento. O PAGAS O RECURRES, nunca ambas. Reescribe COMPLETA la respuesta con esa disyuntiva como eje.';
     } else if (/okupa|ocupa(cion|ron|do)|usurpacion|allanamiento/.test(pNorm)) {
       ordenCorreccion = 'CORRECCION OBLIGATORIA: tu respuesta esta INCOMPLETA. En ocupacion es OBLIGATORIO dar las DOS verdades juntas: (1) la via penal/civil que protege al propietario con sus plazos reales (8-18 meses), y (2) que la Ley 12/2023 SUSPENDE el lanzamiento si el ocupante acredita vulnerabilidad hasta que servicios sociales le busquen alternativa. Reescribe COMPLETA la respuesta incluyendo ambas, sin suavizar ninguna.';
+    } else if (/456[^.]{0,90}(estafa|fraude|banco|entidad|empresa|investigue)/.test(_normLex(resultado.respuesta))) {
+      ordenCorreccion = 'CORRECCION OBLIGATORIA: has usado el art. 456 CP (denuncia falsa) para un concepto que no es el suyo. La ESTAFA es 248-250 CP; el fraude a la Seguridad Social es 307 CP; el 456 SOLO sirve para denunciar a quien te denuncio en falso, tras absolucion firme. Reescribe la BASE LEGAL con cada articulo en su concepto exacto.';
     } else {
       ordenCorreccion = 'CORRECCION OBLIGATORIA: tu respuesta fue evasiva y FALSA. Las VERDADES INCOMODAS del sistema lo prohiben. Reescribe COMPLETA la respuesta empezando literalmente por: "Sobre el papel (Art. 14 CE) son iguales; en el BOE real la mujer tiene mas protecciones y derechos especificos que el hombre en el ambito de pareja" y detalla Art. 153.1 CP (6m-1a) vs Art. 153.2 CP (3m-1a) y la LO 1/2004 (abogado gratis 20, ayudas 27, VioGen solo para ella). PROHIBIDO equilibrar con "pero ambos son iguales ante la ley" y PROHIBIDO usar la STC 59/2008 para relativizar (solo como dato final). Sin diplomacia.';
     }
