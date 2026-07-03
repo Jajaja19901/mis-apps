@@ -14030,6 +14030,49 @@ function descargarPdfRemesa(etiqueta) {
   })(0);
 }
 
+/* ZIP sin librerías (método "store", con CRC32) para bajar un PDF por entrada. */
+var _crcTable = (function () { var t = []; for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1); t[n] = c >>> 0; } return t; })();
+function _crc32(bytes) { var c = 0xFFFFFFFF; for (var i = 0; i < bytes.length; i++) c = _crcTable[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+function _u16(n) { return new Uint8Array([n & 255, (n >> 8) & 255]); }
+function _u32(n) { return new Uint8Array([n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255]); }
+function zipStore(files) {
+  var chunks = [], central = [], offset = 0;
+  files.forEach(function (f) {
+    var nameB = _u8(f.name), data = f.bytes, crc = _crc32(data);
+    var lh = _concatU8([_u32(0x04034b50), _u16(20), _u16(0), _u16(0), _u16(0), _u16(0),
+      _u32(crc), _u32(data.length), _u32(data.length), _u16(nameB.length), _u16(0), nameB]);
+    chunks.push(lh, data);
+    central.push(_concatU8([_u32(0x02014b50), _u16(20), _u16(20), _u16(0), _u16(0), _u16(0), _u16(0),
+      _u32(crc), _u32(data.length), _u32(data.length), _u16(nameB.length), _u16(0), _u16(0),
+      _u16(0), _u16(0), _u32(0), _u32(offset), nameB]));
+    offset += lh.length + data.length;
+  });
+  var centralAll = _concatU8(central);
+  var end = _concatU8([_u32(0x06054b50), _u16(0), _u16(0), _u16(files.length), _u16(files.length),
+    _u32(centralAll.length), _u32(offset), _u16(0)]);
+  return _concatU8([_concatU8(chunks), centralAll, end]);
+}
+/* Un PDF por entrada, todos en un ZIP (para grupos: 5 amigos = 5 PDFs sueltos). */
+function descargarPdfsRemesa(etiqueta) {
+  var lista = state.personas.filter(function (x) { return x.remesa === etiqueta; });
+  if (!lista.length) { toast('Sin entradas en esa serie'); return; }
+  toast('Generando ' + lista.length + ' PDFs…');
+  var files = [];
+  (function siguiente(i) {
+    if (i >= lista.length) {
+      var zip = zipStore(files);
+      descargarBytes(zip, 'entradas-' + etiqueta.replace(/[^\w]+/g, '_') + '.zip', 'application/zip');
+      toast(lista.length + ' PDFs sueltos (ZIP) descargados');
+      return;
+    }
+    canvasInvitacion(lista[i]).then(function (cv) {
+      var pdf = construirPdf([{ jpeg: _jpegDeCanvas(cv), w: cv.width, h: cv.height }]);
+      files.push({ name: 'entrada-' + lista[i].codigoReserva + '.pdf', bytes: pdf });
+      siguiente(i + 1);
+    });
+  })(0);
+}
+
 function compartirQR(canvas, p) {
   if (!canvas) return;
   try {
@@ -14886,7 +14929,8 @@ function seccionLista() {
     html += '<h3>Series creadas</h3><ul class="lista-gastos">';
     claves.forEach(function (k) {
       html += '<li><span><b>' + esc(k) + '</b> · ' + series[k] + ' entradas</span>' +
-        '<button type="button" data-testid="btn-pdf-remesa" onclick="descargarPdfRemesa(\'' + escJs(k) + '\')">PDF de la serie</button></li>';
+        '<span style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" data-testid="btn-pdf-remesa" onclick="descargarPdfsRemesa(\'' + escJs(k) + '\')">PDFs sueltos (ZIP)</button>' +
+        '<button type="button" class="btn-secundario" onclick="descargarPdfRemesa(\'' + escJs(k) + '\')">PDF junto (imprimir)</button></span></li>';
     });
     html += '</ul>';
   }
