@@ -196,6 +196,12 @@ button:disabled{opacity:.5;cursor:not-allowed}
 /* TPV (alias de rejilla + carrito) */
 .productos-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
 .prod-nombre{font-weight:600}.prod-precio{color:var(--neon-verde);font-weight:700}.prod-stock{font-size:.75rem;color:var(--text-dim)}
+.prod-incluye{font-size:.72rem;color:var(--vip-morado)}
+.prod-edit{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;padding:10px 0;border-bottom:1px solid var(--border)}
+.prod-edit input[type=text]{flex:1;min-width:140px}
+.prod-edit .mini{font-size:.75rem;color:var(--text-dim)}
+.prod-edit .mini input{width:90px}
+.btn-mini-borrar{min-height:40px;background:transparent;border:1px solid var(--rojo);color:var(--rojo)}
 .carrito-vacio-msg{color:var(--text-dim);text-align:center;padding:12px}
 .carrito-linea{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)}
 .cart-menos{min-height:36px;min-width:36px;padding:0 10px}
@@ -10755,10 +10761,11 @@ var LS_KEY = "mh_collective_v1";
 
 function seedProductos() {
   return [
-    { id: "copa", nombre: "Copa/Combinado", precio: 10, stock: 100, stockInicial: 100 },
-    { id: "cerveza", nombre: "Cerveza", precio: 5, stock: 200, stockInicial: 200 },
-    { id: "refresco", nombre: "Refresco/Agua", precio: 3, stock: 150, stockInicial: 150 },
-    { id: "chupito", nombre: "Chupito", precio: 2, stock: 100, stockInicial: 100 }
+    { id: "copa", nombre: "Copa/Combinado", precio: 10, stock: 100, stockInicial: 100, refrescosIncluidos: 0 },
+    { id: "cerveza", nombre: "Cerveza", precio: 5, stock: 200, stockInicial: 200, refrescosIncluidos: 0 },
+    { id: "refresco", nombre: "Refresco/Agua", precio: 3, stock: 150, stockInicial: 150, refrescosIncluidos: 0 },
+    { id: "chupito", nombre: "Chupito", precio: 2, stock: 100, stockInicial: 100, refrescosIncluidos: 0 },
+    { id: "botella", nombre: "Botella (a elegir)", precio: 60, stock: 40, stockInicial: 40, refrescosIncluidos: 4 }
   ];
 }
 
@@ -10894,6 +10901,10 @@ function migrar(s) {
   }
   if (!s.config.productos) {
     s.config.productos = s.config.precios ? productosDesdePrecios(s.config.precios) : seedProductos();
+  }
+  s.config.productos.forEach(function (pr) { if (typeof pr.refrescosIncluidos !== 'number') pr.refrescosIncluidos = 0; });
+  if (!s.config.productos.some(function (pr) { return pr.id === 'botella'; })) {
+    s.config.productos.push({ id: 'botella', nombre: 'Botella (a elegir)', precio: 60, stock: 40, stockInicial: 40, refrescosIncluidos: 4 });
   }
   if (!s.config.bonoCfg) s.config.bonoCfg = { ventaCamareros: false, copas: 5, precio: 20 };
   if (typeof s.config.accesoAuto !== 'boolean') s.config.accesoAuto = false;
@@ -12153,10 +12164,12 @@ function renderBarra() {
       }
     }
 
+    var incl = (p.refrescosIncluidos || 0) > 0 ? '<span class="prod-incluye">🥤 incluye ' + p.refrescosIncluidos + ' refrescos</span>' : '';
     return '<button type="button" class="' + cls + '" data-testid="prod-' + esc(p.id) + '"' +
       (agotado ? ' disabled' : ' onclick="barraAgregar(\'' + esc(p.id) + '\')"') + '>' +
       '<span class="prod-nombre">' + esc(p.nombre) + '</span> ' +
       '<span class="prod-precio">' + money(p.precio) + '</span>' +
+      incl +
       (extra ? '<span class="prod-stock">' + esc(extra) + '</span>' : '') +
       '</button>';
   }).join('');
@@ -12230,7 +12243,8 @@ function consIncluidas(p) {
   if (p.tipo === 'taquilla') return c.taquilla || 0;
   return c.invitado || 0;
 }
-/* Pack de mesa VIP: botella(s) a elegir + refrescos, fijado por el dueño. */
+/* Pack de mesa VIP: botella(s) a elegir + refrescos, fijado por el dueño.
+   Extras: botellas de más a otro precio (mesa.botellasExtra), que suman a la caja. */
 function vipPack() { return (state.config && state.config.vipPack) || { botellas: 1, refrescos: 4 }; }
 function botellasDisp(p) { return (p.tipo === 'vip' && p.mesa) ? Math.max(0, vipPack().botellas - (p.mesa.botellasUsadas || 0)) : 0; }
 function refrescosDisp(p) { return (p.tipo === 'vip' && p.mesa) ? Math.max(0, vipPack().refrescos - (p.mesa.refrescosUsados || 0)) : 0; }
@@ -12281,7 +12295,7 @@ function consBuscar() {
     var titularV = (p.nombre + ' ' + p.apellido).trim() || ('Mesa ' + p.mesa.numero);
     var bd = botellasDisp(p), rd = refrescosDisp(p);
     _consMsg = '<div class="cons-ficha"><strong>' + esc(titularV) + '</strong> · Mesa ' + esc(p.mesa.numero) + ' · ' + esc(p.codigoReserva) +
-      '<br>🍾 Botellas: <b>' + bd + '</b> a elegir' +
+      '<br>🍾 Botellas incluidas: <b>' + bd + '</b> a elegir' +
       (bd > 0 ? ' <button type="button" class="btn-canjear" onclick="canjearBotella(\'' + escJs(p.id) + '\')">Servir botella</button>' : ' <span class="cons-cero">(agotadas)</span>') +
       '<br>🥤 Refrescos: <b>' + rd + '</b>' +
       (rd > 0 ? ' <button type="button" class="btn-canjear" onclick="canjearRefresco(\'' + escJs(p.id) + '\')">Servir refresco</button>' : ' <span class="cons-cero">(agotados)</span>') +
@@ -12377,10 +12391,14 @@ function barraCobrar() {
 
     var total = 0;
     var partes = [];
+    var refrescosServir = 0;
     for (var i = 0; i < carrito.length; i++) {
       var l = carrito[i];
       total += l.precio * l.qty;
-      partes.push(l.qty + '× ' + l.nombre);
+      var pr = productoPorId(l.prodId);
+      var ri = pr ? (pr.refrescosIncluidos || 0) : 0;
+      partes.push(l.qty + '× ' + l.nombre + (ri > 0 ? ' (incluye ' + (ri * l.qty) + ' refrescos)' : ''));
+      refrescosServir += ri * l.qty;
     }
 
     if (s.config.modulos && s.config.modulos.stock) {
@@ -12395,7 +12413,7 @@ function barraCobrar() {
     addLog('vendió ' + partes.join(', ') + ' (' + total + ' €)', 'cobro');
 
     carrito.length = 0;
-    toast('Cobro registrado');
+    toast(refrescosServir > 0 ? 'Cobrado · sirve ' + refrescosServir + ' refrescos' : 'Cobro registrado');
   });
 }
 
@@ -12436,8 +12454,8 @@ function renderDueno() {
           (s.config.modulos.stock ? seccionStock() : '');
       } },
     { id: 'ajustes', label: '⚙️ Ajustes', build: function () {
-        return intro('Prepara la fiesta: nombre, precios, copas incluidas, cuántos trabajadores y qué funciones activar.') +
-          seccionConfig() + seccionPersonal() + seccionModulos();
+        return intro('Prepara la fiesta: nombre, precios, productos de barra, cuántos trabajadores y qué funciones activar.') +
+          seccionConfig() + seccionProductos() + seccionPersonal() + seccionModulos();
       } },
     { id: 'registro', label: '📋 Registro', build: function () {
         return intro('El historial de todo (no se puede borrar) y el cierre de la fiesta al terminar.') +
@@ -12493,6 +12511,47 @@ function seccionKpis() {
   return html;
 }
 
+/* ===== PRODUCTOS DE BARRA (lo rellena el dueño: copas, botellas con refrescos…) ===== */
+function seccionProductos() {
+  var prods = state.config.productos || [];
+  var html = '<section class="panel" data-testid="seccion-productos"><h2>Productos de barra</h2>';
+  html += '<p class="nota">Lo que puede vender el camarero. Una botella lleva su precio y sus refrescos incluidos (los sirve al cliente al cobrarla).</p>';
+  prods.forEach(function (pr) {
+    html += '<div class="prod-edit" data-testid="prod-edit-' + esc(pr.id) + '">';
+    html += '<input type="text" value="' + esc(pr.nombre) + '" placeholder="Nombre" onchange="duenoProductoCampo(\'' + escJs(pr.id) + '\',\'nombre\',this.value)">';
+    html += '<label class="mini">Precio €<input type="number" min="0" value="' + esc(pr.precio) + '" onchange="duenoProductoCampo(\'' + escJs(pr.id) + '\',\'precio\',this.value)"></label>';
+    html += '<label class="mini">🥤 Refrescos incl.<input type="number" min="0" value="' + esc(pr.refrescosIncluidos || 0) + '" onchange="duenoProductoCampo(\'' + escJs(pr.id) + '\',\'refrescosIncluidos\',this.value)"></label>';
+    html += '<button type="button" class="btn-mini-borrar" onclick="duenoBorrarProducto(\'' + escJs(pr.id) + '\')">Borrar</button>';
+    html += '</div>';
+  });
+  html += '<button type="button" data-testid="btn-add-producto" onclick="duenoAnadirProducto()">+ Añadir producto</button>';
+  html += '</section>';
+  return html;
+}
+function duenoProductoCampo(id, campo, valor) {
+  mutateSilent(function (s) {
+    var pr = (s.config.productos || []).find(function (x) { return x.id === id; });
+    if (!pr) return;
+    if (campo === 'nombre') pr.nombre = String(valor).trim() || pr.nombre;
+    else pr[campo] = Number(valor) || 0;
+  });
+}
+function duenoBorrarProducto(id) {
+  mutate(function (s) {
+    var i = (s.config.productos || []).findIndex(function (x) { return x.id === id; });
+    if (i >= 0) { addLog('quitó el producto ' + s.config.productos[i].nombre, 'config'); s.config.productos.splice(i, 1); }
+  });
+  toast('Producto quitado');
+}
+function duenoAnadirProducto() {
+  mutate(function (s) {
+    var nid = 'prod' + (s.config.productos.length + 1) + '_' + (s.config.productos.length);
+    s.config.productos.push({ id: nid, nombre: 'Nuevo producto', precio: 5, stock: 100, stockInicial: 100, refrescosIncluidos: 0 });
+    addLog('añadió un producto de barra', 'config');
+  });
+  toast('Producto añadido: ponle nombre y precio');
+}
+
 /* ---------- 2. Configuración ---------- */
 
 function seccionConfig() {
@@ -12516,7 +12575,7 @@ function seccionConfig() {
   var vp = c.vipPack || { botellas: 1, refrescos: 4 };
   html += '<h3>Pack de Mesa VIP (por mesa)</h3>';
   html += '<p class="nota">Las mesas VIP van con botella a elegir + refrescos, no con copas sueltas.</p>';
-  html += '<label>Botellas a elegir<input type="number" id="cfg-vip-botellas" value="' + esc(vp.botellas) + '" min="0"></label>';
+  html += '<label>Botellas incluidas (la promesa de la mesa)<input type="number" id="cfg-vip-botellas" value="' + esc(vp.botellas) + '" min="0"></label>';
   html += '<label>Refrescos incluidos<input type="number" id="cfg-vip-refrescos" value="' + esc(vp.refrescos) + '" min="0"></label>';
   html += '<button type="submit" class="btn btn-primary">Guardar configuración</button>';
   html += '</form>';
