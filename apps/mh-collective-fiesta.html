@@ -13861,18 +13861,26 @@ function abreQR(id) {
   } else if (copas > 0) {
     extraQR = ' · ' + copas + ' copa' + (copas === 1 ? '' : 's') + ' incluida' + (copas === 1 ? '' : 's');
   }
+  var esAdmin = duenoAutenticado;
   html += '<p class="qr-tipo">' + esc(tipoLabel) +
     (p.tipo === "taquilla" ? (p.pagado ? ' · <span class="qr-pagada">Pagada</span>' : ' · <span class="qr-pendiente">Sin pagar (' + esc(precioEntradaDe(p)) + ' €)</span>') : '') +
     (p.dentro ? ' · <span class="qr-pagada">Dentro</span>' : '') +
     esc(extraQR) + "</p>";
+  // El CÓDIGO en grande, como el bono: fácil de leer y de que el cliente le haga foto.
+  html += '<p class="bono-codigo-big" data-testid="entrada-codigo">' + esc(p.codigoReserva) + '</p>';
   html += '<canvas id="qrCanvas" width="220" height="220"></canvas>';
-  html += '<p class="qr-codigo">' + esc(p.codigoReserva) + "</p>";
+  html += '<p class="nota" style="text-align:center">' + (esAdmin
+    ? 'Mándasela al cliente (Compartir o PDF) o que le haga una foto a este código. En la puerta lo enseña.'
+    : 'Que el cliente le haga una <b>foto a este código</b> con su móvil. En la puerta lo enseña y el vigilante lo lee.') + '</p>';
   html += '<div class="modal-botones">';
-  if (p.tipo === "taquilla" && !p.pagado && duenoAutenticado) {
+  if (p.tipo === "taquilla" && !p.pagado && esAdmin) {
     html += '<button type="button" data-testid="btn-marcar-pagada" onclick="marcarPagada(\'' + escJs(p.id) + '\')">Marcar pagada (' + esc(precioEntradaDe(p)) + ' €)</button>';
   }
-  html += '<button type="button" id="btnCompartirQR">Compartir</button>';
-  html += '<button type="button" data-testid="btn-pdf" onclick="descargarPdfInvitacion(\'' + escJs(p.id) + '\')">PDF</button>';
+  if (esAdmin) {
+    // Solo el administrador manda la entrada por WhatsApp o saca su PDF.
+    html += '<button type="button" id="btnCompartirQR">Compartir</button>';
+    html += '<button type="button" data-testid="btn-pdf" onclick="descargarPdfInvitacion(\'' + escJs(p.id) + '\')">PDF</button>';
+  }
   html += '<button type="button" onclick="closeModal()">Cerrar</button>';
   html += "</div></div>";
   showModal(html);
