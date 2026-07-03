@@ -13542,6 +13542,13 @@ function initSync() {
             if ((intentos || 0) < 8 && window.__mhSync.pendientes.length) pushLoop((intentos || 0) + 1);
           });
         }
+        if (!res.ok) {
+          // 401 (sin token válido), 500, etc.: el servidor RECHAZÓ. NO se confirma nada (los cambios
+          // siguen en pendientes, no se pierden) y se marca error para que reintente y avise.
+          pushing = false; window.__mhSync.error = true; refrescarSync();
+          if (window.__mhSync.pendientes.length) setTimeout(function () { pushLoop(0); }, 3000);
+          return;
+        }
         return res.json().then(function (d) {
           if (d && typeof d.version === 'number') srvVersion = d.version;
           // Solo se confirman las que viajaron; las llegadas en vuelo siguen pendientes.
@@ -13566,7 +13573,11 @@ function initSync() {
     }, 8000);
 
     // Carga inicial: si el servidor ya tiene estado, se adopta; si está vacío, subimos el nuestro.
-    fetch('/api/state').then(function (res) { return res.ok ? res.json() : null; })
+    fetch('/api/state').then(function (res) {
+      // 401 = enlace sin token válido: se avisa (no queda "Sincronizado" en falso) y se sigue local.
+      if (res.status === 401) { window.__mhSync.error = true; refrescarSync(); return null; }
+      return res.ok ? res.json() : null;
+    })
       .then(function (data) {
         if (!data) return;
         srvVersion = data.version || 0;
@@ -13594,8 +13605,24 @@ function initSync() {
   } catch (err) { /* cualquier fallo de red: seguir solo con localStorage */ }
 }
 
+/* El token del servidor viaja en el FRAGMENTO del enlace (…/#t=TOKEN). El navegador NO lo manda
+   al servidor (no queda en logs ni Referer). Aquí se lee, se guarda como cookie para que fetch y
+   SSE se autentiquen, y se BORRA del hash para que no quede en el historial ni en capturas. */
+function capturarTokenDeEnlace() {
+  try {
+    var h = location.hash || '';
+    var m = /(?:^#|[#&])t=([^&]+)/.exec(h);
+    if (!m) return;
+    var tok = decodeURIComponent(m[1]);
+    if (tok) document.cookie = 'mh_token=' + encodeURIComponent(tok) + '; Path=/; SameSite=Strict; Max-Age=86400';
+    var limpio = h.replace(/(^#|[#&])t=[^&]*/, '$1').replace(/^#&/, '#').replace(/[#&]$/, '');
+    history.replaceState(null, '', location.pathname + location.search + (limpio && limpio !== '#' ? limpio : ''));
+  } catch (e) { /* si algo falla, seguimos sin token (modo local) */ }
+}
+
 /* ---------- Arranque ---------- */
 function bootApp() {
+  capturarTokenDeEnlace();
   load();
   precargarCartel();
   aplicarLogo();

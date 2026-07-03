@@ -223,12 +223,12 @@ function serveApp(res) {
       );
       return;
     }
-    const headers = { 'Content-Type': 'text/html; charset=utf-8' };
-    // Con token activo, se entrega como cookie httpOnly al cargar la app. Los móviles de la
-    // fiesta (que abren esta URL) quedan autenticados y su sync —fetch Y SSE— funciona sin que
-    // el cliente tenga que gestionar el token. httpOnly+SameSite=Strict: no la lee el JS ni viaja fuera.
-    if (TOKEN) headers['Set-Cookie'] = 'mh_token=' + encodeURIComponent(TOKEN) + '; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400';
-    res.writeHead(200, headers);
+    // IMPORTANTE: NO se entrega el token aquí. GET / es público (para que cargue la app), así que
+    // mandar el token en esta respuesta lo regalaría a cualquiera que abra la URL (incluido un curl
+    // de la red) y anularía su protección. El token se pasa por el FRAGMENTO del enlace que comparte
+    // el dueño (…/#t=TOKEN); el navegador NO envía el fragmento al servidor, y el cliente lo convierte
+    // en la cookie mh_token él solo. Así solo quien tiene el enlace con token queda autenticado.
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(data);
   });
 }
@@ -330,7 +330,7 @@ const server = http.createServer((req, res) => {
 
     if (pathname.startsWith('/api/')) {
       if (!checkToken(req)) {
-        sendJson(res, 401, { error: 'Token inválido o ausente (cabecera x-mh-token).' });
+        sendJson(res, 401, { error: 'Token inválido o ausente. Abre la app con el enlace que incluye #t=TOKEN.' });
         return;
       }
 
