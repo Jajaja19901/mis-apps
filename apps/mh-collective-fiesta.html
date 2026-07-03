@@ -127,6 +127,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .persona-codigo{color:var(--text-dim);font-size:.9375rem;letter-spacing:.03em}
 .persona-cupo{margin-top:6px;color:var(--vip-morado);font-size:.875rem;font-weight:600}
 .badge-tipo{background:var(--border);color:var(--text)}
+.badge-serie{background:transparent;border:1px solid var(--vip-morado);color:var(--vip-morado);font-size:.75rem}
 .persona-acciones{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 /* Botón de acción gigante + QR de la tarjeta */
 .btn-accion-persona{flex:1;min-width:180px;min-height:56px;font-size:1.0625rem;font-weight:700;border:none;border-radius:var(--radius-btn);background:var(--neon-verde);color:var(--bg);box-shadow:0 0 16px rgba(0,212,138,.18)}
@@ -1098,6 +1099,7 @@ function initSync() {
 /* ---------- Arranque ---------- */
 function bootApp() {
   load();
+  precargarCartel();
   window.addEventListener('hashchange', renderApp);
   initSync();
   window.addEventListener('beforeinstallprompt', function (e) {
@@ -1230,8 +1232,11 @@ function renderPersonaCard(p) {
   html += '<div class="persona-card" data-testid="persona-' + esc(p.id) + '">';
   html += '<div class="persona-info">';
   html += '<div class="persona-nombre">' + esc(p.nombre + " " + p.apellido) + "</div>";
+  var origenBadge = p.remesa
+    ? ' <span class="badge badge-serie">Preventa · ' + esc(p.remesa) + '</span>'
+    : (p.horaEntrada && p.tipo !== 'invitado' && !p.remesa ? '' : '');
   html += '<div class="persona-meta"><span class="badge badge-tipo">' + esc(tipoLabel) +
-    '</span> <span class="persona-codigo">' + esc(p.codigoReserva) + "</span> " + estadoBadge + "</div>";
+    '</span>' + origenBadge + ' <span class="persona-codigo">' + esc(p.codigoReserva) + "</span> " + estadoBadge + "</div>";
   html += cupoHtml;
   html += "</div>";
   html += '<div class="persona-acciones">' + accionBtn + acompBtn + qrBtn + "</div>";
@@ -1419,6 +1424,7 @@ function abreQR(id) {
     html += '<button type="button" data-testid="btn-marcar-pagada" onclick="marcarPagada(\'' + escJs(p.id) + '\')">Marcar pagada (' + esc(precioEntradaDe(p)) + ' €)</button>';
   }
   html += '<button type="button" id="btnCompartirQR">Compartir</button>';
+  html += '<button type="button" data-testid="btn-pdf" onclick="descargarPdfInvitacion(\'' + escJs(p.id) + '\')">PDF</button>';
   html += '<button type="button" onclick="closeModal()">Cerrar</button>';
   html += "</div></div>";
   showModal(html);
@@ -1428,67 +1434,114 @@ function abreQR(id) {
   if (btnShare) btnShare.addEventListener("click", function () { compartirInvitacion(p); });
 }
 
-/* Construye la INVITACIÓN como imagen (canvas): logo, evento, QR, nº y copas. */
-function canvasInvitacion(p) {
-  var W = 800, H = 1180;
-  var cv = document.createElement('canvas');
-  cv.width = W; cv.height = H;
-  var ctx = cv.getContext('2d');
-  // fondo nocturno
-  ctx.fillStyle = '#0a0a0f'; ctx.fillRect(0, 0, W, H);
-  ctx.strokeStyle = '#333340'; ctx.lineWidth = 4; ctx.strokeRect(14, 14, W - 28, H - 28);
-  // emblema MH Collective (dibujado a mano: círculo + rombo + letras + banda)
-  var cx = W / 2, cy = 170, r = 120;
-  ctx.save();
-  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = '#0a0a0f'; ctx.fill();
-  ctx.lineWidth = 3; ctx.strokeStyle = '#ffffff'; ctx.stroke();
-  ctx.translate(cx, cy); ctx.rotate(Math.PI / 4);
-  ctx.strokeRect(-52, -52, 104, 104);
-  ctx.restore();
-  ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center';
-  ctx.font = 'bold 56px -apple-system, sans-serif';
-  ctx.fillText('MH', cx, cy + 4);
-  ctx.fillStyle = '#ffffff'; ctx.fillRect(cx - 82, cy + 42, 164, 40);
-  ctx.fillStyle = '#0a0a0f'; ctx.font = '600 22px -apple-system, sans-serif';
-  ctx.fillText('Collective', cx, cy + 70);
-  // evento + tipo
-  ctx.fillStyle = '#ffffff'; ctx.font = 'bold 44px -apple-system, sans-serif';
-  ctx.fillText(state.config.eventName, cx, 380);
-  ctx.fillStyle = '#00d48a'; ctx.font = '600 30px -apple-system, sans-serif';
-  var titulo = p.tipo === 'vip' ? 'MESA VIP' : (p.tipo === 'invitado' ? 'INVITACIÓN' : 'ENTRADA');
-  ctx.fillText(titulo, cx, 430);
-  // nombre / nº de entrada
-  ctx.fillStyle = '#a0a0b0'; ctx.font = '400 30px -apple-system, sans-serif';
-  ctx.fillText(p.nombre + ' ' + p.apellido, cx, 478);
-  // QR en caja blanca
-  var qcv = document.createElement('canvas');
-  try { drawQR(qcv, p.codigoReserva, 420); } catch (e) { qcv = null; }
-  var boxY = 510, boxSize = 460;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(cx - boxSize / 2, boxY, boxSize, boxSize);
-  if (qcv) ctx.drawImage(qcv, cx - 210, boxY + 20, 420, 420);
-  // código grande
-  ctx.fillStyle = '#ffffff'; ctx.font = 'bold 46px monospace';
-  ctx.fillText(p.codigoReserva, cx, boxY + boxSize + 62);
-  // copas incluidas
-  var copas = consIncluidas(p);
-  if (copas > 0) {
-    ctx.fillStyle = '#b026ff'; ctx.font = '600 30px -apple-system, sans-serif';
-    ctx.fillText('Incluye ' + copas + ' consumici' + (copas === 1 ? 'ón' : 'ones'), cx, boxY + boxSize + 112);
-  }
-  // pie
-  ctx.fillStyle = '#a0a0b0'; ctx.font = '400 24px -apple-system, sans-serif';
-  ctx.fillText('Presenta este código en la puerta', cx, H - 60);
-  return cv;
+/* ===== CARTEL DE LA FIESTA (lo sube el dueño; se usa de fondo en invitaciones/PDF) ===== */
+var _cartelImg = null;
+function precargarCartel() {
+  if (state && state.config && state.config.cartel) {
+    var img = new Image();
+    img.onload = function () { _cartelImg = img; };
+    img.src = state.config.cartel;
+  } else { _cartelImg = null; }
+}
+function cargarCartelArchivo(input) {
+  var f = input.files && input.files[0];
+  if (!f) return;
+  var r = new FileReader();
+  r.onload = function () {
+    var dataUrl = String(r.result);
+    mutate(function (s) { s.config.cartel = dataUrl; });
+    precargarCartel();
+    toast('Cartel guardado');
+  };
+  r.readAsDataURL(f);
+  input.value = '';
+}
+function quitarCartel() {
+  mutate(function (s) { s.config.cartel = null; });
+  _cartelImg = null;
+  toast('Cartel quitado');
+}
+function cartelListo() {
+  return new Promise(function (resolve) {
+    if (!state.config.cartel) { resolve(null); return; }
+    if (_cartelImg && _cartelImg.complete) { resolve(_cartelImg); return; }
+    var img = new Image();
+    img.onload = function () { _cartelImg = img; resolve(img); };
+    img.onerror = function () { resolve(null); };
+    img.src = state.config.cartel;
+  });
 }
 
-/* Comparte la invitación por WhatsApp/lo que haya (Web Share); si no se puede, la descarga. */
+/* Construye la INVITACIÓN como imagen (async: espera al cartel si lo hay). */
+function canvasInvitacion(p) {
+  return cartelListo().then(function (cartel) {
+    var W = 800;
+    var cv = document.createElement('canvas');
+    var ctx;
+    var cx = W / 2;
+    var qBox = 470;             // caja del QR
+    var headerH;
+    if (cartel) {
+      headerH = Math.round(W * (cartel.height / cartel.width)); // cartel a ancho completo
+    } else {
+      headerH = 360;
+    }
+    var footerH = qBox + 210;   // QR + código + copas + pie
+    var H = headerH + footerH;
+    cv.width = W; cv.height = H;
+    ctx = cv.getContext('2d');
+    ctx.fillStyle = '#0a0a0f'; ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = 'center';
+    if (cartel) {
+      ctx.drawImage(cartel, 0, 0, W, headerH); // TU cartel real arriba
+    } else {
+      // Cabecera generada con el emblema MH si no hay cartel
+      var cy = 150, r = 110;
+      ctx.save();
+      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#0a0a0f'; ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = '#ffffff'; ctx.stroke();
+      ctx.translate(cx, cy); ctx.rotate(Math.PI / 4);
+      ctx.strokeRect(-48, -48, 96, 96);
+      ctx.restore();
+      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 50px -apple-system, sans-serif';
+      ctx.fillText('MH', cx, cy + 2);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(cx - 76, cy + 38, 152, 36);
+      ctx.fillStyle = '#0a0a0f'; ctx.font = '600 20px -apple-system, sans-serif';
+      ctx.fillText('Collective', cx, cy + 63);
+      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 40px -apple-system, sans-serif';
+      ctx.fillText(state.config.eventName, cx, 330);
+    }
+    var y = headerH + 30;
+    ctx.fillStyle = '#00d48a'; ctx.font = '700 30px -apple-system, sans-serif';
+    var titulo = p.tipo === 'vip' ? 'MESA VIP' : (p.tipo === 'invitado' ? 'INVITACIÓN' : 'ENTRADA');
+    ctx.fillText(titulo, cx, y); y += 42;
+    ctx.fillStyle = '#a0a0b0'; ctx.font = '400 28px -apple-system, sans-serif';
+    ctx.fillText(p.nombre + ' ' + p.apellido, cx, y); y += 20;
+    // QR en caja blanca
+    var qcv = document.createElement('canvas');
+    try { drawQR(qcv, p.codigoReserva, 440); } catch (e) { qcv = null; }
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(cx - qBox / 2, y, qBox, qBox);
+    if (qcv) ctx.drawImage(qcv, cx - 220, y + 15, 440, 440);
+    y += qBox + 52;
+    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 44px monospace';
+    ctx.fillText(p.codigoReserva, cx, y); y += 44;
+    var copas = consIncluidas(p);
+    if (copas > 0) {
+      ctx.fillStyle = '#b026ff'; ctx.font = '600 28px -apple-system, sans-serif';
+      ctx.fillText('Incluye ' + copas + ' consumici' + (copas === 1 ? 'ón' : 'ones'), cx, y); y += 36;
+    }
+    ctx.fillStyle = '#a0a0b0'; ctx.font = '400 22px -apple-system, sans-serif';
+    ctx.fillText('Presenta este código en la puerta', cx, H - 24);
+    return cv;
+  });
+}
+
+/* Comparte la invitación por WhatsApp (imagen). */
 function compartirInvitacion(p) {
-  var cv;
-  try { cv = canvasInvitacion(p); } catch (e) { cv = null; }
-  if (!cv) { toast('No se pudo generar la invitación'); return; }
-  try {
+  canvasInvitacion(p).then(function (cv) {
+    if (!cv) { toast('No se pudo generar la invitación'); return; }
     if (navigator.share && cv.toBlob) {
       cv.toBlob(function (blob) {
         if (!blob) { descargarCanvas(cv, p); return; }
@@ -1502,7 +1555,80 @@ function compartirInvitacion(p) {
       descargarCanvas(cv, p);
       toast('Invitación descargada: mándala por WhatsApp');
     }
-  } catch (e) { descargarCanvas(cv, p); }
+  });
+}
+
+/* ===== PDF sin librerías: cada invitación (imagen JPEG) es una página ===== */
+function _u8(str) { var a = new Uint8Array(str.length); for (var i = 0; i < str.length; i++) a[i] = str.charCodeAt(i) & 0xff; return a; }
+function _concatU8(list) {
+  var len = 0, i; for (i = 0; i < list.length; i++) len += list[i].length;
+  var out = new Uint8Array(len), off = 0;
+  for (i = 0; i < list.length; i++) { out.set(list[i], off); off += list[i].length; }
+  return out;
+}
+function _jpegDeCanvas(cv) {
+  var dataUrl = cv.toDataURL('image/jpeg', 0.85);
+  return _u8(atob(dataUrl.split(',')[1]));
+}
+function construirPdf(paginas) {
+  var chunks = [], offset = 0, offsets = [];
+  function push(u8) { chunks.push(u8); offset += u8.length; }
+  push(_u8('%PDF-1.3\n'));
+  push(new Uint8Array([0x25, 0xE2, 0xE3, 0xCF, 0xD3, 0x0A]));
+  var N = paginas.length, i;
+  var kids = []; for (i = 0; i < N; i++) kids.push((3 + i * 3) + ' 0 R');
+  offsets[1] = offset; push(_u8('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n'));
+  offsets[2] = offset; push(_u8('2 0 obj\n<< /Type /Pages /Kids [' + kids.join(' ') + '] /Count ' + N + ' >>\nendobj\n'));
+  for (i = 0; i < N; i++) {
+    var pg = paginas[i], base = 3 + i * 3, pageN = base, imgN = base + 1, contN = base + 2;
+    var content = 'q ' + pg.w + ' 0 0 ' + pg.h + ' 0 0 cm /Im0 Do Q';
+    offsets[pageN] = offset; push(_u8(pageN + ' 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + pg.w + ' ' + pg.h + '] /Resources << /XObject << /Im0 ' + imgN + ' 0 R >> >> /Contents ' + contN + ' 0 R >>\nendobj\n'));
+    offsets[imgN] = offset; push(_u8(imgN + ' 0 obj\n<< /Type /XObject /Subtype /Image /Width ' + pg.w + ' /Height ' + pg.h + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + pg.jpeg.length + ' >>\nstream\n'));
+    push(pg.jpeg); push(_u8('\nendstream\nendobj\n'));
+    offsets[contN] = offset; push(_u8(contN + ' 0 obj\n<< /Length ' + content.length + ' >>\nstream\n' + content + '\nendstream\nendobj\n'));
+  }
+  var xrefOffset = offset, totalObjs = 2 + N * 3;
+  var xref = 'xref\n0 ' + (totalObjs + 1) + '\n0000000000 65535 f \n';
+  for (var n = 1; n <= totalObjs; n++) { xref += ('0000000000' + (offsets[n] || 0)).slice(-10) + ' 00000 n \n'; }
+  push(_u8(xref));
+  push(_u8('trailer\n<< /Size ' + (totalObjs + 1) + ' /Root 1 0 R >>\nstartxref\n' + xrefOffset + '\n%%EOF'));
+  return _concatU8(chunks);
+}
+function descargarBytes(bytes, nombre, tipo) {
+  var blob = new Blob([bytes], { type: tipo });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = nombre;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+function descargarPdfInvitacion(id) {
+  var p = personaPorId(id);
+  if (!p) return;
+  toast('Generando PDF…');
+  canvasInvitacion(p).then(function (cv) {
+    var jpeg = _jpegDeCanvas(cv);
+    var pdf = construirPdf([{ jpeg: jpeg, w: cv.width, h: cv.height }]);
+    descargarBytes(pdf, 'invitacion-' + p.codigoReserva + '.pdf', 'application/pdf');
+    toast('PDF descargado');
+  });
+}
+function descargarPdfRemesa(etiqueta) {
+  var lista = state.personas.filter(function (x) { return x.remesa === etiqueta; });
+  if (!lista.length) { toast('Sin entradas en esa serie'); return; }
+  toast('Generando PDF de ' + lista.length + ' entradas…');
+  var paginas = [];
+  (function siguiente(i) {
+    if (i >= lista.length) {
+      var pdf = construirPdf(paginas);
+      descargarBytes(pdf, 'remesa-' + etiqueta.replace(/\s+/g, '_') + '.pdf', 'application/pdf');
+      toast('PDF con ' + lista.length + ' invitaciones descargado');
+      return;
+    }
+    canvasInvitacion(lista[i]).then(function (cv) {
+      paginas.push({ jpeg: _jpegDeCanvas(cv), w: cv.width, h: cv.height });
+      siguiente(i + 1);
+    });
+  })(0);
 }
 
 function compartirQR(canvas, p) {
@@ -2008,6 +2134,24 @@ function seccionLista() {
   html += '<label>Copas incluidas <input type="number" id="remesa-copas" value="1" min="0" max="20" style="width:80px"></label></div>';
   html += '<label>Nombre de la serie (lo que tú quieras)<input type="text" id="remesa-etiqueta" placeholder="Ej: Preventa Instagram, Lista Marta…"></label>';
   html += '<button type="button" data-testid="btn-crear-remesa" onclick="crearRemesa()">Crear remesa de entradas</button>';
+  // Cartel de la fiesta (para el PDF/invitaciones)
+  html += '<h3>Cartel de la fiesta</h3>';
+  html += '<p class="nota">' + (state.config.cartel ? 'Cartel cargado ✔ — sale de fondo en cada invitación y PDF.' : 'Sube tu flyer (el de DAY & NIGHT, etc.) y saldrá arriba en cada invitación y PDF.') + '</p>';
+  html += '<div class="contador"><button type="button" onclick="document.getElementById(\'cartel-archivo\').click()">' + (state.config.cartel ? 'Cambiar cartel' : 'Subir cartel') + '</button>';
+  if (state.config.cartel) html += ' <button type="button" onclick="quitarCartel()">Quitar</button>';
+  html += '<input type="file" id="cartel-archivo" accept="image/*" style="display:none" onchange="cargarCartelArchivo(this)"></div>';
+  // Series existentes con descarga de PDF completo
+  var series = {};
+  state.personas.forEach(function (x) { if (x.remesa) series[x.remesa] = (series[x.remesa] || 0) + 1; });
+  var claves = Object.keys(series);
+  if (claves.length) {
+    html += '<h3>Series creadas</h3><ul class="lista-gastos">';
+    claves.forEach(function (k) {
+      html += '<li><span><b>' + esc(k) + '</b> · ' + series[k] + ' entradas</span>' +
+        '<button type="button" data-testid="btn-pdf-remesa" onclick="descargarPdfRemesa(\'' + escJs(k) + '\')">PDF de la serie</button></li>';
+    });
+    html += '</ul>';
+  }
   html += '<h3>Carga rápida de varios</h3>';
   html += '<p class="nota">Pega una persona por línea ("Nombre Apellido") y elige su tipo:</p>';
   html += '<textarea id="lista-bulk" rows="3" style="width:100%" placeholder="Laura Pérez\nMario Sanz\n…"></textarea>';
