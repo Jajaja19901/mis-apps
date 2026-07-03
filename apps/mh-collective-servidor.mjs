@@ -213,6 +213,30 @@ function readJsonBody(req, res, onOk) {
 }
 
 // ---------- Rutas ----------
+// Service worker: hace la app instalable de verdad en Android y que funcione sin datos (offline).
+// Estrategia network-first del "shell" (la propia app); la API nunca se cachea (datos en vivo).
+const SW_JS = [
+  "var CACHE='mh-collective-v1';",
+  "self.addEventListener('install',function(e){self.skipWaiting();});",
+  "self.addEventListener('activate',function(e){e.waitUntil(self.clients.claim());});",
+  "self.addEventListener('fetch',function(e){",
+  "  var u=new URL(e.request.url);",
+  "  if(e.request.method!=='GET') return;",
+  "  if(u.pathname.indexOf('/api/')===0) return;", // datos en vivo: nunca desde caché
+  "  e.respondWith(fetch(e.request).then(function(res){",
+  "    try{var c=res.clone();caches.open(CACHE).then(function(cache){cache.put(e.request,c);});}catch(err){}",
+  "    return res;",
+  "  }).catch(function(){return caches.match(e.request).then(function(r){return r||caches.match('/');});}));",
+  "});"
+].join('\n');
+function serveSW(res) {
+  res.writeHead(200, {
+    'Content-Type': 'text/javascript; charset=utf-8',
+    'Service-Worker-Allowed': '/',
+    'Cache-Control': 'no-cache',
+  });
+  res.end(SW_JS);
+}
 function serveApp(res) {
   fs.readFile(APP_HTML_PATH, (err, data) => {
     if (err) {
@@ -325,6 +349,11 @@ const server = http.createServer((req, res) => {
   try {
     if (pathname === '/' && req.method === 'GET') {
       serveApp(res);
+      return;
+    }
+
+    if (pathname === '/sw.js' && req.method === 'GET') {
+      serveSW(res);
       return;
     }
 
