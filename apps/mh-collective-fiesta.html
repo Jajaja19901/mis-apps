@@ -12977,7 +12977,22 @@ var CONFIG = {
   ADMIN_PASSWORD: "1234",
   STUDIO_BRAND: "Incuba tu Negocio",
   STUDIO_AUTHOR: "Jaime M. M.",
-  STUDIO_URL: "#"
+  STUDIO_URL: "#",
+
+  // ===== Sincronización en la nube con Firebase =====
+  // Pega aquí la cajita "firebaseConfig" de tu proyecto (Firebase → ⚙ Configuración del proyecto
+  // → "Tus apps"). Mientras siga con los "PEGA_...", la app funciona SOLO en este móvil (sin nube).
+  // En cuanto pongas tus claves reales, TODOS los móviles que abran la misma web comparten los
+  // datos en tiempo real (accesos, caja, bonos, listas...). No hay que montar ningún servidor.
+  FIREBASE: {
+    apiKey: "PEGA_TU_API_KEY",
+    authDomain: "PEGA_TU_PROYECTO.firebaseapp.com",
+    projectId: "PEGA_TU_PROYECTO_ID",
+    appId: "PEGA_TU_APP_ID",
+    // "sala": nombre de la fiesta. Déjalo así, o cámbialo para tener varias fiestas separadas
+    // (cada "sala" es una caja/lista independiente). Todos los del equipo deben usar la MISMA.
+    sala: "principal"
+  }
 };
 
 var state = null;
@@ -13384,6 +13399,31 @@ function mutateSilent(fn) {
   save();
 }
 
+/* Adopta un estado que llega de la nube/servidor y RE-APLICA encima solo las acciones
+   locales que ese estado remoto aún no tenga (por opId). Común a los dos modos de sync
+   (servidor Node y Firebase). Conserva el perfil de ESTE móvil (rol) y repinta.
+   Devuelve cuántas acciones quedaron pendientes tras adoptar. */
+function adoptarRemoto(remoto) {
+  if (!remoto) return -1;
+  var perfilLocal = state ? state.perfilActivo : null;
+  state = remoto;
+  if (perfilLocal) state.perfilActivo = perfilLocal;
+  var pend = (window.__mhSync && window.__mhSync.pendientes) || [];
+  var quedan = [];
+  for (var i = 0; i < pend.length; i++) {
+    var p = pend[i];
+    // Si el estado remoto YA trae esta acción (su opId), no se re-aplica (no se duplica)
+    // y se saca de pendientes (ya está confirmada). Si no, se re-aplica y sigue pendiente.
+    if (opAplicada(state, p.opId)) continue;
+    try { p.fn(state); state.version = (state.version || 0) + 1; quedan.push(p); }
+    catch (e) { /* acción no re-aplicable, se descarta */ }
+  }
+  if (window.__mhSync) window.__mhSync.pendientes = quedan;
+  persistLocal();
+  renderApp();
+  return quedan.length;
+}
+
 /* ---------- Personal dinámico (llamar envuelto en mutate) ---------- */
 function setVigilantes(n) {
   n = Math.max(1, Math.min(9, Math.round(n) || 1));
@@ -13536,8 +13576,16 @@ function pedirClavePerfil(id) {
 }
 
 /* ---------- Sync (local file:// vs servidor http) ---------- */
+/* ¿Está configurado Firebase de verdad (no los "PEGA_..." de ejemplo)? */
+function firebaseConfigurado() {
+  var f = CONFIG.FIREBASE;
+  return !!(f && f.apiKey && f.projectId &&
+    String(f.apiKey).indexOf('PEGA') !== 0 && String(f.projectId).indexOf('PEGA') !== 0);
+}
 function syncEstado() {
-  if (location.protocol === 'file:') return 'Solo este dispositivo';
+  // Con Firebase la sincronización va por la nube (da igual file:// o http): el estado lo
+  // marca __mhSync como en el modo servidor.
+  if (!firebaseConfigurado() && location.protocol === 'file:') return 'Solo este dispositivo';
   var s = window.__mhSync;
   if (!s) return 'Conectando…';
   var pend = (s.pendientes || []).length;
@@ -13555,6 +13603,8 @@ function refrescarSync() {
   el.title = txt;
 }
 function initSync() {
+  // MODO NUBE (Firebase): si está configurado, manda sobre todo lo demás.
+  if (firebaseConfigurado()) { initFirebaseSync(); return; }
   if (location.protocol === 'file:') {
     window.addEventListener('storage', function (e) {
       if (e.key === LS_KEY) { load(); renderApp(); }
@@ -13573,25 +13623,7 @@ function initSync() {
     var srvVersion = 0;
     var pushing = false;
 
-    function adoptar(remoto) {
-      if (!remoto) return;
-      var perfilLocal = state ? state.perfilActivo : null;
-      state = remoto;
-      if (perfilLocal) state.perfilActivo = perfilLocal;
-      var pend = window.__mhSync.pendientes;
-      var quedan = [];
-      for (var i = 0; i < pend.length; i++) {
-        var p = pend[i];
-        // Si el estado remoto YA trae esta acción (su opId), el servidor la incorporó:
-        // no se re-aplica (no se duplica) y se saca de pendientes (ya está confirmada).
-        if (opAplicada(state, p.opId)) continue;
-        try { p.fn(state); state.version = (state.version || 0) + 1; quedan.push(p); }
-        catch (e) { /* acción no re-aplicable, se descarta */ }
-      }
-      window.__mhSync.pendientes = quedan;
-      persistLocal();
-      renderApp();
-    }
+    function adoptar(remoto) { adoptarRemoto(remoto); } // lógica común (idempotente por opId)
 
     function pushLoop(intentos) {
       if (pushing) return;
@@ -13671,6 +13703,133 @@ function initSync() {
     };
     es.onerror = function () { /* silencioso: sigue en local */ };
   } catch (err) { /* cualquier fallo de red: seguir solo con localStorage */ }
+}
+
+/* ============================================================================
+   MODO NUBE con FIREBASE (Firestore + login anónimo).
+   - No hay servidor que montar: la app habla directa con tu Firebase.
+   - Todo el estado vive en un único documento (colección "mh_collective",
+     doc = la "sala"). Se guarda como texto JSON para no chocar con los límites
+     de Firestore (1 documento = campos anidados).
+   - Concurrencia: cada subida es una TRANSACCIÓN de Firestore (lee lo remoto,
+     re-aplica encima solo tus acciones nuevas por opId —idempotente— y escribe).
+     Firestore reintenta la transacción solo si hay choque → nadie pierde nada.
+   - Tiempo real: onSnapshot reparte cada cambio a todos al instante.
+   - Auto-reconexión: al volver a la app o recuperar internet se re-sincroniza,
+     y con la caché offline no se cuelga aunque el wifi vaya mal.
+   ============================================================================ */
+var FB_VER = '10.12.5';
+function _cargarScript(src) {
+  return new Promise(function (resolve, reject) {
+    var s = document.createElement('script');
+    s.src = src; s.async = false;
+    s.onload = resolve;
+    s.onerror = function () { reject(new Error('No se pudo cargar ' + src)); };
+    document.head.appendChild(s);
+  });
+}
+/* Carga el SDK de Firebase (compat) desde su CDN, solo cuando hace falta. Si ya hay
+   un objeto firebase (SDK real o inyectado en pruebas), no vuelve a cargar nada. */
+function cargarFirebaseSDK() {
+  if (window.firebase && window.firebase.firestore) return Promise.resolve();
+  var base = 'https://www.gstatic.com/firebasejs/' + FB_VER + '/';
+  return _cargarScript(base + 'firebase-app-compat.js')
+    .then(function () { return _cargarScript(base + 'firebase-auth-compat.js'); })
+    .then(function () { return _cargarScript(base + 'firebase-firestore-compat.js'); });
+}
+
+function initFirebaseSync() {
+  // __mhSync se prepara YA (síncrono) para que las acciones hechas mientras carga el SDK
+  // se encolen en pendientes y se suban en cuanto haya conexión (no se pierde ninguna).
+  window.__mhSync = { pendientes: (window.__mhSync && window.__mhSync.pendientes) || [], error: false, push: function () { pushFirebase(0); } };
+
+  var sala = String((CONFIG.FIREBASE && CONFIG.FIREBASE.sala) || 'principal');
+  var db = null, docRef = null, srvVersion = -1, pushing = false, listo = false;
+
+  // Prepara el texto a guardar. Blindaje de tamaño: Firestore limita el documento a ~1 MB;
+  // si el estado pesa demasiado (fotos grandes en logo/cartel), se sube TODO menos esas
+  // imágenes (se quedan en cada móvil) para que la sincronización nunca falle.
+  function serializarEstado(M) {
+    var json;
+    try { json = JSON.stringify(M); } catch (e) { json = '{}'; }
+    if (json.length > 900000) {
+      try {
+        var copia = JSON.parse(json);
+        if (copia.config) { copia.config.logo = null; copia.config.cartel = null; }
+        json = JSON.stringify(copia);
+        if (typeof toast === 'function') toast('⚠️ Imagen muy grande: se sincroniza todo menos el logo/cartel.');
+      } catch (e2) {}
+    }
+    return json;
+  }
+
+  function reSync() {
+    // Al volver a primer plano o recuperar internet: si hay cambios sin subir, empújalos ya.
+    if (listo && !pushing && window.__mhSync.pendientes.length) pushFirebase(0);
+    refrescarSync();
+  }
+
+  function pushFirebase(intentos) {
+    if (!listo || pushing) return;
+    if (!window.__mhSync.pendientes.length) { window.__mhSync.error = false; refrescarSync(); return; }
+    pushing = true;
+    db.runTransaction(function (t) {
+      return t.get(docRef).then(function (snap) {
+        var remoto = (snap && snap.exists) ? (snap.data() || {}) : {};
+        var base;
+        try { base = remoto.data ? JSON.parse(remoto.data) : JSON.parse(JSON.stringify(state)); }
+        catch (e) { base = JSON.parse(JSON.stringify(state)); }
+        // Re-aplico sobre lo remoto SOLO mis acciones que aún no estén (idempotente por opId).
+        (window.__mhSync.pendientes || []).forEach(function (p) {
+          if (opAplicada(base, p.opId)) return;
+          try { p.fn(base); base.version = (base.version || 0) + 1; } catch (e) {}
+        });
+        t.set(docRef, { data: serializarEstado(base), version: (remoto.version || 0) + 1, ts: Date.now() });
+      });
+    }).then(function () {
+      pushing = false; window.__mhSync.error = false; refrescarSync();
+      // No vaciamos pendientes aquí: el onSnapshot con el estado nuevo las limpiará al adoptar
+      // (idempotente). Por si el snapshot tardara, reintenta si aún quedaran.
+      if (window.__mhSync.pendientes.length) setTimeout(function () { if (!pushing) pushFirebase(0); }, 1500);
+    }).catch(function (e) {
+      pushing = false; window.__mhSync.error = true; refrescarSync();
+      if (window.__mhSync.pendientes.length) setTimeout(function () { pushFirebase((intentos || 0) + 1); }, 3000);
+    });
+  }
+
+  cargarFirebaseSDK().then(function () {
+    if (!window.firebase.apps || !window.firebase.apps.length) window.firebase.initializeApp(CONFIG.FIREBASE);
+    db = window.firebase.firestore();
+    // Caché offline: la app sigue funcionando sin datos y reenvía al reconectar.
+    try { db.enablePersistence && db.enablePersistence({ synchronizeTabs: true }).catch(function () {}); } catch (e) {}
+    docRef = db.collection('mh_collective').doc(sala);
+    return window.firebase.auth().signInAnonymously();
+  }).then(function () {
+    listo = true;
+    // Escuchador en tiempo real: cada cambio (propio o de otro móvil) llega aquí.
+    docRef.onSnapshot(function (snap) {
+      try {
+        if (!snap || !snap.exists) { if (listo && !pushing) pushFirebase(0); return; } // doc vacío: sembramos
+        var d = snap.data() || {};
+        if (typeof d.version === 'number') srvVersion = d.version;
+        if (d.data) adoptarRemoto(JSON.parse(d.data));
+      } catch (e) { /* snapshot raro: ignorar */ }
+    }, function () { window.__mhSync.error = true; refrescarSync(); });
+
+    // Auto-reconexión: volver a la app / recuperar señal → re-sincroniza al momento.
+    window.addEventListener('online', reSync);
+    window.addEventListener('focus', reSync);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) reSync(); });
+    // Latido: cada 6 s reintenta lo que quede sin subir y refresca el indicador.
+    setInterval(function () { if (!pushing && window.__mhSync.pendientes.length) pushFirebase(0); refrescarSync(); }, 6000);
+
+    if (window.__mhSync.pendientes.length) pushFirebase(0);
+    refrescarSync();
+  }).catch(function (e) {
+    window.__mhSync.error = true;
+    try { if (typeof toast === 'function') toast('⚠️ No se pudo conectar con Firebase. Revisa la config o tu internet.'); } catch (e2) {}
+    refrescarSync();
+  });
 }
 
 /* El token del servidor viaja en el FRAGMENTO del enlace (…/#t=TOKEN). El navegador NO lo manda
