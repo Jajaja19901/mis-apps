@@ -173,6 +173,19 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .panel form label{display:block;margin-bottom:10px;color:var(--text-dim);font-size:.9375rem}
 .panel form input,.panel form select{display:block;width:100%;margin-top:4px;padding:10px 12px;border-radius:var(--radius-btn);border:1px solid var(--border);background:var(--bg);color:var(--text)}
 .panel textarea{padding:10px 12px;border-radius:var(--radius-btn);border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:inherit}
+/* Acordeón del panel del dueño: cada bloque se abre/cierra solo, sin recargar nada */
+.acc{border:1px solid var(--border);border-radius:var(--radius-card);margin-bottom:10px;background:var(--surface);overflow:hidden}
+.acc-sum{list-style:none;cursor:pointer;padding:14px 16px;display:flex;align-items:center;min-height:56px;-webkit-tap-highlight-color:transparent}
+.acc-sum::-webkit-details-marker{display:none}
+.acc-ttl{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.acc-t{font-weight:700;font-size:1rem;color:var(--text)}
+.acc-sub{font-weight:400;font-size:.8rem;color:var(--text-dim);line-height:1.3}
+.acc-sum::after{content:'▾';color:var(--text-dim);transition:transform .2s;font-size:1.1rem;padding-left:12px}
+.acc[open]>.acc-sum::after{transform:rotate(180deg)}
+.acc[open]>.acc-sum{border-bottom:1px solid var(--border);background:var(--bg)}
+.acc-body{padding:14px 16px 6px}
+.acc-body .panel{border:none;padding:0;margin:0;background:transparent}
+.acc-body .panel>h2{display:none}
 .contador{display:flex;gap:10px;align-items:center;margin-bottom:10px}
 .contador button{min-width:44px}
 .switch{display:flex;align-items:center;gap:10px;margin-bottom:8px;color:var(--text)}
@@ -280,7 +293,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
     { "expectVisible": "[data-testid=\"kpi-caja\"]" },
-    { "expect": "960" } ]},
+    { "expect": "360" } ]},
   { "name": "Cobrar pendiente de mesa VIP", "steps": [
     { "goto": "#/puerta" },
     { "fill": { "sel": "#buscador", "value": "Natalia" } },
@@ -288,7 +301,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "goto": "#/dueno" },
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
-    { "expect": "1040" } ]},
+    { "expect": "440" } ]},
   { "name": "Alta express entra directa", "steps": [
     { "goto": "#/puerta" },
     { "click": "[data-testid=\"fab-express\"]" },
@@ -328,7 +341,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "clickText": "Dueño" },
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
-    { "expect": "957" } ]},
+    { "expect": "357" } ]},
   { "name": "Carritos aislados entre camareros", "steps": [
     { "clickText": "Camarero 1" },
     { "click": "[data-testid=\"prod-copa\"]" },
@@ -344,14 +357,16 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "expectVisible": "[data-testid=\"prod-copa\"]" },
     { "expectGone": "#buscador" },
     { "expectGone": "[data-testid=\"kpi-caja\"]" } ]},
-  { "name": "+1 entrada a RRPP Dani con log y liquidación", "steps": [
+  { "name": "Añadir RRPP por nombre y sumarle una venta", "steps": [
     { "goto": "#/dueno" },
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
     { "clickText": "Dinero" },
-    { "click": "[data-testid=\"rrpp-mas-dani\"]" },
+    { "fill": { "sel": "#rrpp-nuevo", "value": "Dani" } },
+    { "submit": "[data-testid=\"rrpp-form\"]" },
     { "expect": "RRPP Dani" },
-    { "expect": "260" } ]},
+    { "click": "[data-testid=\"rrpp-mas-dani\"]" },
+    { "expect": "20 €" } ]},
   { "name": "Subir vigilantes crea Vigilante 3", "steps": [
     { "goto": "#/dueno" },
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
@@ -378,7 +393,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "expect": "Hielo extra" },
     { "clickText": "Resumen" },
     { "expectVisible": "[data-testid=\"kpi-beneficio\"]" },
-    { "expect": "803" } ]},
+    { "expect": "203" } ]},
   { "name": "Venta de barra descuenta stock visible", "steps": [
     { "clickText": "Camarero 1" },
     { "expectHash": "#/barra" },
@@ -414,6 +429,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "fill": { "sel": "#remesa-etiqueta", "value": "RegTest" } },
     { "click": "[data-testid=\"btn-crear-remesa\"]" },
     { "fill": { "sel": "#ent-busca", "value": "RegTest" } },
+    { "click": "[data-testid=\"acc-creadas\"]" },
     { "clickText": "Ver / QR" },
     { "expectVisible": "[data-testid=\"qr-modal\"]" },
     { "expect": "Sin pagar (25 €)" },
@@ -12881,21 +12897,9 @@ function seedProductos() {
 }
 
 function seedRrpp() {
-  var datos = [
-    ["dani", "Dani", 12],
-    ["laura", "Laura", 8],
-    ["carlos", "Carlos", 5],
-    ["marta", "Marta", 0],
-    ["alex", "Álex", 15],
-    ["nuria", "Nuria", 3],
-    ["sergio", "Sergio", 0],
-    ["paula", "Paula", 7],
-    ["ivan", "Iván", 10],
-    ["cris", "Cris", 0]
-  ];
-  return datos.map(function (d) {
-    return { id: "rrpp-" + d[0], slug: d[0], nombre: d[1], vendidas: d[2], precio: 20, comision: 10 };
-  });
+  // Empieza VACÍO: el dueño añade sus propios promotores por nombre desde el panel.
+  // (Antes venían 10 de ejemplo que no servían y ocupaban toda la pantalla.)
+  return [];
 }
 
 function seedPersonas() {
@@ -13038,6 +13042,12 @@ function migrar(s) {
   if (!s.perfilActivo) s.perfilActivo = "vig-1";
   if (!Array.isArray(s.personas)) s.personas = [];
   if (!Array.isArray(s.rrpp)) s.rrpp = seedRrpp();
+  // Limpieza de los 10 RRPP de ejemplo antiguos: solo si el dueño no metió ninguno suyo
+  // (si todos son de la demo original, se vacían; si añadió alguno propio, se respetan todos).
+  var DEMO_RRPP = ["dani", "laura", "carlos", "marta", "alex", "nuria", "sergio", "paula", "ivan", "cris"];
+  if (s.rrpp.length >= 5 && s.rrpp.every(function (r) { return DEMO_RRPP.indexOf(r.slug) >= 0; })) {
+    s.rrpp = [];
+  }
 
   if (!s.carritos || typeof s.carritos !== "object") s.carritos = {};
   ensureClavesPerfil(s.carritos, "cam", s.config.nCamareros, function () { return []; });
@@ -14631,6 +14641,18 @@ var CATEGORIAS_GASTO = ["Bebida", "Personal", "Local", "DJ-Música", "Otros"];
 var MODULO_LABEL = { qr: "QR de entradas", cierre: "Cierre e informes", gastos: "Gastos", stock: "Stock de barra" };
 var duenoMostrandoConfirmarCierre = false;
 
+/* Acordeón: recuerda qué bloques están abiertos para que un re-render no los cierre.
+   Abrir/cerrar NO repinta nada (solo guarda el estado), así que nunca roba el foco. */
+var _acc = {};
+function accToggle(id, el) { _acc[id] = el.open; }
+function acc(id, titulo, sub, contenido) {
+  return '<details class="acc"' + (_acc[id] ? ' open' : '') + ' ontoggle="accToggle(\'' + id + '\',this)">' +
+    '<summary class="acc-sum" data-testid="acc-' + id + '"><span class="acc-ttl">' +
+    '<span class="acc-t">' + esc(titulo) + '</span>' +
+    (sub ? '<span class="acc-sub">' + esc(sub) + '</span>' : '') +
+    '</span></summary><div class="acc-body">' + contenido + '</div></details>';
+}
+
 var _duenoTab = 'resumen';
 function duenoTab(id) {
   _duenoTab = id;
@@ -14648,8 +14670,13 @@ function renderDueno() {
           seccionKpis() + seccionRecaudacion();
       } },
     { id: 'entradas', label: '🎟️ Entradas', build: function () {
-        return intro('Crea entradas e invitaciones y consúltalas. Abajo del todo, tu lista de "Entradas creadas" con su QR.') +
-          seccionFases() + seccionLista() + seccionEntradas();
+        return intro('Toca cada bloque para abrirlo. Lo importante primero: entradas con nombre y entradas generales (remesas).') +
+          acc('per', '🎟️ Entradas con nombre', 'Invitados y entradas nominales, una a una (con nombre y apellido)', seccionPersonales()) +
+          acc('gen', '🎫 Entradas generales (sin nombre)', 'Remesas: lotes numerados para vender o repartir, sin nombre', seccionGenerales()) +
+          acc('fases', '🗂️ Fases de venta', 'Precios por fase: 1ª, 2ª, 3ª… como las fiestas grandes', seccionFases()) +
+          acc('cartel', '🖼️ Cartel de la fiesta', 'La imagen que sale de fondo en cada entrada y PDF', seccionCartel()) +
+          acc('creadas', '📋 Entradas creadas', 'Todas las entradas ya creadas, con su QR y su PDF', seccionEntradas()) +
+          acc('backup', '💾 Copia de seguridad', 'Guardar la lista en un archivo y pasarla a otro móvil', seccionBackup());
       } },
     { id: 'fiesta', label: '💶 Dinero', build: function () {
         return intro('Lo que mueve la caja durante la fiesta: promotores (RRPP), bonos, gastos y stock de barra.') +
@@ -14901,10 +14928,11 @@ function nuevoCodigoLista(s) {
   return "MH-5" + String(s.personas.length).padStart(2, "0");
 }
 
-function seccionLista() {
+/* ENTRADAS CON NOMBRE (personales): invitados y entradas nominales, una a una o pegando varias. */
+function seccionPersonales() {
   var fuera = state.personas.filter(function (p) { return !p.dentro; }).length;
-  var html = '<section class="panel" data-testid="seccion-lista"><h2>Lista de invitados y entradas anticipadas</h2>';
-  html += '<p class="nota">Carga aquí ANTES de la fiesta a todo el que ya tiene entrada o invitación. Cada uno recibe su código y QR para mandar por WhatsApp. En la lista hay ' + state.personas.length + ' personas (' + fuera + ' por llegar).</p>';
+  var html = '<section class="panel" data-testid="seccion-personales"><h2>Entradas con nombre</h2>';
+  html += '<p class="nota">Para gente concreta: pones <b>nombre y apellido</b> y le sale su código y QR para mandar por WhatsApp. En la lista hay ' + state.personas.length + ' personas (' + fuera + ' por llegar).</p>';
   html += '<form id="listaForm" onsubmit="return duenoAnadirLista(event)">';
   html += '<label>Nombre<input type="text" id="lista-nombre" required></label>';
   html += '<label>Apellido<input type="text" id="lista-apellido"></label>';
@@ -14920,8 +14948,22 @@ function seccionLista() {
   html += '</span>';
   html += '<button type="submit" class="btn-primary">Añadir a la lista (crea su QR)</button>';
   html += '</form>';
-  html += '<h3>Remesas de entradas (con QR para enviar)</h3>';
-  html += '<p class="nota">Crea de golpe un lote de entradas numeradas, cada una con su QR único. "Ya pagadas" suman a caja; "para vender" las marcas pagadas cuando te llegue el Bizum y envías su QR.</p>';
+  html += '<h3>Carga rápida de varios</h3>';
+  html += '<p class="nota">Pega una persona por línea ("Nombre Apellido") y elige su tipo:</p>';
+  html += '<textarea id="lista-bulk" rows="3" style="width:100%" placeholder="Laura Pérez\nMario Sanz\n…"></textarea>';
+  html += '<div class="contador"><select id="lista-bulk-tipo">';
+  html += '<option value="invitado">Invitados (gratis)</option>';
+  html += '<option value="taquilla-pagada">Entradas ya pagadas</option>';
+  html += '<option value="taquilla-puerta">Pagarán en puerta</option>';
+  html += '</select> <button type="button" data-testid="lista-bulk-btn" onclick="duenoAnadirBulk()">Añadir todos</button></div>';
+  html += '</section>';
+  return html;
+}
+
+/* ENTRADAS GENERALES (sin nombre): remesas, lotes numerados para vender o repartir. */
+function seccionGenerales() {
+  var html = '<section class="panel" data-testid="seccion-generales"><h2>Entradas generales (sin nombre)</h2>';
+  html += '<p class="nota">Sin nombre: creas de golpe un <b>lote numerado</b> de entradas, cada una con su QR único. "Ya pagadas" suman a caja; "para vender" las marcas pagadas cuando te llegue el Bizum y envías su QR.</p>';
   // Fase: al elegirla, coge su precio automáticamente. Los valores se leen de _remForm
   // (lo que el dueño ya tecleó) para que un re-render no los pierda.
   var faseAct = faseActiva();
@@ -14949,12 +14991,6 @@ function seccionLista() {
   html += '<label>Copas incluidas <input type="number" id="remesa-copas" value="' + esc(copasVal) + '" min="0" max="20" style="width:80px" oninput="_remSet(\'copas\', this.value)"></label></div>';
   html += '<label>Nombre de la serie (lo que tú quieras)<input type="text" id="remesa-etiqueta" value="' + esc(etiqVal) + '" placeholder="Ej: Preventa Instagram, Lista Marta…" oninput="_remSet(\'etiqueta\', this.value)"></label>';
   html += '<button type="button" data-testid="btn-crear-remesa" onclick="crearRemesa()">Crear remesa de entradas</button>';
-  // Cartel de la fiesta (para el PDF/invitaciones)
-  html += '<h3>Cartel de la fiesta</h3>';
-  html += '<p class="nota">' + (state.config.cartel ? 'Cartel cargado ✔ — sale de fondo en cada invitación y PDF.' : 'Sube tu flyer (el de DAY & NIGHT, etc.) y saldrá arriba en cada invitación y PDF.') + '</p>';
-  html += '<div class="contador"><button type="button" onclick="document.getElementById(\'cartel-archivo\').click()">' + (state.config.cartel ? 'Cambiar cartel' : 'Subir cartel') + '</button>';
-  if (state.config.cartel) html += ' <button type="button" onclick="quitarCartel()">Quitar</button>';
-  html += '<input type="file" id="cartel-archivo" accept="image/*" style="display:none" onchange="cargarCartelArchivo(this)"></div>';
   // Series existentes con descarga de PDF completo
   var series = {};
   state.personas.forEach(function (x) { if (x.remesa) series[x.remesa] = (series[x.remesa] || 0) + 1; });
@@ -14968,15 +15004,24 @@ function seccionLista() {
     });
     html += '</ul>';
   }
-  html += '<h3>Carga rápida de varios</h3>';
-  html += '<p class="nota">Pega una persona por línea ("Nombre Apellido") y elige su tipo:</p>';
-  html += '<textarea id="lista-bulk" rows="3" style="width:100%" placeholder="Laura Pérez\nMario Sanz\n…"></textarea>';
-  html += '<div class="contador"><select id="lista-bulk-tipo">';
-  html += '<option value="invitado">Invitados (gratis)</option>';
-  html += '<option value="taquilla-pagada">Entradas ya pagadas</option>';
-  html += '<option value="taquilla-puerta">Pagarán en puerta</option>';
-  html += '</select> <button type="button" data-testid="lista-bulk-btn" onclick="duenoAnadirBulk()">Añadir todos</button></div>';
-  html += '<h3>Copia de seguridad / pasar la lista a otro móvil</h3>';
+  html += '</section>';
+  return html;
+}
+
+/* CARTEL de la fiesta (fondo de las invitaciones/PDF). */
+function seccionCartel() {
+  var html = '<section class="panel" data-testid="seccion-cartel"><h2>Cartel de la fiesta</h2>';
+  html += '<p class="nota">' + (state.config.cartel ? 'Cartel cargado ✔ — sale de fondo en cada invitación y PDF.' : 'Sube tu flyer (el de DAY & NIGHT, etc.) y saldrá arriba en cada invitación y PDF.') + '</p>';
+  html += '<div class="contador"><button type="button" onclick="document.getElementById(\'cartel-archivo\').click()">' + (state.config.cartel ? 'Cambiar cartel' : 'Subir cartel') + '</button>';
+  if (state.config.cartel) html += ' <button type="button" onclick="quitarCartel()">Quitar</button>';
+  html += '<input type="file" id="cartel-archivo" accept="image/*" style="display:none" onchange="cargarCartelArchivo(this)"></div>';
+  html += '</section>';
+  return html;
+}
+
+/* COPIA DE SEGURIDAD: exportar/importar la lista para pasarla a otro móvil. */
+function seccionBackup() {
+  var html = '<section class="panel" data-testid="seccion-backup"><h2>Copia de seguridad</h2>';
   html += '<div class="contador">';
   html += '<button type="button" data-testid="btn-exportar" onclick="exportarDatos()">Guardar datos (archivo)</button> ';
   html += '<button type="button" data-testid="btn-importar" onclick="document.getElementById(\'importar-archivo\').click()">Cargar datos</button>';
@@ -15002,12 +15047,10 @@ var _entBusca = '';
 var _remForm = { cantidad: null, estado: null, precio: null, copas: null, etiqueta: null, faseId: null };
 function _remSet(campo, valor) { _remForm[campo] = valor; }
 function seccionEntradas() {
-  var todas = state.personas.slice();
+  var series = {};
+  state.personas.forEach(function (x) { if (x.remesa) series[x.remesa] = 1; });
   var html = '<section class="panel" data-testid="seccion-entradas"><h2>Entradas creadas</h2>';
   html += '<p class="nota">Toca una entrada para ver su QR, compartirla, sacar su PDF o marcarla pagada.</p>';
-  // filtro
-  var series = {};
-  todas.forEach(function (x) { if (x.remesa) series[x.remesa] = 1; });
   html += '<div class="contador"><select id="ent-filtro" onchange="entSetFiltro(this.value)">';
   [['todas', 'Todas'], ['pendientes', 'Solo pendientes de pago'], ['pagadas', 'Solo pagadas']].forEach(function (o) {
     html += '<option value="' + o[0] + '"' + (_entFiltro === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
@@ -15017,10 +15060,17 @@ function seccionEntradas() {
   });
   html += '</select></div>';
   html += '<input type="text" id="ent-busca" placeholder="Buscar nombre o código" value="' + esc(_entBusca) + '" oninput="entBuscar(this.value)" style="width:100%;margin:8px 0">';
+  // La lista va en su propio contenedor: al buscar/filtrar solo se repinta ESTO, nunca el
+  // input de arriba, así el móvil no cierra el teclado ni pierdes el foco.
+  html += '<div id="ent-lista">' + entradasListaHTML() + '</div>';
+  html += '</section>';
+  return html;
+}
+function entradasListaHTML() {
   var lista = entradasFiltradas();
-  html += '<p class="nota">' + lista.length + ' entradas.' +
+  var html = '<p class="nota">' + lista.length + ' entradas.' +
     (lista.length ? ' <button type="button" class="btn-mini-borrar" data-testid="btn-borrar-filtradas" onclick="duenoBorrarEntradasFiltro()">Borrar las ' + lista.length + ' que se ven</button>' : '') + '</p>';
-  if (!lista.length) { html += '<p class="lista-vacia">Sin entradas con este filtro.</p></section>'; return html; }
+  if (!lista.length) return html + '<p class="lista-vacia">Sin entradas con este filtro.</p>';
   var tope = 80;
   html += '<ul class="lista-entradas">';
   lista.slice(0, tope).forEach(function (p) {
@@ -15038,7 +15088,6 @@ function seccionEntradas() {
   });
   html += '</ul>';
   if (lista.length > tope) html += '<p class="nota">Mostrando las primeras ' + tope + '. Usa el buscador o el filtro para acotar.</p>';
-  html += '</section>';
   return html;
 }
 /* Filtro reutilizable de "Entradas creadas" (lo usan la lista y el borrado en bloque). */
@@ -15071,18 +15120,12 @@ function duenoBorrarEntradasFiltro() {
   });
   toast(ids.length + ' entradas borradas');
 }
-function entSetFiltro(v) { _entFiltro = v; renderDueno(); }
-function entBuscar(v) {
-  _entBusca = v;
-  // repinta solo esta sección para no perder el foco del buscador
-  var sec = document.querySelector('[data-testid="seccion-entradas"]');
-  if (sec) {
-    var tmp = document.createElement('div'); tmp.innerHTML = seccionEntradas();
-    sec.parentNode.replaceChild(tmp.firstChild, sec);
-    var inp = document.getElementById('ent-busca');
-    if (inp) { inp.focus(); try { inp.setSelectionRange(inp.value.length, inp.value.length); } catch (e) {} }
-  }
+function _actualizarEntLista() {
+  var cont = document.getElementById('ent-lista');
+  if (cont) cont.innerHTML = entradasListaHTML();
 }
+function entSetFiltro(v) { _entFiltro = v; _actualizarEntLista(); }
+function entBuscar(v) { _entBusca = v; _actualizarEntLista(); }
 
 function duenoAnadirLista(ev) {
   if (ev && ev.preventDefault) ev.preventDefault();
@@ -15353,10 +15396,19 @@ function duenoToggleAccesoAuto() {
 /* ---------- 5. RRPP ---------- */
 
 function seccionRrpp() {
-  var rrpp = state.rrpp;
-  var html = '<section class="panel" data-testid="rrpp"><h2>Gestión de RRPP / Promotores</h2>';
-  html += '<table class="tabla-rrpp"><thead><tr><th>RRPP</th><th>Vendidas</th><th>Precio</th><th>Comisión</th>' +
-    '<th>Total</th><th>Comisión €</th><th>Neto</th></tr></thead><tbody>';
+  var rrpp = state.rrpp || [];
+  var html = '<section class="panel" data-testid="rrpp"><h2>RRPP / Promotores</h2>';
+  html += '<p class="nota">Añade a tus promotores por nombre y apúntales las entradas que venden. Empiezas sin ninguno: mete solo los tuyos.</p>';
+  // Alta de promotor (input propio, recordado por el navegador; no repinta al teclear).
+  html += '<form data-testid="rrpp-form" onsubmit="return duenoAnadirRrpp(event)"><div class="contador">';
+  html += '<input type="text" id="rrpp-nuevo" placeholder="Nombre del promotor" style="flex:1" required>';
+  html += '<button type="submit" class="btn-primary" data-testid="btn-add-rrpp" style="flex:0 0 auto">➕ Añadir</button></div></form>';
+  if (!rrpp.length) {
+    html += '<p class="lista-vacia">Aún no has añadido promotores. Escribe un nombre arriba y pulsa "Añadir".</p></section>';
+    return html;
+  }
+  html += '<div style="overflow-x:auto"><table class="tabla-rrpp"><thead><tr><th>RRPP</th><th>Vendidas</th><th>Precio</th><th>Comisión</th>' +
+    '<th>Total</th><th>Comisión €</th><th>Neto</th><th></th></tr></thead><tbody>';
   var totVend = 0, totTotal = 0, totCom = 0, totNeto = 0;
   rrpp.forEach(function (r) {
     var total = r.vendidas * r.precio;
@@ -15373,12 +15425,44 @@ function seccionRrpp() {
     html += '<td><input type="number" id="rrpp-comision-' + esc(r.slug) + '" value="' + esc(r.comision) +
       '" min="0" onchange="duenoRrppCampo(\'' + r.slug + '\',\'comision\',this.value)"></td>';
     html += '<td>' + esc(money(total)) + '</td><td>' + esc(money(com)) + '</td><td>' + esc(money(neto)) + '</td>';
+    html += '<td><button type="button" class="btn-mini-borrar" data-testid="rrpp-borrar-' + esc(r.slug) + '" onclick="duenoBorrarRrpp(\'' + escJs(r.slug) + '\')">✕</button></td>';
     html += '</tr>';
   });
   html += '</tbody><tfoot><tr data-testid="rrpp-totales"><td>Total</td><td>' + esc(totVend) + '</td><td></td><td></td>' +
-    '<td>' + esc(money(totTotal)) + '</td><td>' + esc(money(totCom)) + '</td><td>' + esc(money(totNeto)) + '</td></tr></tfoot>';
-  html += '</table></section>';
+    '<td>' + esc(money(totTotal)) + '</td><td>' + esc(money(totCom)) + '</td><td>' + esc(money(totNeto)) + '</td><td></td></tr></tfoot>';
+  html += '</table></div></section>';
   return html;
+}
+
+/* Slug único a partir del nombre (para los data-testid y para localizar al promotor). */
+function rrppSlug(nombre) {
+  var base = String(nombre).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'rrpp';
+  var slug = base, n = 2, usados = {};
+  (state.rrpp || []).forEach(function (r) { usados[r.slug] = true; });
+  while (usados[slug]) { slug = base + '-' + n; n++; }
+  return slug;
+}
+function duenoAnadirRrpp(ev) {
+  if (ev && ev.preventDefault) ev.preventDefault();
+  var inp = document.getElementById('rrpp-nuevo');
+  var nombre = (inp && inp.value || '').trim();
+  if (!nombre) { toast('Escribe un nombre'); return false; }
+  var slug = rrppSlug(nombre);
+  mutate(function (s) {
+    if (!Array.isArray(s.rrpp)) s.rrpp = [];
+    s.rrpp.push({ id: 'rrpp-' + slug, slug: slug, nombre: nombre, vendidas: 0, precio: s.config.precioEntrada || 0, comision: 0 });
+    addLog('añadió al RRPP ' + nombre, 'rrpp');
+  });
+  toast('Promotor añadido');
+  return false;
+}
+function duenoBorrarRrpp(slug) {
+  mutate(function (s) {
+    var i = (s.rrpp || []).findIndex(function (x) { return x.slug === slug; });
+    if (i >= 0) { addLog('quitó al RRPP ' + s.rrpp[i].nombre, 'rrpp'); s.rrpp.splice(i, 1); }
+  });
+  toast('Promotor quitado');
 }
 
 function duenoRrppVendidas(slug, delta) {
