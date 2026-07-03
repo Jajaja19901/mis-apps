@@ -40,11 +40,14 @@ p{margin:0 0 .75rem;color:var(--text-dim)}
 .chip-rol{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:var(--radius-pill);padding:6px 12px;font-size:.8125rem;cursor:pointer;min-height:36px}
 .chip-rol.activo{background:var(--neon-verde);color:var(--bg);border-color:var(--neon-verde)}
 #topbar [data-testid="sync-estado"]{font-size:.75rem;color:var(--text-dim);flex-shrink:0;white-space:nowrap}
+#topbar [data-testid="sync-estado"].sync-ok{color:var(--neon-verde)}
+#topbar [data-testid="sync-estado"].sync-mal{color:#ff5c6c}
 #btnInstalar{background:transparent;border:1px solid var(--border);color:var(--text);border-radius:var(--radius-btn);padding:6px 10px;cursor:pointer;font-size:.75rem;flex-shrink:0;white-space:nowrap;min-height:40px}
 /* En pantallas estrechas, el estado de sync se vuelve un puntito de color (verde=sincronizado) */
 @media (max-width:560px){
   #topbar [data-testid="sync-estado"]{font-size:0;width:10px;height:10px;border-radius:50%;background:var(--text-dim)}
   #topbar [data-testid="sync-estado"].sync-ok{background:var(--neon-verde)}
+  #topbar [data-testid="sync-estado"].sync-mal{background:#ff5c6c}
   #btnInstalar{font-size:.7rem;padding:5px 8px}
 }
 /* Buscador y filtros */
@@ -478,6 +481,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "click": "[data-testid=\"rol-dueno\"]" },
     { "expectVisible": "#pin-dueno" },
     { "expectGone": "[data-testid=\"kpi-caja\"]" } ]},
+  { "name": "El panel tiene un campo de contraseña por cada trabajador", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Ajustes" },
+    { "expectVisible": "#clave-vig-1" },
+    { "expectVisible": "#clave-cam-1" } ]},
   { "name": "Etiqueta de remesa con comillas se trata como texto (no XSS)", "steps": [
     { "goto": "#/dueno" },
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
@@ -13027,6 +13037,7 @@ function seedState() {
       precioMesaVip: CONFIG.PRECIO_MESA_VIP,
       nVigilantes: 2,
       nCamareros: 2,
+      claves: {}, // contraseña propia de cada trabajador (vig-1, cam-2…); vacío = sin contraseña
       modulos: { qr: true, cierre: true, gastos: true, stock: true },
       productos: seedProductos(),
       umbralStock: 10,
@@ -13090,6 +13101,7 @@ function migrar(s) {
   if (s.config.precioMesaVip === undefined) s.config.precioMesaVip = CONFIG.PRECIO_MESA_VIP;
   if (s.config.nVigilantes === undefined) s.config.nVigilantes = 2;
   if (s.config.nCamareros === undefined) s.config.nCamareros = 2;
+  if (!s.config.claves || typeof s.config.claves !== "object") s.config.claves = {};
   if (!s.config.modulos) {
     s.config.modulos = { qr: true, cierre: true, gastos: true, stock: true };
   }
@@ -13382,19 +13394,7 @@ function renderAppInterno() {
     }).join('');
     Array.prototype.forEach.call(rolChips.querySelectorAll('button[data-testid^="rol-"]'), function (btn) {
       var id = btn.getAttribute('data-testid').slice(4);
-      btn.onclick = function () {
-        if (id === 'dueno') {
-          location.hash = '#/dueno';
-        } else {
-          // Al pasar a un rol de trabajador se cierra la sesión del dueño: si luego
-          // alguien vuelve al panel, tendrá que volver a meter el PIN. Así, aunque el
-          // dueño preste el móvil a un vigilante/camarero, no queda el panel abierto.
-          duenoAutenticado = false;
-          state.perfilActivo = id;
-          location.hash = id.startsWith('cam') ? '#/barra' : '#/puerta';
-        }
-        renderApp();
-      };
+      btn.onclick = function () { cambiarPerfil(id); };
     });
   }
 
@@ -13437,9 +13437,61 @@ function renderAppInterno() {
   }
 }
 
+/* ---------- Cambio de perfil con contraseña propia por trabajador ---------- */
+/* _perfilOK: perfiles ya desbloqueados EN ESTE MÓVIL/SESIÓN (no se sincroniza). */
+var _perfilOK = {};
+function claveDe(id) { return (state.config && state.config.claves && state.config.claves[id]) || ''; }
+function entrarPerfil(id) {
+  // Salir del panel del dueño al pasar a un trabajador (misma regla de aislamiento).
+  duenoAutenticado = false;
+  state.perfilActivo = id;
+  location.hash = id.startsWith('cam') ? '#/barra' : '#/puerta';
+  renderApp();
+}
+function cambiarPerfil(id) {
+  if (id === 'dueno') { location.hash = '#/dueno'; renderApp(); return; }
+  var clave = claveDe(id);
+  if (clave && !_perfilOK[id]) { pedirClavePerfil(id); return; }
+  entrarPerfil(id);
+}
+function pedirClavePerfil(id) {
+  var label = etiquetaPerfil(id);
+  var html = '<div class="modal-pin" data-testid="pin-perfil">' +
+    '<h2>Contraseña de ' + esc(label) + '</h2>' +
+    '<p class="nota">Pídesela al ' + esc(label) + '. La pone el administrador en Ajustes → Personal.</p>' +
+    '<form id="perfilPinForm"><input id="perfil-clave" type="password" inputmode="numeric" autocomplete="off" placeholder="Contraseña">' +
+    '<p id="perfil-pin-error" class="error" hidden>Contraseña incorrecta</p>' +
+    '<div class="modal-botones"><button type="submit" class="btn-primary" data-testid="perfil-entrar">Entrar</button>' +
+    '<button type="button" onclick="closeModal()">Cancelar</button></div></form></div>';
+  showModal(html);
+  var form = document.getElementById('perfilPinForm');
+  if (form) form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var val = (document.getElementById('perfil-clave') || {}).value || '';
+    if (val === claveDe(id)) { _perfilOK[id] = true; closeModal(); entrarPerfil(id); }
+    else { var er = document.getElementById('perfil-pin-error'); if (er) er.hidden = false; }
+  });
+  var inp = document.getElementById('perfil-clave'); if (inp) try { inp.focus(); } catch (e) {}
+}
+
 /* ---------- Sync (local file:// vs servidor http) ---------- */
 function syncEstado() {
-  return location.protocol === 'file:' ? 'Solo este dispositivo' : 'Sincronizado';
+  if (location.protocol === 'file:') return 'Solo este dispositivo';
+  var s = window.__mhSync;
+  if (!s) return 'Conectando…';
+  var pend = (s.pendientes || []).length;
+  if (s.error) return pend ? ('Sin conexión · ' + pend + ' sin subir') : 'Sin conexión';
+  return pend ? ('Subiendo ' + pend + '…') : 'Sincronizado';
+}
+/* Refresca SOLO el indicador de sync (sin repintar toda la app) al cambiar su estado. */
+function refrescarSync() {
+  var el = document.querySelector('[data-testid="sync-estado"]');
+  if (!el) return;
+  var txt = syncEstado();
+  el.textContent = txt;
+  el.classList.toggle('sync-ok', txt === 'Sincronizado');
+  el.classList.toggle('sync-mal', txt.indexOf('Sin conexión') === 0);
+  el.title = txt;
 }
 function initSync() {
   if (location.protocol === 'file:') {
@@ -13475,6 +13527,7 @@ function initSync() {
 
     function pushLoop(intentos) {
       if (pushing) return;
+      if (!window.__mhSync.pendientes.length && intentos) { refrescarSync(); return; }
       pushing = true;
       var enviadas = window.__mhSync.pendientes.length; // las acciones que incluye ESTE envío
       fetch('/api/state', {
@@ -13485,21 +13538,32 @@ function initSync() {
           return res.json().then(function (d) {
             srvVersion = d.version;
             adoptar(d.state); // conserva perfil local y re-aplica TODAS las pendientes
-            pushing = false;
-            if ((intentos || 0) < 5 && window.__mhSync.pendientes.length) pushLoop((intentos || 0) + 1);
+            pushing = false; window.__mhSync.error = false; refrescarSync();
+            if ((intentos || 0) < 8 && window.__mhSync.pendientes.length) pushLoop((intentos || 0) + 1);
           });
         }
         return res.json().then(function (d) {
           if (d && typeof d.version === 'number') srvVersion = d.version;
           // Solo se confirman las que viajaron; las llegadas en vuelo siguen pendientes.
           window.__mhSync.pendientes.splice(0, enviadas);
-          pushing = false;
+          pushing = false; window.__mhSync.error = false; refrescarSync();
           if (window.__mhSync.pendientes.length) pushLoop(0);
         });
-      }).catch(function () { pushing = false; /* API caída: se queda en local y reintenta al próximo cambio */ });
+      }).catch(function () {
+        // API/red caída: NO se pierde nada (sigue en pendientes). Reintenta solo en 3 s.
+        pushing = false; window.__mhSync.error = true; refrescarSync();
+        if (window.__mhSync.pendientes.length) setTimeout(function () { pushLoop(0); }, 3000);
+      });
     }
 
-    window.__mhSync = { pendientes: [], push: function () { pushLoop(0); } };
+    window.__mhSync = { pendientes: [], error: false, push: function () { pushLoop(0); } };
+
+    // Latido: cada 8 s, si quedan cambios sin subir, los empuja (por si un envío quedó a medias
+    // o el servidor estuvo caído). Así "todo lo que se sube acaba en el servidor", sí o sí.
+    setInterval(function () {
+      if (!pushing && window.__mhSync.pendientes.length) pushLoop(0);
+      refrescarSync();
+    }, 8000);
 
     // Carga inicial: si el servidor ya tiene estado, se adopta; si está vacío, subimos el nuestro.
     fetch('/api/state').then(function (res) { return res.ok ? res.json() : null; })
@@ -15479,8 +15543,29 @@ function seccionPersonal() {
   html += '<div class="contador"><span>Camareros: <b data-testid="camareros-count">' + esc(c.nCamareros) + '</b></span> ';
   html += '<button type="button" data-testid="camareros-menos" onclick="duenoCambiarCamareros(-1)">−</button> ';
   html += '<button type="button" data-testid="camareros-mas" onclick="duenoCambiarCamareros(1)">+</button></div>';
+  // Contraseña propia por trabajador: cada vigilante/camarero entra con la suya.
+  html += '<h3>Contraseña de cada trabajador</h3>';
+  html += '<p class="nota">Dale a cada uno la suya. Al tocar su rol, tendrá que meterla para entrar. Déjala en blanco si ese trabajador no necesita contraseña.</p>';
+  var claves = c.claves || {};
+  perfilesLista().forEach(function (pf) {
+    if (pf.id === 'dueno') return;
+    html += '<label>' + esc(pf.label) +
+      '<input type="password" inputmode="numeric" autocomplete="off" id="clave-' + esc(pf.id) + '" value="' + esc(claves[pf.id] || '') +
+      '" placeholder="sin contraseña" onchange="duenoSetClavePerfil(\'' + escJs(pf.id) + '\', this.value)"></label>';
+  });
   html += '</section>';
   return html;
+}
+function duenoSetClavePerfil(id, valor) {
+  var v = String(valor || '').trim();
+  mutateSilent(function (s) {
+    if (!s.config.claves || typeof s.config.claves !== 'object') s.config.claves = {};
+    if (s.config.claves[id] === v) return;
+    s.config.claves[id] = v;
+    addLog((v ? 'puso' : 'quitó') + ' la contraseña de ' + etiquetaPerfil(id), 'personal');
+  });
+  _perfilOK[id] = false; // si cambia la clave, que la vuelvan a pedir
+  toast('Contraseña guardada');
 }
 
 function duenoCambiarVigilantes(delta) {

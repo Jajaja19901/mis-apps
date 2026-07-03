@@ -126,11 +126,26 @@ function sendJson(res, status, obj) {
 
 // Comparación en tiempo constante sobre los hashes SHA-256 (longitud fija). Solo por cabecera:
 // el token en ?query= se filtra por logs/Referer, así que ya no se acepta.
+function parseCookies(req) {
+  const raw = req.headers['cookie'];
+  const out = {};
+  if (typeof raw !== 'string') return out;
+  for (const part of raw.split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0) {
+      try { out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim()); } catch { /* cookie malformada */ }
+    }
+  }
+  return out;
+}
 function checkToken(req) {
   if (!TOKEN_HASH) return true;
-  const header = req.headers['x-mh-token'];
-  if (typeof header !== 'string' || header.length === 0) return false;
-  const got = crypto.createHash('sha256').update(header).digest();
+  // Cabecera x-mh-token si viene (fetch), o la cookie mh_token que dejó serveApp (imprescindible
+  // para EventSource/SSE, que NO puede mandar cabeceras propias). Así el sync funciona en LAN con token.
+  let provided = req.headers['x-mh-token'];
+  if (typeof provided !== 'string' || provided.length === 0) provided = parseCookies(req).mh_token;
+  if (typeof provided !== 'string' || provided.length === 0) return false;
+  const got = crypto.createHash('sha256').update(provided).digest();
   return crypto.timingSafeEqual(got, TOKEN_HASH);
 }
 
@@ -208,7 +223,12 @@ function serveApp(res) {
       );
       return;
     }
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    const headers = { 'Content-Type': 'text/html; charset=utf-8' };
+    // Con token activo, se entrega como cookie httpOnly al cargar la app. Los móviles de la
+    // fiesta (que abren esta URL) quedan autenticados y su sync —fetch Y SSE— funciona sin que
+    // el cliente tenga que gestionar el token. httpOnly+SameSite=Strict: no la lee el JS ni viaja fuera.
+    if (TOKEN) headers['Set-Cookie'] = 'mh_token=' + encodeURIComponent(TOKEN) + '; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400';
+    res.writeHead(200, headers);
     res.end(data);
   });
 }
