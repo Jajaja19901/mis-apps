@@ -10837,7 +10837,8 @@ function seedState() {
       bonoCfg: { ventaCamareros: false, copas: 5, precio: 20 },
       accesoAuto: false,
       fecha: "", hora: "", lugar: "", lema: "",
-      logo: null, colorTema: "#00d4ff"
+      logo: null, colorTema: "#00d4ff",
+      vipPack: { botellas: 1, refrescos: 4 }
     },
     perfilActivo: "vig-1",
     personas: seedPersonas(),
@@ -10899,6 +10900,7 @@ function migrar(s) {
   ['fecha', 'hora', 'lugar', 'lema'].forEach(function (k) { if (typeof s.config[k] !== 'string') s.config[k] = ''; });
   if (s.config.logo === undefined) s.config.logo = null;
   if (typeof s.config.colorTema !== 'string') s.config.colorTema = '#00d4ff';
+  if (!s.config.vipPack) s.config.vipPack = { botellas: 1, refrescos: 4 };
   if (s.config.umbralStock === undefined) s.config.umbralStock = 10;
 
   if (!s.perfilActivo) s.perfilActivo = "vig-1";
@@ -11577,9 +11579,19 @@ function abreQR(id) {
   var html = "";
   html += '<div class="modal-qr" data-testid="qr-modal">';
   html += "<h2>" + esc((p.nombre + " " + p.apellido).trim() || "Entrada al portador") + "</h2>";
+  var extraQR = '';
+  if (p.tipo === 'vip' && p.mesa) {
+    var vpq = vipPack();
+    var pp = [];
+    if (vpq.botellas > 0) pp.push(vpq.botellas + ' botella' + (vpq.botellas === 1 ? '' : 's'));
+    if (vpq.refrescos > 0) pp.push(vpq.refrescos + ' refrescos');
+    if (pp.length) extraQR = ' · ' + pp.join(' + ');
+  } else if (copas > 0) {
+    extraQR = ' · ' + copas + ' copa' + (copas === 1 ? '' : 's') + ' incluida' + (copas === 1 ? '' : 's');
+  }
   html += '<p class="qr-tipo">' + esc(tipoLabel) +
     (p.tipo === "taquilla" ? (p.pagado ? ' · <span class="qr-pagada">Pagada</span>' : ' · <span class="qr-pendiente">Sin pagar (' + esc(precioEntradaDe(p)) + ' €)</span>') : '') +
-    (copas > 0 ? ' · ' + copas + ' copa' + (copas === 1 ? '' : 's') + ' incluida' + (copas === 1 ? '' : 's') : '') + "</p>";
+    esc(extraQR) + "</p>";
   html += '<canvas id="qrCanvas" width="220" height="220"></canvas>';
   html += '<p class="qr-codigo">' + esc(p.codigoReserva) + "</p>";
   html += '<div class="modal-botones">';
@@ -11674,9 +11686,9 @@ function canvasInvitacion(p) {
     lineas += 1;                    // nombre
     if (c.fecha || c.hora) lineas += 1;
     if (c.lugar) lineas += 1;
-    if (esVip) lineas += 1;         // mesa + acompañantes
+    if (esVip) lineas += 2;         // mesa + acompañantes, y línea de botella/refrescos
     lineas += 1;                    // precio
-    if (copas > 0) lineas += 1;     // copas
+    if (copas > 0) lineas += 1;     // copas (no-VIP)
     var detalleH = 40 + lineas * 46 + 24;
     var stubH = 620;                // perforado + QR + código + pie
     var H = headerH + 30 + (c.lema ? 44 : 0) + 70 + detalleH + stubH;
@@ -11741,7 +11753,17 @@ function canvasInvitacion(p) {
     else if (esVip) precioTxt = 'Mesa: ' + (p.mesa.total || 0) + ' €';
     else precioTxt = 'Precio: ' + precioEntradaDe(p) + ' €';
     ctx.fillStyle = '#fff'; ctx.font = '600 26px -apple-system, sans-serif'; ctx.fillText(precioTxt, cx, y); y += 46;
-    if (copas > 0) { ctx.fillStyle = '#b026ff'; ctx.font = '600 24px -apple-system, sans-serif'; ctx.fillText('🍹 Incluye ' + copas + ' consumici' + (copas === 1 ? 'ón' : 'ones'), cx, y); y += 46; }
+    if (esVip) {
+      var vp2 = vipPack();
+      ctx.fillStyle = '#b026ff'; ctx.font = '600 24px -apple-system, sans-serif';
+      var partes = [];
+      if (vp2.botellas > 0) partes.push('🍾 ' + vp2.botellas + ' Botella' + (vp2.botellas === 1 ? '' : 's') + ' a elegir');
+      if (vp2.refrescos > 0) partes.push('🥤 ' + vp2.refrescos + ' Refrescos');
+      if (partes.length) { ctx.fillText(partes.join('  ·  '), cx, y); y += 46; }
+    } else if (copas > 0) {
+      ctx.fillStyle = '#b026ff'; ctx.font = '600 24px -apple-system, sans-serif';
+      ctx.fillText('🍹 Incluye ' + copas + ' consumici' + (copas === 1 ? 'ón' : 'ones'), cx, y); y += 46;
+    }
     y += 6;
     // ---- Perforado (talón) ----
     ctx.fillStyle = '#0a0a0f';
@@ -12203,10 +12225,28 @@ function consConfig() {
 function consIncluidas(p) {
   // Las entradas de remesa (u otras personalizadas) pueden traer SUS copas fijadas por el dueño.
   if (typeof p.consumicionesIncluidas === 'number') return p.consumicionesIncluidas;
+  if (p.tipo === 'vip') return 0; // las VIP NO van con copas sueltas: van con botella + refrescos
   var c = consConfig();
-  if (p.tipo === 'vip' && p.mesa) return (c.vip || 0) * ((p.mesa.acompanantesPermitidos || 0) + 1);
   if (p.tipo === 'taquilla') return c.taquilla || 0;
   return c.invitado || 0;
+}
+/* Pack de mesa VIP: botella(s) a elegir + refrescos, fijado por el dueño. */
+function vipPack() { return (state.config && state.config.vipPack) || { botellas: 1, refrescos: 4 }; }
+function botellasDisp(p) { return (p.tipo === 'vip' && p.mesa) ? Math.max(0, vipPack().botellas - (p.mesa.botellasUsadas || 0)) : 0; }
+function refrescosDisp(p) { return (p.tipo === 'vip' && p.mesa) ? Math.max(0, vipPack().refrescos - (p.mesa.refrescosUsados || 0)) : 0; }
+function canjearBotella(id) {
+  var p = personaPorId(id);
+  if (!p || botellasDisp(p) <= 0) { toast('Sin botellas'); return; }
+  mutate(function () { var q = personaPorId(id); q.mesa.botellasUsadas = (q.mesa.botellasUsadas || 0) + 1;
+    addLog('sirvió 1 botella de Mesa ' + q.mesa.numero + ' (quedan ' + botellasDisp(q) + ')', 'cobro'); });
+  toast('Botella servida'); consBuscar();
+}
+function canjearRefresco(id) {
+  var p = personaPorId(id);
+  if (!p || refrescosDisp(p) <= 0) { toast('Sin refrescos'); return; }
+  mutate(function () { var q = personaPorId(id); q.mesa.refrescosUsados = (q.mesa.refrescosUsados || 0) + 1;
+    addLog('sirvió 1 refresco de Mesa ' + q.mesa.numero + ' (quedan ' + refrescosDisp(q) + ')', 'cobro'); });
+  toast('Refresco servido'); consBuscar();
 }
 function precioEntradaDe(p) {
   // Cada entrada puede tener su precio de venta propio (remesas); si no, la tarifa general.
@@ -12236,9 +12276,19 @@ function consBuscar() {
   }
   if (!p) {
     _consMsg = '<p class="cons-no">Código no encontrado.</p>';
+  } else if (p.tipo === 'vip' && p.mesa) {
+    // Mesa VIP: botella(s) a elegir + refrescos, no copas sueltas.
+    var titularV = (p.nombre + ' ' + p.apellido).trim() || ('Mesa ' + p.mesa.numero);
+    var bd = botellasDisp(p), rd = refrescosDisp(p);
+    _consMsg = '<div class="cons-ficha"><strong>' + esc(titularV) + '</strong> · Mesa ' + esc(p.mesa.numero) + ' · ' + esc(p.codigoReserva) +
+      '<br>🍾 Botellas: <b>' + bd + '</b> a elegir' +
+      (bd > 0 ? ' <button type="button" class="btn-canjear" onclick="canjearBotella(\'' + escJs(p.id) + '\')">Servir botella</button>' : ' <span class="cons-cero">(agotadas)</span>') +
+      '<br>🥤 Refrescos: <b>' + rd + '</b>' +
+      (rd > 0 ? ' <button type="button" class="btn-canjear" onclick="canjearRefresco(\'' + escJs(p.id) + '\')">Servir refresco</button>' : ' <span class="cons-cero">(agotados)</span>') +
+      '</div>';
   } else {
     var disp = consDisponibles(p);
-    _consMsg = '<div class="cons-ficha"><strong>' + esc(p.nombre + ' ' + p.apellido) + '</strong>' +
+    _consMsg = '<div class="cons-ficha"><strong>' + esc((p.nombre + ' ' + p.apellido).trim() || 'Entrada') + '</strong>' +
       ' · ' + esc(p.codigoReserva) + '<br>Consumiciones: <b>' + disp + '</b> disponibles' +
       (disp > 0
         ? '<br><button type="button" class="btn-canjear" onclick="canjearConsumicion(\'' + escJs(p.id) + '\')">Canjear 1 copa gratis</button>'
@@ -12463,7 +12513,11 @@ function seccionConfig() {
   html += '<h3>Consumiciones incluidas (copas gratis)</h3>';
   html += '<label>Por invitado<input type="number" id="cfg-cons-invitado" value="' + esc(cc.invitado) + '" min="0"></label>';
   html += '<label>Por entrada de taquilla<input type="number" id="cfg-cons-taquilla" value="' + esc(cc.taquilla) + '" min="0"></label>';
-  html += '<label>Por persona de mesa VIP<input type="number" id="cfg-cons-vip" value="' + esc(cc.vip) + '" min="0"></label>';
+  var vp = c.vipPack || { botellas: 1, refrescos: 4 };
+  html += '<h3>Pack de Mesa VIP (por mesa)</h3>';
+  html += '<p class="nota">Las mesas VIP van con botella a elegir + refrescos, no con copas sueltas.</p>';
+  html += '<label>Botellas a elegir<input type="number" id="cfg-vip-botellas" value="' + esc(vp.botellas) + '" min="0"></label>';
+  html += '<label>Refrescos incluidos<input type="number" id="cfg-vip-refrescos" value="' + esc(vp.refrescos) + '" min="0"></label>';
   html += '<button type="submit" class="btn btn-primary">Guardar configuración</button>';
   html += '</form>';
   html += '<h3>Logo del evento</h3>';
@@ -12825,13 +12879,19 @@ function duenoGuardarConfig(ev) {
     }
     var ci = Number(document.getElementById("cfg-cons-invitado").value) || 0;
     var ct = Number(document.getElementById("cfg-cons-taquilla").value) || 0;
-    var cv = Number(document.getElementById("cfg-cons-vip").value) || 0;
     if (!c.consumiciones) c.consumiciones = { invitado: 0, taquilla: 1, vip: 2 };
-    if (ci !== c.consumiciones.invitado || ct !== c.consumiciones.taquilla || cv !== c.consumiciones.vip) {
-      addLog("cambió Consumiciones incluidas (inv/taq/vip): " +
-        c.consumiciones.invitado + "/" + c.consumiciones.taquilla + "/" + c.consumiciones.vip +
-        " → " + ci + "/" + ct + "/" + cv, "config");
-      c.consumiciones = { invitado: ci, taquilla: ct, vip: cv };
+    if (ci !== c.consumiciones.invitado || ct !== c.consumiciones.taquilla) {
+      addLog("cambió Consumiciones incluidas (inv/taq): " +
+        c.consumiciones.invitado + "/" + c.consumiciones.taquilla + " → " + ci + "/" + ct, "config");
+      c.consumiciones.invitado = ci; c.consumiciones.taquilla = ct;
+    }
+    var vb = Number(document.getElementById("cfg-vip-botellas").value) || 0;
+    var vr = Number(document.getElementById("cfg-vip-refrescos").value) || 0;
+    if (!c.vipPack) c.vipPack = { botellas: 1, refrescos: 4 };
+    if (vb !== c.vipPack.botellas || vr !== c.vipPack.refrescos) {
+      addLog("cambió Pack VIP: " + c.vipPack.botellas + " botella(s) + " + c.vipPack.refrescos +
+        " refrescos → " + vb + " + " + vr, "config");
+      c.vipPack = { botellas: vb, refrescos: vr };
     }
   });
   toast("Configuración guardada");
