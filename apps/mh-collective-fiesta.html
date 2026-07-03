@@ -19,6 +19,10 @@ html,body{margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
 img,svg{max-width:100%;display:block}
 button,input,select,textarea{font-family:inherit;font-size:1rem;color:inherit}
+/* Todos los campos legibles en tema oscuro (evita texto blanco sobre blanco) */
+input:not([type=checkbox]):not([type=radio]),select,textarea{background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:var(--radius-btn);padding:10px 12px;max-width:100%}
+input:not([type=checkbox]):not([type=radio]):focus,select:focus,textarea:focus{border-color:var(--neon-verde)}
+select option{background:var(--surface);color:var(--text)}
 a{color:var(--neon-verde)}
 :focus-visible{outline:3px solid var(--neon-verde);outline-offset:2px}
 h1,h2,h3{margin:0 0 .5rem;font-weight:600}
@@ -918,6 +922,14 @@ function mutate(fn) {
   save();
   renderApp();
 }
+/* Igual que mutate pero SIN repintar: para editar un campo de texto/número sin que
+   se rebobine el panel y se cierre el teclado del móvil. El valor ya está en pantalla. */
+function mutateSilent(fn) {
+  fn(state);
+  state.version = (state.version || 0) + 1;
+  if (window.__mhSync && window.__mhSync.pendientes) window.__mhSync.pendientes.push(fn);
+  save();
+}
 
 /* ---------- Personal dinámico (llamar envuelto en mutate) ---------- */
 function setVigilantes(n) {
@@ -947,6 +959,27 @@ function setCamareros(n) {
 
 /* ---------- Router / render dispatcher ---------- */
 function renderApp() {
+  // Recuerda scroll y campo enfocado para que un repintado no rebobine la página
+  // ni cierre el teclado (sobre todo en el panel del dueño, que es largo).
+  var _scrollY = window.scrollY || window.pageYOffset || 0;
+  var _foco = document.activeElement;
+  var _focoId = _foco && _foco.id ? _foco.id : null;
+  var _selIni = null, _selFin = null;
+  try { if (_focoId && _foco.selectionStart != null) { _selIni = _foco.selectionStart; _selFin = _foco.selectionEnd; } } catch (e) {}
+
+  renderAppInterno();
+
+  if (_focoId) {
+    var reobj = document.getElementById(_focoId);
+    if (reobj) {
+      try { reobj.focus({ preventScroll: true }); } catch (e) { try { reobj.focus(); } catch (e2) {} }
+      try { if (_selIni != null && reobj.setSelectionRange) reobj.setSelectionRange(_selIni, _selFin); } catch (e) {}
+    }
+  }
+  try { window.scrollTo(0, _scrollY); } catch (e) {}
+}
+
+function renderAppInterno() {
   var rolChips = document.getElementById('rolChips');
   if (rolChips) {
     var activo = (location.hash === '#/dueno' && duenoAutenticado) ? 'dueno' : state.perfilActivo;
@@ -2435,7 +2468,7 @@ function duenoRrppVendidas(slug, delta) {
 
 function duenoRrppCampo(slug, campo, valor) {
   var num = Number(valor) || 0;
-  mutate(function (s) {
+  mutateSilent(function (s) {
     var r = s.rrpp.find(function (x) { return x.slug === slug; });
     if (!r || num === r[campo]) return;
     var etiqueta = campo === "precio" ? "Precio" : "Comisión";
@@ -2487,7 +2520,7 @@ function duenoBonoCfg() {
   var on = !!document.getElementById('bono-venta-camareros').checked;
   var copas = parseInt(document.getElementById('bono-cfg-copas').value || '5', 10) || 5;
   var precio = Number(document.getElementById('bono-cfg-precio').value) || 0;
-  mutate(function (s) {
+  mutateSilent(function (s) {
     var bc = s.config.bonoCfg || {};
     if (bc.ventaCamareros !== on) {
       addLog((on ? 'activó' : 'desactivó') + ' la venta de bonos por camareros', 'config');
