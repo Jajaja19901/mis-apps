@@ -10835,7 +10835,8 @@ function seedState() {
       productos: seedProductos(),
       umbralStock: 10,
       bonoCfg: { ventaCamareros: false, copas: 5, precio: 20 },
-      accesoAuto: false
+      accesoAuto: false,
+      fecha: "", hora: "", lugar: "", lema: ""
     },
     perfilActivo: "vig-1",
     personas: seedPersonas(),
@@ -10894,6 +10895,7 @@ function migrar(s) {
   }
   if (!s.config.bonoCfg) s.config.bonoCfg = { ventaCamareros: false, copas: 5, precio: 20 };
   if (typeof s.config.accesoAuto !== 'boolean') s.config.accesoAuto = false;
+  ['fecha', 'hora', 'lugar', 'lema'].forEach(function (k) { if (typeof s.config[k] !== 'string') s.config[k] = ''; });
   if (s.config.umbralStock === undefined) s.config.umbralStock = 10;
 
   if (!s.perfilActivo) s.perfilActivo = "vig-1";
@@ -11629,69 +11631,92 @@ function cartelListo() {
   });
 }
 
-/* Construye la INVITACIÓN como imagen (async: espera al cartel si lo hay). */
+/* Construye la INVITACIÓN como ENTRADA DE FESTIVAL (async: espera al cartel si lo hay).
+   Cabecera (cartel o emblema) + datos del evento + tipo/nombre/mesa/precio + talón
+   perforado con el QR grande. */
 function canvasInvitacion(p) {
   return cartelListo().then(function (cartel) {
-    var W = 800;
-    var cv = document.createElement('canvas');
-    var ctx;
-    var cx = W / 2;
-    var qBox = 470;             // caja del QR
-    var headerH;
-    if (cartel) {
-      headerH = Math.round(W * (cartel.height / cartel.width)); // cartel a ancho completo
-    } else {
-      headerH = 360;
-    }
-    var footerH = qBox + 210;   // QR + código + copas + pie
-    var H = headerH + footerH;
-    cv.width = W; cv.height = H;
-    ctx = cv.getContext('2d');
+    var c = state.config;
+    var W = 800, cx = W / 2;
+    var acento = p.tipo === 'vip' ? '#b026ff' : (p.tipo === 'invitado' ? '#00d48a' : '#ffb600');
+    var headerH = cartel ? Math.round(W * (cartel.height / cartel.width)) : 300;
+    var copas = consIncluidas(p);
+    var esVip = p.tipo === 'vip' && p.mesa;
+    // Altura dinámica según líneas
+    var lineas = 0; // bloque de detalles
+    lineas += 1;                    // tipo
+    lineas += 1;                    // nombre
+    if (c.fecha || c.hora) lineas += 1;
+    if (c.lugar) lineas += 1;
+    if (esVip) lineas += 1;         // mesa + acompañantes
+    lineas += 1;                    // precio
+    if (copas > 0) lineas += 1;     // copas
+    var detalleH = 40 + lineas * 46 + 24;
+    var stubH = 620;                // perforado + QR + código + pie
+    var H = headerH + 30 + (c.lema ? 44 : 0) + 70 + detalleH + stubH;
+    var cvv = document.createElement('canvas'); cvv.width = W; cvv.height = H;
+    var ctx = cvv.getContext('2d');
     ctx.fillStyle = '#0a0a0f'; ctx.fillRect(0, 0, W, H);
     ctx.textAlign = 'center';
+    // ---- Cabecera ----
     if (cartel) {
-      ctx.drawImage(cartel, 0, 0, W, headerH); // TU cartel real arriba
+      ctx.drawImage(cartel, 0, 0, W, headerH);
     } else {
-      // Cabecera generada con el emblema MH si no hay cartel
-      var cy = 150, r = 110;
+      var cyc = 140, rr = 100;
       ctx.save();
-      ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.fillStyle = '#0a0a0f'; ctx.fill();
-      ctx.lineWidth = 3; ctx.strokeStyle = '#ffffff'; ctx.stroke();
-      ctx.translate(cx, cy); ctx.rotate(Math.PI / 4);
-      ctx.strokeRect(-48, -48, 96, 96);
+      ctx.beginPath(); ctx.arc(cx, cyc, rr, 0, Math.PI * 2);
+      ctx.fillStyle = '#0a0a0f'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#fff'; ctx.stroke();
+      ctx.translate(cx, cyc); ctx.rotate(Math.PI / 4); ctx.strokeRect(-44, -44, 88, 88);
       ctx.restore();
-      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 50px -apple-system, sans-serif';
-      ctx.fillText('MH', cx, cy + 2);
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(cx - 76, cy + 38, 152, 36);
-      ctx.fillStyle = '#0a0a0f'; ctx.font = '600 20px -apple-system, sans-serif';
-      ctx.fillText('Collective', cx, cy + 63);
-      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 40px -apple-system, sans-serif';
-      ctx.fillText(state.config.eventName, cx, 330);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 46px -apple-system, sans-serif'; ctx.fillText('MH', cx, cyc + 2);
+      ctx.fillStyle = '#fff'; ctx.fillRect(cx - 70, cyc + 34, 140, 34);
+      ctx.fillStyle = '#0a0a0f'; ctx.font = '600 18px -apple-system, sans-serif'; ctx.fillText('Collective', cx, cyc + 57);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 40px -apple-system, sans-serif'; ctx.fillText(c.eventName, cx, headerH - 20);
     }
-    var y = headerH + 30;
-    ctx.fillStyle = '#00d48a'; ctx.font = '700 30px -apple-system, sans-serif';
-    var titulo = p.tipo === 'vip' ? 'MESA VIP' : (p.tipo === 'invitado' ? 'INVITACIÓN' : 'ENTRADA');
-    ctx.fillText(titulo, cx, y); y += 42;
-    ctx.fillStyle = '#a0a0b0'; ctx.font = '400 28px -apple-system, sans-serif';
-    ctx.fillText(p.nombre + ' ' + p.apellido, cx, y); y += 20;
-    // QR en caja blanca
+    var y = headerH + 44;
+    // barra de acento con nombre del evento (si hay cartel, refuerza)
+    if (cartel) { ctx.fillStyle = '#fff'; ctx.font = 'bold 34px -apple-system, sans-serif'; ctx.fillText(c.eventName, cx, y); y += 40; }
+    if (c.lema) { ctx.fillStyle = acento; ctx.font = '700 24px -apple-system, sans-serif'; ctx.fillText(c.lema.toUpperCase(), cx, y); y += 40; }
+    // línea separadora
+    ctx.strokeStyle = '#333340'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(50, y); ctx.lineTo(W - 50, y); ctx.stroke(); y += 46;
+    // ---- Detalles tipo ficha ----
+    ctx.fillStyle = acento; ctx.font = 'bold 30px -apple-system, sans-serif';
+    var titulo = p.tipo === 'vip' ? 'MESA VIP' : (p.tipo === 'invitado' ? 'INVITACIÓN' : 'ENTRADA GENERAL');
+    ctx.fillText(titulo, cx, y); y += 46;
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 30px -apple-system, sans-serif';
+    ctx.fillText(p.nombre + ' ' + p.apellido, cx, y); y += 46;
+    ctx.font = '400 25px -apple-system, sans-serif'; ctx.fillStyle = '#c8c8d4';
+    if (c.fecha || c.hora) { ctx.fillText([c.fecha, c.hora].filter(Boolean).join('  ·  '), cx, y); y += 46; }
+    if (c.lugar) { ctx.fillText('📍 ' + c.lugar, cx, y); y += 46; }
+    if (esVip) { ctx.fillStyle = '#fff'; ctx.fillText('Mesa Nº ' + p.mesa.numero + '  ·  ' + p.mesa.acompanantesPermitidos + ' acompañantes', cx, y); y += 46; ctx.fillStyle = '#c8c8d4'; }
+    // precio
+    var precioTxt;
+    if (p.tipo === 'invitado') precioTxt = 'INVITACIÓN · GRATIS';
+    else if (esVip) precioTxt = 'Mesa: ' + (p.mesa.total || 0) + ' €';
+    else precioTxt = 'Precio: ' + precioEntradaDe(p) + ' €';
+    ctx.fillStyle = '#fff'; ctx.font = '600 26px -apple-system, sans-serif'; ctx.fillText(precioTxt, cx, y); y += 46;
+    if (copas > 0) { ctx.fillStyle = '#b026ff'; ctx.font = '600 24px -apple-system, sans-serif'; ctx.fillText('🍹 Incluye ' + copas + ' consumici' + (copas === 1 ? 'ón' : 'ones'), cx, y); y += 46; }
+    y += 6;
+    // ---- Perforado (talón) ----
+    ctx.fillStyle = '#0a0a0f';
+    ctx.strokeStyle = '#555'; ctx.lineWidth = 2; ctx.setLineDash([12, 10]);
+    ctx.beginPath(); ctx.moveTo(46, y); ctx.lineTo(W - 46, y); ctx.stroke(); ctx.setLineDash([]);
+    // muescas laterales
+    ctx.fillStyle = '#0a0a0f';
+    [0, W].forEach(function (xx) { ctx.beginPath(); ctx.arc(xx, y, 22, 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#333340'; ctx.lineWidth = 2; ctx.stroke(); });
+    y += 44;
+    // ---- QR en caja blanca ----
+    var qBox = 430;
     var qcv = document.createElement('canvas');
-    try { drawQR(qcv, p.codigoReserva, 440); } catch (e) { qcv = null; }
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(cx - qBox / 2, y, qBox, qBox);
-    if (qcv) ctx.drawImage(qcv, cx - 220, y + 15, 440, 440);
-    y += qBox + 52;
-    ctx.fillStyle = '#ffffff'; ctx.font = 'bold 44px monospace';
-    ctx.fillText(p.codigoReserva, cx, y); y += 44;
-    var copas = consIncluidas(p);
-    if (copas > 0) {
-      ctx.fillStyle = '#b026ff'; ctx.font = '600 28px -apple-system, sans-serif';
-      ctx.fillText('Incluye ' + copas + ' consumici' + (copas === 1 ? 'ón' : 'ones'), cx, y); y += 36;
-    }
+    try { drawQR(qcv, p.codigoReserva, 400); } catch (e) { qcv = null; }
+    ctx.fillStyle = '#fff'; ctx.fillRect(cx - qBox / 2, y, qBox, qBox);
+    if (qcv) ctx.drawImage(qcv, cx - 200, y + 15, 400, 400);
+    y += qBox + 46;
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 42px monospace'; ctx.fillText(p.codigoReserva, cx, y); y += 40;
     ctx.fillStyle = '#a0a0b0'; ctx.font = '400 22px -apple-system, sans-serif';
-    ctx.fillText('Presenta este código en la puerta', cx, H - 24);
-    return cv;
+    ctx.fillText('Presenta este código en la puerta · MH Collective', cx, y);
+    return cvv;
   });
 }
 
@@ -12377,6 +12402,11 @@ function seccionConfig() {
   var html = '<section class="panel" data-testid="seccion-config"><h2>Configuración</h2>';
   html += '<form id="configForm" onsubmit="return duenoGuardarConfig(event)">';
   html += '<label>Nombre del evento<input type="text" id="cfg-evento" value="' + esc(c.eventName) + '"></label>';
+  html += '<h3>Datos para la entrada (estilo festival)</h3>';
+  html += '<label>Fecha<input type="text" id="cfg-fecha" value="' + esc(c.fecha || '') + '" placeholder="Sáb 12 Julio 2026"></label>';
+  html += '<label>Hora<input type="text" id="cfg-hora" value="' + esc(c.hora || '') + '" placeholder="16:00 – 06:00 · 18h non stop"></label>';
+  html += '<label>Lugar<input type="text" id="cfg-lugar" value="' + esc(c.lugar || '') + '" placeholder="Ubicación secreta · Gran Canaria"></label>';
+  html += '<label>Lema / subtítulo<input type="text" id="cfg-lema" value="' + esc(c.lema || '') + '" placeholder="POOL PARTY · 18 HOURS NON STOP"></label>';
   html += '<label>Aforo máximo<input type="number" id="cfg-aforo" value="' + esc(c.maxAforo) + '" min="1"></label>';
   html += '<label>Precio entrada general<input type="number" id="cfg-precio-entrada" value="' + esc(c.precioEntrada) + '" min="0"></label>';
   html += '<label>Precio base mesa VIP<input type="number" id="cfg-precio-vip" value="' + esc(c.precioMesaVip) + '" min="0"></label>';
@@ -12668,12 +12698,17 @@ function duenoGuardarConfig(ev) {
   var aforo = Number(document.getElementById("cfg-aforo").value) || 0;
   var precioEntrada = Number(document.getElementById("cfg-precio-entrada").value) || 0;
   var precioVip = Number(document.getElementById("cfg-precio-vip").value) || 0;
+  var fecha = document.getElementById("cfg-fecha").value.trim();
+  var hora = document.getElementById("cfg-hora").value.trim();
+  var lugar = document.getElementById("cfg-lugar").value.trim();
+  var lema = document.getElementById("cfg-lema").value.trim();
   mutate(function (s) {
     var c = s.config;
     if (evento && evento !== c.eventName) {
       addLog("cambió Nombre evento: " + c.eventName + " → " + evento, "config");
       c.eventName = evento;
     }
+    c.fecha = fecha; c.hora = hora; c.lugar = lugar; c.lema = lema;
     if (aforo && aforo !== c.maxAforo) {
       addLog("cambió Aforo: " + c.maxAforo + " → " + aforo, "config");
       c.maxAforo = aforo;
