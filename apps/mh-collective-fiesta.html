@@ -10957,6 +10957,7 @@ function showModal(html) {
 function closeModal() {
   var root = document.getElementById('modalRoot');
   if (!root) return;
+  if (typeof cerrarCamara === 'function') cerrarCamara(); // apaga la cámara si estaba en vivo
   root.innerHTML = '';
   root.classList.remove('visible');
 }
@@ -11867,6 +11868,32 @@ function onEscanerSubmit(ev) {
   resolverEscaneo(valor);
 }
 
+/* Escáner del CAMARERO: cámara en vivo (https) o foto (file://), luego canjea. */
+function abreEscanerBarra() {
+  var html = '<div class="modal-escaner"><h2>Escanear código</h2>' +
+    '<button type="button" class="btn-camara" onclick="escanearConCamara(consDesdeCodigo)">📷 Hacer foto al QR</button>' +
+    '<div id="escanerVideoWrap"></div>' +
+    '<form id="qrFormBarra"><label for="qr-codigo-barra">Código</label>' +
+    '<input id="qr-codigo-barra" type="text" placeholder="MH-301" autocomplete="off">' +
+    '<button type="submit">Buscar</button></form>' +
+    '<button type="button" onclick="closeModal()">Cerrar</button></div>';
+  showModal(html);
+  var form = document.getElementById('qrFormBarra');
+  if (form) form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = document.getElementById('qr-codigo-barra').value.trim();
+    if (v) consDesdeCodigo(v);
+  });
+  intentarCamaraQR(consDesdeCodigo); // cámara en vivo si hay https
+}
+function consDesdeCodigo(codigo) {
+  closeModal();
+  _consCod = codigo;
+  var i = document.getElementById('cons-codigo');
+  if (i) i.value = codigo;
+  consBuscar();
+}
+
 /* Veredicto del escaneo: cierra el círculo. Dice al instante si el código es
    válido, si está pagado y —clave anti-fraude— si YA ENTRÓ (código repetido). */
 function resolverEscaneo(valor) {
@@ -11908,40 +11935,64 @@ function verFicha(valor) {
   renderApp();
 }
 
-function intentarCamaraQR() {
+/* CÁMARA EN VIVO: apunta y el QR salta solo, sin hacer foto. Requiere https
+   (Netlify lo da). Decodifica con BarcodeDetector si existe (Android) o con jsQR
+   (universal, incluye iPhone). En file://, http o sin permiso, no molesta: queda
+   el botón de foto y el teclado. onCodigo recibe el código leído. */
+var _camActiva = false;
+function cerrarCamara() {
+  _camActiva = false;
+  if (window._camStream) { try { window._camStream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} window._camStream = null; }
+}
+function intentarCamaraQR(onCodigo) {
   try {
-    if (location.protocol === "file:") return;
-    if (typeof BarcodeDetector === "undefined") return;
+    var seguro = (window.isSecureContext === true) || location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    if (!seguro) return;                       // sin https el navegador bloquea la cámara en vivo
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
     var wrap = document.getElementById("escanerVideoWrap");
     if (!wrap) return;
+    var aviso = document.getElementById('escanerAviso');
     var video = document.createElement("video");
     video.setAttribute("playsinline", "true");
-    video.autoplay = true;
-    video.style.width = "100%";
+    video.muted = true; video.autoplay = true;
+    video.style.width = "100%"; video.style.borderRadius = "8px";
     wrap.appendChild(video);
+    var cb = onCodigo || function (v) { var i = document.getElementById('qr-codigo'); if (i) i.value = v; resolverEscaneo(v); };
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function (stream) {
-      video.srcObject = stream;
-      var detector = new BarcodeDetector({ formats: ["qr_code"] });
-      var activo = true;
-      function detener() { activo = false; try { stream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} }
+      window._camStream = stream; _camActiva = true;
+      video.srcObject = stream; video.play && video.play().catch(function () {});
+      if (aviso) aviso.textContent = 'Apunta al QR: se lee solo.';
+      var detector = null;
+      try { if (typeof BarcodeDetector !== 'undefined') detector = new BarcodeDetector({ formats: ["qr_code"] }); } catch (e) {}
+      var lienzo = document.createElement('canvas');
+      function encontrado(valor) {
+        cerrarCamara();
+        if (video.parentNode) video.parentNode.removeChild(video);
+        cb(String(valor).trim());
+      }
       function tick() {
-        if (!activo) return;
-        if (!document.body.contains(video)) { detener(); return; }
-        detector.detect(video).then(function (codes) {
-          if (codes && codes.length) {
-            var valor = codes[0].rawValue;
-            var input = document.getElementById("qr-codigo");
-            if (input) input.value = valor;
-            detener();
-            resolverEscaneo(valor); // mismo veredicto que al teclear: válida/pagada/ya-usada
-            return;
-          }
-          if (activo) requestAnimationFrame(tick);
-        }).catch(function () { if (activo) requestAnimationFrame(tick); });
+        if (!_camActiva) return;
+        if (!document.body.contains(video)) { cerrarCamara(); return; }
+        if (!video.videoWidth) { requestAnimationFrame(tick); return; }
+        if (detector) {
+          detector.detect(video).then(function (codes) {
+            if (codes && codes.length) { encontrado(codes[0].rawValue); return; }
+            if (_camActiva) requestAnimationFrame(tick);
+          }).catch(function () { if (_camActiva) requestAnimationFrame(tick); });
+        } else if (typeof window.jsQR === 'function') {
+          var w = video.videoWidth, h = video.videoHeight;
+          var f = Math.min(1, 640 / Math.max(w, h));
+          lienzo.width = Math.round(w * f); lienzo.height = Math.round(h * f);
+          var ctx = lienzo.getContext('2d');
+          ctx.drawImage(video, 0, 0, lienzo.width, lienzo.height);
+          var d = ctx.getImageData(0, 0, lienzo.width, lienzo.height);
+          var res = window.jsQR(d.data, lienzo.width, lienzo.height);
+          if (res && res.data) { encontrado(res.data); return; }
+          if (_camActiva) requestAnimationFrame(tick);
+        }
       }
       requestAnimationFrame(tick);
-    }).catch(function () {});
+    }).catch(function () { if (video.parentNode) video.parentNode.removeChild(video); });
   } catch (e) {}
 }
 
@@ -12028,7 +12079,7 @@ function renderBarra() {
         : '') +
       '<div class="consumiciones-panel" data-testid="consumiciones">' +
         '<h3>Consumiciones y bonos</h3>' +
-        '<button type="button" class="btn-camara" data-testid="btn-camara-barra" onclick="escanearConCamara(function(c){var i=document.getElementById(\'cons-codigo\');if(i)i.value=c;consBuscar();})">📷 Escanear con cámara</button>' +
+        '<button type="button" class="btn-camara" data-testid="btn-camara-barra" onclick="abreEscanerBarra()">📷 Escanear con cámara</button>' +
         '<form id="consForm" onsubmit="return consBuscar()">' +
           '<input id="cons-codigo" type="text" placeholder="Código (MH-301…)" autocomplete="off" value="' + esc(_consCod) + '">' +
           '<button type="submit">Ver</button>' +
