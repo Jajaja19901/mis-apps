@@ -132,6 +132,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .persona-cupo{margin-top:6px;color:var(--vip-morado);font-size:.875rem;font-weight:600}
 .badge-tipo{background:var(--border);color:var(--text)}
 .badge-serie{background:transparent;border:1px solid var(--vip-morado);color:var(--vip-morado);font-size:.75rem}
+.lista-entradas{list-style:none;padding:0;margin:0;max-height:420px;overflow:auto}
+.lista-entradas li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.lista-entradas .ent-info{font-size:.9rem;line-height:1.7}
+.lista-entradas .btn-qr{min-height:44px;flex-shrink:0}
 .persona-acciones{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 /* Botón de acción gigante + QR de la tarjeta */
 .btn-accion-persona{flex:1;min-width:180px;min-height:56px;font-size:1.0625rem;font-weight:700;border:none;border-radius:var(--radius-btn);background:var(--neon-verde);color:var(--bg);box-shadow:0 0 16px rgba(0,212,138,.18)}
@@ -12277,6 +12281,7 @@ function renderDueno() {
   var html = "";
   html += seccionKpis();
   html += seccionLista();
+  html += seccionEntradas();
   html += seccionConfig();
   html += seccionPersonal();
   html += seccionModulos();
@@ -12419,6 +12424,69 @@ function seccionLista() {
 function onListaTipoChange(v) {
   var el = document.getElementById('lista-vip-campos');
   if (el) el.style.display = v === 'vip' ? '' : 'none';
+}
+
+/* ===== ENTRADAS CREADAS: ver cada una con su QR, estado y acciones ===== */
+var _entFiltro = 'todas';   // 'todas' | 'pendientes' | 'pagadas' | serie concreta
+var _entBusca = '';
+function seccionEntradas() {
+  var todas = state.personas.slice();
+  var html = '<section class="panel" data-testid="seccion-entradas"><h2>Entradas creadas</h2>';
+  html += '<p class="nota">Toca una entrada para ver su QR, compartirla, sacar su PDF o marcarla pagada.</p>';
+  // filtro
+  var series = {};
+  todas.forEach(function (x) { if (x.remesa) series[x.remesa] = 1; });
+  html += '<div class="contador"><select id="ent-filtro" onchange="entSetFiltro(this.value)">';
+  [['todas', 'Todas'], ['pendientes', 'Solo pendientes de pago'], ['pagadas', 'Solo pagadas']].forEach(function (o) {
+    html += '<option value="' + o[0] + '"' + (_entFiltro === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
+  });
+  Object.keys(series).forEach(function (k) {
+    html += '<option value="serie:' + esc(k) + '"' + (_entFiltro === 'serie:' + k ? ' selected' : '') + '>Serie: ' + esc(k) + '</option>';
+  });
+  html += '</select></div>';
+  html += '<input type="text" id="ent-busca" placeholder="Buscar nombre o código" value="' + esc(_entBusca) + '" oninput="entBuscar(this.value)" style="width:100%;margin:8px 0">';
+  // filtrar
+  var lista = todas.filter(function (p) {
+    if (_entFiltro === 'pendientes') { if (p.tipo === 'invitado') return false; var pend = p.tipo === 'vip' ? ((p.mesa.total || 0) - (p.importePagado || 0)) : (p.importePagado || 0) === 0 ? 1 : 0; return pend > 0; }
+    if (_entFiltro === 'pagadas') return (p.importePagado || 0) > 0 || p.tipo === 'invitado';
+    if (_entFiltro.indexOf('serie:') === 0) return p.remesa === _entFiltro.slice(6);
+    return true;
+  });
+  if (_entBusca) {
+    var q = _entBusca.toLowerCase();
+    lista = lista.filter(function (p) { return ((p.nombre + ' ' + p.apellido + ' ' + p.codigoReserva).toLowerCase()).indexOf(q) !== -1; });
+  }
+  html += '<p class="nota">' + lista.length + ' entradas.</p>';
+  if (!lista.length) { html += '<p class="lista-vacia">Sin entradas con este filtro.</p></section>'; return html; }
+  var tope = 80;
+  html += '<ul class="lista-entradas">';
+  lista.slice(0, tope).forEach(function (p) {
+    var estado = p.tipo === 'invitado'
+      ? '<span class="badge badge-tipo">Invitado</span>'
+      : ((p.importePagado || 0) > 0 && (p.tipo !== 'vip' || (p.mesa.total || 0) - p.importePagado <= 0)
+        ? '<span class="badge badge-pagado">Pagada</span>'
+        : '<span class="badge badge-pendiente">Pendiente</span>');
+    var dentro = p.dentro ? ' <span class="badge badge-dentro">Dentro</span>' : '';
+    html += '<li><span class="ent-info"><b>' + esc(p.nombre + ' ' + p.apellido) + '</b> · ' + esc(p.codigoReserva) +
+      (p.remesa ? ' · ' + esc(p.remesa) : '') + '<br>' + estado + dentro + '</span>' +
+      '<button type="button" class="btn-qr" onclick="abreQR(\'' + escJs(p.id) + '\')">Ver / QR</button></li>';
+  });
+  html += '</ul>';
+  if (lista.length > tope) html += '<p class="nota">Mostrando las primeras ' + tope + '. Usa el buscador o el filtro para acotar.</p>';
+  html += '</section>';
+  return html;
+}
+function entSetFiltro(v) { _entFiltro = v; renderDueno(); }
+function entBuscar(v) {
+  _entBusca = v;
+  // repinta solo esta sección para no perder el foco del buscador
+  var sec = document.querySelector('[data-testid="seccion-entradas"]');
+  if (sec) {
+    var tmp = document.createElement('div'); tmp.innerHTML = seccionEntradas();
+    sec.parentNode.replaceChild(tmp.firstChild, sec);
+    var inp = document.getElementById('ent-busca');
+    if (inp) { inp.focus(); try { inp.setSelectionRange(inp.value.length, inp.value.length); } catch (e) {} }
+  }
 }
 
 function duenoAnadirLista(ev) {
