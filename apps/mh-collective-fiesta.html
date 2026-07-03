@@ -13271,15 +13271,19 @@ function codigoUsado(s, cod) {
   return (s.personas || []).some(function (p) { return _normalizaCod(p.codigoReserva) === n; }) ||
          (s.bonos || []).some(function (b) { return _normalizaCod(b.codigo) === n; });
 }
-/* Código de bono con las COPAS metidas dentro: MH-B<copas>-<2 letras>.
-   Ej: bono de 5 copas → "MH-B5-KJ". Así el código ya dice cuántas copas lleva y
-   nadie tiene que mirar nada; las 2 letras al azar lo hacen imposible de adivinar. */
+/* Código de bono: MH-B<copas>-<nº de serie>-<2 letras>. Ej: bono de 5 copas, el
+   número 47 → "MH-B5-047-KJ". Tres cosas dentro:
+   - <copas>: cuántas copas lleva (se ve de un vistazo),
+   - <nº serie>: un número que sube con cada bono → aunque crees MIL bonos iguales,
+     cada uno tiene SU número, así que hay mil códigos distintos garantizados,
+   - <2 letras> al azar: para que nadie adivine el siguiente (anti-listillos).
+   Se comprueba además que no exista ya. */
 function nuevoCodigoBono(s, copas) {
   var c = (typeof copas === 'number' && copas > 0) ? copas : 5;
-  var base = 'MH-B' + c;
+  var seq = (s.bonos || []).length + 1;
+  var base = 'MH-B' + c + '-' + String(seq).padStart(3, '0');
   var cod, intentos = 0;
-  do { cod = base + '-' + _dosLetras(); intentos++; } while (codigoUsado(s, cod) && intentos < 80);
-  if (codigoUsado(s, cod)) cod = base + '-' + _dosLetras() + ((s.bonos || []).length); // salvaguarda si se agotan las combinaciones
+  do { cod = base + '-' + _dosLetras(); intentos++; } while (codigoUsado(s, cod) && intentos < 300);
   return cod;
 }
 function personaPorCodigo(cod) {
