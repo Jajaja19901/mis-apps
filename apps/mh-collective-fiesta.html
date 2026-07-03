@@ -433,7 +433,15 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "clickText": "Ver / QR" },
     { "expectVisible": "[data-testid=\"qr-modal\"]" },
     { "expect": "Sin pagar (25 €)" },
-    { "expect": "2 copas incluidas" } ]}
+    { "expect": "2 copas incluidas" } ]},
+  { "name": "Las acciones del panel se registran como Dueño (no como trabajador)", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "click": "[data-testid=\"tab-entradas\"]" },
+    { "click": "[data-testid=\"btn-add-fase\"]" },
+    { "clickText": "Registro" },
+    { "expect": "Dueño añadió la Fase" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -13154,8 +13162,15 @@ function perfilesLista() {
   for (var j = 1; j <= nc; j++) lista.push({ id: 'cam-' + j, label: 'Camarero ' + j });
   return lista;
 }
+/* Quién está actuando AHORA: si estás dentro del panel del dueño (autenticado),
+   el autor es el Dueño aunque el perfil de trabajo del móvil siga siendo Vigilante/
+   Camarero. Así el registro no apunta las acciones del administrador como si las
+   hubiera hecho un trabajador. */
+function actorActual() {
+  return (location.hash === '#/dueno' && duenoAutenticado) ? 'dueno' : state.perfilActivo;
+}
 function addLog(texto, tipo) {
-  state.log.unshift({ hora: nowHM(), actor: etiquetaPerfil(state.perfilActivo), texto: texto, tipo: tipo || '' });
+  state.log.unshift({ hora: nowHM(), actor: etiquetaPerfil(actorActual()), texto: texto, tipo: tipo || '' });
 }
 
 /* ---------- Caja / búsquedas ---------- */
@@ -13222,7 +13237,7 @@ function setVigilantes(n) {
     if (!(id in state.recaudacionPorPerfil)) state.recaudacionPorPerfil[id] = 0;
   }
   if (!perfilesLista().some(function (p) { return p.id === state.perfilActivo; })) state.perfilActivo = 'vig-1';
-  addLog('[Dueño] ajustó nº de vigilantes a ' + n, 'personal');
+  addLog('ajustó nº de vigilantes a ' + n, 'personal');
 }
 function setCamareros(n) {
   n = Math.max(1, Math.min(9, Math.round(n) || 1));
@@ -13235,7 +13250,7 @@ function setCamareros(n) {
     if (!state.carritos[id]) state.carritos[id] = [];
   }
   if (!perfilesLista().some(function (p) { return p.id === state.perfilActivo; })) state.perfilActivo = 'vig-1';
-  addLog('[Dueño] ajustó nº de camareros a ' + n, 'personal');
+  addLog('ajustó nº de camareros a ' + n, 'personal');
 }
 
 /* ---------- Router / render dispatcher ---------- */
@@ -13263,7 +13278,7 @@ function renderApp() {
 function renderAppInterno() {
   var rolChips = document.getElementById('rolChips');
   if (rolChips) {
-    var activo = (location.hash === '#/dueno' && duenoAutenticado) ? 'dueno' : state.perfilActivo;
+    var activo = actorActual();
     rolChips.innerHTML = perfilesLista().map(function (p) {
       return '<button type="button" data-testid="rol-' + esc(p.id) + '" class="chip' +
         (p.id === activo ? ' activo' : '') + '">' + esc(p.label) + '</button>';
