@@ -11576,7 +11576,7 @@ function abreQR(id) {
   var copas = consIncluidas(p);
   var html = "";
   html += '<div class="modal-qr" data-testid="qr-modal">';
-  html += "<h2>" + esc(p.nombre + " " + p.apellido) + "</h2>";
+  html += "<h2>" + esc((p.nombre + " " + p.apellido).trim() || "Entrada al portador") + "</h2>";
   html += '<p class="qr-tipo">' + esc(tipoLabel) +
     (p.tipo === "taquilla" ? (p.pagado ? ' · <span class="qr-pagada">Pagada</span>' : ' · <span class="qr-pendiente">Sin pagar (' + esc(precioEntradaDe(p)) + ' €)</span>') : '') +
     (copas > 0 ? ' · ' + copas + ' copa' + (copas === 1 ? '' : 's') + ' incluida' + (copas === 1 ? '' : 's') : '') + "</p>";
@@ -11729,7 +11729,8 @@ function canvasInvitacion(p) {
     var titulo = p.tipo === 'vip' ? 'MESA VIP' : (p.tipo === 'invitado' ? 'INVITACIÓN' : 'ENTRADA GENERAL');
     ctx.fillText(titulo, cx, y); y += 46;
     ctx.fillStyle = '#fff'; ctx.font = 'bold 30px -apple-system, sans-serif';
-    ctx.fillText(p.nombre + ' ' + p.apellido, cx, y); y += 46;
+    var titular = (p.nombre + ' ' + p.apellido).trim();
+    ctx.fillText(titular || 'Entrada al portador', cx, y); y += 46;
     ctx.font = '400 25px -apple-system, sans-serif'; ctx.fillStyle = '#c8c8d4';
     if (c.fecha || c.hora) { ctx.fillText([c.fecha, c.hora].filter(Boolean).join('  ·  '), cx, y); y += 46; }
     if (c.lugar) { ctx.fillText('📍 ' + c.lugar, cx, y); y += 46; }
@@ -12637,7 +12638,7 @@ function seccionEntradas() {
         ? '<span class="badge badge-pagado">Pagada</span>'
         : '<span class="badge badge-pendiente">Pendiente</span>');
     var dentro = p.dentro ? ' <span class="badge badge-dentro">Dentro</span>' : '';
-    html += '<li><span class="ent-info"><b>' + esc(p.nombre + ' ' + p.apellido) + '</b> · ' + esc(p.codigoReserva) +
+    html += '<li><span class="ent-info"><b>' + esc((p.nombre + ' ' + p.apellido).trim() || 'Entrada al portador') + '</b> · ' + esc(p.codigoReserva) +
       (p.remesa ? ' · ' + esc(p.remesa) : '') + '<br>' + estado + dentro + '</span>' +
       '<button type="button" class="btn-qr" onclick="abreQR(\'' + escJs(p.id) + '\')">Ver / QR</button></li>';
   });
