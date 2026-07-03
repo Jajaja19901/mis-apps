@@ -16,7 +16,9 @@
 :root{--bg:#0a0a0f;--surface:#1a1a23;--border:#333340;--text:#ffffff;--text-dim:#a0a0b0;--neon-verde:#00d48a;--vip-morado:#b026ff;--ambar:#ffb600;--rojo:#ff3333;--radius-card:8px;--radius-pill:20px;--radius-btn:6px}
 *,*::before,*::after{box-sizing:border-box}
 html,body{margin:0;padding:0}
+html,body{max-width:100%;overflow-x:hidden}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;min-height:100vh;-webkit-font-smoothing:antialiased}
+canvas{max-width:100%}
 img,svg{max-width:100%;display:block}
 button,input,select,textarea{font-family:inherit;font-size:1rem;color:inherit}
 /* Todos los campos legibles en tema oscuro (evita texto blanco sobre blanco) */
@@ -28,14 +30,23 @@ a{color:var(--neon-verde)}
 h1,h2,h3{margin:0 0 .5rem;font-weight:600}
 h1{font-size:clamp(1.5rem,5vw,2rem)}
 p{margin:0 0 .75rem;color:var(--text-dim)}
-/* Topbar */
-#topbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;flex-wrap:wrap}
-#topbar>svg{width:40px;height:40px;flex-shrink:0}
-#rolChips{display:flex;gap:8px;flex-wrap:wrap;flex:1}
+/* Topbar: UNA sola línea compacta; los perfiles se deslizan de lado (no apilan) */
+#topbar{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;flex-wrap:nowrap;min-height:52px}
+#logoBox{flex-shrink:0;display:flex}
+#logoBox svg,#logoBox img{width:36px;height:36px}
+#rolChips{display:flex;gap:6px;flex:1;min-width:0;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px}
+#rolChips::-webkit-scrollbar{display:none}
+#rolChips .chip{flex:0 0 auto}
 .chip-rol{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:var(--radius-pill);padding:6px 12px;font-size:.8125rem;cursor:pointer;min-height:36px}
 .chip-rol.activo{background:var(--neon-verde);color:var(--bg);border-color:var(--neon-verde)}
-#topbar [data-testid="sync-estado"]{font-size:.8125rem;color:var(--text-dim)}
-#btnInstalar{background:transparent;border:1px solid var(--border);color:var(--text);border-radius:var(--radius-btn);padding:8px 12px;cursor:pointer;font-size:.8125rem}
+#topbar [data-testid="sync-estado"]{font-size:.75rem;color:var(--text-dim);flex-shrink:0;white-space:nowrap}
+#btnInstalar{background:transparent;border:1px solid var(--border);color:var(--text);border-radius:var(--radius-btn);padding:6px 10px;cursor:pointer;font-size:.75rem;flex-shrink:0;white-space:nowrap;min-height:40px}
+/* En pantallas estrechas, el estado de sync se vuelve un puntito de color (verde=sincronizado) */
+@media (max-width:560px){
+  #topbar [data-testid="sync-estado"]{font-size:0;width:10px;height:10px;border-radius:50%;background:var(--text-dim)}
+  #topbar [data-testid="sync-estado"].sync-ok{background:var(--neon-verde)}
+  #btnInstalar{font-size:.7rem;padding:5px 8px}
+}
 /* Buscador y filtros */
 #buscador{width:100%;padding:12px 14px;border-radius:var(--radius-btn);border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:1rem;margin-bottom:12px}
 .tabs-filtro{display:flex;gap:8px;border-bottom:2px solid var(--border);overflow-x:auto;margin-bottom:12px}
@@ -116,7 +127,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .chip{border:1px solid var(--border);background:transparent;color:var(--text);border-radius:var(--radius-pill);padding:8px 16px;font-size:.875rem;min-height:40px}
 .chip.activo{background:var(--neon-verde);color:var(--bg);border-color:var(--neon-verde)}
 /* Buscador + escanear (puerta) */
-.puerta-buscador-row{display:flex;gap:8px;align-items:stretch;margin-bottom:12px}
+.puerta-buscador-row{display:flex;gap:8px;align-items:stretch;margin-bottom:12px;flex-wrap:wrap}
+.puerta-buscador-row #buscador{flex:1;min-width:180px}
 .puerta-buscador-row #buscador{margin-bottom:0}
 .btn-escanear{border:1px solid var(--vip-morado);background:transparent;color:var(--vip-morado);border-radius:var(--radius-btn);white-space:nowrap}
 /* Pestañas de filtro */
@@ -181,7 +193,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .modal-content{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);padding:22px;max-width:460px;width:100%;max-height:90vh;overflow:auto}
 .modal-content input,.modal-content select{width:100%;margin:6px 0 12px;padding:10px 12px;border-radius:var(--radius-btn);border:1px solid var(--border);background:var(--bg);color:var(--text)}
 .modal-content canvas{margin:12px auto;display:block;background:#fff;border-radius:8px;padding:8px}
-.modal-botones{display:flex;gap:10px;margin-top:12px}
+.modal-botones{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.modal-botones button{flex:1;min-width:110px}
 .escaner-no-encontrado{color:var(--ambar);font-weight:600}
 .qr-pagada{color:var(--neon-verde);font-weight:700}
 .qr-pendiente{color:var(--ambar);font-weight:700}
@@ -202,9 +215,19 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .prod-edit .mini{font-size:.75rem;color:var(--text-dim)}
 .prod-edit .mini input{width:90px}
 .btn-mini-borrar{min-height:40px;background:transparent;border:1px solid var(--rojo);color:var(--rojo)}
-.fase-row{border:1px solid var(--border);border-radius:var(--radius-card);padding:12px;margin-bottom:10px}
+.fase-row{border:1px solid var(--border);border-radius:var(--radius-card);padding:12px;margin-bottom:10px;overflow:hidden}
 .fase-cab{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-.fase-cab input{flex:1;font-weight:700}
+.fase-cab input{flex:1;min-width:0;font-weight:700}
+/* Filas con campos numéricos: que quepan SIEMPRE en el ancho del móvil */
+.contador{flex-wrap:wrap}
+.contador label{display:flex;flex-direction:column;gap:2px;font-size:.75rem;color:var(--text-dim)}
+.contador input[type=number]{width:92px;max-width:100%}
+.contador select{max-width:100%}
+.mini input{width:92px;max-width:100%}
+/* Tabla RRPP: se desliza DENTRO de su caja, no mueve la página */
+.tabla-rrpp{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap}
+/* Barra de pestañas pegada bajo la cabecera compacta */
+.dueno-tabs{top:52px}
 .carrito-vacio-msg{color:var(--text-dim);text-align:center;padding:12px}
 .carrito-linea{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)}
 .cart-menos{min-height:36px;min-width:36px;padding:0 10px}
@@ -10967,7 +10990,15 @@ function load() {
 }
 
 function persistLocal() {
-  localStorage.setItem(LS_KEY, JSON.stringify(state));
+  // Blindado: si la memoria del navegador se llena (p.ej. imágenes enormes),
+  // avisa en pantalla en vez de fallar en silencio y dejar de guardar.
+  try {
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+  } catch (e) {
+    try {
+      if (typeof toast === 'function') toast('⚠️ Memoria llena: NO se guardó. Quita el cartel/logo o descarga una copia.');
+    } catch (e2) {}
+  }
 }
 
 /* frag-core-b.js — MH Collective: helpers globales + router + sync + boot.
@@ -11157,7 +11188,11 @@ function renderAppInterno() {
   }
 
   var syncEl = document.querySelector('[data-testid="sync-estado"]');
-  if (syncEl) syncEl.textContent = syncEstado();
+  if (syncEl) {
+    syncEl.textContent = syncEstado();
+    syncEl.classList.toggle('sync-ok', syncEstado() === 'Sincronizado');
+    syncEl.title = syncEstado();
+  }
 
   var vista = document.getElementById('vista');
   var hash = location.hash || '#/puerta';
@@ -11642,17 +11677,42 @@ function precargarCartel() {
     img.src = state.config.cartel;
   } else { _cartelImg = null; }
 }
+/* Comprime la imagen subida para que quepa en la memoria del navegador (~5MB en total):
+   la reduce a un tamaño máximo y la exporta ligera. PNG conserva transparencia (logos). */
+function comprimirImagen(file, maxLado, preferPng, cb) {
+  var r = new FileReader();
+  r.onload = function () {
+    var img = new Image();
+    img.onload = function () {
+      try {
+        var f = Math.min(1, maxLado / Math.max(img.width, img.height));
+        var w = Math.max(1, Math.round(img.width * f));
+        var h = Math.max(1, Math.round(img.height * f));
+        var cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+        cv.getContext('2d').drawImage(img, 0, 0, w, h);
+        var out = preferPng ? cv.toDataURL('image/png') : cv.toDataURL('image/jpeg', 0.85);
+        // Si aun así queda enorme (PNG fotográfico), reintenta como JPEG
+        if (out.length > 900 * 1024) out = cv.toDataURL('image/jpeg', 0.8);
+        cb(out);
+      } catch (e) { cb(null); }
+    };
+    img.onerror = function () { cb(null); };
+    img.src = String(r.result);
+  };
+  r.onerror = function () { cb(null); };
+  r.readAsDataURL(file);
+}
+
 function cargarCartelArchivo(input) {
   var f = input.files && input.files[0];
   if (!f) return;
-  var r = new FileReader();
-  r.onload = function () {
-    var dataUrl = String(r.result);
+  toast('Preparando el cartel…');
+  comprimirImagen(f, 1000, false, function (dataUrl) {
+    if (!dataUrl) { toast('No se pudo leer la imagen'); return; }
     mutate(function (s) { s.config.cartel = dataUrl; });
     precargarCartel();
     toast('Cartel guardado');
-  };
-  r.readAsDataURL(f);
+  });
   input.value = '';
 }
 function quitarCartel() {
@@ -12606,13 +12666,13 @@ function seccionConfig() {
 function cargarLogoArchivo(input) {
   var f = input.files && input.files[0];
   if (!f) return;
-  var r = new FileReader();
-  r.onload = function () {
-    mutate(function (s) { s.config.logo = String(r.result); });
+  toast('Preparando el logo…');
+  comprimirImagen(f, 512, true, function (dataUrl) { // PNG: conserva la transparencia del logo
+    if (!dataUrl) { toast('No se pudo leer la imagen'); return; }
+    mutate(function (s) { s.config.logo = dataUrl; });
     aplicarLogo();
     toast('Logo guardado y aplicado');
-  };
-  r.readAsDataURL(f);
+  });
   input.value = '';
 }
 function quitarLogo() {
