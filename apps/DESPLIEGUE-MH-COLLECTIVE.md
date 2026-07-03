@@ -6,12 +6,18 @@ internet con HTTPS**, en un servidor que ejecute Node. Aquí van los pasos con
 administrador, los de los vigilantes y los de los camareros ven **lo mismo en
 tiempo real**.
 
-## Qué archivos hacen falta (ya están en el repositorio)
-- `apps/mh-collective-fiesta.html` — la app.
-- `apps/mh-collective-servidor.mjs` — el servidor que conecta los móviles.
-- `render.yaml` — la configuración del hosting (ya preparada).
+## Qué archivos hacen falta (en la carpeta `apps/`)
+- `mh-collective-fiesta.html` — la app.
+- `mh-collective-servidor.mjs` — el servidor que conecta los móviles.
+- `manifest.json` — datos de la app instalable (ya hecho).
+- `sw.js` — el service worker, para instalar y funcionar sin datos (ya hecho).
+- `icon-192.png` y `icon-512.png` — **tus dos iconos**. ← ESTOS LOS PONES TÚ.
+- `render.yaml` (en la raíz) — la configuración del hosting (ya preparada).
 
-No hace falta nada más: el servidor no tiene dependencias.
+**Lo único que tienes que añadir tú:** tus dos iconos como
+`apps/icon-192.png` y `apps/icon-512.png` (los que hiciste, 192×192 y 512×512).
+Súbelos a esa carpeta del repositorio (o al hosting) y ya está. El servidor no
+tiene dependencias, no hay que instalar nada más.
 
 ## Pasos (Render) — unos 5 minutos
 1. Entra en **https://render.com** y crea una cuenta (puedes usar el login de GitHub).
@@ -53,9 +59,10 @@ Con la app abierta desde la dirección `https://…`:
 - **iPhone (Safari):** botón compartir → **Añadir a pantalla de inicio**.
 
 ## El icono / logo
-El icono que trae es provisional. Para poner **tu logo** como icono: entra al
-panel (Dueño, PIN 1234) → **Ajustes → Subir logo** y elige tu imagen. Pasa a ser
-el icono de instalación (192 y 512) y se copia a todos los móviles.
+Pon tus dos iconos como **`apps/icon-192.png`** y **`apps/icon-512.png`** (los que
+hiciste). La app y el manifest ya apuntan a ellos, así que al instalar saldrá tu
+logo. (Alternativa, si no quieres tocar archivos: entra al panel (Dueño, PIN 1234)
+→ **Ajustes → Subir logo** y elige tu imagen; también pasa a ser el icono.)
 
 ## Notas
 - **Plan gratis de Render:** el servidor se "duerme" tras 15 min sin uso; el

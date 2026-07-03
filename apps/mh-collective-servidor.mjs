@@ -213,29 +213,26 @@ function readJsonBody(req, res, onOk) {
 }
 
 // ---------- Rutas ----------
-// Service worker: hace la app instalable de verdad en Android y que funcione sin datos (offline).
-// Estrategia network-first del "shell" (la propia app); la API nunca se cachea (datos en vivo).
-const SW_JS = [
-  "var CACHE='mh-collective-v1';",
-  "self.addEventListener('install',function(e){self.skipWaiting();});",
-  "self.addEventListener('activate',function(e){e.waitUntil(self.clients.claim());});",
-  "self.addEventListener('fetch',function(e){",
-  "  var u=new URL(e.request.url);",
-  "  if(e.request.method!=='GET') return;",
-  "  if(u.pathname.indexOf('/api/')===0) return;", // datos en vivo: nunca desde caché
-  "  e.respondWith(fetch(e.request).then(function(res){",
-  "    try{var c=res.clone();caches.open(CACHE).then(function(cache){cache.put(e.request,c);});}catch(err){}",
-  "    return res;",
-  "  }).catch(function(){return caches.match(e.request).then(function(r){return r||caches.match('/');});}));",
-  "});"
-].join('\n');
-function serveSW(res) {
-  res.writeHead(200, {
-    'Content-Type': 'text/javascript; charset=utf-8',
-    'Service-Worker-Allowed': '/',
-    'Cache-Control': 'no-cache',
+// Archivos estáticos de la PWA que viven JUNTO a la app en apps/: el service worker,
+// el manifest y los DOS iconos que pone el dueño (icon-192.png / icon-512.png).
+// Lista blanca fija (nada de rutas del usuario → sin path traversal).
+const STATIC_ASSETS = {
+  '/sw.js':         { file: 'sw.js',          type: 'text/javascript; charset=utf-8', extra: { 'Service-Worker-Allowed': '/' } },
+  '/manifest.json': { file: 'manifest.json',  type: 'application/manifest+json; charset=utf-8' },
+  '/icon-192.png':  { file: 'icon-192.png',   type: 'image/png' },
+  '/icon-512.png':  { file: 'icon-512.png',   type: 'image/png' },
+};
+function serveStatic(res, asset) {
+  fs.readFile(path.join(__dirname, asset.file), (err, data) => {
+    if (err) {
+      // Si el dueño aún no ha puesto sus iconos, no pasa nada: la app funciona igual.
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+      res.end('No encontrado: ' + asset.file);
+      return;
+    }
+    res.writeHead(200, Object.assign({ 'Content-Type': asset.type, 'Cache-Control': 'no-cache' }, asset.extra || {}));
+    res.end(data);
   });
-  res.end(SW_JS);
 }
 function serveApp(res) {
   fs.readFile(APP_HTML_PATH, (err, data) => {
@@ -352,8 +349,8 @@ const server = http.createServer((req, res) => {
       return;
     }
 
-    if (pathname === '/sw.js' && req.method === 'GET') {
-      serveSW(res);
+    if (req.method === 'GET' && Object.prototype.hasOwnProperty.call(STATIC_ASSETS, pathname)) {
+      serveStatic(res, STATIC_ASSETS[pathname]);
       return;
     }
 
