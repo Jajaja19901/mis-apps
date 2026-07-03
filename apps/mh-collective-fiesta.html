@@ -202,6 +202,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .prod-edit .mini{font-size:.75rem;color:var(--text-dim)}
 .prod-edit .mini input{width:90px}
 .btn-mini-borrar{min-height:40px;background:transparent;border:1px solid var(--rojo);color:var(--rojo)}
+.fase-row{border:1px solid var(--border);border-radius:var(--radius-card);padding:12px;margin-bottom:10px}
+.fase-cab{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.fase-cab input{flex:1;font-weight:700}
 .carrito-vacio-msg{color:var(--text-dim);text-align:center;padding:12px}
 .carrito-linea{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)}
 .cart-menos{min-height:36px;min-width:36px;padding:0 10px}
@@ -10845,7 +10848,12 @@ function seedState() {
       accesoAuto: false,
       fecha: "", hora: "", lugar: "", lema: "",
       logo: null, colorTema: "#00d4ff",
-      vipPack: { botellas: 1, refrescos: 4 }
+      vipPack: { botellas: 1, refrescos: 4 },
+      fases: [
+        { id: "f1", nombre: "Fase 1", precio: 20, cantidad: 300 },
+        { id: "f2", nombre: "Fase 2", precio: 25, cantidad: 300 },
+        { id: "f3", nombre: "Fase 3", precio: 30, cantidad: 400 }
+      ]
     },
     perfilActivo: "vig-1",
     personas: seedPersonas(),
@@ -10912,6 +10920,11 @@ function migrar(s) {
   if (s.config.logo === undefined) s.config.logo = null;
   if (typeof s.config.colorTema !== 'string') s.config.colorTema = '#00d4ff';
   if (!s.config.vipPack) s.config.vipPack = { botellas: 1, refrescos: 4 };
+  if (!Array.isArray(s.config.fases)) s.config.fases = [
+    { id: "f1", nombre: "Fase 1", precio: 20, cantidad: 300 },
+    { id: "f2", nombre: "Fase 2", precio: 25, cantidad: 300 },
+    { id: "f3", nombre: "Fase 3", precio: 30, cantidad: 400 }
+  ];
   if (s.config.umbralStock === undefined) s.config.umbralStock = 10;
 
   if (!s.perfilActivo) s.perfilActivo = "vig-1";
@@ -12445,7 +12458,7 @@ function renderDueno() {
       } },
     { id: 'entradas', label: '🎟️ Entradas', build: function () {
         return intro('Crea entradas e invitaciones y consúltalas. Abajo del todo, tu lista de "Entradas creadas" con su QR.') +
-          seccionLista() + seccionEntradas();
+          seccionFases() + seccionLista() + seccionEntradas();
       } },
     { id: 'fiesta', label: '💶 Dinero', build: function () {
         return intro('Lo que mueve la caja durante la fiesta: promotores (RRPP), bonos, gastos y stock de barra.') +
@@ -12634,6 +12647,64 @@ function aplicarLogo() {
   }
 }
 
+/* ===== FASES DE VENTA (como las fiestas grandes: Fase 1/2/3 con su precio y cupo) ===== */
+function fasesLista() { return (state.config && state.config.fases) || []; }
+function creadasFase(id) { return (state.personas || []).filter(function (p) { return p.faseId === id; }).length; }
+function faseActiva() {
+  // primera fase que aún no está llena
+  var fs = fasesLista();
+  for (var i = 0; i < fs.length; i++) { if (creadasFase(fs[i].id) < (fs[i].cantidad || 0)) return fs[i]; }
+  return fs.length ? fs[fs.length - 1] : null;
+}
+function seccionFases() {
+  var fs = fasesLista();
+  var activa = faseActiva();
+  var html = '<section class="panel" data-testid="seccion-fases"><h2>Fases de venta</h2>';
+  html += '<p class="nota">Vende por fases como las fiestas grandes: cada fase su precio y cuántas entradas. Al crear una remesa eliges la fase y coge su precio solo. La fase activa es la primera que no esté llena.</p>';
+  fs.forEach(function (f) {
+    var hechas = creadasFase(f.id);
+    var cant = f.cantidad || 0;
+    var pct = cant ? Math.min(100, Math.round(hechas / cant * 100)) : 0;
+    var llena = hechas >= cant && cant > 0;
+    var esActiva = activa && activa.id === f.id && !llena;
+    html += '<div class="fase-row" data-testid="fase-' + esc(f.id) + '">';
+    html += '<div class="fase-cab"><input type="text" value="' + esc(f.nombre) + '" onchange="duenoFaseCampo(\'' + escJs(f.id) + '\',\'nombre\',this.value)">' +
+      (esActiva ? '<span class="badge badge-dentro">ACTIVA</span>' : (llena ? '<span class="badge badge-pendiente">Agotada</span>' : '')) + '</div>';
+    html += '<div class="contador"><label class="mini">Precio €<input type="number" min="0" value="' + esc(f.precio) + '" onchange="duenoFaseCampo(\'' + escJs(f.id) + '\',\'precio\',this.value)"></label>';
+    html += '<label class="mini">Cantidad<input type="number" min="0" value="' + esc(f.cantidad) + '" onchange="duenoFaseCampo(\'' + escJs(f.id) + '\',\'cantidad\',this.value)"></label>';
+    html += '<button type="button" class="btn-mini-borrar" onclick="duenoBorrarFase(\'' + escJs(f.id) + '\')">Borrar</button></div>';
+    html += '<div class="barra-aforo"><span style="width:' + pct + '%"></span></div>';
+    html += '<p class="nota">' + hechas + ' / ' + cant + ' entradas creadas de esta fase</p>';
+    html += '</div>';
+  });
+  html += '<button type="button" data-testid="btn-add-fase" onclick="duenoAnadirFase()">+ Añadir fase</button>';
+  html += '</section>';
+  return html;
+}
+function duenoFaseCampo(id, campo, valor) {
+  mutateSilent(function (s) {
+    var f = (s.config.fases || []).find(function (x) { return x.id === id; });
+    if (!f) return;
+    if (campo === 'nombre') f.nombre = String(valor).trim() || f.nombre;
+    else f[campo] = Number(valor) || 0;
+  });
+}
+function duenoBorrarFase(id) {
+  mutate(function (s) {
+    var i = (s.config.fases || []).findIndex(function (x) { return x.id === id; });
+    if (i >= 0) { addLog('quitó la fase ' + s.config.fases[i].nombre, 'config'); s.config.fases.splice(i, 1); }
+  });
+  toast('Fase quitada');
+}
+function duenoAnadirFase() {
+  mutate(function (s) {
+    var n = (s.config.fases || []).length + 1;
+    s.config.fases.push({ id: 'f' + Date.now(), nombre: 'Fase ' + n, precio: state.config.precioEntrada || 20, cantidad: 100 });
+    addLog('añadió la Fase ' + n, 'config');
+  });
+  toast('Fase añadida');
+}
+
 /* ===== LISTA ANTICIPADA (entradas vendidas ANTES de la fiesta; sin servidor) ===== */
 function nuevoCodigoLista(s) {
   return "MH-5" + String(s.personas.length).padStart(2, "0");
@@ -12660,11 +12731,21 @@ function seccionLista() {
   html += '</form>';
   html += '<h3>Remesas de entradas (con QR para enviar)</h3>';
   html += '<p class="nota">Crea de golpe un lote de entradas numeradas, cada una con su QR único. "Ya pagadas" suman a caja; "para vender" las marcas pagadas cuando te llegue el Bizum y envías su QR.</p>';
+  // Fase: al elegirla, coge su precio automáticamente
+  var faseAct = faseActiva();
+  html += '<label>Fase <select id="remesa-fase" onchange="remesaFaseChange()">';
+  html += '<option value="">— Sin fase (precio manual) —</option>';
+  fasesLista().forEach(function (f) {
+    var rest = Math.max(0, (f.cantidad || 0) - creadasFase(f.id));
+    var sel = faseAct && faseAct.id === f.id ? ' selected' : '';
+    html += '<option value="' + esc(f.id) + '"' + sel + '>' + esc(f.nombre) + ' · ' + f.precio + ' € · quedan ' + rest + '</option>';
+  });
+  html += '</select></label>';
   html += '<div class="contador"><label>Cantidad <select id="remesa-cantidad">';
-  [5, 10, 20, 30, 40, 50, 100].forEach(function (n) { html += '<option value="' + n + '">' + n + '</option>'; });
+  [5, 10, 20, 30, 40, 50, 100, 200, 300, 500].forEach(function (n) { html += '<option value="' + n + '">' + n + '</option>'; });
   html += '</select></label>';
   html += '<label>Estado <select id="remesa-estado"><option value="pagadas">Ya pagadas</option><option value="vender">Para vender</option></select></label></div>';
-  html += '<div class="contador"><label>Precio (€) <input type="number" id="remesa-precio" value="' + esc(state.config.precioEntrada) + '" min="0" style="width:80px"></label>';
+  html += '<div class="contador"><label>Precio (€) <input type="number" id="remesa-precio" value="' + esc(faseAct ? faseAct.precio : state.config.precioEntrada) + '" min="0" style="width:80px"></label>';
   html += '<label>Copas incluidas <input type="number" id="remesa-copas" value="1" min="0" max="20" style="width:80px"></label></div>';
   html += '<label>Nombre de la serie (lo que tú quieras)<input type="text" id="remesa-etiqueta" placeholder="Ej: Preventa Instagram, Lista Marta…"></label>';
   html += '<button type="button" data-testid="btn-crear-remesa" onclick="crearRemesa()">Crear remesa de entradas</button>';
@@ -12825,12 +12906,22 @@ function duenoAnadirBulk() {
 }
 
 /* ===== REMESAS DE ENTRADAS (lotes numerados con QR, pagadas o para vender) ===== */
+function remesaFaseChange() {
+  var fid = document.getElementById('remesa-fase').value;
+  var f = fasesLista().find(function (x) { return x.id === fid; });
+  if (f) {
+    var pr = document.getElementById('remesa-precio'); if (pr) pr.value = f.precio;
+    var et = document.getElementById('remesa-etiqueta'); if (et && !et.value.trim()) et.value = f.nombre;
+  }
+}
 function crearRemesa() {
   var cantidad = parseInt(document.getElementById('remesa-cantidad').value, 10) || 5;
   var estado = document.getElementById('remesa-estado').value;
   var precio = Number(document.getElementById('remesa-precio').value) || 0;
   var copas = parseInt(document.getElementById('remesa-copas').value || '0', 10) || 0;
-  var etiqueta = (document.getElementById('remesa-etiqueta').value || '').trim() || 'Entrada';
+  var faseId = document.getElementById('remesa-fase') ? document.getElementById('remesa-fase').value : '';
+  var fase = fasesLista().find(function (x) { return x.id === faseId; });
+  var etiqueta = (document.getElementById('remesa-etiqueta').value || '').trim() || (fase ? fase.nombre : 'Entrada');
   var pagadas = estado === 'pagadas';
   mutate(function (s) {
     var yaEnRemesas = s.personas.filter(function (x) { return x.remesa; }).length;
@@ -12847,13 +12938,14 @@ function crearRemesa() {
         dentro: false, horaEntrada: null,
         precioVenta: precio,
         consumicionesIncluidas: copas,
-        remesa: etiqueta
+        remesa: etiqueta,
+        faseId: fase ? fase.id : null
       });
     }
-    addLog('creó remesa "' + etiqueta + '": ' + cantidad + ' entradas ' +
+    addLog('creó remesa "' + etiqueta + '"' + (fase ? ' (' + fase.nombre + ')' : '') + ': ' + cantidad + ' entradas ' +
       (pagadas ? 'ya pagadas' : 'para vender') + ' a ' + precio + ' € con ' + copas + ' copa(s)', 'alta');
   });
-  toast(cantidad + ' entradas creadas (' + etiqueta + ')');
+  toast(cantidad + ' entradas creadas' + (fase ? ' · ' + fase.nombre : ''));
 }
 
 /* El comprador paga (Bizum/mano) → el dueño la marca pagada y le envía su QR. */
