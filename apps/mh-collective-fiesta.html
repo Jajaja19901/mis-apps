@@ -510,7 +510,30 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "expect": "recaudado en bonos" },
     { "clickText": "Registro" },
     { "expect": "vendió bono MH-B5" },
-    { "expect": "de 5 copas (20 €)" } ]}
+    { "expect": "de 5 copas (20 €)" } ]},
+  { "name": "Salir del panel y volver a #/dueno vuelve a pedir el PIN (no reabre solo)", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "expectVisible": "[data-testid=\"kpi-caja\"]" },
+    { "goto": "#/puerta" },
+    { "goto": "#/dueno" },
+    { "expectVisible": "#pin-dueno" },
+    { "expectGone": "[data-testid=\"kpi-caja\"]" } ]},
+  { "name": "El camarero no se cuela en la puerta cambiando el hash (vuelve a su barra)", "steps": [
+    { "clickText": "Camarero 1" },
+    { "expectHash": "#/barra" },
+    { "goto": "#/puerta" },
+    { "expectHash": "#/barra" },
+    { "expectVisible": "[data-testid=\"prod-copa\"]" },
+    { "expectGone": "#buscador" } ]},
+  { "name": "El vigilante no se cuela en la barra cambiando el hash (vuelve a su puerta)", "steps": [
+    { "click": "[data-testid=\"rol-vig-1\"]" },
+    { "expectHash": "#/puerta" },
+    { "goto": "#/barra" },
+    { "expectHash": "#/puerta" },
+    { "expectVisible": "#buscador" },
+    { "expectGone": "[data-testid=\"prod-copa\"]" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -13255,9 +13278,13 @@ function cajaDesglose() {
     else if (p.tipo === 'vip') vip += p.importePagado || 0;
   });
   var barra = state.ingresosBarra || 0;
+  // El dinero de las entradas de RRPP YA está contado en Taquilla (cada entrada de
+  // promotor se cobra como taquilla). Por eso NO se vuelve a sumar aquí: si no, se
+  // contaría dos veces. Lo que el dueño DEBE a los promotores es su comisión, y eso
+  // se muestra aparte con rrppComisionTotal(). Se mantiene el campo netoRRPP en 0
+  // por compatibilidad con el CSV (línea "RRPP (pendiente de entrega)").
   var netoRRPP = 0;
-  (state.rrpp || []).forEach(function (r) { netoRRPP += (r.vendidas || 0) * ((r.precio || 0) - (r.comision || 0)); });
-  return { taquilla: taquilla, vip: vip, barra: barra, netoRRPP: netoRRPP, total: taquilla + vip + barra + netoRRPP };
+  return { taquilla: taquilla, vip: vip, barra: barra, netoRRPP: netoRRPP, total: taquilla + vip + barra };
 }
 function productoPorId(id) {
   var lista = (state.config && state.config.productos) || [];
@@ -13312,20 +13339,48 @@ function save() {
   persistLocal();
   if (window.__mhSync && typeof window.__mhSync.push === 'function') window.__mhSync.push();
 }
+
+/* IDEMPOTENCIA de acciones (clave para que NADA se duplique al sincronizar).
+   Cada acción (cobro, venta, acceso…) lleva un opId único. Al aplicarla, deja su
+   huella en el estado (state._ops). Si por una caída de red se pierde el "OK" del
+   servidor y luego llega un 409, adoptamos el estado remoto: si YA trae ese opId,
+   la acción no se vuelve a aplicar (si no, se cobraría/vendería dos veces). */
+var _opSeq = 0;
+var _opDev = 'd' + Math.random().toString(36).slice(2, 8);
+function nextOpId() { return _opDev + '-' + (++_opSeq) + '-' + Date.now().toString(36); }
+function registrarOp(st, opId) {
+  if (!st._ops) st._ops = [];
+  if (st._ops.indexOf(opId) === -1) {
+    st._ops.push(opId);
+    // Ventana acotada: basta con recordar las últimas; el reintento ocurre en segundos.
+    if (st._ops.length > 400) st._ops.splice(0, st._ops.length - 400);
+  }
+}
+function opAplicada(st, opId) { return !!(opId && st && st._ops && st._ops.indexOf(opId) !== -1); }
+/* Envuelve la acción para que, al aplicarse (aquí o al re-aplicarse tras un 409),
+   deje su opId en el estado. Así el resto de móviles y este mismo saben que ya está. */
+function _accionConHuella(fn, opId) {
+  return function (st) { fn(st); registrarOp(st, opId); };
+}
+
 function mutate(fn) {
-  fn(state);
+  var opId = nextOpId();
+  var accion = _accionConHuella(fn, opId);
+  accion(state);
   state.version = (state.version || 0) + 1;
-  // En modo servidor, guarda la acción para poder RE-APLICARLA si otro móvil escribió antes (409).
-  if (window.__mhSync && window.__mhSync.pendientes) window.__mhSync.pendientes.push(fn);
+  // En modo servidor, guarda la acción (con su opId) para poder RE-APLICARLA si otro móvil escribió antes (409).
+  if (window.__mhSync && window.__mhSync.pendientes) window.__mhSync.pendientes.push({ fn: accion, opId: opId });
   save();
   renderApp();
 }
 /* Igual que mutate pero SIN repintar: para editar un campo de texto/número sin que
    se rebobine el panel y se cierre el teclado del móvil. El valor ya está en pantalla. */
 function mutateSilent(fn) {
-  fn(state);
+  var opId = nextOpId();
+  var accion = _accionConHuella(fn, opId);
+  accion(state);
   state.version = (state.version || 0) + 1;
-  if (window.__mhSync && window.__mhSync.pendientes) window.__mhSync.pendientes.push(fn);
+  if (window.__mhSync && window.__mhSync.pendientes) window.__mhSync.pendientes.push({ fn: accion, opId: opId });
   save();
 }
 
@@ -13401,6 +13456,11 @@ function renderAppInterno() {
   var vista = document.getElementById('vista');
   var hash = location.hash || '#/puerta';
 
+  // SEGURIDAD (1): fuera del panel del dueño, la sesión de admin SIEMPRE cae.
+  // Así, si se sale del panel (botón Atrás, chip de rol, enlace) no se puede
+  // reabrir #/dueno sin volver a meter el PIN.
+  if (hash !== '#/dueno') duenoAutenticado = false;
+
   if (hash === '#/dueno') {
     if (!duenoAutenticado) {
       if (vista) {
@@ -13423,10 +13483,18 @@ function renderAppInterno() {
     } else if (typeof renderDueno === 'function') {
       renderDueno();
     }
-  } else if (hash === '#/barra') {
-    if (typeof renderBarra === 'function') renderBarra();
   } else {
-    if (typeof renderPuerta === 'function') renderPuerta();
+    // SEGURIDAD (2): la vista de trabajador la manda SIEMPRE el perfil activo,
+    // no el hash suelto. Si un camarero cambia el hash a #/puerta (botón Atrás),
+    // se le devuelve a su barra: no puede ver la lista del vigilante sin su
+    // contraseña, ni al revés.
+    var quiere = (state.perfilActivo && state.perfilActivo.indexOf('cam') === 0) ? '#/barra' : '#/puerta';
+    if (hash !== quiere) { location.hash = quiere; return; }
+    if (quiere === '#/barra') {
+      if (typeof renderBarra === 'function') renderBarra();
+    } else {
+      if (typeof renderPuerta === 'function') renderPuerta();
+    }
   }
 }
 
@@ -13511,9 +13579,16 @@ function initSync() {
       state = remoto;
       if (perfilLocal) state.perfilActivo = perfilLocal;
       var pend = window.__mhSync.pendientes;
+      var quedan = [];
       for (var i = 0; i < pend.length; i++) {
-        try { pend[i](state); state.version = (state.version || 0) + 1; } catch (e) { /* acción no re-aplicable */ }
+        var p = pend[i];
+        // Si el estado remoto YA trae esta acción (su opId), el servidor la incorporó:
+        // no se re-aplica (no se duplica) y se saca de pendientes (ya está confirmada).
+        if (opAplicada(state, p.opId)) continue;
+        try { p.fn(state); state.version = (state.version || 0) + 1; quedan.push(p); }
+        catch (e) { /* acción no re-aplicable, se descarta */ }
       }
+      window.__mhSync.pendientes = quedan;
       persistLocal();
       renderApp();
     }
@@ -13530,7 +13605,7 @@ function initSync() {
         if (res.status === 409) {
           return res.json().then(function (d) {
             srvVersion = d.version;
-            adoptar(d.state); // conserva perfil local y re-aplica TODAS las pendientes
+            adoptar(d.state); // conserva perfil local y re-aplica las pendientes que el servidor aún no tiene
             pushing = false; window.__mhSync.error = false; refrescarSync();
             if ((intentos || 0) < 8 && window.__mhSync.pendientes.length) pushLoop((intentos || 0) + 1);
           });
@@ -15435,6 +15510,11 @@ function crearRemesa() {
     etiqueta = etiqueta + ' (' + n + ')';
   }
   var pagadas = estado === 'pagadas';
+  // Limpia el formulario ANTES de mutate(): mutate() re-renderiza, y así el
+  // re-render ya pinta el formulario vacío (si no, se quedaban precio/copas en
+  // pantalla y se corría el riesgo de crear la remesa dos veces sin querer).
+  // Los valores ya están leídos en variables locales arriba, así no se pierden.
+  _remForm = { cantidad: null, estado: null, precio: null, copas: null, etiqueta: null, faseId: null };
   mutate(function (s) {
     var yaEnRemesas = s.personas.filter(function (x) { return x.remesa; }).length;
     for (var i = 0; i < cantidad; i++) {
@@ -15457,8 +15537,6 @@ function crearRemesa() {
     addLog('creó remesa "' + etiqueta + '"' + (fase ? ' (' + fase.nombre + ')' : '') + ': ' + cantidad + ' entradas ' +
       (pagadas ? 'ya pagadas' : 'para vender') + ' a ' + precio + ' € con ' + copas + ' copa(s)', 'alta');
   });
-  // Limpia el formulario para la siguiente remesa (evita repetir precio/copas por error).
-  _remForm = { cantidad: null, estado: null, precio: null, copas: null, etiqueta: null, faseId: null };
   toast(cantidad + ' entradas creadas' + (fase ? ' · ' + fase.nombre : ''));
 }
 
@@ -16057,7 +16135,9 @@ function duenoConfirmarCierre() {
       fecha: nowHM(),
       totales: caja,
       recaudacionPorPerfil: JSON.parse(JSON.stringify(s.recaudacionPorPerfil)),
-      rrpp: JSON.parse(JSON.stringify(s.rrpp)),
+      // Guarda las "vendidas" reales de cada RRPP AHORA (aún hay personas); tras el
+      // cierre se borran y ya no se podrían recalcular. Así el CSV histórico cuadra.
+      rrpp: (s.rrpp || []).map(function (r) { return Object.assign({}, JSON.parse(JSON.stringify(r)), { vendidas: rrppVendidasDe(r.slug) }); }),
       gastos: JSON.parse(JSON.stringify(s.gastos)),
       beneficioNeto: caja.total - gastosTotal,
       asistentes: dentroCount,
@@ -16151,7 +16231,9 @@ function duenoDescargarCsv() {
   var datos = {
     nombre: s.config.eventName, fecha: nowHM(), totales: caja, gastosTotal: gastosTotal,
     beneficioNeto: caja.total - gastosTotal, recaudacionPorPerfil: s.recaudacionPorPerfil,
-    rrpp: s.rrpp, gastos: s.gastos, personas: s.personas, log: s.log
+    // Cada RRPP con sus "vendidas" reales (calculadas de las personas), no el campo muerto r.vendidas.
+    rrpp: (s.rrpp || []).map(function (r) { return Object.assign({}, r, { vendidas: rrppVendidasDe(r.slug) }); }),
+    gastos: s.gastos, personas: s.personas, log: s.log
   };
   descargarCsv("informe-" + s.config.eventName.replace(/\s+/g, "_") + ".csv", construirCsv(datos));
 }
