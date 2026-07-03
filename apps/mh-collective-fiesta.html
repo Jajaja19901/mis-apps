@@ -131,6 +131,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .puerta-buscador-row #buscador{flex:1;min-width:180px}
 .puerta-buscador-row #buscador{margin-bottom:0}
 .btn-escanear{border:1px solid var(--vip-morado);background:transparent;color:var(--vip-morado);border-radius:var(--radius-btn);white-space:nowrap}
+.btn-add-persona{border:none;background:var(--neon-verde);color:var(--bg);font-weight:700;border-radius:var(--radius-btn);white-space:nowrap;padding:0 14px;min-height:44px}
+.card-dentro{opacity:.55}
+.btn-salida{min-height:44px;padding:0 14px;border:1px solid var(--border);background:transparent;color:var(--text-dim);border-radius:var(--radius-btn);font-size:.9rem}
 /* Pestañas de filtro */
 .puerta-filtros{display:flex;gap:6px;flex-wrap:wrap;border-bottom:2px solid var(--border);margin-bottom:14px;padding-bottom:2px}
 .filtro-tab{background:transparent;border:1px solid var(--border);color:var(--text-dim);border-radius:var(--radius-pill);padding:8px 14px;font-size:.875rem;min-height:40px}
@@ -266,6 +269,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "fill": { "sel": "#buscador", "value": "Lucía" } },
     { "expect": "Lucía Fernández" },
     { "clickText": "Dar acceso" },
+    { "clickText": "Ya dentro" },
+    { "expect": "Lucía Fernández" },
     { "expect": "Dentro" } ]},
   { "name": "Cobrar taquilla y ver caja subir en Dueño", "steps": [
     { "goto": "#/puerta" },
@@ -13406,7 +13411,7 @@ window.addEventListener('DOMContentLoaded', bootApp);
 
 /* ===== VISTA PUERTA (#/puerta) — MH Collective ===== */
 var _busq = "";
-var _filtro = "todos";
+var _filtro = "fuera"; // por defecto el vigilante ve solo "Por entrar" (la lista se acorta al entrar la gente)
 
 function normTxt(s) {
   return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -13450,18 +13455,18 @@ function renderPuerta() {
   if (qrOn) {
     html += '<button type="button" class="btn-escanear" data-testid="btn-escanear" onclick="abreEscaner()">Escanear QR</button>';
   }
+  html += '<button type="button" class="btn-add-persona" data-testid="fab-express" onclick="abreExpress()">+ Añadir</button>';
   html += "</div>";
   html += '<div class="puerta-filtros">';
+  html += filtroTab("fuera", "Por entrar");
+  html += filtroTab("dentro", "Ya dentro");
   html += filtroTab("todos", "Todos");
   html += filtroTab("invitados", "Invitados");
   html += filtroTab("taquilla", "Taquilla");
   html += filtroTab("vip", "Mesas VIP");
-  html += filtroTab("dentro", "Ya Dentro");
-  html += filtroTab("fuera", "Fuera");
   html += "</div>";
   html += '<div id="listaPersonas">' + renderListaPersonasHTML() + "</div>";
   html += "</div>";
-  html += '<button type="button" class="fab-express" data-testid="fab-express" onclick="abreExpress()" aria-label="Alta rápida">+</button>';
   vista.innerHTML = html;
 }
 
@@ -13507,8 +13512,11 @@ function renderPersonaCard(p) {
     ? '<button type="button" class="btn-qr" data-testid="qr-' + esc(p.id) + "\" onclick=\"abreQR('" +
       escJs(p.id) + "')\">QR</button>"
     : "";
-  var accionBtn = '<button type="button" class="btn-accion-persona" onclick="accionPrincipal(\'' +
-    escJs(p.id) + "')\">" + esc(labelAccion(p)) + "</button>";
+  // Dentro: sin botón grande (para no confundir con "dar acceso"); solo salida discreta.
+  var accionBtn = p.dentro
+    ? '<button type="button" class="btn-salida" onclick="marcarSalida(\'' + escJs(p.id) + "')\">Marcar salida</button>"
+    : '<button type="button" class="btn-accion-persona" onclick="accionPrincipal(\'' +
+      escJs(p.id) + "')\">" + esc(labelAccion(p)) + "</button>";
   var acompBtn = "";
   if (p.tipo === "vip" && p.mesa && p.dentro &&
       (p.mesa.acompanantesDentro || 0) < (p.mesa.acompanantesPermitidos || 0)) {
@@ -13516,7 +13524,7 @@ function renderPersonaCard(p) {
       escJs(p.id) + "')\">+ Acompañante</button>";
   }
   var html = "";
-  html += '<div class="persona-card" data-testid="persona-' + esc(p.id) + '">';
+  html += '<div class="persona-card' + (p.dentro ? ' card-dentro' : '') + '" data-testid="persona-' + esc(p.id) + '">';
   html += '<div class="persona-info">';
   html += '<div class="persona-nombre">' + esc(p.nombre + " " + p.apellido) + "</div>";
   var origenBadge = p.remesa
@@ -13684,7 +13692,6 @@ function onExpressSubmit(ev) {
   });
   closeModal();
   toast("Persona registrada y dentro");
-  _filtro = "todos";
   _busq = "";
   // Enseña al momento su QR/código (para copas incluidas y reentradas): 0 pasos extra en puerta.
   if (state.config && state.config.modulos && state.config.modulos.qr) {
@@ -13713,6 +13720,7 @@ function abreQR(id) {
   }
   html += '<p class="qr-tipo">' + esc(tipoLabel) +
     (p.tipo === "taquilla" ? (p.pagado ? ' · <span class="qr-pagada">Pagada</span>' : ' · <span class="qr-pendiente">Sin pagar (' + esc(precioEntradaDe(p)) + ' €)</span>') : '') +
+    (p.dentro ? ' · <span class="qr-pagada">Dentro</span>' : '') +
     esc(extraQR) + "</p>";
   html += '<canvas id="qrCanvas" width="220" height="220"></canvas>';
   html += '<p class="qr-codigo">' + esc(p.codigoReserva) + "</p>";
@@ -14977,18 +14985,9 @@ function seccionEntradas() {
   });
   html += '</select></div>';
   html += '<input type="text" id="ent-busca" placeholder="Buscar nombre o código" value="' + esc(_entBusca) + '" oninput="entBuscar(this.value)" style="width:100%;margin:8px 0">';
-  // filtrar
-  var lista = todas.filter(function (p) {
-    if (_entFiltro === 'pendientes') { if (p.tipo === 'invitado') return false; var pend = p.tipo === 'vip' ? ((p.mesa.total || 0) - (p.importePagado || 0)) : (p.importePagado || 0) === 0 ? 1 : 0; return pend > 0; }
-    if (_entFiltro === 'pagadas') return (p.importePagado || 0) > 0 || p.tipo === 'invitado';
-    if (_entFiltro.indexOf('serie:') === 0) return p.remesa === _entFiltro.slice(6);
-    return true;
-  });
-  if (_entBusca) {
-    var q = _entBusca.toLowerCase();
-    lista = lista.filter(function (p) { return ((p.nombre + ' ' + p.apellido + ' ' + p.codigoReserva).toLowerCase()).indexOf(q) !== -1; });
-  }
-  html += '<p class="nota">' + lista.length + ' entradas.</p>';
+  var lista = entradasFiltradas();
+  html += '<p class="nota">' + lista.length + ' entradas.' +
+    (lista.length ? ' <button type="button" class="btn-mini-borrar" data-testid="btn-borrar-filtradas" onclick="duenoBorrarEntradasFiltro()">Borrar las ' + lista.length + ' que se ven</button>' : '') + '</p>';
   if (!lista.length) { html += '<p class="lista-vacia">Sin entradas con este filtro.</p></section>'; return html; }
   var tope = 80;
   html += '<ul class="lista-entradas">';
@@ -15001,12 +15000,44 @@ function seccionEntradas() {
     var dentro = p.dentro ? ' <span class="badge badge-dentro">Dentro</span>' : '';
     html += '<li><span class="ent-info"><b>' + esc((p.nombre + ' ' + p.apellido).trim() || 'Entrada al portador') + '</b> · ' + esc(p.codigoReserva) +
       (p.remesa ? ' · ' + esc(p.remesa) : '') + '<br>' + estado + dentro + '</span>' +
-      '<button type="button" class="btn-qr" onclick="abreQR(\'' + escJs(p.id) + '\')">Ver / QR</button></li>';
+      '<span style="display:flex;gap:6px;flex-shrink:0">' +
+      '<button type="button" class="btn-qr" onclick="abreQR(\'' + escJs(p.id) + '\')">Ver / QR</button>' +
+      '<button type="button" class="btn-mini-borrar" data-testid="ent-borrar-' + esc(p.id) + '" onclick="duenoBorrarEntrada(\'' + escJs(p.id) + '\')">Borrar</button></span></li>';
   });
   html += '</ul>';
   if (lista.length > tope) html += '<p class="nota">Mostrando las primeras ' + tope + '. Usa el buscador o el filtro para acotar.</p>';
   html += '</section>';
   return html;
+}
+/* Filtro reutilizable de "Entradas creadas" (lo usan la lista y el borrado en bloque). */
+function entradasFiltradas() {
+  var lista = state.personas.filter(function (p) {
+    if (_entFiltro === 'pendientes') { if (p.tipo === 'invitado') return false; var pend = p.tipo === 'vip' ? ((p.mesa.total || 0) - (p.importePagado || 0)) : ((p.importePagado || 0) === 0 ? 1 : 0); return pend > 0; }
+    if (_entFiltro === 'pagadas') return (p.importePagado || 0) > 0 || p.tipo === 'invitado';
+    if (_entFiltro.indexOf('serie:') === 0) return p.remesa === _entFiltro.slice(6);
+    return true;
+  });
+  if (_entBusca) {
+    var q = _entBusca.toLowerCase();
+    lista = lista.filter(function (p) { return ((p.nombre + ' ' + p.apellido + ' ' + p.codigoReserva).toLowerCase()).indexOf(q) !== -1; });
+  }
+  return lista;
+}
+function duenoBorrarEntrada(id) {
+  mutate(function (s) {
+    var i = s.personas.findIndex(function (x) { return x.id === id; });
+    if (i >= 0) { var p = s.personas[i]; addLog('borró la entrada de ' + ((p.nombre + ' ' + p.apellido).trim() || p.codigoReserva), 'config'); s.personas.splice(i, 1); }
+  });
+  toast('Entrada borrada');
+}
+function duenoBorrarEntradasFiltro() {
+  var ids = entradasFiltradas().map(function (p) { return p.id; });
+  if (!ids.length) return;
+  mutate(function (s) {
+    s.personas = s.personas.filter(function (p) { return ids.indexOf(p.id) === -1; });
+    addLog('borró ' + ids.length + ' entradas (borrado en bloque)', 'config');
+  });
+  toast(ids.length + ' entradas borradas');
 }
 function entSetFiltro(v) { _entFiltro = v; renderDueno(); }
 function entBuscar(v) {
