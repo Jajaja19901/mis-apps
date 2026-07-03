@@ -409,13 +409,20 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "clickText": "Cobrar 10 €" },
     { "expectVisible": "[data-testid=\"prod-copa\"]" },
     { "expect": "99" } ]},
-  { "name": "Teclear código MH-202 filtra a Elena Navarro", "steps": [
+  { "name": "Código en minúsculas y sin guiones (mh202en) encuentra a Elena Navarro", "steps": [
+    { "goto": "#/puerta" },
+    { "clickText": "Escanear QR" },
+    { "expectVisible": "#qr-codigo" },
+    { "fill": { "sel": "#qr-codigo", "value": "mh202en" } },
+    { "submit": "#qrForm" },
+    { "expect": "Elena Navarro" } ]},
+  { "name": "Sin las 2 letras (solo MH-202) NO da acceso", "steps": [
     { "goto": "#/puerta" },
     { "clickText": "Escanear QR" },
     { "expectVisible": "#qr-codigo" },
     { "fill": { "sel": "#qr-codigo", "value": "MH-202" } },
     { "submit": "#qrForm" },
-    { "expect": "Elena Navarro" } ]},
+    { "expect": "no válido" } ]},
   { "name": "Cerrar evento crea entrada en histórico", "steps": [
     { "goto": "#/dueno" },
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
@@ -488,7 +495,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "clickText": "Dinero" },
     { "expect": "recaudado en bonos" },
     { "clickText": "Registro" },
-    { "expect": "vendió bono MH-B01 de 5 copas (20 €)" } ]}
+    { "expect": "vendió bono MH-B01" },
+    { "expect": "de 5 copas (20 €)" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -12973,24 +12981,24 @@ function seedPersonas() {
     };
   }
   return [
-    persona("p1", "Lucía", "Fernández", "invitado", "MH-101", null, 0, false, null),
-    persona("p2", "Marcos", "Delgado", "invitado", "MH-102", null, 0, false, null),
-    persona("p3", "Sofía", "Romero", "invitado", "MH-103", null, 0, false, null),
-    persona("p4", "Javier", "Moreno", "taquilla", "MH-201", null, 0, false, null),
-    persona("p5", "Elena", "Navarro", "taquilla", "MH-202", null, 20, false, null),
-    persona("p6", "Pablo", "Ortega", "taquilla", "MH-203", null, 20, true, "23:02"),
-    persona("p7", "Carla", "Ruiz", "taquilla", "MH-204", null, 0, false, null),
-    persona("p8", "Diego", "Santos", "taquilla", "MH-205", null, 0, false, null),
-    persona("p9", "Andrés", "Gil", "vip", "MH-301",
+    persona("p1", "Lucía", "Fernández", "invitado", "MH-101-QA", null, 0, false, null),
+    persona("p2", "Marcos", "Delgado", "invitado", "MH-102-RB", null, 0, false, null),
+    persona("p3", "Sofía", "Romero", "invitado", "MH-103-TC", null, 0, false, null),
+    persona("p4", "Javier", "Moreno", "taquilla", "MH-201-JD", null, 0, false, null),
+    persona("p5", "Elena", "Navarro", "taquilla", "MH-202-EN", null, 20, false, null),
+    persona("p6", "Pablo", "Ortega", "taquilla", "MH-203-PF", null, 20, true, "23:02"),
+    persona("p7", "Carla", "Ruiz", "taquilla", "MH-204-CG", null, 0, false, null),
+    persona("p8", "Diego", "Santos", "taquilla", "MH-205-DH", null, 0, false, null),
+    persona("p9", "Andrés", "Gil", "vip", "MH-301-AG",
       { numero: 1, acompanantesPermitidos: 4, acompanantesDentro: 0, total: 150, adelantado: 150 },
       150, false, null),
-    persona("p10", "Natalia", "Vega", "vip", "MH-302",
+    persona("p10", "Natalia", "Vega", "vip", "MH-302-NV",
       { numero: 2, acompanantesPermitidos: 6, acompanantesDentro: 0, total: 200, adelantado: 100 },
       100, false, null),
-    persona("p11", "Roberto", "Cano", "vip", "MH-303",
+    persona("p11", "Roberto", "Cano", "vip", "MH-303-RC",
       { numero: 3, acompanantesPermitidos: 4, acompanantesDentro: 0, total: 150, adelantado: 50 },
       50, false, null),
-    persona("p12", "Beatriz", "Molina", "vip", "MH-304",
+    persona("p12", "Beatriz", "Molina", "vip", "MH-304-BM",
       { numero: 4, acompanantesPermitidos: 8, acompanantesDentro: 0, total: 300, adelantado: 0 },
       0, false, null)
   ];
@@ -13246,7 +13254,25 @@ function personaPorId(id) {
   return null;
 }
 function _normalizaCod(s) {
-  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  // Ignora mayúsculas/minúsculas, acentos, guiones y espacios: así "MH-204-KJ",
+  // "mh204kj" y "MH 204 kj" son el MISMO código. Solo cuenta letras y números juntos.
+  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+/* 2 letras al azar al final del código: hacen imposible adivinar el siguiente
+   (anti-listillos). Sin I ni O para no confundirlas con 1 y 0 al dictarlas. */
+function _dosLetras() {
+  var L = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  return L.charAt(Math.floor(Math.random() * L.length)) + L.charAt(Math.floor(Math.random() * L.length));
+}
+function codigoUsado(s, cod) {
+  var n = _normalizaCod(cod);
+  return (s.personas || []).some(function (p) { return _normalizaCod(p.codigoReserva) === n; }) ||
+         (s.bonos || []).some(function (b) { return _normalizaCod(b.codigo) === n; });
+}
+function nuevoCodigoBono(s) {
+  var base = 'MH-B' + String((s.bonos || []).length + 1).padStart(2, '0');
+  var cod; do { cod = base + '-' + _dosLetras(); } while (codigoUsado(s, cod));
+  return cod;
 }
 function personaPorCodigo(cod) {
   var buscado = _normalizaCod(cod);
@@ -13770,7 +13796,7 @@ function onExpressSubmit(ev) {
     var persona = {
       id: nuevoId,
       nombre: nombre, apellido: apellido, tipo: tipo,
-      codigoReserva: "MH-5" + String(n).padStart(2, "0"),
+      codigoReserva: nuevoCodigoLista(s),
       mesa: null, pagado: false, importePagado: 0, dentro: true, horaEntrada: nowHM()
     };
     if (tipo === "taquilla") {
@@ -14216,7 +14242,7 @@ function abreEscaner() {
   html += '<div id="escanerVideoWrap"></div>';
   html += '<form id="qrForm">';
   html += '<label for="qr-codigo">Código</label>';
-  html += '<input id="qr-codigo" type="text" placeholder="MH-101" autocomplete="off">';
+  html += '<input id="qr-codigo" type="text" placeholder="Ej: MH-204-CG (con las 2 letras)" autocomplete="off">';
   html += '<button type="submit">Buscar</button>';
   html += "</form>";
   html += '<div id="escanerResultado"></div>';
@@ -14281,7 +14307,7 @@ function abreEscanerBarra() {
     '<button type="button" class="btn-camara" onclick="escanearConCamara(consDesdeCodigo)">📷 Hacer foto al QR</button>' +
     '<div id="escanerVideoWrap"></div>' +
     '<form id="qrFormBarra"><label for="qr-codigo-barra">Código</label>' +
-    '<input id="qr-codigo-barra" type="text" placeholder="MH-301" autocomplete="off">' +
+    '<input id="qr-codigo-barra" type="text" placeholder="Ej: MH-301-AG (con las 2 letras)" autocomplete="off">' +
     '<button type="submit">Buscar</button></form>' +
     '<button type="button" onclick="closeModal()">Cerrar</button></div>';
   showModal(html);
@@ -14503,7 +14529,7 @@ function renderBarra() {
         '<h3>Consumiciones y bonos</h3>' +
         '<button type="button" class="btn-camara" data-testid="btn-camara-barra" onclick="abreEscanerBarra()">📷 Escanear con cámara</button>' +
         '<form id="consForm" onsubmit="return consBuscar()">' +
-          '<input id="cons-codigo" type="text" placeholder="Código (MH-301…)" autocomplete="off" value="' + esc(_consCod) + '">' +
+          '<input id="cons-codigo" type="text" placeholder="Código (ej: MH-301-AG)" autocomplete="off" value="' + esc(_consCod) + '">' +
           '<button type="submit">Ver</button>' +
         '</form>' +
         '<div id="cons-resultado">' + _consMsg + '</div>' +
@@ -14994,7 +15020,9 @@ function duenoAnadirFase() {
 
 /* ===== LISTA ANTICIPADA (entradas vendidas ANTES de la fiesta; sin servidor) ===== */
 function nuevoCodigoLista(s) {
-  return "MH-5" + String(s.personas.length).padStart(2, "0");
+  var base = "MH-5" + String((s.personas || []).length).padStart(2, "0");
+  var cod; do { cod = base + '-' + _dosLetras(); } while (codigoUsado(s, cod));
+  return cod;
 }
 
 /* ENTRADAS CON NOMBRE (personales): invitados y entradas nominales, una a una o pegando varias. */
@@ -15626,7 +15654,7 @@ function venderBonoBarra() {
   var nuevoId = 'b' + Date.now();
   mutate(function (s) {
     if (!s.bonos) s.bonos = [];
-    var codigo = 'MH-B' + String(s.bonos.length + 1).padStart(2, '0');
+    var codigo = nuevoCodigoBono(s);
     s.bonos.push({ id: nuevoId, codigo: codigo, copas: copas, usadas: 0,
       etiqueta: 'Vendido en barra', hora: nowHM(), anulado: false, precio: precio, vendido: true });
     // El bono vendido SIEMPRE cuenta como venta de barra (aunque el precio sea 0, queda registrado).
@@ -15645,8 +15673,7 @@ function crearBono(ev) {
   if (!copas || copas < 1) { toast('Pon el nº de copas'); return false; }
   mutate(function (s) {
     if (!s.bonos) s.bonos = [];
-    var num = s.bonos.length + 1;
-    var codigo = 'MH-B' + String(num).padStart(2, '0');
+    var codigo = nuevoCodigoBono(s);
     s.bonos.push({ id: 'b' + Date.now(), codigo: codigo, copas: copas, usadas: 0,
       etiqueta: etiqueta, hora: nowHM(), anulado: false });
     addLog('creó bono de ' + copas + ' copas (' + codigo + (etiqueta ? ' · ' + etiqueta : '') + ')', 'config');
@@ -15695,12 +15722,72 @@ function abreQRBono(id, venta) {
   }
   html += '<canvas id="qrCanvasBono" width="220" height="220"></canvas>';
   html += '<p class="qr-codigo">' + esc(b.codigo) + '</p>';
-  html += '<p class="nota" style="text-align:center">' + (venta ? 'Enséñale o mándale este código al cliente. Lo canjea en la barra por su código.' : 'El camarero lo canjea escribiendo este código en la barra.') + '</p>';
-  html += '<div class="modal-botones"><button type="button" onclick="closeModal()">Cerrar</button></div></div>';
+  html += '<p class="nota" style="text-align:center">' + (venta
+    ? 'Mándale este bono al cliente con el botón de abajo (o que le haga una foto). Cuando quiera una copa, lo enseña en la barra y el camarero mete el código.'
+    : 'El cliente pide su copa enseñando este código; el camarero lo escribe en la barra.') + '</p>';
+  html += '<div class="modal-botones">' +
+    '<button type="button" class="btn-primary" data-testid="btn-compartir-bono" onclick="compartirBono(\'' + escJs(b.id) + '\')">📲 Enviar al cliente</button>' +
+    '<button type="button" onclick="closeModal()">Cerrar</button></div></div>';
   showModal(html);
   var canvas = document.getElementById('qrCanvasBono');
   if (canvas && typeof drawQR === 'function') {
     try { drawQR(canvas, b.codigo, 220); } catch (e) { /* el código en texto sigue visible */ }
+  }
+}
+
+/* Genera una tarjeta-bono (imagen) para mandarla al cliente por WhatsApp: lleva
+   el evento, las copas, el QR y el código. Así el cliente TIENE su bono en el móvil. */
+function canvasBono(b) {
+  var c = state.config;
+  var W = 600, cx = W / 2, tema = c.colorTema || '#00d4ff';
+  var qBox = 360, H = 720;
+  var cvv = document.createElement('canvas'); cvv.width = W; cvv.height = H;
+  var ctx = cvv.getContext('2d');
+  ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = tema; ctx.fillRect(0, 0, W, 10);
+  ctx.textAlign = 'center';
+  var y = 74;
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 34px -apple-system, sans-serif';
+  ctx.fillText(c.eventName || 'MH Collective', cx, y); y += 52;
+  ctx.fillStyle = tema; ctx.font = 'bold 30px -apple-system, sans-serif';
+  ctx.fillText('BONO DE COPAS', cx, y); y += 46;
+  ctx.fillStyle = '#fff'; ctx.font = '600 26px -apple-system, sans-serif';
+  ctx.fillText((b.copas || 0) + ' copas', cx, y); y += 34;
+  var qcv = document.createElement('canvas');
+  try { drawQR(qcv, b.codigo, 340); } catch (e) { qcv = null; }
+  ctx.fillStyle = '#fff'; ctx.fillRect(cx - qBox / 2, y, qBox, qBox);
+  if (qcv) ctx.drawImage(qcv, cx - 170, y + 10, 340, 340);
+  y += qBox + 52;
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 40px monospace'; ctx.fillText(b.codigo, cx, y); y += 42;
+  ctx.fillStyle = '#a0a0b0'; ctx.font = '400 20px -apple-system, sans-serif';
+  ctx.fillText('Pide tu copa en la barra con este código', cx, y);
+  return cvv;
+}
+function _descargaImg(canvas, nombre) {
+  try {
+    var a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png'); a.download = nombre;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  } catch (e) {}
+}
+function compartirBono(id) {
+  var b = null;
+  for (var i = 0; i < (state.bonos || []).length; i++) if (state.bonos[i].id === id) b = state.bonos[i];
+  if (!b) return;
+  var cv = canvasBono(b);
+  var nombre = 'bono-' + String(b.codigo).replace(/\s+/g, '') + '.png';
+  if (navigator.share && cv.toBlob) {
+    cv.toBlob(function (blob) {
+      if (!blob) { _descargaImg(cv, nombre); return; }
+      try {
+        var file = new File([blob], nombre, { type: 'image/png' });
+        if (navigator.canShare && !navigator.canShare({ files: [file] })) { _descargaImg(cv, nombre); return; }
+        navigator.share({ files: [file], title: 'Bono de copas', text: b.codigo + ' · ' + (state.config.eventName || '') }).catch(function () {});
+      } catch (e) { _descargaImg(cv, nombre); }
+    });
+  } else {
+    _descargaImg(cv, nombre);
+    toast('Bono descargado: mándaselo al cliente por WhatsApp');
   }
 }
 
