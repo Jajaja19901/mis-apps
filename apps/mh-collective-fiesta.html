@@ -136,6 +136,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .lista-entradas li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
 .lista-entradas .ent-info{font-size:.9rem;line-height:1.7}
 .lista-entradas .btn-qr{min-height:44px;flex-shrink:0}
+/* Pestañas del panel del dueño (para que sea sencillo) */
+.dueno-tabs{display:flex;gap:6px;overflow-x:auto;position:sticky;top:0;background:var(--bg);padding:10px 0;margin-bottom:12px;z-index:10;-webkit-overflow-scrolling:touch}
+.dueno-tab{flex:0 0 auto;min-height:48px;padding:.5rem 1rem;border-radius:var(--radius-pill);border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-weight:600;white-space:nowrap}
+.dueno-tab.activa{background:var(--neon-verde);color:var(--bg);border-color:var(--neon-verde)}
 .persona-acciones{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 /* Botón de acción gigante + QR de la tarjeta */
 .btn-accion-persona{flex:1;min-width:180px;min-height:56px;font-size:1.0625rem;font-weight:700;border:none;border-radius:var(--radius-btn);background:var(--neon-verde);color:var(--bg);box-shadow:0 0 16px rgba(0,212,138,.18)}
@@ -259,8 +263,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "goto": "#/dueno" },
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
+    { "clickText": "Ajustes" },
     { "fill": { "sel": "#cfg-precio-entrada", "value": "25" } },
     { "submit": "#configForm" },
+    { "clickText": "Registro" },
     { "expectVisible": "[data-testid=\"log\"]" },
     { "expect": "Precio entrada" },
     { "expect": "25" } ]},
@@ -304,6 +310,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "goto": "#/dueno" },
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
+    { "clickText": "Dinero" },
     { "click": "[data-testid=\"rrpp-mas-dani\"]" },
     { "expect": "RRPP Dani" },
     { "expect": "260" } ]},
@@ -318,6 +325,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "goto": "#/dueno" },
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
+    { "clickText": "Dinero" },
     { "expectVisible": "[data-testid=\"seccion-gastos\"]" },
     { "click": "#mod-gastos" },
     { "expectGone": "[data-testid=\"seccion-gastos\"]" } ]},
@@ -325,12 +333,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "goto": "#/dueno" },
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
+    { "clickText": "Dinero" },
     { "fill": { "sel": "#gasto-concepto", "value": "Hielo extra" } },
     { "fill": { "sel": "#gasto-importe", "value": "137" } },
     { "submit": "#gastoForm" },
+    { "expect": "Hielo extra" },
+    { "clickText": "Resumen" },
     { "expectVisible": "[data-testid=\"kpi-beneficio\"]" },
-    { "expect": "803" },
-    { "expect": "Hielo extra" } ]},
+    { "expect": "803" } ]},
   { "name": "Venta de barra descuenta stock visible", "steps": [
     { "clickText": "Camarero 1" },
     { "expectHash": "#/barra" },
@@ -349,6 +359,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "goto": "#/dueno" },
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
+    { "clickText": "Registro" },
     { "clickText": "Cerrar evento" },
     { "clickText": "Sí, cerrar y archivar" },
     { "expectVisible": "[data-testid=\"historico-item\"]" } ]}
@@ -12274,26 +12285,42 @@ var CATEGORIAS_GASTO = ["Bebida", "Personal", "Local", "DJ-Música", "Otros"];
 var MODULO_LABEL = { qr: "QR de entradas", cierre: "Cierre e informes", gastos: "Gastos", stock: "Stock de barra" };
 var duenoMostrandoConfirmarCierre = false;
 
+var _duenoTab = 'resumen';
+function duenoTab(id) {
+  _duenoTab = id;
+  renderDueno();
+  try { window.scrollTo(0, 0); } catch (e) {}
+}
 function renderDueno() {
   var vista = document.getElementById("vista");
   if (!vista) return;
   var s = state;
-  var html = "";
-  html += seccionKpis();
-  html += seccionLista();
-  html += seccionEntradas();
-  html += seccionConfig();
-  html += seccionPersonal();
-  html += seccionModulos();
-  html += seccionRrpp();
-  html += seccionBonos();
-  html += seccionRecaudacion();
-  if (s.config.modulos.gastos) html += seccionGastos();
-  if (s.config.modulos.stock) html += seccionStock();
-  if (s.config.modulos.cierre) html += seccionCierre();
-  html += seccionLog();
-  html += '<button type="button" class="btn btn-ayuda" onclick="duenoAyuda()">Ayuda</button>';
-  vista.innerHTML = html;
+  var tabs = [
+    { id: 'resumen', label: '📊 Resumen', build: function () { return seccionKpis() + seccionRecaudacion(); } },
+    { id: 'entradas', label: '🎟️ Entradas', build: function () { return seccionLista() + seccionEntradas(); } },
+    { id: 'fiesta', label: '💶 Dinero', build: function () {
+        return seccionRrpp() + seccionBonos() +
+          (s.config.modulos.gastos ? seccionGastos() : '') +
+          (s.config.modulos.stock ? seccionStock() : '');
+      } },
+    { id: 'ajustes', label: '⚙️ Ajustes', build: function () { return seccionConfig() + seccionPersonal() + seccionModulos(); } },
+    { id: 'registro', label: '📋 Registro', build: function () {
+        return (s.config.modulos.cierre ? seccionCierre() : '') + seccionLog() +
+          '<button type="button" class="btn-secundario" onclick="duenoAyuda()" style="width:100%;min-height:52px;margin-top:8px">❓ Ayuda: cómo se usa</button>';
+      } },
+  ];
+  if (!tabs.some(function (t) { return t.id === _duenoTab; })) _duenoTab = 'resumen';
+  var barra = '<div class="dueno-tabs">';
+  tabs.forEach(function (t) {
+    barra += '<button type="button" data-testid="tab-' + t.id + '" class="dueno-tab' + (t.id === _duenoTab ? ' activa' : '') +
+      '" onclick="duenoTab(\'' + t.id + '\')">' + t.label + '</button>';
+  });
+  barra += '</div>';
+  var cuerpo = '';
+  tabs.forEach(function (t) {
+    cuerpo += '<div class="dueno-panel-tab"' + (t.id === _duenoTab ? '' : ' style="display:none"') + '>' + t.build() + '</div>';
+  });
+  vista.innerHTML = barra + cuerpo;
 }
 
 /* ---------- 1. KPIs ---------- */
