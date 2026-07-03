@@ -400,7 +400,24 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "clickText": "Registro" },
     { "clickText": "Cerrar evento" },
     { "clickText": "Sí, cerrar y archivar" },
-    { "expectVisible": "[data-testid=\"historico-item\"]" } ]}
+    { "expectVisible": "[data-testid=\"historico-item\"]" } ]},
+  { "name": "Remesa conserva precio y copas tras un re-render (no vuelve a 20/1)", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "click": "[data-testid=\"tab-entradas\"]" },
+    { "fill": { "sel": "#remesa-precio", "value": "25" } },
+    { "fill": { "sel": "#remesa-copas", "value": "2" } },
+    { "click": "[data-testid=\"tab-resumen\"]" },
+    { "click": "[data-testid=\"tab-entradas\"]" },
+    { "fill": { "sel": "#remesa-estado", "value": "vender" } },
+    { "fill": { "sel": "#remesa-etiqueta", "value": "RegTest" } },
+    { "click": "[data-testid=\"btn-crear-remesa\"]" },
+    { "fill": { "sel": "#ent-busca", "value": "RegTest" } },
+    { "clickText": "Ver / QR" },
+    { "expectVisible": "[data-testid=\"qr-modal\"]" },
+    { "expect": "Sin pagar (25 €)" },
+    { "expect": "2 copas incluidas" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -14905,23 +14922,32 @@ function seccionLista() {
   html += '</form>';
   html += '<h3>Remesas de entradas (con QR para enviar)</h3>';
   html += '<p class="nota">Crea de golpe un lote de entradas numeradas, cada una con su QR único. "Ya pagadas" suman a caja; "para vender" las marcas pagadas cuando te llegue el Bizum y envías su QR.</p>';
-  // Fase: al elegirla, coge su precio automáticamente
+  // Fase: al elegirla, coge su precio automáticamente. Los valores se leen de _remForm
+  // (lo que el dueño ya tecleó) para que un re-render no los pierda.
   var faseAct = faseActiva();
+  var faseSelId = (_remForm.faseId != null) ? _remForm.faseId : (faseAct ? faseAct.id : '');
+  var faseSel = fasesLista().find(function (f) { return f.id === faseSelId; });
+  var precioDef = faseSel ? faseSel.precio : state.config.precioEntrada;
+  var precioVal = (_remForm.precio != null) ? _remForm.precio : precioDef;
+  var copasVal = (_remForm.copas != null) ? _remForm.copas : 1;
+  var cantVal = (_remForm.cantidad != null) ? _remForm.cantidad : 5;
+  var estadoVal = (_remForm.estado != null) ? _remForm.estado : 'pagadas';
+  var etiqVal = (_remForm.etiqueta != null) ? _remForm.etiqueta : '';
   html += '<label>Fase <select id="remesa-fase" onchange="remesaFaseChange()">';
   html += '<option value="">— Sin fase (precio manual) —</option>';
   fasesLista().forEach(function (f) {
     var rest = Math.max(0, (f.cantidad || 0) - creadasFase(f.id));
-    var sel = faseAct && faseAct.id === f.id ? ' selected' : '';
+    var sel = f.id === faseSelId ? ' selected' : '';
     html += '<option value="' + esc(f.id) + '"' + sel + '>' + esc(f.nombre) + ' · ' + f.precio + ' € · quedan ' + rest + '</option>';
   });
   html += '</select></label>';
-  html += '<div class="contador"><label>Cantidad <select id="remesa-cantidad">';
-  [5, 10, 20, 30, 40, 50, 100, 200, 300, 500].forEach(function (n) { html += '<option value="' + n + '">' + n + '</option>'; });
+  html += '<div class="contador"><label>Cantidad <select id="remesa-cantidad" onchange="_remSet(\'cantidad\', this.value)">';
+  [5, 10, 20, 30, 40, 50, 100, 200, 300, 500].forEach(function (n) { html += '<option value="' + n + '"' + (String(n) === String(cantVal) ? ' selected' : '') + '>' + n + '</option>'; });
   html += '</select></label>';
-  html += '<label>Estado <select id="remesa-estado"><option value="pagadas">Ya pagadas</option><option value="vender">Para vender</option></select></label></div>';
-  html += '<div class="contador"><label>Precio (€) <input type="number" id="remesa-precio" value="' + esc(faseAct ? faseAct.precio : state.config.precioEntrada) + '" min="0" style="width:80px"></label>';
-  html += '<label>Copas incluidas <input type="number" id="remesa-copas" value="1" min="0" max="20" style="width:80px"></label></div>';
-  html += '<label>Nombre de la serie (lo que tú quieras)<input type="text" id="remesa-etiqueta" placeholder="Ej: Preventa Instagram, Lista Marta…"></label>';
+  html += '<label>Estado <select id="remesa-estado" onchange="_remSet(\'estado\', this.value)"><option value="pagadas"' + (estadoVal === 'pagadas' ? ' selected' : '') + '>Ya pagadas</option><option value="vender"' + (estadoVal === 'vender' ? ' selected' : '') + '>Para vender</option></select></label></div>';
+  html += '<div class="contador"><label>Precio (€) <input type="number" id="remesa-precio" value="' + esc(precioVal) + '" min="0" style="width:80px" oninput="_remSet(\'precio\', this.value)"></label>';
+  html += '<label>Copas incluidas <input type="number" id="remesa-copas" value="' + esc(copasVal) + '" min="0" max="20" style="width:80px" oninput="_remSet(\'copas\', this.value)"></label></div>';
+  html += '<label>Nombre de la serie (lo que tú quieras)<input type="text" id="remesa-etiqueta" value="' + esc(etiqVal) + '" placeholder="Ej: Preventa Instagram, Lista Marta…" oninput="_remSet(\'etiqueta\', this.value)"></label>';
   html += '<button type="button" data-testid="btn-crear-remesa" onclick="crearRemesa()">Crear remesa de entradas</button>';
   // Cartel de la fiesta (para el PDF/invitaciones)
   html += '<h3>Cartel de la fiesta</h3>';
@@ -14969,6 +14995,12 @@ function onListaTipoChange(v) {
 /* ===== ENTRADAS CREADAS: ver cada una con su QR, estado y acciones ===== */
 var _entFiltro = 'todas';   // 'todas' | 'pendientes' | 'pagadas' | serie concreta
 var _entBusca = '';
+/* El formulario de remesa RECUERDA lo que teclea el dueño. Sin esto, un re-render
+   (una sincronización, cualquier cambio de estado) regeneraba los inputs con sus
+   valores por defecto y borraba en silencio el precio/copas escritos → el PDF salía
+   con 20 € y 1 copa aunque el dueño hubiera puesto 25 € y 2. null = usar el defecto. */
+var _remForm = { cantidad: null, estado: null, precio: null, copas: null, etiqueta: null, faseId: null };
+function _remSet(campo, valor) { _remForm[campo] = valor; }
 function seccionEntradas() {
   var todas = state.personas.slice();
   var html = '<section class="panel" data-testid="seccion-entradas"><h2>Entradas creadas</h2>';
@@ -15106,10 +15138,13 @@ function duenoAnadirBulk() {
 /* ===== REMESAS DE ENTRADAS (lotes numerados con QR, pagadas o para vender) ===== */
 function remesaFaseChange() {
   var fid = document.getElementById('remesa-fase').value;
+  _remSet('faseId', fid);
   var f = fasesLista().find(function (x) { return x.id === fid; });
   if (f) {
     var pr = document.getElementById('remesa-precio'); if (pr) pr.value = f.precio;
-    var et = document.getElementById('remesa-etiqueta'); if (et && !et.value.trim()) et.value = f.nombre;
+    _remSet('precio', f.precio);
+    var et = document.getElementById('remesa-etiqueta');
+    if (et && !et.value.trim()) { et.value = f.nombre; _remSet('etiqueta', f.nombre); }
   }
 }
 function crearRemesa() {
@@ -15152,6 +15187,8 @@ function crearRemesa() {
     addLog('creó remesa "' + etiqueta + '"' + (fase ? ' (' + fase.nombre + ')' : '') + ': ' + cantidad + ' entradas ' +
       (pagadas ? 'ya pagadas' : 'para vender') + ' a ' + precio + ' € con ' + copas + ' copa(s)', 'alta');
   });
+  // Limpia el formulario para la siguiente remesa (evita repetir precio/copas por error).
+  _remForm = { cantidad: null, estado: null, precio: null, copas: null, etiqueta: null, faseId: null };
   toast(cantidad + ' entradas creadas' + (fase ? ' · ' + fase.nombre : ''));
 }
 
