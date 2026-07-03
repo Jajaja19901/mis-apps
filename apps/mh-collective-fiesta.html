@@ -186,6 +186,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .acc-body{padding:14px 16px 6px}
 .acc-body .panel{border:none;padding:0;margin:0;background:transparent}
 .acc-body .panel>h2{display:none}
+/* Resumen de bonos vendidos (panel del dueño) */
+.bono-resumen{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+.bono-resumen>div{flex:1;min-width:90px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-btn);padding:10px;text-align:center}
+.bono-resumen .br-num{display:block;font-size:1.35rem;font-weight:800;color:var(--neon-verde)}
+.bono-resumen .br-lbl{display:block;font-size:.72rem;color:var(--text-dim);margin-top:2px}
+/* Precio a cobrar en el modal de venta de bono */
+.bono-cobrar{text-align:center;font-size:1.15rem;margin:4px 0 10px}
+.bono-cobrar b{color:var(--neon-verde);font-size:1.3rem}
 .contador{display:flex;gap:10px;align-items:center;margin-bottom:10px}
 .contador button{min-width:44px}
 .switch{display:flex;align-items:center;gap:10px;margin-bottom:8px;color:var(--text)}
@@ -460,7 +468,27 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "fill": { "sel": "#remesa-etiqueta", "value": "aa\"><img src=x onerror=alert(1)>bb" } },
     { "click": "[data-testid=\"btn-crear-remesa\"]" },
     { "click": "[data-testid=\"acc-gen\"]" },
-    { "expect": "onerror=alert(1)" } ]}
+    { "expect": "onerror=alert(1)" } ]},
+  { "name": "El camarero vende un bono: muestra precio y código y queda contado", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Dinero" },
+    { "check": "#bono-venta-camareros" },
+    { "clickText": "Camarero 1" },
+    { "click": "[data-testid=\"btn-vender-bono\"]" },
+    { "expectVisible": "[data-testid=\"qr-modal\"]" },
+    { "expect": "Bono vendido" },
+    { "expect": "Cóbrale" },
+    { "expect": "MH-B01" },
+    { "clickText": "Cerrar" },
+    { "clickText": "Dueño" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Dinero" },
+    { "expect": "recaudado en bonos" },
+    { "clickText": "Registro" },
+    { "expect": "vendió bono MH-B01 de 5 copas (20 €)" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -13054,6 +13082,9 @@ function migrar(s) {
     s.config.productos.push({ id: 'botella', nombre: 'Botella (a elegir)', precio: 60, stock: 40, stockInicial: 40, refrescosIncluidos: 4 });
   }
   if (!s.config.bonoCfg) s.config.bonoCfg = { ventaCamareros: false, copas: 5, precio: 20 };
+  // Datos viejos podían no traer precio/copas numéricos → la venta no sumaba a caja. Se normaliza.
+  if (typeof s.config.bonoCfg.precio !== 'number' || isNaN(s.config.bonoCfg.precio)) s.config.bonoCfg.precio = 20;
+  if (typeof s.config.bonoCfg.copas !== 'number' || s.config.bonoCfg.copas < 1) s.config.bonoCfg.copas = 5;
   if (typeof s.config.accesoAuto !== 'boolean') s.config.accesoAuto = false;
   ['fecha', 'hora', 'lugar', 'lema'].forEach(function (k) { if (typeof s.config[k] !== 'string') s.config[k] = ''; });
   if (s.config.logo === undefined) s.config.logo = null;
@@ -15538,6 +15569,15 @@ function seccionBonos() {
   html += '<label>Precio del bono (€) <input type="number" id="bono-cfg-precio" value="' + esc(bc.precio) +
     '" min="0" onchange="duenoBonoCfg()" style="width:80px"></label></div>';
   html += '<p class="nota">El camarero solo pulsa "Vender bono": las copas y el precio los fijas tú aquí.</p>';
+  // Resumen de bonos VENDIDOS en barra (para que el dueño los cuente de un vistazo).
+  var vendidos = bonos.filter(function (b) { return b.vendido || b.etiqueta === 'Vendido en barra'; });
+  var ingresoBonos = vendidos.reduce(function (a, b) { return a + (Number(b.precio) || 0); }, 0);
+  var creados = bonos.length - vendidos.length;
+  html += '<div class="bono-resumen" data-testid="bono-resumen">' +
+    '<div><span class="br-num">' + vendidos.length + '</span><span class="br-lbl">vendidos en barra</span></div>' +
+    '<div><span class="br-num">' + esc(money(ingresoBonos)) + '</span><span class="br-lbl">recaudado en bonos</span></div>' +
+    '<div><span class="br-num">' + creados + '</span><span class="br-lbl">creados (regalo/mano)</span></div>' +
+    '</div>';
   html += '<form id="bonoForm" onsubmit="return crearBono(event)">';
   html += '<label>Nº de copas<input type="number" id="bono-copas" value="5" min="1" max="99"></label>';
   html += '<label>Etiqueta (opcional)<input type="text" id="bono-etiqueta" placeholder="Ej: Cumpleaños de Marta"></label>';
@@ -15582,21 +15622,20 @@ function duenoBonoCfg() {
 function venderBonoBarra() {
   var bc = state.config.bonoCfg || {};
   var copas = bc.copas || 5;
-  var precio = bc.precio || 0;
+  var precio = Number(bc.precio) || 0;
   var nuevoId = 'b' + Date.now();
   mutate(function (s) {
     if (!s.bonos) s.bonos = [];
     var codigo = 'MH-B' + String(s.bonos.length + 1).padStart(2, '0');
     s.bonos.push({ id: nuevoId, codigo: codigo, copas: copas, usadas: 0,
-      etiqueta: 'Vendido en barra', hora: nowHM(), anulado: false, precio: precio });
-    if (precio > 0) {
-      s.ingresosBarra = (s.ingresosBarra || 0) + precio;
-      s.recaudacionPorPerfil[s.perfilActivo] = (s.recaudacionPorPerfil[s.perfilActivo] || 0) + precio;
-    }
+      etiqueta: 'Vendido en barra', hora: nowHM(), anulado: false, precio: precio, vendido: true });
+    // El bono vendido SIEMPRE cuenta como venta de barra (aunque el precio sea 0, queda registrado).
+    s.ingresosBarra = (s.ingresosBarra || 0) + precio;
+    s.recaudacionPorPerfil[s.perfilActivo] = (s.recaudacionPorPerfil[s.perfilActivo] || 0) + precio;
     addLog('vendió bono ' + codigo + ' de ' + copas + ' copas (' + precio + ' €)', 'cobro');
   });
-  toast('Bono vendido');
-  abreQRBono(nuevoId); // se lo enseña/manda al cliente al momento
+  toast(precio > 0 ? ('Bono vendido · cobra ' + money(precio)) : 'Bono vendido');
+  abreQRBono(nuevoId, true); // modal de VENTA: precio a cobrar + código + QR para el cliente
 }
 
 function crearBono(ev) {
@@ -15637,16 +15676,26 @@ function bonoPorCodigo(cod) {
   return null;
 }
 
-function abreQRBono(id) {
+function abreQRBono(id, venta) {
   var b = null;
   for (var i = 0; i < (state.bonos || []).length; i++) if (state.bonos[i].id === id) b = state.bonos[i];
   if (!b) return;
   var rest = Math.max(0, (b.copas || 0) - (b.usadas || 0));
+  var precio = Number(b.precio) || 0;
   var html = '<div class="modal-qr" data-testid="qr-modal">';
-  html += '<h2>Bono de copas</h2>';
-  html += '<p class="qr-tipo">' + esc(b.etiqueta || 'Vale de ' + b.copas + ' copas') + ' · quedan ' + rest + '</p>';
+  if (venta) {
+    // Modal de VENTA: lo primero que ve el camarero es cuánto cobrar y qué código dar.
+    html += '<h2>✅ Bono vendido</h2>';
+    html += '<p class="bono-cobrar">' + (precio > 0 ? 'Cóbrale <b>' + esc(money(precio)) + '</b>' : 'Bono gratis') +
+      ' · <b>' + esc(b.copas) + '</b> copas</p>';
+  } else {
+    html += '<h2>Bono de copas</h2>';
+    html += '<p class="qr-tipo">' + esc(b.etiqueta || ('Vale de ' + b.copas + ' copas')) +
+      ' · <b>' + esc(b.copas) + '</b> copas' + (precio > 0 ? ' · ' + esc(money(precio)) : '') + ' · quedan ' + rest + '</p>';
+  }
   html += '<canvas id="qrCanvasBono" width="220" height="220"></canvas>';
   html += '<p class="qr-codigo">' + esc(b.codigo) + '</p>';
+  html += '<p class="nota" style="text-align:center">' + (venta ? 'Enséñale o mándale este código al cliente. Lo canjea en la barra por su código.' : 'El camarero lo canjea escribiendo este código en la barra.') + '</p>';
   html += '<div class="modal-botones"><button type="button" onclick="closeModal()">Cerrar</button></div></div>';
   showModal(html);
   var canvas = document.getElementById('qrCanvasBono');
