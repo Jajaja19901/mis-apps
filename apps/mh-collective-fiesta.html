@@ -10818,7 +10818,8 @@ function seedState() {
       modulos: { qr: true, cierre: true, gastos: true, stock: true },
       productos: seedProductos(),
       umbralStock: 10,
-      bonoCfg: { ventaCamareros: false, copas: 5, precio: 20 }
+      bonoCfg: { ventaCamareros: false, copas: 5, precio: 20 },
+      accesoAuto: false
     },
     perfilActivo: "vig-1",
     personas: seedPersonas(),
@@ -10876,6 +10877,7 @@ function migrar(s) {
     s.config.productos = s.config.precios ? productosDesdePrecios(s.config.precios) : seedProductos();
   }
   if (!s.config.bonoCfg) s.config.bonoCfg = { ventaCamareros: false, copas: 5, precio: 20 };
+  if (typeof s.config.accesoAuto !== 'boolean') s.config.accesoAuto = false;
   if (s.config.umbralStock === undefined) s.config.umbralStock = 10;
 
   if (!s.perfilActivo) s.perfilActivo = "vig-1";
@@ -11804,7 +11806,7 @@ function abreEscaner() {
   var html = "";
   html += '<div class="modal-escaner">';
   html += "<h2>Escanear QR</h2>";
-  html += '<button type="button" class="btn-camara" data-testid="btn-camara" onclick="escanearConCamara(function(c){var i=document.getElementById(\'qr-codigo\');if(i)i.value=c;resolverEscaneo(c);})">📷 Escanear con cámara</button>';
+  html += '<button type="button" class="btn-camara" data-testid="btn-camara" onclick="escanearConCamara(function(c){var i=document.getElementById(\'qr-codigo\');if(i)i.value=c;resolverEscaneo(c,true);})">📷 Escanear con cámara</button>';
   html += '<p id="escanerAviso">Haz una foto al QR, o teclea el código a mano.</p>';
   html += '<div id="escanerVideoWrap"></div>';
   html += '<form id="qrForm">';
@@ -11895,8 +11897,11 @@ function consDesdeCodigo(codigo) {
 }
 
 /* Veredicto del escaneo: cierra el círculo. Dice al instante si el código es
-   válido, si está pagado y —clave anti-fraude— si YA ENTRÓ (código repetido). */
-function resolverEscaneo(valor) {
+   válido, si está pagado y —clave anti-fraude— si YA ENTRÓ (código repetido).
+   Si el acceso automático está ON y viene de la cámara, para las entradas válidas
+   YA PAGADAS o de invitado entra sola; el resto (cobrar, ya-usada, no válida) cae
+   siempre al veredicto manual con botón. */
+function resolverEscaneo(valor, deCamara) {
   var out = document.getElementById("escanerResultado");
   var p = personaPorCodigo(valor);
   if (!p) {
@@ -11906,6 +11911,16 @@ function resolverEscaneo(valor) {
     return;
   }
   var nombre = esc(p.nombre + " " + p.apellido);
+  // ACCESO AUTOMÁTICO: solo cámara + config ON + válida + fuera + sin nada que cobrar.
+  var pend = p.tipo === "vip" ? ((p.mesa.total || 0) - (p.importePagado || 0)) : 0;
+  var sinDeuda = p.tipo === "invitado" || (p.importePagado || 0) > 0 && pend <= 0;
+  if (deCamara && state.config.accesoAuto && !p.dentro && sinDeuda) {
+    darAccesoSimple(p.id, p.tipo === "invitado" ? "Invitado" : (p.tipo === "vip" ? "VIP" : "Taquilla"));
+    if (out) out.innerHTML = '<div class="scan-res scan-ok"><b class="scan-verde">✔ DENTRO</b>' +
+      '<span>' + nombre + ' · ' + esc(p.codigoReserva) + '</span></div>' +
+      '<button type="button" onclick="closeModal()">Siguiente</button>';
+    return;
+  }
   if (p.dentro) {
     // YA USADO: alarma clara. No deja pasar de nuevo con el mismo código.
     addLog("intento de reentrada con código ya usado: " + p.nombre + " " + p.apellido + " (" + p.codigoReserva + ")", "salida");
@@ -11957,7 +11972,7 @@ function intentarCamaraQR(onCodigo) {
     video.muted = true; video.autoplay = true;
     video.style.width = "100%"; video.style.borderRadius = "8px";
     wrap.appendChild(video);
-    var cb = onCodigo || function (v) { var i = document.getElementById('qr-codigo'); if (i) i.value = v; resolverEscaneo(v); };
+    var cb = onCodigo || function (v) { var i = document.getElementById('qr-codigo'); if (i) i.value = v; resolverEscaneo(v, true); };
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function (stream) {
       window._camStream = stream; _camActiva = true;
       video.srcObject = stream; video.play && video.play().catch(function () {});
@@ -12612,6 +12627,10 @@ function seccionModulos() {
     html += '<label class="switch"><input type="checkbox" id="mod-' + key + '"' + (m[key] ? " checked" : "") +
       ' onchange="duenoToggleModulo(\'' + key + '\')"> ' + esc(MODULO_LABEL[key]) + '</label>';
   });
+  html += '<hr style="border-color:var(--border);margin:12px 0">';
+  html += '<label class="switch"><input type="checkbox" id="acceso-auto"' + (state.config.accesoAuto ? ' checked' : '') +
+    ' onchange="duenoToggleAccesoAuto()"> Acceso automático al escanear (los ya pagados entran solos)</label>';
+  html += '<p class="nota">Con esto activado, al leer con la cámara un QR ya pagado o de invitado, entra solo. Los que pagan en puerta, los repetidos o los que no se leen bien siguen pidiendo confirmación. Teclear a mano siempre muestra el botón.</p>';
   html += '</section>';
   return html;
 }
@@ -12621,6 +12640,14 @@ function duenoToggleModulo(key) {
     s.config.modulos[key] = !s.config.modulos[key];
     addLog((s.config.modulos[key] ? "activó" : "desactivó") + " módulo " + MODULO_LABEL[key], "modulo");
   });
+}
+
+function duenoToggleAccesoAuto() {
+  mutateSilent(function (s) {
+    s.config.accesoAuto = !s.config.accesoAuto;
+    addLog((s.config.accesoAuto ? "activó" : "desactivó") + " el acceso automático al escanear", "config");
+  });
+  toast(state.config.accesoAuto ? 'Acceso automático activado' : 'Acceso automático desactivado');
 }
 
 /* ---------- 5. RRPP ---------- */
