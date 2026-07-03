@@ -441,7 +441,26 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "click": "[data-testid=\"tab-entradas\"]" },
     { "click": "[data-testid=\"btn-add-fase\"]" },
     { "clickText": "Registro" },
-    { "expect": "Dueño añadió la Fase" } ]}
+    { "expect": "Dueño añadió la Fase" } ]},
+  { "name": "Al pasar a trabajador se cierra la sesión del dueño (vuelve a pedir PIN)", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "expectVisible": "[data-testid=\"kpi-caja\"]" },
+    { "click": "[data-testid=\"rol-vig-1\"]" },
+    { "expectHash": "#/puerta" },
+    { "click": "[data-testid=\"rol-dueno\"]" },
+    { "expectVisible": "#pin-dueno" },
+    { "expectGone": "[data-testid=\"kpi-caja\"]" } ]},
+  { "name": "Etiqueta de remesa con comillas se trata como texto (no XSS)", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "click": "[data-testid=\"tab-entradas\"]" },
+    { "fill": { "sel": "#remesa-etiqueta", "value": "aa\"><img src=x onerror=alert(1)>bb" } },
+    { "click": "[data-testid=\"btn-crear-remesa\"]" },
+    { "click": "[data-testid=\"acc-gen\"]" },
+    { "expect": "onerror=alert(1)" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -13289,6 +13308,10 @@ function renderAppInterno() {
         if (id === 'dueno') {
           location.hash = '#/dueno';
         } else {
+          // Al pasar a un rol de trabajador se cierra la sesión del dueño: si luego
+          // alguien vuelve al panel, tendrá que volver a meter el PIN. Así, aunque el
+          // dueño preste el móvil a un vigilante/camarero, no queda el panel abierto.
+          duenoAutenticado = false;
           state.perfilActivo = id;
           location.hash = id.startsWith('cam') ? '#/barra' : '#/puerta';
         }
@@ -14865,7 +14888,7 @@ function aplicarLogo() {
   }
   var logo = state.config && state.config.logo;
   if (box) box.innerHTML = logo
-    ? '<img src="' + logo + '" alt="' + esc(state.config.eventName) + '" style="width:40px;height:40px;object-fit:contain;border-radius:8px">'
+    ? '<img src="' + esc(logo) + '" alt="' + esc(state.config.eventName) + '" style="width:40px;height:40px;object-fit:contain;border-radius:8px">'
     : _logoDefaults.box;
   if (ic) ic.href = logo || _logoDefaults.icon;
   if (ap) ap.href = logo || _logoDefaults.apple;
@@ -15014,8 +15037,8 @@ function seccionGenerales() {
     html += '<h3>Series creadas</h3><ul class="lista-gastos">';
     claves.forEach(function (k) {
       html += '<li><span><b>' + esc(k) + '</b> · ' + series[k] + ' entradas</span>' +
-        '<span style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" data-testid="btn-pdf-remesa" onclick="descargarPdfsRemesa(\'' + escJs(k) + '\')">PDFs sueltos (ZIP)</button>' +
-        '<button type="button" class="btn-secundario" onclick="descargarPdfRemesa(\'' + escJs(k) + '\')">PDF junto (imprimir)</button></span></li>';
+        '<span style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" data-testid="btn-pdf-remesa" onclick="descargarPdfsRemesa(\'' + esc(escJs(k)) + '\')">PDFs sueltos (ZIP)</button>' +
+        '<button type="button" class="btn-secundario" onclick="descargarPdfRemesa(\'' + esc(escJs(k)) + '\')">PDF junto (imprimir)</button></span></li>';
     });
     html += '</ul>';
   }
