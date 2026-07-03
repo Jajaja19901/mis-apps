@@ -196,6 +196,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .bono-cobrar b{color:var(--neon-verde);font-size:1.3rem}
 /* El código del bono, protagonista: grande y fácil de dictar */
 .bono-codigo-big{text-align:center;font-family:ui-monospace,monospace;font-weight:800;font-size:2rem;letter-spacing:2px;color:var(--text);background:var(--bg);border:1px dashed var(--border);border-radius:var(--radius-btn);padding:12px 8px;margin:6px 0}
+.badge-rrpp{background:rgba(176,38,255,.18);color:#c98bff;border:1px solid rgba(176,38,255,.4)}
 .contador{display:flex;gap:10px;align-items:center;margin-bottom:10px}
 .contador button{min-width:44px}
 .switch{display:flex;align-items:center;gap:10px;margin-bottom:8px;color:var(--text)}
@@ -367,16 +368,24 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "expectVisible": "[data-testid=\"prod-copa\"]" },
     { "expectGone": "#buscador" },
     { "expectGone": "[data-testid=\"kpi-caja\"]" } ]},
-  { "name": "Añadir RRPP por nombre y sumarle una venta", "steps": [
+  { "name": "Repartir entradas a un RRPP por rango y contar las vendidas", "steps": [
     { "goto": "#/dueno" },
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
+    { "click": "[data-testid=\"tab-entradas\"]" },
+    { "fill": { "sel": "#remesa-cantidad", "value": "5" } },
+    { "fill": { "sel": "#remesa-etiqueta", "value": "LoteR" } },
+    { "click": "[data-testid=\"btn-crear-remesa\"]" },
     { "clickText": "Dinero" },
     { "fill": { "sel": "#rrpp-nuevo", "value": "Dani" } },
     { "submit": "[data-testid=\"rrpp-form\"]" },
     { "expect": "RRPP Dani" },
-    { "click": "[data-testid=\"rrpp-mas-dani\"]" },
-    { "expect": "20 €" } ]},
+    { "fill": { "sel": "#rrpp-asig-slug", "value": "dani" } },
+    { "fill": { "sel": "#rrpp-asig-desde", "value": "1" } },
+    { "fill": { "sel": "#rrpp-asig-hasta", "value": "3" } },
+    { "click": "[data-testid=\"btn-asignar-rrpp\"]" },
+    { "clickText": "Registro" },
+    { "expect": "repartió entradas #1–#3 a RRPP Dani (3)" } ]},
   { "name": "Subir vigilantes crea Vigilante 3", "steps": [
     { "goto": "#/dueno" },
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
@@ -14834,7 +14843,7 @@ function seccionKpis() {
   html += '<li data-testid="caja-taquilla">Taquilla: ' + esc(money(caja.taquilla)) + '</li>';
   html += '<li data-testid="caja-vip">Mesas VIP: ' + esc(money(caja.vip)) + '</li>';
   html += '<li data-testid="caja-barra">Barra: ' + esc(money(caja.barra)) + '</li>';
-  html += '<li data-testid="caja-rrpp">RRPP: ' + esc(money(caja.netoRRPP)) + ' (pendiente de entrega)</li>';
+  html += '<li data-testid="caja-rrpp">Comisiones RRPP: ' + esc(money(rrppComisionTotal())) + ' (a pagar a promotores)</li>';
   html += '</ul></div>';
   html += '<div class="kpi" data-testid="kpi-asistencia"><h3>Asistencia</h3><p class="kpi-big">' +
     esc(dentro) + ' registrados (' + esc(pct) + '%)</p></div>';
@@ -15167,6 +15176,9 @@ function seccionEntradas() {
   Object.keys(series).forEach(function (k) {
     html += '<option value="serie:' + esc(k) + '"' + (_entFiltro === 'serie:' + k ? ' selected' : '') + '>Serie: ' + esc(k) + '</option>';
   });
+  (state.rrpp || []).forEach(function (r) {
+    html += '<option value="rrpp:' + esc(r.slug) + '"' + (_entFiltro === 'rrpp:' + r.slug ? ' selected' : '') + '>RRPP: ' + esc(r.nombre) + '</option>';
+  });
   html += '</select></div>';
   html += '<input type="text" id="ent-busca" placeholder="Buscar nombre o código" value="' + esc(_entBusca) + '" oninput="entBuscar(this.value)" style="width:100%;margin:8px 0">';
   // La lista va en su propio contenedor: al buscar/filtrar solo se repinta ESTO, nunca el
@@ -15189,8 +15201,10 @@ function entradasListaHTML() {
         ? '<span class="badge badge-pagado">Pagada</span>'
         : '<span class="badge badge-pendiente">Pendiente</span>');
     var dentro = p.dentro ? ' <span class="badge badge-dentro">Dentro</span>' : '';
+    var rrppB = '';
+    if (p.rrppSlug) { var rr = (state.rrpp || []).find(function (x) { return x.slug === p.rrppSlug; }); rrppB = ' <span class="badge badge-rrpp">RRPP ' + esc(rr ? rr.nombre : p.rrppSlug) + '</span>'; }
     html += '<li><span class="ent-info"><b>' + esc((p.nombre + ' ' + p.apellido).trim() || 'Entrada al portador') + '</b> · ' + esc(p.codigoReserva) +
-      (p.remesa ? ' · ' + esc(p.remesa) : '') + '<br>' + estado + dentro + '</span>' +
+      (p.remesa ? ' · ' + esc(p.remesa) : '') + '<br>' + estado + dentro + rrppB + '</span>' +
       '<span style="display:flex;gap:6px;flex-shrink:0">' +
       '<button type="button" class="btn-qr" onclick="abreQR(\'' + escJs(p.id) + '\')">Ver / QR</button>' +
       '<button type="button" class="btn-mini-borrar" data-testid="ent-borrar-' + esc(p.id) + '" onclick="duenoBorrarEntrada(\'' + escJs(p.id) + '\')">Borrar</button></span></li>';
@@ -15205,6 +15219,7 @@ function entradasFiltradas() {
     if (_entFiltro === 'pendientes') { if (p.tipo === 'invitado') return false; var pend = p.tipo === 'vip' ? ((p.mesa.total || 0) - (p.importePagado || 0)) : ((p.importePagado || 0) === 0 ? 1 : 0); return pend > 0; }
     if (_entFiltro === 'pagadas') return (p.importePagado || 0) > 0 || p.tipo === 'invitado';
     if (_entFiltro.indexOf('serie:') === 0) return p.remesa === _entFiltro.slice(6);
+    if (_entFiltro.indexOf('rrpp:') === 0) return p.rrppSlug === _entFiltro.slice(5);
     return true;
   });
   if (_entBusca) {
@@ -15504,11 +15519,27 @@ function duenoToggleAccesoAuto() {
 
 /* ---------- 5. RRPP ---------- */
 
+/* Entradas que el dueño ha repartido a un RRPP (por su slug). */
+function rrppEntradasDe(slug) { return (state.personas || []).filter(function (p) { return p.rrppSlug === slug; }); }
+/* "Vendidas" = de las repartidas, las que ya están pagadas (el cliente pagó). */
+function rrppVendidasDe(slug) { return rrppEntradasDe(slug).filter(function (p) { return (p.importePagado || 0) > 0 || p.pagado; }).length; }
+function rrppComisionTotal() {
+  return (state.rrpp || []).reduce(function (a, r) { return a + rrppVendidasDe(r.slug) * (r.comision || 0); }, 0);
+}
+/* Rango de números de las entradas de remesa creadas (para repartir "de la X a la Y"). */
+function rangoEntradasRemesa() {
+  var nums = (state.personas || []).filter(function (p) { return p.remesa; }).map(function (p) {
+    var n = parseInt(String(p.apellido || '').replace(/\D/g, ''), 10); return isNaN(n) ? null : n;
+  }).filter(function (n) { return n != null; });
+  if (!nums.length) return null;
+  return { min: Math.min.apply(null, nums), max: Math.max.apply(null, nums) };
+}
+
 function seccionRrpp() {
   var rrpp = state.rrpp || [];
   var html = '<section class="panel" data-testid="rrpp"><h2>RRPP / Promotores</h2>';
-  html += '<p class="nota">Añade a tus promotores por nombre y apúntales las entradas que venden. Empiezas sin ninguno: mete solo los tuyos.</p>';
-  // Alta de promotor (input propio, recordado por el navegador; no repinta al teclear).
+  html += '<p class="nota">Añade a tus promotores y repárteles las entradas que les das a vender. Cada uno ve cuántas lleva y cuántas ha vendido (ya pagadas). Empiezas sin ninguno: mete solo los tuyos.</p>';
+  // Alta de promotor
   html += '<form data-testid="rrpp-form" onsubmit="return duenoAnadirRrpp(event)"><div class="contador">';
   html += '<input type="text" id="rrpp-nuevo" placeholder="Nombre del promotor" style="flex:1" required>';
   html += '<button type="submit" class="btn-primary" data-testid="btn-add-rrpp" style="flex:0 0 auto">➕ Añadir</button></div></form>';
@@ -15516,31 +15547,76 @@ function seccionRrpp() {
     html += '<p class="lista-vacia">Aún no has añadido promotores. Escribe un nombre arriba y pulsa "Añadir".</p></section>';
     return html;
   }
-  html += '<div style="overflow-x:auto"><table class="tabla-rrpp"><thead><tr><th>RRPP</th><th>Vendidas</th><th>Precio</th><th>Comisión</th>' +
-    '<th>Total</th><th>Comisión €</th><th>Neto</th><th></th></tr></thead><tbody>';
-  var totVend = 0, totTotal = 0, totCom = 0, totNeto = 0;
+  // Repartir entradas por rango (de la X a la Y)
+  var rango = rangoEntradasRemesa();
+  html += '<h3>Repartir entradas</h3>';
+  if (rango) {
+    html += '<p class="nota">Tienes entradas de remesa numeradas del <b>#' + rango.min + '</b> al <b>#' + rango.max + '</b>. Elige el promotor y de qué número a qué número le das.</p>';
+    html += '<div class="contador"><label>Promotor <select id="rrpp-asig-slug">';
+    rrpp.forEach(function (r) { html += '<option value="' + esc(r.slug) + '">' + esc(r.nombre) + '</option>'; });
+    html += '</select></label></div>';
+    html += '<div class="contador"><label>Desde nº <input type="number" id="rrpp-asig-desde" min="' + rango.min + '" max="' + rango.max + '" value="' + rango.min + '" style="width:90px"></label>';
+    html += '<label>Hasta nº <input type="number" id="rrpp-asig-hasta" min="' + rango.min + '" max="' + rango.max + '" value="' + rango.max + '" style="width:90px"></label>';
+    html += '<button type="button" class="btn-primary" data-testid="btn-asignar-rrpp" onclick="duenoAsignarRrpp()">Repartir</button></div>';
+  } else {
+    html += '<p class="nota">Aún no hay entradas de remesa. Crea una en <b>Entradas → Entradas generales (sin nombre)</b> y luego vuelve aquí a repartirlas.</p>';
+  }
+  // Tabla de promotores (asignadas/vendidas/quedan derivadas de las entradas reales)
+  html += '<h3>Tus promotores</h3>';
+  html += '<div style="overflow-x:auto"><table class="tabla-rrpp"><thead><tr><th>RRPP</th><th>Repartidas</th><th>Vendidas</th><th>Quedan</th><th>Precio</th><th>Comisión</th><th>A pagar</th><th></th></tr></thead><tbody>';
+  var totAsig = 0, totVend = 0, totPagar = 0;
   rrpp.forEach(function (r) {
-    var total = r.vendidas * r.precio;
-    var com = r.vendidas * r.comision;
-    var neto = total - com;
-    totVend += r.vendidas; totTotal += total; totCom += com; totNeto += neto;
+    var asignadas = rrppEntradasDe(r.slug).length;
+    var vendidas = rrppVendidasDe(r.slug);
+    var pagar = vendidas * (r.comision || 0);
+    totAsig += asignadas; totVend += vendidas; totPagar += pagar;
     html += '<tr data-testid="rrpp-' + esc(r.slug) + '">';
     html += '<td>RRPP ' + esc(r.nombre) + '</td>';
-    html += '<td>' + esc(r.vendidas) +
-      ' <button type="button" data-testid="rrpp-menos-' + esc(r.slug) + '" onclick="duenoRrppVendidas(\'' + r.slug + '\',-1)">−</button>' +
-      ' <button type="button" data-testid="rrpp-mas-' + esc(r.slug) + '" onclick="duenoRrppVendidas(\'' + r.slug + '\',1)">+</button></td>';
+    html += '<td>' + asignadas + (asignadas ? ' <button type="button" data-testid="rrpp-ver-' + esc(r.slug) + '" onclick="rrppVerEntradas(\'' + escJs(r.slug) + '\')">ver</button>' : '') + '</td>';
+    html += '<td data-testid="rrpp-vendidas-' + esc(r.slug) + '">' + vendidas + '</td>';
+    html += '<td>' + (asignadas - vendidas) + '</td>';
     html += '<td><input type="number" id="rrpp-precio-' + esc(r.slug) + '" value="' + esc(r.precio) +
       '" min="0" onchange="duenoRrppCampo(\'' + r.slug + '\',\'precio\',this.value)"></td>';
     html += '<td><input type="number" id="rrpp-comision-' + esc(r.slug) + '" value="' + esc(r.comision) +
       '" min="0" onchange="duenoRrppCampo(\'' + r.slug + '\',\'comision\',this.value)"></td>';
-    html += '<td>' + esc(money(total)) + '</td><td>' + esc(money(com)) + '</td><td>' + esc(money(neto)) + '</td>';
+    html += '<td>' + esc(money(pagar)) + '</td>';
     html += '<td><button type="button" class="btn-mini-borrar" data-testid="rrpp-borrar-' + esc(r.slug) + '" onclick="duenoBorrarRrpp(\'' + escJs(r.slug) + '\')">✕</button></td>';
     html += '</tr>';
   });
-  html += '</tbody><tfoot><tr data-testid="rrpp-totales"><td>Total</td><td>' + esc(totVend) + '</td><td></td><td></td>' +
-    '<td>' + esc(money(totTotal)) + '</td><td>' + esc(money(totCom)) + '</td><td>' + esc(money(totNeto)) + '</td><td></td></tr></tfoot>';
-  html += '</table></div></section>';
+  html += '</tbody><tfoot><tr data-testid="rrpp-totales"><td>Total</td><td>' + totAsig + '</td><td>' + totVend + '</td><td>' + (totAsig - totVend) + '</td><td></td><td></td><td>' + esc(money(totPagar)) + '</td><td></td></tr></tfoot>';
+  html += '</table></div>';
+  html += '<p class="nota">"Vendidas" = repartidas que ya están pagadas. "A pagar" = comisión que le debes a cada promotor. El dinero de esas entradas ya está contado en Taquilla.</p>';
+  html += '</section>';
   return html;
+}
+/* Reparte a un RRPP las entradas de remesa cuyo número esté entre desde y hasta. */
+function duenoAsignarRrpp() {
+  var selSlug = document.getElementById('rrpp-asig-slug');
+  var slug = selSlug ? selSlug.value : '';
+  var desde = parseInt((document.getElementById('rrpp-asig-desde') || {}).value, 10);
+  var hasta = parseInt((document.getElementById('rrpp-asig-hasta') || {}).value, 10);
+  if (!slug || isNaN(desde) || isNaN(hasta)) { toast('Revisa el promotor y los números'); return; }
+  if (desde > hasta) { var t = desde; desde = hasta; hasta = t; }
+  var r0 = (state.rrpp || []).find(function (x) { return x.slug === slug; });
+  var n = 0;
+  mutate(function (s) {
+    (s.personas || []).forEach(function (p) {
+      if (!p.remesa) return;
+      var num = parseInt(String(p.apellido || '').replace(/\D/g, ''), 10);
+      if (!isNaN(num) && num >= desde && num <= hasta) { p.rrppSlug = slug; n++; }
+    });
+    addLog('repartió entradas #' + desde + '–#' + hasta + ' a RRPP ' + (r0 ? r0.nombre : slug) + ' (' + n + ')', 'rrpp');
+  });
+  toast(n ? (n + ' entradas repartidas a ' + (r0 ? r0.nombre : slug)) : 'No había entradas en ese rango');
+}
+/* Salta a la lista de entradas filtrada por ese RRPP. */
+function rrppVerEntradas(slug) {
+  _entFiltro = 'rrpp:' + slug;
+  _entBusca = '';
+  _duenoTab = 'entradas';
+  _acc.creadas = true;
+  renderDueno();
+  try { window.scrollTo(0, 0); } catch (e) {}
 }
 
 /* Slug único a partir del nombre (para los data-testid y para localizar al promotor). */
