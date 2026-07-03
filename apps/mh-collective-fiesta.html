@@ -208,14 +208,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
 </head>
 <body>
 <header id="topbar">
-<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MH Collective">
+<span id="logoBox"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MH Collective">
 <defs><style>text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}</style></defs>
 <circle cx="100" cy="100" r="95" fill="#0a0a0f" stroke="#ffffff" stroke-width="2"/>
 <rect x="70" y="70" width="60" height="60" fill="none" stroke="#ffffff" stroke-width="2.5" transform="rotate(45 100 100)"/>
 <text x="100" y="98" font-size="44" font-weight="bold" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">MH</text>
 <rect x="35" y="135" width="130" height="32" fill="#ffffff" rx="5"/>
 <text x="100" y="154" font-size="13" font-weight="600" fill="#0a0a0f" text-anchor="middle" dominant-baseline="middle">Collective</text>
-</svg>
+</svg></span>
 <div id="rolChips"></div>
 <span data-testid="sync-estado">Solo este dispositivo</span>
 <button id="btnInstalar" type="button">Instalar app</button>
@@ -10836,7 +10836,8 @@ function seedState() {
       umbralStock: 10,
       bonoCfg: { ventaCamareros: false, copas: 5, precio: 20 },
       accesoAuto: false,
-      fecha: "", hora: "", lugar: "", lema: ""
+      fecha: "", hora: "", lugar: "", lema: "",
+      logo: null
     },
     perfilActivo: "vig-1",
     personas: seedPersonas(),
@@ -10896,6 +10897,7 @@ function migrar(s) {
   if (!s.config.bonoCfg) s.config.bonoCfg = { ventaCamareros: false, copas: 5, precio: 20 };
   if (typeof s.config.accesoAuto !== 'boolean') s.config.accesoAuto = false;
   ['fecha', 'hora', 'lugar', 'lema'].forEach(function (k) { if (typeof s.config[k] !== 'string') s.config[k] = ''; });
+  if (s.config.logo === undefined) s.config.logo = null;
   if (s.config.umbralStock === undefined) s.config.umbralStock = 10;
 
   if (!s.perfilActivo) s.perfilActivo = "vig-1";
@@ -11259,6 +11261,7 @@ function initSync() {
 function bootApp() {
   load();
   precargarCartel();
+  aplicarLogo();
   window.addEventListener('hashchange', renderApp);
   initSync();
   window.addEventListener('beforeinstallprompt', function (e) {
@@ -11630,12 +11633,24 @@ function cartelListo() {
     img.src = state.config.cartel;
   });
 }
+var _logoImg = null;
+function logoListo() {
+  return new Promise(function (resolve) {
+    if (!state.config.logo) { resolve(null); return; }
+    if (_logoImg && _logoImg.complete && _logoImg.src === state.config.logo) { resolve(_logoImg); return; }
+    var img = new Image();
+    img.onload = function () { _logoImg = img; resolve(img); };
+    img.onerror = function () { resolve(null); };
+    img.src = state.config.logo;
+  });
+}
 
 /* Construye la INVITACIÓN como ENTRADA DE FESTIVAL (async: espera al cartel si lo hay).
    Cabecera (cartel o emblema) + datos del evento + tipo/nombre/mesa/precio + talón
    perforado con el QR grande. */
 function canvasInvitacion(p) {
-  return cartelListo().then(function (cartel) {
+  return Promise.all([cartelListo(), logoListo()]).then(function (imgs) {
+    var cartel = imgs[0], logo = imgs[1];
     var c = state.config;
     var W = 800, cx = W / 2;
     var acento = p.tipo === 'vip' ? '#b026ff' : (p.tipo === 'invitado' ? '#00d48a' : '#ffb600');
@@ -11661,6 +11676,13 @@ function canvasInvitacion(p) {
     // ---- Cabecera ----
     if (cartel) {
       ctx.drawImage(cartel, 0, 0, W, headerH);
+    } else if (logo) {
+      // TU logo, tal cual, centrado (sin recortar: encaja en un cuadro)
+      var lado = 200;
+      var esc2 = Math.min(lado / logo.width, lado / logo.height);
+      var lw = logo.width * esc2, lh = logo.height * esc2;
+      ctx.drawImage(logo, cx - lw / 2, 40, lw, lh);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 40px -apple-system, sans-serif'; ctx.fillText(c.eventName, cx, headerH - 20);
     } else {
       var cyc = 140, rr = 100;
       ctx.save();
@@ -12416,8 +12438,60 @@ function seccionConfig() {
   html += '<label>Por entrada de taquilla<input type="number" id="cfg-cons-taquilla" value="' + esc(cc.taquilla) + '" min="0"></label>';
   html += '<label>Por persona de mesa VIP<input type="number" id="cfg-cons-vip" value="' + esc(cc.vip) + '" min="0"></label>';
   html += '<button type="submit" class="btn btn-primary">Guardar configuración</button>';
-  html += '</form></section>';
+  html += '</form>';
+  html += '<h3>Logo del evento</h3>';
+  html += '<p class="nota">' + (c.logo ? 'Logo cargado ✔ — se usa en la cabecera, las entradas, el icono de la pestaña y al instalar la app.' : 'Sube tu logo (PNG/JPG). Se usará tal cual en toda la app y en las entradas, sin modificarlo.') + '</p>';
+  if (c.logo) html += '<img src="' + esc(c.logo) + '" alt="logo" style="width:96px;height:96px;object-fit:contain;border-radius:8px;background:#000;margin-bottom:8px">';
+  html += '<div class="contador"><button type="button" onclick="document.getElementById(\'logo-archivo\').click()">' + (c.logo ? 'Cambiar logo' : 'Subir logo') + '</button>';
+  if (c.logo) html += ' <button type="button" onclick="quitarLogo()">Quitar</button>';
+  html += '<input type="file" id="logo-archivo" accept="image/*" style="display:none" onchange="cargarLogoArchivo(this)"></div>';
+  html += '</section>';
   return html;
+}
+
+/* ===== LOGO DEL EVENTO (lo sube el dueño; se usa TAL CUAL en toda la app) ===== */
+function cargarLogoArchivo(input) {
+  var f = input.files && input.files[0];
+  if (!f) return;
+  var r = new FileReader();
+  r.onload = function () {
+    mutate(function (s) { s.config.logo = String(r.result); });
+    aplicarLogo();
+    toast('Logo guardado y aplicado');
+  };
+  r.readAsDataURL(f);
+  input.value = '';
+}
+function quitarLogo() {
+  mutate(function (s) { s.config.logo = null; });
+  aplicarLogo();
+  toast('Logo quitado');
+}
+/* Aplica el logo del dueño en cabecera, favicon (pestaña) e icono de instalación.
+   Si no hay logo, restaura el emblema/favicon por defecto (guardados al arrancar). */
+var _logoDefaults = null;
+function aplicarLogo() {
+  var box = document.getElementById('logoBox');
+  var ic = document.querySelector('link[rel="icon"]');
+  var ap = document.querySelector('link[rel="apple-touch-icon"]');
+  if (_logoDefaults === null) {
+    _logoDefaults = { box: box ? box.innerHTML : '', icon: ic ? ic.href : '', apple: ap ? ap.href : '' };
+  }
+  var logo = state.config && state.config.logo;
+  if (box) box.innerHTML = logo
+    ? '<img src="' + logo + '" alt="' + esc(state.config.eventName) + '" style="width:40px;height:40px;object-fit:contain;border-radius:8px">'
+    : _logoDefaults.box;
+  if (ic) ic.href = logo || _logoDefaults.icon;
+  if (ap) ap.href = logo || _logoDefaults.apple;
+  if (logo) {
+    try {
+      var man = { name: state.config.eventName || 'MH Collective', short_name: 'MH', display: 'standalone',
+        background_color: '#0a0a0f', theme_color: '#0a0a0f',
+        icons: [{ src: logo, sizes: '512x512', type: 'image/png', purpose: 'any' }] };
+      var blob = new Blob([JSON.stringify(man)], { type: 'application/json' });
+      var ml = document.querySelector('link[rel="manifest"]'); if (ml) ml.href = URL.createObjectURL(blob);
+    } catch (e) {}
+  }
 }
 
 /* ===== LISTA ANTICIPADA (entradas vendidas ANTES de la fiesta; sin servidor) ===== */
