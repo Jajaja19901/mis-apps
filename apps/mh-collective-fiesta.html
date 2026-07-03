@@ -171,6 +171,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .escaner-no-encontrado{color:var(--ambar);font-weight:600}
 .qr-pagada{color:var(--neon-verde);font-weight:700}
 .qr-pendiente{color:var(--ambar);font-weight:700}
+/* Veredicto del escaneo */
+.scan-res{border-radius:var(--radius-card);padding:16px;margin:12px 0;display:flex;flex-direction:column;gap:6px;text-align:center}
+.scan-res b{font-size:1.5rem}
+.scan-res span{font-size:1rem;color:var(--text)}
+.scan-ok{background:rgba(0,212,138,.12);border:1px solid var(--neon-verde)}
+.scan-rojo{background:rgba(255,51,51,.14);border:2px solid var(--rojo);animation:parpadeo 1s infinite}
+.scan-verde{color:var(--neon-verde)}
+.scan-ambar{color:var(--ambar)}
 /* TPV (alias de rejilla + carrito) */
 .productos-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
 .prod-nombre{font-weight:600}.prod-precio{color:var(--neon-verde);font-weight:700}.prod-stock{font-size:.75rem;color:var(--text-dim)}
@@ -1552,19 +1560,48 @@ function onEscanerSubmit(ev) {
   var input = document.getElementById("qr-codigo");
   var valor = input ? input.value.trim() : "";
   if (!valor) return;
+  resolverEscaneo(valor);
+}
+
+/* Veredicto del escaneo: cierra el círculo. Dice al instante si el código es
+   válido, si está pagado y —clave anti-fraude— si YA ENTRÓ (código repetido). */
+function resolverEscaneo(valor) {
+  var out = document.getElementById("escanerResultado");
   var p = personaPorCodigo(valor);
-  if (p) {
-    closeModal();
-    _busq = valor;
-    _filtro = "todos";
-    renderApp();
-  } else {
-    var resultado = document.getElementById("escanerResultado");
-    if (resultado) {
-      resultado.innerHTML = '<p class="escaner-no-encontrado">Código no encontrado</p>' +
-        '<button type="button" onclick="closeModal();abreExpress();">Dar de alta express</button>';
-    }
+  if (!p) {
+    if (out) out.innerHTML = '<div class="scan-res scan-rojo"><b>❌ Código no válido</b>' +
+      '<span>' + esc(valor) + ' no existe en la lista.</span></div>' +
+      '<button type="button" onclick="closeModal();abreExpress();">Dar de alta express</button>';
+    return;
   }
+  var nombre = esc(p.nombre + " " + p.apellido);
+  if (p.dentro) {
+    // YA USADO: alarma clara. No deja pasar de nuevo con el mismo código.
+    addLog("intento de reentrada con código ya usado: " + p.nombre + " " + p.apellido + " (" + p.codigoReserva + ")", "salida");
+    if (out) out.innerHTML = '<div class="scan-res scan-rojo"><b>⚠️ YA ENTRÓ</b>' +
+      '<span>' + nombre + ' entró a las ' + esc(p.horaEntrada || "?") + '. Código repetido.</span></div>' +
+      '<button type="button" onclick="verFicha(\'' + escJs(valor) + '\')">Ver su ficha</button>';
+    save(); // deja constancia del intento en el log
+    return;
+  }
+  // VÁLIDO y aún fuera: estado de pago + acción directa.
+  var pagada = (p.importePagado || 0) > 0 || p.tipo === "invitado";
+  var linea = p.tipo === "invitado"
+    ? '<b class="scan-verde">✔ INVITADO (gratis)</b>'
+    : (pagada ? '<b class="scan-verde">✔ PAGADA</b>' : '<b class="scan-ambar">€ SIN PAGAR · cobra ' + esc(p.tipo === "vip" ? ((p.mesa.total || 0) - (p.importePagado || 0)) : precioEntradaDe(p)) + ' €</b>');
+  var copas = consIncluidas(p);
+  if (out) out.innerHTML = '<div class="scan-res scan-ok">' + linea +
+    '<span>' + nombre + ' · ' + esc(p.codigoReserva) +
+    (copas > 0 ? ' · ' + copas + ' copa' + (copas === 1 ? '' : 's') : '') + '</span></div>' +
+    '<button type="button" class="btn-primary" onclick="verFicha(\'' + escJs(valor) + '\')">' +
+    esc(labelAccion(p)) + '</button>';
+}
+
+function verFicha(valor) {
+  closeModal();
+  _busq = valor;
+  _filtro = "todos";
+  renderApp();
 }
 
 function intentarCamaraQR() {
@@ -1593,8 +1630,7 @@ function intentarCamaraQR() {
             var input = document.getElementById("qr-codigo");
             if (input) input.value = valor;
             detener();
-            var p = personaPorCodigo(valor);
-            if (p) { closeModal(); _busq = valor; _filtro = "todos"; renderApp(); }
+            resolverEscaneo(valor); // mismo veredicto que al teclear: válida/pagada/ya-usada
             return;
           }
           if (activo) requestAnimationFrame(tick);
