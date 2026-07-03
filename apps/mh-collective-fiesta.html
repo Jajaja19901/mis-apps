@@ -140,6 +140,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .dueno-tabs{display:flex;gap:6px;overflow-x:auto;position:sticky;top:0;background:var(--bg);padding:10px 0;margin-bottom:12px;z-index:10;-webkit-overflow-scrolling:touch}
 .dueno-tab{flex:0 0 auto;min-height:48px;padding:.5rem 1rem;border-radius:var(--radius-pill);border:1px solid var(--border);background:var(--surface);color:var(--text-dim);font-weight:600;white-space:nowrap}
 .dueno-tab.activa{background:var(--neon-verde);color:var(--bg);border-color:var(--neon-verde)}
+.tab-intro{background:var(--surface);border-left:3px solid var(--neon-verde);border-radius:6px;padding:10px 12px;margin:0 0 14px;color:var(--text-dim);font-size:.9rem}
 .persona-acciones{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 /* Botón de acción gigante + QR de la tarjeta */
 .btn-accion-persona{flex:1;min-width:180px;min-height:56px;font-size:1.0625rem;font-weight:700;border:none;border-radius:var(--radius-btn);background:var(--neon-verde);color:var(--bg);box-shadow:0 0 16px rgba(0,212,138,.18)}
@@ -12295,17 +12296,29 @@ function renderDueno() {
   var vista = document.getElementById("vista");
   if (!vista) return;
   var s = state;
+  function intro(t) { return '<p class="tab-intro">' + t + '</p>'; }
   var tabs = [
-    { id: 'resumen', label: '📊 Resumen', build: function () { return seccionKpis() + seccionRecaudacion(); } },
-    { id: 'entradas', label: '🎟️ Entradas', build: function () { return seccionLista() + seccionEntradas(); } },
+    { id: 'resumen', label: '📊 Resumen', build: function () {
+        return intro('De un vistazo: cuánta gente hay dentro, cuánto dinero llevas y cuánto ha recaudado cada trabajador.') +
+          seccionKpis() + seccionRecaudacion();
+      } },
+    { id: 'entradas', label: '🎟️ Entradas', build: function () {
+        return intro('Crea entradas e invitaciones y consúltalas. Abajo del todo, tu lista de "Entradas creadas" con su QR.') +
+          seccionLista() + seccionEntradas();
+      } },
     { id: 'fiesta', label: '💶 Dinero', build: function () {
-        return seccionRrpp() + seccionBonos() +
+        return intro('Lo que mueve la caja durante la fiesta: promotores (RRPP), bonos, gastos y stock de barra.') +
+          seccionRrpp() + seccionBonos() +
           (s.config.modulos.gastos ? seccionGastos() : '') +
           (s.config.modulos.stock ? seccionStock() : '');
       } },
-    { id: 'ajustes', label: '⚙️ Ajustes', build: function () { return seccionConfig() + seccionPersonal() + seccionModulos(); } },
+    { id: 'ajustes', label: '⚙️ Ajustes', build: function () {
+        return intro('Prepara la fiesta: nombre, precios, copas incluidas, cuántos trabajadores y qué funciones activar.') +
+          seccionConfig() + seccionPersonal() + seccionModulos();
+      } },
     { id: 'registro', label: '📋 Registro', build: function () {
-        return (s.config.modulos.cierre ? seccionCierre() : '') + seccionLog() +
+        return intro('El historial de todo (no se puede borrar) y el cierre de la fiesta al terminar.') +
+          (s.config.modulos.cierre ? seccionCierre() : '') + seccionLog() +
           '<button type="button" class="btn-secundario" onclick="duenoAyuda()" style="width:100%;min-height:52px;margin-top:8px">❓ Ayuda: cómo se usa</button>';
       } },
   ];
