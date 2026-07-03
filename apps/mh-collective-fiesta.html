@@ -194,6 +194,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 /* Precio a cobrar en el modal de venta de bono */
 .bono-cobrar{text-align:center;font-size:1.15rem;margin:4px 0 10px}
 .bono-cobrar b{color:var(--neon-verde);font-size:1.3rem}
+/* El código del bono, protagonista: grande y fácil de dictar */
+.bono-codigo-big{text-align:center;font-family:ui-monospace,monospace;font-weight:800;font-size:2rem;letter-spacing:2px;color:var(--text);background:var(--bg);border:1px dashed var(--border);border-radius:var(--radius-btn);padding:12px 8px;margin:6px 0}
 .contador{display:flex;gap:10px;align-items:center;margin-bottom:10px}
 .contador button{min-width:44px}
 .switch{display:flex;align-items:center;gap:10px;margin-bottom:8px;color:var(--text)}
@@ -487,7 +489,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "expectVisible": "[data-testid=\"qr-modal\"]" },
     { "expect": "Bono vendido" },
     { "expect": "Cóbrale" },
-    { "expect": "MH-B01" },
+    { "expect": "MH-B5" },
     { "clickText": "Cerrar" },
     { "clickText": "Dueño" },
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
@@ -495,7 +497,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "clickText": "Dinero" },
     { "expect": "recaudado en bonos" },
     { "clickText": "Registro" },
-    { "expect": "vendió bono MH-B01" },
+    { "expect": "vendió bono MH-B5" },
     { "expect": "de 5 copas (20 €)" } ]}
 ]
 </script>
@@ -13269,9 +13271,15 @@ function codigoUsado(s, cod) {
   return (s.personas || []).some(function (p) { return _normalizaCod(p.codigoReserva) === n; }) ||
          (s.bonos || []).some(function (b) { return _normalizaCod(b.codigo) === n; });
 }
-function nuevoCodigoBono(s) {
-  var base = 'MH-B' + String((s.bonos || []).length + 1).padStart(2, '0');
-  var cod; do { cod = base + '-' + _dosLetras(); } while (codigoUsado(s, cod));
+/* Código de bono con las COPAS metidas dentro: MH-B<copas>-<2 letras>.
+   Ej: bono de 5 copas → "MH-B5-KJ". Así el código ya dice cuántas copas lleva y
+   nadie tiene que mirar nada; las 2 letras al azar lo hacen imposible de adivinar. */
+function nuevoCodigoBono(s, copas) {
+  var c = (typeof copas === 'number' && copas > 0) ? copas : 5;
+  var base = 'MH-B' + c;
+  var cod, intentos = 0;
+  do { cod = base + '-' + _dosLetras(); intentos++; } while (codigoUsado(s, cod) && intentos < 80);
+  if (codigoUsado(s, cod)) cod = base + '-' + _dosLetras() + ((s.bonos || []).length); // salvaguarda si se agotan las combinaciones
   return cod;
 }
 function personaPorCodigo(cod) {
@@ -15654,7 +15662,7 @@ function venderBonoBarra() {
   var nuevoId = 'b' + Date.now();
   mutate(function (s) {
     if (!s.bonos) s.bonos = [];
-    var codigo = nuevoCodigoBono(s);
+    var codigo = nuevoCodigoBono(s, copas);
     s.bonos.push({ id: nuevoId, codigo: codigo, copas: copas, usadas: 0,
       etiqueta: 'Vendido en barra', hora: nowHM(), anulado: false, precio: precio, vendido: true });
     // El bono vendido SIEMPRE cuenta como venta de barra (aunque el precio sea 0, queda registrado).
@@ -15673,7 +15681,7 @@ function crearBono(ev) {
   if (!copas || copas < 1) { toast('Pon el nº de copas'); return false; }
   mutate(function (s) {
     if (!s.bonos) s.bonos = [];
-    var codigo = nuevoCodigoBono(s);
+    var codigo = nuevoCodigoBono(s, copas);
     s.bonos.push({ id: 'b' + Date.now(), codigo: codigo, copas: copas, usadas: 0,
       etiqueta: etiqueta, hora: nowHM(), anulado: false });
     addLog('creó bono de ' + copas + ' copas (' + codigo + (etiqueta ? ' · ' + etiqueta : '') + ')', 'config');
@@ -15720,74 +15728,17 @@ function abreQRBono(id, venta) {
     html += '<p class="qr-tipo">' + esc(b.etiqueta || ('Vale de ' + b.copas + ' copas')) +
       ' · <b>' + esc(b.copas) + '</b> copas' + (precio > 0 ? ' · ' + esc(money(precio)) : '') + ' · quedan ' + rest + '</p>';
   }
-  html += '<canvas id="qrCanvasBono" width="220" height="220"></canvas>';
-  html += '<p class="qr-codigo">' + esc(b.codigo) + '</p>';
+  // EL CÓDIGO es lo importante: grande y claro para dictarlo o que le hagan una foto.
+  html += '<p class="bono-codigo-big" data-testid="bono-codigo">' + esc(b.codigo) + '</p>';
+  html += '<canvas id="qrCanvasBono" width="200" height="200"></canvas>';
   html += '<p class="nota" style="text-align:center">' + (venta
-    ? 'Mándale este bono al cliente con el botón de abajo (o que le haga una foto). Cuando quiera una copa, lo enseña en la barra y el camarero mete el código.'
-    : 'El cliente pide su copa enseñando este código; el camarero lo escribe en la barra.') + '</p>';
-  html += '<div class="modal-botones">' +
-    '<button type="button" class="btn-primary" data-testid="btn-compartir-bono" onclick="compartirBono(\'' + escJs(b.id) + '\')">📲 Enviar al cliente</button>' +
-    '<button type="button" onclick="closeModal()">Cerrar</button></div></div>';
+    ? 'Dile este código al cliente (o que le haga una foto). El código ya lleva las <b>' + esc(b.copas) + ' copas</b>: cuando pida una copa, dice el código y el camarero lo mete en la barra.'
+    : 'El cliente pide su copa diciendo este código; el camarero lo escribe en la barra.') + '</p>';
+  html += '<div class="modal-botones"><button type="button" onclick="closeModal()">Cerrar</button></div></div>';
   showModal(html);
   var canvas = document.getElementById('qrCanvasBono');
   if (canvas && typeof drawQR === 'function') {
-    try { drawQR(canvas, b.codigo, 220); } catch (e) { /* el código en texto sigue visible */ }
-  }
-}
-
-/* Genera una tarjeta-bono (imagen) para mandarla al cliente por WhatsApp: lleva
-   el evento, las copas, el QR y el código. Así el cliente TIENE su bono en el móvil. */
-function canvasBono(b) {
-  var c = state.config;
-  var W = 600, cx = W / 2, tema = c.colorTema || '#00d4ff';
-  var qBox = 360, H = 720;
-  var cvv = document.createElement('canvas'); cvv.width = W; cvv.height = H;
-  var ctx = cvv.getContext('2d');
-  ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = tema; ctx.fillRect(0, 0, W, 10);
-  ctx.textAlign = 'center';
-  var y = 74;
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 34px -apple-system, sans-serif';
-  ctx.fillText(c.eventName || 'MH Collective', cx, y); y += 52;
-  ctx.fillStyle = tema; ctx.font = 'bold 30px -apple-system, sans-serif';
-  ctx.fillText('BONO DE COPAS', cx, y); y += 46;
-  ctx.fillStyle = '#fff'; ctx.font = '600 26px -apple-system, sans-serif';
-  ctx.fillText((b.copas || 0) + ' copas', cx, y); y += 34;
-  var qcv = document.createElement('canvas');
-  try { drawQR(qcv, b.codigo, 340); } catch (e) { qcv = null; }
-  ctx.fillStyle = '#fff'; ctx.fillRect(cx - qBox / 2, y, qBox, qBox);
-  if (qcv) ctx.drawImage(qcv, cx - 170, y + 10, 340, 340);
-  y += qBox + 52;
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 40px monospace'; ctx.fillText(b.codigo, cx, y); y += 42;
-  ctx.fillStyle = '#a0a0b0'; ctx.font = '400 20px -apple-system, sans-serif';
-  ctx.fillText('Pide tu copa en la barra con este código', cx, y);
-  return cvv;
-}
-function _descargaImg(canvas, nombre) {
-  try {
-    var a = document.createElement('a');
-    a.href = canvas.toDataURL('image/png'); a.download = nombre;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  } catch (e) {}
-}
-function compartirBono(id) {
-  var b = null;
-  for (var i = 0; i < (state.bonos || []).length; i++) if (state.bonos[i].id === id) b = state.bonos[i];
-  if (!b) return;
-  var cv = canvasBono(b);
-  var nombre = 'bono-' + String(b.codigo).replace(/\s+/g, '') + '.png';
-  if (navigator.share && cv.toBlob) {
-    cv.toBlob(function (blob) {
-      if (!blob) { _descargaImg(cv, nombre); return; }
-      try {
-        var file = new File([blob], nombre, { type: 'image/png' });
-        if (navigator.canShare && !navigator.canShare({ files: [file] })) { _descargaImg(cv, nombre); return; }
-        navigator.share({ files: [file], title: 'Bono de copas', text: b.codigo + ' · ' + (state.config.eventName || '') }).catch(function () {});
-      } catch (e) { _descargaImg(cv, nombre); }
-    });
-  } else {
-    _descargaImg(cv, nombre);
-    toast('Bono descargado: mándaselo al cliente por WhatsApp');
+    try { drawQR(canvas, b.codigo, 200); } catch (e) { /* el código en texto sigue visible */ }
   }
 }
 
