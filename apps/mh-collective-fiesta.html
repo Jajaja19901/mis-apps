@@ -143,6 +143,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);padding:16px;margin-bottom:16px}
 .panel form label{display:block;margin-bottom:10px;color:var(--text-dim);font-size:.9375rem}
 .panel form input,.panel form select{display:block;width:100%;margin-top:4px;padding:10px 12px;border-radius:var(--radius-btn);border:1px solid var(--border);background:var(--bg);color:var(--text)}
+.panel textarea{padding:10px 12px;border-radius:var(--radius-btn);border:1px solid var(--border);background:var(--bg);color:var(--text);font-family:inherit}
 .contador{display:flex;gap:10px;align-items:center;margin-bottom:10px}
 .contador button{min-width:44px}
 .switch{display:flex;align-items:center;gap:10px;margin-bottom:8px;color:var(--text)}
@@ -1777,6 +1778,7 @@ function renderDueno() {
   var s = state;
   var html = "";
   html += seccionKpis();
+  html += seccionLista();
   html += seccionConfig();
   html += seccionPersonal();
   html += seccionModulos();
@@ -1843,6 +1845,140 @@ function seccionConfig() {
   html += '<button type="submit" class="btn btn-primary">Guardar configuración</button>';
   html += '</form></section>';
   return html;
+}
+
+/* ===== LISTA ANTICIPADA (entradas vendidas ANTES de la fiesta; sin servidor) ===== */
+function nuevoCodigoLista(s) {
+  return "MH-5" + String(s.personas.length).padStart(2, "0");
+}
+
+function seccionLista() {
+  var fuera = state.personas.filter(function (p) { return !p.dentro; }).length;
+  var html = '<section class="panel" data-testid="seccion-lista"><h2>Lista de invitados y entradas anticipadas</h2>';
+  html += '<p class="nota">Carga aquí ANTES de la fiesta a todo el que ya tiene entrada o invitación. Cada uno recibe su código y QR para mandar por WhatsApp. En la lista hay ' + state.personas.length + ' personas (' + fuera + ' por llegar).</p>';
+  html += '<form id="listaForm" onsubmit="return duenoAnadirLista(event)">';
+  html += '<label>Nombre<input type="text" id="lista-nombre" required></label>';
+  html += '<label>Apellido<input type="text" id="lista-apellido"></label>';
+  html += '<label>Tipo<select id="lista-tipo" onchange="onListaTipoChange(this.value)">';
+  html += '<option value="invitado">Invitado (gratis)</option>';
+  html += '<option value="taquilla-pagada">Entrada YA PAGADA (online/anticipada)</option>';
+  html += '<option value="taquilla-puerta">Pagará en puerta</option>';
+  html += '<option value="vip">Mesa VIP</option>';
+  html += '</select></label>';
+  html += '<span id="lista-vip-campos" style="display:none">';
+  html += '<label>Nº acompañantes<input type="number" id="lista-acomp" value="4" min="0" max="20"></label>';
+  html += '<label>Señal ya pagada (€)<input type="number" id="lista-senal" value="0" min="0"></label>';
+  html += '</span>';
+  html += '<button type="submit" class="btn-primary">Añadir a la lista (crea su QR)</button>';
+  html += '</form>';
+  html += '<h3>Carga rápida de varios</h3>';
+  html += '<p class="nota">Pega una persona por línea ("Nombre Apellido") y elige su tipo:</p>';
+  html += '<textarea id="lista-bulk" rows="3" style="width:100%" placeholder="Laura Pérez\nMario Sanz\n…"></textarea>';
+  html += '<div class="contador"><select id="lista-bulk-tipo">';
+  html += '<option value="invitado">Invitados (gratis)</option>';
+  html += '<option value="taquilla-pagada">Entradas ya pagadas</option>';
+  html += '<option value="taquilla-puerta">Pagarán en puerta</option>';
+  html += '</select> <button type="button" data-testid="lista-bulk-btn" onclick="duenoAnadirBulk()">Añadir todos</button></div>';
+  html += '<h3>Copia de seguridad / pasar la lista a otro móvil</h3>';
+  html += '<div class="contador">';
+  html += '<button type="button" data-testid="btn-exportar" onclick="exportarDatos()">Guardar datos (archivo)</button> ';
+  html += '<button type="button" data-testid="btn-importar" onclick="document.getElementById(\'importar-archivo\').click()">Cargar datos</button>';
+  html += '<input type="file" id="importar-archivo" accept=".json,application/json" style="display:none" onchange="importarArchivo(this)">';
+  html += '</div>';
+  html += '<p class="nota">Prepara la lista en casa, guarda el archivo y cárgalo en el móvil de la puerta. Sin internet ni servidor.</p>';
+  html += '</section>';
+  return html;
+}
+
+function onListaTipoChange(v) {
+  var el = document.getElementById('lista-vip-campos');
+  if (el) el.style.display = v === 'vip' ? '' : 'none';
+}
+
+function duenoAnadirLista(ev) {
+  if (ev && ev.preventDefault) ev.preventDefault();
+  var nombre = (document.getElementById('lista-nombre').value || '').trim();
+  var apellido = (document.getElementById('lista-apellido').value || '').trim();
+  var tipo = document.getElementById('lista-tipo').value;
+  var acomp = parseInt(document.getElementById('lista-acomp').value || '0', 10) || 0;
+  var senal = Number(document.getElementById('lista-senal').value) || 0;
+  if (!nombre) { toast('Falta el nombre'); return false; }
+  var nuevoId = 'p' + Date.now();
+  mutate(function (s) {
+    var p = { id: nuevoId, nombre: nombre, apellido: apellido, codigoReserva: nuevoCodigoLista(s),
+      mesa: null, pagado: false, importePagado: 0, dentro: false, horaEntrada: null };
+    if (tipo === 'invitado') { p.tipo = 'invitado'; }
+    else if (tipo === 'taquilla-pagada') { p.tipo = 'taquilla'; p.pagado = true; p.importePagado = s.config.precioEntrada; }
+    else if (tipo === 'taquilla-puerta') { p.tipo = 'taquilla'; }
+    else { // mesa VIP anticipada
+      p.tipo = 'vip';
+      var numeros = s.personas.filter(function (x) { return x.mesa; }).map(function (x) { return x.mesa.numero; });
+      var sig = numeros.length ? Math.max.apply(null, numeros) + 1 : 1;
+      p.mesa = { numero: sig, acompanantesPermitidos: acomp, acompanantesDentro: 0,
+        total: s.config.precioMesaVip, adelantado: senal };
+      p.importePagado = senal;
+      p.pagado = senal >= s.config.precioMesaVip;
+    }
+    s.personas.push(p);
+    addLog('añadió a la lista a ' + nombre + ' ' + apellido + ' (' + tipo + ')', 'alta');
+  });
+  toast('En la lista');
+  if (state.config.modulos && state.config.modulos.qr) abreQR(nuevoId);
+  return false;
+}
+
+function duenoAnadirBulk() {
+  var txt = (document.getElementById('lista-bulk').value || '').trim();
+  var tipo = document.getElementById('lista-bulk-tipo').value;
+  if (!txt) { toast('Pega los nombres, uno por línea'); return; }
+  var lineas = txt.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
+  mutate(function (s) {
+    lineas.forEach(function (linea, i) {
+      var partes = linea.split(/\s+/);
+      var p = { id: 'p' + Date.now() + '_' + i, nombre: partes[0], apellido: partes.slice(1).join(' '),
+        codigoReserva: nuevoCodigoLista(s), mesa: null, pagado: false, importePagado: 0,
+        dentro: false, horaEntrada: null, tipo: tipo === 'invitado' ? 'invitado' : 'taquilla' };
+      if (tipo === 'taquilla-pagada') { p.pagado = true; p.importePagado = s.config.precioEntrada; }
+      s.personas.push(p);
+    });
+    addLog('añadió ' + lineas.length + ' personas a la lista (' + tipo + ')', 'alta');
+  });
+  toast(lineas.length + ' personas añadidas');
+}
+
+/* ===== COPIA DE SEGURIDAD (archivo JSON con TODO el estado) ===== */
+function exportarDatos() {
+  try {
+    var blob = new Blob([JSON.stringify(state)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'mh-collective-datos.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    toast('Datos guardados en archivo');
+  } catch (e) { toast('No se pudo exportar'); }
+}
+
+function importarDatosTexto(txt) {
+  var datos;
+  try { datos = JSON.parse(txt); } catch (e) { toast('Archivo no válido'); return false; }
+  if (!datos || !Array.isArray(datos.personas)) { toast('Archivo no válido'); return false; }
+  state = datos;
+  if (typeof migrar === 'function') migrar(state);
+  state.version = (state.version || 0) + 1;
+  addLog('cargó una copia de datos (' + state.personas.length + ' personas)', 'config');
+  save();
+  renderApp();
+  toast('Datos cargados: ' + state.personas.length + ' personas');
+  return true;
+}
+
+function importarArchivo(input) {
+  var f = input.files && input.files[0];
+  if (!f) return;
+  var r = new FileReader();
+  r.onload = function () { importarDatosTexto(String(r.result)); };
+  r.readAsText(f);
+  input.value = '';
 }
 
 function duenoGuardarConfig(ev) {
