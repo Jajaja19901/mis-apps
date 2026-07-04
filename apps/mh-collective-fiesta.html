@@ -268,6 +268,11 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .vista-barra h2{margin-bottom:12px}
 /* Monedero prepago (cashless) */
 .btn-monedero{border:1px solid var(--ambar);background:transparent;color:var(--ambar);font-weight:700;border-radius:var(--radius-btn);white-space:nowrap;padding:0 12px;min-height:44px}
+/* Cobro por Bizum (directo a la cuenta del dueño) */
+.btn-cobrar-bizum{width:100%;min-height:52px;margin-top:10px;font-size:1.0625rem;font-weight:700;border:1px solid var(--ambar);border-radius:var(--radius-btn);background:transparent;color:var(--ambar)}
+.btn-cobrar-bizum:disabled{opacity:.4}
+.btn-bizum-persona{min-height:56px;padding:0 14px;font-size:1rem;font-weight:700;border:1px solid var(--ambar);border-radius:var(--radius-btn);background:transparent;color:var(--ambar)}
+.modal-tarjeta .bizum-tel{font-size:1.25rem;margin:6px 0}
 /* Cobro con tarjeta (Tap to Pay) */
 .btn-cobrar-tarjeta{width:100%;min-height:52px;margin-top:10px;font-size:1.0625rem;font-weight:700;border:1px solid var(--neon-azul,#00d4ff);border-radius:var(--radius-btn);background:transparent;color:var(--neon-azul,#00d4ff)}
 .btn-cobrar-tarjeta:disabled{opacity:.4}
@@ -635,7 +640,37 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "expect": "Saldo vivo (pendiente de beber): 38 €" },
     { "clickText": "Registro" },
     { "expect": "cobró del monedero" },
-    { "expect": "recargó 10 €" } ]}
+    { "expect": "recargó 10 €" } ]},
+  { "name": "Bizum directo al dueño: activar con número, cobrar en barra y cancelar en puerta", "steps": [
+    { "clickText": "Camarero 1" },
+    { "expectGone": "[data-testid=\"btn-cobrar-bizum\"]" },
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Ajustes" },
+    { "check": "#bizum-activo" },
+    { "expectVisible": "#bizum-telefono" },
+    { "fill": { "sel": "#bizum-telefono", "value": "612 345 678" } },
+    { "clickText": "Camarero 1" },
+    { "click": "[data-testid=\"prod-copa\"]" },
+    { "expectVisible": "[data-testid=\"btn-cobrar-bizum\"]" },
+    { "click": "[data-testid=\"btn-cobrar-bizum\"]" },
+    { "expectVisible": "[data-testid=\"modal-bizum\"]" },
+    { "expect": "612 345 678" },
+    { "expect": "10 €" },
+    { "click": "[data-testid=\"bizum-cobrado\"]" },
+    { "click": "[data-testid=\"rol-vig-1\"]" },
+    { "expectVisible": "[data-testid=\"bizum-p11\"]" },
+    { "click": "[data-testid=\"bizum-p11\"]" },
+    { "expectVisible": "[data-testid=\"modal-bizum\"]" },
+    { "expect": "100 €" },
+    { "click": "[data-testid=\"bizum-cancelar\"]" },
+    { "expectGone": "[data-testid=\"modal-bizum\"]" },
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Registro" },
+    { "expect": "por Bizum)" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -13181,6 +13216,9 @@ function seedState() {
       // Monedero prepago (cashless, sin intermediarios): el cliente carga saldo una vez
       // (efectivo/Bizum) y paga la barra con su QR. Lo activa el dueño en Ajustes.
       monederoCfg: { activo: false },
+      // Cobro por Bizum: el cliente envía al número del dueño → el dinero cae DIRECTO
+      // en su cuenta del banco, sin intermediarios ni comisiones. Activable en Ajustes.
+      bizumCfg: { activo: false, telefono: "" },
       accesoAuto: false,
       fecha: "", hora: "", lugar: "", lema: "",
       logo: null, colorTema: "#00d4ff",
@@ -13262,6 +13300,9 @@ function migrar(s) {
   if (typeof s.config.tarjetaCfg.app !== 'string') s.config.tarjetaCfg.app = 'sumup';
   if (!s.config.monederoCfg || typeof s.config.monederoCfg !== 'object') s.config.monederoCfg = { activo: false };
   if (typeof s.config.monederoCfg.activo !== 'boolean') s.config.monederoCfg.activo = false;
+  if (!s.config.bizumCfg || typeof s.config.bizumCfg !== 'object') s.config.bizumCfg = { activo: false, telefono: '' };
+  if (typeof s.config.bizumCfg.activo !== 'boolean') s.config.bizumCfg.activo = false;
+  if (typeof s.config.bizumCfg.telefono !== 'string') s.config.bizumCfg.telefono = '';
   if (!Array.isArray(s.monederos)) s.monederos = [];
   if (typeof s.ingresosMonederos !== 'number') s.ingresosMonederos = 0;
   if (typeof s.config.accesoAuto !== 'boolean') s.config.accesoAuto = false;
@@ -14142,13 +14183,19 @@ function renderPersonaCard(p) {
     ? '<button type="button" class="btn-salida" onclick="marcarSalida(\'' + escJs(p.id) + "')\">Marcar salida</button>"
     : '<button type="button" class="btn-accion-persona" onclick="accionPrincipal(\'' +
       escJs(p.id) + "')\">" + esc(labelAccion(p)) + "</button>";
-  // Cobro con tarjeta (si el dueño lo activó y hay algo que cobrar): botón 💳 al lado.
-  if (!p.dentro && tarjetaActiva()) {
+  // Cobros sin efectivo (si el dueño los activó y hay algo que cobrar): 💳 y/o 📲 al lado.
+  if (!p.dentro && (tarjetaActiva() || bizumActivo())) {
     var pendTarj = p.tipo === 'taquilla' ? ((p.importePagado || 0) === 0 ? precioEntradaDe(p) : 0)
       : (p.tipo === 'vip' ? Math.max(0, ((p.mesa || {}).total || 0) - (p.importePagado || 0)) : 0);
     if (pendTarj > 0) {
-      accionBtn += '<button type="button" class="btn-tarjeta-persona" data-testid="tarjeta-' + esc(p.id) +
-        '" onclick="accionPrincipalTarjeta(\'' + escJs(p.id) + '\')">💳 Tarjeta</button>';
+      if (tarjetaActiva()) {
+        accionBtn += '<button type="button" class="btn-tarjeta-persona" data-testid="tarjeta-' + esc(p.id) +
+          '" onclick="accionPrincipalTarjeta(\'' + escJs(p.id) + '\')">💳 Tarjeta</button>';
+      }
+      if (bizumActivo()) {
+        accionBtn += '<button type="button" class="btn-bizum-persona" data-testid="bizum-' + esc(p.id) +
+          '" onclick="accionPrincipalBizum(\'' + escJs(p.id) + '\')">📲 Bizum</button>';
+      }
     }
   }
   var acompBtn = "";
@@ -14224,9 +14271,10 @@ function cobrarYEntrar(id, importe, metodo) {
     p.dentro = true;
     p.horaEntrada = nowHM();
     s.recaudacionPorPerfil[s.perfilActivo] = (s.recaudacionPorPerfil[s.perfilActivo] || 0) + monto;
-    addLog("cobró " + monto + " € a " + p.nombre + " " + p.apellido + (metodo === 'tarjeta' ? ' (con tarjeta)' : ''), "cobro");
+    addLog("cobró " + monto + " € a " + p.nombre + " " + p.apellido +
+      (metodo === 'tarjeta' ? ' (con tarjeta)' : (metodo === 'bizum' ? ' (por Bizum)' : '')), "cobro");
   });
-  toast(metodo === 'tarjeta' ? "Cobro con tarjeta registrado" : "Cobro registrado");
+  toast(metodo === 'tarjeta' ? "Cobro con tarjeta registrado" : (metodo === 'bizum' ? "Cobro por Bizum registrado" : "Cobro registrado"));
 }
 
 /* ===== COBRO CON TARJETA (Tap to Pay: el móvil del trabajador hace de datáfono) =====
@@ -14298,6 +14346,58 @@ function barraCobrarTarjeta() {
   for (var i = 0; i < carrito.length; i++) total += carrito[i].precio * carrito[i].qty;
   abrirCobroTarjeta(total, 'Barra · ' + carrito.length + ' producto(s)', function () {
     barraCobrar('tarjeta');
+  });
+}
+
+/* ===== COBRO POR BIZUM (directo a la cuenta del dueño, SIN intermediarios) =====
+   El cliente envía un Bizum al número del dueño desde su propio banco: el dinero
+   cae directo en la cuenta vinculada a ese número, sin comisiones ni terceros.
+   El trabajador confirma cuando el dueño/el móvil avisa de que llegó. */
+function bizumActivo() {
+  var b = state.config && state.config.bizumCfg;
+  return !!(b && b.activo && String(b.telefono || '').trim());
+}
+function abrirCobroBizum(importe, concepto, onOk) {
+  _tarjetaPend = onOk; // mismo mecanismo de confirmación que la tarjeta (hasta confirmar, nada se apunta)
+  var tel = String((state.config.bizumCfg || {}).telefono || '').trim();
+  var html = '<div class="modal-tarjeta" data-testid="modal-bizum">' +
+    '<h2>📲 Cobro por Bizum</h2>' +
+    '<p class="tarjeta-importe" data-testid="bizum-importe">' + esc(money(importe)) + '</p>' +
+    '<p class="nota">' + esc(concepto) + '</p>' +
+    '<p class="bizum-tel">Bizum al <b data-testid="bizum-telefono">' + esc(tel) + '</b></p>' +
+    '<ol class="tarjeta-pasos">' +
+    '<li>El cliente abre <b>su app del banco</b> → Bizum.</li>' +
+    '<li>Envía <b>' + esc(money(importe)) + '</b> a ese número.</li>' +
+    '<li>Cuando veas el "enviado" en su pantalla (o llegue el aviso), confirma aquí.</li>' +
+    '</ol>' +
+    '<div class="modal-botones">' +
+    '<button type="button" class="btn-primary" data-testid="bizum-cobrado" onclick="tarjetaConfirmar()">✅ Bizum recibido</button>' +
+    '<button type="button" data-testid="bizum-cancelar" onclick="_tarjetaPend=null;closeModal()">Cancelar</button>' +
+    '</div>' +
+    '<p class="nota">Hasta que no confirmes, aquí no se apunta nada.</p>' +
+    '</div>';
+  showModal(html);
+}
+/* Botón 📲 de la ficha de puerta (entrada sin pagar o resto de mesa VIP). */
+function accionPrincipalBizum(id) {
+  var p = personaPorId(id);
+  if (!p || p.dentro) return;
+  var importe = 0;
+  if (p.tipo === 'taquilla' && (p.importePagado || 0) === 0) importe = precioEntradaDe(p);
+  else if (p.tipo === 'vip') importe = Math.max(0, ((p.mesa || {}).total || 0) - (p.importePagado || 0));
+  if (importe <= 0) { accionPrincipal(id); return; }
+  abrirCobroBizum(importe, 'Entrada de ' + p.nombre + ' ' + p.apellido, function () {
+    cobrarYEntrar(id, importe, 'bizum');
+  });
+}
+/* Botón 📲 de la barra: cobra el carrito entero por Bizum. */
+function barraCobrarBizum() {
+  var carrito = state.carritos[state.perfilActivo] || [];
+  if (!carrito.length) return;
+  var total = 0;
+  for (var i = 0; i < carrito.length; i++) total += carrito[i].precio * carrito[i].qty;
+  abrirCobroBizum(total, 'Barra · ' + carrito.length + ' producto(s)', function () {
+    barraCobrar('bizum');
   });
 }
 
@@ -15127,6 +15227,10 @@ function renderBarra() {
         ? '<button type="button" class="btn-cobrar-tarjeta" data-testid="btn-cobrar-tarjeta"' +
           (cobrarDisabled ? ' disabled' : ' onclick="barraCobrarTarjeta()"') + '>💳 Cobrar con tarjeta</button>'
         : '') +
+      (bizumActivo()
+        ? '<button type="button" class="btn-cobrar-bizum" data-testid="btn-cobrar-bizum"' +
+          (cobrarDisabled ? ' disabled' : ' onclick="barraCobrarBizum()"') + '>📲 Cobrar por Bizum</button>'
+        : '') +
       ((state.config.bonoCfg && state.config.bonoCfg.ventaCamareros)
         ? '<button type="button" class="btn-vender-bono" data-testid="btn-vender-bono" onclick="venderBonoBarra()">' +
           'Vender bono: ' + esc(state.config.bonoCfg.copas) + ' copas · ' + esc(money(state.config.bonoCfg.precio)) + '</button>'
@@ -15349,10 +15453,12 @@ function barraCobrar(metodo) {
 
     s.ingresosBarra = (s.ingresosBarra || 0) + total;
     s.recaudacionPorPerfil[perfil] = (s.recaudacionPorPerfil[perfil] || 0) + total;
-    addLog('vendió ' + partes.join(', ') + ' (' + total + ' €' + (metodo === 'tarjeta' ? ', con tarjeta' : '') + ')', 'cobro');
+    addLog('vendió ' + partes.join(', ') + ' (' + total + ' €' +
+      (metodo === 'tarjeta' ? ', con tarjeta' : (metodo === 'bizum' ? ', por Bizum' : '')) + ')', 'cobro');
 
     carrito.length = 0;
-    toast(refrescosServir > 0 ? 'Cobrado · sirve ' + refrescosServir + ' refrescos' : (metodo === 'tarjeta' ? 'Cobro con tarjeta registrado' : 'Cobro registrado'));
+    toast(refrescosServir > 0 ? 'Cobrado · sirve ' + refrescosServir + ' refrescos'
+      : (metodo === 'tarjeta' ? 'Cobro con tarjeta registrado' : (metodo === 'bizum' ? 'Cobro por Bizum registrado' : 'Cobro registrado')));
   });
 }
 
@@ -15411,7 +15517,7 @@ function renderDueno() {
       } },
     { id: 'ajustes', label: '⚙️ Ajustes', build: function () {
         return intro('Prepara la fiesta: nombre, precios, productos de barra, cuántos trabajadores y qué funciones activar.') +
-          seccionConfig() + seccionProductos() + seccionPersonal() + seccionMonederoCfg() + seccionTarjeta() + seccionModulos();
+          seccionConfig() + seccionProductos() + seccionPersonal() + seccionMonederoCfg() + seccionBizumCfg() + seccionTarjeta() + seccionModulos();
       } },
     { id: 'registro', label: '📋 Registro', build: function () {
         return intro('El historial de todo (no se puede borrar) y el cierre de la fiesta al terminar.') +
@@ -16163,6 +16269,43 @@ function duenoTarjetaApp(valor) {
     if (!s.config.tarjetaCfg) s.config.tarjetaCfg = { activa: true, app: 'sumup' };
     s.config.tarjetaCfg.app = valor === 'otra' ? 'otra' : 'sumup';
     addLog('cambió la app de cobro con tarjeta a ' + (s.config.tarjetaCfg.app === 'sumup' ? 'SumUp' : 'otra app'), 'config');
+  });
+}
+
+/* ---------- Cobro por Bizum (directo a la cuenta del dueño, sin intermediarios) ---------- */
+function seccionBizumCfg() {
+  var b = state.config.bizumCfg || { activo: false, telefono: '' };
+  var html = '<section class="panel" data-testid="seccion-bizum"><h2>📲 Cobro por Bizum</h2>';
+  html += '<p class="nota">El cliente te envía un Bizum desde su banco y el dinero cae DIRECTO en tu cuenta ' +
+    '(la vinculada a tu número), sin intermediarios ni comisiones. El trabajador enseña el número y el importe, ' +
+    'y confirma cuando el Bizum ha llegado.</p>';
+  html += '<label class="switch"><input type="checkbox" id="bizum-activo"' + (b.activo ? ' checked' : '') +
+    ' onchange="duenoToggleBizum()"> Activar cobro por Bizum (botón 📲 para camareros y vigilantes)</label>';
+  if (b.activo) {
+    html += '<label>Número de Bizum (el TUYO, donde cae el dinero)' +
+      '<input type="tel" id="bizum-telefono" placeholder="Ej: 612 345 678" value="' + esc(b.telefono || '') +
+      '" oninput="duenoBizumTelefono(this.value)"></label>';
+    if (!String(b.telefono || '').trim()) {
+      html += '<p class="nota" style="color:var(--ambar)">⚠ Sin número, el botón 📲 NO les sale a los trabajadores. Ponlo aquí.</p>';
+    }
+    html += '<p class="nota">Ojo: los bancos ponen límites a Bizum (importe por operación y operaciones/mes). ' +
+      'Para una fiesta va sobrado, pero revisa el tuyo. En el Registro cada cobro queda marcado "por Bizum" para cuadrar caja.</p>';
+  }
+  html += '</section>';
+  return html;
+}
+function duenoToggleBizum() {
+  mutate(function (s) {
+    if (!s.config.bizumCfg) s.config.bizumCfg = { activo: false, telefono: '' };
+    s.config.bizumCfg.activo = !s.config.bizumCfg.activo;
+    addLog((s.config.bizumCfg.activo ? 'activó' : 'desactivó') + ' el cobro por Bizum', 'config');
+  });
+  toast(state.config.bizumCfg.activo ? 'Bizum activado: pon tu número para que les salga el botón 📲' : 'Cobro por Bizum desactivado');
+}
+function duenoBizumTelefono(valor) {
+  mutateSilent(function (s) {
+    if (!s.config.bizumCfg) s.config.bizumCfg = { activo: true, telefono: '' };
+    s.config.bizumCfg.telefono = String(valor || '').trim();
   });
 }
 
