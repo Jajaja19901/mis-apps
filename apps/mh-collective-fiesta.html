@@ -371,7 +371,6 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "clickText": "Camarero 1" },
     { "expectHash": "#/barra" },
     { "click": "[data-testid=\"prod-copa\"]" },
-    { "click": "[data-testid=\"var-ron-cola\"]" },
     { "click": "[data-testid=\"prod-cerveza\"]" },
     { "click": "[data-testid=\"prod-chupito\"]" },
     { "clickText": "Cobrar 17 €" },
@@ -382,7 +381,6 @@ button:disabled{opacity:.5;cursor:not-allowed}
   { "name": "Carritos aislados entre camareros", "steps": [
     { "clickText": "Camarero 1" },
     { "click": "[data-testid=\"prod-copa\"]" },
-    { "click": "[data-testid=\"var-ron-cola\"]" },
     { "click": "[data-testid=\"prod-chupito\"]" },
     { "expect": "Cobrar 12 €" },
     { "clickText": "Camarero 2" },
@@ -444,7 +442,6 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "clickText": "Camarero 1" },
     { "expectHash": "#/barra" },
     { "click": "[data-testid=\"prod-copa\"]" },
-    { "click": "[data-testid=\"var-ron-cola\"]" },
     { "clickText": "Cobrar 10 €" },
     { "expectVisible": "[data-testid=\"prod-copa\"]" },
     { "expect": "99" } ]},
@@ -577,7 +574,6 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "expectVisible": "#tarjeta-app" },
     { "clickText": "Camarero 1" },
     { "click": "[data-testid=\"prod-copa\"]" },
-    { "click": "[data-testid=\"var-ron-cola\"]" },
     { "expectVisible": "[data-testid=\"btn-cobrar-tarjeta\"]" },
     { "click": "[data-testid=\"btn-cobrar-tarjeta\"]" },
     { "expectVisible": "[data-testid=\"modal-tarjeta\"]" },
@@ -629,9 +625,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "clickText": "Cerrar" },
     { "clickText": "Camarero 1" },
     { "click": "[data-testid=\"prod-copa\"]" },
-    { "click": "[data-testid=\"var-ron-cola\"]" },
     { "click": "[data-testid=\"prod-copa\"]" },
-    { "click": "[data-testid=\"var-ron-cola\"]" },
     { "click": "[data-testid=\"prod-chupito\"]" },
     { "fill": { "sel": "#cons-codigo", "value": "$COD" } },
     { "submit": "#consForm" },
@@ -672,7 +666,6 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "fill": { "sel": "#bizum-telefono", "value": "612 345 678" } },
     { "clickText": "Camarero 1" },
     { "click": "[data-testid=\"prod-copa\"]" },
-    { "click": "[data-testid=\"var-ron-cola\"]" },
     { "expectVisible": "[data-testid=\"btn-cobrar-bizum\"]" },
     { "click": "[data-testid=\"btn-cobrar-bizum\"]" },
     { "expectVisible": "[data-testid=\"modal-bizum\"]" },
@@ -736,9 +729,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
   { "name": "Gráfica de consumo: el dueño ve qué se vende más y qué menos (incluidos los refrescos de botella)", "steps": [
     { "clickText": "Camarero 1" },
     { "click": "[data-testid=\"prod-copa\"]" },
-    { "click": "[data-testid=\"var-ron-cola\"]" },
     { "click": "[data-testid=\"prod-copa\"]" },
-    { "click": "[data-testid=\"var-ron-cola\"]" },
     { "click": "[data-testid=\"prod-chupito\"]" },
     { "clickText": "Cobrar 22 €" },
     { "click": "[data-testid=\"prod-botella\"]" },
@@ -748,13 +739,34 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "submit": "#pinForm" },
     { "expectVisible": "[data-testid=\"seccion-consumo\"]" },
     { "expect": "Qué se consume" },
-    { "expectVisible": "[data-testid=\"consumo-copa:ron-cola\"]" },
+    { "expectVisible": "[data-testid=\"consumo-copa\"]" },
     { "expectVisible": "[data-testid=\"consumo-chupito\"]" },
-    { "expect": "Ron cola" },
     { "expect": "2 uds · 20 €" },
     { "expect": "1 ud · 2 €" },
     { "expect": "Refresco incluido (botella/VIP)" },
-    { "expect": "4 uds · 0 €" } ]}
+    { "expect": "4 uds · 0 €" } ]},
+  { "name": "El tipo de combinado solo se pregunta si el administrador lo activa (de normal, directo)", "steps": [
+    { "clickText": "Camarero 1" },
+    { "click": "[data-testid=\"prod-copa\"]" },
+    { "expectGone": "[data-testid=\"modal-variantes\"]" },
+    { "expect": "Cobrar 10 €" },
+    { "clickText": "Vaciar carrito" },
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Ajustes" },
+    { "check": "#variantes-activo" },
+    { "clickText": "Camarero 1" },
+    { "click": "[data-testid=\"prod-copa\"]" },
+    { "expectVisible": "[data-testid=\"modal-variantes\"]" },
+    { "click": "[data-testid=\"var-vodka-limon\"]" },
+    { "expect": "Vodka limón" },
+    { "clickText": "Cobrar 10 €" },
+    { "clickText": "Dueño" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Registro" },
+    { "expect": "Vodka limón" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -13309,6 +13321,10 @@ function seedState() {
       // Pulseras/tarjetas NFC (leer y grabar). Apagado de serie: sin activar, los
       // botones 📡 no aparecen en ningún sitio.
       nfcCfg: { activo: false },
+      // Preguntar el TIPO (Ron cola, Vodka limón…) al marcar un producto con tipos.
+      // Apagado de serie (marca directo, menos ajetreo); lo activa el dueño si quiere
+      // la analítica por tipo.
+      preguntarTipo: false,
       accesoAuto: false,
       fecha: "", hora: "", lugar: "", lema: "",
       logo: null, colorTema: "#00d4ff",
@@ -13400,6 +13416,7 @@ function migrar(s) {
   if (typeof s.config.bizumCfg.telefono !== 'string') s.config.bizumCfg.telefono = '';
   if (!s.config.nfcCfg || typeof s.config.nfcCfg !== 'object') s.config.nfcCfg = { activo: false };
   if (typeof s.config.nfcCfg.activo !== 'boolean') s.config.nfcCfg.activo = false;
+  if (typeof s.config.preguntarTipo !== 'boolean') s.config.preguntarTipo = false;
   if (!s.ventasPorProducto || typeof s.ventasPorProducto !== 'object') s.ventasPorProducto = {};
   if (!Array.isArray(s.monederos)) s.monederos = [];
   if (typeof s.ingresosMonederos !== 'number') s.ingresosMonederos = 0;
@@ -15595,8 +15612,9 @@ function barraElegirVariante(prodId) {
 }
 function barraAgregar(prodId, variante) {
   var prodV = productoPorId(prodId);
-  // Con tipos definidos y sin elegir aún: pregunta cuál (el precio es el mismo para todos).
-  if (prodV && (prodV.variantes || []).length && variante === undefined) { barraElegirVariante(prodId); return; }
+  // Pregunta el tipo SOLO si el dueño activó esa opción (de normal, marca directo:
+  // menos ajetreo para el camarero). El precio es el mismo para todos los tipos.
+  if (state.config.preguntarTipo && prodV && (prodV.variantes || []).length && variante === undefined) { barraElegirVariante(prodId); return; }
   mutate(function (s) {
     var perfil = s.perfilActivo;
     var carrito = s.carritos[perfil] || (s.carritos[perfil] = []);
@@ -15799,6 +15817,10 @@ function seccionProductos() {
   var html = '<section class="panel" data-testid="seccion-productos"><h2>Productos de barra</h2>';
   html += '<p class="nota">Lo que puede vender el camarero. Una botella lleva su precio y sus refrescos incluidos (los sirve al cliente al cobrarla).</p>';
   html += '<p class="nota">💡 ¿Quieres saber en la gráfica CUÁLES refrescos (o copas) se piden más? Crea un producto por cada tipo con "+ Añadir producto" (ej: Cola, Naranja, Agua, Red Bull) y la gráfica los separa sola.</p>';
+  html += '<label class="switch"><input type="checkbox" id="variantes-activo"' + (state.config.preguntarTipo ? ' checked' : '') +
+    ' onchange="duenoTogglePreguntarTipo()"> Preguntar el TIPO al marcar (Ron cola, Vodka limón…)</label>';
+  html += '<p class="nota">Apagado (normal): el camarero marca "Copa/Combinado" directo, sin preguntas — menos ajetreo. ' +
+    'Encendido: al marcar un producto con tipos, elige cuál con un toque más, y la gráfica cuenta cada tipo por separado.</p>';
   prods.forEach(function (pr) {
     html += '<div class="prod-edit" data-testid="prod-edit-' + esc(pr.id) + '">';
     html += '<input type="text" value="' + esc(pr.nombre) + '" placeholder="Nombre" onchange="duenoProductoCampo(\'' + escJs(pr.id) + '\',\'nombre\',this.value)">';
@@ -15831,6 +15853,15 @@ function duenoBorrarProducto(id) {
     if (i >= 0) { addLog('quitó el producto ' + s.config.productos[i].nombre, 'config'); s.config.productos.splice(i, 1); }
   });
   toast('Producto quitado');
+}
+function duenoTogglePreguntarTipo() {
+  mutate(function (s) {
+    s.config.preguntarTipo = !s.config.preguntarTipo;
+    addLog((s.config.preguntarTipo ? 'activó' : 'desactivó') + ' la pregunta del tipo de combinado en barra', 'config');
+  });
+  toast(state.config.preguntarTipo
+    ? 'Activado: al marcar un producto con tipos, el camarero elegirá cuál'
+    : 'Desactivado: el camarero marca directo, sin preguntas');
 }
 function duenoAnadirProducto() {
   mutate(function (s) {
