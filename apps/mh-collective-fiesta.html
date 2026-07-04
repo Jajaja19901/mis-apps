@@ -800,7 +800,32 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "click": "[data-testid=\"btn-crear-remesa\"]" },
     { "click": "[data-testid=\"rol-vig-1\"]" },
     { "fill": { "sel": "#buscador", "value": "InvitisGratis" } },
-    { "expect": "Dar acceso" } ]}
+    { "expect": "Dar acceso" } ]},
+  { "name": "El administrador nombra a otro admin y este entra con su propio PIN", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Ajustes" },
+    { "expectVisible": "[data-testid=\"seccion-admins\"]" },
+    { "fill": { "sel": "#admin-nuevo-nombre", "value": "Marta" } },
+    { "fill": { "sel": "#admin-nuevo-clave", "value": "9876" } },
+    { "click": "[data-testid=\"btn-add-admin\"]" },
+    { "expect": "Marta" },
+    { "click": "[data-testid=\"rol-vig-1\"]" },
+    { "expectHash": "#/puerta" },
+    { "goto": "#/dueno" },
+    { "expectVisible": "#pin-dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "9876" } },
+    { "submit": "#pinForm" },
+    { "expectVisible": "[data-testid=\"tab-resumen\"]" },
+    { "clickText": "Resumen" },
+    { "expectVisible": "[data-testid=\"kpi-caja\"]" } ]},
+  { "name": "Un PIN cualquiera NO entra al panel de administrador", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "0000" } },
+    { "submit": "#pinForm" },
+    { "expect": "incorrecto" },
+    { "expectGone": "[data-testid=\"kpi-caja\"]" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -13343,6 +13368,8 @@ function seedState() {
       nVigilantes: 2,
       nCamareros: 2,
       accesoClave: CONFIG.ACCESO_PASSWORD, // contraseña de la portada de entrada
+      adminClave: CONFIG.ADMIN_PASSWORD,   // PIN del administrador principal (cambiable)
+      adminsExtra: [],                     // otros administradores {id, nombre, clave}: todos con TODOS los poderes
       claves: {}, // contraseña propia de cada trabajador (vig-1, cam-2…); vacío = sin contraseña
       modulos: { qr: true, cierre: true, gastos: true, stock: true },
       productos: seedProductos(),
@@ -13428,6 +13455,8 @@ function migrar(s) {
   if (s.config.nCamareros === undefined) s.config.nCamareros = 2;
   if (!s.config.claves || typeof s.config.claves !== "object") s.config.claves = {};
   if (typeof s.config.accesoClave !== "string") s.config.accesoClave = CONFIG.ACCESO_PASSWORD;
+  if (typeof s.config.adminClave !== "string") s.config.adminClave = CONFIG.ADMIN_PASSWORD;
+  if (!Array.isArray(s.config.adminsExtra)) s.config.adminsExtra = [];
   if (!s.config.modulos) {
     s.config.modulos = { qr: true, cierre: true, gastos: true, stock: true };
   }
@@ -13900,7 +13929,7 @@ function renderAppInterno() {
         document.getElementById('pinForm').addEventListener('submit', function (e) {
           e.preventDefault();
           var val = document.getElementById('pin-dueno').value;
-          if (val === CONFIG.ADMIN_PASSWORD) {
+          if (esPinAdmin(val)) {
             duenoAutenticado = true;
             renderApp();
           } else {
@@ -13965,6 +13994,19 @@ function pedirClavePerfil(id) {
 }
 
 /* ---------- Sync (local file:// vs servidor http) ---------- */
+/* ¿La clave introducida es de ALGÚN administrador (el principal o uno extra)? Todos
+   los administradores tienen los MISMOS poderes. La clave vacía nunca vale. */
+function adminClavePrincipal() {
+  var c = (state.config && typeof state.config.adminClave === 'string' && state.config.adminClave) ? state.config.adminClave : CONFIG.ADMIN_PASSWORD;
+  return String(c || '');
+}
+function esPinAdmin(val) {
+  val = String(val == null ? '' : val);
+  if (val === '') return false;
+  if (val === adminClavePrincipal()) return true;
+  return (state.config && state.config.adminsExtra || []).some(function (a) { return a && a.clave && String(a.clave) === val; });
+}
+
 /* ¿Está configurado Firebase de verdad (no los "PEGA_..." de ejemplo)? */
 function firebaseConfigurado() {
   var f = CONFIG.FIREBASE;
@@ -15898,7 +15940,7 @@ function renderDueno() {
       } },
     { id: 'ajustes', label: '⚙️ Ajustes', build: function () {
         return intro('Prepara la fiesta: nombre, precios, productos de barra, cuántos trabajadores y qué funciones activar.') +
-          seccionConfig() + seccionAccesoCfg() + seccionProductos() + seccionPersonal() + seccionMonederoCfg() + seccionBizumCfg() + seccionTarjeta() + seccionNfcCfg() + seccionModulos();
+          seccionConfig() + seccionAdmins() + seccionAccesoCfg() + seccionProductos() + seccionPersonal() + seccionMonederoCfg() + seccionBizumCfg() + seccionTarjeta() + seccionNfcCfg() + seccionModulos();
       } },
     { id: 'registro', label: '📋 Registro', build: function () {
         return intro('El historial de todo (no se puede borrar) y el cierre de la fiesta al terminar.') +
@@ -16680,6 +16722,70 @@ function duenoTarjetaApp(valor) {
     var nombre = s.config.tarjetaCfg.app === 'sumup' ? 'SumUp' : (s.config.tarjetaCfg.app === 'datafono' ? 'datáfono físico' : 'otra app');
     addLog('cambió el cobro con tarjeta a ' + nombre, 'config');
   });
+}
+
+/* ---------- Administradores (el admin puede nombrar a otros con todos los poderes) ---------- */
+function seccionAdmins() {
+  var extra = (state.config && state.config.adminsExtra) || [];
+  var html = '<section class="panel" data-testid="seccion-admins"><h2>👑 Administradores</h2>';
+  html += '<p class="nota">El PIN del administrador entra al panel con TODOS los poderes. Puedes cambiar el tuyo y nombrar a otros administradores (cada uno con su PIN); todos tienen el control total.</p>';
+  html += '<label>Tu PIN de administrador<input type="text" id="admin-clave" value="' + esc(adminClavePrincipal()) +
+    '" oninput="duenoAdminClave(this.value)" placeholder="Ej: 1234"></label>';
+  html += '<h3>Otros administradores</h3>';
+  if (!extra.length) {
+    html += '<p class="lista-vacia">Ninguno. Añade a alguien de confianza abajo: entrará con su PIN y tendrá los mismos poderes que tú.</p>';
+  } else {
+    html += '<div style="overflow-x:auto"><table class="tabla-rrpp"><thead><tr><th>Nombre</th><th>Su PIN</th><th></th></tr></thead><tbody>';
+    extra.forEach(function (a) {
+      html += '<tr data-testid="admin-' + esc(a.id) + '"><td>' + esc(a.nombre) + '</td>' +
+        '<td><input type="text" value="' + esc(a.clave) + '" data-testid="admin-clave-' + esc(a.id) +
+        '" oninput="duenoAdminExtraClave(\'' + escJs(a.id) + '\',this.value)" style="width:110px"></td>' +
+        '<td><button type="button" class="btn-mini-borrar" data-testid="admin-borrar-' + esc(a.id) +
+        '" onclick="duenoBorrarAdmin(\'' + escJs(a.id) + '\')">Quitar</button></td></tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+  html += '<form data-testid="admin-form" onsubmit="return duenoAnadirAdmin(event)"><div class="contador">' +
+    '<input type="text" id="admin-nuevo-nombre" placeholder="Nombre del nuevo admin" style="flex:1" required>' +
+    '<input type="text" id="admin-nuevo-clave" placeholder="Su PIN" style="width:100px" required>' +
+    '<button type="submit" class="btn-primary" data-testid="btn-add-admin">➕ Nombrar</button></div></form>';
+  html += '<p class="nota">⚠️ Un administrador puede cambiar precios, ver y mover la caja, borrar entradas y nombrar a otros. Dáselo solo a quien confíes de verdad.</p>';
+  html += '</section>';
+  return html;
+}
+function duenoAdminClave(valor) {
+  var v = String(valor || '').trim();
+  if (!v) return; // no permitir quedarse sin PIN de admin (te dejaría fuera)
+  mutateSilent(function (s) { s.config.adminClave = v; });
+}
+function duenoAdminExtraClave(id, valor) {
+  mutateSilent(function (s) {
+    var a = (s.config.adminsExtra || []).find(function (x) { return x.id === id; });
+    if (a) a.clave = String(valor || '').trim();
+  });
+}
+function duenoAnadirAdmin(ev) {
+  if (ev && ev.preventDefault) ev.preventDefault();
+  var nombre = (document.getElementById('admin-nuevo-nombre').value || '').trim();
+  var clave = (document.getElementById('admin-nuevo-clave').value || '').trim();
+  if (!nombre || !clave) { toast('Pon nombre y PIN'); return false; }
+  var nuevoId = 'adm' + Date.now();
+  mutate(function (s) {
+    if (!Array.isArray(s.config.adminsExtra)) s.config.adminsExtra = [];
+    s.config.adminsExtra.push({ id: nuevoId, nombre: nombre, clave: clave });
+    addLog('nombró administrador a ' + nombre, 'config');
+  });
+  toast('Administrador añadido: ' + nombre);
+  return false;
+}
+function duenoBorrarAdmin(id) {
+  var a = (state.config.adminsExtra || []).find(function (x) { return x.id === id; });
+  if (a && typeof confirm === 'function' && !confirm('¿Quitar a ' + a.nombre + ' como administrador?')) return;
+  mutate(function (s) {
+    var i = (s.config.adminsExtra || []).findIndex(function (x) { return x.id === id; });
+    if (i >= 0) { addLog('quitó al administrador ' + s.config.adminsExtra[i].nombre, 'config'); s.config.adminsExtra.splice(i, 1); }
+  });
+  toast('Administrador quitado');
 }
 
 /* ---------- Contraseña de entrada a la web (portada con logo) ---------- */
