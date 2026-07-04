@@ -275,6 +275,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .consumo-cab{display:flex;justify-content:space-between;gap:8px;font-size:.95rem}
 .consumo-cab b{font-weight:700}
 .consumo-item:first-of-type .barra-fill{background:var(--ambar)}
+/* Tipos de producto (Ron cola, Vodka limón…) */
+.btn-variante{display:block;width:100%;min-height:56px;margin:8px 0;font-size:1.125rem;font-weight:700;border:none;border-radius:var(--radius-btn);background:var(--neon-verde);color:var(--bg)}
+.prod-tipos{display:block;margin-top:6px;font-size:.85rem;color:var(--text-dim)}
+.prod-tipos input{width:100%}
 /* NFC: pulseras/tarjetas del monedero */
 .btn-nfc{width:100%;min-height:52px;margin-bottom:10px;font-size:1.0625rem;font-weight:700;border:1px dashed var(--text-dim);border-radius:var(--radius-btn);background:transparent;color:var(--text)}
 /* Cobro por Bizum (directo a la cuenta del dueño) */
@@ -367,6 +371,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "clickText": "Camarero 1" },
     { "expectHash": "#/barra" },
     { "click": "[data-testid=\"prod-copa\"]" },
+    { "click": "[data-testid=\"var-ron-cola\"]" },
     { "click": "[data-testid=\"prod-cerveza\"]" },
     { "click": "[data-testid=\"prod-chupito\"]" },
     { "clickText": "Cobrar 17 €" },
@@ -377,6 +382,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
   { "name": "Carritos aislados entre camareros", "steps": [
     { "clickText": "Camarero 1" },
     { "click": "[data-testid=\"prod-copa\"]" },
+    { "click": "[data-testid=\"var-ron-cola\"]" },
     { "click": "[data-testid=\"prod-chupito\"]" },
     { "expect": "Cobrar 12 €" },
     { "clickText": "Camarero 2" },
@@ -438,6 +444,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "clickText": "Camarero 1" },
     { "expectHash": "#/barra" },
     { "click": "[data-testid=\"prod-copa\"]" },
+    { "click": "[data-testid=\"var-ron-cola\"]" },
     { "clickText": "Cobrar 10 €" },
     { "expectVisible": "[data-testid=\"prod-copa\"]" },
     { "expect": "99" } ]},
@@ -570,6 +577,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "expectVisible": "#tarjeta-app" },
     { "clickText": "Camarero 1" },
     { "click": "[data-testid=\"prod-copa\"]" },
+    { "click": "[data-testid=\"var-ron-cola\"]" },
     { "expectVisible": "[data-testid=\"btn-cobrar-tarjeta\"]" },
     { "click": "[data-testid=\"btn-cobrar-tarjeta\"]" },
     { "expectVisible": "[data-testid=\"modal-tarjeta\"]" },
@@ -621,7 +629,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "clickText": "Cerrar" },
     { "clickText": "Camarero 1" },
     { "click": "[data-testid=\"prod-copa\"]" },
+    { "click": "[data-testid=\"var-ron-cola\"]" },
     { "click": "[data-testid=\"prod-copa\"]" },
+    { "click": "[data-testid=\"var-ron-cola\"]" },
     { "click": "[data-testid=\"prod-chupito\"]" },
     { "fill": { "sel": "#cons-codigo", "value": "$COD" } },
     { "submit": "#consForm" },
@@ -662,6 +672,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "fill": { "sel": "#bizum-telefono", "value": "612 345 678" } },
     { "clickText": "Camarero 1" },
     { "click": "[data-testid=\"prod-copa\"]" },
+    { "click": "[data-testid=\"var-ron-cola\"]" },
     { "expectVisible": "[data-testid=\"btn-cobrar-bizum\"]" },
     { "click": "[data-testid=\"btn-cobrar-bizum\"]" },
     { "expectVisible": "[data-testid=\"modal-bizum\"]" },
@@ -725,7 +736,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
   { "name": "Gráfica de consumo: el dueño ve qué se vende más y qué menos (incluidos los refrescos de botella)", "steps": [
     { "clickText": "Camarero 1" },
     { "click": "[data-testid=\"prod-copa\"]" },
+    { "click": "[data-testid=\"var-ron-cola\"]" },
     { "click": "[data-testid=\"prod-copa\"]" },
+    { "click": "[data-testid=\"var-ron-cola\"]" },
     { "click": "[data-testid=\"prod-chupito\"]" },
     { "clickText": "Cobrar 22 €" },
     { "click": "[data-testid=\"prod-botella\"]" },
@@ -735,8 +748,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "submit": "#pinForm" },
     { "expectVisible": "[data-testid=\"seccion-consumo\"]" },
     { "expect": "Qué se consume" },
-    { "expectVisible": "[data-testid=\"consumo-copa\"]" },
+    { "expectVisible": "[data-testid=\"consumo-copa:ron-cola\"]" },
     { "expectVisible": "[data-testid=\"consumo-chupito\"]" },
+    { "expect": "Ron cola" },
     { "expect": "2 uds · 20 €" },
     { "expect": "1 ud · 2 €" },
     { "expect": "Refresco incluido (botella/VIP)" },
@@ -13210,7 +13224,10 @@ var LS_KEY = "mh_collective_v1";
 
 function seedProductos() {
   return [
-    { id: "copa", nombre: "Copa/Combinado", precio: 10, stock: 100, stockInicial: 100, refrescosIncluidos: 0 },
+    // "variantes": los TIPOS del producto. Mismo precio y mismo stock, pero el camarero
+    // elige cuál al marcarlo y la gráfica del dueño cuenta cada tipo por separado.
+    { id: "copa", nombre: "Copa/Combinado", precio: 10, stock: 100, stockInicial: 100, refrescosIncluidos: 0,
+      variantes: ["Ron cola", "Vodka limón", "Ginebra cola"] },
     { id: "cerveza", nombre: "Cerveza", precio: 5, stock: 200, stockInicial: 200, refrescosIncluidos: 0 },
     { id: "refresco", nombre: "Refresco/Agua", precio: 3, stock: 150, stockInicial: 150, refrescosIncluidos: 0 },
     { id: "chupito", nombre: "Chupito", precio: 2, stock: 100, stockInicial: 100, refrescosIncluidos: 0 },
@@ -13361,7 +13378,11 @@ function migrar(s) {
   if (!s.config.productos) {
     s.config.productos = s.config.precios ? productosDesdePrecios(s.config.precios) : seedProductos();
   }
-  s.config.productos.forEach(function (pr) { if (typeof pr.refrescosIncluidos !== 'number') pr.refrescosIncluidos = 0; });
+  s.config.productos.forEach(function (pr) {
+    if (typeof pr.refrescosIncluidos !== 'number') pr.refrescosIncluidos = 0;
+    // Tipos del producto (Ron cola, Vodka limón…): datos antiguos no los traen.
+    if (!Array.isArray(pr.variantes)) pr.variantes = (pr.id === 'copa') ? ['Ron cola', 'Vodka limón', 'Ginebra cola'] : [];
+  });
   if (!s.config.productos.some(function (pr) { return pr.id === 'botella'; })) {
     s.config.productos.push({ id: 'botella', nombre: 'Botella (a elegir)', precio: 60, stock: 40, stockInicial: 40, refrescosIncluidos: 4 });
   }
@@ -15346,12 +15367,14 @@ function renderBarra() {
   }).join('');
 
   var lineasHtml = carrito.map(function (l) {
+    var vSlug = l.variante ? '-' + _slugVariante(l.variante) : '';
+    var vArg = l.variante ? ',\'' + escJs(l.variante) + '\'' : '';
     return '<div class="carrito-linea">' +
       '<span class="cl-nombre">' + esc(l.nombre) + '</span>' +
       '<span class="cl-qty">x' + l.qty + '</span>' +
       '<span class="cl-importe">' + money(l.precio * l.qty) + '</span>' +
-      '<button type="button" class="cart-menos" data-testid="cart-menos-' + esc(l.prodId) + '" ' +
-      'onclick="barraQuitar(\'' + esc(l.prodId) + '\')">−</button>' +
+      '<button type="button" class="cart-menos" data-testid="cart-menos-' + esc(l.prodId) + esc(vSlug) + '" ' +
+      'onclick="barraQuitar(\'' + esc(l.prodId) + '\'' + vArg + ')">−</button>' +
       '</div>';
   }).join('');
 
@@ -15552,7 +15575,28 @@ function canjearConsumicion(id) {
   consBuscar();
 }
 
-function barraAgregar(prodId) {
+/* Slug de un tipo ("Vodka limón" → "vodka-limon") para claves y testids. */
+function _slugVariante(v) {
+  return String(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+/* Si el producto tiene TIPOS (Ron cola, Vodka limón…), pregunta cuál con botones
+   grandes. Mismo precio y mismo stock; solo cambia el nombre que se apunta. */
+function barraElegirVariante(prodId) {
+  var prod = productoPorId(prodId);
+  if (!prod) return;
+  var html = '<div class="modal-qr" data-testid="modal-variantes"><h2>' + esc(prod.nombre) + ' · ¿cuál?</h2>';
+  (prod.variantes || []).forEach(function (v) {
+    html += '<button type="button" class="btn-primary btn-variante" data-testid="var-' + esc(_slugVariante(v)) +
+      '" onclick="closeModal();barraAgregar(\'' + escJs(prodId) + '\',\'' + escJs(v) + '\')">' + esc(v) + '</button>';
+  });
+  html += '<div class="modal-botones"><button type="button" onclick="closeModal()">Cancelar</button></div></div>';
+  showModal(html);
+}
+function barraAgregar(prodId, variante) {
+  var prodV = productoPorId(prodId);
+  // Con tipos definidos y sin elegir aún: pregunta cuál (el precio es el mismo para todos).
+  if (prodV && (prodV.variantes || []).length && variante === undefined) { barraElegirVariante(prodId); return; }
   mutate(function (s) {
     var perfil = s.perfilActivo;
     var carrito = s.carritos[perfil] || (s.carritos[perfil] = []);
@@ -15562,22 +15606,23 @@ function barraAgregar(prodId) {
 
     var linea = null;
     for (var i = 0; i < carrito.length; i++) {
-      if (carrito[i].prodId === prodId) { linea = carrito[i]; break; }
+      if (carrito[i].prodId === prodId && (carrito[i].variante || '') === (variante || '')) { linea = carrito[i]; break; }
     }
     if (linea) {
       linea.qty++;
     } else {
-      carrito.push({ prodId: prod.id, nombre: prod.nombre, precio: prod.precio, qty: 1 });
+      carrito.push({ prodId: prod.id, nombre: variante ? String(variante) : prod.nombre,
+        precio: prod.precio, qty: 1, variante: variante || null });
     }
   });
 }
 
-function barraQuitar(prodId) {
+function barraQuitar(prodId, variante) {
   mutate(function (s) {
     var perfil = s.perfilActivo;
     var carrito = s.carritos[perfil] || (s.carritos[perfil] = []);
     for (var i = 0; i < carrito.length; i++) {
-      if (carrito[i].prodId === prodId) {
+      if (carrito[i].prodId === prodId && (carrito[i].variante || '') === (variante || '')) {
         carrito[i].qty--;
         if (carrito[i].qty <= 0) carrito.splice(i, 1);
         break;
@@ -15610,7 +15655,8 @@ function barraCobrar(metodo) {
       var ri = pr ? (pr.refrescosIncluidos || 0) : 0;
       partes.push(l.qty + '× ' + l.nombre + (ri > 0 ? ' (incluye ' + (ri * l.qty) + ' refrescos)' : ''));
       refrescosServir += ri * l.qty;
-      registrarVenta(s, l.prodId, l.nombre, l.qty, l.precio * l.qty); // analítica de consumo
+      // Analítica: cada TIPO (Ron cola, Vodka limón…) cuenta por separado en la gráfica.
+      registrarVenta(s, l.prodId + (l.variante ? ':' + _slugVariante(l.variante) : ''), l.nombre, l.qty, l.precio * l.qty);
     }
     // Los refrescos que van DENTRO de una botella también son consumo (a 0 €: ya van en su precio).
     if (refrescosServir > 0) registrarVenta(s, '_refresco_incl', 'Refresco incluido (botella/VIP)', refrescosServir, 0);
@@ -15758,6 +15804,9 @@ function seccionProductos() {
     html += '<input type="text" value="' + esc(pr.nombre) + '" placeholder="Nombre" onchange="duenoProductoCampo(\'' + escJs(pr.id) + '\',\'nombre\',this.value)">';
     html += '<label class="mini">Precio €<input type="number" min="0" value="' + esc(pr.precio) + '" onchange="duenoProductoCampo(\'' + escJs(pr.id) + '\',\'precio\',this.value)"></label>';
     html += '<label class="mini">🥤 Refrescos incl.<input type="number" min="0" value="' + esc(pr.refrescosIncluidos || 0) + '" onchange="duenoProductoCampo(\'' + escJs(pr.id) + '\',\'refrescosIncluidos\',this.value)"></label>';
+    html += '<label class="prod-tipos">Tipos (opcional, separados por comas: el camarero elige cuál y la gráfica los cuenta por separado)' +
+      '<input type="text" value="' + esc((pr.variantes || []).join(', ')) + '" placeholder="Ej: Ron cola, Vodka limón, Ginebra cola"' +
+      ' onchange="duenoProductoCampo(\'' + escJs(pr.id) + '\',\'variantes\',this.value)"></label>';
     html += '<button type="button" class="btn-mini-borrar" onclick="duenoBorrarProducto(\'' + escJs(pr.id) + '\')">Borrar</button>';
     html += '</div>';
   });
@@ -15770,6 +15819,9 @@ function duenoProductoCampo(id, campo, valor) {
     var pr = (s.config.productos || []).find(function (x) { return x.id === id; });
     if (!pr) return;
     if (campo === 'nombre') pr.nombre = String(valor).trim() || pr.nombre;
+    else if (campo === 'variantes') {
+      pr.variantes = String(valor || '').split(',').map(function (v) { return v.trim(); }).filter(Boolean);
+    }
     else pr[campo] = Number(valor) || 0;
   });
 }
@@ -16909,7 +16961,8 @@ function monederoCobrarCarrito(id) {
     if ((q.saldo || 0) < tot) return; // re-comprobación dentro de la mutación (por si llegó otro gasto)
     // El cobro va a ocurrir seguro: AHORA sí se apunta el consumo (nunca antes de la comprobación).
     for (var k2 = 0; k2 < cart.length; k2++) {
-      registrarVenta(s, cart[k2].prodId, cart[k2].nombre, cart[k2].qty, cart[k2].precio * cart[k2].qty);
+      var lv = cart[k2];
+      registrarVenta(s, lv.prodId + (lv.variante ? ':' + _slugVariante(lv.variante) : ''), lv.nombre, lv.qty, lv.precio * lv.qty);
     }
     if (refrescosServir > 0) registrarVenta(s, '_refresco_incl', 'Refresco incluido (botella/VIP)', refrescosServir, 0);
     if (s.config.modulos && s.config.modulos.stock) {
