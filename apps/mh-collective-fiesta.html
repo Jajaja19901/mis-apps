@@ -266,6 +266,15 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .btn-vender-bono{width:100%;min-height:52px;margin-top:10px;font-size:1.0625rem;font-weight:700;border:none;border-radius:var(--radius-btn);background:var(--vip-morado);color:#fff;box-shadow:0 0 16px rgba(176,38,255,.2)}
 .btn-camara{width:100%;min-height:56px;margin-bottom:10px;font-size:1.0625rem;font-weight:700;border:none;border-radius:var(--radius-btn);background:var(--neon-verde);color:var(--bg);box-shadow:0 0 16px rgba(0,212,138,.2)}
 .vista-barra h2{margin-bottom:12px}
+/* Cobro con tarjeta (Tap to Pay) */
+.btn-cobrar-tarjeta{width:100%;min-height:52px;margin-top:10px;font-size:1.0625rem;font-weight:700;border:1px solid var(--neon-azul,#00d4ff);border-radius:var(--radius-btn);background:transparent;color:var(--neon-azul,#00d4ff)}
+.btn-cobrar-tarjeta:disabled{opacity:.4}
+.btn-tarjeta-persona{min-height:56px;padding:0 14px;font-size:1rem;font-weight:700;border:1px solid var(--neon-azul,#00d4ff);border-radius:var(--radius-btn);background:transparent;color:var(--neon-azul,#00d4ff)}
+.modal-tarjeta{text-align:center}
+.modal-tarjeta .tarjeta-importe{font-size:2.5rem;font-weight:800;margin:10px 0;color:var(--neon-verde)}
+.modal-tarjeta .tarjeta-pasos{text-align:left;margin:12px auto;max-width:320px;padding-left:22px;color:var(--text-dim);font-size:.95rem}
+.modal-tarjeta .tarjeta-pasos li{margin-bottom:6px}
+.modal-tarjeta .btn-abrir-app{display:block;width:100%;min-height:52px;line-height:52px;margin:10px 0;text-decoration:none;border-radius:var(--radius-btn)}
 </style>
 </head>
 <body>
@@ -533,7 +542,50 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "goto": "#/barra" },
     { "expectHash": "#/puerta" },
     { "expectVisible": "#buscador" },
-    { "expectGone": "[data-testid=\"prod-copa\"]" } ]}
+    { "expectGone": "[data-testid=\"prod-copa\"]" } ]},
+  { "name": "El dueño activa el cobro con tarjeta y el camarero cobra con 💳", "steps": [
+    { "clickText": "Camarero 1" },
+    { "expectGone": "[data-testid=\"btn-cobrar-tarjeta\"]" },
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Ajustes" },
+    { "check": "#tarjeta-activa" },
+    { "expectVisible": "#tarjeta-app" },
+    { "clickText": "Camarero 1" },
+    { "click": "[data-testid=\"prod-copa\"]" },
+    { "expectVisible": "[data-testid=\"btn-cobrar-tarjeta\"]" },
+    { "click": "[data-testid=\"btn-cobrar-tarjeta\"]" },
+    { "expectVisible": "[data-testid=\"modal-tarjeta\"]" },
+    { "expect": "10 €" },
+    { "click": "[data-testid=\"tarjeta-cobrado\"]" },
+    { "clickText": "Dueño" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Registro" },
+    { "expect": "con tarjeta" } ]},
+  { "name": "El vigilante cobra una entrada con 💳 y cancela sin apuntar nada", "steps": [
+    { "goto": "#/puerta" },
+    { "expectGone": "[data-testid=\"tarjeta-p11\"]" },
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Ajustes" },
+    { "check": "#tarjeta-activa" },
+    { "click": "[data-testid=\"rol-vig-1\"]" },
+    { "expectHash": "#/puerta" },
+    { "click": "[data-testid=\"tarjeta-p11\"]" },
+    { "expectVisible": "[data-testid=\"modal-tarjeta\"]" },
+    { "expect": "100 €" },
+    { "click": "[data-testid=\"tarjeta-cancelar\"]" },
+    { "expectGone": "[data-testid=\"modal-tarjeta\"]" },
+    { "click": "[data-testid=\"tarjeta-p11\"]" },
+    { "click": "[data-testid=\"tarjeta-cobrado\"]" },
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Registro" },
+    { "expect": "cobró 100 € a Roberto Cano (con tarjeta)" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -13073,6 +13125,9 @@ function seedState() {
       productos: seedProductos(),
       umbralStock: 10,
       bonoCfg: { ventaCamareros: false, copas: 5, precio: 20 },
+      // Cobro con tarjeta (Tap to Pay): apagado de serie; lo activa el dueño en Ajustes
+      // y entonces les aparece el botón 💳 al camarero y al vigilante.
+      tarjetaCfg: { activa: false, app: "sumup" },
       accesoAuto: false,
       fecha: "", hora: "", lugar: "", lema: "",
       logo: null, colorTema: "#00d4ff",
@@ -13147,6 +13202,9 @@ function migrar(s) {
   // Datos viejos podían no traer precio/copas numéricos → la venta no sumaba a caja. Se normaliza.
   if (typeof s.config.bonoCfg.precio !== 'number' || isNaN(s.config.bonoCfg.precio)) s.config.bonoCfg.precio = 20;
   if (typeof s.config.bonoCfg.copas !== 'number' || s.config.bonoCfg.copas < 1) s.config.bonoCfg.copas = 5;
+  if (!s.config.tarjetaCfg || typeof s.config.tarjetaCfg !== 'object') s.config.tarjetaCfg = { activa: false, app: 'sumup' };
+  if (typeof s.config.tarjetaCfg.activa !== 'boolean') s.config.tarjetaCfg.activa = false;
+  if (typeof s.config.tarjetaCfg.app !== 'string') s.config.tarjetaCfg.app = 'sumup';
   if (typeof s.config.accesoAuto !== 'boolean') s.config.accesoAuto = false;
   ['fecha', 'hora', 'lugar', 'lema'].forEach(function (k) { if (typeof s.config[k] !== 'string') s.config[k] = ''; });
   if (s.config.logo === undefined) s.config.logo = null;
@@ -13983,6 +14041,15 @@ function renderPersonaCard(p) {
     ? '<button type="button" class="btn-salida" onclick="marcarSalida(\'' + escJs(p.id) + "')\">Marcar salida</button>"
     : '<button type="button" class="btn-accion-persona" onclick="accionPrincipal(\'' +
       escJs(p.id) + "')\">" + esc(labelAccion(p)) + "</button>";
+  // Cobro con tarjeta (si el dueño lo activó y hay algo que cobrar): botón 💳 al lado.
+  if (!p.dentro && tarjetaActiva()) {
+    var pendTarj = p.tipo === 'taquilla' ? ((p.importePagado || 0) === 0 ? precioEntradaDe(p) : 0)
+      : (p.tipo === 'vip' ? Math.max(0, ((p.mesa || {}).total || 0) - (p.importePagado || 0)) : 0);
+    if (pendTarj > 0) {
+      accionBtn += '<button type="button" class="btn-tarjeta-persona" data-testid="tarjeta-' + esc(p.id) +
+        '" onclick="accionPrincipalTarjeta(\'' + escJs(p.id) + '\')">💳 Tarjeta</button>';
+    }
+  }
   var acompBtn = "";
   if (p.tipo === "vip" && p.mesa && p.dentro &&
       (p.mesa.acompanantesDentro || 0) < (p.mesa.acompanantesPermitidos || 0)) {
@@ -14046,7 +14113,7 @@ function darAccesoSimple(id, tipoLabel) {
   toast("Acceso dado");
 }
 
-function cobrarYEntrar(id, importe) {
+function cobrarYEntrar(id, importe, metodo) {
   mutate(function (s) {
     var p = personaPorId(id);
     if (!p || p.dentro) return;
@@ -14056,9 +14123,81 @@ function cobrarYEntrar(id, importe) {
     p.dentro = true;
     p.horaEntrada = nowHM();
     s.recaudacionPorPerfil[s.perfilActivo] = (s.recaudacionPorPerfil[s.perfilActivo] || 0) + monto;
-    addLog("cobró " + monto + " € a " + p.nombre + " " + p.apellido, "cobro");
+    addLog("cobró " + monto + " € a " + p.nombre + " " + p.apellido + (metodo === 'tarjeta' ? ' (con tarjeta)' : ''), "cobro");
   });
-  toast("Cobro registrado");
+  toast(metodo === 'tarjeta' ? "Cobro con tarjeta registrado" : "Cobro registrado");
+}
+
+/* ===== COBRO CON TARJETA (Tap to Pay: el móvil del trabajador hace de datáfono) =====
+   El cobro NFC real lo hace la app certificada del proveedor (SumUp, etc.): esta app
+   manda el importe, el trabajador cobra allí acercando la tarjeta del cliente, vuelve
+   y confirma. Solo entonces se apunta en la caja. Lo activa el DUEÑO en Ajustes y
+   entonces aparece el botón 💳 al camarero (barra) y al vigilante (puerta). */
+function tarjetaActiva() { return !!(state.config && state.config.tarjetaCfg && state.config.tarjetaCfg.activa); }
+function tarjetaAppNombre() {
+  var app = (state.config.tarjetaCfg && state.config.tarjetaCfg.app) || 'sumup';
+  return app === 'sumup' ? 'SumUp' : 'tu app de cobro';
+}
+/* Enlace que abre la app de cobro con el importe puesto (si el proveedor lo permite). */
+function tarjetaDeepLink(importe) {
+  var app = (state.config.tarjetaCfg && state.config.tarjetaCfg.app) || 'sumup';
+  var cant = (Math.round(importe * 100) / 100).toFixed(2);
+  if (app === 'sumup') {
+    return 'sumupmerchant://pay/1.0?amount=' + cant + '&currency=EUR&title=' +
+      encodeURIComponent((state.config.eventName || 'Fiesta'));
+  }
+  return null; // "otra app": se abre a mano, el modal enseña el importe bien grande
+}
+var _tarjetaPend = null; // qué registrar cuando el trabajador confirme "ya está cobrado"
+function abrirCobroTarjeta(importe, concepto, onOk) {
+  _tarjetaPend = onOk;
+  var link = tarjetaDeepLink(importe);
+  var nombreApp = tarjetaAppNombre();
+  var html = '<div class="modal-tarjeta" data-testid="modal-tarjeta">' +
+    '<h2>💳 Cobro con tarjeta</h2>' +
+    '<p class="tarjeta-importe" data-testid="tarjeta-importe">' + esc(money(importe)) + '</p>' +
+    '<p class="nota">' + esc(concepto) + '</p>' +
+    '<ol class="tarjeta-pasos">' +
+    '<li>Abre <b>' + esc(nombreApp) + '</b> y pon ese importe si no sale solo.</li>' +
+    '<li>El cliente <b>acerca su tarjeta o móvil</b> al teléfono.</li>' +
+    '<li>Cuando la app diga pagado, vuelve aquí y confirma.</li>' +
+    '</ol>' +
+    (link ? '<a class="btn-primary btn-abrir-app" data-testid="tarjeta-abrir" href="' + esc(link) + '">Abrir ' + esc(nombreApp) + '</a>' : '') +
+    '<div class="modal-botones">' +
+    '<button type="button" class="btn-primary" data-testid="tarjeta-cobrado" onclick="tarjetaConfirmar()">✅ Ya está cobrado</button>' +
+    '<button type="button" data-testid="tarjeta-cancelar" onclick="_tarjetaPend=null;closeModal()">Cancelar</button>' +
+    '</div>' +
+    '<p class="nota">Si el cobro falla en ' + esc(nombreApp) + ', pulsa Cancelar: aquí no se apunta nada hasta que confirmes.</p>' +
+    '</div>';
+  showModal(html);
+}
+function tarjetaConfirmar() {
+  var fn = _tarjetaPend;
+  _tarjetaPend = null;
+  closeModal();
+  if (typeof fn === 'function') fn();
+}
+/* Botón 💳 de la ficha de persona en puerta (solo si hay algo que cobrar). */
+function accionPrincipalTarjeta(id) {
+  var p = personaPorId(id);
+  if (!p || p.dentro) return;
+  var importe = 0;
+  if (p.tipo === 'taquilla' && (p.importePagado || 0) === 0) importe = precioEntradaDe(p);
+  else if (p.tipo === 'vip') importe = Math.max(0, ((p.mesa || {}).total || 0) - (p.importePagado || 0));
+  if (importe <= 0) { accionPrincipal(id); return; }
+  abrirCobroTarjeta(importe, 'Entrada de ' + p.nombre + ' ' + p.apellido, function () {
+    cobrarYEntrar(id, importe, 'tarjeta');
+  });
+}
+/* Botón 💳 de la barra: cobra el carrito entero con tarjeta. */
+function barraCobrarTarjeta() {
+  var carrito = state.carritos[state.perfilActivo] || [];
+  if (!carrito.length) return;
+  var total = 0;
+  for (var i = 0; i < carrito.length; i++) total += carrito[i].precio * carrito[i].qty;
+  abrirCobroTarjeta(total, 'Barra · ' + carrito.length + ' producto(s)', function () {
+    barraCobrar('tarjeta');
+  });
 }
 
 function marcarSalida(id) {
@@ -14873,6 +15012,10 @@ function renderBarra() {
         (cobrarDisabled ? ' disabled' : ' onclick="barraCobrar()"') + '>' +
         esc(cobrarTexto) +
       '</button>' +
+      (tarjetaActiva()
+        ? '<button type="button" class="btn-cobrar-tarjeta" data-testid="btn-cobrar-tarjeta"' +
+          (cobrarDisabled ? ' disabled' : ' onclick="barraCobrarTarjeta()"') + '>💳 Cobrar con tarjeta</button>'
+        : '') +
       ((state.config.bonoCfg && state.config.bonoCfg.ventaCamareros)
         ? '<button type="button" class="btn-vender-bono" data-testid="btn-vender-bono" onclick="venderBonoBarra()">' +
           'Vender bono: ' + esc(state.config.bonoCfg.copas) + ' copas · ' + esc(money(state.config.bonoCfg.precio)) + '</button>'
@@ -15044,7 +15187,7 @@ function barraVaciar() {
   });
 }
 
-function barraCobrar() {
+function barraCobrar(metodo) {
   mutate(function (s) {
     var perfil = s.perfilActivo;
     var carrito = s.carritos[perfil] || (s.carritos[perfil] = []);
@@ -15071,10 +15214,10 @@ function barraCobrar() {
 
     s.ingresosBarra = (s.ingresosBarra || 0) + total;
     s.recaudacionPorPerfil[perfil] = (s.recaudacionPorPerfil[perfil] || 0) + total;
-    addLog('vendió ' + partes.join(', ') + ' (' + total + ' €)', 'cobro');
+    addLog('vendió ' + partes.join(', ') + ' (' + total + ' €' + (metodo === 'tarjeta' ? ', con tarjeta' : '') + ')', 'cobro');
 
     carrito.length = 0;
-    toast(refrescosServir > 0 ? 'Cobrado · sirve ' + refrescosServir + ' refrescos' : 'Cobro registrado');
+    toast(refrescosServir > 0 ? 'Cobrado · sirve ' + refrescosServir + ' refrescos' : (metodo === 'tarjeta' ? 'Cobro con tarjeta registrado' : 'Cobro registrado'));
   });
 }
 
@@ -15133,7 +15276,7 @@ function renderDueno() {
       } },
     { id: 'ajustes', label: '⚙️ Ajustes', build: function () {
         return intro('Prepara la fiesta: nombre, precios, productos de barra, cuántos trabajadores y qué funciones activar.') +
-          seccionConfig() + seccionProductos() + seccionPersonal() + seccionModulos();
+          seccionConfig() + seccionProductos() + seccionPersonal() + seccionTarjeta() + seccionModulos();
       } },
     { id: 'registro', label: '📋 Registro', build: function () {
         return intro('El historial de todo (no se puede borrar) y el cierre de la fiesta al terminar.') +
@@ -15847,6 +15990,43 @@ function duenoCambiarCamareros(delta) {
 }
 
 /* ---------- 4. Módulos ---------- */
+
+/* ---------- Cobro con tarjeta (Tap to Pay): lo activa el dueño y aparece a los trabajadores ---------- */
+function seccionTarjeta() {
+  var t = state.config.tarjetaCfg || { activa: false, app: 'sumup' };
+  var html = '<section class="panel" data-testid="seccion-tarjeta"><h2>💳 Cobro con tarjeta</h2>';
+  html += '<p class="nota">El móvil del trabajador hace de datáfono (Tap to Pay): el cliente acerca su tarjeta o móvil y paga. ' +
+    'El cobro real lo hace una app certificada (SumUp, etc.) que cada trabajador debe tener instalada con TU cuenta de negocio; ' +
+    'esta app le pasa el importe y apunta la venta cuando el trabajador confirma.</p>';
+  html += '<label class="switch"><input type="checkbox" id="tarjeta-activa"' + (t.activa ? ' checked' : '') +
+    ' onchange="duenoToggleTarjeta()"> Activar cobro con tarjeta (les aparece el botón 💳 al camarero y al vigilante)</label>';
+  if (t.activa) {
+    html += '<label>App de cobro <select id="tarjeta-app" onchange="duenoTarjetaApp(this.value)">' +
+      '<option value="sumup"' + (t.app === 'sumup' ? ' selected' : '') + '>SumUp (recomendada: iPhone y Android)</option>' +
+      '<option value="otra"' + (t.app === 'otra' ? ' selected' : '') + '>Otra app (el trabajador la abre a mano)</option>' +
+      '</select></label>';
+    html += '<p class="nota">Necesitas una cuenta de negocio en esa app (alta con tu DNI; cobran una pequeña comisión por venta, ~1,5-2%). ' +
+      'Los móviles necesitan NFC (iPhone XS o posterior; casi cualquier Android). El dinero de tarjeta llega a esa cuenta, no a la caja física: ' +
+      'en el Registro cada cobro queda marcado "con tarjeta" para que cuadres caja al cierre.</p>';
+  }
+  html += '</section>';
+  return html;
+}
+function duenoToggleTarjeta() {
+  mutate(function (s) {
+    if (!s.config.tarjetaCfg) s.config.tarjetaCfg = { activa: false, app: 'sumup' };
+    s.config.tarjetaCfg.activa = !s.config.tarjetaCfg.activa;
+    addLog((s.config.tarjetaCfg.activa ? 'activó' : 'desactivó') + ' el cobro con tarjeta', 'config');
+  });
+  toast(state.config.tarjetaCfg.activa ? 'Cobro con tarjeta activado: el botón 💳 ya les sale a camareros y vigilantes' : 'Cobro con tarjeta desactivado');
+}
+function duenoTarjetaApp(valor) {
+  mutateSilent(function (s) {
+    if (!s.config.tarjetaCfg) s.config.tarjetaCfg = { activa: true, app: 'sumup' };
+    s.config.tarjetaCfg.app = valor === 'otra' ? 'otra' : 'sumup';
+    addLog('cambió la app de cobro con tarjeta a ' + (s.config.tarjetaCfg.app === 'sumup' ? 'SumUp' : 'otra app'), 'config');
+  });
+}
 
 function seccionModulos() {
   var m = state.config.modulos;
