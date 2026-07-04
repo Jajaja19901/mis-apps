@@ -268,6 +268,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .vista-barra h2{margin-bottom:12px}
 /* Monedero prepago (cashless) */
 .btn-monedero{border:1px solid var(--ambar);background:transparent;color:var(--ambar);font-weight:700;border-radius:var(--radius-btn);white-space:nowrap;padding:0 12px;min-height:44px}
+/* NFC: pulseras/tarjetas del monedero */
+.btn-nfc{width:100%;min-height:52px;margin-bottom:10px;font-size:1.0625rem;font-weight:700;border:1px dashed var(--text-dim);border-radius:var(--radius-btn);background:transparent;color:var(--text)}
 /* Cobro por Bizum (directo a la cuenta del dueño) */
 .btn-cobrar-bizum{width:100%;min-height:52px;margin-top:10px;font-size:1.0625rem;font-weight:700;border:1px solid var(--ambar);border-radius:var(--radius-btn);background:transparent;color:var(--ambar)}
 .btn-cobrar-bizum:disabled{opacity:.4}
@@ -670,7 +672,27 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
     { "clickText": "Registro" },
-    { "expect": "por Bizum)" } ]}
+    { "expect": "por Bizum)" } ]},
+  { "name": "NFC: botones de leer pulsera en barra y puerta, y grabar en el monedero (con aviso honesto si el móvil no puede)", "steps": [
+    { "clickText": "Camarero 1" },
+    { "expectVisible": "[data-testid=\"btn-nfc-barra\"]" },
+    { "click": "[data-testid=\"btn-nfc-barra\"]" },
+    { "expect": "Android" },
+    { "click": "[data-testid=\"rol-vig-1\"]" },
+    { "clickText": "Escanear QR" },
+    { "expectVisible": "[data-testid=\"btn-nfc-escaner\"]" },
+    { "clickText": "Cerrar" },
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Ajustes" },
+    { "check": "#monedero-activo" },
+    { "click": "[data-testid=\"rol-vig-1\"]" },
+    { "click": "[data-testid=\"btn-monedero-puerta\"]" },
+    { "fill": { "sel": "#monedero-importe", "value": "20" } },
+    { "click": "[data-testid=\"btn-crear-monedero\"]" },
+    { "expectVisible": "[data-testid=\"qr-modal\"]" },
+    { "expectVisible": "[data-testid=\"btn-grabar-nfc\"]" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -14924,13 +14946,78 @@ function descargarCanvas(canvas, p) {
   } catch (e) {}
 }
 
+/* ===== NFC (pulseras/tarjetas del monedero, estilo festival) =====
+   El código del monedero (o de una entrada) se GRABA en una pulsera/tarjeta NFC
+   barata. El trabajador pulsa "Leer NFC", el cliente acerca la pulsera al móvil
+   y el código entra solo: un segundo por cobro, sin teclear ni enfocar QR.
+   Requisitos reales (Web NFC): móvil Android con Chrome y la web abierta por
+   https. El iPhone NO puede leer NFC desde la web (los móviles del personal
+   conviene que sean Android; el cliente no necesita nada, la pulsera es pasiva). */
+function nfcSoportado() {
+  return (typeof window !== 'undefined') && ('NDEFReader' in window) && (window.isSecureContext === true);
+}
+function _nfcAvisoNoSoportado() {
+  toast(window.isSecureContext !== true && ('NDEFReader' in window)
+    ? 'El NFC solo funciona con la web abierta por https (no en archivo local).'
+    : 'Este móvil/navegador no lee NFC desde la web: hace falta Android con Chrome.');
+}
+/* Lee UNA etiqueta NFC y entrega su texto (el código). */
+function nfcLeer(onCodigo) {
+  if (!nfcSoportado()) { _nfcAvisoNoSoportado(); return; }
+  try {
+    var lector = new NDEFReader();
+    var ctrl = new AbortController();
+    lector.scan({ signal: ctrl.signal }).then(function () {
+      toast('📡 Acerca la pulsera/tarjeta al móvil…');
+    }).catch(function () { toast('No se pudo activar el NFC (¿está encendido en el móvil?)'); });
+    lector.onreading = function (ev) {
+      try {
+        var texto = null;
+        var recs = (ev.message && ev.message.records) || [];
+        for (var i = 0; i < recs.length; i++) {
+          if (recs[i].recordType === 'text') {
+            texto = new TextDecoder(recs[i].encoding || 'utf-8').decode(recs[i].data);
+            break;
+          }
+        }
+        if (texto) { ctrl.abort(); onCodigo(String(texto).trim()); }
+        else toast('La pulsera está vacía: grábala primero desde el monedero.');
+      } catch (e) { toast('No se pudo leer la pulsera, prueba otra vez'); }
+    };
+    lector.onreadingerror = function () { toast('Lectura fallida: acércala de nuevo'); };
+  } catch (e) { _nfcAvisoNoSoportado(); }
+}
+/* Graba un código en una pulsera/tarjeta NFC (se hace una vez por pulsera). */
+function nfcGrabarCodigo(codigo) {
+  if (!nfcSoportado()) { _nfcAvisoNoSoportado(); return; }
+  try {
+    var lector = new NDEFReader();
+    toast('📡 Acerca la pulsera VACÍA al móvil para grabarla…');
+    lector.write({ records: [{ recordType: 'text', data: String(codigo) }] })
+      .then(function () { toast('✅ Pulsera grabada con ' + codigo); })
+      .catch(function () { toast('No se pudo grabar: acércala de nuevo y no la muevas'); });
+  } catch (e) { _nfcAvisoNoSoportado(); }
+}
+/* Botón NFC del escáner de PUERTA: entra como si lo hubiera leído la cámara. */
+function nfcLeerEscaner() {
+  nfcLeer(function (c) {
+    var i = document.getElementById('qr-codigo'); if (i) i.value = c;
+    resolverEscaneo(c, true);
+  });
+}
+/* Botón NFC de la BARRA: entra en la caja de consumiciones/monederos. */
+function nfcLeerBarra() {
+  nfcLeer(function (c) { consDesdeCodigo(c); });
+}
+
 /* ===== ESCÁNER QR (con fallback de teclado SIEMPRE visible) ===== */
 function abreEscaner() {
   var html = "";
   html += '<div class="modal-escaner">';
   html += "<h2>Escanear QR</h2>";
   html += '<button type="button" class="btn-camara" data-testid="btn-camara" onclick="escanearConCamara(function(c){var i=document.getElementById(\'qr-codigo\');if(i)i.value=c;resolverEscaneo(c,true);})">📷 Escanear con cámara</button>';
-  html += '<p id="escanerAviso">Haz una foto al QR, o teclea el código a mano.</p>';
+  html += '<button type="button" class="btn-nfc" data-testid="btn-nfc-escaner" onclick="nfcLeerEscaner()">📡 Leer pulsera/tarjeta NFC</button>';
+  html += '<p id="escanerAviso">Haz una foto al QR, acerca una pulsera NFC, o teclea el código a mano.</p>';
   html += '<div id="escanerVideoWrap"></div>';
   html += '<form id="qrForm">';
   html += '<label for="qr-codigo">Código</label>';
@@ -15238,6 +15325,7 @@ function renderBarra() {
       '<div class="consumiciones-panel" data-testid="consumiciones">' +
         '<h3>Consumiciones y bonos</h3>' +
         '<button type="button" class="btn-camara" data-testid="btn-camara-barra" onclick="abreEscanerBarra()">📷 Escanear con cámara</button>' +
+        '<button type="button" class="btn-nfc" data-testid="btn-nfc-barra" onclick="nfcLeerBarra()">📡 Leer pulsera/tarjeta NFC</button>' +
         '<form id="consForm" onsubmit="return consBuscar()">' +
           '<input id="cons-codigo" type="text" placeholder="Código (ej: MH-301-AG)" autocomplete="off" value="' + esc(_consCod) + '">' +
           '<button type="submit">Ver</button>' +
@@ -16756,6 +16844,8 @@ function abreQRMonedero(id, recienCargado) {
   html += '<p class="bono-codigo-big" data-testid="monedero-codigo">' + esc(m.codigo) + '</p>';
   html += '<canvas id="qrCanvasMonedero" width="200" height="200"></canvas>';
   html += '<p class="nota" style="text-align:center">Que el cliente le haga una FOTO. En la barra paga enseñándolo: el camarero lo escanea y el saldo se descuenta solo. Se recarga en la puerta.</p>';
+  html += '<button type="button" class="btn-nfc" data-testid="btn-grabar-nfc" onclick="nfcGrabarCodigo(\'' + escJs(m.codigo) + '\')">📡 Grabar en pulsera/tarjeta NFC</button>';
+  html += '<p class="nota" style="text-align:center">Con pulsera, el cliente ni saca el móvil: la acerca al del camarero y pagado (móviles del personal: Android).</p>';
   html += '<div class="modal-botones"><button type="button" onclick="closeModal()">Cerrar</button></div></div>';
   showModal(html);
   var canvas = document.getElementById('qrCanvasMonedero');
