@@ -722,12 +722,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "submit": "#pinForm" },
     { "clickText": "Registro" },
     { "expect": "con tarjeta" } ]},
-  { "name": "Gráfica de consumo: el dueño ve qué se vende más y qué menos", "steps": [
+  { "name": "Gráfica de consumo: el dueño ve qué se vende más y qué menos (incluidos los refrescos de botella)", "steps": [
     { "clickText": "Camarero 1" },
     { "click": "[data-testid=\"prod-copa\"]" },
     { "click": "[data-testid=\"prod-copa\"]" },
     { "click": "[data-testid=\"prod-chupito\"]" },
     { "clickText": "Cobrar 22 €" },
+    { "click": "[data-testid=\"prod-botella\"]" },
+    { "clickText": "Cobrar 60 €" },
     { "goto": "#/dueno" },
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
@@ -736,7 +738,9 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "expectVisible": "[data-testid=\"consumo-copa\"]" },
     { "expectVisible": "[data-testid=\"consumo-chupito\"]" },
     { "expect": "2 uds · 20 €" },
-    { "expect": "1 ud · 2 €" } ]}
+    { "expect": "1 ud · 2 €" },
+    { "expect": "Refresco incluido (botella/VIP)" },
+    { "expect": "4 uds · 0 €" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -15430,14 +15434,16 @@ function refrescosDisp(p) { return (p.tipo === 'vip' && p.mesa) ? Math.max(0, vi
 function canjearBotella(id) {
   var p = personaPorId(id);
   if (!p || botellasDisp(p) <= 0) { toast('Sin botellas'); return; }
-  mutate(function () { var q = personaPorId(id); q.mesa.botellasUsadas = (q.mesa.botellasUsadas || 0) + 1;
+  mutate(function (s) { var q = personaPorId(id); q.mesa.botellasUsadas = (q.mesa.botellasUsadas || 0) + 1;
+    registrarVenta(s, '_botella_incl', 'Botella incluida (mesa VIP)', 1, 0); // consumo a 0 € (ya pagada en la mesa)
     addLog('sirvió 1 botella de Mesa ' + q.mesa.numero + ' (quedan ' + botellasDisp(q) + ')', 'cobro'); });
   toast('Botella servida'); consBuscar();
 }
 function canjearRefresco(id) {
   var p = personaPorId(id);
   if (!p || refrescosDisp(p) <= 0) { toast('Sin refrescos'); return; }
-  mutate(function () { var q = personaPorId(id); q.mesa.refrescosUsados = (q.mesa.refrescosUsados || 0) + 1;
+  mutate(function (s) { var q = personaPorId(id); q.mesa.refrescosUsados = (q.mesa.refrescosUsados || 0) + 1;
+    registrarVenta(s, '_refresco_incl', 'Refresco incluido (botella/VIP)', 1, 0);
     addLog('sirvió 1 refresco de Mesa ' + q.mesa.numero + ' (quedan ' + refrescosDisp(q) + ')', 'cobro'); });
   toast('Refresco servido'); consBuscar();
 }
@@ -15525,6 +15531,7 @@ function canjearBonoCopa(id) {
     for (var j = 0; j < (s.bonos || []).length; j++) if (s.bonos[j].id === id) q = s.bonos[j];
     if (!q) return;
     q.usadas = (q.usadas || 0) + 1;
+    registrarVenta(s, '_copa_incl', 'Copa de canje (bono/entrada)', 1, 0); // consumo a 0 € (ya pagada en el bono)
     addLog('canjeó 1 copa del bono ' + q.codigo + ' (quedan ' + Math.max(0, q.copas - q.usadas) + ')', 'cobro');
   });
   toast('Copa del bono canjeada');
@@ -15534,9 +15541,10 @@ function canjearBonoCopa(id) {
 function canjearConsumicion(id) {
   var p = personaPorId(id);
   if (!p || consDisponibles(p) <= 0) { toast('Sin consumiciones'); return; }
-  mutate(function () {
+  mutate(function (s) {
     var q = personaPorId(id);
     q.consumicionesUsadas = (q.consumicionesUsadas || 0) + 1;
+    registrarVenta(s, '_copa_incl', 'Copa de canje (bono/entrada)', 1, 0);
     addLog('canjeó 1 consumición de ' + q.nombre + ' ' + q.apellido +
       ' (quedan ' + consDisponibles(q) + ')', 'cobro');
   });
@@ -15604,6 +15612,8 @@ function barraCobrar(metodo) {
       refrescosServir += ri * l.qty;
       registrarVenta(s, l.prodId, l.nombre, l.qty, l.precio * l.qty); // analítica de consumo
     }
+    // Los refrescos que van DENTRO de una botella también son consumo (a 0 €: ya van en su precio).
+    if (refrescosServir > 0) registrarVenta(s, '_refresco_incl', 'Refresco incluido (botella/VIP)', refrescosServir, 0);
 
     if (s.config.modulos && s.config.modulos.stock) {
       for (var j = 0; j < carrito.length; j++) {
@@ -15742,6 +15752,7 @@ function seccionProductos() {
   var prods = state.config.productos || [];
   var html = '<section class="panel" data-testid="seccion-productos"><h2>Productos de barra</h2>';
   html += '<p class="nota">Lo que puede vender el camarero. Una botella lleva su precio y sus refrescos incluidos (los sirve al cliente al cobrarla).</p>';
+  html += '<p class="nota">💡 ¿Quieres saber en la gráfica CUÁLES refrescos (o copas) se piden más? Crea un producto por cada tipo con "+ Añadir producto" (ej: Cola, Naranja, Agua, Red Bull) y la gráfica los separa sola.</p>';
   prods.forEach(function (pr) {
     html += '<div class="prod-edit" data-testid="prod-edit-' + esc(pr.id) + '">';
     html += '<input type="text" value="' + esc(pr.nombre) + '" placeholder="Nombre" onchange="duenoProductoCampo(\'' + escJs(pr.id) + '\',\'nombre\',this.value)">';
@@ -16894,9 +16905,13 @@ function monederoCobrarCarrito(id) {
       var ri = pr ? (pr.refrescosIncluidos || 0) : 0;
       partes.push(l.qty + '× ' + l.nombre);
       refrescosServir += ri * l.qty;
-      registrarVenta(s, l.prodId, l.nombre, l.qty, l.precio * l.qty); // analítica de consumo
     }
     if ((q.saldo || 0) < tot) return; // re-comprobación dentro de la mutación (por si llegó otro gasto)
+    // El cobro va a ocurrir seguro: AHORA sí se apunta el consumo (nunca antes de la comprobación).
+    for (var k2 = 0; k2 < cart.length; k2++) {
+      registrarVenta(s, cart[k2].prodId, cart[k2].nombre, cart[k2].qty, cart[k2].precio * cart[k2].qty);
+    }
+    if (refrescosServir > 0) registrarVenta(s, '_refresco_incl', 'Refresco incluido (botella/VIP)', refrescosServir, 0);
     if (s.config.modulos && s.config.modulos.stock) {
       for (var x = 0; x < cart.length; x++) {
         var prod = productoPorId(cart[x].prodId);
