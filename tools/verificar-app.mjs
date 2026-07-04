@@ -110,10 +110,27 @@ async function load() {
 
 // ===== Tests de aceptación por app (DSL embebido en <script type="application/json" id="acceptance-tests">) =====
 // Pasos disponibles: goto, reload, wait, click, clickText, fill{sel,value}, check, submit,
-//                    expect (texto que debe aparecer), expectHash, expectVisible, expectGone.
-async function runStep(step) {
+//                    expect (texto que debe aparecer), expectHash, expectVisible, expectGone,
+//                    copyText{sel,as}: guarda el texto de un elemento en una variable, y luego
+//                    "$NOMBRE" se sustituye en cualquier paso (clave para códigos generados al azar).
+function sustituirVars(valor, vars) {
+  if (typeof valor !== "string") return valor;
+  return valor.replace(/\$([A-Z][A-Z0-9_]*)/g, (m, k) => (vars[k] !== undefined ? vars[k] : m));
+}
+async function runStep(step, vars = {}) {
   const k = Object.keys(step)[0];
-  const v = step[k];
+  let v = step[k];
+  if (typeof v === "string") v = sustituirVars(v, vars);
+  else if (v && typeof v === "object") {
+    v = { ...v };
+    for (const key of Object.keys(v)) v[key] = sustituirVars(v[key], vars);
+  }
+  if (k === "copyText") {
+    const txt = await page.evaluate((s) => { const e = document.querySelector(s); return e ? e.textContent.trim() : null; }, v.sel);
+    if (txt === null) return { ok: false, msg: "no existe " + v.sel + " para copiar su texto" };
+    vars[v.as] = txt;
+    return { ok: true };
+  }
   switch (k) {
     case "goto": await page.evaluate((h) => { location.hash = h; }, v); await sleep(280); return { ok: true };
     case "reload": await load(); return { ok: true };
@@ -144,10 +161,11 @@ async function runAcceptanceTests() {
     await load();
     let fail = null;
     const steps = t.steps || [];
+    const vars = {}; // variables del test (copyText/$NOMBRE), aisladas por test
     for (let i = 0; i < steps.length; i++) {
       const before = errors.length;
       let r;
-      try { r = await runStep(steps[i]); } catch (e) { r = { ok: false, msg: e.message }; }
+      try { r = await runStep(steps[i], vars); } catch (e) { r = { ok: false, msg: e.message }; }
       if (errors.length > before) { fail = { i, msg: "error JS durante el paso" }; break; }
       if (!r.ok) { fail = { i, msg: r.msg || "falló" }; break; }
     }

@@ -266,6 +266,8 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .btn-vender-bono{width:100%;min-height:52px;margin-top:10px;font-size:1.0625rem;font-weight:700;border:none;border-radius:var(--radius-btn);background:var(--vip-morado);color:#fff;box-shadow:0 0 16px rgba(176,38,255,.2)}
 .btn-camara{width:100%;min-height:56px;margin-bottom:10px;font-size:1.0625rem;font-weight:700;border:none;border-radius:var(--radius-btn);background:var(--neon-verde);color:var(--bg);box-shadow:0 0 16px rgba(0,212,138,.2)}
 .vista-barra h2{margin-bottom:12px}
+/* Monedero prepago (cashless) */
+.btn-monedero{border:1px solid var(--ambar);background:transparent;color:var(--ambar);font-weight:700;border-radius:var(--radius-btn);white-space:nowrap;padding:0 12px;min-height:44px}
 /* Cobro con tarjeta (Tap to Pay) */
 .btn-cobrar-tarjeta{width:100%;min-height:52px;margin-top:10px;font-size:1.0625rem;font-weight:700;border:1px solid var(--neon-azul,#00d4ff);border-radius:var(--radius-btn);background:transparent;color:var(--neon-azul,#00d4ff)}
 .btn-cobrar-tarjeta:disabled{opacity:.4}
@@ -585,7 +587,55 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
     { "clickText": "Registro" },
-    { "expect": "cobró 100 € a Roberto Cano (con tarjeta)" } ]}
+    { "expect": "cobró 100 € a Roberto Cano (con tarjeta)" } ]},
+  { "name": "Monedero cashless: cargar 50 en puerta, gastar 22 en barra, recargar 10 y cuadre", "steps": [
+    { "goto": "#/puerta" },
+    { "expectGone": "[data-testid=\"btn-monedero-puerta\"]" },
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Ajustes" },
+    { "check": "#monedero-activo" },
+    { "click": "[data-testid=\"rol-vig-1\"]" },
+    { "expectHash": "#/puerta" },
+    { "click": "[data-testid=\"btn-monedero-puerta\"]" },
+    { "fill": { "sel": "#monedero-importe", "value": "50" } },
+    { "click": "[data-testid=\"btn-crear-monedero\"]" },
+    { "expectVisible": "[data-testid=\"qr-modal\"]" },
+    { "expect": "Saldo: 50 €" },
+    { "copyText": { "sel": "[data-testid=\"monedero-codigo\"]", "as": "COD" } },
+    { "clickText": "Cerrar" },
+    { "clickText": "Camarero 1" },
+    { "click": "[data-testid=\"prod-copa\"]" },
+    { "click": "[data-testid=\"prod-copa\"]" },
+    { "click": "[data-testid=\"prod-chupito\"]" },
+    { "fill": { "sel": "#cons-codigo", "value": "$COD" } },
+    { "submit": "#consForm" },
+    { "expect": "Saldo: 50 €" },
+    { "click": "[data-testid=\"btn-monedero-cobrar\"]" },
+    { "expect": "Saldo: 28 €" },
+    { "click": "[data-testid=\"prod-botella\"]" },
+    { "submit": "#consForm" },
+    { "expect": "Saldo insuficiente" },
+    { "click": "[data-testid=\"rol-vig-1\"]" },
+    { "clickText": "Escanear QR" },
+    { "fill": { "sel": "#qr-codigo", "value": "$COD" } },
+    { "submit": "#qrForm" },
+    { "expect": "Saldo: 28 €" },
+    { "fill": { "sel": "#recarga-importe", "value": "10" } },
+    { "click": "[data-testid=\"btn-recargar\"]" },
+    { "expect": "Saldo: 38 €" },
+    { "clickText": "Cerrar" },
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Dinero" },
+    { "expect": "Cargado (ya en caja): 60 €" },
+    { "expect": "Gastado en barra: 22 €" },
+    { "expect": "Saldo vivo (pendiente de beber): 38 €" },
+    { "clickText": "Registro" },
+    { "expect": "cobró del monedero" },
+    { "expect": "recargó 10 €" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -13128,6 +13178,9 @@ function seedState() {
       // Cobro con tarjeta (Tap to Pay): apagado de serie; lo activa el dueño en Ajustes
       // y entonces les aparece el botón 💳 al camarero y al vigilante.
       tarjetaCfg: { activa: false, app: "sumup" },
+      // Monedero prepago (cashless, sin intermediarios): el cliente carga saldo una vez
+      // (efectivo/Bizum) y paga la barra con su QR. Lo activa el dueño en Ajustes.
+      monederoCfg: { activo: false },
       accesoAuto: false,
       fecha: "", hora: "", lugar: "", lema: "",
       logo: null, colorTema: "#00d4ff",
@@ -13144,6 +13197,8 @@ function seedState() {
     carritos: { "cam-1": [], "cam-2": [] },
     recaudacionPorPerfil: { "vig-1": 0, "vig-2": 0, "cam-1": 0, "cam-2": 0 },
     ingresosBarra: 0,
+    ingresosMonederos: 0,
+    monederos: [],
     gastos: [],
     bonos: [],
     historico: [],
@@ -13205,6 +13260,10 @@ function migrar(s) {
   if (!s.config.tarjetaCfg || typeof s.config.tarjetaCfg !== 'object') s.config.tarjetaCfg = { activa: false, app: 'sumup' };
   if (typeof s.config.tarjetaCfg.activa !== 'boolean') s.config.tarjetaCfg.activa = false;
   if (typeof s.config.tarjetaCfg.app !== 'string') s.config.tarjetaCfg.app = 'sumup';
+  if (!s.config.monederoCfg || typeof s.config.monederoCfg !== 'object') s.config.monederoCfg = { activo: false };
+  if (typeof s.config.monederoCfg.activo !== 'boolean') s.config.monederoCfg.activo = false;
+  if (!Array.isArray(s.monederos)) s.monederos = [];
+  if (typeof s.ingresosMonederos !== 'number') s.ingresosMonederos = 0;
   if (typeof s.config.accesoAuto !== 'boolean') s.config.accesoAuto = false;
   ['fecha', 'hora', 'lugar', 'lema'].forEach(function (k) { if (typeof s.config[k] !== 'string') s.config[k] = ''; });
   if (s.config.logo === undefined) s.config.logo = null;
@@ -13351,13 +13410,16 @@ function cajaDesglose() {
     else if (p.tipo === 'vip') vip += p.importePagado || 0;
   });
   var barra = state.ingresosBarra || 0;
+  // Cargas de monederos: dinero que YA entró en caja (el gasto posterior del saldo
+  // NO se suma en barra, se contaría dos veces).
+  var monederos = state.ingresosMonederos || 0;
   // El dinero de las entradas de RRPP YA está contado en Taquilla (cada entrada de
   // promotor se cobra como taquilla). Por eso NO se vuelve a sumar aquí: si no, se
   // contaría dos veces. Lo que el dueño DEBE a los promotores es su comisión, y eso
   // se muestra aparte con rrppComisionTotal(). Se mantiene el campo netoRRPP en 0
   // por compatibilidad con el CSV (línea "RRPP (pendiente de entrega)").
   var netoRRPP = 0;
-  return { taquilla: taquilla, vip: vip, barra: barra, netoRRPP: netoRRPP, total: taquilla + vip + barra };
+  return { taquilla: taquilla, vip: vip, barra: barra, monederos: monederos, netoRRPP: netoRRPP, total: taquilla + vip + barra + monederos };
 }
 function productoPorId(id) {
   var lista = (state.config && state.config.productos) || [];
@@ -13383,7 +13445,8 @@ function _dosLetras() {
 function codigoUsado(s, cod) {
   var n = _normalizaCod(cod);
   return (s.personas || []).some(function (p) { return _normalizaCod(p.codigoReserva) === n; }) ||
-         (s.bonos || []).some(function (b) { return _normalizaCod(b.codigo) === n; });
+         (s.bonos || []).some(function (b) { return _normalizaCod(b.codigo) === n; }) ||
+         (s.monederos || []).some(function (m) { return _normalizaCod(m.codigo) === n; });
 }
 /* Código de bono: MH-B<copas>-<nº de serie>-<2 letras>. Ej: bono de 5 copas, el
    número 47 → "MH-B5-047-KJ". Tres cosas dentro:
@@ -13405,6 +13468,41 @@ function personaPorCodigo(cod) {
   var lista = state.personas || [];
   for (var i = 0; i < lista.length; i++) if (_normalizaCod(lista[i].codigoReserva) === buscado) return lista[i];
   return null;
+}
+
+/* ===== MONEDERO MH (cashless en euros, SIN intermediarios) =====
+   El QR del cliente NO lleva dinero: es solo su código (MH-M-<serie>-<2 letras>).
+   El saldo vive aquí, en la contabilidad compartida: cada carga y cada gasto queda
+   como movimiento (quién, qué, cuándo) y el saldo es la consecuencia. Sin bancos. */
+function monederoActivo() { return !!(state.config && state.config.monederoCfg && state.config.monederoCfg.activo); }
+function nuevoCodigoMonedero(s) {
+  var seq = (s.monederos || []).length + 1;
+  var base = 'MH-M-' + String(seq).padStart(3, '0');
+  var cod, intentos = 0;
+  do { cod = base + '-' + _dosLetras(); intentos++; } while (codigoUsado(s, cod) && intentos < 300);
+  return cod;
+}
+function monederoPorCodigo(cod) {
+  var buscado = _normalizaCod(cod);
+  var lista = state.monederos || [];
+  for (var i = 0; i < lista.length; i++) if (_normalizaCod(lista[i].codigo) === buscado) return lista[i];
+  return null;
+}
+function monederoPorId(id) {
+  var lista = state.monederos || [];
+  for (var i = 0; i < lista.length; i++) if (lista[i].id === id) return lista[i];
+  return null;
+}
+/* Totales para el cuadre del dueño: cargado (entró en caja), gastado (bebido) y vivo (pendiente). */
+function monederoTotales() {
+  var cargado = 0, gastado = 0, vivo = 0;
+  (state.monederos || []).forEach(function (m) {
+    (m.movs || []).forEach(function (v) {
+      if (v.t === 'gasto') gastado += v.imp; else cargado += v.imp;
+    });
+    vivo += m.saldo || 0;
+  });
+  return { cargado: cargado, gastado: gastado, vivo: vivo };
 }
 
 /* ---------- Persistencia / mutación ---------- */
@@ -13980,6 +14078,9 @@ function renderPuerta() {
     html += '<button type="button" class="btn-escanear" data-testid="btn-escanear" onclick="abreEscaner()">Escanear QR</button>';
   }
   html += '<button type="button" class="btn-add-persona" data-testid="fab-express" onclick="abreExpress()">+ Añadir</button>';
+  if (monederoActivo()) {
+    html += '<button type="button" class="btn-monedero" data-testid="btn-monedero-puerta" onclick="abreMonederoPuerta()">💰 Monedero</button>';
+  }
   html += "</div>";
   html += '<div class="puerta-filtros">';
   html += filtroTab("fuera", "Por entrar");
@@ -14827,6 +14928,16 @@ function resolverEscaneo(valor, deCamara) {
   var out = document.getElementById("escanerResultado");
   var p = personaPorCodigo(valor);
   if (!p) {
+    // ¿Es un monedero? En puerta se enseña el saldo y se puede RECARGAR aquí mismo.
+    var mon = monederoPorCodigo(valor);
+    if (mon) {
+      if (out) out.innerHTML = '<div class="scan-res scan-ok"><b class="scan-verde">💰 MONEDERO</b>' +
+        '<span>' + esc(mon.codigo) + ' · Saldo: <b data-testid="scan-mon-saldo">' + esc(money(mon.saldo)) + '</b></span></div>' +
+        '<div class="contador"><input type="number" id="recarga-importe" min="1" placeholder="€ a recargar" inputmode="numeric" style="flex:1">' +
+        '<button type="button" data-testid="btn-recargar" onclick="recargarDesdeEscaner(\'' + escJs(mon.id) + '\')">Recargar</button></div>' +
+        '<p class="nota">Cobra ese dinero al cliente (efectivo/Bizum) y pulsa Recargar: el saldo sube al momento en todos los móviles.</p>';
+      return;
+    }
     if (out) out.innerHTML = '<div class="scan-res scan-rojo"><b>❌ Código no válido</b>' +
       '<span>' + esc(valor) + ' no existe en la lista.</span></div>' +
       '<button type="button" onclick="closeModal();abreExpress();">Dar de alta express</button>';
@@ -15092,6 +15203,30 @@ function consBuscar() {
     if (out0) out0.innerHTML = _consMsg;
     return false;
   }
+  // Monedero prepago: enseña el saldo y cobra el CARRITO de ese saldo.
+  var mon = (!p && cod) ? monederoPorCodigo(cod) : null;
+  if (mon) {
+    var carritoM = state.carritos[state.perfilActivo] || [];
+    var totalM = 0;
+    for (var im = 0; im < carritoM.length; im++) totalM += carritoM[im].precio * carritoM[im].qty;
+    _consMsg = '<div class="cons-ficha"><strong>💰 Monedero ' + esc(mon.codigo) + '</strong>' +
+      '<br>Saldo: <b data-testid="mon-saldo">' + esc(money(mon.saldo)) + '</b>';
+    if ((mon.saldo || 0) <= 0) {
+      _consMsg += '<br><span class="cons-cero">Sin saldo — que recargue en la puerta</span>';
+    } else if (totalM <= 0) {
+      _consMsg += '<br><span class="nota">Marca los productos en el carrito y vuelve a pulsar Ver para cobrarlos de este monedero.</span>';
+    } else if ((mon.saldo || 0) >= totalM) {
+      _consMsg += '<br><button type="button" class="btn-canjear" data-testid="btn-monedero-cobrar" onclick="monederoCobrarCarrito(\'' +
+        escJs(mon.id) + '\')">Cobrar carrito (' + esc(money(totalM)) + ') del monedero</button>';
+    } else {
+      _consMsg += '<br><span class="cons-cero">Saldo insuficiente para el carrito (' + esc(money(totalM)) +
+        '): faltan ' + esc(money(totalM - mon.saldo)) + ' — cóbralos aparte o que recargue</span>';
+    }
+    _consMsg += '</div>';
+    var outM = document.getElementById('cons-resultado');
+    if (outM) outM.innerHTML = _consMsg;
+    return false;
+  }
   if (!p) {
     _consMsg = '<p class="cons-no">Código no encontrado.</p>';
   } else if (p.tipo === 'vip' && p.mesa) {
@@ -15269,14 +15404,14 @@ function renderDueno() {
           acc('backup', '💾 Copia de seguridad', 'Guardar la lista en un archivo y pasarla a otro móvil', seccionBackup());
       } },
     { id: 'fiesta', label: '💶 Dinero', build: function () {
-        return intro('Lo que mueve la caja durante la fiesta: promotores (RRPP), bonos, gastos y stock de barra.') +
-          seccionRrpp() + seccionBonos() +
+        return intro('Lo que mueve la caja durante la fiesta: promotores (RRPP), monederos, bonos, gastos y stock de barra.') +
+          seccionRrpp() + seccionMonederos() + seccionBonos() +
           (s.config.modulos.gastos ? seccionGastos() : '') +
           (s.config.modulos.stock ? seccionStock() : '');
       } },
     { id: 'ajustes', label: '⚙️ Ajustes', build: function () {
         return intro('Prepara la fiesta: nombre, precios, productos de barra, cuántos trabajadores y qué funciones activar.') +
-          seccionConfig() + seccionProductos() + seccionPersonal() + seccionTarjeta() + seccionModulos();
+          seccionConfig() + seccionProductos() + seccionPersonal() + seccionMonederoCfg() + seccionTarjeta() + seccionModulos();
       } },
     { id: 'registro', label: '📋 Registro', build: function () {
         return intro('El historial de todo (no se puede borrar) y el cierre de la fiesta al terminar.') +
@@ -15317,6 +15452,9 @@ function seccionKpis() {
   html += '<li data-testid="caja-taquilla">Taquilla: ' + esc(money(caja.taquilla)) + '</li>';
   html += '<li data-testid="caja-vip">Mesas VIP: ' + esc(money(caja.vip)) + '</li>';
   html += '<li data-testid="caja-barra">Barra: ' + esc(money(caja.barra)) + '</li>';
+  if (monederoActivo() || (caja.monederos || 0) > 0) {
+    html += '<li data-testid="caja-monederos">Monederos (cargas): ' + esc(money(caja.monederos || 0)) + '</li>';
+  }
   html += '<li data-testid="caja-rrpp">Comisiones RRPP: ' + esc(money(rrppComisionTotal())) + ' (a pagar a promotores)</li>';
   html += '</ul></div>';
   html += '<div class="kpi" data-testid="kpi-asistencia"><h3>Asistencia</h3><p class="kpi-big">' +
@@ -15324,7 +15462,7 @@ function seccionKpis() {
   if (s.config.modulos.gastos) {
     var gastosTotal = s.gastos.reduce(function (a, g) { return a + g.importe; }, 0);
     var beneficioNeto = caja.total - gastosTotal;
-    var beneficioCaja = caja.taquilla + caja.vip + caja.barra - gastosTotal;
+    var beneficioCaja = caja.taquilla + caja.vip + caja.barra + (caja.monederos || 0) - gastosTotal;
     html += '<div class="kpi" data-testid="kpi-beneficio"><h3>Beneficio neto</h3><p class="kpi-big">' + esc(money(beneficioNeto)) + '</p></div>';
     html += '<div class="kpi" data-testid="kpi-beneficio-caja"><h3>Beneficio en caja</h3><p class="kpi-big">' + esc(money(beneficioCaja)) + '</p></div>';
   }
@@ -16363,6 +16501,203 @@ function abreQRBono(id, venta) {
   }
 }
 
+/* ===== MONEDERO MH: acciones y pantallas ===== */
+
+/* Carga un monedero NUEVO. El dinero entra en caja AHORA (efectivo/Bizum en mano):
+   cuenta en ingresosMonederos y en la recaudación de quien cobra. */
+function crearMonedero() {
+  var inp = document.getElementById('monedero-importe');
+  var importe = Math.round(Number(inp && inp.value) || 0);
+  if (importe <= 0) { toast('Pon el importe que te ha dado el cliente'); return; }
+  var nuevoId = 'm' + Date.now();
+  mutate(function (s) {
+    if (!s.monederos) s.monederos = [];
+    var codigo = nuevoCodigoMonedero(s);
+    s.monederos.push({ id: nuevoId, codigo: codigo, saldo: importe, hora: nowHM(),
+      movs: [{ h: nowHM(), t: 'carga', imp: importe, por: etiquetaPerfil(actorActual()) }] });
+    s.ingresosMonederos = (s.ingresosMonederos || 0) + importe;
+    s.recaudacionPorPerfil[actorActual()] = (s.recaudacionPorPerfil[actorActual()] || 0) + importe;
+    addLog('cargó monedero ' + codigo + ' con ' + importe + ' €', 'cobro');
+  });
+  toast('Monedero cargado con ' + money(importe));
+  abreQRMonedero(nuevoId, true);
+}
+
+/* Recarga un monedero existente (mismo tratamiento de caja que la carga). */
+function recargarMonedero(id, importe) {
+  importe = Math.round(Number(importe) || 0);
+  var m0 = monederoPorId(id);
+  if (!m0 || importe <= 0) { toast('Pon el importe a recargar'); return false; }
+  mutate(function (s) {
+    var m = null;
+    for (var i = 0; i < (s.monederos || []).length; i++) if (s.monederos[i].id === id) m = s.monederos[i];
+    if (!m) return;
+    m.saldo = (m.saldo || 0) + importe;
+    m.movs.push({ h: nowHM(), t: 'recarga', imp: importe, por: etiquetaPerfil(actorActual()) });
+    s.ingresosMonederos = (s.ingresosMonederos || 0) + importe;
+    s.recaudacionPorPerfil[actorActual()] = (s.recaudacionPorPerfil[actorActual()] || 0) + importe;
+    addLog('recargó ' + importe + ' € en el monedero ' + m.codigo + ' (saldo ' + m.saldo + ' €)', 'cobro');
+  });
+  toast('Recargado · saldo ' + money((monederoPorId(id) || {}).saldo || 0));
+  return true;
+}
+
+/* Cobra el CARRITO de la barra del saldo del monedero. OJO contabilidad: ese dinero
+   ya entró en caja al cargar el monedero → aquí NO se suma a ingresos de barra ni a
+   recaudación (se contaría dos veces). Sí baja stock y sí queda todo en el registro. */
+function monederoCobrarCarrito(id) {
+  var m = monederoPorId(id);
+  if (!m) return;
+  var carrito = state.carritos[state.perfilActivo] || [];
+  if (!carrito.length) { toast('El carrito está vacío'); return; }
+  var total = 0;
+  for (var i = 0; i < carrito.length; i++) total += carrito[i].precio * carrito[i].qty;
+  if ((m.saldo || 0) < total) { toast('Saldo insuficiente: tiene ' + money(m.saldo) + ' y son ' + money(total)); return; }
+  mutate(function (s) {
+    var q = null;
+    for (var j = 0; j < (s.monederos || []).length; j++) if (s.monederos[j].id === id) q = s.monederos[j];
+    var cart = s.carritos[s.perfilActivo] || [];
+    if (!q || !cart.length) return;
+    var tot = 0, partes = [], refrescosServir = 0;
+    for (var k = 0; k < cart.length; k++) {
+      var l = cart[k];
+      tot += l.precio * l.qty;
+      var pr = productoPorId(l.prodId);
+      var ri = pr ? (pr.refrescosIncluidos || 0) : 0;
+      partes.push(l.qty + '× ' + l.nombre);
+      refrescosServir += ri * l.qty;
+    }
+    if ((q.saldo || 0) < tot) return; // re-comprobación dentro de la mutación (por si llegó otro gasto)
+    if (s.config.modulos && s.config.modulos.stock) {
+      for (var x = 0; x < cart.length; x++) {
+        var prod = productoPorId(cart[x].prodId);
+        if (prod) prod.stock = Math.max(0, prod.stock - cart[x].qty);
+      }
+    }
+    q.saldo -= tot;
+    q.movs.push({ h: nowHM(), t: 'gasto', imp: tot, det: partes.join(', '), por: etiquetaPerfil(actorActual()) });
+    addLog('cobró del monedero ' + q.codigo + ': ' + partes.join(', ') + ' (' + tot + ' €, saldo ' + q.saldo + ' €)', 'cobro');
+    cart.length = 0;
+  });
+  toast('Cobrado del monedero · saldo ' + money((monederoPorId(id) || {}).saldo || 0));
+  consBuscar(); // refresca la ficha con el saldo nuevo
+}
+
+/* Modal de PUERTA/PANEL para cargar un monedero nuevo. */
+function abreMonederoPuerta() {
+  var html = '<div class="modal-qr" data-testid="modal-monedero">' +
+    '<h2>💰 Cargar monedero</h2>' +
+    '<p class="nota">Cobra el dinero al cliente (efectivo o Bizum) y pon aquí el importe. ' +
+    'La app le crea su QR con el saldo: con él paga en la barra sin dinero.</p>' +
+    '<div class="contador">' +
+    [10, 20, 30, 50].map(function (n) {
+      return '<button type="button" onclick="document.getElementById(\'monedero-importe\').value=' + n + '">' + n + ' €</button>';
+    }).join('') + '</div>' +
+    '<label>Importe (€) <input type="number" id="monedero-importe" min="1" placeholder="Ej: 50" inputmode="numeric"></label>' +
+    '<div class="modal-botones">' +
+    '<button type="button" class="btn-primary" data-testid="btn-crear-monedero" onclick="crearMonedero()">Cargar y enseñar QR</button>' +
+    '<button type="button" onclick="closeModal()">Cancelar</button></div>' +
+    '<p class="nota">Para RECARGAR uno que ya existe: Escanear QR → busca su código → Recargar.</p>' +
+    '</div>';
+  showModal(html);
+  var inp = document.getElementById('monedero-importe'); if (inp) try { inp.focus(); } catch (e) {}
+}
+
+/* Modal con el QR del monedero (para que el cliente le haga una foto). */
+function abreQRMonedero(id, recienCargado) {
+  var m = monederoPorId(id);
+  if (!m) return;
+  var html = '<div class="modal-qr" data-testid="qr-modal">';
+  html += recienCargado ? '<h2>✅ Monedero cargado</h2>' : '<h2>💰 Monedero</h2>';
+  html += '<p class="bono-cobrar">Saldo: <b>' + esc(money(m.saldo)) + '</b></p>';
+  html += '<p class="bono-codigo-big" data-testid="monedero-codigo">' + esc(m.codigo) + '</p>';
+  html += '<canvas id="qrCanvasMonedero" width="200" height="200"></canvas>';
+  html += '<p class="nota" style="text-align:center">Que el cliente le haga una FOTO. En la barra paga enseñándolo: el camarero lo escanea y el saldo se descuenta solo. Se recarga en la puerta.</p>';
+  html += '<div class="modal-botones"><button type="button" onclick="closeModal()">Cerrar</button></div></div>';
+  showModal(html);
+  var canvas = document.getElementById('qrCanvasMonedero');
+  if (canvas && typeof drawQR === 'function') {
+    try { drawQR(canvas, m.codigo, 200); } catch (e) {}
+  }
+}
+
+/* Movimientos de un monedero (auditoría: quién cargó/cobró qué y cuándo). */
+function abreMovsMonedero(id) {
+  var m = monederoPorId(id);
+  if (!m) return;
+  var html = '<div class="modal-qr"><h2>Movimientos · ' + esc(m.codigo) + '</h2><ul class="lista-gastos">';
+  (m.movs || []).forEach(function (v) {
+    var signo = v.t === 'gasto' ? '−' : '+';
+    html += '<li>' + esc(v.h) + ' · ' + signo + esc(money(v.imp)) + ' · ' +
+      esc(v.t === 'gasto' ? (v.det || 'consumo') : (v.t === 'carga' ? 'carga' : 'recarga')) +
+      ' <span class="nota">(' + esc(v.por || '') + ')</span></li>';
+  });
+  html += '</ul><p><b>Saldo: ' + esc(money(m.saldo)) + '</b></p>' +
+    '<div class="modal-botones"><button type="button" onclick="closeModal()">Cerrar</button></div></div>';
+  showModal(html);
+}
+
+/* Recarga desde el escáner de la puerta (el resultado del escaneo trae el formulario). */
+function recargarDesdeEscaner(id) {
+  var inp = document.getElementById('recarga-importe');
+  var importe = Math.round(Number(inp && inp.value) || 0);
+  if (!recargarMonedero(id, importe)) return;
+  var m = monederoPorId(id);
+  if (m) resolverEscaneo(m.codigo); // repinta el veredicto con el saldo nuevo
+}
+
+function duenoToggleMonedero() {
+  mutate(function (s) {
+    if (!s.config.monederoCfg) s.config.monederoCfg = { activo: false };
+    s.config.monederoCfg.activo = !s.config.monederoCfg.activo;
+    addLog((s.config.monederoCfg.activo ? 'activó' : 'desactivó') + ' el monedero prepago', 'config');
+  });
+  toast(state.config.monederoCfg.activo ? 'Monedero activado: ya sale el botón 💰 en la puerta y la barra lo acepta' : 'Monedero desactivado');
+}
+
+/* Sección del panel (Dinero): cuadre + lista de monederos. */
+function seccionMonederos() {
+  if (!monederoActivo()) return '';
+  var t = monederoTotales();
+  var lista = state.monederos || [];
+  var html = '<section class="panel" data-testid="seccion-monederos"><h2>💰 Monederos (cashless)</h2>';
+  html += '<p class="nota">El cliente carga saldo UNA vez (ese dinero ya entra en tu caja) y bebe con su QR, sin intermediarios ni comisiones. El QR no lleva el dinero: solo el código; el saldo vive aquí.</p>';
+  html += '<ul class="desglose">';
+  html += '<li data-testid="mon-cargado">Cargado (ya en caja): <b>' + esc(money(t.cargado)) + '</b></li>';
+  html += '<li data-testid="mon-gastado">Gastado en barra: <b>' + esc(money(t.gastado)) + '</b></li>';
+  html += '<li data-testid="mon-vivo">Saldo vivo (pendiente de beber): <b>' + esc(money(t.vivo)) + '</b></li>';
+  html += '</ul>';
+  html += '<button type="button" class="btn-primary" data-testid="btn-monedero-nuevo" onclick="abreMonederoPuerta()">💰 Cargar monedero nuevo</button>';
+  if (lista.length) {
+    html += '<div style="overflow-x:auto"><table class="tabla-rrpp"><thead><tr><th>Código</th><th>Saldo</th><th></th></tr></thead><tbody>';
+    lista.slice().reverse().forEach(function (m) {
+      var neg = (m.saldo || 0) < 0;
+      html += '<tr><td>' + esc(m.codigo) + '</td>' +
+        '<td' + (neg ? ' style="color:var(--rojo);font-weight:700"' : '') + '>' + esc(money(m.saldo)) + (neg ? ' ⚠' : '') + '</td>' +
+        '<td><button type="button" onclick="abreQRMonedero(\'' + escJs(m.id) + '\')">QR</button> ' +
+        '<button type="button" onclick="abreMovsMonedero(\'' + escJs(m.id) + '\')">movs</button></td></tr>';
+    });
+    html += '</tbody></table></div>';
+    html += '<p class="nota">Un saldo en rojo (negativo) solo puede pasar si dos barras cobraron a la vez sin cobertura: revísalo en "movs".</p>';
+  } else {
+    html += '<p class="lista-vacia">Aún no hay monederos. Se cargan aquí o en la puerta (botón 💰).</p>';
+  }
+  html += '</section>';
+  return html;
+}
+
+/* Sección de Ajustes: el interruptor que lo enciende para todos. */
+function seccionMonederoCfg() {
+  var on = monederoActivo();
+  var html = '<section class="panel" data-testid="seccion-monedero-cfg"><h2>💰 Monedero prepago (cashless)</h2>';
+  html += '<p class="nota">Tu sistema de cobro propio, sin bancos ni comisiones: el cliente paga UNA vez en la puerta ' +
+    '(efectivo/Bizum), se lleva un QR con su saldo, y toda la noche bebe enseñándolo. La barra descuenta sola y tú ves el cuadre en Dinero.</p>';
+  html += '<label class="switch"><input type="checkbox" id="monedero-activo"' + (on ? ' checked' : '') +
+    ' onchange="duenoToggleMonedero()"> Activar monedero (sale el botón 💰 en la puerta y la barra acepta sus códigos)</label>';
+  html += '</section>';
+  return html;
+}
+
 function seccionRecaudacion() {
   var mapa = state.recaudacionPorPerfil;
   var html = '<section class="panel" data-testid="recaudacion-terminal"><h2>Recaudación por terminal</h2><table><tbody>';
@@ -16477,6 +16812,7 @@ function duenoConfirmarCierre() {
       // Guarda las "vendidas" reales de cada RRPP AHORA (aún hay personas); tras el
       // cierre se borran y ya no se podrían recalcular. Así el CSV histórico cuadra.
       rrpp: (s.rrpp || []).map(function (r) { return Object.assign({}, JSON.parse(JSON.stringify(r)), { vendidas: rrppVendidasDe(r.slug) }); }),
+      monederos: monederoTotales(), // cuadre cashless de la noche (cargado/gastado/vivo)
       gastos: JSON.parse(JSON.stringify(s.gastos)),
       beneficioNeto: caja.total - gastosTotal,
       asistentes: dentroCount,
@@ -16486,6 +16822,8 @@ function duenoConfirmarCierre() {
     Object.keys(s.carritos).forEach(function (k) { s.carritos[k] = []; });
     Object.keys(s.recaudacionPorPerfil).forEach(function (k) { s.recaudacionPorPerfil[k] = 0; });
     s.ingresosBarra = 0;
+    s.ingresosMonederos = 0;
+    s.monederos = [];
     s.gastos = [];
     s.bonos = [];
     s.rrpp.forEach(function (r) { r.vendidas = 0; });
@@ -16523,8 +16861,14 @@ function construirCsv(d) {
   L.push("Informe: " + d.nombre, "Fecha;" + d.fecha, "");
   L.push("RESUMEN FINANCIERO");
   L.push("Taquilla;" + d.totales.taquilla, "Mesas VIP;" + d.totales.vip, "Barra;" + d.totales.barra,
+    "Monederos (cargas);" + (d.totales.monederos || 0),
     "RRPP (pendiente de entrega);" + d.totales.netoRRPP, "Total;" + d.totales.total,
     "Gastos;" + d.gastosTotal, "Beneficio neto;" + d.beneficioNeto, "");
+  if (d.monederos) {
+    L.push("MONEDEROS (CASHLESS)");
+    L.push("Cargado;" + d.monederos.cargado, "Gastado en barra;" + d.monederos.gastado,
+      "Saldo vivo (sin gastar);" + d.monederos.vivo, "");
+  }
   L.push("RECAUDACIÓN POR TERMINAL");
   Object.keys(d.recaudacionPorPerfil).forEach(function (id) {
     L.push(csvEscape(etiquetaPerfil(id)) + ";" + d.recaudacionPorPerfil[id]);
@@ -16572,6 +16916,7 @@ function duenoDescargarCsv() {
     beneficioNeto: caja.total - gastosTotal, recaudacionPorPerfil: s.recaudacionPorPerfil,
     // Cada RRPP con sus "vendidas" reales (calculadas de las personas), no el campo muerto r.vendidas.
     rrpp: (s.rrpp || []).map(function (r) { return Object.assign({}, r, { vendidas: rrppVendidasDe(r.slug) }); }),
+    monederos: monederoTotales(),
     gastos: s.gastos, personas: s.personas, log: s.log
   };
   descargarCsv("informe-" + s.config.eventName.replace(/\s+/g, "_") + ".csv", construirCsv(datos));
