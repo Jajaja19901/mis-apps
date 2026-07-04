@@ -54,7 +54,8 @@ async function bootstrap(): Promise<void> {
     settings: { icon: '⚙', title: 'Configuración', element: new SettingsPanel().element }
   };
 
-  const sidebar = h('div', { className: 'sidebar' });
+  // nace plegado: el showView('explorer') inicial lo despliega
+  const sidebar = h('div', { className: 'sidebar hidden' });
   const activityButtons = new Map<SidebarView, HTMLButtonElement>();
   const activitybar = h('div', { className: 'activitybar', role: 'navigation', ariaLabel: 'Vistas' });
 
