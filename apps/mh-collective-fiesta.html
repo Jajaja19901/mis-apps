@@ -268,6 +268,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .vista-barra h2{margin-bottom:12px}
 /* Monedero prepago (cashless) */
 .btn-monedero{border:1px solid var(--ambar);background:transparent;color:var(--ambar);font-weight:700;border-radius:var(--radius-btn);white-space:nowrap;padding:0 12px;min-height:44px}
+/* Gráficas del panel (barra de aforo + consumo por producto) */
+.barra{width:100%;height:12px;border-radius:var(--radius-pill);background:var(--border);overflow:hidden;margin-top:6px}
+.barra-fill{display:block;height:100%;background:var(--neon-verde);border-radius:var(--radius-pill);transition:width .3s}
+.consumo-item{margin-bottom:12px}
+.consumo-cab{display:flex;justify-content:space-between;gap:8px;font-size:.95rem}
+.consumo-cab b{font-weight:700}
+.consumo-item:first-of-type .barra-fill{background:var(--ambar)}
 /* NFC: pulseras/tarjetas del monedero */
 .btn-nfc{width:100%;min-height:52px;margin-bottom:10px;font-size:1.0625rem;font-weight:700;border:1px dashed var(--text-dim);border-radius:var(--radius-btn);background:transparent;color:var(--text)}
 /* Cobro por Bizum (directo a la cuenta del dueño) */
@@ -673,7 +680,15 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "submit": "#pinForm" },
     { "clickText": "Registro" },
     { "expect": "por Bizum)" } ]},
-  { "name": "NFC: botones de leer pulsera en barra y puerta, y grabar en el monedero (con aviso honesto si el móvil no puede)", "steps": [
+  { "name": "NFC apagado de serie; el dueño lo activa y salen los botones 📡 (con aviso honesto si el móvil no puede)", "steps": [
+    { "clickText": "Camarero 1" },
+    { "expectGone": "[data-testid=\"btn-nfc-barra\"]" },
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Ajustes" },
+    { "check": "#nfc-activo" },
+    { "check": "#monedero-activo" },
     { "clickText": "Camarero 1" },
     { "expectVisible": "[data-testid=\"btn-nfc-barra\"]" },
     { "click": "[data-testid=\"btn-nfc-barra\"]" },
@@ -682,17 +697,46 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "clickText": "Escanear QR" },
     { "expectVisible": "[data-testid=\"btn-nfc-escaner\"]" },
     { "clickText": "Cerrar" },
-    { "goto": "#/dueno" },
-    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
-    { "submit": "#pinForm" },
-    { "clickText": "Ajustes" },
-    { "check": "#monedero-activo" },
-    { "click": "[data-testid=\"rol-vig-1\"]" },
     { "click": "[data-testid=\"btn-monedero-puerta\"]" },
     { "fill": { "sel": "#monedero-importe", "value": "20" } },
     { "click": "[data-testid=\"btn-crear-monedero\"]" },
     { "expectVisible": "[data-testid=\"qr-modal\"]" },
-    { "expectVisible": "[data-testid=\"btn-grabar-nfc\"]" } ]}
+    { "expectVisible": "[data-testid=\"btn-grabar-nfc\"]" } ]},
+  { "name": "Datáfono físico: el camarero cobra con tarjeta usando el datáfono del dueño", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Ajustes" },
+    { "check": "#tarjeta-activa" },
+    { "fill": { "sel": "#tarjeta-app", "value": "datafono" } },
+    { "clickText": "Camarero 1" },
+    { "click": "[data-testid=\"prod-cerveza\"]" },
+    { "expect": "en efectivo" },
+    { "click": "[data-testid=\"btn-cobrar-tarjeta\"]" },
+    { "expectVisible": "[data-testid=\"modal-tarjeta\"]" },
+    { "expect": "datáfono" },
+    { "expect": "5 €" },
+    { "click": "[data-testid=\"tarjeta-cobrado\"]" },
+    { "clickText": "Dueño" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Registro" },
+    { "expect": "con tarjeta" } ]},
+  { "name": "Gráfica de consumo: el dueño ve qué se vende más y qué menos", "steps": [
+    { "clickText": "Camarero 1" },
+    { "click": "[data-testid=\"prod-copa\"]" },
+    { "click": "[data-testid=\"prod-copa\"]" },
+    { "click": "[data-testid=\"prod-chupito\"]" },
+    { "clickText": "Cobrar 22 €" },
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "expectVisible": "[data-testid=\"seccion-consumo\"]" },
+    { "expect": "Qué se consume" },
+    { "expectVisible": "[data-testid=\"consumo-copa\"]" },
+    { "expectVisible": "[data-testid=\"consumo-chupito\"]" },
+    { "expect": "2 uds · 20 €" },
+    { "expect": "1 ud · 2 €" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -13241,6 +13285,9 @@ function seedState() {
       // Cobro por Bizum: el cliente envía al número del dueño → el dinero cae DIRECTO
       // en su cuenta del banco, sin intermediarios ni comisiones. Activable en Ajustes.
       bizumCfg: { activo: false, telefono: "" },
+      // Pulseras/tarjetas NFC (leer y grabar). Apagado de serie: sin activar, los
+      // botones 📡 no aparecen en ningún sitio.
+      nfcCfg: { activo: false },
       accesoAuto: false,
       fecha: "", hora: "", lugar: "", lema: "",
       logo: null, colorTema: "#00d4ff",
@@ -13259,6 +13306,7 @@ function seedState() {
     ingresosBarra: 0,
     ingresosMonederos: 0,
     monederos: [],
+    ventasPorProducto: {}, // analítica: unidades e importe vendidos de cada producto
     gastos: [],
     bonos: [],
     historico: [],
@@ -13325,6 +13373,9 @@ function migrar(s) {
   if (!s.config.bizumCfg || typeof s.config.bizumCfg !== 'object') s.config.bizumCfg = { activo: false, telefono: '' };
   if (typeof s.config.bizumCfg.activo !== 'boolean') s.config.bizumCfg.activo = false;
   if (typeof s.config.bizumCfg.telefono !== 'string') s.config.bizumCfg.telefono = '';
+  if (!s.config.nfcCfg || typeof s.config.nfcCfg !== 'object') s.config.nfcCfg = { activo: false };
+  if (typeof s.config.nfcCfg.activo !== 'boolean') s.config.nfcCfg.activo = false;
+  if (!s.ventasPorProducto || typeof s.ventasPorProducto !== 'object') s.ventasPorProducto = {};
   if (!Array.isArray(s.monederos)) s.monederos = [];
   if (typeof s.ingresosMonederos !== 'number') s.ingresosMonederos = 0;
   if (typeof s.config.accesoAuto !== 'boolean') s.config.accesoAuto = false;
@@ -13538,6 +13589,15 @@ function personaPorCodigo(cod) {
    El saldo vive aquí, en la contabilidad compartida: cada carga y cada gasto queda
    como movimiento (quién, qué, cuándo) y el saldo es la consecuencia. Sin bancos. */
 function monederoActivo() { return !!(state.config && state.config.monederoCfg && state.config.monederoCfg.activo); }
+function nfcActivo() { return !!(state.config && state.config.nfcCfg && state.config.nfcCfg.activo); }
+/* Analítica de consumo: apunta unidades e importe por producto (para la gráfica del dueño). */
+function registrarVenta(s, prodId, nombre, uds, imp) {
+  if (!s.ventasPorProducto) s.ventasPorProducto = {};
+  var v = s.ventasPorProducto[prodId] || (s.ventasPorProducto[prodId] = { nombre: nombre, uds: 0, imp: 0 });
+  v.nombre = nombre || v.nombre;
+  v.uds += uds;
+  v.imp += imp;
+}
 function nuevoCodigoMonedero(s) {
   var seq = (s.monederos || []).length + 1;
   var base = 'MH-M-' + String(seq).padStart(3, '0');
@@ -14169,16 +14229,19 @@ function renderListaPersonasHTML() {
 }
 
 function labelAccion(p) {
+  // Con tarjeta/Bizum activos, el botón grande deja claro que cobra EN EFECTIVO
+  // (los otros métodos tienen su propio botón al lado).
+  var efvo = (tarjetaActiva() || bizumActivo()) ? "💵 " : "";
   if (p.dentro) return "Marcar salida";
   if (p.tipo === "invitado") return "Dar acceso";
   if (p.tipo === "taquilla") {
-    if ((p.importePagado || 0) === 0) return "Cobrar " + precioEntradaDe(p) + " € y entrar";
+    if ((p.importePagado || 0) === 0) return efvo + "Cobrar " + precioEntradaDe(p) + " € y entrar" + (efvo ? " (efectivo)" : "");
     return "Dar acceso";
   }
   if (p.tipo === "vip") {
     var mesa = p.mesa || {};
     var pend = (mesa.total || 0) - (p.importePagado || 0);
-    if (pend > 0) return "Cobrar pendiente (" + pend + " €) y entrar";
+    if (pend > 0) return efvo + "Cobrar pendiente (" + pend + " €) y entrar" + (efvo ? " (efectivo)" : "");
     return "Dar acceso";
   }
   return "Dar acceso";
@@ -14307,6 +14370,7 @@ function cobrarYEntrar(id, importe, metodo) {
 function tarjetaActiva() { return !!(state.config && state.config.tarjetaCfg && state.config.tarjetaCfg.activa); }
 function tarjetaAppNombre() {
   var app = (state.config.tarjetaCfg && state.config.tarjetaCfg.app) || 'sumup';
+  if (app === 'datafono') return 'el datáfono';
   return app === 'sumup' ? 'SumUp' : 'tu app de cobro';
 }
 /* Enlace que abre la app de cobro con el importe puesto (si el proveedor lo permite). */
@@ -14317,21 +14381,26 @@ function tarjetaDeepLink(importe) {
     return 'sumupmerchant://pay/1.0?amount=' + cant + '&currency=EUR&title=' +
       encodeURIComponent((state.config.eventName || 'Fiesta'));
   }
-  return null; // "otra app": se abre a mano, el modal enseña el importe bien grande
+  return null; // datáfono físico u "otra app": el modal enseña el importe bien grande
 }
 var _tarjetaPend = null; // qué registrar cuando el trabajador confirme "ya está cobrado"
 function abrirCobroTarjeta(importe, concepto, onOk) {
   _tarjetaPend = onOk;
   var link = tarjetaDeepLink(importe);
   var nombreApp = tarjetaAppNombre();
+  var esDatafono = ((state.config.tarjetaCfg && state.config.tarjetaCfg.app) || 'sumup') === 'datafono';
   var html = '<div class="modal-tarjeta" data-testid="modal-tarjeta">' +
     '<h2>💳 Cobro con tarjeta</h2>' +
     '<p class="tarjeta-importe" data-testid="tarjeta-importe">' + esc(money(importe)) + '</p>' +
     '<p class="nota">' + esc(concepto) + '</p>' +
     '<ol class="tarjeta-pasos">' +
-    '<li>Abre <b>' + esc(nombreApp) + '</b> y pon ese importe si no sale solo.</li>' +
-    '<li>El cliente <b>acerca su tarjeta o móvil</b> al teléfono.</li>' +
-    '<li>Cuando la app diga pagado, vuelve aquí y confirma.</li>' +
+    (esDatafono
+      ? '<li>Teclea <b>' + esc(money(importe)) + '</b> en el <b>datáfono</b>.</li>' +
+        '<li>El cliente paga con su tarjeta o móvil en el datáfono.</li>' +
+        '<li>Cuando el datáfono diga pagado, confirma aquí.</li>'
+      : '<li>Abre <b>' + esc(nombreApp) + '</b> y pon ese importe si no sale solo.</li>' +
+        '<li>El cliente <b>acerca su tarjeta o móvil</b> al teléfono.</li>' +
+        '<li>Cuando la app diga pagado, vuelve aquí y confirma.</li>') +
     '</ol>' +
     (link ? '<a class="btn-primary btn-abrir-app" data-testid="tarjeta-abrir" href="' + esc(link) + '">Abrir ' + esc(nombreApp) + '</a>' : '') +
     '<div class="modal-botones">' +
@@ -15016,8 +15085,8 @@ function abreEscaner() {
   html += '<div class="modal-escaner">';
   html += "<h2>Escanear QR</h2>";
   html += '<button type="button" class="btn-camara" data-testid="btn-camara" onclick="escanearConCamara(function(c){var i=document.getElementById(\'qr-codigo\');if(i)i.value=c;resolverEscaneo(c,true);})">📷 Escanear con cámara</button>';
-  html += '<button type="button" class="btn-nfc" data-testid="btn-nfc-escaner" onclick="nfcLeerEscaner()">📡 Leer pulsera/tarjeta NFC</button>';
-  html += '<p id="escanerAviso">Haz una foto al QR, acerca una pulsera NFC, o teclea el código a mano.</p>';
+  if (nfcActivo()) html += '<button type="button" class="btn-nfc" data-testid="btn-nfc-escaner" onclick="nfcLeerEscaner()">📡 Leer pulsera/tarjeta NFC</button>';
+  html += '<p id="escanerAviso">' + (nfcActivo() ? 'Haz una foto al QR, acerca una pulsera NFC, o teclea el código a mano.' : 'Haz una foto al QR, o teclea el código a mano.') + '</p>';
   html += '<div id="escanerVideoWrap"></div>';
   html += '<form id="qrForm">';
   html += '<label for="qr-codigo">Código</label>';
@@ -15292,7 +15361,10 @@ function renderBarra() {
   }
 
   var cobrarDisabled = carrito.length === 0;
-  var cobrarTexto = cobrarDisabled ? 'Carrito vacío' : 'Cobrar ' + money(total);
+  // Si hay más formas de pago activas, el botón verde deja claro que es EN EFECTIVO.
+  var hayOtrosPagos = tarjetaActiva() || bizumActivo();
+  var cobrarTexto = cobrarDisabled ? 'Carrito vacío'
+    : (hayOtrosPagos ? '💵 Cobrar ' + money(total) + ' en efectivo' : 'Cobrar ' + money(total));
 
   vista.innerHTML =
     '<section class="vista-barra">' +
@@ -15325,7 +15397,7 @@ function renderBarra() {
       '<div class="consumiciones-panel" data-testid="consumiciones">' +
         '<h3>Consumiciones y bonos</h3>' +
         '<button type="button" class="btn-camara" data-testid="btn-camara-barra" onclick="abreEscanerBarra()">📷 Escanear con cámara</button>' +
-        '<button type="button" class="btn-nfc" data-testid="btn-nfc-barra" onclick="nfcLeerBarra()">📡 Leer pulsera/tarjeta NFC</button>' +
+        (nfcActivo() ? '<button type="button" class="btn-nfc" data-testid="btn-nfc-barra" onclick="nfcLeerBarra()">📡 Leer pulsera/tarjeta NFC</button>' : '') +
         '<form id="consForm" onsubmit="return consBuscar()">' +
           '<input id="cons-codigo" type="text" placeholder="Código (ej: MH-301-AG)" autocomplete="off" value="' + esc(_consCod) + '">' +
           '<button type="submit">Ver</button>' +
@@ -15530,6 +15602,7 @@ function barraCobrar(metodo) {
       var ri = pr ? (pr.refrescosIncluidos || 0) : 0;
       partes.push(l.qty + '× ' + l.nombre + (ri > 0 ? ' (incluye ' + (ri * l.qty) + ' refrescos)' : ''));
       refrescosServir += ri * l.qty;
+      registrarVenta(s, l.prodId, l.nombre, l.qty, l.precio * l.qty); // analítica de consumo
     }
 
     if (s.config.modulos && s.config.modulos.stock) {
@@ -15585,8 +15658,8 @@ function renderDueno() {
   function intro(t) { return '<p class="tab-intro">' + t + '</p>'; }
   var tabs = [
     { id: 'resumen', label: '📊 Resumen', build: function () {
-        return intro('De un vistazo: cuánta gente hay dentro, cuánto dinero llevas y cuánto ha recaudado cada trabajador.') +
-          seccionKpis() + seccionRecaudacion();
+        return intro('De un vistazo: cuánta gente hay dentro, cuánto dinero llevas, qué se consume más y cuánto ha recaudado cada trabajador.') +
+          seccionKpis() + seccionConsumo() + seccionRecaudacion();
       } },
     { id: 'entradas', label: '🎟️ Entradas', build: function () {
         return intro('Toca cada bloque para abrirlo. Lo importante primero: entradas con nombre y entradas generales (remesas).') +
@@ -15605,7 +15678,7 @@ function renderDueno() {
       } },
     { id: 'ajustes', label: '⚙️ Ajustes', build: function () {
         return intro('Prepara la fiesta: nombre, precios, productos de barra, cuántos trabajadores y qué funciones activar.') +
-          seccionConfig() + seccionProductos() + seccionPersonal() + seccionMonederoCfg() + seccionBizumCfg() + seccionTarjeta() + seccionModulos();
+          seccionConfig() + seccionProductos() + seccionPersonal() + seccionMonederoCfg() + seccionBizumCfg() + seccionTarjeta() + seccionNfcCfg() + seccionModulos();
       } },
     { id: 'registro', label: '📋 Registro', build: function () {
         return intro('El historial de todo (no se puede borrar) y el cierre de la fiesta al terminar.') +
@@ -16333,13 +16406,14 @@ function seccionTarjeta() {
   html += '<label class="switch"><input type="checkbox" id="tarjeta-activa"' + (t.activa ? ' checked' : '') +
     ' onchange="duenoToggleTarjeta()"> Activar cobro con tarjeta (les aparece el botón 💳 al camarero y al vigilante)</label>';
   if (t.activa) {
-    html += '<label>App de cobro <select id="tarjeta-app" onchange="duenoTarjetaApp(this.value)">' +
-      '<option value="sumup"' + (t.app === 'sumup' ? ' selected' : '') + '>SumUp (recomendada: iPhone y Android)</option>' +
-      '<option value="otra"' + (t.app === 'otra' ? ' selected' : '') + '>Otra app (el trabajador la abre a mano)</option>' +
+    html += '<label>¿Con qué se cobra? <select id="tarjeta-app" onchange="duenoTarjetaApp(this.value)">' +
+      '<option value="datafono"' + (t.app === 'datafono' ? ' selected' : '') + '>Datáfono físico (el tuyo de siempre)</option>' +
+      '<option value="sumup"' + (t.app === 'sumup' ? ' selected' : '') + '>SumUp en el móvil (iPhone y Android)</option>' +
+      '<option value="otra"' + (t.app === 'otra' ? ' selected' : '') + '>Otra app de cobro (se abre a mano)</option>' +
       '</select></label>';
-    html += '<p class="nota">Necesitas una cuenta de negocio en esa app (alta con tu DNI; cobran una pequeña comisión por venta, ~1,5-2%). ' +
-      'Los móviles necesitan NFC (iPhone XS o posterior; casi cualquier Android). El dinero de tarjeta llega a esa cuenta, no a la caja física: ' +
-      'en el Registro cada cobro queda marcado "con tarjeta" para que cuadres caja al cierre.</p>';
+    html += '<p class="nota">Con <b>datáfono</b>: el trabajador teclea el importe en tu datáfono y confirma en la app; no hace falta nada más. ' +
+      'Con <b>SumUp</b>: el móvil del trabajador hace de datáfono (cuenta de negocio con tu DNI, ~1,5-2% de comisión). ' +
+      'En ambos casos el cobro queda marcado "con tarjeta" en el Registro para que cuadres caja al cierre.</p>';
   }
   html += '</section>';
   return html;
@@ -16355,9 +16429,31 @@ function duenoToggleTarjeta() {
 function duenoTarjetaApp(valor) {
   mutateSilent(function (s) {
     if (!s.config.tarjetaCfg) s.config.tarjetaCfg = { activa: true, app: 'sumup' };
-    s.config.tarjetaCfg.app = valor === 'otra' ? 'otra' : 'sumup';
-    addLog('cambió la app de cobro con tarjeta a ' + (s.config.tarjetaCfg.app === 'sumup' ? 'SumUp' : 'otra app'), 'config');
+    s.config.tarjetaCfg.app = (valor === 'otra' || valor === 'datafono') ? valor : 'sumup';
+    var nombre = s.config.tarjetaCfg.app === 'sumup' ? 'SumUp' : (s.config.tarjetaCfg.app === 'datafono' ? 'datáfono físico' : 'otra app');
+    addLog('cambió el cobro con tarjeta a ' + nombre, 'config');
   });
+}
+
+/* ---------- Pulseras NFC (activable: sin esto, los botones 📡 no existen) ---------- */
+function seccionNfcCfg() {
+  var on = nfcActivo();
+  var html = '<section class="panel" data-testid="seccion-nfc"><h2>📡 Pulseras / tarjetas NFC</h2>';
+  html += '<p class="nota">Estilo festival: el código del monedero (o de una entrada) se graba en una pulsera NFC y el cliente ' +
+    'paga o entra ACERCÁNDOLA al móvil del trabajador. Requiere móviles Android en el personal y comprar las pulseras ' +
+    '(pack barato, tipo NTAG213). Sin activar esto, los botones 📡 no aparecen en ningún sitio.</p>';
+  html += '<label class="switch"><input type="checkbox" id="nfc-activo"' + (on ? ' checked' : '') +
+    ' onchange="duenoToggleNfc()"> Activar pulseras NFC (botones 📡 de leer y grabar)</label>';
+  html += '</section>';
+  return html;
+}
+function duenoToggleNfc() {
+  mutate(function (s) {
+    if (!s.config.nfcCfg) s.config.nfcCfg = { activo: false };
+    s.config.nfcCfg.activo = !s.config.nfcCfg.activo;
+    addLog((s.config.nfcCfg.activo ? 'activó' : 'desactivó') + ' las pulseras NFC', 'config');
+  });
+  toast(state.config.nfcCfg.activo ? 'NFC activado: ya salen los botones 📡 de leer y grabar' : 'NFC desactivado');
 }
 
 /* ---------- Cobro por Bizum (directo a la cuenta del dueño, sin intermediarios) ---------- */
@@ -16658,6 +16754,7 @@ function venderBonoBarra() {
     // El bono vendido SIEMPRE cuenta como venta de barra (aunque el precio sea 0, queda registrado).
     s.ingresosBarra = (s.ingresosBarra || 0) + precio;
     s.recaudacionPorPerfil[s.perfilActivo] = (s.recaudacionPorPerfil[s.perfilActivo] || 0) + precio;
+    registrarVenta(s, '_bono', 'Bono de ' + copas + ' copas', 1, precio); // analítica de consumo
     addLog('vendió bono ' + codigo + ' de ' + copas + ' copas (' + precio + ' €)', 'cobro');
   });
   toast(precio > 0 ? ('Bono vendido · cobra ' + money(precio)) : 'Bono vendido');
@@ -16797,6 +16894,7 @@ function monederoCobrarCarrito(id) {
       var ri = pr ? (pr.refrescosIncluidos || 0) : 0;
       partes.push(l.qty + '× ' + l.nombre);
       refrescosServir += ri * l.qty;
+      registrarVenta(s, l.prodId, l.nombre, l.qty, l.precio * l.qty); // analítica de consumo
     }
     if ((q.saldo || 0) < tot) return; // re-comprobación dentro de la mutación (por si llegó otro gasto)
     if (s.config.modulos && s.config.modulos.stock) {
@@ -16844,8 +16942,10 @@ function abreQRMonedero(id, recienCargado) {
   html += '<p class="bono-codigo-big" data-testid="monedero-codigo">' + esc(m.codigo) + '</p>';
   html += '<canvas id="qrCanvasMonedero" width="200" height="200"></canvas>';
   html += '<p class="nota" style="text-align:center">Que el cliente le haga una FOTO. En la barra paga enseñándolo: el camarero lo escanea y el saldo se descuenta solo. Se recarga en la puerta.</p>';
-  html += '<button type="button" class="btn-nfc" data-testid="btn-grabar-nfc" onclick="nfcGrabarCodigo(\'' + escJs(m.codigo) + '\')">📡 Grabar en pulsera/tarjeta NFC</button>';
-  html += '<p class="nota" style="text-align:center">Con pulsera, el cliente ni saca el móvil: la acerca al del camarero y pagado (móviles del personal: Android).</p>';
+  if (nfcActivo()) {
+    html += '<button type="button" class="btn-nfc" data-testid="btn-grabar-nfc" onclick="nfcGrabarCodigo(\'' + escJs(m.codigo) + '\')">📡 Grabar en pulsera/tarjeta NFC</button>';
+    html += '<p class="nota" style="text-align:center">Con pulsera, el cliente ni saca el móvil: la acerca al del camarero y pagado (móviles del personal: Android).</p>';
+  }
   html += '<div class="modal-botones"><button type="button" onclick="closeModal()">Cerrar</button></div></div>';
   showModal(html);
   var canvas = document.getElementById('qrCanvasMonedero');
@@ -16927,6 +17027,34 @@ function seccionMonederoCfg() {
     '(efectivo/Bizum), se lleva un QR con su saldo, y toda la noche bebe enseñándolo. La barra descuenta sola y tú ves el cuadre en Dinero.</p>';
   html += '<label class="switch"><input type="checkbox" id="monedero-activo"' + (on ? ' checked' : '') +
     ' onchange="duenoToggleMonedero()"> Activar monedero (sale el botón 💰 en la puerta y la barra acepta sus códigos)</label>';
+  html += '</section>';
+  return html;
+}
+
+/* ---------- Analítica: qué consume la gente (gráfica de barras, sin librerías) ---------- */
+function seccionConsumo() {
+  var vp = state.ventasPorProducto || {};
+  var items = Object.keys(vp).map(function (k) {
+    var v = vp[k] || {};
+    return { id: k, nombre: v.nombre || k, uds: v.uds || 0, imp: v.imp || 0 };
+  }).filter(function (i) { return i.uds > 0; })
+    .sort(function (a, b) { return b.imp - a.imp || b.uds - a.uds; });
+  var html = '<section class="panel" data-testid="seccion-consumo"><h2>📊 Qué se consume</h2>';
+  if (!items.length) {
+    html += '<p class="lista-vacia">Aún no hay ventas de barra. En cuanto se venda algo verás aquí qué se pide más y qué menos.</p></section>';
+    return html;
+  }
+  var maxImp = items[0].imp || 1;
+  var totUds = 0, totImp = 0;
+  items.forEach(function (i) { totUds += i.uds; totImp += i.imp; });
+  items.forEach(function (i) {
+    var pct = Math.max(4, Math.round((i.imp / maxImp) * 100));
+    html += '<div class="consumo-item" data-testid="consumo-' + esc(i.id) + '">' +
+      '<div class="consumo-cab"><span>' + esc(i.nombre) + '</span><b>' + (i.uds === 1 ? '1 ud' : i.uds + ' uds') + ' · ' + esc(money(i.imp)) + '</b></div>' +
+      '<div class="barra"><div class="barra-fill" style="width:' + pct + '%"></div></div></div>';
+  });
+  html += '<p class="nota">Ordenado por dinero que mueve (la barra dorada es lo que más). Total: <b>' + totUds + ' uds · ' +
+    esc(money(totImp)) + '</b>. Cuenta todo: efectivo, tarjeta, Bizum y monedero.</p>';
   html += '</section>';
   return html;
 }
@@ -17046,6 +17174,7 @@ function duenoConfirmarCierre() {
       // cierre se borran y ya no se podrían recalcular. Así el CSV histórico cuadra.
       rrpp: (s.rrpp || []).map(function (r) { return Object.assign({}, JSON.parse(JSON.stringify(r)), { vendidas: rrppVendidasDe(r.slug) }); }),
       monederos: monederoTotales(), // cuadre cashless de la noche (cargado/gastado/vivo)
+      ventasPorProducto: JSON.parse(JSON.stringify(s.ventasPorProducto || {})), // qué se consumió
       gastos: JSON.parse(JSON.stringify(s.gastos)),
       beneficioNeto: caja.total - gastosTotal,
       asistentes: dentroCount,
@@ -17057,6 +17186,7 @@ function duenoConfirmarCierre() {
     s.ingresosBarra = 0;
     s.ingresosMonederos = 0;
     s.monederos = [];
+    s.ventasPorProducto = {};
     s.gastos = [];
     s.bonos = [];
     s.rrpp.forEach(function (r) { r.vendidas = 0; });
@@ -17101,6 +17231,13 @@ function construirCsv(d) {
     L.push("MONEDEROS (CASHLESS)");
     L.push("Cargado;" + d.monederos.cargado, "Gastado en barra;" + d.monederos.gastado,
       "Saldo vivo (sin gastar);" + d.monederos.vivo, "");
+  }
+  if (d.ventasPorProducto && Object.keys(d.ventasPorProducto).length) {
+    L.push("CONSUMO POR PRODUCTO", "Producto;Unidades;Importe");
+    Object.keys(d.ventasPorProducto).map(function (k) { return d.ventasPorProducto[k]; })
+      .sort(function (a, b) { return (b.imp || 0) - (a.imp || 0); })
+      .forEach(function (v) { L.push(csvEscape(v.nombre) + ";" + (v.uds || 0) + ";" + (v.imp || 0)); });
+    L.push("");
   }
   L.push("RECAUDACIÓN POR TERMINAL");
   Object.keys(d.recaudacionPorPerfil).forEach(function (id) {
@@ -17150,6 +17287,7 @@ function duenoDescargarCsv() {
     // Cada RRPP con sus "vendidas" reales (calculadas de las personas), no el campo muerto r.vendidas.
     rrpp: (s.rrpp || []).map(function (r) { return Object.assign({}, r, { vendidas: rrppVendidasDe(r.slug) }); }),
     monederos: monederoTotales(),
+    ventasPorProducto: s.ventasPorProducto || {},
     gastos: s.gastos, personas: s.personas, log: s.log
   };
   descargarCsv("informe-" + s.config.eventName.replace(/\s+/g, "_") + ".csv", construirCsv(datos));
