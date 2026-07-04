@@ -268,6 +268,27 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .vista-barra h2{margin-bottom:12px}
 /* Monedero prepago (cashless) */
 .btn-monedero{border:1px solid var(--ambar);background:transparent;color:var(--ambar);font-weight:700;border-radius:var(--radius-btn);white-space:nowrap;padding:0 12px;min-height:44px}
+/* Portada de entrada (contraseña + logo) */
+#accesoGate{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:24px;
+  background:radial-gradient(1100px 760px at 50% -12%, rgba(0,212,138,.16), transparent 60%),
+             radial-gradient(900px 700px at 50% 118%, rgba(176,38,255,.16), transparent 60%), #06060b}
+#accesoGate.on{display:flex}
+.gate-card{width:100%;max-width:380px;text-align:center;animation:gateIn .5s ease}
+@keyframes gateIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.gate-logo{width:132px;height:132px;margin:0 auto 20px;border-radius:30px;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;background:#0d0d15;box-shadow:0 0 0 1px var(--border),0 0 70px rgba(0,212,138,.4)}
+.gate-logo img,.gate-logo svg{width:100%;height:100%;object-fit:cover}
+.gate-title{font-size:1.8rem;font-weight:800;letter-spacing:.4px;margin:0 0 4px}
+.gate-sub{color:var(--text-dim);font-size:.95rem;margin-bottom:24px}
+#accesoGate form{display:flex;flex-direction:column;gap:12px}
+#accesoGate input{min-height:56px;text-align:center;font-size:1.1rem;border-radius:14px;border:1px solid var(--border);background:#0d0d15;color:#fff}
+#accesoGate input:focus{outline:none;border-color:var(--neon-verde);box-shadow:0 0 0 3px rgba(0,212,138,.2)}
+.gate-btn{min-height:56px;font-size:1.1rem;font-weight:800;border:none;border-radius:14px;cursor:pointer;
+  background:linear-gradient(135deg,var(--neon-verde),#00b39f);color:#04140e;box-shadow:0 0 34px rgba(0,212,138,.4)}
+.gate-err{color:var(--rojo);font-size:.9rem;min-height:18px;margin:0}
+.gate-foot{margin-top:24px;color:var(--text-dim);font-size:.78rem;opacity:.85}
+.gate-shake{animation:gateShake .4s}
+@keyframes gateShake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-9px)}40%,80%{transform:translateX(9px)}}
 /* Gráficas del panel (barra de aforo + consumo por producto) */
 .barra{width:100%;height:12px;border-radius:var(--radius-pill);background:var(--border);overflow:hidden;margin-top:6px}
 .barra-fill{display:block;height:100%;background:var(--neon-verde);border-radius:var(--radius-pill);transition:width .3s}
@@ -298,6 +319,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 </style>
 </head>
 <body>
+<div id="accesoGate" aria-hidden="true"></div>
 <header id="topbar">
 <span id="logoBox"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MH Collective"><rect width="200" height="200" rx="28" fill="#111119" stroke="#333340" stroke-width="2"/><text x="100" y="118" font-family="-apple-system,Segoe UI,sans-serif" font-size="72" font-weight="800" fill="#ffffff" text-anchor="middle">MH</text></svg></span>
 <div id="rolChips"></div>
@@ -13224,6 +13246,10 @@ var CONFIG = {
   STUDIO_AUTHOR: "Jaime M. M.",
   STUDIO_URL: "#",
 
+  // Contraseña de ENTRADA a la web (portada con logo antes de ver nada). Cámbiala aquí,
+  // o desde el panel (Dueño → Ajustes → 🔒 Contraseña de entrada). Vacía "" = sin portada.
+  ACCESO_PASSWORD: "mhcollective",
+
   // ===== Sincronización en la nube con Firebase =====
   // Pega aquí la cajita "firebaseConfig" de tu proyecto (Firebase → ⚙ Configuración del proyecto
   // → "Tus apps"). Mientras siga con los "PEGA_...", la app funciona SOLO en este móvil (sin nube).
@@ -13316,6 +13342,7 @@ function seedState() {
       precioMesaVip: CONFIG.PRECIO_MESA_VIP,
       nVigilantes: 2,
       nCamareros: 2,
+      accesoClave: CONFIG.ACCESO_PASSWORD, // contraseña de la portada de entrada
       claves: {}, // contraseña propia de cada trabajador (vig-1, cam-2…); vacío = sin contraseña
       modulos: { qr: true, cierre: true, gastos: true, stock: true },
       productos: seedProductos(),
@@ -13400,6 +13427,7 @@ function migrar(s) {
   if (s.config.nVigilantes === undefined) s.config.nVigilantes = 2;
   if (s.config.nCamareros === undefined) s.config.nCamareros = 2;
   if (!s.config.claves || typeof s.config.claves !== "object") s.config.claves = {};
+  if (typeof s.config.accesoClave !== "string") s.config.accesoClave = CONFIG.ACCESO_PASSWORD;
   if (!s.config.modulos) {
     s.config.modulos = { qr: true, cierre: true, gastos: true, stock: true };
   }
@@ -14211,9 +14239,80 @@ function capturarTokenDeEnlace() {
 }
 
 /* ---------- Arranque ---------- */
+/* ===== PORTADA DE ENTRADA (contraseña + logo, antes de ver la app) ===== */
+function accesoClave() {
+  var c = (state && state.config && typeof state.config.accesoClave === 'string') ? state.config.accesoClave : CONFIG.ACCESO_PASSWORD;
+  return String(c || '').trim();
+}
+/* Desbloqueo recordado EN ESTE MÓVIL (no se sincroniza). Si cambia la contraseña, se re-pide. */
+function accesoDesbloqueado() {
+  try { return localStorage.getItem('mh_acceso_ok') === accesoClave(); } catch (e) { return false; }
+}
+function _emblemaMH() {
+  return '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MH Collective">' +
+    '<rect width="200" height="200" rx="28" fill="#0d0d15"/>' +
+    '<text x="100" y="126" font-family="-apple-system,Segoe UI,sans-serif" font-size="86" font-weight="800" fill="#ffffff" text-anchor="middle">MH</text></svg>';
+}
+function mostrarGate() {
+  var gate = document.getElementById('accesoGate');
+  if (!gate) return;
+  var nombre = (state.config && state.config.eventName) || 'MH Collective';
+  gate.innerHTML =
+    '<div class="gate-card">' +
+      '<div class="gate-logo" id="gateLogo">' + _emblemaMH() + '</div>' +
+      '<div class="gate-title">' + esc(nombre) + '</div>' +
+      '<div class="gate-sub">Acceso del equipo</div>' +
+      '<form id="gateForm" onsubmit="return entrarAcceso(event)">' +
+        '<input id="gate-pass" type="password" autocomplete="off" placeholder="Contraseña de entrada" aria-label="Contraseña de entrada">' +
+        '<p class="gate-err" id="gate-err" data-testid="gate-err"></p>' +
+        '<button type="submit" class="gate-btn" data-testid="gate-entrar">Entrar</button>' +
+      '</form>' +
+      '<div class="gate-foot">' + esc(CONFIG.STUDIO_BRAND) + ' · por ' + esc(CONFIG.STUDIO_AUTHOR) + '</div>' +
+    '</div>';
+  gate.classList.add('on');
+  gate.setAttribute('aria-hidden', 'false');
+  // Logo: el que subió el dueño > el icono del servidor (icon-512.png) > el emblema MH.
+  var box = document.getElementById('gateLogo');
+  var logo = state.config && state.config.logo;
+  if (logo && box) {
+    box.innerHTML = '<img src="' + esc(logo) + '" alt="MH">';
+  } else if (box) {
+    var im = new Image();
+    im.alt = 'MH';
+    im.onload = function () { box.innerHTML = ''; box.appendChild(im); };
+    im.onerror = function () {}; // si no está el icono, se queda el emblema MH
+    im.src = 'icon-512.png';
+  }
+  var inp = document.getElementById('gate-pass'); if (inp) try { inp.focus(); } catch (e) {}
+}
+function ocultarGate() {
+  var gate = document.getElementById('accesoGate');
+  if (gate) { gate.classList.remove('on'); gate.setAttribute('aria-hidden', 'true'); gate.innerHTML = ''; }
+}
+function entrarAcceso(ev) {
+  if (ev && ev.preventDefault) ev.preventDefault();
+  var val = (document.getElementById('gate-pass') || {}).value || '';
+  if (String(val).trim() === accesoClave()) {
+    try { localStorage.setItem('mh_acceso_ok', accesoClave()); } catch (e) {}
+    ocultarGate();
+  } else {
+    var err = document.getElementById('gate-err'); if (err) err.textContent = 'Contraseña incorrecta';
+    var card = document.querySelector('.gate-card');
+    if (card) { card.classList.remove('gate-shake'); void card.offsetWidth; card.classList.add('gate-shake'); }
+    var inp = document.getElementById('gate-pass'); if (inp) { inp.value = ''; try { inp.focus(); } catch (e) {} }
+  }
+  return false;
+}
+/* Puerta: si hay contraseña de entrada y este móvil no la ha metido, muestra la portada. */
+function chequearAcceso() {
+  if (accesoClave() && !accesoDesbloqueado()) mostrarGate();
+  else ocultarGate();
+}
+
 function bootApp() {
   capturarTokenDeEnlace();
   load();
+  chequearAcceso();
   precargarCartel();
   aplicarLogo();
   window.addEventListener('hashchange', renderApp);
@@ -15795,7 +15894,7 @@ function renderDueno() {
       } },
     { id: 'ajustes', label: '⚙️ Ajustes', build: function () {
         return intro('Prepara la fiesta: nombre, precios, productos de barra, cuántos trabajadores y qué funciones activar.') +
-          seccionConfig() + seccionProductos() + seccionPersonal() + seccionMonederoCfg() + seccionBizumCfg() + seccionTarjeta() + seccionNfcCfg() + seccionModulos();
+          seccionConfig() + seccionAccesoCfg() + seccionProductos() + seccionPersonal() + seccionMonederoCfg() + seccionBizumCfg() + seccionTarjeta() + seccionNfcCfg() + seccionModulos();
       } },
     { id: 'registro', label: '📋 Registro', build: function () {
         return intro('El historial de todo (no se puede borrar) y el cierre de la fiesta al terminar.') +
@@ -16577,6 +16676,21 @@ function duenoTarjetaApp(valor) {
     var nombre = s.config.tarjetaCfg.app === 'sumup' ? 'SumUp' : (s.config.tarjetaCfg.app === 'datafono' ? 'datáfono físico' : 'otra app');
     addLog('cambió el cobro con tarjeta a ' + nombre, 'config');
   });
+}
+
+/* ---------- Contraseña de entrada a la web (portada con logo) ---------- */
+function seccionAccesoCfg() {
+  var clave = (state.config && typeof state.config.accesoClave === 'string') ? state.config.accesoClave : CONFIG.ACCESO_PASSWORD;
+  var html = '<section class="panel" data-testid="seccion-acceso"><h2>🔒 Contraseña de entrada a la web</h2>';
+  html += '<p class="nota">Antes de ver la app, sale una portada con tu logo que pide esta contraseña. Compártela solo con tu equipo. ' +
+    'Se recuerda en cada móvil hasta que la cambies. Déjala vacía para quitar la portada.</p>';
+  html += '<label>Contraseña de entrada<input type="text" id="acceso-clave" value="' + esc(clave) + '" oninput="duenoAccesoClave(this.value)" placeholder="Ej: mhcollective"></label>';
+  html += '<p class="nota">💡 ¿Quieres tu logo real en la portada (y como icono al instalar)? Súbelo en <b>Configuración → Subir logo</b>: sale al momento en la portada, la barra y el icono.</p>';
+  html += '</section>';
+  return html;
+}
+function duenoAccesoClave(valor) {
+  mutateSilent(function (s) { s.config.accesoClave = String(valor || ''); });
 }
 
 /* ---------- Pulseras NFC (activable: sin esto, los botones 📡 no existen) ---------- */

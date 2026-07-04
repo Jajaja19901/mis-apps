@@ -106,6 +106,12 @@ function ctxOf(frame) {
 async function load() {
   await page.goto(fileUrl, { waitUntil: "networkidle0", timeout: 30000 });
   await sleep(300);
+  // Portada de entrada: en las pruebas se desbloquea sola (no es lo que se está probando aquí;
+  // el flujo de la portada tiene su propia prueba dedicada).
+  await page.evaluate(() => {
+    try { if (typeof accesoClave === "function") localStorage.setItem("mh_acceso_ok", accesoClave()); } catch (e) {}
+    if (typeof ocultarGate === "function") ocultarGate();
+  }).catch(() => {});
 }
 
 // ===== Tests de aceptación por app (DSL embebido en <script type="application/json" id="acceptance-tests">) =====
