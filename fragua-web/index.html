@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#111418" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Fragua" />
+<title>Fragua Móvil</title>
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="icon" href="./icon.svg" />
+<link rel="apple-touch-icon" href="./icon.svg" />
+<style>
+  /* Fragua Móvil — asistente de código con IA en la nube, mobile-first.
+     Todo el CSS va inline; sin librerías externas. Tema oscuro con acento
+     naranja, objetivos táctiles grandes y área segura para notch. */
+  :root {
+    --bg: #111418;
+    --panel: #181c22;
+    --raised: #1f242c;
+    --hover: #262c36;
+    --border: #2a313c;
+    --text: #d7dde6;
+    --dim: #8b95a3;
+    --accent: #e2823a;
+    --accent-soft: rgba(226, 130, 58, 0.16);
+    --ok: #4cc38a;
+    --error: #e06c75;
+    --mono: 'SF Mono', Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font-family: var(--sans);
+    font-size: 16px;
+    color: var(--text);
+    background: var(--bg);
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
+  }
+  button {
+    font: inherit; color: inherit; cursor: pointer;
+    background: var(--raised); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px; min-height: 44px;
+  }
+  button:active { background: var(--hover); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #16100a; font-weight: 700; }
+  button.ghost { background: transparent; border: none; }
+  button.small { min-height: 36px; padding: 6px 10px; font-size: 14px; border-radius: 8px; }
+  button:disabled { opacity: 0.5; }
+  input, textarea, select {
+    font: inherit; color: var(--text); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 10px; padding: 12px; width: 100%;
+  }
+  input:focus, textarea:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  a { color: var(--accent); }
+  code, pre { font-family: var(--mono); }
+
+  #app { display: flex; flex-direction: column; height: 100dvh; }
+
+  /* ---- Barra superior ---- */
+  .topbar {
+    display: flex; align-items: center; gap: 6px;
+    padding: calc(var(--safe-top) + 8px) 10px 8px;
+    background: var(--panel); border-bottom: 1px solid var(--border);
+  }
+  .topbar .title { flex: 1; font-weight: 700; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .topbar button { min-height: 40px; min-width: 40px; padding: 8px; }
+  .iconbtn { background: transparent; border: none; font-size: 20px; display: grid; place-items: center; }
+
+  /* ---- Zona de mensajes ---- */
+  .messages { flex: 1; overflow-y: auto; padding: 14px 12px 4px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { max-width: 100%; }
+  .msg .who { font-size: 12px; color: var(--dim); margin-bottom: 4px; }
+  .msg .bubble { border: 1px solid var(--border); border-radius: 14px; padding: 11px 13px; background: var(--raised); overflow-wrap: break-word; }
+  .msg.user .bubble { background: var(--accent-soft); border-color: transparent; }
+  .bubble p { margin: 0 0 9px; line-height: 1.5; }
+  .bubble p:last-child { margin-bottom: 0; }
+  .bubble h3, .bubble h4 { margin: 12px 0 6px; }
+  .bubble ul, .bubble ol { margin: 4px 0 9px; padding-left: 22px; }
+  .bubble li { margin: 2px 0; }
+  .bubble code { background: var(--bg); padding: 1px 5px; border-radius: 4px; font-size: 14px; }
+  .bubble blockquote { margin: 6px 0; padding: 4px 12px; border-left: 3px solid var(--accent); color: var(--dim); }
+  .codecard { margin: 10px 0; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--bg); }
+  .codecard .head { display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; font-size: 12px; color: var(--dim); border-bottom: 1px solid var(--border); }
+  .codecard pre { margin: 0; padding: 11px; overflow-x: auto; font-size: 13px; line-height: 1.45; }
+  .codecard pre code { background: none; padding: 0; }
+  .codecard .actions { display: flex; gap: 6px; padding: 8px 10px; flex-wrap: wrap; border-top: 1px solid var(--border); }
+  .empty-hint { color: var(--dim); text-align: center; padding: 24px 16px; line-height: 1.6; }
+  .empty-hint h2 { color: var(--text); margin: 8px 0; }
+
+  /* ---- Sugerencias rápidas ---- */
+  .chips { display: flex; gap: 8px; padding: 4px 12px 8px; overflow-x: auto; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: 0 0 auto; background: var(--raised); border: 1px solid var(--border); border-radius: 999px; padding: 8px 13px; font-size: 14px; min-height: 40px; }
+
+  /* ---- Barra de escritura ---- */
+  .compose { border-top: 1px solid var(--border); background: var(--panel); padding: 8px 10px calc(var(--safe-bottom) + 8px); }
+  .compose .row { display: flex; gap: 8px; align-items: flex-end; }
+  .compose textarea { resize: none; max-height: 140px; min-height: 46px; border-radius: 14px; }
+  .compose .send { flex: 0 0 auto; min-width: 52px; }
+  .status-line { font-size: 12px; color: var(--dim); padding: 4px 2px 0; display: flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dim); }
+  .dot.ok { background: var(--ok); } .dot.error { background: var(--error); }
+
+  /* ---- Paneles a pantalla completa (ajustes / conversaciones) ---- */
+  .sheet { position: fixed; inset: 0; background: var(--bg); z-index: 40; display: flex; flex-direction: column; transform: translateX(100%); transition: transform .22s ease; }
+  .sheet.open { transform: translateX(0); }
+  .sheet.left { transform: translateX(-100%); }
+  .sheet.left.open { transform: translateX(0); }
+  .sheet .head { display: flex; align-items: center; gap: 8px; padding: calc(var(--safe-top) + 10px) 12px 10px; border-bottom: 1px solid var(--border); background: var(--panel); }
+  .sheet .head .title { flex: 1; font-weight: 700; font-size: 17px; }
+  .sheet .body { flex: 1; overflow-y: auto; padding: 14px 14px calc(var(--safe-bottom) + 20px); }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 13px; color: var(--dim); margin-bottom: 6px; }
+  .field .help { font-size: 12px; color: var(--dim); margin-top: 6px; line-height: 1.5; }
+  .steps { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; line-height: 1.6; }
+  .steps ol { margin: 6px 0 0; padding-left: 20px; }
+  .steps li { margin: 6px 0; }
+  .badge { display: inline-block; background: var(--accent-soft); color: var(--accent); border-radius: 6px; padding: 2px 7px; font-size: 12px; font-weight: 600; }
+
+  .convo-item { border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 10px; background: var(--raised); display: flex; align-items: center; gap: 10px; }
+  .convo-item .info { flex: 1; overflow: hidden; }
+  .convo-item .t { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .convo-item .s { font-size: 12px; color: var(--dim); margin-top: 2px; }
+  .convo-item.active { border-color: var(--accent); }
+
+  /* ---- Modal de vista previa ---- */
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 50; display: flex; flex-direction: column; }
+  .modal .bar { display: flex; align-items: center; gap: 8px; padding: calc(var(--safe-top) + 10px) 12px 10px; background: var(--panel); border-bottom: 1px solid var(--border); }
+  .modal .bar .title { flex: 1; font-weight: 700; }
+  .modal iframe { flex: 1; border: 0; width: 100%; background: #fff; }
+
+  .toast { position: fixed; left: 50%; bottom: calc(var(--safe-bottom) + 80px); transform: translateX(-50%); background: var(--raised); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 10px; padding: 10px 16px; font-size: 14px; z-index: 60; max-width: 90vw; box-shadow: 0 8px 30px rgba(0,0,0,.5); }
+  .toast.error { border-left-color: var(--error); }
+  .toast.ok { border-left-color: var(--ok); }
+  .spin { display: inline-block; animation: sp 1s linear infinite; }
+  @keyframes sp { to { transform: rotate(360deg); } }
+  .footer-note { text-align: center; font-size: 11px; color: var(--dim); padding: 10px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="topbar">
+    <button class="iconbtn" id="btn-menu" aria-label="Conversaciones">☰</button>
+    <div class="title" id="conv-title">Fragua Móvil</div>
+    <button class="iconbtn" id="btn-new" aria-label="Nueva conversación">✎</button>
+    <button class="iconbtn" id="btn-settings" aria-label="Ajustes">⚙</button>
+  </div>
+
+  <div class="messages" id="messages"></div>
+
+  <div class="chips" id="chips"></div>
+
+  <div class="compose">
+    <div class="row">
+      <textarea id="input" rows="1" placeholder="Pide una web, una app, código…" aria-label="Mensaje"></textarea>
+      <button class="primary send" id="btn-send" aria-label="Enviar">➤</button>
+    </div>
+    <div class="status-line"><span class="dot" id="conn-dot"></span><span id="conn-text">Sin configurar</span></div>
+  </div>
+</div>
+
+<!-- Panel de conversaciones -->
+<div class="sheet left" id="sheet-convos" aria-hidden="true">
+  <div class="head">
+    <div class="title">Conversaciones</div>
+    <button class="small" id="convos-new">Nueva</button>
+    <button class="iconbtn" id="convos-close" aria-label="Cerrar">✕</button>
+  </div>
+  <div class="body" id="convos-list"></div>
+</div>
+
+<!-- Panel de ajustes -->
+<div class="sheet" id="sheet-settings" aria-hidden="true">
+  <div class="head">
+    <div class="title">Ajustes</div>
+    <button class="iconbtn" id="settings-close" aria-label="Cerrar">✕</button>
+  </div>
+  <div class="body">
+    <div class="steps" style="margin-bottom:18px">
+      <strong>Conecta una IA gratis en 3 pasos</strong>
+      <ol>
+        <li>Entra en <a href="https://openrouter.ai" target="_blank" rel="noopener">openrouter.ai</a> y crea una cuenta gratis.</li>
+        <li>Ve a <span class="badge">Keys</span> → <em>Create Key</em> y copia la clave (empieza por <code>sk-or-…</code>).</li>
+        <li>Pégala abajo y pulsa Guardar. ¡Listo!</li>
+      </ol>
+      <div class="help">Los modelos con <span class="badge">:free</span> son gratuitos (tienen un límite de uso al día). Tu clave se guarda <strong>solo en este teléfono</strong>.</div>
+    </div>
+
+    <div class="field">
+      <label for="set-key">Clave API (OpenRouter)</label>
+      <input id="set-key" type="password" placeholder="sk-or-v1-…" autocomplete="off" />
+      <div class="help">También sirven otras IAs compatibles (cambia la URL base abajo).</div>
+    </div>
+
+    <div class="field">
+      <label for="set-model">Modelo</label>
+      <input id="set-model" list="model-list" placeholder="deepseek/deepseek-chat-v3-0324:free" />
+      <datalist id="model-list">
+        <option value="deepseek/deepseek-chat-v3-0324:free">DeepSeek V3 (chino, gratis)</option>
+        <option value="deepseek/deepseek-r1-0528:free">DeepSeek R1 razonador (gratis)</option>
+        <option value="qwen/qwen-2.5-coder-32b-instruct:free">Qwen 2.5 Coder 32B (Alibaba, gratis)</option>
+        <option value="meta-llama/llama-3.3-70b-instruct:free">Llama 3.3 70B (gratis)</option>
+      </datalist>
+      <div class="help">¿Cuáles hay gratis hoy? <a href="https://openrouter.ai/models?max_price=0" target="_blank" rel="noopener">Ver lista actual</a>. Si uno falla, prueba otro.</div>
+    </div>
+
+    <details class="field">
+      <summary style="cursor:pointer;color:var(--dim)">Opciones avanzadas</summary>
+      <div style="margin-top:12px">
+        <label for="set-url">URL base del proveedor</label>
+        <input id="set-url" placeholder="https://openrouter.ai/api/v1" />
+        <div class="help">Cualquier servidor compatible con OpenAI (OpenRouter, tu PC con Ollama, etc.).</div>
+      </div>
+      <div style="margin-top:12px">
+        <label for="set-temp">Creatividad (0 = preciso, 1 = creativo)</label>
+        <input id="set-temp" type="number" min="0" max="1" step="0.1" value="0.3" />
+      </div>
+    </details>
+
+    <button class="primary" id="settings-save" style="width:100%">Guardar</button>
+    <button id="settings-check" style="width:100%; margin-top:10px">Comprobar conexión</button>
+    <div id="settings-status" class="help" style="margin-top:10px"></div>
+
+    <div class="footer-note">Fragua Móvil · privacidad: tu clave y tus datos viven solo en este dispositivo. Al usar una IA en la nube, tus mensajes se envían a ese servicio.</div>
+  </div>
+</div>
+
+<script src="./app.js"></script>
+</body>
+</html>
