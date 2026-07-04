@@ -766,7 +766,19 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
     { "clickText": "Registro" },
-    { "expect": "Vodka limón" } ]}
+    { "expect": "Vodka limón" } ]},
+  { "name": "Invitación 'ya pagada' a 0 € NO se vuelve a cobrar en la puerta", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "click": "[data-testid=\"tab-entradas\"]" },
+    { "fill": { "sel": "#remesa-cantidad", "value": "5" } },
+    { "fill": { "sel": "#remesa-precio", "value": "0" } },
+    { "fill": { "sel": "#remesa-etiqueta", "value": "InvitisGratis" } },
+    { "click": "[data-testid=\"btn-crear-remesa\"]" },
+    { "click": "[data-testid=\"rol-vig-1\"]" },
+    { "fill": { "sel": "#buscador", "value": "InvitisGratis" } },
+    { "expect": "Dar acceso" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -13631,6 +13643,9 @@ function personaPorCodigo(cod) {
    El saldo vive aquí, en la contabilidad compartida: cada carga y cada gasto queda
    como movimiento (quién, qué, cuándo) y el saldo es la consecuencia. Sin bancos. */
 function monederoActivo() { return !!(state.config && state.config.monederoCfg && state.config.monederoCfg.activo); }
+/* Se reconocen códigos de monedero si la función está activa O si YA hay monederos
+   cargados (así, si el dueño la apaga a media fiesta, nadie se queda con saldo atrapado). */
+function monederoUsable() { return monederoActivo() || ((state.monederos || []).length > 0); }
 function nfcActivo() { return !!(state.config && state.config.nfcCfg && state.config.nfcCfg.activo); }
 /* Analítica de consumo: apunta unidades e importe por producto (para la gráfica del dueño). */
 function registrarVenta(s, prodId, nombre, uds, imp) {
@@ -13743,6 +13758,31 @@ function adoptarRemoto(remoto) {
   persistLocal();
   renderApp();
   return quedan.length;
+}
+
+/* Calcula (SIN tocar el estado global de forma permanente) el estado = remoto + mis
+   acciones pendientes que aún no estén en él. Clave: apunta `state` a la copia mientras
+   re-aplica, para que los helpers globales (personaPorId, s.perfilActivo, addLog…) operen
+   sobre esa copia y no sobre el estado viejo. Se usa para construir lo que se SUBE en modo
+   Firebase (la transacción), sin perder acciones ni marcarlas como aplicadas en falso. */
+function fusionarPendientesSobre(remotoObj) {
+  var copia;
+  try { copia = JSON.parse(JSON.stringify(remotoObj)); } catch (e) { return remotoObj; }
+  var prev = state;
+  var perfilLocal = prev ? prev.perfilActivo : null;
+  state = copia;
+  if (perfilLocal) state.perfilActivo = perfilLocal; // re-aplicar MIS acciones con MI rol/carrito
+  try {
+    var pend = (window.__mhSync && window.__mhSync.pendientes) || [];
+    for (var i = 0; i < pend.length; i++) {
+      var p = pend[i];
+      if (opAplicada(state, p.opId)) continue;
+      try { p.fn(state); state.version = (state.version || 0) + 1; } catch (e) { /* no re-aplicable */ }
+    }
+  } finally {
+    state = prev; // restaura SIEMPRE el estado global de este móvil
+  }
+  return copia;
 }
 
 /* ---------- Personal dinámico (llamar envuelto en mutate) ---------- */
@@ -14098,13 +14138,15 @@ function initFirebaseSync() {
       return t.get(docRef).then(function (snap) {
         var remoto = (snap && snap.exists) ? (snap.data() || {}) : {};
         var base;
-        try { base = remoto.data ? JSON.parse(remoto.data) : JSON.parse(JSON.stringify(state)); }
-        catch (e) { base = JSON.parse(JSON.stringify(state)); }
-        // Re-aplico sobre lo remoto SOLO mis acciones que aún no estén (idempotente por opId).
-        (window.__mhSync.pendientes || []).forEach(function (p) {
-          if (opAplicada(base, p.opId)) return;
-          try { p.fn(base); base.version = (base.version || 0) + 1; } catch (e) {}
-        });
+        if (remoto.data) {
+          // Hay estado remoto: fusiono MIS pendientes encima (con state apuntando a la copia,
+          // así los helpers globales operan bien y nada se marca aplicado en falso).
+          try { base = fusionarPendientesSobre(JSON.parse(remoto.data)); }
+          catch (e) { base = JSON.parse(JSON.stringify(state)); }
+        } else {
+          // Remoto vacío (primer móvil): siembro con mi estado local completo (ya tiene todo).
+          base = JSON.parse(JSON.stringify(state));
+        }
         t.set(docRef, { data: serializarEstado(base), version: (remoto.version || 0) + 1, ts: Date.now() });
       });
     }).then(function () {
@@ -14270,6 +14312,11 @@ function renderListaPersonasHTML() {
   return html;
 }
 
+/* Una entrada de taquilla está LIQUIDADA (no hay que cobrarle) si está marcada
+   pagada O ya abonó algo. Usar el flag `pagado` es clave para las invitaciones
+   "ya pagadas" a 0 € (importePagado 0 pero pagado true): si no, la puerta las
+   cobraría otra vez a tarifa general. */
+function taquillaLiquidada(p) { return !!(p && (p.pagado || (p.importePagado || 0) > 0)); }
 function labelAccion(p) {
   // Con tarjeta/Bizum activos, el botón grande deja claro que cobra EN EFECTIVO
   // (los otros métodos tienen su propio botón al lado).
@@ -14277,7 +14324,7 @@ function labelAccion(p) {
   if (p.dentro) return "Marcar salida";
   if (p.tipo === "invitado") return "Dar acceso";
   if (p.tipo === "taquilla") {
-    if ((p.importePagado || 0) === 0) return efvo + "Cobrar " + precioEntradaDe(p) + " € y entrar" + (efvo ? " (efectivo)" : "");
+    if (!taquillaLiquidada(p)) return efvo + "Cobrar " + precioEntradaDe(p) + " € y entrar" + (efvo ? " (efectivo)" : "");
     return "Dar acceso";
   }
   if (p.tipo === "vip") {
@@ -14312,7 +14359,7 @@ function renderPersonaCard(p) {
       escJs(p.id) + "')\">" + esc(labelAccion(p)) + "</button>";
   // Cobros sin efectivo (si el dueño los activó y hay algo que cobrar): 💳 y/o 📲 al lado.
   if (!p.dentro && (tarjetaActiva() || bizumActivo())) {
-    var pendTarj = p.tipo === 'taquilla' ? ((p.importePagado || 0) === 0 ? precioEntradaDe(p) : 0)
+    var pendTarj = p.tipo === 'taquilla' ? (!taquillaLiquidada(p) ? precioEntradaDe(p) : 0)
       : (p.tipo === 'vip' ? Math.max(0, ((p.mesa || {}).total || 0) - (p.importePagado || 0)) : 0);
     if (pendTarj > 0) {
       if (tarjetaActiva()) {
@@ -14364,7 +14411,7 @@ function accionPrincipal(id) {
   if (p.dentro) { marcarSalida(id); return; }
   if (p.tipo === "invitado") { darAccesoSimple(id, "Invitado"); return; }
   if (p.tipo === "taquilla") {
-    if ((p.importePagado || 0) === 0) cobrarYEntrar(id, precioEntradaDe(p));
+    if (!taquillaLiquidada(p)) cobrarYEntrar(id, precioEntradaDe(p));
     else darAccesoSimple(id, "Taquilla");
     return;
   }
@@ -14464,7 +14511,7 @@ function accionPrincipalTarjeta(id) {
   var p = personaPorId(id);
   if (!p || p.dentro) return;
   var importe = 0;
-  if (p.tipo === 'taquilla' && (p.importePagado || 0) === 0) importe = precioEntradaDe(p);
+  if (p.tipo === 'taquilla' && !taquillaLiquidada(p)) importe = precioEntradaDe(p);
   else if (p.tipo === 'vip') importe = Math.max(0, ((p.mesa || {}).total || 0) - (p.importePagado || 0));
   if (importe <= 0) { accionPrincipal(id); return; }
   abrirCobroTarjeta(importe, 'Entrada de ' + p.nombre + ' ' + p.apellido, function () {
@@ -14516,7 +14563,7 @@ function accionPrincipalBizum(id) {
   var p = personaPorId(id);
   if (!p || p.dentro) return;
   var importe = 0;
-  if (p.tipo === 'taquilla' && (p.importePagado || 0) === 0) importe = precioEntradaDe(p);
+  if (p.tipo === 'taquilla' && !taquillaLiquidada(p)) importe = precioEntradaDe(p);
   else if (p.tipo === 'vip') importe = Math.max(0, ((p.mesa || {}).total || 0) - (p.importePagado || 0));
   if (importe <= 0) { accionPrincipal(id); return; }
   abrirCobroBizum(importe, 'Entrada de ' + p.nombre + ' ' + p.apellido, function () {
@@ -14608,29 +14655,33 @@ function onExpressSubmit(ev) {
   var acompanantes = acompEl ? parseInt(acompEl.value || "0", 10) : 0;
   if (isNaN(acompanantes)) acompanantes = 0;
   var nuevoId = "p" + Date.now();
+  var codigo = nuevoCodigoLista(state); // fijo fuera del mutate (no se regenera al sincronizar)
+  var actor = state.perfilActivo;
+  // Cuánto hay que cobrar en mano por este alta (taquilla = entrada; VIP = mesa; invitado = 0).
+  var cobro = tipo === "taquilla" ? (state.config.precioEntrada || 0) : (tipo === "vip" ? (state.config.precioMesaVip || 0) : 0);
   mutate(function (s) {
     var n = s.personas.length;
     var persona = {
       id: nuevoId,
       nombre: nombre, apellido: apellido, tipo: tipo,
-      codigoReserva: nuevoCodigoLista(s),
+      codigoReserva: codigo,
       mesa: null, pagado: false, importePagado: 0, dentro: true, horaEntrada: nowHM()
     };
     if (tipo === "taquilla") {
-      persona.importePagado = s.config.precioEntrada;
+      persona.importePagado = cobro;
       persona.pagado = true;
-      s.recaudacionPorPerfil[s.perfilActivo] = (s.recaudacionPorPerfil[s.perfilActivo] || 0) + s.config.precioEntrada;
+      s.recaudacionPorPerfil[actor] = (s.recaudacionPorPerfil[actor] || 0) + cobro;
     } else if (tipo === "vip") {
-      persona.mesa = { numero: n + 1, acompanantesPermitidos: acompanantes, acompanantesDentro: 0, total: s.config.precioMesaVip, adelantado: 0 };
-      persona.importePagado = s.config.precioMesaVip;
+      persona.mesa = { numero: n + 1, acompanantesPermitidos: acompanantes, acompanantesDentro: 0, total: cobro, adelantado: 0 };
+      persona.importePagado = cobro;
       persona.pagado = true;
-      s.recaudacionPorPerfil[s.perfilActivo] = (s.recaudacionPorPerfil[s.perfilActivo] || 0) + s.config.precioMesaVip;
+      s.recaudacionPorPerfil[actor] = (s.recaudacionPorPerfil[actor] || 0) + cobro;
     }
     s.personas.push(persona);
-    addLog("registró alta express " + nombre + " " + apellido + " (" + tipo + ")", "alta");
+    addLog("registró alta express " + nombre + " " + apellido + " (" + tipo + ")" + (cobro > 0 ? ' · cobró ' + cobro + ' €' : ''), "alta");
   });
   closeModal();
-  toast("Persona registrada y dentro");
+  toast(cobro > 0 ? ('Dentro · cóbrale ' + money(cobro)) : "Persona registrada y dentro");
   _busq = "";
   // Enseña al momento su QR/código (para copas incluidas y reentradas): 0 pasos extra en puerta.
   if (state.config && state.config.modulos && state.config.modulos.qr) {
@@ -15028,24 +15079,6 @@ function descargarPdfsRemesa(etiqueta) {
   })(0);
 }
 
-function compartirQR(canvas, p) {
-  if (!canvas) return;
-  try {
-    if (navigator.share && canvas.toBlob) {
-      canvas.toBlob(function (blob) {
-        if (!blob) return;
-        try {
-          var file = new File([blob], "qr-" + p.codigoReserva + ".png", { type: "image/png" });
-          if (navigator.canShare && !navigator.canShare({ files: [file] })) { descargarCanvas(canvas, p); return; }
-          navigator.share({ files: [file], title: p.nombre + " " + p.apellido, text: p.codigoReserva }).catch(function () {});
-        } catch (e) { descargarCanvas(canvas, p); }
-      });
-    } else {
-      descargarCanvas(canvas, p);
-    }
-  } catch (e) { descargarCanvas(canvas, p); }
-}
-
 function descargarCanvas(canvas, p) {
   try {
     var a = document.createElement("a");
@@ -15227,7 +15260,7 @@ function resolverEscaneo(valor, deCamara) {
   var p = personaPorCodigo(valor);
   if (!p) {
     // ¿Es un monedero? En puerta se enseña el saldo y se puede RECARGAR aquí mismo.
-    var mon = monederoPorCodigo(valor);
+    var mon = monederoUsable() ? monederoPorCodigo(valor) : null;
     if (mon) {
       if (out) out.innerHTML = '<div class="scan-res scan-ok"><b class="scan-verde">💰 MONEDERO</b>' +
         '<span>' + esc(mon.codigo) + ' · Saldo: <b data-testid="scan-mon-saldo">' + esc(money(mon.saldo)) + '</b></span></div>' +
@@ -15262,7 +15295,7 @@ function resolverEscaneo(valor, deCamara) {
     return;
   }
   // VÁLIDO y aún fuera: estado de pago + acción directa.
-  var pagada = (p.importePagado || 0) > 0 || p.tipo === "invitado";
+  var pagada = p.tipo === "invitado" || (p.tipo === "taquilla" ? taquillaLiquidada(p) : (p.importePagado || 0) > 0);
   var linea = p.tipo === "invitado"
     ? '<b class="scan-verde">✔ INVITADO (gratis)</b>'
     : (pagada ? '<b class="scan-verde">✔ PAGADA</b>' : '<b class="scan-ambar">€ SIN PAGAR · cobra ' + esc(p.tipo === "vip" ? ((p.mesa.total || 0) - (p.importePagado || 0)) : precioEntradaDe(p)) + ' €</b>');
@@ -15385,7 +15418,7 @@ function renderBarra() {
 
   var lineasHtml = carrito.map(function (l) {
     var vSlug = l.variante ? '-' + _slugVariante(l.variante) : '';
-    var vArg = l.variante ? ',\'' + escJs(l.variante) + '\'' : '';
+    var vArg = l.variante ? ',\'' + esc(escJs(l.variante)) + '\'' : '';
     return '<div class="carrito-linea">' +
       '<span class="cl-nombre">' + esc(l.nombre) + '</span>' +
       '<span class="cl-qty">x' + l.qty + '</span>' +
@@ -15514,7 +15547,7 @@ function consBuscar() {
     return false;
   }
   // Monedero prepago: enseña el saldo y cobra el CARRITO de ese saldo.
-  var mon = (!p && cod) ? monederoPorCodigo(cod) : null;
+  var mon = (!p && cod && monederoUsable()) ? monederoPorCodigo(cod) : null;
   if (mon) {
     var carritoM = state.carritos[state.perfilActivo] || [];
     var totalM = 0;
@@ -15605,7 +15638,7 @@ function barraElegirVariante(prodId) {
   var html = '<div class="modal-qr" data-testid="modal-variantes"><h2>' + esc(prod.nombre) + ' · ¿cuál?</h2>';
   (prod.variantes || []).forEach(function (v) {
     html += '<button type="button" class="btn-primary btn-variante" data-testid="var-' + esc(_slugVariante(v)) +
-      '" onclick="closeModal();barraAgregar(\'' + escJs(prodId) + '\',\'' + escJs(v) + '\')">' + esc(v) + '</button>';
+      '" onclick="closeModal();barraAgregar(\'' + esc(escJs(prodId)) + '\',\'' + esc(escJs(v)) + '\')">' + esc(v) + '</button>';
   });
   html += '<div class="modal-botones"><button type="button" onclick="closeModal()">Cancelar</button></div></div>';
   showModal(html);
@@ -15615,6 +15648,16 @@ function barraAgregar(prodId, variante) {
   // Pregunta el tipo SOLO si el dueño activó esa opción (de normal, marca directo:
   // menos ajetreo para el camarero). El precio es el mismo para todos los tipos.
   if (state.config.preguntarTipo && prodV && (prodV.variantes || []).length && variante === undefined) { barraElegirVariante(prodId); return; }
+  // Tope de stock: no dejar meter en el carrito más unidades de las que quedan (avisa en vez de callar).
+  if (state.config.modulos && state.config.modulos.stock && prodV) {
+    var carritoActual = state.carritos[state.perfilActivo] || [];
+    var yaEnCarrito = 0;
+    for (var c = 0; c < carritoActual.length; c++) if (carritoActual[c].prodId === prodId) yaEnCarrito += carritoActual[c].qty;
+    if (yaEnCarrito + 1 > (prodV.stock || 0)) {
+      toast((prodV.stock || 0) <= 0 ? (prodV.nombre + ': agotado') : ('Solo quedan ' + prodV.stock + ' de ' + prodV.nombre));
+      return;
+    }
+  }
   mutate(function (s) {
     var perfil = s.perfilActivo;
     var carrito = s.carritos[perfil] || (s.carritos[perfil] = []);
@@ -15844,7 +15887,7 @@ function duenoProductoCampo(id, campo, valor) {
     else if (campo === 'variantes') {
       pr.variantes = String(valor || '').split(',').map(function (v) { return v.trim(); }).filter(Boolean);
     }
-    else pr[campo] = Number(valor) || 0;
+    else pr[campo] = Math.max(0, Number(valor) || 0); // nunca negativo (precio/refrescos)
   });
 }
 function duenoBorrarProducto(id) {
@@ -16195,7 +16238,7 @@ function entradasListaHTML() {
 /* Filtro reutilizable de "Entradas creadas" (lo usan la lista y el borrado en bloque). */
 function entradasFiltradas() {
   var lista = state.personas.filter(function (p) {
-    if (_entFiltro === 'pendientes') { if (p.tipo === 'invitado') return false; var pend = p.tipo === 'vip' ? ((p.mesa.total || 0) - (p.importePagado || 0)) : ((p.importePagado || 0) === 0 ? 1 : 0); return pend > 0; }
+    if (_entFiltro === 'pendientes') { if (p.tipo === 'invitado') return false; var pend = p.tipo === 'vip' ? ((p.mesa.total || 0) - (p.importePagado || 0)) : (taquillaLiquidada(p) ? 0 : 1); return pend > 0; }
     if (_entFiltro === 'pagadas') return (p.importePagado || 0) > 0 || p.tipo === 'invitado';
     if (_entFiltro.indexOf('serie:') === 0) return p.remesa === _entFiltro.slice(6);
     if (_entFiltro.indexOf('rrpp:') === 0) return p.rrppSlug === _entFiltro.slice(5);
@@ -16208,6 +16251,10 @@ function entradasFiltradas() {
   return lista;
 }
 function duenoBorrarEntrada(id) {
+  var p0 = personaPorId(id);
+  var quien = p0 ? ((p0.nombre + ' ' + p0.apellido).trim() || p0.codigoReserva) : 'esta entrada';
+  var aviso = (p0 && (p0.importePagado || 0) > 0) ? '\n\nOJO: tenía ' + money(p0.importePagado) + ' cobrados; al borrarla, ese dinero baja de la caja.' : '';
+  if (typeof confirm === 'function' && !confirm('¿Borrar la entrada de ' + quien + '?' + aviso)) return;
   mutate(function (s) {
     var i = s.personas.findIndex(function (x) { return x.id === id; });
     if (i >= 0) { var p = s.personas[i]; addLog('borró la entrada de ' + ((p.nombre + ' ' + p.apellido).trim() || p.codigoReserva), 'config'); s.personas.splice(i, 1); }
@@ -16217,6 +16264,9 @@ function duenoBorrarEntrada(id) {
 function duenoBorrarEntradasFiltro() {
   var ids = entradasFiltradas().map(function (p) { return p.id; });
   if (!ids.length) return;
+  var cobrado = entradasFiltradas().reduce(function (a, p) { return a + (p.importePagado || 0); }, 0);
+  var aviso = cobrado > 0 ? '\n\nOJO: entre ellas hay ' + money(cobrado) + ' cobrados; al borrarlas, ese dinero baja de la caja.' : '';
+  if (typeof confirm === 'function' && !confirm('Vas a borrar ' + ids.length + ' entradas. Esto NO se puede deshacer.' + aviso)) return;
   mutate(function (s) {
     s.personas = s.personas.filter(function (p) { return ids.indexOf(p.id) === -1; });
     addLog('borró ' + ids.length + ' entradas (borrado en bloque)', 'config');
@@ -16750,17 +16800,8 @@ function duenoBorrarRrpp(slug) {
   toast('Promotor quitado');
 }
 
-function duenoRrppVendidas(slug, delta) {
-  mutate(function (s) {
-    var r = s.rrpp.find(function (x) { return x.slug === slug; });
-    if (!r) return;
-    r.vendidas = Math.max(0, r.vendidas + delta);
-    addLog("asignó " + (delta > 0 ? "+1" : "-1") + " entrada vendida a RRPP " + r.nombre, "rrpp");
-  });
-}
-
 function duenoRrppCampo(slug, campo, valor) {
-  var num = Number(valor) || 0;
+  var num = Math.max(0, Number(valor) || 0); // precio/comisión nunca negativos
   mutateSilent(function (s) {
     var r = s.rrpp.find(function (x) { return x.slug === slug; });
     if (!r || num === r[campo]) return;
@@ -16840,14 +16881,15 @@ function venderBonoBarra() {
   var copas = bc.copas || 5;
   var precio = Number(bc.precio) || 0;
   var nuevoId = 'b' + Date.now();
+  var codigo = nuevoCodigoBono(state, copas); // fijo fuera del mutate (no se regenera al sincronizar)
+  var actor = state.perfilActivo;
   mutate(function (s) {
     if (!s.bonos) s.bonos = [];
-    var codigo = nuevoCodigoBono(s, copas);
     s.bonos.push({ id: nuevoId, codigo: codigo, copas: copas, usadas: 0,
       etiqueta: 'Vendido en barra', hora: nowHM(), anulado: false, precio: precio, vendido: true });
     // El bono vendido SIEMPRE cuenta como venta de barra (aunque el precio sea 0, queda registrado).
     s.ingresosBarra = (s.ingresosBarra || 0) + precio;
-    s.recaudacionPorPerfil[s.perfilActivo] = (s.recaudacionPorPerfil[s.perfilActivo] || 0) + precio;
+    s.recaudacionPorPerfil[actor] = (s.recaudacionPorPerfil[actor] || 0) + precio;
     registrarVenta(s, '_bono', 'Bono de ' + copas + ' copas', 1, precio); // analítica de consumo
     addLog('vendió bono ' + codigo + ' de ' + copas + ' copas (' + precio + ' €)', 'cobro');
   });
@@ -16860,10 +16902,11 @@ function crearBono(ev) {
   var copas = parseInt(document.getElementById('bono-copas').value || '0', 10);
   var etiqueta = (document.getElementById('bono-etiqueta').value || '').trim();
   if (!copas || copas < 1) { toast('Pon el nº de copas'); return false; }
+  var nuevoId = 'b' + Date.now();
+  var codigo = nuevoCodigoBono(state, copas); // fijo fuera del mutate (no se regenera al sincronizar)
   mutate(function (s) {
     if (!s.bonos) s.bonos = [];
-    var codigo = nuevoCodigoBono(s, copas);
-    s.bonos.push({ id: 'b' + Date.now(), codigo: codigo, copas: copas, usadas: 0,
+    s.bonos.push({ id: nuevoId, codigo: codigo, copas: copas, usadas: 0,
       etiqueta: etiqueta, hora: nowHM(), anulado: false });
     addLog('creó bono de ' + copas + ' copas (' + codigo + (etiqueta ? ' · ' + etiqueta : '') + ')', 'config');
   });
@@ -16932,13 +16975,16 @@ function crearMonedero() {
   var importe = Math.round(Number(inp && inp.value) || 0);
   if (importe <= 0) { toast('Pon el importe que te ha dado el cliente'); return; }
   var nuevoId = 'm' + Date.now();
+  // El código y el actor se fijan AQUÍ (fuera del mutate): si la acción se re-aplica
+  // al sincronizar, usa el MISMO código que ya fotografió el cliente (no se regenera).
+  var codigo = nuevoCodigoMonedero(state);
+  var actor = actorActual();
   mutate(function (s) {
     if (!s.monederos) s.monederos = [];
-    var codigo = nuevoCodigoMonedero(s);
     s.monederos.push({ id: nuevoId, codigo: codigo, saldo: importe, hora: nowHM(),
-      movs: [{ h: nowHM(), t: 'carga', imp: importe, por: etiquetaPerfil(actorActual()) }] });
+      movs: [{ h: nowHM(), t: 'carga', imp: importe, por: etiquetaPerfil(actor) }] });
     s.ingresosMonederos = (s.ingresosMonederos || 0) + importe;
-    s.recaudacionPorPerfil[actorActual()] = (s.recaudacionPorPerfil[actorActual()] || 0) + importe;
+    s.recaudacionPorPerfil[actor] = (s.recaudacionPorPerfil[actor] || 0) + importe;
     addLog('cargó monedero ' + codigo + ' con ' + importe + ' €', 'cobro');
   });
   toast('Monedero cargado con ' + money(importe));
@@ -17089,7 +17135,7 @@ function duenoToggleMonedero() {
 
 /* Sección del panel (Dinero): cuadre + lista de monederos. */
 function seccionMonederos() {
-  if (!monederoActivo()) return '';
+  if (!monederoUsable()) return ''; // visible si está activo o si hay monederos que gestionar
   var t = monederoTotales();
   var lista = state.monederos || [];
   var html = '<section class="panel" data-testid="seccion-monederos"><h2>💰 Monederos (cashless)</h2>';
@@ -17110,7 +17156,7 @@ function seccionMonederos() {
         '<button type="button" onclick="abreMovsMonedero(\'' + escJs(m.id) + '\')">movs</button></td></tr>';
     });
     html += '</tbody></table></div>';
-    html += '<p class="nota">Un saldo en rojo (negativo) solo puede pasar si dos barras cobraron a la vez sin cobertura: revísalo en "movs".</p>';
+    html += '<p class="nota">El saldo nunca baja de 0: si dos barras cobran a la vez del mismo monedero sin cobertura, el segundo cobro se rechaza al reconciliarse. Cualquier duda, mira los "movs" de ese monedero.</p>';
   } else {
     html += '<p class="lista-vacia">Aún no hay monederos. Se cargan aquí o en la puerta (botón 💰).</p>';
   }
@@ -17314,6 +17360,9 @@ function seccionHistorico() {
 
 function csvEscape(v) {
   var s = String(v === null || v === undefined ? "" : v);
+  // Anti "fórmula CSV": si empieza por = + - @ (o tab/CR), Excel/LibreOffice lo
+  // ejecutarían como fórmula. Se antepone un apóstrofo para que sea texto plano.
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
   if (/[",\n;]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
   return s;
 }
@@ -17399,7 +17448,8 @@ function duenoDescargarCsvHistorico(id) {
     nombre: h.nombre, fecha: h.fecha, totales: h.totales,
     gastosTotal: h.gastos.reduce(function (a, g) { return a + g.importe; }, 0),
     beneficioNeto: h.beneficioNeto, recaudacionPorPerfil: h.recaudacionPorPerfil,
-    rrpp: h.rrpp, gastos: h.gastos, asistentes: h.asistentes, log: h.log
+    rrpp: h.rrpp, monederos: h.monederos, ventasPorProducto: h.ventasPorProducto,
+    gastos: h.gastos, asistentes: h.asistentes, log: h.log
   };
   descargarCsv("informe-" + h.nombre.replace(/\s+/g, "_") + "-" + h.id + ".csv", construirCsv(datos));
 }
@@ -17422,7 +17472,7 @@ function duenoAyuda() {
     '<li>Entra como Dueño con el PIN y ajusta nombre, aforo y precios en Configuración.</li>' +
     '<li>Vigilantes usan #/puerta; camareros usan #/barra (TPV). Cambia de rol en los chips de arriba.</li>' +
     '<li>Ajusta el nº de vigilantes/camareros y activa/desactiva módulos (QR, cierre, gastos, stock).</li>' +
-    '<li>RRPP: +/− entradas vendidas, precio y comisión; la app calcula el neto a entregarte.</li>' +
+    '<li>RRPP: reparte entradas por rango a cada promotor; la app cuenta las vendidas (ya pagadas) y te dice la comisión que le debes a cada uno (su dinero ya está en Taquilla).</li>' +
     '<li>Vigila Caja total, Beneficio neto y Recaudación por terminal en todo momento.</li>' +
     '<li>Da de alta gastos (bebida, personal, local, DJ, otros); se restan del beneficio.</li>' +
     '<li>Repón stock de barra cuando esté bajo o agotado.</li>' +
