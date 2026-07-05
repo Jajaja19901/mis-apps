@@ -361,15 +361,33 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "clickText": "Ya dentro" },
     { "expect": "Lucía Fernández" },
     { "expect": "Dentro" } ]},
-  { "name": "Cobrar taquilla y ver caja subir en Dueño", "steps": [
+  { "name": "Puerta (modo RRPP): dar acceso a una entrada la cuenta como vendida y sube la caja", "steps": [
     { "goto": "#/puerta" },
     { "fill": { "sel": "#buscador", "value": "Javier" } },
-    { "clickText": "Cobrar 20 € y entrar" },
+    { "clickText": "Dar acceso" },
     { "goto": "#/dueno" },
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
     { "expectVisible": "[data-testid=\"kpi-caja\"]" },
     { "expect": "360" } ]},
+  { "name": "Puerta (modo RRPP): la entrada válida se registra como 'ya vendida'", "steps": [
+    { "goto": "#/puerta" },
+    { "fill": { "sel": "#buscador", "value": "Javier" } },
+    { "clickText": "Dar acceso" },
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Registro" },
+    { "expect": "ya vendida" } ]},
+  { "name": "Si desactivas el modo RRPP, en la puerta vuelve a cobrarse la entrada", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Ajustes" },
+    { "click": "#puerta-venta-rrpp" },
+    { "click": "[data-testid=\"rol-vig-1\"]" },
+    { "fill": { "sel": "#buscador", "value": "Javier" } },
+    { "expect": "Cobrar 20 € y entrar" } ]},
   { "name": "Cobrar pendiente de mesa VIP", "steps": [
     { "goto": "#/puerta" },
     { "fill": { "sel": "#buscador", "value": "Natalia" } },
@@ -13468,6 +13486,9 @@ function seedState() {
       // la analítica por tipo.
       preguntarTipo: false,
       accesoAuto: false,
+      // Las entradas de pago las venden los RRPP: en la puerta NO se cobra, solo se da
+      // acceso y la entrada se cuenta como vendida. Es el modelo de esta fiesta.
+      puertaVentaRRPP: true,
       fecha: "", hora: "", lugar: "", lema: "",
       logo: null, colorTema: "#00d4ff",
       vipPack: { botellas: 1, refrescos: 4 },
@@ -13563,6 +13584,7 @@ function migrar(s) {
   if (!s.config.nfcCfg || typeof s.config.nfcCfg !== 'object') s.config.nfcCfg = { activo: false };
   if (typeof s.config.nfcCfg.activo !== 'boolean') s.config.nfcCfg.activo = false;
   if (typeof s.config.preguntarTipo !== 'boolean') s.config.preguntarTipo = false;
+  if (typeof s.config.puertaVentaRRPP !== 'boolean') s.config.puertaVentaRRPP = true;
   if (!s.ventasPorProducto || typeof s.ventasPorProducto !== 'object') s.ventasPorProducto = {};
   if (!Array.isArray(s.monederos)) s.monederos = [];
   if (typeof s.ingresosMonederos !== 'number') s.ingresosMonederos = 0;
@@ -14621,7 +14643,10 @@ function labelAccion(p) {
   if (p.dentro) return "Marcar salida";
   if (p.tipo === "invitado") return "Dar acceso";
   if (p.tipo === "taquilla") {
-    if (!taquillaLiquidada(p)) return efvo + "Cobrar " + precioEntradaDe(p) + " € y entrar" + (efvo ? " (efectivo)" : "");
+    if (!taquillaLiquidada(p)) {
+      if (puertaVentaRRPP()) return "Dar acceso"; // la vende el RRPP: solo se da acceso
+      return efvo + "Cobrar " + precioEntradaDe(p) + " € y entrar" + (efvo ? " (efectivo)" : "");
+    }
     return "Dar acceso";
   }
   if (p.tipo === "vip") {
@@ -14656,7 +14681,7 @@ function renderPersonaCard(p) {
       escJs(p.id) + "')\">" + esc(labelAccion(p)) + "</button>";
   // Cobros sin efectivo (si el dueño los activó y hay algo que cobrar): 💳 y/o 📲 al lado.
   if (!p.dentro && (tarjetaActiva() || bizumActivo())) {
-    var pendTarj = p.tipo === 'taquilla' ? (!taquillaLiquidada(p) ? precioEntradaDe(p) : 0)
+    var pendTarj = p.tipo === 'taquilla' ? ((!taquillaLiquidada(p) && !puertaVentaRRPP()) ? precioEntradaDe(p) : 0)
       : (p.tipo === 'vip' ? Math.max(0, ((p.mesa || {}).total || 0) - (p.importePagado || 0)) : 0);
     if (pendTarj > 0) {
       if (tarjetaActiva()) {
@@ -14708,7 +14733,10 @@ function accionPrincipal(id) {
   if (p.dentro) { marcarSalida(id); return; }
   if (p.tipo === "invitado") { darAccesoSimple(id, "Invitado"); return; }
   if (p.tipo === "taquilla") {
-    if (!taquillaLiquidada(p)) cobrarYEntrar(id, precioEntradaDe(p));
+    if (!taquillaLiquidada(p)) {
+      if (puertaVentaRRPP()) darAccesoVendida(id); // la vendió el RRPP: acceso + contar vendida
+      else cobrarYEntrar(id, precioEntradaDe(p));
+    }
     else darAccesoSimple(id, "Taquilla");
     return;
   }
@@ -14730,6 +14758,25 @@ function darAccesoSimple(id, tipoLabel) {
     addLog("registró entrada de " + p.nombre + " " + p.apellido + " (" + tipoLabel + ")", "entrada");
   });
   toast("Acceso dado");
+}
+
+/* Modo "las entradas las venden los RRPP": ON = en la puerta NO se cobra. El portero solo
+   da acceso, y la entrada queda CONTADA como vendida (suma a caja y al recuento de su RRPP).
+   El dinero NO se atribuye al portero: no lo cobró él, lo cobró el RRPP fuera y lo liquida
+   el día de la fiesta. Así se "cierra el círculo" con un solo toque. */
+function puertaVentaRRPP() { return !!(state.config && state.config.puertaVentaRRPP); }
+function darAccesoVendida(id) {
+  mutate(function (s) {
+    var p = personaPorId(id);
+    if (!p || p.dentro) return;
+    if (!taquillaLiquidada(p)) { p.importePagado = (p.importePagado || 0) + precioEntradaDe(p); }
+    p.pagado = true;
+    p.dentro = true;
+    p.horaEntrada = nowHM();
+    var rr = p.rrppSlug ? (s.rrpp || []).find(function (x) { return x.slug === p.rrppSlug; }) : null;
+    addLog('dio acceso a ' + p.nombre + ' ' + p.apellido + ' (entrada ya vendida' + (rr ? ' · RRPP ' + rr.nombre : '') + ')', 'entrada');
+  });
+  toast('Acceso dado · contada como vendida');
 }
 
 function cobrarYEntrar(id, importe, metodo) {
@@ -15595,7 +15642,9 @@ function resolverEscaneo(valor, deCamara) {
   var pagada = p.tipo === "invitado" || (p.tipo === "taquilla" ? taquillaLiquidada(p) : (p.importePagado || 0) > 0);
   var linea = p.tipo === "invitado"
     ? '<b class="scan-verde">✔ INVITADO (gratis)</b>'
-    : (pagada ? '<b class="scan-verde">✔ PAGADA</b>' : '<b class="scan-ambar">€ SIN PAGAR · cobra ' + esc(p.tipo === "vip" ? ((p.mesa.total || 0) - (p.importePagado || 0)) : precioEntradaDe(p)) + ' €</b>');
+    : (pagada ? '<b class="scan-verde">✔ PAGADA</b>'
+      : (puertaVentaRRPP() && p.tipo === "taquilla" ? '<b class="scan-verde">✔ ENTRADA VÁLIDA</b>'
+        : '<b class="scan-ambar">€ SIN PAGAR · cobra ' + esc(p.tipo === "vip" ? ((p.mesa.total || 0) - (p.importePagado || 0)) : precioEntradaDe(p)) + ' €</b>'));
   var copas = consIncluidas(p);
   if (out) out.innerHTML = '<div class="scan-res scan-ok">' + linea +
     '<span>' + nombre + ' · ' + esc(p.codigoReserva) +
@@ -16574,8 +16623,8 @@ function entradasListaHTML() {
     var estado = p.tipo === 'invitado'
       ? '<span class="badge badge-tipo">Invitado</span>'
       : ((p.importePagado || 0) > 0 && (p.tipo !== 'vip' || (p.mesa.total || 0) - p.importePagado <= 0)
-        ? '<span class="badge badge-pagado">Pagada</span>'
-        : '<span class="badge badge-pendiente">Pendiente</span>');
+        ? '<span class="badge badge-pagado">' + (puertaVentaRRPP() ? 'Vendida' : 'Pagada') + '</span>'
+        : '<span class="badge badge-pendiente">' + (puertaVentaRRPP() ? 'Sin vender' : 'Pendiente') + '</span>');
     var dentro = p.dentro ? ' <span class="badge badge-dentro">Dentro</span>' : '';
     var rrppB = '';
     if (p.rrppSlug) { var rr = (state.rrpp || []).find(function (x) { return x.slug === p.rrppSlug; }); rrppB = ' <span class="badge badge-rrpp">RRPP ' + esc(rr ? rr.nombre : p.rrppSlug) + '</span>'; }
@@ -16916,6 +16965,15 @@ function seccionTarjeta() {
   html += '</section>';
   return html;
 }
+function duenoTogglePuertaRRPP() {
+  mutate(function (s) {
+    s.config.puertaVentaRRPP = !s.config.puertaVentaRRPP;
+    addLog((s.config.puertaVentaRRPP ? 'activó' : 'desactivó') + ' el modo "las entradas las venden los RRPP" (en la puerta no se cobra)', 'config');
+  });
+  toast(state.config.puertaVentaRRPP
+    ? 'Activado: en la puerta solo se da acceso; la entrada se cuenta como vendida'
+    : 'Desactivado: en la puerta se cobra la entrada');
+}
 function duenoToggleTarjeta() {
   mutate(function (s) {
     if (!s.config.tarjetaCfg) s.config.tarjetaCfg = { activa: false, app: 'sumup' };
@@ -17018,6 +17076,12 @@ function seccionCobros() {
   var t = state.config.tarjetaCfg || { activa: false, app: 'sumup' };
   var html = '<section class="panel" data-testid="seccion-cobros">';
   html += '<p class="nota">Marca solo las formas de cobro que vayas a usar; al activar cada una, les sale su botón a camareros y vigilantes. El <b>efectivo</b> está siempre.</p>';
+
+  // 🎟️ Las entradas las venden los RRPP: en la puerta no se cobra, solo se da acceso.
+  html += '<label class="switch"><input type="checkbox" id="puerta-venta-rrpp"' + (puertaVentaRRPP() ? ' checked' : '') +
+    ' onchange="duenoTogglePuertaRRPP()"> <b>🎟️ Las entradas las venden los RRPP (en la puerta no se cobra)</b></label>';
+  html += '<p class="nota">Con esto activado, cuando una entrada de pago llega a la puerta el portero solo pulsa <b>“Dar acceso”</b>: le deja entrar y la entrada queda <b>contada como vendida</b> (suma a caja y al recuento de su RRPP). No se cobra en la puerta porque ya cobró el RRPP. Las <b>invitaciones gratis</b> entran igual, sin sumar dinero. Desactívalo si prefieres cobrar tú en la puerta.</p>';
+  html += '<hr class="cobros-sep">';
 
   // 💰 Monedero
   html += '<label class="switch"><input type="checkbox" id="monedero-activo"' + (monederoActivo() ? ' checked' : '') +
