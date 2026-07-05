@@ -13502,8 +13502,12 @@ function htmlVideoFiesta(vid) {
   return '<video class="ticket-video" src="' + esc(vid) + '" autoplay playsinline controls loop></video>';
 }
 var _ticketDatos = null; // datos de la entrada abierta (para el recibimiento al copiar)
+var _ticketToken = null; // token de la entrada abierta (para marcarla "vista" al copiar)
 function copiarCodigoTicket(codigo) {
   copiarTexto(String(codigo), 'Código copiado ✅');
+  // Al copiar, la entrada de un solo uso queda CONSUMIDA (ya no se reabre). Así, si el móvil
+  // recarga la pestaña después de copiar, no la vuelve a mostrar.
+  if (_ticketToken) { try { localStorage.setItem('mh_ticket_visto_' + _ticketToken, '1'); } catch (e) {} }
   // Recibimiento espectacular: al copiar, salta el vídeo/animación de bienvenida.
   try { reproducirRecibimiento(_ticketDatos || {}); } catch (e) {}
 }
@@ -13616,7 +13620,12 @@ function crearTicketBlindado(p) {
   });
 }
 // El invitado abre #/s/<token>: lee el ticket, lo muestra UNA vez y lo marca visto en la nube.
+var _blindadoEnCurso = {};
 function abrirTicketBlindado(token) {
+  // Guard: una sola transacción por token y carga de página (si renderApp se repitiera,
+  // no se marca 'visto' dos veces ni se pisa la entrada ya mostrada).
+  if (_blindadoEnCurso[token]) return;
+  _blindadoEnCurso[token] = true;
   var vistaT = document.getElementById('vista');
   var topbar = document.getElementById('topbar');
   if (topbar) topbar.style.display = 'none';
@@ -13638,6 +13647,7 @@ function abrirTicketBlindado(token) {
     if (res.estado === 'noexiste') { vistaT.innerHTML = htmlTicketPublico(null, true, false); return; }
     if (res.estado === 'visto') { vistaT.innerHTML = htmlTicketPublico(res.datos, true, true); return; }
     _ticketDatos = res.datos;
+    _ticketToken = 's-' + token;
     vistaT.innerHTML = htmlTicketPublico(res.datos, true, false);
     var cvs = document.getElementById('ticketQR');
     if (cvs) { try { drawQR(cvs, res.datos.c, 240); } catch (e) {} }
@@ -14319,6 +14329,7 @@ function renderAppInterno() {
     if (topbar) topbar.style.display = 'none';
     var vistaT = document.getElementById('vista');
     _ticketDatos = rt.datos || null;
+    _ticketToken = rt.token || null;
     if (vistaT) {
       vistaT.innerHTML = htmlTicketPublico(rt.datos, rt.unaVez, rt.yaVisto);
       if (rt.datos && rt.datos.c && !(rt.unaVez && rt.yaVisto)) {
