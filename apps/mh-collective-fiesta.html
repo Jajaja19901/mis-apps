@@ -13898,7 +13898,10 @@ function mutateSilent(fn) {
 function adoptarRemoto(remoto) {
   if (!remoto) return -1;
   var perfilLocal = state ? state.perfilActivo : null;
-  state = remoto;
+  // migrar() rellena los valores por defecto NUEVOS que el estado de la nube (guardado por
+  // una versión anterior) no traiga. Sin esto, un ajuste nuevo (p.ej. "venta por RRPP")
+  // se quedaba apagado al sincronizar desde datos viejos.
+  state = migrar(remoto);
   if (perfilLocal) state.perfilActivo = perfilLocal;
   var pend = (window.__mhSync && window.__mhSync.pendientes) || [];
   var quedan = [];
@@ -13924,6 +13927,7 @@ function adoptarRemoto(remoto) {
 function fusionarPendientesSobre(remotoObj) {
   var copia;
   try { copia = JSON.parse(JSON.stringify(remotoObj)); } catch (e) { return remotoObj; }
+  copia = migrar(copia); // rellena defaults nuevos también en lo que se sube a la nube (sana el doc)
   var prev = state;
   var perfilLocal = prev ? prev.perfilActivo : null;
   state = copia;
