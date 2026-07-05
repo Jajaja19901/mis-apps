@@ -13489,6 +13489,18 @@ function htmlTicketPublico(d, unaVez, yaVisto) {
     '<div class="ticket-nota">Enséñalo en la puerta (o haz una foto a este código).</div>' +
     '<div class="ticket-foot">' + studioFoot + '</div></div></div>';
 }
+// Devuelve el HTML del vídeo de la fiesta según el enlace: Instagram, YouTube o vídeo directo
+// (.mp4/.webm, o un archivo que el dueño haya dejado en la web). Vacío si no hay vídeo.
+function htmlVideoFiesta(vid) {
+  vid = String(vid || '').trim();
+  if (!vid) return '';
+  var ig = vid.match(/instagram\.com\/(?:reel|reels|p|tv)\/([\w-]+)/);
+  if (ig) return '<iframe class="ticket-video" src="https://www.instagram.com/reel/' + esc(ig[1]) + '/embed/" allowtransparency="true" frameborder="0" scrolling="no" allowfullscreen></iframe>';
+  var yt = vid.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/);
+  if (yt) return '<iframe class="ticket-video" src="https://www.youtube.com/embed/' + esc(yt[1]) + '?autoplay=1&rel=0&playsinline=1" allow="autoplay; encrypted-media" allowfullscreen frameborder="0"></iframe>';
+  // Vídeo directo (tu .mp4/.webm subido a la web o a tu Firebase Storage)
+  return '<video class="ticket-video" src="' + esc(vid) + '" autoplay playsinline controls loop></video>';
+}
 var _ticketDatos = null; // datos de la entrada abierta (para el recibimiento al copiar)
 function copiarCodigoTicket(codigo) {
   copiarTexto(String(codigo), 'Código copiado ✅');
@@ -13499,15 +13511,7 @@ function cerrarRecibimiento() { var ov = document.getElementById('recibimientoOv
 function reproducirRecibimiento(datos) {
   cerrarRecibimiento();
   var vid = datos && String(datos.vid || '').trim();
-  var media;
-  if (vid) {
-    var yt = vid.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/);
-    media = yt
-      ? '<iframe class="ticket-video" src="https://www.youtube.com/embed/' + esc(yt[1]) + '?autoplay=1&rel=0" allow="autoplay; encrypted-media" allowfullscreen frameborder="0"></iframe>'
-      : '<video class="ticket-video" src="' + esc(vid) + '" autoplay playsinline controls></video>';
-  } else {
-    media = '<div class="recib-emojis">🎉🔥✨🎊💥🥂</div>';
-  }
+  var media = vid ? htmlVideoFiesta(vid) : '<div class="recib-emojis">🎉🔥✨🎊💥🥂</div>';
   var conf = '';
   for (var i = 0; i < 14; i++) {
     var e = ['🎉', '🔥', '✨', '🎊', '💥', '🥂'][i % 6];
@@ -13551,11 +13555,9 @@ function mostrarVideoYDestruir(datos) {
   var card = document.getElementById('ticketCard');
   if (!card) return;
   var vid = datos && String(datos.vid || '').trim();
-  var interior = '';
+  var interior;
   if (vid) {
-    var yt = vid.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/);
-    if (yt) interior = '<iframe class="ticket-video" src="https://www.youtube.com/embed/' + esc(yt[1]) + '?autoplay=1&rel=0" allow="autoplay; encrypted-media" allowfullscreen frameborder="0"></iframe>';
-    else interior = '<video class="ticket-video" src="' + esc(vid) + '" autoplay playsinline controls></video>';
+    interior = htmlVideoFiesta(vid);
   } else {
     // Sin vídeo: animación neón de la fiesta (confeti + nombre).
     interior = '<div class="ticket-anim">' +
@@ -17025,8 +17027,8 @@ function seccionEntregar() {
     ? '🔥 Modo secreto activo: al abrir el enlace, la entrada sale con una <b>cuenta atrás de 1 minuto</b> para mirar y copiar; al acabar sale el <b>vídeo de la fiesta</b> y el mensaje <b>se autodestruye</b> (por dispositivo).'
     : 'Modo normal: el enlace se puede abrir las veces que haga falta.') + '</p>';
   if (unaVez) {
-    html += '<label>🎬 Vídeo de la fiesta (enlace de YouTube o .mp4, opcional)<input type="url" id="video-fiesta" placeholder="Pega aquí el enlace del vídeo (o déjalo vacío)" value="' + esc((state.config && state.config.videoFiesta) || '') + '" onchange="duenoSetVideoFiesta(this.value)"></label>';
-    html += '<p class="nota">Es el vídeo que sale al autodestruirse. Si lo dejas vacío, sale una animación con el nombre de la fiesta.</p>';
+    html += '<label>🎬 Vídeo de la fiesta (enlace, opcional)<input type="url" id="video-fiesta" placeholder="Enlace de Instagram (reel) o de un vídeo .mp4" value="' + esc((state.config && state.config.videoFiesta) || '') + '" onchange="duenoSetVideoFiesta(this.value)"></label>';
+    html += '<p class="nota">Pega el enlace de un <b>reel de Instagram</b> o de un <b>vídeo .mp4</b> (el tuyo, subido a la web o a tu Firebase Storage). Es lo que sale al copiar y al autodestruirse. Vacío = animación con el nombre de la fiesta. <b>Ojo:</b> Instagram no siempre deja que el vídeo arranque solo (sale el post y hay que darle play); un .mp4 tuyo queda más espectacular.</p>';
   }
   if (!personas.length) {
     html += '<p class="lista-vacia">Aún no hay entradas. Créalas en la pestaña <b>Entradas</b>.</p></section>';
