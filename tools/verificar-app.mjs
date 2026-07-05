@@ -140,6 +140,7 @@ async function runStep(step, vars = {}) {
   switch (k) {
     case "goto": await page.evaluate((h) => { location.hash = h; }, v); await sleep(280); return { ok: true };
     case "reload": await load(); return { ok: true };
+    case "showGate": { await page.evaluate(() => { try { localStorage.removeItem("mh_acceso_ok"); } catch (e) {} try { duenoAutenticado = false; } catch (e) {} if (typeof chequearAcceso === "function") chequearAcceso(); else if (typeof mostrarGate === "function") mostrarGate(); }); await sleep(200); return { ok: true }; }
     case "wait": await sleep(Math.min(+v || 200, 3000)); return { ok: true };
     case "click": { const ok = await page.evaluate((s) => { const e = document.querySelector(s); if (!e) return false; e.click(); return true; }, v); await sleep(220); return { ok, msg: ok ? "" : "no existe el selector " + v }; }
     case "clickText": { const ok = await page.evaluate((t) => { const els = [...document.querySelectorAll('a,button,[role=button],input[type=submit],[data-action]')].filter((x) => x.offsetParent !== null && (x.innerText || x.value || "").includes(t)); if (!els.length) return false; els.sort((a, b) => (a.innerText || a.value || "").length - (b.innerText || b.value || "").length); els[0].click(); return true; }, v); await sleep(220); return { ok, msg: ok ? "" : 'no hay elemento visible con el texto "' + v + '"' }; }

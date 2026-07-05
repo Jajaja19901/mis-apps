@@ -844,7 +844,45 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "expectVisible": "[data-testid=\"seccion-preparar\"]" },
     { "expect": "Preparar la fiesta" },
     { "expect": "Cambia las contraseñas de fábrica" },
-    { "expectVisible": "[data-testid=\"prep-limpiar\"]" } ]}
+    { "expectVisible": "[data-testid=\"prep-limpiar\"]" } ]},
+  { "name": "El camarero entra con su código desde la portada y aparece directo en la barra", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Ajustes" },
+    { "fill": { "sel": "#clave-cam-1", "value": "BARRA7" } },
+    { "showGate": true },
+    { "expectVisible": "#gate-pass" },
+    { "fill": { "sel": "#gate-pass", "value": "BARRA7" } },
+    { "submit": "#gateForm" },
+    { "expectHash": "#/barra" },
+    { "expectGone": "#gate-pass" } ]},
+  { "name": "El portero entra con su código desde la portada y aparece directo en la puerta", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Ajustes" },
+    { "fill": { "sel": "#clave-vig-1", "value": "PUERTA3" } },
+    { "showGate": true },
+    { "expectVisible": "#gate-pass" },
+    { "fill": { "sel": "#gate-pass", "value": "PUERTA3" } },
+    { "submit": "#gateForm" },
+    { "expectHash": "#/puerta" },
+    { "expectVisible": "#buscador" } ]},
+  { "name": "El PIN de administrador escrito en la portada entra directo al panel", "steps": [
+    { "showGate": true },
+    { "expectVisible": "#gate-pass" },
+    { "fill": { "sel": "#gate-pass", "value": "1234" } },
+    { "submit": "#gateForm" },
+    { "expectHash": "#/dueno" },
+    { "expectGone": "#pin-dueno" } ]},
+  { "name": "Un código inventado en la portada no entra (sigue pidiendo)", "steps": [
+    { "showGate": true },
+    { "expectVisible": "#gate-pass" },
+    { "fill": { "sel": "#gate-pass", "value": "codigo-falso-xyz" } },
+    { "submit": "#gateForm" },
+    { "expectVisible": "#gate-pass" },
+    { "expect": "Código o contraseña incorrectos" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -13999,9 +14037,9 @@ function cambiarPerfil(id) {
 function pedirClavePerfil(id) {
   var label = etiquetaPerfil(id);
   var html = '<div class="modal-pin" data-testid="pin-perfil">' +
-    '<h2>Contraseña de ' + esc(label) + '</h2>' +
-    '<p class="nota">Pídesela al ' + esc(label) + '. La pone el administrador en Ajustes → Personal.</p>' +
-    '<form id="perfilPinForm"><input id="perfil-clave" type="password" inputmode="numeric" autocomplete="off" placeholder="Contraseña">' +
+    '<h2>Código de ' + esc(label) + '</h2>' +
+    '<p class="nota">Es el mismo con el que ' + esc(label) + ' entra directo desde la portada. Lo pone el administrador en Ajustes → Personal.</p>' +
+    '<form id="perfilPinForm"><input id="perfil-clave" type="password" inputmode="numeric" autocomplete="off" placeholder="Código">' +
     '<p id="perfil-pin-error" class="error" hidden>Contraseña incorrecta</p>' +
     '<div class="modal-botones"><button type="submit" class="btn-primary" data-testid="perfil-entrar">Entrar</button>' +
     '<button type="button" onclick="closeModal()">Cancelar</button></div></form></div>';
@@ -14309,9 +14347,34 @@ function accesoClave() {
   var c = (state && state.config && typeof state.config.accesoClave === 'string') ? state.config.accesoClave : CONFIG.ACCESO_PASSWORD;
   return String(c || '').trim();
 }
+/* ¿Algún trabajador tiene código propio? Entonces la portada también protege por códigos,
+   aunque no haya contraseña general de entrada. */
+function hayCodigosTrabajador() {
+  var cl = (state && state.config && state.config.claves) || {};
+  return Object.keys(cl).some(function (k) { return String(cl[k] || '').trim() !== ''; });
+}
+/* La portada aparece si hay contraseña general O al menos un código de trabajador. */
+function accesoProtegido() { return !!accesoClave() || hayCodigosTrabajador(); }
+/* Token que se guarda al desbloquear ESTE móvil. Si no hay contraseña general pero sí
+   códigos, usamos un marcador estable para no re-pedir en cada recarga. */
+function _accesoToken() { return accesoClave() || 'MH-CODIGOS'; }
+function _recordarAcceso() { try { localStorage.setItem('mh_acceso_ok', _accesoToken()); } catch (e) {} }
+/* Busca el trabajador cuyo código coincide con lo tecleado (portero/camarero, nunca el dueño). */
+function perfilPorCodigo(val) {
+  var v = String(val || '').trim();
+  if (!v) return null;
+  var lista = perfilesLista();
+  for (var i = 0; i < lista.length; i++) {
+    var id = lista[i].id;
+    if (id === 'dueno') continue;
+    var c = String(claveDe(id) || '').trim();
+    if (c && c === v) return id;
+  }
+  return null;
+}
 /* Desbloqueo recordado EN ESTE MÓVIL (no se sincroniza). Si cambia la contraseña, se re-pide. */
 function accesoDesbloqueado() {
-  try { return localStorage.getItem('mh_acceso_ok') === accesoClave(); } catch (e) { return false; }
+  try { return localStorage.getItem('mh_acceso_ok') === _accesoToken(); } catch (e) { return false; }
 }
 function _emblemaMH() {
   // Recreación en vector del logo MH Collective (rombo + monograma + banda "Collective").
@@ -14330,9 +14393,9 @@ function mostrarGate() {
     '<div class="gate-card">' +
       '<div class="gate-logo" id="gateLogo">' + _emblemaMH() + '</div>' +
       '<div class="gate-title">' + esc(nombre) + '</div>' +
-      '<div class="gate-sub">Acceso del equipo</div>' +
+      '<div class="gate-sub">Mete tu código y entras directo a tu puesto</div>' +
       '<form id="gateForm" onsubmit="return entrarAcceso(event)">' +
-        '<input id="gate-pass" type="password" autocomplete="off" placeholder="Contraseña de entrada" aria-label="Contraseña de entrada">' +
+        '<input id="gate-pass" type="password" autocomplete="off" placeholder="Tu código o contraseña" aria-label="Tu código o contraseña de entrada">' +
         '<p class="gate-err" id="gate-err" data-testid="gate-err"></p>' +
         '<button type="submit" class="gate-btn" data-testid="gate-entrar">Entrar</button>' +
       '</form>' +
@@ -14360,21 +14423,41 @@ function ocultarGate() {
 }
 function entrarAcceso(ev) {
   if (ev && ev.preventDefault) ev.preventDefault();
-  var val = (document.getElementById('gate-pass') || {}).value || '';
-  if (String(val).trim() === accesoClave()) {
-    try { localStorage.setItem('mh_acceso_ok', accesoClave()); } catch (e) {}
+  var val = String((document.getElementById('gate-pass') || {}).value || '').trim();
+  // 1) ¿Es el código de un trabajador? -> entra DIRECTO a su puesto (portero→puerta, camarero→barra).
+  var destino = perfilPorCodigo(val);
+  if (destino) {
+    _recordarAcceso();
+    _perfilOK[destino] = true;   // acaba de meter su código: no se lo volvemos a pedir
     ocultarGate();
-  } else {
-    var err = document.getElementById('gate-err'); if (err) err.textContent = 'Contraseña incorrecta';
-    var card = document.querySelector('.gate-card');
-    if (card) { card.classList.remove('gate-shake'); void card.offsetWidth; card.classList.add('gate-shake'); }
-    var inp = document.getElementById('gate-pass'); if (inp) { inp.value = ''; try { inp.focus(); } catch (e) {} }
+    entrarPerfil(destino);        // fija su rol y navega a #/barra o #/puerta
+    return false;
   }
+  // 2) ¿Es el PIN del administrador? -> directo al panel del dueño.
+  if (typeof esPinAdmin === 'function' && esPinAdmin(val)) {
+    _recordarAcceso();
+    duenoAutenticado = true;
+    ocultarGate();
+    location.hash = '#/dueno';
+    renderApp();
+    return false;
+  }
+  // 3) ¿Es la contraseña general de entrada? -> desbloquea y muestra el selector de rol.
+  if (accesoClave() && val === accesoClave()) {
+    _recordarAcceso();
+    ocultarGate();
+    return false;
+  }
+  // 4) Nada coincide -> error y temblor.
+  var err = document.getElementById('gate-err'); if (err) err.textContent = 'Código o contraseña incorrectos';
+  var card = document.querySelector('.gate-card');
+  if (card) { card.classList.remove('gate-shake'); void card.offsetWidth; card.classList.add('gate-shake'); }
+  var inp = document.getElementById('gate-pass'); if (inp) { inp.value = ''; try { inp.focus(); } catch (e) {} }
   return false;
 }
-/* Puerta: si hay contraseña de entrada y este móvil no la ha metido, muestra la portada. */
+/* Puerta: si hay protección (contraseña general o códigos) y este móvil no la ha pasado, muestra la portada. */
 function chequearAcceso() {
-  if (accesoClave() && !accesoDesbloqueado()) mostrarGate();
+  if (accesoProtegido() && !accesoDesbloqueado()) mostrarGate();
   else ocultarGate();
 }
 
@@ -15969,7 +16052,7 @@ function renderDueno() {
           acc('aj-config', '⚙️ Datos del evento', 'Nombre, fecha, precios, aforo, color y logo', seccionConfig()) +
           acc('aj-admins', '👑 Administradores', 'Tu PIN y nombrar a otros administradores', seccionAdmins()) +
           acc('aj-acceso', '🔒 Contraseña de entrada', 'La que pide la portada al abrir la web', seccionAccesoCfg()) +
-          acc('aj-personal', '👥 Personal', 'Cuántos vigilantes y camareros, y su contraseña', seccionPersonal()) +
+          acc('aj-personal', '👥 Personal', 'Cuántos vigilantes y camareros, y el código con el que entra cada uno', seccionPersonal()) +
           acc('aj-prod', '🍹 Productos de barra', 'Bebidas, precios, tipos de combinado y stock', seccionProductos()) +
           acc('aj-cobros', '💳 Formas de cobro', 'Monedero, Bizum, tarjeta y NFC — activa las que uses', seccionCobros()) +
           acc('aj-modulos', '🧩 Módulos y acceso automático', 'Enciende/apaga QR, cierre, gastos, stock…', seccionModulos());
@@ -16728,15 +16811,15 @@ function seccionPersonal() {
   html += '<div class="contador"><span>Camareros: <b data-testid="camareros-count">' + esc(c.nCamareros) + '</b></span> ';
   html += '<button type="button" data-testid="camareros-menos" onclick="duenoCambiarCamareros(-1)">−</button> ';
   html += '<button type="button" data-testid="camareros-mas" onclick="duenoCambiarCamareros(1)">+</button></div>';
-  // Contraseña propia por trabajador: cada vigilante/camarero entra con la suya.
-  html += '<h3>Contraseña de cada trabajador</h3>';
-  html += '<p class="nota">Dale a cada uno la suya. Al tocar su rol, tendrá que meterla para entrar. Déjala en blanco si ese trabajador no necesita contraseña.</p>';
+  // Código propio por trabajador: sirve para entrar DIRECTO a su puesto desde la portada.
+  html += '<h3>Código de cada trabajador</h3>';
+  html += '<p class="nota">Dale a cada uno el suyo. Con ese código, al abrir la web y escribirlo en la portada, entra <b>directo a su puesto</b> (el portero a la puerta, el camarero a la barra), sin elegir rol. Que sean <b>distintos entre sí y del PIN de administrador</b>. Déjalo en blanco si ese trabajador no necesita código.</p>';
   var claves = c.claves || {};
   perfilesLista().forEach(function (pf) {
     if (pf.id === 'dueno') return;
     html += '<label>' + esc(pf.label) +
-      '<input type="password" inputmode="numeric" autocomplete="off" id="clave-' + esc(pf.id) + '" value="' + esc(claves[pf.id] || '') +
-      '" placeholder="sin contraseña" onchange="duenoSetClavePerfil(\'' + escJs(pf.id) + '\', this.value)"></label>';
+      '<input type="text" autocomplete="off" id="clave-' + esc(pf.id) + '" value="' + esc(claves[pf.id] || '') +
+      '" placeholder="sin código" onchange="duenoSetClavePerfil(\'' + escJs(pf.id) + '\', this.value)"></label>';
   });
   html += '</section>';
   return html;
