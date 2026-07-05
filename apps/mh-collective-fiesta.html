@@ -321,6 +321,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .ticket-copiar{margin:4px auto 8px;display:block;min-height:44px;padding:.5rem 1.1rem;border:1px solid var(--neon-verde);background:transparent;color:var(--neon-verde);border-radius:10px;font-weight:700;cursor:pointer}
 .ticket-video{width:100%;max-width:420px;aspect-ratio:16/9;border:0;border-radius:12px;margin:12px auto;display:block;background:#000}
 .ticket-video-ig{width:100%;max-width:420px;height:min(70vh,620px);border:0;border-radius:12px;margin:12px auto;display:block;background:#000}
+.ticket-video-mp4{width:100%;max-width:460px;height:min(80vh,860px);border:0;border-radius:12px;margin:10px auto;display:block;background:#000;object-fit:cover}
 .ticket-anim{margin:18px 0;padding:22px 10px;border-radius:14px;background:radial-gradient(circle at 50% 30%,rgba(176,38,255,.35),rgba(0,212,138,.12),transparent);overflow:hidden}
 .ta-conf{font-size:1.5rem;letter-spacing:6px;animation:taScroll 1.2s linear infinite}
 .ta-tit{font-size:1.6rem;font-weight:900;margin-top:10px;color:#fff;text-shadow:0 0 18px rgba(176,38,255,.9)}
@@ -333,6 +334,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .recib-ov{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;
   background:rgba(5,5,12,.92);opacity:0;transition:opacity .35s ease}
 .recib-ov.on{opacity:1}
+/* Vídeo propio a PANTALLA COMPLETA (como Instagram real): cubre todo el móvil. */
+.recib-full{padding:0;background:#000}
+.recib-full-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+.recib-x{position:absolute;top:calc(12px + env(safe-area-inset-top));right:14px;z-index:3;width:40px;height:40px;border-radius:50%;border:0;background:rgba(0,0,0,.5);color:#fff;font-size:1.05rem;line-height:1;cursor:pointer}
+.recib-full-bar{position:absolute;left:0;right:0;bottom:0;z-index:3;padding:22px 18px calc(22px + env(safe-area-inset-bottom));text-align:center;background:linear-gradient(to top,rgba(0,0,0,.88),rgba(0,0,0,.4),transparent)}
+.recib-full-tit{font-weight:900;font-size:1.3rem;color:#fff;text-shadow:0 2px 8px rgba(0,0,0,.8)}
+.recib-full-sub{margin:4px 0 12px;color:#f0f0f0;font-weight:600;text-shadow:0 2px 8px rgba(0,0,0,.8)}
 .recib-card{position:relative;width:100%;max-width:420px;max-height:calc(100vh - 40px);overflow-y:auto;text-align:center;background:var(--panel);border:1px solid var(--neon-verde);
   border-radius:20px;padding:24px 20px;box-shadow:0 0 80px rgba(176,38,255,.4);animation:boomIn .5s ease}
 .recib-tit{font-size:1.8rem;font-weight:900;color:#fff;text-shadow:0 0 20px rgba(176,38,255,.9)}
@@ -13501,8 +13509,8 @@ function htmlVideoFiesta(vid) {
   if (ig) return '<iframe class="ticket-video-ig" src="https://www.instagram.com/reel/' + esc(ig[1]) + '/embed/" allowtransparency="true" frameborder="0" scrolling="no" allowfullscreen></iframe>';
   var yt = vid.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/);
   if (yt) return '<iframe class="ticket-video" src="https://www.youtube.com/embed/' + esc(yt[1]) + '?autoplay=1&rel=0&playsinline=1" allow="autoplay; encrypted-media" allowfullscreen frameborder="0"></iframe>';
-  // Vídeo directo (tu .mp4/.webm subido a la web o a tu Firebase Storage)
-  return '<video class="ticket-video" src="' + esc(vid) + '" autoplay playsinline controls loop></video>';
+  // Vídeo directo (tu .mp4/.webm subido a la web o a tu Firebase Storage): vertical y grande.
+  return '<video class="ticket-video-mp4" src="' + esc(vid) + '" autoplay playsinline controls loop></video>';
 }
 var _ticketDatos = null; // datos de la entrada abierta (para el recibimiento al copiar)
 var _ticketToken = null; // token de la entrada abierta (para marcarla "vista" al copiar)
@@ -13515,22 +13523,51 @@ function copiarCodigoTicket(codigo) {
   try { reproducirRecibimiento(_ticketDatos || {}); } catch (e) {}
 }
 function cerrarRecibimiento() { var ov = document.getElementById('recibimientoOv'); if (ov) ov.remove(); }
+/* ¿Qué tipo de vídeo es? 'ig' (Instagram, tarjeta), 'yt' (YouTube, 16/9),
+   'mp4' (vídeo propio → PANTALLA COMPLETA vertical), '' (ninguno). */
+function _tipoVideo(vid) {
+  vid = String(vid || '').trim();
+  if (!vid) return '';
+  if (/instagram\.com\/(?:reel|reels|p|tv)\//.test(vid)) return 'ig';
+  if (/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))/.test(vid)) return 'yt';
+  return 'mp4';
+}
 function reproducirRecibimiento(datos) {
   cerrarRecibimiento();
   var vid = datos && String(datos.vid || '').trim();
-  var media = vid ? htmlVideoFiesta(vid) : '<div class="recib-emojis">🎉🔥✨🎊💥🥂</div>';
+  var tipo = vid ? _tipoVideo(vid) : '';
   var ig = datos && String(datos.ig || '').trim();
   var igUrl = ig ? _igUrl(ig) : '';
   var btnSeguir = igUrl
     ? '<button type="button" class="recib-cerrar" onclick="abrirInstagramFiesta(\'' + escJs(igUrl) + '\')">📸 Seguir en Instagram</button>'
     : '<button type="button" class="recib-cerrar" onclick="cerrarRecibimiento()">Seguir</button>';
+  var ov = document.createElement('div');
+  ov.id = 'recibimientoOv';
+
+  if (tipo === 'mp4') {
+    // Vídeo PROPIO → experiencia a PANTALLA COMPLETA (vertical, como Instagram real):
+    // el vídeo cubre todo el móvil y el texto + botón van superpuestos abajo.
+    ov.className = 'recib-ov recib-full';
+    ov.innerHTML =
+      '<video class="recib-full-video" src="' + esc(vid) + '" autoplay playsinline loop></video>' +
+      '<button type="button" class="recib-x" onclick="cerrarRecibimiento()" aria-label="Cerrar">✕</button>' +
+      '<div class="recib-full-bar">' +
+        '<div class="recib-full-tit">🎟️ ' + esc((datos && datos.ev) || 'MH Collective') + '</div>' +
+        '<div class="recib-full-sub">✅ Código copiado · ¡Nos vemos en la fiesta!</div>' +
+        btnSeguir +
+      '</div>';
+    document.body.appendChild(ov);
+    setTimeout(function () { ov.classList.add('on'); }, 20);
+    return;
+  }
+
+  // Instagram / YouTube / sin vídeo → tarjeta (Instagram no deja pantalla completa).
+  var media = vid ? htmlVideoFiesta(vid) : '<div class="recib-emojis">🎉🔥✨🎊💥🥂</div>';
   var conf = '';
   for (var i = 0; i < 14; i++) {
     var e = ['🎉', '🔥', '✨', '🎊', '💥', '🥂'][i % 6];
     conf += '<span class="conf" style="left:' + (i * 7 + 3) + '%;animation-delay:' + (i * 0.12) + 's">' + e + '</span>';
   }
-  var ov = document.createElement('div');
-  ov.id = 'recibimientoOv';
   ov.className = 'recib-ov';
   ov.innerHTML = '<div class="recib-conf">' + conf + '</div>' +
     '<div class="recib-card">' +
