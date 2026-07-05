@@ -104,8 +104,12 @@ function ctxOf(frame) {
 }
 
 async function load() {
-  await page.goto(fileUrl, { waitUntil: "networkidle0", timeout: 30000 });
-  await sleep(300);
+  // OJO: no usamos "networkidle0". La app arranca la sincronización de Firebase,
+  // que deja una conexión en vivo abierta; en un entorno con internet real (CI de
+  // GitHub) la red nunca queda "en silencio" y el goto agotaría los 30 s. La app es
+  // autocontenida (JS/CSS inline), así que con "domcontentloaded" ya está lista.
+  await page.goto(fileUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
+  await sleep(600);
   // Portada de entrada: en las pruebas se desbloquea sola (no es lo que se está probando aquí;
   // el flujo de la portada tiene su propia prueba dedicada).
   await page.evaluate(() => {
