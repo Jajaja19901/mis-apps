@@ -57,6 +57,19 @@ const browser = await puppeteer.launch({
 });
 const page = await browser.newPage();
 await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
+// La app es AUTOCONTENIDA: no necesita internet para funcionar. Cortamos toda
+// petición externa (http/https) para que, en un entorno con internet real (CI de
+// GitHub), la app NO se conecte al Firebase real y sobrescriba los datos de demo
+// con los que corren las pruebas. Solo dejamos pasar file:// y data:.
+await page.setRequestInterception(true);
+page.on("request", (req) => {
+  const u = req.url();
+  if (u.startsWith("file://") || u.startsWith("data:") || u.startsWith("blob:")) {
+    req.continue().catch(() => {});
+  } else {
+    req.abort().catch(() => {});
+  }
+});
 page.on("pageerror", (e) => errors.push("JS: " + e.message));
 page.on("console", (m) => {
   if (m.type() === "error") {
