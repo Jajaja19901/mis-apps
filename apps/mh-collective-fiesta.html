@@ -16961,27 +16961,6 @@ function duenoCambiarCamareros(delta) {
 /* ---------- 4. Módulos ---------- */
 
 /* ---------- Cobro con tarjeta (Tap to Pay): lo activa el dueño y aparece a los trabajadores ---------- */
-function seccionTarjeta() {
-  var t = state.config.tarjetaCfg || { activa: false, app: 'sumup' };
-  var html = '<section class="panel" data-testid="seccion-tarjeta"><h2>💳 Cobro con tarjeta</h2>';
-  html += '<p class="nota">El móvil del trabajador hace de datáfono (Tap to Pay): el cliente acerca su tarjeta o móvil y paga. ' +
-    'El cobro real lo hace una app certificada (SumUp, etc.) que cada trabajador debe tener instalada con TU cuenta de negocio; ' +
-    'esta app le pasa el importe y apunta la venta cuando el trabajador confirma.</p>';
-  html += '<label class="switch"><input type="checkbox" id="tarjeta-activa"' + (t.activa ? ' checked' : '') +
-    ' onchange="duenoToggleTarjeta()"> Activar cobro con tarjeta (les aparece el botón 💳 al camarero y al vigilante)</label>';
-  if (t.activa) {
-    html += '<label>¿Con qué se cobra? <select id="tarjeta-app" onchange="duenoTarjetaApp(this.value)">' +
-      '<option value="datafono"' + (t.app === 'datafono' ? ' selected' : '') + '>Datáfono físico (el tuyo de siempre)</option>' +
-      '<option value="sumup"' + (t.app === 'sumup' ? ' selected' : '') + '>SumUp en el móvil (iPhone y Android)</option>' +
-      '<option value="otra"' + (t.app === 'otra' ? ' selected' : '') + '>Otra app de cobro (se abre a mano)</option>' +
-      '</select></label>';
-    html += '<p class="nota">Con <b>datáfono</b>: el trabajador teclea el importe en tu datáfono y confirma en la app; no hace falta nada más. ' +
-      'Con <b>SumUp</b>: el móvil del trabajador hace de datáfono (cuenta de negocio con tu DNI, ~1,5-2% de comisión). ' +
-      'En ambos casos el cobro queda marcado "con tarjeta" en el Registro para que cuadres caja al cierre.</p>';
-  }
-  html += '</section>';
-  return html;
-}
 function duenoTogglePuertaRRPP() {
   mutate(function (s) {
     s.config.puertaVentaRRPP = !s.config.puertaVentaRRPP;
@@ -17135,18 +17114,6 @@ function seccionCobros() {
   return html;
 }
 
-/* ---------- Pulseras NFC (activable: sin esto, los botones 📡 no existen) ---------- */
-function seccionNfcCfg() {
-  var on = nfcActivo();
-  var html = '<section class="panel" data-testid="seccion-nfc"><h2>📡 Pulseras / tarjetas NFC</h2>';
-  html += '<p class="nota">Estilo festival: el código del monedero (o de una entrada) se graba en una pulsera NFC y el cliente ' +
-    'paga o entra ACERCÁNDOLA al móvil del trabajador. Requiere móviles Android en el personal y comprar las pulseras ' +
-    '(pack barato, tipo NTAG213). Sin activar esto, los botones 📡 no aparecen en ningún sitio.</p>';
-  html += '<label class="switch"><input type="checkbox" id="nfc-activo"' + (on ? ' checked' : '') +
-    ' onchange="duenoToggleNfc()"> Activar pulseras NFC (botones 📡 de leer y grabar)</label>';
-  html += '</section>';
-  return html;
-}
 function duenoToggleNfc() {
   mutate(function (s) {
     if (!s.config.nfcCfg) s.config.nfcCfg = { activo: false };
@@ -17156,28 +17123,6 @@ function duenoToggleNfc() {
   toast(state.config.nfcCfg.activo ? 'NFC activado: ya salen los botones 📡 de leer y grabar' : 'NFC desactivado');
 }
 
-/* ---------- Cobro por Bizum (directo a la cuenta del dueño, sin intermediarios) ---------- */
-function seccionBizumCfg() {
-  var b = state.config.bizumCfg || { activo: false, telefono: '' };
-  var html = '<section class="panel" data-testid="seccion-bizum"><h2>📲 Cobro por Bizum</h2>';
-  html += '<p class="nota">El cliente te envía un Bizum desde su banco y el dinero cae DIRECTO en tu cuenta ' +
-    '(la vinculada a tu número), sin intermediarios ni comisiones. El trabajador enseña el número y el importe, ' +
-    'y confirma cuando el Bizum ha llegado.</p>';
-  html += '<label class="switch"><input type="checkbox" id="bizum-activo"' + (b.activo ? ' checked' : '') +
-    ' onchange="duenoToggleBizum()"> Activar cobro por Bizum (botón 📲 para camareros y vigilantes)</label>';
-  if (b.activo) {
-    html += '<label>Número de Bizum (el TUYO, donde cae el dinero)' +
-      '<input type="tel" id="bizum-telefono" placeholder="Ej: 612 345 678" value="' + esc(b.telefono || '') +
-      '" oninput="duenoBizumTelefono(this.value)"></label>';
-    if (!String(b.telefono || '').trim()) {
-      html += '<p class="nota" style="color:var(--ambar)">⚠ Sin número, el botón 📲 NO les sale a los trabajadores. Ponlo aquí.</p>';
-    }
-    html += '<p class="nota">Ojo: los bancos ponen límites a Bizum (importe por operación y operaciones/mes). ' +
-      'Para una fiesta va sobrado, pero revisa el tuyo. En el Registro cada cobro queda marcado "por Bizum" para cuadrar caja.</p>';
-  }
-  html += '</section>';
-  return html;
-}
 function duenoToggleBizum() {
   mutate(function (s) {
     if (!s.config.bizumCfg) s.config.bizumCfg = { activo: false, telefono: '' };
@@ -17730,18 +17675,6 @@ function seccionMonederos() {
   } else {
     html += '<p class="lista-vacia">Aún no hay monederos. Se cargan aquí o en la puerta (botón 💰).</p>';
   }
-  html += '</section>';
-  return html;
-}
-
-/* Sección de Ajustes: el interruptor que lo enciende para todos. */
-function seccionMonederoCfg() {
-  var on = monederoActivo();
-  var html = '<section class="panel" data-testid="seccion-monedero-cfg"><h2>💰 Monedero prepago (cashless)</h2>';
-  html += '<p class="nota">Tu sistema de cobro propio, sin bancos ni comisiones: el cliente paga UNA vez en la puerta ' +
-    '(efectivo/Bizum), se lleva un QR con su saldo, y toda la noche bebe enseñándolo. La barra descuenta sola y tú ves el cuadre en Dinero.</p>';
-  html += '<label class="switch"><input type="checkbox" id="monedero-activo"' + (on ? ' checked' : '') +
-    ' onchange="duenoToggleMonedero()"> Activar monedero (sale el botón 💰 en la puerta y la barra acepta sus códigos)</label>';
   html += '</section>';
   return html;
 }
