@@ -61,6 +61,14 @@ p{margin:0 0 .75rem;color:var(--text-dim)}
 .con-card.con-mal{border-color:#ff5c6c}
 .con-card.con-mal b{color:#ff5c6c}
 .con-card.con-espera{opacity:.85}
+/* Panel de equipo conectado */
+.equipo-lista{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.eq-item{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid var(--border);background:var(--bg)}
+.eq-item.eq-on{border-color:var(--neon-verde)}
+.eq-item.eq-off{border-color:#ff5c6c}
+.eq-estado{font-size:.85rem;color:var(--text-dim)}
+.eq-item.eq-off .eq-estado{color:#ff5c6c}
+.eq-bat{font-weight:700;white-space:nowrap;flex-shrink:0}
 /* Buscador y filtros */
 #buscador{width:100%;padding:12px 14px;border-radius:var(--radius-btn);border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:1rem;margin-bottom:12px}
 .tabs-filtro{display:flex;gap:8px;border-bottom:2px solid var(--border);overflow-x:auto;margin-bottom:12px}
@@ -954,6 +962,12 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
     { "expectVisible": "[data-testid=\"seccion-conexion\"]" } ]},
+  { "name": "El Resumen muestra el panel de equipo conectado", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "expectVisible": "[data-testid=\"seccion-equipo\"]" },
+    { "expect": "Equipo conectado" } ]},
   { "name": "Pestaña Entregar: sale la sección y el modo secreto de un solo uso", "steps": [
     { "goto": "#/dueno" },
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
@@ -13624,6 +13638,7 @@ function seedState() {
     ventasPorProducto: {}, // analítica: unidades e importe vendidos de cada producto
     gastos: [],
     bonos: [],
+    presencia: {},
     historico: [],
     log: [
       { hora: "22:00", actor: "Sistema", texto: "Evento iniciado", tipo: "config" }
@@ -13701,6 +13716,7 @@ function migrar(s) {
   if (typeof s.config.preguntarTipo !== 'boolean') s.config.preguntarTipo = false;
   if (typeof s.config.puertaVentaRRPP !== 'boolean') s.config.puertaVentaRRPP = true;
   if (typeof s.config.entregaUnaVez !== 'boolean') s.config.entregaUnaVez = false;
+  if (!s.presencia || typeof s.presencia !== 'object') s.presencia = {};
   if (!s.ventasPorProducto || typeof s.ventasPorProducto !== 'object') s.ventasPorProducto = {};
   if (!Array.isArray(s.monederos)) s.monederos = [];
   if (typeof s.ingresosMonederos !== 'number') s.ingresosMonederos = 0;
@@ -14300,6 +14316,72 @@ function refrescarSync() {
     if (nueva) card.replaceWith(nueva);
   }
 }
+/* ===== PRESENCIA DEL EQUIPO: quién está conectado, desde cuándo y su batería =====
+   Cada móvil deja un "latido" (su hora, rol y batería) en el estado compartido cada 30 s.
+   El Dueño ve, por cada trabajador: conectado / desconectado hace X / sin conectar, y la
+   batería (batería solo en Android; Apple no la deja leer en iPhone). */
+var _bateriaNivel = null, _bateriaCargando = null;
+function _initBateria() {
+  try {
+    if (navigator.getBattery) {
+      navigator.getBattery().then(function (b) {
+        function upd() { _bateriaNivel = Math.round((b.level || 0) * 100); _bateriaCargando = !!b.charging; }
+        upd();
+        try { b.addEventListener('levelchange', upd); b.addEventListener('chargingchange', upd); } catch (e) {}
+      }).catch(function () {});
+    }
+  } catch (e) {}
+}
+function latidoPresencia() {
+  var id = state && state.perfilActivo;
+  if (!id) return;
+  mutateSilent(function (s) {
+    if (!s.presencia || typeof s.presencia !== 'object') s.presencia = {};
+    s.presencia[id] = { t: Date.now(), rol: etiquetaPerfil(id), bat: _bateriaNivel, carg: _bateriaCargando };
+  });
+}
+function tiempoDesde(t) {
+  var seg = Math.max(0, Math.round((Date.now() - t) / 1000));
+  if (seg < 60) return 'hace ' + seg + ' s';
+  var min = Math.round(seg / 60);
+  if (min < 60) return 'hace ' + min + ' min';
+  var h = Math.floor(min / 60);
+  return 'hace ' + h + ' h' + ((min % 60) ? ' ' + (min % 60) + ' min' : '');
+}
+function seccionEquipo() {
+  var pres = (state && state.presencia) || {};
+  var UMBRAL = 75000; // 75 s sin latido = desconectado
+  var ahora = Date.now();
+  var lista = perfilesLista().filter(function (p) { return p.id !== 'dueno'; });
+  var html = '<section class="panel" data-testid="seccion-equipo"><h2>📡 Equipo conectado</h2>';
+  html += '<p class="nota">Quién tiene la app abierta ahora y cuánto lleva sin conexión, por si hay que avisarle. La batería solo se ve en móviles Android (Apple no la deja leer en iPhone).</p>';
+  html += '<ul class="equipo-lista">';
+  lista.forEach(function (p) {
+    var pr = pres[p.id];
+    var cls, estado, detalle = '';
+    if (!pr || !pr.t) { cls = 'eq-nunca'; estado = '⚪ Sin conectar'; detalle = 'aún no ha abierto la app'; }
+    else if (ahora - pr.t <= UMBRAL) { cls = 'eq-on'; estado = '🟢 Conectado'; }
+    else { cls = 'eq-off'; estado = '🔴 Desconectado'; detalle = tiempoDesde(pr.t); }
+    var bat = '';
+    if (pr && pr.bat != null) bat = (pr.carg ? '⚡ ' : '🔋 ') + pr.bat + '%';
+    else if (pr && pr.t) bat = '🔋 n/d';
+    html += '<li class="eq-item ' + cls + '"><span class="eq-info"><b>' + esc(p.label) + '</b><br>' +
+      '<span class="eq-estado">' + estado + (detalle ? ' · ' + esc(detalle) : '') + '</span></span>' +
+      (bat ? '<span class="eq-bat">' + esc(bat) + '</span>' : '') + '</li>';
+  });
+  html += '</ul></section>';
+  return html;
+}
+/* Mantiene vivo el "hace X min" y la batería sin repintar todo el panel. */
+function refrescarEquipo() {
+  var sec = document.querySelector('[data-testid="seccion-equipo"]');
+  if (!sec) return;
+  var wrap = document.createElement('div');
+  wrap.innerHTML = seccionEquipo();
+  var nueva = wrap.firstChild;
+  if (nueva) sec.replaceWith(nueva);
+}
+
 function initSync() {
   // MODO NUBE (Firebase): si está configurado, manda sobre todo lo demás.
   if (firebaseConfigurado()) { initFirebaseSync(); return; }
@@ -14694,6 +14776,13 @@ function bootApp() {
       else toast('Para instalar: menú del navegador → Añadir a pantalla de inicio');
     };
   }
+  // Presencia del equipo: batería + latido cada 30 s (y al volver a la app). El Dueño lo ve en Resumen.
+  _initBateria();
+  if (!/^#\/(e|t)\//.test(location.hash || '')) latidoPresencia();
+  setInterval(function () { if (!/^#\/(e|t)\//.test(location.hash || '')) latidoPresencia(); }, 30000);
+  setInterval(refrescarEquipo, 15000);
+  window.addEventListener('focus', latidoPresencia);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) latidoPresencia(); });
   renderApp();
 }
 window.addEventListener('DOMContentLoaded', bootApp);
@@ -16262,7 +16351,7 @@ function renderDueno() {
   function intro(t) { return '<p class="tab-intro">' + t + '</p>'; }
   var tabs = [
     { id: 'resumen', label: '📊 Resumen', build: function () {
-        return seccionConexion() + seccionPreparar() +
+        return seccionConexion() + seccionEquipo() + seccionPreparar() +
           intro('De un vistazo: cuánta gente hay dentro, cuánto dinero llevas, qué se consume más y cuánto ha recaudado cada trabajador.') +
           seccionKpis() + seccionConsumo() + seccionRecaudacion();
       } },
