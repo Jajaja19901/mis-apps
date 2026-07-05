@@ -317,6 +317,31 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .ticket-meta{margin-top:6px;color:var(--text-dim)}
 .ticket-nota{margin-top:14px;color:var(--text-dim);font-size:.85rem}
 .ticket-foot{margin-top:18px;color:var(--text-dim);font-size:.7rem;opacity:.7}
+.ticket-secreto #ticketCuenta,.ticket-secreto b{font-variant-numeric:tabular-nums;color:#ff5c6c;font-weight:800}
+.ticket-copiar{margin:4px auto 8px;display:block;min-height:44px;padding:.5rem 1.1rem;border:1px solid var(--neon-verde);background:transparent;color:var(--neon-verde);border-radius:10px;font-weight:700;cursor:pointer}
+.ticket-video{width:100%;max-width:360px;aspect-ratio:16/9;border:0;border-radius:12px;margin:12px auto;display:block;background:#000}
+.ticket-anim{margin:18px 0;padding:22px 10px;border-radius:14px;background:radial-gradient(circle at 50% 30%,rgba(176,38,255,.35),rgba(0,212,138,.12),transparent);overflow:hidden}
+.ta-conf{font-size:1.5rem;letter-spacing:6px;animation:taScroll 1.2s linear infinite}
+.ta-tit{font-size:1.6rem;font-weight:900;margin-top:10px;color:#fff;text-shadow:0 0 18px rgba(176,38,255,.9)}
+.ta-sub{margin-top:6px;color:var(--neon-verde);font-weight:700}
+@keyframes taScroll{from{transform:translateX(-8px)}to{transform:translateX(8px)}}
+.ticket-boom{margin-top:14px;font-size:1.2rem;font-weight:800;color:#ff5c6c}
+.ticket-card.ticket-destruido{animation:boomIn .5s ease}
+@keyframes boomIn{0%{transform:scale(1.06);opacity:.2}100%{transform:none;opacity:1}}
+/* Recibimiento espectacular al copiar el código */
+.recib-ov{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:rgba(5,5,12,.92);opacity:0;transition:opacity .35s ease}
+.recib-ov.on{opacity:1}
+.recib-card{position:relative;width:100%;max-width:420px;text-align:center;background:var(--panel);border:1px solid var(--neon-verde);
+  border-radius:20px;padding:24px 20px;box-shadow:0 0 80px rgba(176,38,255,.4);animation:boomIn .5s ease}
+.recib-tit{font-size:1.8rem;font-weight:900;color:#fff;text-shadow:0 0 20px rgba(176,38,255,.9)}
+.recib-ev{margin-top:4px;font-weight:800;color:var(--neon-verde);letter-spacing:.5px}
+.recib-emojis{font-size:2.4rem;letter-spacing:8px;margin:18px 0;animation:taScroll 1.1s linear infinite}
+.recib-msg{margin-top:14px;color:var(--text);font-weight:700}
+.recib-cerrar{margin-top:16px;min-height:46px;padding:.6rem 1.6rem;border:none;border-radius:12px;background:var(--neon-verde);color:var(--bg);font-weight:800;cursor:pointer}
+.recib-conf{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.recib-conf .conf{position:absolute;top:-8%;font-size:1.5rem;animation:confFall 2.6s linear infinite}
+@keyframes confFall{0%{transform:translateY(-10vh) rotate(0)}100%{transform:translateY(110vh) rotate(360deg)}}
 .gate-logo{width:132px;height:132px;margin:0 auto 20px;border-radius:30px;display:flex;align-items:center;justify-content:center;
   overflow:hidden;background:#0d0d15;box-shadow:0 0 0 1px var(--border),0 0 70px rgba(0,212,138,.4)}
 .gate-logo img,.gate-logo svg{width:100%;height:100%;object-fit:cover}
@@ -13431,6 +13456,8 @@ function tokenEntrada(p) {
     l: (state.config && state.config.lugar) || '',
     cp: (typeof consIncluidas === 'function' ? consIncluidas(p) : 0)
   };
+  var vid = (state.config && String(state.config.videoFiesta || '').trim());
+  if (vid) payload.vid = vid; // vídeo de la fiesta que sale al autodestruirse (opcional)
   return _b64urlEnc(JSON.stringify(payload));
 }
 function enlaceEntrada(p, unaVez) {
@@ -13449,17 +13476,98 @@ function htmlTicketPublico(d, unaVez, yaVisto) {
   }
   var copasTxt = (d.cp > 0) ? (d.cp + ' copa' + (d.cp === 1 ? '' : 's') + ' incluida' + (d.cp === 1 ? '' : 's')) : '';
   var meta = [d.f, d.l].filter(Boolean).map(esc).join(' · ');
-  return '<div class="ticket-pub"><div class="ticket-card">' +
+  return '<div class="ticket-pub"><div class="ticket-card" id="ticketCard">' +
     '<div class="ticket-ev">' + esc(d.ev) + '</div>' +
     '<div class="ticket-sub">Tu entrada</div>' +
     (d.n ? '<div class="ticket-nombre">' + esc(d.n) + '</div>' : '') +
-    (unaVez ? '<div class="ticket-secreto">🔒 De un solo uso · <b>apunta el código</b>, no volverás a verlo</div>' : '') +
+    (unaVez ? '<div class="ticket-secreto" id="ticketAviso">🔥 Este mensaje se autodestruye en <b id="ticketCuenta">1:00</b> · apunta o copia el código y haz foto al QR</div>' : '') +
     '<div class="ticket-codigo" data-testid="ticket-codigo">' + esc(d.c) + '</div>' +
+    '<button type="button" class="ticket-copiar" onclick="copiarCodigoTicket(\'' + escJs(d.c) + '\')">📋 Copiar código</button>' +
     '<canvas id="ticketQR" width="240" height="240"></canvas>' +
     (copasTxt ? '<div class="ticket-copas">' + esc(copasTxt) + '</div>' : '') +
-    (meta ? '<div class="ticket-meta">' + meta + '</div>' : '') +
+    (meta ? '<div class="ticket-meta">📍 ' + meta + '</div>' : '') +
     '<div class="ticket-nota">Enséñalo en la puerta (o haz una foto a este código).</div>' +
     '<div class="ticket-foot">' + studioFoot + '</div></div></div>';
+}
+var _ticketDatos = null; // datos de la entrada abierta (para el recibimiento al copiar)
+function copiarCodigoTicket(codigo) {
+  copiarTexto(String(codigo), 'Código copiado ✅');
+  // Recibimiento espectacular: al copiar, salta el vídeo/animación de bienvenida.
+  try { reproducirRecibimiento(_ticketDatos || {}); } catch (e) {}
+}
+function cerrarRecibimiento() { var ov = document.getElementById('recibimientoOv'); if (ov) ov.remove(); }
+function reproducirRecibimiento(datos) {
+  cerrarRecibimiento();
+  var vid = datos && String(datos.vid || '').trim();
+  var media;
+  if (vid) {
+    var yt = vid.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/);
+    media = yt
+      ? '<iframe class="ticket-video" src="https://www.youtube.com/embed/' + esc(yt[1]) + '?autoplay=1&rel=0" allow="autoplay; encrypted-media" allowfullscreen frameborder="0"></iframe>'
+      : '<video class="ticket-video" src="' + esc(vid) + '" autoplay playsinline controls></video>';
+  } else {
+    media = '<div class="recib-emojis">🎉🔥✨🎊💥🥂</div>';
+  }
+  var conf = '';
+  for (var i = 0; i < 14; i++) {
+    var e = ['🎉', '🔥', '✨', '🎊', '💥', '🥂'][i % 6];
+    conf += '<span class="conf" style="left:' + (i * 7 + 3) + '%;animation-delay:' + (i * 0.12) + 's">' + e + '</span>';
+  }
+  var ov = document.createElement('div');
+  ov.id = 'recibimientoOv';
+  ov.className = 'recib-ov';
+  ov.innerHTML = '<div class="recib-conf">' + conf + '</div>' +
+    '<div class="recib-card">' +
+    '<div class="recib-tit">🎟️ ¡Bienvenido!</div>' +
+    '<div class="recib-ev">' + esc((datos && datos.ev) || 'MH Collective') + '</div>' +
+    media +
+    '<div class="recib-msg">✅ Código copiado. ¡Nos vemos en la fiesta!</div>' +
+    '<button type="button" class="recib-cerrar" onclick="cerrarRecibimiento()">Seguir</button></div>';
+  document.body.appendChild(ov);
+  setTimeout(function () { ov.classList.add('on'); }, 20);
+  if (!vid) setTimeout(cerrarRecibimiento, 7000); // sin vídeo, se cierra solo
+}
+// Secuencia de autodestrucción del enlace de un solo uso: cuenta atrás → vídeo/animación → bloqueo.
+var _autodestTimer = null;
+function iniciarAutodestruccion(token, datos) {
+  if (_autodestTimer) { clearInterval(_autodestTimer); _autodestTimer = null; }
+  var restante = 60; // 1 minuto para mirar y copiar
+  var el = document.getElementById('ticketCuenta');
+  function pinta() {
+    var m = Math.floor(restante / 60), s = restante % 60;
+    if (el) el.textContent = m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  pinta();
+  _autodestTimer = setInterval(function () {
+    restante--;
+    if (restante <= 0) {
+      clearInterval(_autodestTimer); _autodestTimer = null;
+      try { localStorage.setItem('mh_ticket_visto_' + token, '1'); } catch (e) {}
+      mostrarVideoYDestruir(datos);
+    } else { pinta(); }
+  }, 1000);
+}
+function mostrarVideoYDestruir(datos) {
+  var card = document.getElementById('ticketCard');
+  if (!card) return;
+  var vid = datos && String(datos.vid || '').trim();
+  var interior = '';
+  if (vid) {
+    var yt = vid.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([\w-]{6,})/);
+    if (yt) interior = '<iframe class="ticket-video" src="https://www.youtube.com/embed/' + esc(yt[1]) + '?autoplay=1&rel=0" allow="autoplay; encrypted-media" allowfullscreen frameborder="0"></iframe>';
+    else interior = '<video class="ticket-video" src="' + esc(vid) + '" autoplay playsinline controls></video>';
+  } else {
+    // Sin vídeo: animación neón de la fiesta (confeti + nombre).
+    interior = '<div class="ticket-anim">' +
+      '<div class="ta-conf">🎉🔥✨🎊💥🎉🔥✨🎊💥</div>' +
+      '<div class="ta-tit">' + esc((datos && datos.ev) || 'MH Collective') + '</div>' +
+      '<div class="ta-sub">¡Nos vemos en la fiesta!</div></div>';
+  }
+  card.classList.add('ticket-destruido');
+  card.innerHTML = '<div class="ticket-ev">' + esc((datos && datos.ev) || 'MH Collective') + '</div>' +
+    interior +
+    '<div class="ticket-boom">🔒 Mensaje destruido</div>' +
+    '<p class="nota">Espero que apuntaras el código 😉 Si lo perdiste, pide al organizador que te reenvíe la entrada.</p>';
 }
 // Decodifica el token de la URL y devuelve {datos, unaVez, yaVisto} o null si no es ruta de entrada.
 function rutaTicket() {
@@ -13620,6 +13728,8 @@ function seedState() {
       puertaVentaRRPP: true,
       // Al entregar entradas por enlace, ¿enlaces secretos de un solo uso?
       entregaUnaVez: false,
+      // Vídeo (enlace) que sale al autodestruirse la entrada secreta. Vacío = animación.
+      videoFiesta: "",
       fecha: "", hora: "", lugar: "", lema: "",
       logo: null, colorTema: "#00d4ff",
       vipPack: { botellas: 1, refrescos: 4 },
@@ -13718,6 +13828,7 @@ function migrar(s) {
   if (typeof s.config.preguntarTipo !== 'boolean') s.config.preguntarTipo = false;
   if (typeof s.config.puertaVentaRRPP !== 'boolean') s.config.puertaVentaRRPP = true;
   if (typeof s.config.entregaUnaVez !== 'boolean') s.config.entregaUnaVez = false;
+  if (typeof s.config.videoFiesta !== 'string') s.config.videoFiesta = '';
   if (!s.presencia || typeof s.presencia !== 'object') s.presencia = {};
   if (!s.ventasPorProducto || typeof s.ventasPorProducto !== 'object') s.ventasPorProducto = {};
   if (!Array.isArray(s.monederos)) s.monederos = [];
@@ -14135,12 +14246,14 @@ function renderAppInterno() {
     if (typeof ocultarGate === 'function') ocultarGate();
     if (topbar) topbar.style.display = 'none';
     var vistaT = document.getElementById('vista');
+    _ticketDatos = rt.datos || null;
     if (vistaT) {
       vistaT.innerHTML = htmlTicketPublico(rt.datos, rt.unaVez, rt.yaVisto);
       if (rt.datos && rt.datos.c && !(rt.unaVez && rt.yaVisto)) {
         var cvs = document.getElementById('ticketQR');
         if (cvs) { try { drawQR(cvs, rt.datos.c, 240); } catch (e) {} }
-        if (rt.unaVez) { try { localStorage.setItem('mh_ticket_visto_' + rt.token, '1'); } catch (e) {} }
+        // De un solo uso: arranca la cuenta atrás (al llegar a 0 → vídeo/animación y se bloquea).
+        if (rt.unaVez) { try { iniciarAutodestruccion(rt.token, rt.datos); } catch (e) { try { localStorage.setItem('mh_ticket_visto_' + rt.token, '1'); } catch (e2) {} } }
       }
     }
     return;
@@ -16882,6 +16995,10 @@ function copiarTodosEnlaces() {
   if (!lineas.length) { toast('No hay entradas'); return; }
   copiarTexto(lineas.join('\n'), lineas.length + ' enlaces copiados');
 }
+function duenoSetVideoFiesta(v) {
+  mutateSilent(function (s) { s.config.videoFiesta = String(v || '').trim(); });
+  toast(String(v || '').trim() ? 'Vídeo guardado' : 'Vídeo quitado (saldrá la animación)');
+}
 function editarContactoEntrada(id) {
   var p = personaPorId(id); if (!p) return;
   var quien = (String(p.nombre || '') + ' ' + String(p.apellido || '')).trim();
@@ -16905,8 +17022,12 @@ function seccionEntregar() {
   html += '<div class="switch"><label><input type="checkbox" id="entrega-una-vez"' + (unaVez ? ' checked' : '') +
     ' onchange="duenoToggleEntregaUnaVez()"> 🔒 Enlaces secretos de <b>un solo uso</b> (se abren una vez y se bloquean)</label></div>';
   html += '<p class="nota">' + (unaVez
-    ? 'Modo secreto activo: quien abra el enlace ve el código UNA vez y luego se bloquea (por dispositivo).'
+    ? '🔥 Modo secreto activo: al abrir el enlace, la entrada sale con una <b>cuenta atrás de 1 minuto</b> para mirar y copiar; al acabar sale el <b>vídeo de la fiesta</b> y el mensaje <b>se autodestruye</b> (por dispositivo).'
     : 'Modo normal: el enlace se puede abrir las veces que haga falta.') + '</p>';
+  if (unaVez) {
+    html += '<label>🎬 Vídeo de la fiesta (enlace de YouTube o .mp4, opcional)<input type="url" id="video-fiesta" placeholder="Pega aquí el enlace del vídeo (o déjalo vacío)" value="' + esc((state.config && state.config.videoFiesta) || '') + '" onchange="duenoSetVideoFiesta(this.value)"></label>';
+    html += '<p class="nota">Es el vídeo que sale al autodestruirse. Si lo dejas vacío, sale una animación con el nombre de la fiesta.</p>';
+  }
   if (!personas.length) {
     html += '<p class="lista-vacia">Aún no hay entradas. Créalas en la pestaña <b>Entradas</b>.</p></section>';
     return html;
