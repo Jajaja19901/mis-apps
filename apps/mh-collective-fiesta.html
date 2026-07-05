@@ -69,6 +69,8 @@ p{margin:0 0 .75rem;color:var(--text-dim)}
 .eq-estado{font-size:.85rem;color:var(--text-dim)}
 .eq-item.eq-off .eq-estado{color:#ff5c6c}
 .eq-bat{font-weight:700;white-space:nowrap;flex-shrink:0}
+.ent-contacto{font-size:.8rem;opacity:.85}
+.ent-contacto.ent-sincontacto{color:var(--text-dim);opacity:.6}
 /* Buscador y filtros */
 #buscador{width:100%;padding:12px 14px;border-radius:var(--radius-btn);border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:1rem;margin-bottom:12px}
 .tabs-filtro{display:flex;gap:8px;border-bottom:2px solid var(--border);overflow-x:auto;margin-bottom:12px}
@@ -14753,13 +14755,17 @@ function chequearAcceso() {
 }
 
 function bootApp() {
+  // Enlace de ENTRADA de un invitado (#/e/ o #/t/): NO se conecta a la nube ni carga la fiesta.
+  // Solo pinta su entrada (los datos van en el propio enlace). Así el invitado no descarga
+  // NADA del resto (ni la lista, ni la caja, ni las contraseñas).
+  var esTicket = /^#\/(e|t)\//.test(location.hash || '');
   capturarTokenDeEnlace();
   load();
   chequearAcceso();
   precargarCartel();
   aplicarLogo();
   window.addEventListener('hashchange', renderApp);
-  initSync();
+  if (!esTicket) initSync();
   // Service worker: solo cuando se sirve por http(s) desde el servidor (en file:// no aplica).
   // Hace la app instalable en Android y que funcione sin datos (offline).
   if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
@@ -14777,12 +14783,15 @@ function bootApp() {
     };
   }
   // Presencia del equipo: batería + latido cada 30 s (y al volver a la app). El Dueño lo ve en Resumen.
-  _initBateria();
-  if (!/^#\/(e|t)\//.test(location.hash || '')) latidoPresencia();
-  setInterval(function () { if (!/^#\/(e|t)\//.test(location.hash || '')) latidoPresencia(); }, 30000);
-  setInterval(refrescarEquipo, 15000);
-  window.addEventListener('focus', latidoPresencia);
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) latidoPresencia(); });
+  // No aplica en los enlaces de entrada de invitados (no forman parte del equipo).
+  if (!esTicket) {
+    _initBateria();
+    latidoPresencia();
+    setInterval(latidoPresencia, 30000);
+    setInterval(refrescarEquipo, 15000);
+    window.addEventListener('focus', latidoPresencia);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) latidoPresencia(); });
+  }
   renderApp();
 }
 window.addEventListener('DOMContentLoaded', bootApp);
@@ -16713,6 +16722,8 @@ function seccionPersonales() {
   html += '<form id="listaForm" onsubmit="return duenoAnadirLista(event)">';
   html += '<label>Nombre<input type="text" id="lista-nombre" required></label>';
   html += '<label>Apellido<input type="text" id="lista-apellido"></label>';
+  html += '<label>WhatsApp (opcional, para enviarle su entrada)<input type="tel" id="lista-telefono" placeholder="Ej: 612 345 678"></label>';
+  html += '<label>Email (opcional)<input type="email" id="lista-email" placeholder="Ej: ana@correo.com"></label>';
   html += '<label>Tipo<select id="lista-tipo" onchange="onListaTipoChange(this.value)">';
   html += '<option value="invitado">Invitado (gratis)</option>';
   html += '<option value="taquilla-pagada">Entrada YA PAGADA (online/anticipada)</option>';
@@ -16871,6 +16882,21 @@ function copiarTodosEnlaces() {
   if (!lineas.length) { toast('No hay entradas'); return; }
   copiarTexto(lineas.join('\n'), lineas.length + ' enlaces copiados');
 }
+function editarContactoEntrada(id) {
+  var p = personaPorId(id); if (!p) return;
+  var quien = (String(p.nombre || '') + ' ' + String(p.apellido || '')).trim();
+  var tel = window.prompt('WhatsApp de ' + quien + ' (con prefijo, ej. 34612345678). Deja vacío si no:', p.telefono || '');
+  if (tel === null) return;
+  var mail = window.prompt('Email de ' + quien + ' (deja vacío si no):', p.email || '');
+  if (mail === null) return;
+  mutateSilent(function (s) {
+    var q = null;
+    for (var i = 0; i < (s.personas || []).length; i++) if (s.personas[i].id === id) q = s.personas[i];
+    if (q) { q.telefono = String(tel).trim(); q.email = String(mail).trim(); }
+  });
+  toast('Contacto guardado');
+  _duenoTab = 'entregar'; renderDueno();
+}
 function seccionEntregar() {
   var unaVez = _entregaUnaVez();
   var personas = state.personas || [];
@@ -16885,17 +16911,23 @@ function seccionEntregar() {
     html += '<p class="lista-vacia">Aún no hay entradas. Créalas en la pestaña <b>Entradas</b>.</p></section>';
     return html;
   }
+  html += '<p class="nota">Con el ✏️ pones el <b>WhatsApp/email</b> de cada uno para que el envío le llegue directo. Sin contacto, el botón se abre igual y eliges tú a quién mandarlo.</p>';
   html += '<button type="button" class="btn" data-testid="btn-copiar-todos" onclick="copiarTodosEnlaces()">📋 Copiar TODOS los enlaces (' + personas.length + ')</button>';
   var tope = 60;
   html += '<ul class="lista-entradas">';
   personas.slice(0, tope).forEach(function (p) {
     var nom = (String(p.nombre || '') + ' ' + String(p.apellido || '')).trim() || 'Entrada';
-    html += '<li data-testid="entregar-' + esc(p.id) + '"><span class="ent-info"><b>' + esc(nom) + '</b> · ' + esc(p.codigoReserva) + '</span>' +
+    var tieneTel = !!String(p.telefono || '').trim(), tieneMail = !!String(p.email || '').trim();
+    var cHint = (tieneTel || tieneMail)
+      ? '<span class="ent-contacto">' + (tieneTel ? '📱' : '') + (tieneMail ? '✉️' : '') + '</span>'
+      : '<span class="ent-contacto ent-sincontacto">sin contacto</span>';
+    html += '<li data-testid="entregar-' + esc(p.id) + '"><span class="ent-info"><b>' + esc(nom) + '</b> · ' + esc(p.codigoReserva) + ' ' + cHint + '</span>' +
       '<span style="display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0">' +
       '<button type="button" data-testid="wa-' + esc(p.id) + '" onclick="whatsappEntrada(\'' + escJs(p.id) + '\')">📱</button>' +
       '<button type="button" onclick="emailEntrada(\'' + escJs(p.id) + '\')">✉️</button>' +
       '<button type="button" data-testid="cop-' + esc(p.id) + '" onclick="copiarEnlaceEntrada(\'' + escJs(p.id) + '\')">🔗</button>' +
       '<button type="button" onclick="verEntrada(\'' + escJs(p.id) + '\')">👁️</button>' +
+      '<button type="button" data-testid="edc-' + esc(p.id) + '" onclick="editarContactoEntrada(\'' + escJs(p.id) + '\')">✏️</button>' +
       '</span></li>';
   });
   html += '</ul>';
@@ -17007,10 +17039,13 @@ function duenoAnadirLista(ev) {
   var tipo = document.getElementById('lista-tipo').value;
   var acomp = parseInt(document.getElementById('lista-acomp').value || '0', 10) || 0;
   var senal = Number(document.getElementById('lista-senal').value) || 0;
+  var telefono = (document.getElementById('lista-telefono') || {}).value || '';
+  var email = (document.getElementById('lista-email') || {}).value || '';
   if (!nombre) { toast('Falta el nombre'); return false; }
   var nuevoId = 'p' + Date.now();
   mutate(function (s) {
     var p = { id: nuevoId, nombre: nombre, apellido: apellido, codigoReserva: nuevoCodigoLista(s),
+      telefono: String(telefono).trim(), email: String(email).trim(),
       mesa: null, pagado: false, importePagado: 0, dentro: false, horaEntrada: null };
     if (tipo === 'invitado') { p.tipo = 'invitado'; }
     else if (tipo === 'taquilla-pagada') { p.tipo = 'taquilla'; p.pagado = true; p.importePagado = s.config.precioEntrada; }
