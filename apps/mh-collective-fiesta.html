@@ -293,6 +293,20 @@ button:disabled{opacity:.5;cursor:not-allowed}
 #accesoGate.on{display:flex}
 .gate-card{width:100%;max-width:380px;text-align:center;animation:gateIn .5s ease}
 @keyframes gateIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+/* Entrada pública (invitado abre su enlace) */
+.ticket-pub{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.ticket-card{width:100%;max-width:400px;text-align:center;background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:26px 22px;box-shadow:0 0 60px rgba(0,212,138,.15)}
+.ticket-card.ticket-usado{opacity:.92}
+.ticket-ev{font-weight:800;font-size:1.15rem;letter-spacing:.5px;color:var(--neon-verde)}
+.ticket-sub{color:var(--text-dim);font-size:.85rem;margin-top:2px}
+.ticket-nombre{font-size:1.35rem;font-weight:800;margin:10px 0 4px}
+.ticket-secreto{margin:10px 0;color:var(--ambar);font-size:.85rem}
+.ticket-codigo{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:1.7rem;font-weight:800;letter-spacing:2px;margin:12px 0;word-break:break-all}
+.ticket-card canvas{width:240px;max-width:80%;height:auto;background:#fff;border-radius:12px;padding:8px;margin:6px auto}
+.ticket-copas{margin-top:8px;color:var(--neon-verde);font-weight:700}
+.ticket-meta{margin-top:6px;color:var(--text-dim)}
+.ticket-nota{margin-top:14px;color:var(--text-dim);font-size:.85rem}
+.ticket-foot{margin-top:18px;color:var(--text-dim);font-size:.7rem;opacity:.7}
 .gate-logo{width:132px;height:132px;margin:0 auto 20px;border-radius:30px;display:flex;align-items:center;justify-content:center;
   overflow:hidden;background:#0d0d15;box-shadow:0 0 0 1px var(--border),0 0 70px rgba(0,212,138,.4)}
 .gate-logo img,.gate-logo svg{width:100%;height:100%;object-fit:cover}
@@ -939,7 +953,16 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "goto": "#/dueno" },
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
-    { "expectVisible": "[data-testid=\"seccion-conexion\"]" } ]}
+    { "expectVisible": "[data-testid=\"seccion-conexion\"]" } ]},
+  { "name": "Pestaña Entregar: sale la sección y el modo secreto de un solo uso", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "clickText": "Entregar" },
+    { "expectVisible": "[data-testid=\"seccion-entregar\"]" },
+    { "expect": "Copiar TODOS los enlaces" },
+    { "check": "#entrega-una-vez" },
+    { "expect": "Modo secreto activo" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -13369,6 +13392,73 @@ function drawQR(canvas, text, sizePx){
   return canvas;
 }
 
+// ===== ENTREGA DE ENTRADAS: enlace único con la entrada dentro (QR incluido) =====
+// El enlace lleva los datos de la entrada codificados, así se abre sin descargar nada más
+// y sin exponer el resto de la fiesta. Ruta #/e/<token> (normal) o #/t/<token> (un solo uso).
+function _b64urlEnc(str) {
+  try { return btoa(unescape(encodeURIComponent(str))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+  catch (e) { return ''; }
+}
+function _b64urlDec(b64) {
+  try { b64 = String(b64).replace(/-/g, '+').replace(/_/g, '/'); while (b64.length % 4) b64 += '='; return decodeURIComponent(escape(atob(b64))); }
+  catch (e) { return ''; }
+}
+function baseUrlApp() {
+  return (location.origin && location.origin !== 'null') ? (location.origin + location.pathname) : location.href.split('#')[0];
+}
+function tokenEntrada(p) {
+  var payload = {
+    n: (String(p.nombre || '') + ' ' + String(p.apellido || '')).trim(),
+    c: p.codigoReserva,
+    ev: (state.config && state.config.eventName) || 'MH Collective',
+    f: (state.config && state.config.fecha) || '',
+    l: (state.config && state.config.lugar) || '',
+    cp: (typeof consIncluidas === 'function' ? consIncluidas(p) : 0)
+  };
+  return _b64urlEnc(JSON.stringify(payload));
+}
+function enlaceEntrada(p, unaVez) {
+  return baseUrlApp() + '#/' + (unaVez ? 't' : 'e') + '/' + tokenEntrada(p);
+}
+// HTML de la "entrada bonita" que ve el invitado al abrir su enlace.
+function htmlTicketPublico(d, unaVez, yaVisto) {
+  if (!d || !d.c) return '<div class="ticket-pub"><div class="ticket-card"><h2>Entrada no válida</h2><p class="nota">Pídele al organizador que te reenvíe tu entrada.</p></div></div>';
+  var studioFoot = esc(CONFIG.STUDIO_BRAND) + ' · por ' + esc(CONFIG.STUDIO_AUTHOR);
+  if (unaVez && yaVisto) {
+    return '<div class="ticket-pub"><div class="ticket-card ticket-usado">' +
+      '<div class="ticket-ev">' + esc(d.ev) + '</div>' +
+      '<h2>🔒 Entrada ya abierta</h2>' +
+      '<p class="nota">Era de un solo uso y ya la abriste. Si apuntaste el código, enséñalo en la puerta. Si lo perdiste, pide al organizador que te la reenvíe.</p>' +
+      '<div class="ticket-foot">' + studioFoot + '</div></div></div>';
+  }
+  var copasTxt = (d.cp > 0) ? (d.cp + ' copa' + (d.cp === 1 ? '' : 's') + ' incluida' + (d.cp === 1 ? '' : 's')) : '';
+  var meta = [d.f, d.l].filter(Boolean).map(esc).join(' · ');
+  return '<div class="ticket-pub"><div class="ticket-card">' +
+    '<div class="ticket-ev">' + esc(d.ev) + '</div>' +
+    '<div class="ticket-sub">Tu entrada</div>' +
+    (d.n ? '<div class="ticket-nombre">' + esc(d.n) + '</div>' : '') +
+    (unaVez ? '<div class="ticket-secreto">🔒 De un solo uso · <b>apunta el código</b>, no volverás a verlo</div>' : '') +
+    '<div class="ticket-codigo" data-testid="ticket-codigo">' + esc(d.c) + '</div>' +
+    '<canvas id="ticketQR" width="240" height="240"></canvas>' +
+    (copasTxt ? '<div class="ticket-copas">' + esc(copasTxt) + '</div>' : '') +
+    (meta ? '<div class="ticket-meta">' + meta + '</div>' : '') +
+    '<div class="ticket-nota">Enséñalo en la puerta (o haz una foto a este código).</div>' +
+    '<div class="ticket-foot">' + studioFoot + '</div></div></div>';
+}
+// Decodifica el token de la URL y devuelve {datos, unaVez, yaVisto} o null si no es ruta de entrada.
+function rutaTicket() {
+  var hash = location.hash || '';
+  var mE = hash.match(/^#\/e\/(.+)$/), mT = hash.match(/^#\/t\/(.+)$/);
+  if (!mE && !mT) return null;
+  var token = (mE ? mE[1] : mT[1]);
+  var unaVez = !!mT;
+  var d = null;
+  try { d = JSON.parse(_b64urlDec(token)); } catch (e) {}
+  var yaVisto = false;
+  try { yaVisto = unaVez && localStorage.getItem('mh_ticket_visto_' + token) === '1'; } catch (e) {}
+  return { token: token, datos: d, unaVez: unaVez, yaVisto: yaVisto };
+}
+
 // ===== APP =====
 /* ===== frag-core-a.js — MH Collective =====
    Responsabilidad ÚNICA de este fragmento: estado + persistencia.
@@ -13512,6 +13602,8 @@ function seedState() {
       // Las entradas de pago las venden los RRPP: en la puerta NO se cobra, solo se da
       // acceso y la entrada se cuenta como vendida. Es el modelo de esta fiesta.
       puertaVentaRRPP: true,
+      // Al entregar entradas por enlace, ¿enlaces secretos de un solo uso?
+      entregaUnaVez: false,
       fecha: "", hora: "", lugar: "", lema: "",
       logo: null, colorTema: "#00d4ff",
       vipPack: { botellas: 1, refrescos: 4 },
@@ -13608,6 +13700,7 @@ function migrar(s) {
   if (typeof s.config.nfcCfg.activo !== 'boolean') s.config.nfcCfg.activo = false;
   if (typeof s.config.preguntarTipo !== 'boolean') s.config.preguntarTipo = false;
   if (typeof s.config.puertaVentaRRPP !== 'boolean') s.config.puertaVentaRRPP = true;
+  if (typeof s.config.entregaUnaVez !== 'boolean') s.config.entregaUnaVez = false;
   if (!s.ventasPorProducto || typeof s.ventasPorProducto !== 'object') s.ventasPorProducto = {};
   if (!Array.isArray(s.monederos)) s.monederos = [];
   if (typeof s.ingresosMonederos !== 'number') s.ingresosMonederos = 0;
@@ -14017,6 +14110,24 @@ function renderApp() {
 }
 
 function renderAppInterno() {
+  // Entrada pública (invitado abre su enlace): pantalla completa, sin barra de admin ni portada.
+  var rt = rutaTicket();
+  var topbar = document.getElementById('topbar');
+  if (rt) {
+    if (typeof ocultarGate === 'function') ocultarGate();
+    if (topbar) topbar.style.display = 'none';
+    var vistaT = document.getElementById('vista');
+    if (vistaT) {
+      vistaT.innerHTML = htmlTicketPublico(rt.datos, rt.unaVez, rt.yaVisto);
+      if (rt.datos && rt.datos.c && !(rt.unaVez && rt.yaVisto)) {
+        var cvs = document.getElementById('ticketQR');
+        if (cvs) { try { drawQR(cvs, rt.datos.c, 240); } catch (e) {} }
+        if (rt.unaVez) { try { localStorage.setItem('mh_ticket_visto_' + rt.token, '1'); } catch (e) {} }
+      }
+    }
+    return;
+  }
+  if (topbar) topbar.style.display = '';
   var rolChips = document.getElementById('rolChips');
   if (rolChips) {
     var activo = actorActual();
@@ -14552,6 +14663,9 @@ function entrarAcceso(ev) {
 }
 /* Puerta: si hay protección (contraseña general o códigos) y este móvil no la ha pasado, muestra la portada. */
 function chequearAcceso() {
+  // Las entradas públicas (#/e/ y #/t/) NO piden la contraseña de la fiesta: el invitado
+  // solo ve su entrada, nada más.
+  if (/^#\/(e|t)\//.test(location.hash || '')) { ocultarGate(); return; }
   if (accesoProtegido() && !accesoDesbloqueado()) mostrarGate();
   else ocultarGate();
 }
@@ -16161,6 +16275,10 @@ function renderDueno() {
           acc('cartel', '🖼️ Cartel de la fiesta', 'La imagen que sale de fondo en cada entrada y PDF', seccionCartel()) +
           acc('backup', '💾 Copia de seguridad', 'Guardar la lista en un archivo y pasarla a otro móvil', seccionBackup());
       } },
+    { id: 'entregar', label: '📤 Entregar', build: function () {
+        return intro('Manda a cada persona su entrada (con su QR) por WhatsApp o email, o copia el enlace. También en versión secreta de un solo uso.') +
+          seccionEntregar();
+      } },
     { id: 'fiesta', label: '💶 Dinero', build: function () {
         return intro('Toca cada apartado para abrirlo. Lo que mueve la caja durante la fiesta.') +
           acc('di-rrpp', '🧑‍🤝‍🧑 RRPP / Promotores', 'Reparte entradas y controla comisiones', seccionRrpp()) +
@@ -16616,6 +16734,89 @@ var _entBusca = '';
    con 20 € y 1 copa aunque el dueño hubiera puesto 25 € y 2. null = usar el defecto. */
 var _remForm = { cantidad: null, estado: null, precio: null, copas: null, etiqueta: null, faseId: null };
 function _remSet(campo, valor) { _remForm[campo] = valor; }
+/* ===== ENTREGAR ENTRADAS: manda a cada persona su enlace (con QR) por WhatsApp/email ===== */
+function _entregaUnaVez() { return !!(state.config && state.config.entregaUnaVez); }
+function duenoToggleEntregaUnaVez() {
+  mutateSilent(function (s) { s.config.entregaUnaVez = !s.config.entregaUnaVez; });
+  toast(state.config.entregaUnaVez ? 'Ahora los enlaces son SECRETOS de un solo uso' : 'Enlaces normales (se abren varias veces)');
+  _duenoTab = 'entregar'; renderDueno();
+}
+function mensajeEntrada(p) {
+  var ev = (state.config && state.config.eventName) || 'la fiesta';
+  var nombre = String(p.nombre || '').trim();
+  return (nombre ? 'Hola ' + nombre + '! ' : '') + 'Aquí tienes tu entrada para ' + ev + ':\n' +
+    enlaceEntrada(p, _entregaUnaVez()) + '\n\nEnséñala en la puerta. ¡Nos vemos!';
+}
+function _copiarFallback(txt) { try { window.prompt('Copia esto:', txt); } catch (e) {} }
+function copiarTexto(txt, okMsg) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(function () { toast(okMsg || 'Copiado'); }, function () { _copiarFallback(txt); });
+    } else { _copiarFallback(txt); }
+  } catch (e) { _copiarFallback(txt); }
+}
+function verEntrada(id) {
+  var p = personaPorId(id); if (!p) return;
+  var url = enlaceEntrada(p, _entregaUnaVez());
+  try { var w = window.open(url, '_blank'); if (!w) location.hash = '#/' + (_entregaUnaVez() ? 't' : 'e') + '/' + tokenEntrada(p); }
+  catch (e) { location.hash = '#/' + (_entregaUnaVez() ? 't' : 'e') + '/' + tokenEntrada(p); }
+}
+function copiarEnlaceEntrada(id) { var p = personaPorId(id); if (!p) return; copiarTexto(enlaceEntrada(p, _entregaUnaVez()), 'Enlace copiado'); }
+function whatsappEntrada(id) {
+  var p = personaPorId(id); if (!p) return;
+  var tel = String(p.telefono || '').replace(/\D/g, '');
+  var url = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(mensajeEntrada(p));
+  try { window.open(url, '_blank'); } catch (e) { location.href = url; }
+}
+function emailEntrada(id) {
+  var p = personaPorId(id); if (!p) return;
+  var to = String(p.email || '').trim();
+  var asunto = 'Tu entrada para ' + ((state.config && state.config.eventName) || 'la fiesta');
+  var url = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(asunto) + '&body=' + encodeURIComponent(mensajeEntrada(p));
+  try { window.open(url, '_blank'); } catch (e) { location.href = url; }
+}
+function copiarTodosEnlaces() {
+  var lineas = (state.personas || []).map(function (p) {
+    return (String(p.nombre || '') + ' ' + String(p.apellido || '')).trim() + ' — ' + enlaceEntrada(p, _entregaUnaVez());
+  });
+  if (!lineas.length) { toast('No hay entradas'); return; }
+  copiarTexto(lineas.join('\n'), lineas.length + ' enlaces copiados');
+}
+function seccionEntregar() {
+  var unaVez = _entregaUnaVez();
+  var personas = state.personas || [];
+  var html = '<section class="panel" data-testid="seccion-entregar"><h2>📤 Entregar entradas</h2>';
+  html += '<p class="nota">Cada entrada tiene su propio <b>enlace</b> con su QR dentro. Mándaselo a cada persona por WhatsApp o email, o copia el enlace. Lo abre y ve su entrada, sin contraseñas.</p>';
+  html += '<div class="switch"><label><input type="checkbox" id="entrega-una-vez"' + (unaVez ? ' checked' : '') +
+    ' onchange="duenoToggleEntregaUnaVez()"> 🔒 Enlaces secretos de <b>un solo uso</b> (se abren una vez y se bloquean)</label></div>';
+  html += '<p class="nota">' + (unaVez
+    ? 'Modo secreto activo: quien abra el enlace ve el código UNA vez y luego se bloquea (por dispositivo).'
+    : 'Modo normal: el enlace se puede abrir las veces que haga falta.') + '</p>';
+  if (!personas.length) {
+    html += '<p class="lista-vacia">Aún no hay entradas. Créalas en la pestaña <b>Entradas</b>.</p></section>';
+    return html;
+  }
+  html += '<button type="button" class="btn" data-testid="btn-copiar-todos" onclick="copiarTodosEnlaces()">📋 Copiar TODOS los enlaces (' + personas.length + ')</button>';
+  var tope = 60;
+  html += '<ul class="lista-entradas">';
+  personas.slice(0, tope).forEach(function (p) {
+    var nom = (String(p.nombre || '') + ' ' + String(p.apellido || '')).trim() || 'Entrada';
+    html += '<li data-testid="entregar-' + esc(p.id) + '"><span class="ent-info"><b>' + esc(nom) + '</b> · ' + esc(p.codigoReserva) + '</span>' +
+      '<span style="display:flex;gap:6px;flex-wrap:wrap;flex-shrink:0">' +
+      '<button type="button" data-testid="wa-' + esc(p.id) + '" onclick="whatsappEntrada(\'' + escJs(p.id) + '\')">📱</button>' +
+      '<button type="button" onclick="emailEntrada(\'' + escJs(p.id) + '\')">✉️</button>' +
+      '<button type="button" data-testid="cop-' + esc(p.id) + '" onclick="copiarEnlaceEntrada(\'' + escJs(p.id) + '\')">🔗</button>' +
+      '<button type="button" onclick="verEntrada(\'' + escJs(p.id) + '\')">👁️</button>' +
+      '</span></li>';
+  });
+  html += '</ul>';
+  if (personas.length > tope) html += '<p class="nota">Mostrando las primeras ' + tope + '. El botón "Copiar todos" las incluye todas.</p>';
+  html += '<hr class="cobros-sep"><h3>📧 Envío automático por email (opcional)</h3>';
+  html += '<p class="nota">Que se envíen SOLAS a una hora (ej. 3 h antes) necesita una pieza gratis fuera de la app (un Google Apps Script). Pídemelo y te dejo el guion listo. Aquí, de momento, envías por WhatsApp/email pulsando tú, con el mensaje ya escrito.</p>';
+  html += '</section>';
+  return html;
+}
+
 function seccionEntradas() {
   var series = {};
   state.personas.forEach(function (x) { if (x.remesa) series[x.remesa] = 1; });
