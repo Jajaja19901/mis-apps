@@ -13794,6 +13794,9 @@ function seedState() {
       entregaUnaVez: false,
       // Vídeo (enlace) que sale al autodestruirse la entrada secreta. Vacío = animación.
       videoFiesta: "",
+      // Envío de entradas por email DESDE la app (servicio EmailJS, gratis). 3 códigos que
+      // el dueño pega una vez. Vacío = no configurado (se usa el envío manual por email).
+      emailjsCfg: { publicKey: "", serviceId: "", templateId: "" },
       fecha: "", hora: "", lugar: "", lema: "",
       logo: null, colorTema: "#00d4ff",
       vipPack: { botellas: 1, refrescos: 4 },
@@ -13893,6 +13896,8 @@ function migrar(s) {
   if (typeof s.config.puertaVentaRRPP !== 'boolean') s.config.puertaVentaRRPP = true;
   if (typeof s.config.entregaUnaVez !== 'boolean') s.config.entregaUnaVez = false;
   if (typeof s.config.videoFiesta !== 'string') s.config.videoFiesta = '';
+  if (!s.config.emailjsCfg || typeof s.config.emailjsCfg !== 'object') s.config.emailjsCfg = { publicKey: '', serviceId: '', templateId: '' };
+  ['publicKey', 'serviceId', 'templateId'].forEach(function (k) { if (typeof s.config.emailjsCfg[k] !== 'string') s.config.emailjsCfg[k] = ''; });
   if (!s.presencia || typeof s.presencia !== 'object') s.presencia = {};
   if (!s.ventasPorProducto || typeof s.ventasPorProducto !== 'object') s.ventasPorProducto = {};
   if (!Array.isArray(s.monederos)) s.monederos = [];
@@ -17066,6 +17071,56 @@ function duenoSetVideoFiesta(v) {
   mutateSilent(function (s) { s.config.videoFiesta = String(v || '').trim(); });
   toast(String(v || '').trim() ? 'Vídeo guardado' : 'Vídeo quitado (saldrá la animación)');
 }
+function emailjsConfigurado() {
+  var c = state.config && state.config.emailjsCfg;
+  return !!(c && String(c.publicKey || '').trim() && String(c.serviceId || '').trim() && String(c.templateId || '').trim());
+}
+function duenoSetEmailjs(campo, valor) {
+  mutateSilent(function (s) { if (!s.config.emailjsCfg) s.config.emailjsCfg = {}; s.config.emailjsCfg[campo] = String(valor || '').trim(); });
+}
+function cargarEmailJS() {
+  if (window.emailjs && window.emailjs.send) return Promise.resolve();
+  return new Promise(function (res, rej) {
+    var sc = document.createElement('script');
+    sc.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js';
+    sc.onload = res; sc.onerror = rej;
+    document.head.appendChild(sc);
+  });
+}
+var _enviandoEmails = false;
+function enviarTodosEmail() {
+  if (_enviandoEmails) return;
+  if (!emailjsConfigurado()) { toast('Pega primero los 3 códigos del email'); return; }
+  var c = state.config.emailjsCfg;
+  var dest = (state.personas || []).filter(function (p) { return String(p.email || '').trim(); });
+  if (!dest.length) { toast('Ninguna entrada tiene email. Ponlos con el ✏️.'); return; }
+  if (typeof confirm === 'function' && !confirm('¿Enviar su entrada por email a ' + dest.length + ' persona(s)?\nNo cierres la app hasta que acabe.')) return;
+  _enviandoEmails = true;
+  toast('Enviando a ' + dest.length + '… no cierres la app');
+  cargarEmailJS().then(function () {
+    try { window.emailjs.init({ publicKey: String(c.publicKey).trim() }); } catch (e) { try { window.emailjs.init(String(c.publicKey).trim()); } catch (e2) {} }
+    var i = 0, okN = 0, errN = 0;
+    function siguiente() {
+      if (i >= dest.length) {
+        _enviandoEmails = false;
+        toast('📧 Enviados: ' + okN + (errN ? (' · fallaron ' + errN) : ''));
+        return;
+      }
+      var p = dest[i++];
+      var params = {
+        to_email: String(p.email).trim(),
+        to_name: (String(p.nombre || '') + ' ' + String(p.apellido || '')).trim(),
+        evento: (state.config && state.config.eventName) || 'la fiesta',
+        codigo: p.codigoReserva,
+        link: enlaceEntrada(p, _entregaUnaVez())
+      };
+      window.emailjs.send(String(c.serviceId).trim(), String(c.templateId).trim(), params)
+        .then(function () { okN++; }, function () { errN++; })
+        .then(function () { setTimeout(siguiente, 700); }); // ritmo suave para no saturar
+    }
+    siguiente();
+  }).catch(function () { _enviandoEmails = false; toast('No se pudo cargar el email (revisa la conexión)'); });
+}
 function blindarEntrada(id) {
   var p = personaPorId(id); if (!p) return;
   if (typeof firebaseConfigurado !== 'function' || !firebaseConfigurado()) { toast('El blindado necesita Firebase conectado'); return; }
@@ -17135,8 +17190,17 @@ function seccionEntregar() {
   });
   html += '</ul>';
   if (personas.length > tope) html += '<p class="nota">Mostrando las primeras ' + tope + '. El botón "Copiar todos" las incluye todas.</p>';
-  html += '<hr class="cobros-sep"><h3>📧 Envío automático por email (opcional)</h3>';
-  html += '<p class="nota">Que se envíen SOLAS a una hora (ej. 3 h antes) necesita una pieza gratis fuera de la app (un Google Apps Script). Pídemelo y te dejo el guion listo. Aquí, de momento, envías por WhatsApp/email pulsando tú, con el mensaje ya escrito.</p>';
+  html += '<hr class="cobros-sep"><h3>📧 Enviar entradas por email (desde la app)</h3>';
+  var ej = state.config.emailjsCfg || {};
+  var ejOk = emailjsConfigurado();
+  html += '<p class="nota">Manda a cada uno su entrada por email <b>con un botón, sin salir de la app</b>. Necesita conectar un servicio de correo gratis (<b>EmailJS</b>) <b>una vez</b>: pega aquí los 3 códigos. <b>Ojo honesto:</b> a una hora fija y sola (con la app cerrada) no se puede; tú pulsas «Enviar» cuando quieras (ej. 3 h antes).</p>';
+  html += '<label>Public Key<input type="text" id="ej-pk" value="' + esc(ej.publicKey || '') + '" onchange="duenoSetEmailjs(\'publicKey\', this.value)" placeholder="pega aquí"></label>';
+  html += '<label>Service ID<input type="text" id="ej-sid" value="' + esc(ej.serviceId || '') + '" onchange="duenoSetEmailjs(\'serviceId\', this.value)" placeholder="service_xxxx"></label>';
+  html += '<label>Template ID<input type="text" id="ej-tid" value="' + esc(ej.templateId || '') + '" onchange="duenoSetEmailjs(\'templateId\', this.value)" placeholder="template_xxxx"></label>';
+  html += '<button type="button" class="btn" data-testid="btn-enviar-emails" onclick="enviarTodosEmail()"' + (ejOk ? '' : ' disabled') + '>📧 Enviar entradas por email a todos</button>';
+  html += '<p class="nota">' + (ejOk
+    ? 'Conectado ✅. Manda a todas las entradas que tengan email (ponlos con el ✏️). Pruébalo primero contigo.'
+    : 'Cuando pegues los 3 códigos se activa el botón. ¿No sabes de dónde salen? <b>Pídeme la guía de EmailJS</b> y te la paso paso a paso.') + '</p>';
   html += '</section>';
   return html;
 }
