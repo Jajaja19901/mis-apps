@@ -187,6 +187,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .acc[open]>.acc-sum::after{transform:rotate(180deg)}
 .acc[open]>.acc-sum{border-bottom:1px solid var(--border);background:var(--bg)}
 .acc-body{padding:14px 16px 6px}
+.cobros-sep{border:0;border-top:1px solid var(--border);margin:14px 0}
 .acc-body .panel{border:none;padding:0;margin:0;background:transparent}
 .acc-body .panel>h2{display:none}
 /* Resumen de bonos vendidos (panel del dueño) */
@@ -15953,10 +15954,7 @@ function renderDueno() {
           acc('aj-acceso', '🔒 Contraseña de entrada', 'La que pide la portada al abrir la web', seccionAccesoCfg()) +
           acc('aj-personal', '👥 Personal', 'Cuántos vigilantes y camareros, y su contraseña', seccionPersonal()) +
           acc('aj-prod', '🍹 Productos de barra', 'Bebidas, precios, tipos de combinado y stock', seccionProductos()) +
-          acc('aj-monedero', '💰 Monedero (cashless)', 'Saldo prepago con QR/pulsera, sin comisiones', seccionMonederoCfg()) +
-          acc('aj-bizum', '📲 Cobro por Bizum', 'A tu cuenta, directo, sin intermediarios', seccionBizumCfg()) +
-          acc('aj-tarjeta', '💳 Cobro con tarjeta', 'Datáfono físico o SumUp en el móvil', seccionTarjeta()) +
-          acc('aj-nfc', '📡 Pulseras NFC', 'Leer y grabar pulseras (acercar y listo)', seccionNfcCfg()) +
+          acc('aj-cobros', '💳 Formas de cobro', 'Monedero, Bizum, tarjeta y NFC — activa las que uses', seccionCobros()) +
           acc('aj-modulos', '🧩 Módulos y acceso automático', 'Enciende/apaga QR, cierre, gastos, stock…', seccionModulos());
       } },
     { id: 'registro', label: '📋 Registro', build: function () {
@@ -16818,6 +16816,48 @@ function seccionAccesoCfg() {
 }
 function duenoAccesoClave(valor) {
   mutateSilent(function (s) { s.config.accesoClave = String(valor || ''); });
+}
+
+/* ---------- FORMAS DE COBRO (todo junto: cada una se activa con su tick) ---------- */
+function seccionCobros() {
+  var b = state.config.bizumCfg || { activo: false, telefono: '' };
+  var t = state.config.tarjetaCfg || { activa: false, app: 'sumup' };
+  var html = '<section class="panel" data-testid="seccion-cobros">';
+  html += '<p class="nota">Marca solo las formas de cobro que vayas a usar; al activar cada una, les sale su botón a camareros y vigilantes. El <b>efectivo</b> está siempre.</p>';
+
+  // 💰 Monedero
+  html += '<label class="switch"><input type="checkbox" id="monedero-activo"' + (monederoActivo() ? ' checked' : '') +
+    ' onchange="duenoToggleMonedero()"> <b>💰 Monedero prepago (cashless)</b></label>';
+  html += '<p class="nota">Saldo con QR o pulsera, sin bancos ni comisiones: el cliente carga una vez y bebe enseñando su código. La lista y el cuadre, en la pestaña <b>Dinero</b>.</p>';
+
+  html += '<hr class="cobros-sep">';
+  // 📲 Bizum
+  html += '<label class="switch"><input type="checkbox" id="bizum-activo"' + (b.activo ? ' checked' : '') +
+    ' onchange="duenoToggleBizum()"> <b>📲 Bizum</b> · a tu cuenta, directo</label>';
+  if (b.activo) {
+    html += '<label>Tu número de Bizum (donde cae el dinero)<input type="tel" id="bizum-telefono" placeholder="Ej: 612 345 678" value="' + esc(b.telefono || '') + '" oninput="duenoBizumTelefono(this.value)"></label>';
+    if (!String(b.telefono || '').trim()) html += '<p class="nota" style="color:var(--ambar)">⚠ Sin número, el botón 📲 NO les sale a los trabajadores.</p>';
+  }
+
+  html += '<hr class="cobros-sep">';
+  // 💳 Tarjeta
+  html += '<label class="switch"><input type="checkbox" id="tarjeta-activa"' + (t.activa ? ' checked' : '') +
+    ' onchange="duenoToggleTarjeta()"> <b>💳 Tarjeta</b> · datáfono o SumUp</label>';
+  if (t.activa) {
+    html += '<label>¿Con qué se cobra? <select id="tarjeta-app" onchange="duenoTarjetaApp(this.value)">' +
+      '<option value="datafono"' + (t.app === 'datafono' ? ' selected' : '') + '>Datáfono físico (el tuyo de siempre)</option>' +
+      '<option value="sumup"' + (t.app === 'sumup' ? ' selected' : '') + '>SumUp en el móvil (iPhone y Android)</option>' +
+      '<option value="otra"' + (t.app === 'otra' ? ' selected' : '') + '>Otra app de cobro (se abre a mano)</option></select></label>';
+  }
+
+  html += '<hr class="cobros-sep">';
+  // 📡 NFC
+  html += '<label class="switch"><input type="checkbox" id="nfc-activo"' + (nfcActivo() ? ' checked' : '') +
+    ' onchange="duenoToggleNfc()"> <b>📡 Pulseras NFC</b> · acercar y listo</label>';
+  html += '<p class="nota">Graba el código del monedero (o de una entrada) en una pulsera y el cliente paga acercándola al móvil. Requiere Android en el personal y comprar las pulseras.</p>';
+
+  html += '</section>';
+  return html;
 }
 
 /* ---------- Pulseras NFC (activable: sin esto, los botones 📡 no existen) ---------- */
