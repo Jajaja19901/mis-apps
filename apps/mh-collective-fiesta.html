@@ -17105,6 +17105,10 @@ function enviarTodosEmail() {
   var c = state.config.emailjsCfg;
   var dest = (state.personas || []).filter(function (p) { return String(p.email || '').trim(); });
   if (!dest.length) { toast('Ninguna entrada tiene email. Ponlos con el ✏️.'); return; }
+  // Límite opcional: enviar solo a los primeros N (para probar o no pasarse del cupo).
+  var _lim = 0;
+  try { var _le = document.getElementById('ej-limite'); _lim = _le ? parseInt(_le.value, 10) : 0; } catch (e) {}
+  if (_lim && _lim > 0 && _lim < dest.length) dest = dest.slice(0, _lim);
   if (typeof confirm === 'function' && !confirm('¿Enviar su entrada por email a ' + dest.length + ' persona(s)?\nNo cierres la app hasta que acabe.')) return;
   _enviandoEmails = true;
   toast('Enviando a ' + dest.length + '… no cierres la app');
@@ -17208,7 +17212,10 @@ function seccionEntregar() {
   html += '<label>Public Key<input type="text" id="ej-pk" value="' + esc(ej.publicKey || '') + '" onchange="duenoSetEmailjs(\'publicKey\', this.value)" placeholder="pega aquí"></label>';
   html += '<label>Service ID<input type="text" id="ej-sid" value="' + esc(ej.serviceId || '') + '" onchange="duenoSetEmailjs(\'serviceId\', this.value)" placeholder="service_xxxx"></label>';
   html += '<label>Template ID<input type="text" id="ej-tid" value="' + esc(ej.templateId || '') + '" onchange="duenoSetEmailjs(\'templateId\', this.value)" placeholder="template_xxxx"></label>';
-  html += '<button type="button" class="btn" data-testid="btn-enviar-emails" onclick="enviarTodosEmail()"' + (ejOk ? '' : ' disabled') + '>📧 Enviar entradas por email a todos</button>';
+  var conEmail = personas.filter(function (p) { return String(p.email || '').trim(); }).length;
+  html += '<label>📤 ¿Cuántos enviar?<input type="number" min="1" inputmode="numeric" id="ej-limite" placeholder="vacío = a todos"></label>';
+  html += '<p class="nota">Ahora mismo <b>' + conEmail + '</b> entrada(s) tienen email puesto — el envío va solo a esas. Deja la casilla vacía para mandar a <b>todas</b>, o pon un número para mandar solo a las <b>primeras</b> (por ejemplo, pon <b>1</b> con tu propio correo para <b>probar</b> antes).</p>';
+  html += '<button type="button" class="btn" data-testid="btn-enviar-emails" onclick="enviarTodosEmail()"' + (ejOk ? '' : ' disabled') + '>📧 Enviar entradas por email</button>';
   html += '<p class="nota">' + (ejOk
     ? 'Conectado ✅. Manda a todas las entradas que tengan email (ponlos con el ✏️). Pruébalo primero contigo.'
     : 'Cuando pegues los 3 códigos se activa el botón. ¿No sabes de dónde salen? <b>Pídeme la guía de EmailJS</b> y te la paso paso a paso.') + '</p>';
