@@ -424,6 +424,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "fill": { "sel": "#remesa-etiqueta", "value": "LoteR" } },
     { "click": "[data-testid=\"btn-crear-remesa\"]" },
     { "clickText": "Dinero" },
+    { "click": "[data-testid=\"acc-di-rrpp\"]" },
     { "fill": { "sel": "#rrpp-nuevo", "value": "Dani" } },
     { "submit": "[data-testid=\"rrpp-form\"]" },
     { "expect": "RRPP Dani" },
@@ -453,6 +454,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
     { "clickText": "Dinero" },
+    { "click": "[data-testid=\"acc-di-gastos\"]" },
     { "fill": { "sel": "#gasto-concepto", "value": "Hielo extra" } },
     { "fill": { "sel": "#gasto-importe", "value": "137" } },
     { "submit": "#gastoForm" },
@@ -546,6 +548,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
     { "clickText": "Dinero" },
+    { "click": "[data-testid=\"acc-di-bonos\"]" },
     { "check": "#bono-venta-camareros" },
     { "clickText": "Camarero 1" },
     { "click": "[data-testid=\"btn-vender-bono\"]" },
@@ -670,6 +673,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "fill": { "sel": "#pin-dueno", "value": "1234" } },
     { "submit": "#pinForm" },
     { "clickText": "Dinero" },
+    { "click": "[data-testid=\"acc-di-monederos\"]" },
     { "expect": "Cargado (ya en caja): 60 €" },
     { "expect": "Gastado en barra: 22 €" },
     { "expect": "Saldo vivo (pendiente de beber): 38 €" },
@@ -15935,14 +15939,25 @@ function renderDueno() {
           acc('backup', '💾 Copia de seguridad', 'Guardar la lista en un archivo y pasarla a otro móvil', seccionBackup());
       } },
     { id: 'fiesta', label: '💶 Dinero', build: function () {
-        return intro('Lo que mueve la caja durante la fiesta: promotores (RRPP), monederos, bonos, gastos y stock de barra.') +
-          seccionRrpp() + seccionMonederos() + seccionBonos() +
-          (s.config.modulos.gastos ? seccionGastos() : '') +
-          (s.config.modulos.stock ? seccionStock() : '');
+        return intro('Toca cada apartado para abrirlo. Lo que mueve la caja durante la fiesta.') +
+          acc('di-rrpp', '🧑‍🤝‍🧑 RRPP / Promotores', 'Reparte entradas y controla comisiones', seccionRrpp()) +
+          (monederoUsable() ? acc('di-monederos', '💰 Monederos (cashless)', 'Saldo cargado, gastado y vivo', seccionMonederos()) : '') +
+          acc('di-bonos', '🎟️ Bonos de copa', 'Vales de copas para vender o regalar', seccionBonos()) +
+          (s.config.modulos.gastos ? acc('di-gastos', '🧾 Gastos', 'Bebida, personal, local… se restan del beneficio', seccionGastos()) : '') +
+          (s.config.modulos.stock ? acc('di-stock', '📦 Stock de barra', 'Reponer existencias de cada producto', seccionStock()) : '');
       } },
     { id: 'ajustes', label: '⚙️ Ajustes', build: function () {
-        return intro('Prepara la fiesta: nombre, precios, productos de barra, cuántos trabajadores y qué funciones activar.') +
-          seccionConfig() + seccionAdmins() + seccionAccesoCfg() + seccionProductos() + seccionPersonal() + seccionMonederoCfg() + seccionBizumCfg() + seccionTarjeta() + seccionNfcCfg() + seccionModulos();
+        return intro('Toca cada apartado para abrirlo. Prepara la fiesta y activa solo lo que quieras usar.') +
+          acc('aj-config', '⚙️ Datos del evento', 'Nombre, fecha, precios, aforo, color y logo', seccionConfig()) +
+          acc('aj-admins', '👑 Administradores', 'Tu PIN y nombrar a otros administradores', seccionAdmins()) +
+          acc('aj-acceso', '🔒 Contraseña de entrada', 'La que pide la portada al abrir la web', seccionAccesoCfg()) +
+          acc('aj-personal', '👥 Personal', 'Cuántos vigilantes y camareros, y su contraseña', seccionPersonal()) +
+          acc('aj-prod', '🍹 Productos de barra', 'Bebidas, precios, tipos de combinado y stock', seccionProductos()) +
+          acc('aj-monedero', '💰 Monedero (cashless)', 'Saldo prepago con QR/pulsera, sin comisiones', seccionMonederoCfg()) +
+          acc('aj-bizum', '📲 Cobro por Bizum', 'A tu cuenta, directo, sin intermediarios', seccionBizumCfg()) +
+          acc('aj-tarjeta', '💳 Cobro con tarjeta', 'Datáfono físico o SumUp en el móvil', seccionTarjeta()) +
+          acc('aj-nfc', '📡 Pulseras NFC', 'Leer y grabar pulseras (acercar y listo)', seccionNfcCfg()) +
+          acc('aj-modulos', '🧩 Módulos y acceso automático', 'Enciende/apaga QR, cierre, gastos, stock…', seccionModulos());
       } },
     { id: 'registro', label: '📋 Registro', build: function () {
         return intro('El historial de todo (no se puede borrar) y el cierre de la fiesta al terminar.') +
