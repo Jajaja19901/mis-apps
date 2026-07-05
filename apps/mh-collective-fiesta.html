@@ -13585,6 +13585,68 @@ function rutaTicket() {
   return { token: token, datos: d, unaVez: unaVez, yaVisto: yaVisto };
 }
 
+// ===== ENTRADA BLINDADA (una sola vez DE VERDAD, con Firebase) =====
+// El código vive en un cajón aparte de tu base de datos ('tickets'); el enlace #/s/<token>
+// solo lleva un token opaco (sin datos). Al abrirlo se marca 'visto' en la nube, así NO se
+// puede reabrir aunque cambien de móvil. El invitado solo lee SU ticket, nada de la fiesta.
+var _tkDb = null, _tkListo = false, _tkInitProm = null;
+function _initTicketFirebase() {
+  if (_tkListo && _tkDb) return Promise.resolve(_tkDb);
+  if (_tkInitProm) return _tkInitProm;
+  _tkInitProm = cargarFirebaseSDK().then(function () {
+    if (!window.firebase.apps || !window.firebase.apps.length) window.firebase.initializeApp(CONFIG.FIREBASE);
+    _tkDb = window.firebase.firestore();
+    return window.firebase.auth().signInAnonymously();
+  }).then(function () { _tkListo = true; return _tkDb; });
+  return _tkInitProm;
+}
+function _tokenAleatorio() { return 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
+// Crea el ticket blindado en la nube y devuelve (promesa) el enlace #/s/<token>.
+function crearTicketBlindado(p) {
+  var token = _tokenAleatorio();
+  var datos = {
+    c: p.codigoReserva, n: (String(p.nombre || '') + ' ' + String(p.apellido || '')).trim(),
+    ev: (state.config && state.config.eventName) || 'MH Collective',
+    f: (state.config && state.config.fecha) || '', l: (state.config && state.config.lugar) || '',
+    cp: (typeof consIncluidas === 'function' ? consIncluidas(p) : 0),
+    vid: String((state.config && state.config.videoFiesta) || '').trim(), visto: false, ts: Date.now()
+  };
+  return _initTicketFirebase().then(function (db) {
+    return db.collection('tickets').doc(token).set(datos).then(function () { return baseUrlApp() + '#/s/' + token; });
+  });
+}
+// El invitado abre #/s/<token>: lee el ticket, lo muestra UNA vez y lo marca visto en la nube.
+function abrirTicketBlindado(token) {
+  var vistaT = document.getElementById('vista');
+  var topbar = document.getElementById('topbar');
+  if (topbar) topbar.style.display = 'none';
+  if (typeof ocultarGate === 'function') ocultarGate();
+  if (vistaT) vistaT.innerHTML = '<div class="ticket-pub"><div class="ticket-card"><div class="ticket-ev">Tu entrada</div><h2>Abriendo…</h2><p class="nota">Un momento.</p></div></div>';
+  _initTicketFirebase().then(function (db) {
+    var ref = db.collection('tickets').doc(token);
+    return db.runTransaction(function (t) {
+      return t.get(ref).then(function (snap) {
+        if (!snap.exists) return { estado: 'noexiste' };
+        var d = snap.data() || {};
+        if (d.visto) return { estado: 'visto', datos: d };
+        t.update(ref, { visto: true, vistoTs: Date.now() });
+        return { estado: 'ok', datos: d };
+      });
+    });
+  }).then(function (res) {
+    if (!vistaT) return;
+    if (res.estado === 'noexiste') { vistaT.innerHTML = htmlTicketPublico(null, true, false); return; }
+    if (res.estado === 'visto') { vistaT.innerHTML = htmlTicketPublico(res.datos, true, true); return; }
+    _ticketDatos = res.datos;
+    vistaT.innerHTML = htmlTicketPublico(res.datos, true, false);
+    var cvs = document.getElementById('ticketQR');
+    if (cvs) { try { drawQR(cvs, res.datos.c, 240); } catch (e) {} }
+    try { iniciarAutodestruccion('s-' + token, res.datos); } catch (e) {}
+  }).catch(function () {
+    if (vistaT) vistaT.innerHTML = '<div class="ticket-pub"><div class="ticket-card"><div class="ticket-ev">Tu entrada</div><h2>No se pudo abrir</h2><p class="nota">Comprueba la conexión y vuelve a abrir el enlace. Si sigue, pide al organizador que te la reenvíe.</p></div></div>';
+  });
+}
+
 // ===== APP =====
 /* ===== frag-core-a.js — MH Collective =====
    Responsabilidad ÚNICA de este fragmento: estado + persistencia.
@@ -14241,6 +14303,9 @@ function renderApp() {
 }
 
 function renderAppInterno() {
+  // Entrada BLINDADA (#/s/<token>): se lee de la nube (cajón 'tickets'), no de la fiesta.
+  var mS = (location.hash || '').match(/^#\/s\/(.+)$/);
+  if (mS) { try { abrirTicketBlindado(mS[1]); } catch (e) {} return; }
   // Entrada pública (invitado abre su enlace): pantalla completa, sin barra de admin ni portada.
   var rt = rutaTicket();
   var topbar = document.getElementById('topbar');
@@ -14864,7 +14929,7 @@ function entrarAcceso(ev) {
 function chequearAcceso() {
   // Las entradas públicas (#/e/ y #/t/) NO piden la contraseña de la fiesta: el invitado
   // solo ve su entrada, nada más.
-  if (/^#\/(e|t)\//.test(location.hash || '')) { ocultarGate(); return; }
+  if (/^#\/(e|t|s)\//.test(location.hash || '')) { ocultarGate(); return; }
   if (accesoProtegido() && !accesoDesbloqueado()) mostrarGate();
   else ocultarGate();
 }
@@ -14873,7 +14938,7 @@ function bootApp() {
   // Enlace de ENTRADA de un invitado (#/e/ o #/t/): NO se conecta a la nube ni carga la fiesta.
   // Solo pinta su entrada (los datos van en el propio enlace). Así el invitado no descarga
   // NADA del resto (ni la lista, ni la caja, ni las contraseñas).
-  var esTicket = /^#\/(e|t)\//.test(location.hash || '');
+  var esTicket = /^#\/(e|t|s)\//.test(location.hash || '');
   capturarTokenDeEnlace();
   load();
   chequearAcceso();
@@ -17001,6 +17066,16 @@ function duenoSetVideoFiesta(v) {
   mutateSilent(function (s) { s.config.videoFiesta = String(v || '').trim(); });
   toast(String(v || '').trim() ? 'Vídeo guardado' : 'Vídeo quitado (saldrá la animación)');
 }
+function blindarEntrada(id) {
+  var p = personaPorId(id); if (!p) return;
+  if (typeof firebaseConfigurado !== 'function' || !firebaseConfigurado()) { toast('El blindado necesita Firebase conectado'); return; }
+  toast('Creando enlace blindado…');
+  crearTicketBlindado(p).then(function (link) {
+    copiarTexto(link, '🔒 Enlace blindado copiado · pégalo por WhatsApp');
+  }).catch(function () {
+    toast('No se pudo. ¿Falta la regla "tickets" en Firebase? (te la pasé)');
+  });
+}
 function editarContactoEntrada(id) {
   var p = personaPorId(id); if (!p) return;
   var quien = (String(p.nombre || '') + ' ' + String(p.apellido || '')).trim();
@@ -17030,6 +17105,10 @@ function seccionEntregar() {
     html += '<label>🎬 Vídeo de la fiesta (enlace, opcional)<input type="url" id="video-fiesta" placeholder="Enlace de Instagram (reel) o de un vídeo .mp4" value="' + esc((state.config && state.config.videoFiesta) || '') + '" onchange="duenoSetVideoFiesta(this.value)"></label>';
     html += '<p class="nota">Pega el enlace de un <b>reel de Instagram</b> o de un <b>vídeo .mp4</b> (el tuyo, subido a la web o a tu Firebase Storage). Es lo que sale al copiar y al autodestruirse. Vacío = animación con el nombre de la fiesta. <b>Ojo:</b> Instagram no siempre deja que el vídeo arranque solo (sale el post y hay que darle play); un .mp4 tuyo queda más espectacular.</p>';
   }
+  var fbOk = (typeof firebaseConfigurado === 'function' && firebaseConfigurado());
+  if (fbOk) {
+    html += '<p class="nota">🔒🔒 <b>Blindado (una sola vez de verdad):</b> el botón 🔒 de cada entrada crea un enlace que, al abrirse, se <b>bloquea en tu Firebase</b> — no se puede reabrir ni cambiando de móvil. (Requiere la regla "tickets" en Firestore; si no la tienes, pídemela.)</p>';
+  }
   if (!personas.length) {
     html += '<p class="lista-vacia">Aún no hay entradas. Créalas en la pestaña <b>Entradas</b>.</p></section>';
     return html;
@@ -17049,6 +17128,7 @@ function seccionEntregar() {
       '<button type="button" data-testid="wa-' + esc(p.id) + '" onclick="whatsappEntrada(\'' + escJs(p.id) + '\')">📱</button>' +
       '<button type="button" onclick="emailEntrada(\'' + escJs(p.id) + '\')">✉️</button>' +
       '<button type="button" data-testid="cop-' + esc(p.id) + '" onclick="copiarEnlaceEntrada(\'' + escJs(p.id) + '\')">🔗</button>' +
+      (fbOk ? '<button type="button" data-testid="bl-' + esc(p.id) + '" onclick="blindarEntrada(\'' + escJs(p.id) + '\')" title="Enlace blindado de un solo uso">🔒</button>' : '') +
       '<button type="button" onclick="verEntrada(\'' + escJs(p.id) + '\')">👁️</button>' +
       '<button type="button" data-testid="edc-' + esc(p.id) + '" onclick="editarContactoEntrada(\'' + escJs(p.id) + '\')">✏️</button>' +
       '</span></li>';
