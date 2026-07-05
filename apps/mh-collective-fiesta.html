@@ -16932,9 +16932,9 @@ function seccionPersonales() {
   html += '</span>';
   html += '<button type="submit" class="btn-primary">Añadir a la lista (crea su QR)</button>';
   html += '</form>';
-  html += '<h3>Carga rápida de varios</h3>';
-  html += '<p class="nota">Pega una persona por línea ("Nombre Apellido") y elige su tipo:</p>';
-  html += '<textarea id="lista-bulk" rows="3" style="width:100%" placeholder="Laura Pérez\nMario Sanz\n…"></textarea>';
+  html += '<h3>Carga rápida de varios (con email y teléfono)</h3>';
+  html += '<p class="nota">Pega <b>una persona por línea</b>. Puedes poner solo el nombre, o el nombre con su <b>email</b> y <b>teléfono</b> separados por <b>coma</b>:<br>«Nombre Apellido, correo@email.com, 600123123». El email y el teléfono son opcionales, y el orden da igual (detecta el @ y los números solos).</p>';
+  html += '<textarea id="lista-bulk" rows="5" style="width:100%" placeholder="Laura Pérez, laura@gmail.com, 600111222\nMario Sanz, mario@gmail.com, 600333444\nAna Ruiz"></textarea>';
   html += '<div class="contador"><select id="lista-bulk-tipo">';
   html += '<option value="invitado">Invitados (gratis)</option>';
   html += '<option value="taquilla-pagada">Entradas ya pagadas</option>';
@@ -17352,23 +17352,42 @@ function duenoAnadirLista(ev) {
   return false;
 }
 
+/* De una línea pegada saca nombre, email y teléfono. Admite separadores coma/;/tab
+   (y si no hay, espacios). Detecta el email por el @ y el teléfono por ser dígitos;
+   lo que sobra es el nombre. Email y teléfono son opcionales. */
+function _parseContacto(linea) {
+  var campos = /[;,\t]/.test(linea) ? linea.split(/[;,\t]/) : linea.split(/\s+/);
+  campos = campos.map(function (c) { return c.trim(); }).filter(Boolean);
+  var email = '', tel = '', nombreToks = [];
+  campos.forEach(function (c) {
+    if (!email && c.indexOf('@') !== -1 && /^\S+@\S+\.\S+$/.test(c)) { email = c; return; }
+    var soloTel = c.replace(/[\s()+.-]/g, '');
+    if (!tel && /^\d{7,}$/.test(soloTel)) { tel = c; return; }
+    nombreToks.push(c);
+  });
+  var partes = nombreToks.join(' ').trim().split(/\s+/).filter(Boolean);
+  return { nombre: partes[0] || 'Invitado', apellido: partes.slice(1).join(' '), email: email, telefono: tel };
+}
+
 function duenoAnadirBulk() {
   var txt = (document.getElementById('lista-bulk').value || '').trim();
   var tipo = document.getElementById('lista-bulk-tipo').value;
-  if (!txt) { toast('Pega los nombres, uno por línea'); return; }
+  if (!txt) { toast('Pega una persona por línea (nombre, email, teléfono)'); return; }
   var lineas = txt.split('\n').map(function (l) { return l.trim(); }).filter(Boolean);
+  var n = 0, conEmail = 0;
   mutate(function (s) {
     lineas.forEach(function (linea, i) {
-      var partes = linea.split(/\s+/);
-      var p = { id: 'p' + Date.now() + '_' + i, nombre: partes[0], apellido: partes.slice(1).join(' '),
+      var c = _parseContacto(linea);
+      var p = { id: 'p' + Date.now() + '_' + i, nombre: c.nombre, apellido: c.apellido,
+        email: c.email, telefono: c.telefono,
         codigoReserva: nuevoCodigoLista(s), mesa: null, pagado: false, importePagado: 0,
         dentro: false, horaEntrada: null, tipo: tipo === 'invitado' ? 'invitado' : 'taquilla' };
       if (tipo === 'taquilla-pagada') { p.pagado = true; p.importePagado = s.config.precioEntrada; }
-      s.personas.push(p);
+      s.personas.push(p); n++; if (c.email) conEmail++;
     });
-    addLog('añadió ' + lineas.length + ' personas a la lista (' + tipo + ')', 'alta');
+    addLog('añadió ' + n + ' personas a la lista (' + tipo + ')', 'alta');
   });
-  toast(lineas.length + ' personas añadidas');
+  toast(n + ' entradas creadas' + (conEmail ? ' · ' + conEmail + ' con email' : ''));
 }
 
 /* ===== REMESAS DE ENTRADAS (lotes numerados con QR, pagadas o para vender) ===== */
