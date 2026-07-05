@@ -13459,6 +13459,8 @@ function tokenEntrada(p) {
   };
   var vid = (state.config && String(state.config.videoFiesta || '').trim());
   if (vid) payload.vid = vid; // vídeo de la fiesta que sale al autodestruirse (opcional)
+  var ig = (state.config && String(state.config.instagramFiesta || '').trim());
+  if (ig) payload.ig = ig; // Instagram de la fiesta: el botón "Seguir" lleva ahí
   return _b64urlEnc(JSON.stringify(payload));
 }
 function enlaceEntrada(p, unaVez) {
@@ -13517,6 +13519,11 @@ function reproducirRecibimiento(datos) {
   cerrarRecibimiento();
   var vid = datos && String(datos.vid || '').trim();
   var media = vid ? htmlVideoFiesta(vid) : '<div class="recib-emojis">🎉🔥✨🎊💥🥂</div>';
+  var ig = datos && String(datos.ig || '').trim();
+  var igUrl = ig ? _igUrl(ig) : '';
+  var btnSeguir = igUrl
+    ? '<button type="button" class="recib-cerrar" onclick="abrirInstagramFiesta(\'' + escJs(igUrl) + '\')">📸 Seguir en Instagram</button>'
+    : '<button type="button" class="recib-cerrar" onclick="cerrarRecibimiento()">Seguir</button>';
   var conf = '';
   for (var i = 0; i < 14; i++) {
     var e = ['🎉', '🔥', '✨', '🎊', '💥', '🥂'][i % 6];
@@ -13531,10 +13538,10 @@ function reproducirRecibimiento(datos) {
     '<div class="recib-ev">' + esc((datos && datos.ev) || 'MH Collective') + '</div>' +
     media +
     '<div class="recib-msg">✅ Código copiado. ¡Nos vemos en la fiesta!</div>' +
-    '<button type="button" class="recib-cerrar" onclick="cerrarRecibimiento()">Seguir</button></div>';
+    btnSeguir + '</div>';
   document.body.appendChild(ov);
   setTimeout(function () { ov.classList.add('on'); }, 20);
-  if (!vid) setTimeout(cerrarRecibimiento, 7000); // sin vídeo, se cierra solo
+  if (!vid && !igUrl) setTimeout(cerrarRecibimiento, 7000); // sin vídeo ni Instagram, se cierra solo
 }
 // Secuencia de autodestrucción del enlace de un solo uso: cuenta atrás → vídeo/animación → bloqueo.
 var _autodestTimer = null;
@@ -13570,11 +13577,13 @@ function mostrarVideoYDestruir(datos) {
       '<div class="ta-tit">' + esc((datos && datos.ev) || 'MH Collective') + '</div>' +
       '<div class="ta-sub">¡Nos vemos en la fiesta!</div></div>';
   }
+  var igUrlD = (datos && datos.ig) ? _igUrl(datos.ig) : '';
   card.classList.add('ticket-destruido');
   card.innerHTML = '<div class="ticket-ev">' + esc((datos && datos.ev) || 'MH Collective') + '</div>' +
     interior +
     '<div class="ticket-boom">🔒 Mensaje destruido</div>' +
-    '<p class="nota">Espero que apuntaras el código 😉 Si lo perdiste, pide al organizador que te reenvíe la entrada.</p>';
+    '<p class="nota">Espero que apuntaras el código 😉 Si lo perdiste, pide al organizador que te reenvíe la entrada.</p>' +
+    (igUrlD ? '<a class="ticket-copiar" href="' + esc(igUrlD) + '" target="_blank" rel="noopener">📸 Sígueme en Instagram</a>' : '');
 }
 // Decodifica el token de la URL y devuelve {datos, unaVez, yaVisto} o null si no es ruta de entrada.
 function rutaTicket() {
@@ -13614,7 +13623,8 @@ function crearTicketBlindado(p) {
     ev: (state.config && state.config.eventName) || 'MH Collective',
     f: (state.config && state.config.fecha) || '', l: (state.config && state.config.lugar) || '',
     cp: (typeof consIncluidas === 'function' ? consIncluidas(p) : 0),
-    vid: String((state.config && state.config.videoFiesta) || '').trim(), visto: false, ts: Date.now()
+    vid: String((state.config && state.config.videoFiesta) || '').trim(),
+    ig: String((state.config && state.config.instagramFiesta) || '').trim(), visto: false, ts: Date.now()
   };
   return _initTicketFirebase().then(function (db) {
     return db.collection('tickets').doc(token).set(datos).then(function () { return baseUrlApp() + '#/s/' + token; });
@@ -13805,6 +13815,8 @@ function seedState() {
       entregaUnaVez: false,
       // Vídeo (enlace) que sale al autodestruirse la entrada secreta. Vacío = animación.
       videoFiesta: "",
+      // Instagram de la fiesta: el botón "Seguir" del recibimiento lleva a este perfil.
+      instagramFiesta: "",
       // Envío de entradas por email DESDE la app (servicio EmailJS, gratis). 3 códigos que
       // el dueño pega una vez. Vacío = no configurado (se usa el envío manual por email).
       emailjsCfg: { publicKey: "", serviceId: "", templateId: "" },
@@ -13907,6 +13919,7 @@ function migrar(s) {
   if (typeof s.config.puertaVentaRRPP !== 'boolean') s.config.puertaVentaRRPP = true;
   if (typeof s.config.entregaUnaVez !== 'boolean') s.config.entregaUnaVez = false;
   if (typeof s.config.videoFiesta !== 'string') s.config.videoFiesta = '';
+  if (typeof s.config.instagramFiesta !== 'string') s.config.instagramFiesta = '';
   if (!s.config.emailjsCfg || typeof s.config.emailjsCfg !== 'object') s.config.emailjsCfg = { publicKey: '', serviceId: '', templateId: '' };
   ['publicKey', 'serviceId', 'templateId'].forEach(function (k) { if (typeof s.config.emailjsCfg[k] !== 'string') s.config.emailjsCfg[k] = ''; });
   if (!s.presencia || typeof s.presencia !== 'object') s.presencia = {};
@@ -17083,6 +17096,22 @@ function duenoSetVideoFiesta(v) {
   mutateSilent(function (s) { s.config.videoFiesta = String(v || '').trim(); });
   toast(String(v || '').trim() ? 'Vídeo guardado' : 'Vídeo quitado (saldrá la animación)');
 }
+function duenoSetInstagram(v) {
+  mutateSilent(function (s) { s.config.instagramFiesta = String(v || '').trim(); });
+  toast(String(v || '').trim() ? 'Instagram guardado' : 'Instagram quitado');
+}
+/* De "@cuenta", "cuenta" o un enlace, saca la URL del perfil de Instagram. Solo deja pasar
+   http(s); cualquier otra cosa se trata como nombre de usuario (así no cuela javascript:). */
+function _igUrl(ig) {
+  ig = String(ig || '').trim();
+  if (!ig) return '';
+  if (/^https?:\/\//i.test(ig)) return ig;
+  return 'https://instagram.com/' + ig.replace(/^@/, '').replace(/^instagram\.com\//i, '');
+}
+function abrirInstagramFiesta(url) {
+  try { window.open(url, '_blank'); } catch (e) { try { location.href = url; } catch (e2) {} }
+  cerrarRecibimiento();
+}
 function emailjsConfigurado() {
   var c = state.config && state.config.emailjsCfg;
   return !!(c && String(c.publicKey || '').trim() && String(c.serviceId || '').trim() && String(c.templateId || '').trim());
@@ -17175,6 +17204,8 @@ function seccionEntregar() {
   if (unaVez) {
     html += '<label>🎬 Vídeo de la fiesta (enlace, opcional)<input type="url" id="video-fiesta" placeholder="Enlace de Instagram (reel) o de un vídeo .mp4" value="' + esc((state.config && state.config.videoFiesta) || '') + '" onchange="duenoSetVideoFiesta(this.value)"></label>';
     html += '<p class="nota">Pega el enlace de un <b>reel de Instagram</b> o de un <b>vídeo .mp4</b> (el tuyo, subido a la web o a tu Firebase Storage). Es lo que sale al copiar y al autodestruirse. Vacío = animación con el nombre de la fiesta. <b>Ojo:</b> Instagram no siempre deja que el vídeo arranque solo (sale el post y hay que darle play); un .mp4 tuyo queda más espectacular.</p>';
+    html += '<label>📸 Instagram de la fiesta (opcional)<input type="text" id="ig-fiesta" placeholder="@tucuenta o el enlace de tu perfil" value="' + esc((state.config && state.config.instagramFiesta) || '') + '" onchange="duenoSetInstagram(this.value)"></label>';
+    html += '<p class="nota">Si lo pones, el botón <b>«Seguir»</b> que ve el invitado al abrir su entrada le lleva a tu <b>Instagram</b> para seguirte (y también sale un «Sígueme» al autodestruirse). Vacío = el botón solo cierra.</p>';
   }
   var fbOk = (typeof firebaseConfigurado === 'function' && firebaseConfigurado());
   if (fbOk) {
