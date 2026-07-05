@@ -10,7 +10,10 @@ self.addEventListener('activate', function (e) { e.waitUntil(self.clients.claim(
 self.addEventListener('fetch', function (e) {
   if (e.request.method !== 'GET') return;
   var u = new URL(e.request.url);
-  if (u.pathname.indexOf('/api/') === 0) return; // datos en vivo: siempre del servidor
+  // SOLO se gestiona lo de ESTA web (el "shell"). Todo lo de fuera —Firebase, Google,
+  // CDNs— pasa directo sin tocar, para no romper la sincronización en la nube.
+  if (u.origin !== self.location.origin) return;
+  if (u.pathname.indexOf('/api/') === 0) return; // datos en vivo del servidor Node (si se usa esa vía)
   e.respondWith(
     fetch(e.request).then(function (res) {
       try { var copia = res.clone(); caches.open(CACHE).then(function (c) { c.put(e.request, copia); }); } catch (err) {}
