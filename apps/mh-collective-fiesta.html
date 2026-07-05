@@ -15948,12 +15948,12 @@ function renderDueno() {
           seccionKpis() + seccionConsumo() + seccionRecaudacion();
       } },
     { id: 'entradas', label: '🎟️ Entradas', build: function () {
-        return intro('Toca cada bloque para abrirlo. Lo importante primero: entradas con nombre y entradas generales (remesas).') +
+        return intro('Primero fija tus fases (precios), y luego crea las entradas con nombre o generales.') +
+          acc('fases', '🗂️ Fases de venta', 'Precios por fase: 1ª, 2ª, 3ª… defínelos ANTES de crear entradas', seccionFases()) +
           acc('per', '🎟️ Entradas con nombre', 'Invitados y entradas nominales, una a una (con nombre y apellido)', seccionPersonales()) +
           acc('gen', '🎫 Entradas generales (sin nombre)', 'Remesas: lotes numerados para vender o repartir, sin nombre', seccionGenerales()) +
-          acc('fases', '🗂️ Fases de venta', 'Precios por fase: 1ª, 2ª, 3ª… como las fiestas grandes', seccionFases()) +
-          acc('cartel', '🖼️ Cartel de la fiesta', 'La imagen que sale de fondo en cada entrada y PDF', seccionCartel()) +
           acc('creadas', '📋 Entradas creadas', 'Todas las entradas ya creadas, con su QR y su PDF', seccionEntradas()) +
+          acc('cartel', '🖼️ Cartel de la fiesta', 'La imagen que sale de fondo en cada entrada y PDF', seccionCartel()) +
           acc('backup', '💾 Copia de seguridad', 'Guardar la lista en un archivo y pasarla a otro móvil', seccionBackup());
       } },
     { id: 'fiesta', label: '💶 Dinero', build: function () {
@@ -16896,6 +16896,17 @@ function seccionCobros() {
   html += '<p class="nota">Saldo con QR o pulsera, sin bancos ni comisiones: el cliente carga una vez y bebe enseñando su código. La lista y el cuadre, en la pestaña <b>Dinero</b>.</p>';
 
   html += '<hr class="cobros-sep">';
+  // 🎟️ Bonos de copa (prepago de copas, hermano del monedero)
+  var bc = state.config.bonoCfg || { ventaCamareros: false, copas: 5, precio: 20 };
+  html += '<label class="switch"><input type="checkbox" id="bono-venta-camareros"' + (bc.ventaCamareros ? ' checked' : '') +
+    ' onchange="duenoBonoCfg()"> <b>🎟️ Bonos de copa</b> · los camareros los venden en barra</label>';
+  html += '<div class="contador"><label>Copas por bono <input type="number" id="bono-cfg-copas" value="' + esc(bc.copas) +
+    '" min="1" max="99" onchange="duenoBonoCfg()" style="width:80px"></label> ' +
+    '<label>Precio (€) <input type="number" id="bono-cfg-precio" value="' + esc(bc.precio) +
+    '" min="0" onchange="duenoBonoCfg()" style="width:80px"></label></div>';
+  html += '<p class="nota">El camarero pulsa "Vender bono" y ya (las copas y el precio los fijas aquí). Crear bonos para regalar/mano: pestaña <b>Dinero</b>.</p>';
+
+  html += '<hr class="cobros-sep">';
   // 📲 Bizum
   html += '<label class="switch"><input type="checkbox" id="bizum-activo"' + (b.activo ? ' checked' : '') +
     ' onchange="duenoToggleBizum()"> <b>📲 Bizum</b> · a tu cuenta, directo</label>';
@@ -17163,15 +17174,8 @@ function duenoRrppCampo(slug, campo, valor) {
 function seccionBonos() {
   var bonos = state.bonos || [];
   var html = '<section class="panel" data-testid="seccion-bonos"><h2>Bonos de copa</h2>';
-  html += '<p class="nota">Vales de copas con su propio QR, para regalar o vender en mano. El camarero los canjea por código.</p>';
-  var bc = state.config.bonoCfg || { ventaCamareros: false, copas: 5, precio: 20 };
-  html += '<div class="switch"><label><input type="checkbox" id="bono-venta-camareros"' +
-    (bc.ventaCamareros ? ' checked' : '') + ' onchange="duenoBonoCfg()"> Los camareros pueden vender bonos en barra</label></div>';
-  html += '<div class="contador"><label>Copas por bono <input type="number" id="bono-cfg-copas" value="' + esc(bc.copas) +
-    '" min="1" max="99" onchange="duenoBonoCfg()" style="width:80px"></label> ';
-  html += '<label>Precio del bono (€) <input type="number" id="bono-cfg-precio" value="' + esc(bc.precio) +
-    '" min="0" onchange="duenoBonoCfg()" style="width:80px"></label></div>';
-  html += '<p class="nota">El camarero solo pulsa "Vender bono": las copas y el precio los fijas tú aquí.</p>';
+  html += '<p class="nota">Vales de copas con su propio QR, para regalar o vender en mano. El camarero los canjea por código. ' +
+    'Para activar la venta en barra y fijar copas/precio: <b>Ajustes → Formas de cobro → 🎟️ Bonos</b>.</p>';
   // Resumen de bonos VENDIDOS en barra (para que el dueño los cuente de un vistazo).
   var vendidos = bonos.filter(function (b) { return b.vendido || b.etiqueta === 'Vendido en barra'; });
   var ingresoBonos = vendidos.reduce(function (a, b) { return a + (Number(b.precio) || 0); }, 0);
