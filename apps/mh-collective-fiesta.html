@@ -188,6 +188,12 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .acc[open]>.acc-sum{border-bottom:1px solid var(--border);background:var(--bg)}
 .acc-body{padding:14px 16px 6px}
 .cobros-sep{border:0;border-top:1px solid var(--border);margin:14px 0}
+/* Preparar la fiesta (checklist) */
+.prep-card{border:1px solid var(--neon-verde)!important;box-shadow:0 0 24px rgba(0,212,138,.12)}
+.prep-list{list-style:none;margin:6px 0 0;padding:0}
+.prep-list li{display:flex;align-items:center;gap:10px;justify-content:space-between;padding:10px 0;border-top:1px solid var(--border)}
+.prep-list li span{flex:1;font-size:.98rem}
+.prep-btn{flex:0 0 auto;min-height:44px;padding:0 18px;font-weight:700;border:none;border-radius:var(--radius-btn);background:var(--neon-verde);color:var(--bg)}
 .acc-body .panel{border:none;padding:0;margin:0;background:transparent}
 .acc-body .panel>h2{display:none}
 /* Resumen de bonos vendidos (panel del dueño) */
@@ -830,7 +836,15 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "fill": { "sel": "#pin-dueno", "value": "0000" } },
     { "submit": "#pinForm" },
     { "expect": "incorrecto" },
-    { "expectGone": "[data-testid=\"kpi-caja\"]" } ]}
+    { "expectGone": "[data-testid=\"kpi-caja\"]" } ]},
+  { "name": "El Resumen enseña el checklist 'Preparar la fiesta' con los pendientes", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "expectVisible": "[data-testid=\"seccion-preparar\"]" },
+    { "expect": "Preparar la fiesta" },
+    { "expect": "Cambia las contraseñas de fábrica" },
+    { "expectVisible": "[data-testid=\"prep-limpiar\"]" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -13377,6 +13391,7 @@ function seedState() {
       accesoClave: CONFIG.ACCESO_PASSWORD, // contraseña de la portada de entrada
       adminClave: CONFIG.ADMIN_PASSWORD,   // PIN del administrador principal (cambiable)
       adminsExtra: [],                     // otros administradores {id, nombre, clave}: todos con TODOS los poderes
+      preparada: false,                    // true cuando el dueño ya ha "empezado limpio" (borrado la demo)
       claves: {}, // contraseña propia de cada trabajador (vig-1, cam-2…); vacío = sin contraseña
       modulos: { qr: true, cierre: true, gastos: true, stock: true },
       productos: seedProductos(),
@@ -13464,6 +13479,7 @@ function migrar(s) {
   if (typeof s.config.accesoClave !== "string") s.config.accesoClave = CONFIG.ACCESO_PASSWORD;
   if (typeof s.config.adminClave !== "string") s.config.adminClave = CONFIG.ADMIN_PASSWORD;
   if (!Array.isArray(s.config.adminsExtra)) s.config.adminsExtra = [];
+  if (typeof s.config.preparada !== "boolean") s.config.preparada = false;
   if (!s.config.modulos) {
     s.config.modulos = { qr: true, cierre: true, gastos: true, stock: true };
   }
@@ -15927,7 +15943,8 @@ function renderDueno() {
   function intro(t) { return '<p class="tab-intro">' + t + '</p>'; }
   var tabs = [
     { id: 'resumen', label: '📊 Resumen', build: function () {
-        return intro('De un vistazo: cuánta gente hay dentro, cuánto dinero llevas, qué se consume más y cuánto ha recaudado cada trabajador.') +
+        return seccionPreparar() +
+          intro('De un vistazo: cuánta gente hay dentro, cuánto dinero llevas, qué se consume más y cuánto ha recaudado cada trabajador.') +
           seccionKpis() + seccionConsumo() + seccionRecaudacion();
       } },
     { id: 'entradas', label: '🎟️ Entradas', build: function () {
@@ -15975,6 +15992,54 @@ function renderDueno() {
     cuerpo += '<div class="dueno-panel-tab"' + (t.id === _duenoTab ? '' : ' style="display:none"') + '>' + t.build() + '</div>';
   });
   vista.innerHTML = barra + cuerpo;
+}
+
+/* ---------- 0. Preparar la fiesta (checklist rápido + empezar limpio) ---------- */
+/* Salta a una pestaña del panel y, si hace falta, abre su acordeón. */
+function irAjuste(tab, accId) {
+  _duenoTab = tab || 'ajustes';
+  if (accId) _acc[accId] = true;
+  renderDueno();
+  try { window.scrollTo(0, 0); } catch (e) {}
+}
+/* Borra los datos de ejemplo/pruebas y deja la app limpia para la fiesta real,
+   conservando configuración, productos, personal y contraseñas. */
+function duenoVaciarDemo() {
+  if (typeof confirm === 'function' && !confirm('¿Empezar limpio para la fiesta?\n\nSe BORRAN: lista de gente, cobros, caja, monederos, bonos, gastos y registro.\nSe CONSERVAN: tu configuración, productos, personal y contraseñas.\n\nEsto no se puede deshacer.')) return;
+  mutate(function (s) {
+    s.personas = [];
+    Object.keys(s.carritos || {}).forEach(function (k) { s.carritos[k] = []; });
+    Object.keys(s.recaudacionPorPerfil || {}).forEach(function (k) { s.recaudacionPorPerfil[k] = 0; });
+    s.ingresosBarra = 0; s.ingresosMonederos = 0;
+    s.monederos = []; s.bonos = []; s.gastos = [];
+    s.ventasPorProducto = {};
+    (s.rrpp || []).forEach(function (r) { r.vendidas = 0; });
+    if (s.config.productos) s.config.productos.forEach(function (p) { p.stock = p.stockInicial; });
+    s.log = [{ hora: nowHM(), actor: 'Sistema', texto: 'empezó limpio (datos de ejemplo borrados)', tipo: 'config' }];
+    s.config.preparada = true;
+  });
+  toast('¡Listo! Empiezas limpio para tu fiesta');
+}
+function seccionPreparar() {
+  var s = state, pend = [];
+  if (accesoClave() === 'mhcollective' || adminClavePrincipal() === '1234') {
+    pend.push({ t: '🔑 Cambia las contraseñas de fábrica', b: 'Ir', on: "irAjuste('ajustes','aj-admins')" });
+  }
+  if ((s.config.eventName || '') === CONFIG.EVENT_NAME) {
+    pend.push({ t: '📝 Pon el nombre y la fecha de tu fiesta', b: 'Ir', on: "irAjuste('ajustes','aj-config')" });
+  }
+  if (!s.config.preparada) {
+    pend.push({ t: '🧹 Borra los datos de ejemplo (empezar limpio)', b: 'Hacer', on: 'duenoVaciarDemo()', testid: 'prep-limpiar' });
+  }
+  if (!pend.length) return ''; // todo hecho → la tarjeta desaparece
+  var html = '<section class="panel prep-card" data-testid="seccion-preparar"><h2>⚡ Preparar la fiesta</h2>';
+  html += '<p class="nota">Cuatro cosas rápidas antes de empezar. Toca el botón y te lleva a su sitio.</p><ul class="prep-list">';
+  pend.forEach(function (p) {
+    html += '<li><span>' + esc(p.t) + '</span><button type="button" class="prep-btn"' +
+      (p.testid ? ' data-testid="' + p.testid + '"' : '') + ' onclick="' + p.on + '">' + esc(p.b) + '</button></li>';
+  });
+  html += '</ul></section>';
+  return html;
 }
 
 /* ---------- 1. KPIs ---------- */
