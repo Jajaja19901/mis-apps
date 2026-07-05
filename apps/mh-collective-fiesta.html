@@ -43,13 +43,24 @@ p{margin:0 0 .75rem;color:var(--text-dim)}
 #topbar [data-testid="sync-estado"].sync-ok{color:var(--neon-verde)}
 #topbar [data-testid="sync-estado"].sync-mal{color:#ff5c6c}
 #btnInstalar{background:transparent;border:1px solid var(--border);color:var(--text);border-radius:var(--radius-btn);padding:6px 10px;cursor:pointer;font-size:.75rem;flex-shrink:0;white-space:nowrap;min-height:40px}
-/* En pantallas estrechas, el estado de sync se vuelve un puntito de color (verde=sincronizado) */
+/* En pantallas estrechas el estado se muestra con un punto de color + su palabra (verde=conectado,
+   rojo=sin conexión), para que se vea a simple vista si los móviles están hablando. */
 @media (max-width:560px){
-  #topbar [data-testid="sync-estado"]{font-size:0;width:10px;height:10px;border-radius:50%;background:var(--text-dim)}
-  #topbar [data-testid="sync-estado"].sync-ok{background:var(--neon-verde)}
-  #topbar [data-testid="sync-estado"].sync-mal{background:#ff5c6c}
+  #topbar [data-testid="sync-estado"]{font-size:.7rem;padding-left:15px;position:relative}
+  #topbar [data-testid="sync-estado"]::before{content:"";position:absolute;left:0;top:50%;transform:translateY(-50%);width:9px;height:9px;border-radius:50%;background:var(--text-dim)}
+  #topbar [data-testid="sync-estado"].sync-ok::before{background:var(--neon-verde)}
+  #topbar [data-testid="sync-estado"].sync-mal::before{background:#ff5c6c}
   #btnInstalar{font-size:.7rem;padding:5px 8px}
 }
+/* Aviso grande de conexión en el panel del Dueño */
+.con-card{display:block}
+.con-card .con-row{display:flex;gap:12px;align-items:flex-start}
+.con-card .con-ico{font-size:1.6rem;line-height:1;flex:0 0 auto}
+.con-card.con-ok{border-color:var(--neon-verde)}
+.con-card.con-ok b{color:var(--neon-verde)}
+.con-card.con-mal{border-color:#ff5c6c}
+.con-card.con-mal b{color:#ff5c6c}
+.con-card.con-espera{opacity:.85}
 /* Buscador y filtros */
 #buscador{width:100%;padding:12px 14px;border-radius:var(--radius-btn);border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:1rem;margin-bottom:12px}
 .tabs-filtro{display:flex;gap:8px;border-bottom:2px solid var(--border);overflow-x:auto;margin-bottom:12px}
@@ -330,7 +341,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <header id="topbar">
 <span id="logoBox"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MH Collective"><rect width="200" height="200" rx="24" fill="#000000"/><path d="M100 22 L178 100 L100 178 L22 100 Z" fill="none" stroke="#ffffff" stroke-width="2.4"/><text x="100" y="104" font-family="Arial Black, Arial, sans-serif" font-size="52" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="3">MH</text><rect x="45" y="115" width="110" height="25" rx="2" fill="#ffffff"/><text x="100" y="133" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700" fill="#000000" text-anchor="middle" letter-spacing="0.5">Collective</text></svg></span>
 <div id="rolChips"></div>
-<span data-testid="sync-estado">Solo este dispositivo</span>
+<span data-testid="sync-estado">Conectando…</span>
 <button id="btnInstalar" type="button">Instalar app</button>
 </header>
 <main id="vista"></main>
@@ -882,7 +893,12 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "fill": { "sel": "#gate-pass", "value": "codigo-falso-xyz" } },
     { "submit": "#gateForm" },
     { "expectVisible": "#gate-pass" },
-    { "expect": "Código o contraseña incorrectos" } ]}
+    { "expect": "Código o contraseña incorrectos" } ]},
+  { "name": "El Resumen avisa del estado de conexión entre móviles", "steps": [
+    { "goto": "#/dueno" },
+    { "fill": { "sel": "#pin-dueno", "value": "1234" } },
+    { "submit": "#pinForm" },
+    { "expectVisible": "[data-testid=\"seccion-conexion\"]" } ]}
 ]
 </script>
 <script>/*__JSQR__*/
@@ -14077,22 +14093,52 @@ function firebaseConfigurado() {
 function syncEstado() {
   // Con Firebase la sincronización va por la nube (da igual file:// o http): el estado lo
   // marca __mhSync como en el modo servidor.
-  if (!firebaseConfigurado() && location.protocol === 'file:') return 'Solo este dispositivo';
+  if (!firebaseConfigurado() && location.protocol === 'file:') return 'Solo este móvil';
   var s = window.__mhSync;
   if (!s) return 'Conectando…';
   var pend = (s.pendientes || []).length;
   if (s.error) return pend ? ('Sin conexión · ' + pend + ' sin subir') : 'Sin conexión';
   return pend ? ('Subiendo ' + pend + '…') : 'Sincronizado';
 }
+/* Aviso grande y en cristiano del estado de conexión, para el panel del Dueño. */
+function seccionConexion() {
+  var est = syncEstado();
+  var cls, icon, titulo, txt;
+  if (est === 'Sincronizado') {
+    cls = 'con-ok'; icon = '✅'; titulo = 'Conectado con los demás móviles';
+    txt = 'Lo que hagas aquí (dar accesos, cobrar, poner códigos…) se ve en el resto de móviles al instante.';
+  } else if (est === 'Solo este móvil') {
+    cls = 'con-mal'; icon = '📵'; titulo = 'Estás abriendo el archivo, no la web';
+    txt = 'Así cada móvil va por su cuenta y NO se comparte nada. Sube la web y abre en CADA móvil la dirección https://…netlify.app (no el archivo descargado).';
+  } else if (est.indexOf('Sin conexión') === 0) {
+    cls = 'con-mal'; icon = '⚠️'; titulo = 'Sin conexión con los demás móviles';
+    txt = 'Los códigos y los datos NO se están compartiendo. Revisa que este móvil tenga internet y, en Firebase, que estén publicadas las Reglas y activado el acceso "Anónimo".';
+  } else {
+    cls = 'con-espera'; icon = '🔄'; titulo = est; // Conectando… / Subiendo…
+    txt = 'Un momento, estableciendo la conexión con la nube…';
+  }
+  return '<section class="panel con-card ' + cls + '" data-testid="seccion-conexion">' +
+    '<div class="con-row"><span class="con-ico">' + icon + '</span>' +
+    '<div><b>' + esc(titulo) + '</b><div class="nota" style="margin-top:4px">' + esc(txt) + '</div></div></div></section>';
+}
 /* Refresca SOLO el indicador de sync (sin repintar toda la app) al cambiar su estado. */
 function refrescarSync() {
-  var el = document.querySelector('[data-testid="sync-estado"]');
-  if (!el) return;
   var txt = syncEstado();
-  el.textContent = txt;
-  el.classList.toggle('sync-ok', txt === 'Sincronizado');
-  el.classList.toggle('sync-mal', txt.indexOf('Sin conexión') === 0);
-  el.title = txt;
+  var el = document.querySelector('[data-testid="sync-estado"]');
+  if (el) {
+    el.textContent = txt;
+    el.classList.toggle('sync-ok', txt === 'Sincronizado');
+    el.classList.toggle('sync-mal', txt.indexOf('Sin conexión') === 0);
+    el.title = txt;
+  }
+  // Si el panel del Dueño está mostrando el aviso de conexión, lo mantenemos al día.
+  var card = document.querySelector('[data-testid="seccion-conexion"]');
+  if (card) {
+    var wrap = document.createElement('div');
+    wrap.innerHTML = seccionConexion();
+    var nueva = wrap.firstChild;
+    if (nueva) card.replaceWith(nueva);
+  }
 }
 function initSync() {
   // MODO NUBE (Firebase): si está configurado, manda sobre todo lo demás.
@@ -16026,7 +16072,7 @@ function renderDueno() {
   function intro(t) { return '<p class="tab-intro">' + t + '</p>'; }
   var tabs = [
     { id: 'resumen', label: '📊 Resumen', build: function () {
-        return seccionPreparar() +
+        return seccionConexion() + seccionPreparar() +
           intro('De un vistazo: cuánta gente hay dentro, cuánto dinero llevas, qué se consume más y cuánto ha recaudado cada trabajador.') +
           seccionKpis() + seccionConsumo() + seccionRecaudacion();
       } },
