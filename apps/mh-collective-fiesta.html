@@ -14551,6 +14551,12 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
+var IA_VERSION = 'V2'; // sello visible: para saber qué versión del asistente hay subida
+/* Se pueden pegar VARIAS claves separadas por comas/espacios (de cuentas de Google
+   distintas): cuando el cupo gratis de una se llena, la app salta a la siguiente. */
+function _iaClaves() {
+  return String((state.config && state.config.geminiKey) || '').split(/[\s,;]+/).map(function (k) { return k.trim(); }).filter(Boolean);
+}
 function iaConfigurada() { return !!(state.config && String(state.config.geminiKey || '').trim()); }
 function duenoSetGemini(v) {
   mutateSilent(function (s) { s.config.geminiKey = String(v || '').trim(); });
@@ -14627,7 +14633,7 @@ function _estadoIA() {
       vigilantes: c.nVigilantes, camareros: c.nCamareros,
       cobros: { bizum: bizumActivo(), tarjeta: tarjetaActiva(), monedero: monederoActivo(), nfc: nfcActivo() },
       modo_rrpp: puertaVentaRRPP(), modo_secreto: !!c.entregaUnaVez,
-      ultima_serie: _ultimaRemesa(), hora_actual: nowHM()
+      ultima_serie: _ultimaRemesa(), hora_actual: nowHM(), asistente_version: IA_VERSION
     });
   } catch (e) { return '{}'; }
 }
@@ -14649,31 +14655,34 @@ function procesarConIA(texto) {
     generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 512 }
   };
   toast('🧠 Pensando…');
-  return _iaIntento(key, body, texto, 0);
+  return _iaIntento(_iaClaves(), body, texto, 0, 0);
 }
-// Intenta con un modelo; si el modelo no existe/no vale, prueba el siguiente. Si es otro error, lo muestra.
-function _iaIntento(key, body, texto, i) {
-  if (i >= IA_MODELOS.length) { _iaFallo('la IA no respondió (prueba con otra clave)', texto); return; }
-  var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + IA_MODELOS[i] + ':generateContent?key=' + encodeURIComponent(key);
+// Recorre CLAVES x MODELOS: modelo muerto → siguiente modelo; cupo lleno → siguiente
+// modelo y, agotados, SIGUIENTE CLAVE; clave mala → siguiente clave. Todo automático.
+function _iaIntento(keys, body, texto, ki, mi) {
+  if (ki >= keys.length) { _iaFallo('todos los cupos gratis están a tope ahora — espera un minuto y repítemelo', texto); return; }
+  if (mi >= IA_MODELOS.length) return _iaIntento(keys, body, texto, ki + 1, 0);
+  var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + IA_MODELOS[mi] + ':generateContent?key=' + encodeURIComponent(keys[ki]);
   return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     .then(function (r) { return r.json().then(function (j) { return { status: r.status, j: j }; }); })
     .then(function (res) {
       var j = res.j || {};
       if (j.error) {
         var msg = String((j.error && j.error.message) || 'error');
-        // Modelo inexistente → prueba el siguiente.
-        if (res.status === 404 || /not found|not supported|is not found|unsupported/i.test(msg)) return _iaIntento(key, body, texto, i + 1);
-        // Tope del cupo gratis → cada modelo tiene su propio cupo: prueba el siguiente.
-        if (res.status === 429 || /quota|RESOURCE_EXHAUSTED|rate limit/i.test(msg)) {
-          if (i + 1 < IA_MODELOS.length) return _iaIntento(key, body, texto, i + 1);
-          var seg = (msg.match(/retry in (\d+)/i) || [])[1];
-          _iaFallo('la vía gratis está a tope un momento — espera ' + (seg ? (seg + ' segundos') : 'un minuto') + ' y repítemelo', texto); return;
+        // Modelo inexistente → siguiente modelo.
+        if (res.status === 404 || /not found|not supported|is not found|unsupported/i.test(msg)) return _iaIntento(keys, body, texto, ki, mi + 1);
+        // Cupo lleno → siguiente modelo (y con todos agotados, pasa solo a la SIGUIENTE CLAVE).
+        if (res.status === 429 || /quota|RESOURCE_EXHAUSTED|rate limit/i.test(msg)) return _iaIntento(keys, body, texto, ki, mi + 1);
+        // Clave mala → prueba la siguiente clave.
+        if (/api key not valid|API_KEY_INVALID|permission/i.test(msg)) {
+          if (ki + 1 < keys.length) return _iaIntento(keys, body, texto, ki + 1, 0);
+          _iaFallo('Google dice: ' + msg, texto); return;
         }
         _iaFallo('Error de la IA: ' + msg, texto); return;
       }
       var c = j.candidates && j.candidates[0];
       var txt = c && c.content && c.content.parts && c.content.parts[0] && c.content.parts[0].text;
-      if (!txt) { if (i + 1 < IA_MODELOS.length) return _iaIntento(key, body, texto, i + 1); _iaFallo('la IA no devolvió nada', texto); return; }
+      if (!txt) { return _iaIntento(keys, body, texto, ki, mi + 1); }
       var plan; try { plan = _parseJSONia(txt); } catch (e) { _iaFallo('la IA devolvió algo raro', texto); return; }
       var acc = plan.acciones || [];
       // Si hay acciones, ellas ya hablan solas: no leemos también la "respuesta" (sonaba doble).
@@ -14988,25 +14997,31 @@ function _crearEntradaIA(args) {
 /* Prueba la clave y la IA en 2 pasos y CUENTA lo que pasa (sin esconder nada):
    1) valida la clave contra la lista de modelos (GET); 2) lanza una orden real. */
 function probarIA() {
-  var key = String((state.config && state.config.geminiKey) || '').trim();
-  if (!key) { toast('Pega primero la clave'); return; }
-  toast('🧪 Paso 1: probando la clave…');
-  fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(key))
-    .then(function (r) { return r.json(); })
-    .then(function (j) {
-      if (j && j.error) { toast('❌ Google dice: ' + String(j.error.message || 'clave rechazada')); hablar('La clave no vale. Copiala otra vez con el boton de copiar'); return; }
-      if (j && j.models && j.models.length) {
-        toast('✅ Clave correcta · Paso 2: probando una orden…');
-        procesarConIA('responde solo con un saludo corto de prueba');
-      } else { toast('❌ Google devolvió algo raro (sin modelos)'); }
-    })
-    .catch(function () { toast('❌ No hay conexión con Google (¿internet?)'); });
+  var keys = _iaClaves();
+  if (!keys.length) { toast('Pega primero la clave'); return; }
+  toast('🧪 Paso 1: probando ' + keys.length + ' clave(s)…');
+  var ok = 0, hechas = 0;
+  keys.forEach(function (k, idx) {
+    fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(k))
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        hechas++;
+        if (j && j.models && j.models.length) { ok++; toast('✅ Clave ' + (idx + 1) + ' correcta'); }
+        else { toast('❌ Clave ' + (idx + 1) + ': ' + String((j && j.error && j.error.message) || 'rechazada').slice(0, 80)); }
+        if (hechas === keys.length) {
+          if (ok) { toast('Paso 2: probando una orden…'); procesarConIA('responde solo con un saludo corto de prueba'); }
+          else hablar('Ninguna clave vale. Copialas otra vez con el boton de copiar');
+        }
+      })
+      .catch(function () { hechas++; if (hechas === keys.length && !ok) toast('❌ No hay conexión con Google (¿internet?)'); });
+  });
 }
 function seccionAsistenteIA() {
   var k = (state.config && state.config.geminiKey) || '';
   var html = '<section class="panel"><h2>🎤 Asistente por voz con IA</h2>';
   html += '<p class="nota">Con esto hablas con <b>cualquier frase</b> y la app entiende y hace lo que pidas, incluso <b>varias cosas a la vez</b>. Necesita una <b>clave gratis de Google Gemini</b> (sin tarjeta) y conexión.</p>';
-  html += '<label>Clave de Gemini (gratis)<input type="text" id="ia-key" value="' + esc(k) + '" onchange="duenoSetGemini(this.value)" placeholder="pega aquí tu API key"></label>';
+  html += '<label>Clave(s) de Gemini (gratis)<input type="text" id="ia-key" value="' + esc(k) + '" onchange="duenoSetGemini(this.value)" placeholder="pega 1, 2 o 3 claves separadas por comas"></label>';
+  html += '<p class="nota">💡 <b>Truco anti-cupo:</b> saca claves en 2 o 3 cuentas de Google distintas (aistudio.google.com/app/apikey en cada una) y pégalas aquí <b>separadas por comas</b>. Cuando el cupo gratis de una se llena, la app <b>salta sola a la siguiente</b>. Versión del asistente: <b>' + IA_VERSION + '</b>.</p>';
   html += '<button type="button" class="btn" data-testid="btn-probar-ia" onclick="probarIA()"' + (iaConfigurada() ? '' : ' disabled') + '>🧪 Probar la IA ahora</button>';
   html += '<p class="nota">' + (iaConfigurada()
     ? 'IA conectada ✅. Toca el micro 🎤 y habla como quieras (ej.: «manda los emails a los primeros diez y dime cuánto llevo»).'
