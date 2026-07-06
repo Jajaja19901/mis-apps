@@ -14583,7 +14583,11 @@ function _accionesIA() {
     'dar_acceso(quien): lo marca DENTRO',
     'marcar_salida(quien)',
     'borrar_entrada(quien): confirma en pantalla',
-    'borrar_entradas(serie?): borra todas o una serie; confirma en pantalla',
+    'borrar_entradas(serie?,confirmar?): borra todas o una serie',
+    'cerrar_fiesta(confirmar?): archiva la noche y resetea caja/aforo',
+    'poner_pin(pin): cambia el PIN del dueño (4-8 cifras)',
+    'poner_contrasena_portada(clave): la de entrada a la web',
+    'poner_codigo_trabajador(rol,codigo): rol tipo "vigilante 1" o "camarero 2"',
     'buscar(quien): dice si está dentro y si pagó',
     'anular_bono(codigo)',
     'enviar_whatsapp(quien) | enviar_email_a(quien) | ver_entrada(quien) | blindar(quien)',
@@ -14636,6 +14640,8 @@ function procesarConIA(texto) {
     + '\nDevuelve SOLO JSON: {"acciones":[{"accion":"n","args":{}}],"respuesta":""}. Varias peticiones = varias acciones en orden. '
     + 'Si hay acciones deja "respuesta" vacía (ya hablan solas). Preguntas o descripciones: contéstalas tú en "respuesta" usando DATOS. '
     + 'PROHIBIDO decir solo "no puedo": si nada encaja, ir_a a la pestaña adecuada + "respuesta" explicando qué botón tocar. '
+    + 'Destructivo (borrar_entradas, cerrar_fiesta): añade confirmar:true SOLO si el dueño lo dice claro ("confirmo", "sin preguntar", "estoy seguro"); si no, sin confirmar. '
+    + 'Contraseñas/códigos: ejecuta la acción pero JAMÁS repitas la clave en "respuesta" (se enseña en pantalla). '
     + 'No inventes acciones. Español, breve.';
   var body = {
     systemInstruction: { parts: [{ text: sys }] },
@@ -14795,11 +14801,22 @@ function ejecutarAccionIA(accion, args) {
     case 'buscar': _buscarPersonaVoz(String(args.quien || '')); break;
     case 'borrar_entradas': {
       var beS = String(args.serie || '').trim();
+      var beConf = (args.confirmar === true || args.confirmar === 'true');
       _entFiltro = beS ? ('serie:' + beS) : 'todas'; _entBusca = '';
-      var beN = entradasFiltradas().length;
-      if (!beN) { _respVoz('No hay entradas que borrar'); break; }
-      hablar('Vas a borrar ' + beN + ' entradas. Confírmalo en pantalla');
-      duenoBorrarEntradasFiltro(); // su aviso de siempre: dice cuántas son y si había dinero cobrado
+      var beL = entradasFiltradas();
+      if (!beL.length) { _respVoz('No hay entradas que borrar'); break; }
+      if (beConf) {
+        // El dueño lo dijo claro ("confirmo"/"sin preguntar"): se borra directo por voz.
+        var beIds = beL.map(function (p) { return p.id; });
+        mutate(function (s) {
+          s.personas = s.personas.filter(function (p) { return beIds.indexOf(p.id) === -1; });
+          addLog('borró ' + beIds.length + ' entradas (por voz, confirmado)', 'config');
+        });
+        _respVoz(beIds.length + ' entradas borradas');
+      } else {
+        hablar('Vas a borrar ' + beL.length + ' entradas. Confírmalo en pantalla, o dime: bórralas, confirmo');
+        duenoBorrarEntradasFiltro();
+      }
       break;
     }
     case 'activar_cobro': {
@@ -14842,7 +14859,38 @@ function ejecutarAccionIA(accion, args) {
     case 'modo_secreto': mutateSilent(function (s) { s.config.entregaUnaVez = (args.on === true || args.on === 'true' || args.on === 1); }); _duenoTab = 'entregar'; if (typeof renderDueno === 'function') renderDueno(); _respVoz(state.config.entregaUnaVez ? 'Modo secreto activado' : 'Modo secreto quitado'); break;
     case 'instalar_app': if (window.__deferredPrompt) { window.__deferredPrompt.prompt(); } else _respVoz('Abre el menú del navegador y pulsa Añadir a pantalla de inicio'); break;
     case 'ir_a': { var mp = { resumen: 'resumen', entradas: 'entradas', entregar: 'entregar', dinero: 'fiesta', fiesta: 'fiesta', ajustes: 'ajustes', registro: 'registro' }; duenoTab(mp[_normVoz(args.pestana)] || 'resumen'); break; }
-    case 'cerrar_fiesta': duenoTab('registro'); _respVoz('Te llevo al cierre, confírmalo tú por seguridad'); break;
+    case 'cerrar_fiesta': {
+      if (args && (args.confirmar === true || args.confirmar === 'true')) {
+        try { duenoConfirmarCierre(); hablar('Fiesta cerrada y archivada en el histórico'); }
+        catch (eC) { _respVoz('No pude hacer el cierre'); }
+      } else { duenoTab('registro'); _respVoz('Te llevo al cierre. Di: cierra la fiesta, confirmo — y lo hago directo'); }
+      break;
+    }
+    case 'poner_pin': {
+      var pinN = String(args.pin || '').replace(/\D/g, '');
+      if (!/^\d{4,8}$/.test(pinN)) { _respVoz('El PIN debe tener de 4 a 8 números'); break; }
+      mutateSilent(function (s) { s.config.adminClave = pinN; addLog('cambió el PIN del dueño (por voz)', 'config'); });
+      toast('🔑 Nuevo PIN del dueño: ' + pinN);
+      hablar('PIN cambiado. No lo digo en alto: míralo en pantalla'); break;
+    }
+    case 'poner_contrasena_portada': {
+      var cpV = String(args.clave || '').trim();
+      if (!cpV) { _respVoz('Dime la contraseña nueva'); break; }
+      mutateSilent(function (s) { s.config.accesoClave = cpV; addLog('cambió la contraseña de la portada (por voz)', 'config'); });
+      toast('🔒 Portada: ' + cpV);
+      hablar('Contraseña de la portada cambiada. Está en pantalla'); break;
+    }
+    case 'poner_codigo_trabajador': {
+      var rolT = _normVoz(args.rol || '');
+      var mR = rolT.match(/(vigilante|vig|portero|puerta|camarero|cam|barra)[a-z]*\s*(\d+)?/);
+      var codV = String(args.codigo || '').trim();
+      if (!mR) { _respVoz('Dime el rol: vigilante uno, camarero dos…'); break; }
+      if (!codV) { _respVoz('Dime el código nuevo'); break; }
+      var idP = (/camarero|cam|barra/.test(mR[1]) ? 'cam-' : 'vig-') + (parseInt(mR[2], 10) || 1);
+      duenoSetClavePerfil(idP, codV);
+      toast('🔑 ' + etiquetaPerfil(idP) + ': ' + codV);
+      hablar('Código de ' + etiquetaPerfil(idP) + ' cambiado. Está en pantalla'); break;
+    }
     case 'crear_rrpp': {
       var rn = String(args.nombre || '').trim();
       if (!rn) { _respVoz('Dime el nombre del promotor'); break; }
