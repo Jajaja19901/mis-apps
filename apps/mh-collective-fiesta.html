@@ -356,6 +356,15 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .mic-fab.on{border-color:#ff4d6d;animation:micPulso 1s infinite}
 .mic-fab.on .mic-badge{background:#ff4d6d;color:#fff}
 @keyframes micPulso{0%{box-shadow:0 0 0 0 rgba(255,77,109,.6)}100%{box-shadow:0 0 0 22px rgba(255,77,109,0)}}
+.asis-panel{position:fixed;inset:0;z-index:1300;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);padding:16px}
+.asis-card{width:100%;max-width:460px;background:var(--panel);border:1px solid var(--neon-verde);border-radius:16px;padding:16px;box-shadow:0 10px 40px rgba(0,0,0,.6)}
+.asis-tit{font-weight:900;color:#fff;margin-bottom:10px;font-size:1.1rem}
+.asis-row{display:flex;gap:8px;align-items:center}
+.asis-row input{flex:1;min-height:48px;padding:.6rem .8rem;border-radius:10px;border:1px solid #333;background:#0d0d16;color:#fff;font-size:1rem}
+.asis-mic{width:48px;height:48px;flex-shrink:0;border-radius:50%;border:0;background:var(--neon-verde);color:#04150e;font-size:1.3rem;cursor:pointer}
+.asis-acc{display:flex;gap:8px;margin-top:10px}
+.asis-acc>button{flex:1;min-height:46px}
+.asis-hint{margin-top:8px;font-size:.82rem;color:#9aa}
 .recib-conf{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .recib-conf .conf{position:absolute;top:-8%;font-size:1.5rem;animation:confFall 2.6s linear infinite}
 @keyframes confFall{0%{transform:translateY(-10vh) rotate(0)}100%{transform:translateY(110vh) rotate(360deg)}}
@@ -14140,7 +14149,7 @@ function asistenteVozDisponible() { return !!(window.SpeechRecognition || window
 var _micDrag = null;
 function _micPos() { try { return JSON.parse(localStorage.getItem('mh_mic_pos') || 'null'); } catch (e) { return null; } }
 function micFab() {
-  if (!asistenteVozDisponible()) return '';
+  // Siempre sale (en iPhone se ESCRIBE; en Android se puede hablar o escribir).
   var pos = _micPos(), style = '';
   if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
     var x = Math.max(4, Math.min(pos.x, (window.innerWidth || 400) - 66));
@@ -14148,8 +14157,8 @@ function micFab() {
     style = ' style="left:' + x + 'px;top:' + y + 'px;right:auto;bottom:auto"';
   }
   return '<button type="button" id="mic-asistente" class="mic-fab" onpointerdown="_micDown(event)"' + style +
-    ' aria-label="Asistente de voz con IA" title="Tócame para hablar · arrástrame para moverme">' +
-    _micLogoHTML() + '<span class="mic-badge">IA 🎤</span></button>';
+    ' aria-label="Asistente con IA" title="Tócame para escribir o hablar · arrástrame para moverme">' +
+    _micLogoHTML() + '<span class="mic-badge">IA</span></button>';
 }
 // Logo del botón: el que subió el dueño, o el emblema MH por defecto.
 function _micLogoHTML() {
@@ -14180,8 +14189,37 @@ function _micUp(e) {
   var moved = _micDrag && _micDrag.moved;
   if (moved && b) { try { localStorage.setItem('mh_mic_pos', JSON.stringify({ x: parseInt(b.style.left, 10) || 0, y: parseInt(b.style.top, 10) || 0 })); } catch (err) {} }
   _micDrag = null;
-  if (!moved) toggleAsistenteVoz(); // fue un toque, no un arrastre
+  if (!moved) abrirPanelAsistente(); // fue un toque (no arrastre): abre el panel escribir/hablar
 }
+/* Panel del asistente: sirve en iPhone (escribir) y Android (escribir o hablar).
+   Lo que escribas o digas pasa por el mismo motor (IA de Gemini si hay clave, o las órdenes). */
+function abrirPanelAsistente() {
+  if (document.getElementById('asisPanel')) { cerrarPanelAsistente(); return; }
+  var ov = document.createElement('div');
+  ov.id = 'asisPanel'; ov.className = 'asis-panel';
+  ov.onclick = function (e) { if (e.target === ov) cerrarPanelAsistente(); };
+  var vozOk = asistenteVozDisponible();
+  var micBtn = vozOk ? '<button type="button" class="asis-mic" onclick="_asisVoz()" title="Hablar">🎤</button>' : '';
+  ov.innerHTML =
+    '<div class="asis-card">' +
+      '<div class="asis-tit">🎙️ Asistente' + (iaConfigurada() ? ' con IA' : '') + '</div>' +
+      '<div class="asis-row"><input id="asis-input" type="text" placeholder="Escribe lo que quieras…" autocomplete="off">' + micBtn + '</div>' +
+      '<div class="asis-acc"><button type="button" class="btn" onclick="_asisEnviar()">Enviar</button>' +
+      '<button type="button" class="btn-secundario" onclick="cerrarPanelAsistente()">Cerrar</button></div>' +
+      '<p class="asis-hint">' + (vozOk ? 'Toca 🎤 para hablar, o escribe y pulsa Enviar.' : 'Escribe aquí (la voz solo va en Android). ' + (iaConfigurada() ? 'La IA entiende cualquier frase.' : '')) + '</p>' +
+    '</div>';
+  document.body.appendChild(ov);
+  var inp = document.getElementById('asis-input');
+  if (inp) { try { inp.focus(); } catch (e) {} inp.onkeydown = function (e) { if (e.key === 'Enter') _asisEnviar(); }; }
+}
+function cerrarPanelAsistente() { var o = document.getElementById('asisPanel'); if (o) o.remove(); }
+function _asisEnviar() {
+  var inp = document.getElementById('asis-input');
+  var txt = inp ? String(inp.value || '').trim() : '';
+  cerrarPanelAsistente();
+  if (txt) procesarComandosVoz([txt]);
+}
+function _asisVoz() { cerrarPanelAsistente(); toggleAsistenteVoz(); }
 function _pintaMicro(on) { var b = document.getElementById('mic-asistente'); if (b) b.classList.toggle('on', !!on); }
 function hablar(txt) {
   _ultimaVoz = String(txt || ''); // para el comando "repite"
