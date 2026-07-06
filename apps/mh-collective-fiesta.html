@@ -14638,8 +14638,14 @@ function _iaIntento(key, body, texto, i) {
       var j = res.j || {};
       if (j.error) {
         var msg = String((j.error && j.error.message) || 'error');
-        // Si es problema del modelo, prueba el siguiente; si no (clave, permisos, cupo), muéstralo.
+        // Modelo inexistente → prueba el siguiente.
         if (res.status === 404 || /not found|not supported|is not found|unsupported/i.test(msg)) return _iaIntento(key, body, texto, i + 1);
+        // Tope del cupo gratis → cada modelo tiene su propio cupo: prueba el siguiente.
+        if (res.status === 429 || /quota|RESOURCE_EXHAUSTED|rate limit/i.test(msg)) {
+          if (i + 1 < IA_MODELOS.length) return _iaIntento(key, body, texto, i + 1);
+          var seg = (msg.match(/retry in (\d+)/i) || [])[1];
+          _iaFallo('la vía gratis está a tope un momento — espera ' + (seg ? (seg + ' segundos') : 'un minuto') + ' y repítemelo', texto); return;
+        }
         _iaFallo('Error de la IA: ' + msg, texto); return;
       }
       var c = j.candidates && j.candidates[0];
