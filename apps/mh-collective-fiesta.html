@@ -14140,9 +14140,18 @@ function hablar(txt) {
     if (!window.speechSynthesis) return;
     var u = new SpeechSynthesisUtterance(String(txt));
     u.lang = 'es-ES'; u.rate = 1.02;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(u);
+    window.speechSynthesis.speak(u); // sin cancelar: así varias respuestas seguidas se encolan
   } catch (e) {}
+}
+/* Permite ENCADENAR varias órdenes en una frase: "envía los emails Y copia los enlaces
+   Y dime cuánto dinero llevo". Parte la frase por los conectores y ejecuta cada trozo. */
+function procesarComandosVoz(frases) {
+  try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
+  var best = _normVoz((frases && frases[0]) || '');
+  var partes = best.split(/\s+(?:y luego|y despues|y tambien|y ademas|y despue|luego|tambien|ademas|y)\s+/)
+    .map(function (p) { return p.trim(); }).filter(Boolean);
+  if (partes.length <= 1) { ejecutarComandoVoz(frases); return; }
+  partes.forEach(function (p, i) { setTimeout(function () { ejecutarComandoVoz([p]); }, i * 300); });
 }
 function _normVoz(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
 function toggleAsistenteVoz() {
@@ -14155,7 +14164,7 @@ function toggleAsistenteVoz() {
   _vozRec.onresult = function (ev) {
     var frases = [];
     for (var i = 0; i < ev.results.length; i++) for (var j = 0; j < ev.results[i].length; j++) frases.push(ev.results[i][j].transcript);
-    ejecutarComandoVoz(frases);
+    procesarComandosVoz(frases);
   };
   _vozRec.onerror = function () { _vozEscuchando = false; _pintaMicro(false); };
   _vozRec.onend = function () { _vozEscuchando = false; _pintaMicro(false); };
