@@ -13874,6 +13874,8 @@ function seedState() {
       emailjsCfg: { publicKey: "", serviceId: "", templateId: "" },
       // Clave gratis de Google Gemini para el asistente por voz con IA (opcional). Vacío = órdenes por voz.
       geminiKey: "",
+      // Clave de OpenRouter (respaldo): si Gemini se queda sin cupo, la IA tira de aquí. Vacío = no se usa.
+      openrouterKey: "",
       // Carpeta (dirección web) de la que la app coge archivos por voz: cartel.png, logo.png,
       // invitados.csv, datos.json. Por defecto la carpeta del repositorio en GitHub. Debe acabar en "/".
       carpetaArchivos: "https://raw.githubusercontent.com/jajaja19901/mis-apps/claude/party-access-finance-app-pybmqt/apps/archivos/",
@@ -13983,6 +13985,7 @@ function migrar(s) {
   if (!s.config.emailjsCfg || typeof s.config.emailjsCfg !== 'object') s.config.emailjsCfg = { publicKey: '', serviceId: '', templateId: '' };
   ['publicKey', 'serviceId', 'templateId'].forEach(function (k) { if (typeof s.config.emailjsCfg[k] !== 'string') s.config.emailjsCfg[k] = ''; });
   if (typeof s.config.geminiKey !== 'string') s.config.geminiKey = '';
+  if (typeof s.config.openrouterKey !== 'string') s.config.openrouterKey = '';
   if (typeof s.config.vozAsistente !== 'string') s.config.vozAsistente = '';
   if (typeof s.config.carpetaArchivos !== 'string') s.config.carpetaArchivos = 'https://raw.githubusercontent.com/jajaja19901/mis-apps/claude/party-access-finance-app-pybmqt/apps/archivos/';
   if (!s.presencia || typeof s.presencia !== 'object') s.presencia = {};
@@ -14942,7 +14945,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V10'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V11'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -14956,10 +14959,21 @@ function _arg(args, nombres) {
 function _iaClaves() {
   return String((state.config && state.config.geminiKey) || '').split(/[\s,;]+/).map(function (k) { return k.trim(); }).filter(Boolean);
 }
-function iaConfigurada() { return !!(state.config && String(state.config.geminiKey || '').trim()); }
+/* Claves de OpenRouter (respaldo), también varias separadas por comas/espacios. */
+function _orClaves() {
+  return String((state.config && state.config.openrouterKey) || '').split(/[\s,;]+/).map(function (k) { return k.trim(); }).filter(Boolean);
+}
+/* Modelos GRATIS de OpenRouter (van con :free). Si uno se retira o se queda sin cupo, salta al siguiente. */
+var OR_MODELOS = ['deepseek/deepseek-chat-v3-0324:free', 'meta-llama/llama-3.3-70b-instruct:free', 'google/gemini-2.0-flash-exp:free', 'qwen/qwen-2.5-72b-instruct:free', 'meta-llama/llama-3.1-8b-instruct:free'];
+function iaConfigurada() { return !!(state.config && (String(state.config.geminiKey || '').trim() || String(state.config.openrouterKey || '').trim())); }
 function duenoSetGemini(v) {
   mutateSilent(function (s) { s.config.geminiKey = String(v || '').trim(); });
-  toast(String(v || '').trim() ? 'IA conectada ✅ (Gemini)' : 'IA desconectada');
+  toast(String(v || '').trim() ? 'IA conectada ✅ (Gemini)' : 'Gemini desconectado');
+  _duenoTab = 'ajustes'; if (typeof renderDueno === 'function') renderDueno();
+}
+function duenoSetOpenRouter(v) {
+  mutateSilent(function (s) { s.config.openrouterKey = String(v || '').trim(); });
+  toast(String(v || '').trim() ? 'Respaldo conectado ✅ (OpenRouter)' : 'OpenRouter desconectado');
   _duenoTab = 'ajustes'; if (typeof renderDueno === 'function') renderDueno();
 }
 function _accionesIA() {
@@ -15015,28 +15029,84 @@ function _estadoIA() {
     return JSON.stringify(o);
   } catch (e) { return '{}'; }
 }
-function procesarConIA(texto) {
-  var key = String((state.config && state.config.geminiKey) || '').trim();
-  if (!key) { procesarComandosVoz([texto]); return; }
-  var sys = 'Asistente de voz del dueño de una app de fiestas.\n'
+function _sysIA() {
+  return 'Asistente de voz del dueño de una app de fiestas.\n'
     + 'DATOS: ' + _estadoIA()
     + '\nACCIONES:\n' + _accionesIA()
     + '\nSOLO JSON: {"acciones":[{"accion":"n","args":{}}],"respuesta":""}. Varias peticiones=varias acciones en orden. '
     + 'Con acciones, respuesta="". Preguntas: contéstalas en "respuesta" con DATOS. '
     + 'Nunca digas solo "no puedo": ir_a + explica el botón. '
     + 'confirmar:true solo si dice "confirmo"/"sin preguntar". Nunca repitas claves en voz. NUNCA repitas ni parafrasees lo que pidió el dueño: ejecuta y calla. No inventes acciones. Español, mínimo de palabras.';
-  var body = {
-    systemInstruction: { parts: [{ text: sys }] },
-    contents: [{ role: 'user', parts: [{ text: String(texto) }] }],
-    generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 256 }
-  };
+}
+/* Ejecuta el plan (JSON) que devuelve cualquier IA (Gemini u OpenRouter). */
+function _ejecutarPlanIA(txt, texto) {
+  var plan; try { plan = _parseJSONia(txt); } catch (e) { _iaFallo('la IA devolvió algo raro', texto); return; }
+  var acc = plan.acciones || [];
+  if (plan.respuesta && !acc.length) hablar(plan.respuesta);
+  acc.forEach(function (a, k) { setTimeout(function () { ejecutarAccionIA(a.accion, a.args || {}); }, k * 350); });
+  if (!acc.length && !plan.respuesta) _respVoz('No te he entendido, repite');
+}
+function procesarConIA(texto) {
+  var gk = _iaClaves(), ok = _orClaves();
+  if (!gk.length && !ok.length) { procesarComandosVoz([texto]); return; }
+  var sys = _sysIA();
   toast('🧠 Pensando…');
-  return _iaIntento(_iaClaves(), body, texto, 0, 0);
+  // Primero Gemini (si hay clave); al agotarse salta a OpenRouter dentro de _iaIntento. Sin Gemini, directo a OpenRouter.
+  if (gk.length) {
+    var body = {
+      systemInstruction: { parts: [{ text: sys }] },
+      contents: [{ role: 'user', parts: [{ text: String(texto) }] }],
+      generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 256 }
+    };
+    return _iaIntento(gk, body, texto, 0, 0);
+  }
+  return _orIntento(ok, sys, texto, 0, 0);
+}
+/* OpenRouter (respaldo). Recorre CLAVES x MODELOS gratis. Formato OpenAI, se llama desde el navegador. */
+function _orIntento(keys, sys, texto, ki, mi) {
+  if (ki >= keys.length) { _iaFallo('sin cupo en Gemini ni en OpenRouter ahora — espera un momento', texto); return; }
+  if (mi >= OR_MODELOS.length) return _orIntento(keys, sys, texto, ki + 1, 0);
+  var body = {
+    model: OR_MODELOS[mi],
+    messages: [{ role: 'system', content: sys }, { role: 'user', content: String(texto) }],
+    temperature: 0.2, max_tokens: 256
+  };
+  return fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + keys[ki], 'X-Title': 'MH Collective' },
+    body: JSON.stringify(body)
+  })
+    .then(function (r) { return r.json().then(function (j) { return { status: r.status, j: j }; }); })
+    .then(function (res) {
+      var j = res.j || {};
+      if (j.error) {
+        var msg = String((j.error && j.error.message) || (typeof j.error === 'string' ? j.error : 'error'));
+        // Modelo retirado / no disponible → siguiente modelo
+        if (res.status === 404 || /not.*found|no endpoints|not a valid model|unsupported/i.test(msg)) return _orIntento(keys, sys, texto, ki, mi + 1);
+        // Cupo / límite → siguiente modelo (y agotados, siguiente clave)
+        if (res.status === 429 || /rate|limit|quota|exhaust/i.test(msg)) return _orIntento(keys, sys, texto, ki, mi + 1);
+        // Clave mala / sin crédito → siguiente clave
+        if (res.status === 401 || res.status === 403 || /auth|api key|invalid|credit|unauthor/i.test(msg)) {
+          if (ki + 1 < keys.length) return _orIntento(keys, sys, texto, ki + 1, 0);
+          _iaFallo('OpenRouter dice: ' + msg, texto); return;
+        }
+        _iaFallo('OpenRouter: ' + msg, texto); return;
+      }
+      var txt = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+      if (!txt) return _orIntento(keys, sys, texto, ki, mi + 1);
+      _ejecutarPlanIA(txt, texto);
+    })
+    .catch(function (e) { _iaFallo('sin conexión con OpenRouter (¿tienes internet?)', texto); });
 }
 // Recorre CLAVES x MODELOS: modelo muerto → siguiente modelo; cupo lleno → siguiente
 // modelo y, agotados, SIGUIENTE CLAVE; clave mala → siguiente clave. Todo automático.
 function _iaIntento(keys, body, texto, ki, mi) {
-  if (ki >= keys.length) { _iaFallo('todos los cupos gratis están a tope ahora — espera un minuto y repítemelo', texto); return; }
+  if (ki >= keys.length) {
+    // Gemini agotado: si hay OpenRouter, tira de él antes de rendirse.
+    var ok = _orClaves();
+    if (ok.length) { _orIntento(ok, body.systemInstruction.parts[0].text, texto, 0, 0); return; }
+    _iaFallo('todos los cupos gratis están a tope ahora — espera un minuto y repítemelo', texto); return;
+  }
   if (mi >= IA_MODELOS.length) return _iaIntento(keys, body, texto, ki + 1, 0);
   var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + IA_MODELOS[mi] + ':generateContent?key=' + encodeURIComponent(keys[ki]);
   // En 2.5-flash apagamos el "pensamiento interno" (gasta tokens de salida sin que se vea).
@@ -15484,6 +15554,9 @@ function seccionAsistenteIA() {
   html += '<p class="nota">Con esto hablas con <b>cualquier frase</b> y la app entiende y hace lo que pidas, incluso <b>varias cosas a la vez</b>. Necesita una <b>clave gratis de Google Gemini</b> (sin tarjeta) y conexión.</p>';
   html += '<label>Clave(s) de Gemini (gratis)<input type="text" id="ia-key" value="' + esc(k) + '" onchange="duenoSetGemini(this.value)" placeholder="pega 1, 2 o 3 claves separadas por comas"></label>';
   html += '<p class="nota">💡 <b>Truco anti-cupo:</b> saca claves en 2 o 3 cuentas de Google distintas (aistudio.google.com/app/apikey en cada una) y pégalas aquí <b>separadas por comas</b>. Cuando el cupo gratis de una se llena, la app <b>salta sola a la siguiente</b>. Versión del asistente: <b>' + IA_VERSION + '</b>.</p>';
+  var kor = (state.config && state.config.openrouterKey) || '';
+  html += '<label>Clave de OpenRouter (respaldo, opcional)<input type="text" id="or-key" value="' + esc(kor) + '" onchange="duenoSetOpenRouter(this.value)" placeholder="sk-or-... (si Gemini se queda sin cupo, tira de aquí)"></label>';
+  html += '<p class="nota">🔗 <b>Respaldo:</b> si pones tu clave de <b>OpenRouter</b> (openrouter.ai/keys), cuando a Gemini se le acabe el cupo la IA <b>sigue funcionando con OpenRouter</b> (modelos gratis). Orden: primero el motor local (gratis, sin internet) → Gemini → OpenRouter.</p>';
   html += '<button type="button" class="btn" data-testid="btn-probar-ia" onclick="probarIA()"' + (iaConfigurada() ? '' : ' disabled') + '>🧪 Probar la IA ahora</button>';
   html += '<p class="nota">' + (iaConfigurada()
     ? 'IA conectada ✅. Toca el micro 🎤 y habla como quieras (ej.: «manda los emails a los primeros diez y dime cuánto llevo»).'
