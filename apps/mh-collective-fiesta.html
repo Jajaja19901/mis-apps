@@ -14565,48 +14565,16 @@ function duenoSetGemini(v) {
 }
 function _accionesIA() {
   return [
-    'enviar_emails(limite?): entradas por email a todos',
-    'decir_dinero: caja y barra en voz alta',
-    'decir_recaudacion: por trabajador',
-    'decir_beneficio: caja menos gastos',
-    'decir_gastos: total gastado',
-    'decir_top: producto más vendido',
-    'decir_aforo: gente dentro',
-    'decir_entradas: total creadas',
-    'decir_quedan: por entrar',
-    'decir_bonos: bonos y vendidos',
-    'copiar_enlaces: copia todos los enlaces',
-    'crear_entrada(nombre,email?,telefono?)',
-    'crear_lote(cantidad,precio?,pagadas?,etiqueta?): lote de entradas para vender (máx 500)',
-    'descargar_zip(serie?): ZIP de PDFs del lote',
-    'descargar_pdf(serie?): PDF junto para imprimir',
-    'descargar_csv(serie?): lista de códigos (Excel)',
-    'descargar_informe: informe del dinero (Excel)',
-    'copia_seguridad: descarga todo',
-    'anadir_gasto(concepto,importe,categoria?)',
-    'crear_bonos(cantidad,copas,precio?): precio 0 = regalo',
-    'marcar_pagada(quien): por nombre o código',
-    'dar_acceso(quien): lo marca DENTRO',
-    'marcar_salida(quien)',
-    'borrar_entrada(quien): confirma en pantalla',
-    'borrar_entradas(serie?,confirmar?): borra todas o una serie',
-    'cerrar_fiesta(confirmar?): archiva la noche y resetea caja/aforo',
-    'poner_pin(pin): cambia el PIN del dueño (4-8 cifras)',
-    'poner_contrasena_portada(clave): la de entrada a la web',
-    'poner_codigo_trabajador(rol,codigo): rol tipo "vigilante 1" o "camarero 2"',
-    'buscar(quien): dice si está dentro y si pagó',
-    'anular_bono(codigo)',
-    'enviar_whatsapp(quien) | enviar_email_a(quien) | ver_entrada(quien) | blindar(quien)',
-    'activar_cobro(metodo,on,numero?): bizum|tarjeta|monedero|nfc',
-    'activar_modulo(nombre,on): qr|cierre|gastos|stock',
-    'activar_modo_rrpp(on) | activar_acceso_auto(on) | modo_secreto(on)',
-    'poner_config(campo,valor): precio_entrada|precio_vip|aforo|nombre|fecha|hora|lugar|lema|video|instagram',
-    'crear_rrpp(nombre,comision?,precio?)',
-    'repartir_rrpp(promotor,desde,hasta): reparte remesa #desde-#hasta',
-    'poner_vigilantes(n) | poner_camareros(n)',
-    'anadir_producto(nombre,precio) | precio_producto(producto,precio)',
-    'instalar_app | cerrar_fiesta | ir_a(pestana): resumen|entradas|entregar|dinero|ajustes|registro',
-    'responder(texto): contesta hablando sin ejecutar nada'
+    'decir_dinero decir_recaudacion decir_beneficio decir_gastos decir_top decir_aforo decir_entradas decir_quedan decir_bonos — dicen ese dato en voz alta',
+    'enviar_emails(limite?) copiar_enlaces descargar_zip(serie?) descargar_pdf(serie?) descargar_csv(serie?) descargar_informe copia_seguridad',
+    'crear_entrada(nombre,email?,telefono?) crear_lote(cantidad,precio?,pagadas?,etiqueta?) borrar_entrada(quien) borrar_entradas(serie?,confirmar?)',
+    'marcar_pagada(quien) dar_acceso(quien) marcar_salida(quien) buscar(quien) ver_entrada(quien) blindar(quien) enviar_whatsapp(quien) enviar_email_a(quien)',
+    'anadir_gasto(concepto,importe,categoria?) crear_bonos(cantidad,copas,precio?) anular_bono(codigo)',
+    'crear_rrpp(nombre,comision?,precio?) repartir_rrpp(promotor,desde,hasta)',
+    'activar_cobro(metodo:bizum|tarjeta|monedero|nfc, on, numero?) activar_modulo(nombre:qr|cierre|gastos|stock, on) activar_modo_rrpp(on) activar_acceso_auto(on) modo_secreto(on)',
+    'poner_config(campo:precio_entrada|precio_vip|aforo|nombre|fecha|hora|lugar|lema|video|instagram, valor) poner_vigilantes(n) poner_camareros(n) anadir_producto(nombre,precio) precio_producto(producto,precio)',
+    'poner_pin(pin) poner_contrasena_portada(clave) poner_codigo_trabajador(rol,codigo)',
+    'cerrar_fiesta(confirmar?) instalar_app ir_a(pestana:resumen|entradas|entregar|dinero|ajustes|registro) responder(texto)'
   ].join('\n');
 }
 /* Foto COMPACTA de los datos vivos de la app: se la damos a la IA en cada orden para que
@@ -14616,7 +14584,8 @@ function _estadoIA() {
   var caja = (typeof cajaDesglose === 'function') ? cajaDesglose() : {};
   var gT = (s.gastos || []).reduce(function (a, g) { return a + (g.importe || 0); }, 0);
   try {
-    return JSON.stringify({
+    // Compacto: sin campos vacíos y con listas capadas — menos tokens por orden.
+    var o = {
       evento: c.eventName, fecha: c.fecha, hora: c.hora, lugar: c.lugar, lema: c.lema,
       precio_entrada: c.precioEntrada, precio_vip: c.precioMesaVip, aforo: c.maxAforo,
       dentro: per.filter(function (p) { return p.dentro; }).length,
@@ -14628,31 +14597,34 @@ function _estadoIA() {
         vip: Math.round(caja.vip || 0), barra: Math.round(caja.barra || 0), monederos: Math.round(caja.monederos || 0) },
       gastos_eur: Math.round(gT), beneficio_eur: Math.round((caja.total || 0) - gT),
       bonos: { total: (s.bonos || []).length, vendidos: (s.bonos || []).filter(function (b) { return b.vendido; }).length },
-      rrpp: (s.rrpp || []).map(function (r) { return r.nombre + '(com ' + (r.comision || 0) + '€)'; }),
-      productos: (c.productos || []).map(function (p) { return p.nombre + ' ' + p.precio + '€ stock:' + p.stock; }),
+      rrpp: (s.rrpp || []).slice(0, 12).map(function (r) { return r.nombre + '(com ' + (r.comision || 0) + '€)'; }),
+      productos: (c.productos || []).slice(0, 12).map(function (p) { return p.nombre + ' ' + p.precio + '€ stock:' + p.stock; }),
       vigilantes: c.nVigilantes, camareros: c.nCamareros,
       cobros: { bizum: bizumActivo(), tarjeta: tarjetaActiva(), monedero: monederoActivo(), nfc: nfcActivo() },
       modo_rrpp: puertaVentaRRPP(), modo_secreto: !!c.entregaUnaVez,
       ultima_serie: _ultimaRemesa(), hora_actual: nowHM(), asistente_version: IA_VERSION
+    };
+    Object.keys(o).forEach(function (k) {
+      var v = o[k];
+      if (v === '' || v === null || v === undefined || (Array.isArray(v) && !v.length)) delete o[k];
     });
+    return JSON.stringify(o);
   } catch (e) { return '{}'; }
 }
 function procesarConIA(texto) {
   var key = String((state.config && state.config.geminiKey) || '').trim();
   if (!key) { procesarComandosVoz([texto]); return; }
-  var sys = 'Asistente de voz del dueño de una app de fiestas (accesos, barra, dinero).\n'
-    + 'DATOS AHORA (responde con ellos cualquier pregunta, hasta el mínimo detalle): ' + _estadoIA()
+  var sys = 'Asistente de voz del dueño de una app de fiestas.\n'
+    + 'DATOS: ' + _estadoIA()
     + '\nACCIONES:\n' + _accionesIA()
-    + '\nDevuelve SOLO JSON: {"acciones":[{"accion":"n","args":{}}],"respuesta":""}. Varias peticiones = varias acciones en orden. '
-    + 'Si hay acciones deja "respuesta" vacía (ya hablan solas). Preguntas o descripciones: contéstalas tú en "respuesta" usando DATOS. '
-    + 'PROHIBIDO decir solo "no puedo": si nada encaja, ir_a a la pestaña adecuada + "respuesta" explicando qué botón tocar. '
-    + 'Destructivo (borrar_entradas, cerrar_fiesta): añade confirmar:true SOLO si el dueño lo dice claro ("confirmo", "sin preguntar", "estoy seguro"); si no, sin confirmar. '
-    + 'Contraseñas/códigos: ejecuta la acción pero JAMÁS repitas la clave en "respuesta" (se enseña en pantalla). '
-    + 'No inventes acciones. Español, breve.';
+    + '\nSOLO JSON: {"acciones":[{"accion":"n","args":{}}],"respuesta":""}. Varias peticiones=varias acciones en orden. '
+    + 'Con acciones, respuesta="". Preguntas: contéstalas en "respuesta" con DATOS. '
+    + 'Nunca digas solo "no puedo": ir_a + explica el botón. '
+    + 'confirmar:true solo si dice "confirmo"/"sin preguntar". Nunca repitas claves en voz. No inventes acciones. Español, muy breve.';
   var body = {
     systemInstruction: { parts: [{ text: sys }] },
     contents: [{ role: 'user', parts: [{ text: String(texto) }] }],
-    generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 512 }
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 256 }
   };
   toast('🧠 Pensando…');
   return _iaIntento(_iaClaves(), body, texto, 0, 0);
@@ -14663,7 +14635,13 @@ function _iaIntento(keys, body, texto, ki, mi) {
   if (ki >= keys.length) { _iaFallo('todos los cupos gratis están a tope ahora — espera un minuto y repítemelo', texto); return; }
   if (mi >= IA_MODELOS.length) return _iaIntento(keys, body, texto, ki + 1, 0);
   var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + IA_MODELOS[mi] + ':generateContent?key=' + encodeURIComponent(keys[ki]);
-  return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  // En 2.5-flash apagamos el "pensamiento interno" (gasta tokens de salida sin que se vea).
+  var bodyEnvio = body;
+  if (/2\.5-flash$/.test(IA_MODELOS[mi])) {
+    bodyEnvio = JSON.parse(JSON.stringify(body));
+    bodyEnvio.generationConfig.thinkingConfig = { thinkingBudget: 0 };
+  }
+  return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bodyEnvio) })
     .then(function (r) { return r.json().then(function (j) { return { status: r.status, j: j }; }); })
     .then(function (res) {
       var j = res.j || {};
