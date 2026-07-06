@@ -13874,6 +13874,9 @@ function seedState() {
       emailjsCfg: { publicKey: "", serviceId: "", templateId: "" },
       // Clave gratis de Google Gemini para el asistente por voz con IA (opcional). Vacío = órdenes por voz.
       geminiKey: "",
+      // Carpeta (dirección web) de la que la app coge archivos por voz: cartel.png, logo.png,
+      // invitados.csv, datos.json. Por defecto la carpeta del repositorio en GitHub. Debe acabar en "/".
+      carpetaArchivos: "https://raw.githubusercontent.com/jajaja19901/mis-apps/claude/party-access-finance-app-pybmqt/apps/archivos/",
       // Voz con la que habla el asistente (nombre de una voz del móvil). Vacío = la mejor en español.
       vozAsistente: "",
       fecha: "", hora: "", lugar: "", lema: "",
@@ -13981,6 +13984,7 @@ function migrar(s) {
   ['publicKey', 'serviceId', 'templateId'].forEach(function (k) { if (typeof s.config.emailjsCfg[k] !== 'string') s.config.emailjsCfg[k] = ''; });
   if (typeof s.config.geminiKey !== 'string') s.config.geminiKey = '';
   if (typeof s.config.vozAsistente !== 'string') s.config.vozAsistente = '';
+  if (typeof s.config.carpetaArchivos !== 'string') s.config.carpetaArchivos = 'https://raw.githubusercontent.com/jajaja19901/mis-apps/claude/party-access-finance-app-pybmqt/apps/archivos/';
   if (!s.presencia || typeof s.presencia !== 'object') s.presencia = {};
   if (!Array.isArray(s.notas)) s.notas = [];
   if (!s.ventasPorProducto || typeof s.ventasPorProducto !== 'object') s.ventasPorProducto = {};
@@ -14655,6 +14659,14 @@ function _intentLocal(t0) {
   var quienDe = function () { var m = t.match(/\b(?:a|de|para)\s+([a-z0-9][a-z0-9 ]{1,39})\s*$/); return m ? m[1].trim().replace(/\b(la|el|los|las|una|un)\s+/g, '') : ''; };
   var tieneVerbo = /(activa|activar|pon|poner|enciende|encender|quita|quitar|desactiva|apaga|conecta|cobr)/.test(t);
 
+  // ---------- CARPETA DE ARCHIVOS (coge cosas de GitHub por voz) ----------
+  if (/(la carpeta (de archivos )?(es|esta en|sera)|cambia la carpeta|pon la carpeta|carpeta de archivos)/.test(t)) { var mcu = t0.match(/(https?:\/\/\S+)/i); if (mcu) return { accion: 'poner_carpeta', args: { url: mcu[1] } }; }
+  var cargaVerbo = /(coge|cogeme|carga|cargame|cargar|trae|traeme|pon|poner|importa|importar|baja|bajame|mete|saca|actualiza|coloca)/.test(t);
+  if (cargaVerbo && /\bcartel\b/.test(t) && !/(quita|quitar|borra|elimina)/.test(t)) return { accion: 'cargar_cartel', args: {} };
+  if (cargaVerbo && /\blogo\b/.test(t) && !/(quita|quitar|borra|elimina)/.test(t)) return { accion: 'cargar_logo', args: {} };
+  if (cargaVerbo && /(invitad|lista de invitad|los invitados|la lista)/.test(t) && /(carpeta|github|importa|invitad)/.test(t)) return { accion: 'importar_invitados', args: {} };
+  if (/(carga|cargame|coge|trae|importa|restaura|recupera)/.test(t) && /(copia|backup|respaldo|datos)/.test(t) && /(carpeta|github|de la nube)/.test(t)) return { accion: 'cargar_copia', args: {} };
+
   // ---------- COBROS ----------
   if (/\bbizum\b/.test(t) && (tieneVerbo || /numero/.test(t))) { var nB = (tn.match(/\b(\d{9})\b/) || [])[1]; return { accion: 'activar_cobro', args: { metodo: 'bizum', on: on, numero: nB } }; }
   if (/(tarjeta|datafono|visa)/.test(t) && tieneVerbo) return { accion: 'activar_cobro', args: { metodo: 'tarjeta', on: on } };
@@ -14915,7 +14927,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V8'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V9'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -14948,6 +14960,7 @@ function _accionesIA() {
     'poner_pin(pin) poner_contrasena_portada(clave) poner_codigo_trabajador(rol,codigo)',
     'apuntar_nota(texto) leer_notas borrar_nota(cual) borrar_notas — bloc Mis notas del dueño',
     'borrar_producto(producto) reponer_stock(producto?) borrar_fase(fase) borrar_rrpp(promotor) borrar_gasto(concepto) borrar_admin(nombre) quitar_logo quitar_cartel',
+    'cargar_cartel cargar_logo importar_invitados cargar_copia poner_carpeta(url) — coge archivos de la carpeta (GitHub) por voz',
     'cerrar_fiesta(confirmar?) instalar_app ir_a(pestana:resumen|entradas|entregar|dinero|ajustes|registro) responder(texto)'
   ].join('\n');
 }
@@ -15400,6 +15413,11 @@ function ejecutarAccionIA(accion, args) {
     }
     case 'quitar_logo': if (typeof quitarLogo === 'function') { quitarLogo(); _hecho('Logo quitado'); } break;
     case 'quitar_cartel': if (typeof quitarCartel === 'function') { quitarCartel(); _hecho('Cartel quitado'); } break;
+    case 'cargar_cartel': cargarImagenDeCarpeta(['cartel.png', 'cartel.jpg', 'cartel.jpeg', 'cartel.webp'], 'cartel', 'el cartel'); break;
+    case 'cargar_logo': cargarImagenDeCarpeta(['logo.png', 'logo.jpg', 'logo.jpeg', 'logo.webp'], 'logo', 'el logo'); break;
+    case 'importar_invitados': cargarInvitadosDeCarpeta(); break;
+    case 'cargar_copia': cargarCopiaDeCarpeta(); break;
+    case 'poner_carpeta': { var pcu = String(_arg(args, ['url', 'carpeta', 'enlace', 'direccion']) || '').trim(); if (!/^https?:\/\//.test(pcu)) { _respVoz('Dime la dirección web de la carpeta'); break; } mutateSilent(function (s) { s.config.carpetaArchivos = pcu; }); _hecho('Carpeta guardada'); break; }
     case 'responder': _respVoz(args.texto || 'Hecho'); break;
     default:
       // Que quede constancia de lo que la IA pidió y no existe: se ve en el Registro.
@@ -17996,6 +18014,7 @@ function renderDueno() {
           acc('aj-prod', '🍹 Productos de barra', 'Bebidas, precios, tipos de combinado y stock', seccionProductos()) +
           acc('aj-cobros', '💳 Formas de cobro', 'Monedero, Bizum, tarjeta y NFC — activa las que uses', seccionCobros()) +
           acc('aj-modulos', '🧩 Módulos y acceso automático', 'Enciende/apaga QR, cierre, gastos, stock…', seccionModulos()) +
+          acc('aj-carpeta', '📁 Carpeta de archivos', 'Coge cartel, logo, invitados o copia desde una carpeta en GitHub (también por voz)', seccionCarpeta()) +
           acc('aj-ia', '🎤 Asistente por voz (IA)', 'Habla con cualquier frase y la app lo hace — clave gratis de Gemini', seccionAsistenteIA());
       } },
     { id: 'registro', label: '📋 Registro', build: function () {
@@ -18797,6 +18816,99 @@ function _parseContacto(linea) {
   return { nombre: partes[0] || 'Invitado', apellido: partes.slice(1).join(' '), email: email, telefono: tel };
 }
 
+/* ===== CARPETA DE ARCHIVOS =====
+   La app coge cartel/logo/invitados/copia de una dirección web (por defecto la carpeta
+   del repositorio en GitHub) para poder ponerlos POR VOZ sin re-subir la web. Solo lee lo
+   que esté publicado en esa carpeta (mismo internet); no accede a la galería del móvil. */
+function _baseArchivos() {
+  var b = String((state.config && state.config.carpetaArchivos) || '').trim();
+  if (b && b.slice(-1) !== '/') b += '/';
+  return b;
+}
+function _urlArchivo(nombre) { var b = _baseArchivos(); return b ? (b + nombre) : ''; }
+// Prueba varios nombres/extensiones hasta que uno responda; devuelve su blob.
+function _fetchArchivo(nombres, i, cb) {
+  i = i || 0;
+  if (i >= nombres.length) { cb(null); return; }
+  var url = _urlArchivo(nombres[i]);
+  if (!url) { cb(null); return; }
+  fetch(url, { cache: 'no-store' })
+    .then(function (r) { if (r.ok) return r.blob(); throw 0; })
+    .then(function (blob) { cb(blob, nombres[i]); })
+    .catch(function () { _fetchArchivo(nombres, i + 1, cb); });
+}
+function cargarImagenDeCarpeta(nombres, cual, etiqueta) {
+  if (!_baseArchivos()) { _respVoz('No hay carpeta puesta. Dila así: la carpeta de archivos es, y el enlace'); return; }
+  toast('Buscando ' + etiqueta + ' en la carpeta…');
+  _fetchArchivo(nombres, 0, function (blob) {
+    if (!blob) { _respVoz('No encuentro ' + etiqueta + ' en la carpeta. Ponlo como ' + nombres[0]); return; }
+    comprimirImagen(blob, cual === 'logo' ? 512 : 1000, cual === 'logo', function (dataUrl) {
+      if (!dataUrl) { _respVoz('No pude leer ' + etiqueta); return; }
+      mutate(function (s) { s.config[cual] = dataUrl; });
+      if (cual === 'logo') { if (typeof aplicarLogo === 'function') aplicarLogo(); } else { if (typeof precargarCartel === 'function') precargarCartel(); }
+      _hecho(etiqueta + ' puesto desde la carpeta');
+    });
+  });
+}
+function cargarInvitadosDeCarpeta() {
+  if (!_baseArchivos()) { _respVoz('No hay carpeta puesta'); return; }
+  toast('Buscando la lista de invitados…');
+  _fetchArchivo(['invitados.csv', 'invitados.txt', 'lista.csv', 'lista.txt'], 0, function (blob) {
+    if (!blob) { _respVoz('No encuentro invitados.csv en la carpeta'); return; }
+    blob.text().then(function (txt) {
+      var n = _anadirBulkTexto(txt, 'taquilla');
+      if (n) { duenoTab('entradas'); _hecho(n + ' invitados añadidos desde la carpeta'); }
+      else _respVoz('La lista está vacía o no la entiendo');
+    });
+  });
+}
+function cargarCopiaDeCarpeta() {
+  if (!_baseArchivos()) { _respVoz('No hay carpeta puesta'); return; }
+  toast('Buscando la copia de seguridad…');
+  _fetchArchivo(['datos.json', 'copia.json', 'backup.json'], 0, function (blob) {
+    if (!blob) { _respVoz('No encuentro datos.json en la carpeta'); return; }
+    blob.text().then(function (txt) { if (importarDatosTexto(txt)) _hecho('Copia cargada desde la carpeta'); });
+  });
+}
+// Añade personas desde un texto (una por línea: Nombre, email, teléfono). Reusa _parseContacto.
+function _anadirBulkTexto(txt, tipo) {
+  var lineas = String(txt || '').split(/\r?\n/).map(function (l) { return l.trim(); }).filter(Boolean);
+  if (!lineas.length) return 0;
+  var n = 0;
+  mutate(function (s) {
+    lineas.forEach(function (linea, i) {
+      if (i === 0 && /^(nombre|name)\b/i.test(linea)) return; // salta la cabecera si la hay
+      var c = _parseContacto(linea);
+      if (!c.nombre) return;
+      s.personas.push({ id: 'p' + Date.now() + '_' + i, nombre: c.nombre, apellido: c.apellido,
+        email: c.email, telefono: c.telefono, codigoReserva: nuevoCodigoLista(s), mesa: null,
+        pagado: tipo === 'taquilla-pagada', importePagado: tipo === 'taquilla-pagada' ? s.config.precioEntrada : 0,
+        dentro: false, horaEntrada: null, tipo: tipo === 'invitado' ? 'invitado' : 'taquilla' });
+      n++;
+    });
+    addLog('importó ' + n + ' invitados desde la carpeta', 'alta');
+  });
+  return n;
+}
+function seccionCarpeta() {
+  var b = _baseArchivos();
+  var html = '<section class="panel" data-testid="seccion-carpeta"><h2>📁 Carpeta de archivos</h2>';
+  html += '<p class="nota">Sube a esta carpeta (en GitHub) <b>cartel.png</b>, <b>logo.png</b>, <b>invitados.csv</b> o <b>datos.json</b> y la app los coge — también por voz («coge el cartel de la carpeta»). No re-subes la web.</p>';
+  html += '<label>Dirección de la carpeta<input type="text" id="carpeta-url" value="' + esc(b) + '" placeholder="https://…/" style="width:100%"></label>';
+  html += '<div class="contador"><button type="button" class="btn" onclick="duenoSetCarpeta()">Guardar carpeta</button></div>';
+  html += '<div class="contador" style="flex-wrap:wrap;gap:6px">' +
+    '<button type="button" class="btn-secundario" data-testid="carpeta-cartel" onclick="cargarImagenDeCarpeta([\'cartel.png\',\'cartel.jpg\',\'cartel.jpeg\',\'cartel.webp\'],\'cartel\',\'el cartel\')">🖼️ Cargar cartel</button>' +
+    '<button type="button" class="btn-secundario" data-testid="carpeta-logo" onclick="cargarImagenDeCarpeta([\'logo.png\',\'logo.jpg\',\'logo.jpeg\',\'logo.webp\'],\'logo\',\'el logo\')">🏷️ Cargar logo</button>' +
+    '<button type="button" class="btn-secundario" data-testid="carpeta-invitados" onclick="cargarInvitadosDeCarpeta()">🎟️ Importar invitados</button>' +
+    '<button type="button" class="btn-secundario" data-testid="carpeta-copia" onclick="cargarCopiaDeCarpeta()">💾 Cargar copia</button>' +
+    '</div></section>';
+  return html;
+}
+function duenoSetCarpeta() {
+  var v = (document.getElementById('carpeta-url') || {}).value || '';
+  mutateSilent(function (s) { s.config.carpetaArchivos = String(v).trim(); });
+  toast('Carpeta guardada');
+}
 function duenoAnadirBulk() {
   var txt = (document.getElementById('lista-bulk').value || '').trim();
   var tipo = document.getElementById('lista-bulk-tipo').value;
