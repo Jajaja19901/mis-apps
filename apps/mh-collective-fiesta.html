@@ -14601,11 +14601,29 @@ function _crearEntradaIA(args) {
   duenoTab('entradas');
   _respVoz('Entrada creada para ' + nombreCompleto);
 }
+/* Prueba la clave y la IA en 2 pasos y CUENTA lo que pasa (sin esconder nada):
+   1) valida la clave contra la lista de modelos (GET); 2) lanza una orden real. */
+function probarIA() {
+  var key = String((state.config && state.config.geminiKey) || '').trim();
+  if (!key) { toast('Pega primero la clave'); return; }
+  toast('🧪 Paso 1: probando la clave…');
+  fetch('https://generativelanguage.googleapis.com/v1beta/models?key=' + encodeURIComponent(key))
+    .then(function (r) { return r.json(); })
+    .then(function (j) {
+      if (j && j.error) { toast('❌ Google dice: ' + String(j.error.message || 'clave rechazada')); hablar('La clave no vale. Copiala otra vez con el boton de copiar'); return; }
+      if (j && j.models && j.models.length) {
+        toast('✅ Clave correcta · Paso 2: probando una orden…');
+        procesarConIA('responde solo con un saludo corto de prueba');
+      } else { toast('❌ Google devolvió algo raro (sin modelos)'); }
+    })
+    .catch(function () { toast('❌ No hay conexión con Google (¿internet?)'); });
+}
 function seccionAsistenteIA() {
   var k = (state.config && state.config.geminiKey) || '';
   var html = '<section class="panel"><h2>🎤 Asistente por voz con IA</h2>';
   html += '<p class="nota">Con esto hablas con <b>cualquier frase</b> y la app entiende y hace lo que pidas, incluso <b>varias cosas a la vez</b>. Necesita una <b>clave gratis de Google Gemini</b> (sin tarjeta) y conexión.</p>';
   html += '<label>Clave de Gemini (gratis)<input type="text" id="ia-key" value="' + esc(k) + '" onchange="duenoSetGemini(this.value)" placeholder="pega aquí tu API key"></label>';
+  html += '<button type="button" class="btn" data-testid="btn-probar-ia" onclick="probarIA()"' + (iaConfigurada() ? '' : ' disabled') + '>🧪 Probar la IA ahora</button>';
   html += '<p class="nota">' + (iaConfigurada()
     ? 'IA conectada ✅. Toca el micro 🎤 y habla como quieras (ej.: «manda los emails a los primeros diez y dime cuánto llevo»).'
     : '¿No tienes la clave? Sácala gratis en <b>aistudio.google.com/app/apikey</b> o pídeme la guía.') + '</p>';
