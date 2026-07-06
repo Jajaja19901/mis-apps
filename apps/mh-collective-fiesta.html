@@ -14844,7 +14844,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V6'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V7'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -18357,14 +18357,17 @@ function whatsappEntrada(id) {
   var p = personaPorId(id); if (!p) return;
   var tel = String(p.telefono || '').replace(/\D/g, '');
   var url = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(mensajeEntrada(p));
-  try { window.open(url, '_blank'); } catch (e) { location.href = url; }
+  // Si el móvil bloquea la ventana emergente (window.open devuelve null), plan B: abrir en la misma pestaña.
+  var w; try { w = window.open(url, '_blank'); } catch (e) {}
+  if (!w) location.href = url;
 }
 function emailEntrada(id) {
   var p = personaPorId(id); if (!p) return;
   var to = String(p.email || '').trim();
   var asunto = 'Tu entrada para ' + ((state.config && state.config.eventName) || 'la fiesta');
   var url = 'mailto:' + encodeURIComponent(to) + '?subject=' + encodeURIComponent(asunto) + '&body=' + encodeURIComponent(mensajeEntrada(p));
-  try { window.open(url, '_blank'); } catch (e) { location.href = url; }
+  var w; try { w = window.open(url, '_blank'); } catch (e) {}
+  if (!w) location.href = url;
 }
 function copiarTodosEnlaces() {
   var lineas = (state.personas || []).map(function (p) {
