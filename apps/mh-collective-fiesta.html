@@ -14275,6 +14275,8 @@ function procesarComandosVoz(frases) {
   // Si hay clave de Gemini, manda a la IA (entiende cualquier frase). Si no, órdenes por voz.
   if (typeof iaConfigurada === 'function' && iaConfigurada()) { procesarConIA(raw); return; }
   var best = _normVoz(raw);
+  // Una NOTA no se trocea por la "y" (puede llevar "vasos y hielo"): va entera.
+  if (/^(apunta|anota|nota)\b/.test(best)) { ejecutarComandoVoz([raw]); return; }
   var partes = best.split(/\s+(?:y luego|y despues|y tambien|y ademas|y despue|luego|tambien|ademas|y)\s+/)
     .map(function (p) { return p.trim(); }).filter(Boolean);
   if (partes.length <= 1) { ejecutarComandoVoz(frases); return; }
@@ -14401,6 +14403,37 @@ function ejecutarComandoVoz(frases) {
   var tNum = t;
   var mapaNum = { diez: 10, veinte: 20, treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90, cien: 100, ciento: 100, doscientas: 200, doscientos: 200, trescientas: 300, trescientos: 300, quinientas: 500, quinientos: 500 };
   Object.keys(mapaNum).forEach(function (k) { tNum = tNum.replace(new RegExp('\\b' + k + '\\b', 'g'), mapaNum[k]); });
+  // Nº de CAMAREROS / VIGILANTES por voz (funciona SIN Google): "pon 2 camareros", "tres vigilantes"
+  var mCam = t.match(/(\d{1,2}|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)\s+camarero/);
+  var mVig = t.match(/(\d{1,2}|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)\s+vigilante/);
+  if ((mCam || mVig) && !/(recaud|vend|dinero|cuant|lleva|cobrad|vendid|codigo|contrasena|clave)/.test(t)) {
+    var hechoP = [];
+    if (mCam && typeof setCamareros === 'function') { var nCa = _numPeq(mCam[1]); if (nCa >= 1 && nCa <= 20) { setCamareros(nCa); hechoP.push(nCa + ' camareros'); } }
+    if (mVig && typeof setVigilantes === 'function') { var nVi = _numPeq(mVig[1]); if (nVi >= 1 && nVi <= 20) { setVigilantes(nVi); hechoP.push(nVi + ' vigilantes'); } }
+    if (hechoP.length) { duenoTab('ajustes'); _hecho(hechoP.join(' y ')); return; }
+  }
+  // Crear / ajustar una FASE por voz: "crea la fase 2 a 30 euros (con 100 entradas)"
+  if (/\bfase\b/.test(t) && /(crea|crear|haz|nueva|nuevo|pon|poner|anade|agrega|monta|prepara|genera|añade)/.test(t)) {
+    var mFn = t.match(/fase\s+([a-z0-9]+)/);
+    var faseNumMap = { una: 1, uno: 1, un: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10 };
+    var faseTok = mFn ? mFn[1] : '';
+    var faseEt = faseNumMap[faseTok] || faseTok;
+    var nomFase = faseEt ? ('Fase ' + faseEt) : '';
+    var mFp = tNum.match(/a\s+(\d+(?:[.,]\d+)?)\s*euros?/) || tNum.match(/(\d+(?:[.,]\d+)?)\s*euros?/);
+    var precioFase = mFp ? Number(mFp[1].replace(',', '.')) : 0;
+    var mFc = tNum.match(/(?:con\s+)?(\d{1,3})\s+entradas?/);
+    var cantFase = mFc ? parseInt(mFc[1], 10) : 0;
+    if (!(precioFase > 0)) { _respVoz('Dime el precio de la fase, por ejemplo: crea la fase 2 a 30 euros'); return; }
+    var rF = _crearFaseVoz(nomFase, precioFase, cantFase || 100);
+    if (rF && cantFase > 0) {
+      var rLF = _crearLote(cantFase, { precio: precioFase, fase: rF.nombre, etiqueta: rF.nombre });
+      duenoTab('entradas');
+      if (rLF) { _hecho(rF.nombre + ' · ' + Math.round(precioFase) + ' € · ' + rLF.cantidad + ' entradas'); return; }
+    }
+    duenoTab('entradas');
+    _hecho(rF.nombre + ' · ' + Math.round(precioFase) + ' € · cupo ' + rF.cantidad);
+    return;
+  }
   var mL = tNum.match(/(?:crea|crear|haz|genera|prepara)\w*\s+(?:un lote de\s+)?(\d{1,3})\s+entradas?/);
   if (mL) {
     var mP = tNum.match(/a\s+(\d+(?:[.,]\d+)?)\s*euros?/);
@@ -14504,7 +14537,7 @@ function ejecutarComandoVoz(frases) {
   }
   // Ayuda
   if (/(ayuda|que puedo|que digo|comando|opcion|no se que)/.test(t)) {
-    _respVoz('Puedes decir: envia los emails; cuanto dinero llevo; cuanto ha vendido cada camarero; cuanto beneficio llevo; cuanto he gastado; que se vende mas; cuantos han entrado; cuantas entradas hay; cuantos bonos hay; copia los enlaces; crea una entrada para un nombre; crea cien entradas a veinte euros; descarga las entradas en zip; busca a alguien; activa o quita el modo secreto; haz una copia de seguridad; instala la app; o llevame a entradas, dinero, entregar, ajustes o registro'); return;
+    _respVoz('Puedes decir: envia los emails; cuanto dinero llevo; cuanto ha vendido cada camarero; cuanto beneficio llevo; cuanto he gastado; que se vende mas; cuantos han entrado; cuantas entradas hay; cuantos bonos hay; copia los enlaces; crea una entrada para un nombre; crea cien entradas a veinte euros; crea la fase dos a treinta euros con cien entradas; pon dos camareros y tres vigilantes; apunta que falta hielo; leeme las notas; descarga las entradas en zip; busca a alguien; activa o quita el modo secreto; haz una copia de seguridad; instala la app; o llevame a entradas, dinero, entregar, ajustes o registro'); return;
   }
   _respVoz('No te he entendido. Di ayuda para oir lo que puedo hacer');
 }
@@ -14556,6 +14589,41 @@ function _crearLote(cantidad, opts) {
     addLog('creó por voz/IA el lote "' + etiqueta + '" (' + cantidad + ' entradas)', 'alta');
   });
   return { etiqueta: etiqueta, cantidad: cantidad, precio: precio };
+}
+/* Crea o ACTUALIZA una fase (mismo nombre = se actualiza, no duplica). La usan la voz
+   SIN Google y la IA. Devuelve {nombre,precio,cantidad,actualizada} o null si falta precio. */
+function _crearFaseVoz(nombre, precio, cantidad) {
+  var fN = String(nombre || '').trim();
+  var fP = Number(precio) || 0;
+  var fC = parseInt(cantidad, 10) || 100;
+  if (!(fP > 0)) return null;
+  var fNq = _normVoz(fN);
+  var fYa = fN ? fasesLista().find(function (f) { return _normVoz(f.nombre) === fNq; }) : null;
+  if (fYa) {
+    mutate(function (s) {
+      var f3 = (s.config.fases || []).find(function (x) { return x.id === fYa.id; });
+      if (f3) { f3.precio = fP; f3.cantidad = fC; addLog('actualizó la fase ' + f3.nombre + ' (' + fP + ' €, cupo ' + fC + ')', 'config'); }
+    });
+    return { nombre: fYa.nombre, precio: fP, cantidad: fC, actualizada: true };
+  }
+  var fId = 'f' + Date.now();
+  var nombreFinal = fN;
+  mutate(function (s) {
+    if (!Array.isArray(s.config.fases)) s.config.fases = [];
+    if (!nombreFinal) nombreFinal = 'Fase ' + (s.config.fases.length + 1);
+    s.config.fases.push({ id: fId, nombre: nombreFinal, precio: fP, cantidad: fC });
+    addLog('añadió la fase ' + nombreFinal + ' (' + fP + ' €)', 'config');
+  });
+  return { nombre: nombreFinal, precio: fP, cantidad: fC, actualizada: false };
+}
+/* Saca un número pequeño (1-20) de una frase, en dígitos o en palabras. Para "pon 2 camareros". */
+function _numPeq(str) {
+  var s = _normVoz(str);
+  var d = s.match(/\b(\d{1,2})\b/);
+  if (d) return parseInt(d[1], 10);
+  var w = { un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16, veinte: 20 };
+  var m = s.match(/\b(un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieciseis|veinte)\b/);
+  return m ? w[m[1]] : null;
 }
 function _ultimaRemesa() { var e = ''; (state.personas || []).forEach(function (p) { if (p.remesa) e = p.remesa; }); return e; }
 /* Descarga la lista de entradas (todas o de una serie) en CSV, que abre en Excel. */
@@ -14637,7 +14705,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V4'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V5'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -14812,28 +14880,10 @@ function ejecutarAccionIA(accion, args) {
       else _respVoz('Dime cuántas entradas creo'); break;
     }
     case 'crear_fase': {
-      var fN = String(args.nombre || '').trim(), fP = Number(args.precio) || 0, fC = parseInt(args.cantidad, 10) || 100;
-      if (!(fP > 0)) { _respVoz('Dime el precio de la fase'); break; }
-      // Si ya hay una fase con ese nombre, se ACTUALIZA (no se duplica).
-      var fNq = _normVoz(fN);
-      var fYa = fN ? fasesLista().find(function (f) { return _normVoz(f.nombre) === fNq; }) : null;
-      if (fYa) {
-        mutate(function (s) {
-          var f3 = (s.config.fases || []).find(function (x) { return x.id === fYa.id; });
-          if (f3) { f3.precio = fP; f3.cantidad = fC; addLog('actualizó la fase ' + f3.nombre + ' (' + fP + ' €, cupo ' + fC + ')', 'config'); }
-        });
-        duenoTab('entradas');
-        _hecho(fYa.nombre + ' → ' + Math.round(fP) + ' € · cupo ' + fC); break;
-      }
-      var fId = 'f' + Date.now();
-      mutate(function (s) {
-        if (!Array.isArray(s.config.fases)) s.config.fases = [];
-        if (!fN) fN = 'Fase ' + (s.config.fases.length + 1);
-        s.config.fases.push({ id: fId, nombre: fN, precio: fP, cantidad: fC });
-        addLog('añadió la fase ' + fN + ' (' + fP + ' €)', 'config');
-      });
+      var rf = _crearFaseVoz(_arg(args, ['nombre', 'fase', 'name']), _arg(args, ['precio', 'euros', 'valor']), _arg(args, ['cantidad', 'entradas', 'cupo', 'n']));
+      if (!rf) { _respVoz('Dime el precio de la fase'); break; }
       duenoTab('entradas');
-      _hecho(fN + ' · ' + Math.round(fP) + ' € · cupo ' + fC); break;
+      _hecho(rf.nombre + (rf.actualizada ? ' → ' : ' · ') + Math.round(rf.precio) + ' € · cupo ' + rf.cantidad); break;
     }
     case 'poner_precio_fase': {
       var pfQ = _normVoz(args.fase || ''), pfP = Number(args.precio) || 0;
