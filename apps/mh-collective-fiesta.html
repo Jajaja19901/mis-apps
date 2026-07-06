@@ -14297,6 +14297,8 @@ function toggleAsistenteVoz() {
   try { _vozRec.start(); } catch (e) { _vozEscuchando = false; _pintaMicro(false); _escUI(false); }
 }
 function _respVoz(msg) { toast(msg); hablar(msg); }
+/* Confirmación ESCUETA: habla solo "Hecho" y el detalle va por escrito (no cansa ni gasta). */
+function _hecho(detalle) { toast('✅ ' + detalle); hablar('Hecho'); }
 /* Entiende la orden hablada y ejecuta la acción de la app. Cubre lo importante:
    enviar emails, dinero, aforo, entradas, copiar enlaces, crear entrada, y navegar. */
 function ejecutarComandoVoz(frases) {
@@ -14664,7 +14666,7 @@ function procesarConIA(texto) {
     + '\nSOLO JSON: {"acciones":[{"accion":"n","args":{}}],"respuesta":""}. Varias peticiones=varias acciones en orden. '
     + 'Con acciones, respuesta="". Preguntas: contéstalas en "respuesta" con DATOS. '
     + 'Nunca digas solo "no puedo": ir_a + explica el botón. '
-    + 'confirmar:true solo si dice "confirmo"/"sin preguntar". Nunca repitas claves en voz. No inventes acciones. Español, muy breve.';
+    + 'confirmar:true solo si dice "confirmo"/"sin preguntar". Nunca repitas claves en voz. NUNCA repitas ni parafrasees lo que pidió el dueño: ejecuta y calla. No inventes acciones. Español, mínimo de palabras.';
   var body = {
     systemInstruction: { parts: [{ text: sys }] },
     contents: [{ role: 'user', parts: [{ text: String(texto) }] }],
@@ -14755,7 +14757,7 @@ function ejecutarAccionIA(accion, args) {
     case 'crear_entrada': _crearEntradaIA(args); break;
     case 'crear_lote': {
       var rl = _crearLote(_arg(args, ['cantidad', 'n', 'numero', 'entradas']), { precio: _arg(args, ['precio', 'euros', 'valor']), pagadas: (args.pagadas === true || args.pagadas === 'true'), etiqueta: args.etiqueta, copas: args.copas, fase: args.fase });
-      if (rl) { duenoTab('entradas'); _respVoz('Lote ' + rl.etiqueta + ' creado: ' + rl.cantidad + ' entradas a ' + Math.round(rl.precio) + ' euros'); }
+      if (rl) { duenoTab('entradas'); _hecho(rl.cantidad + ' entradas · ' + Math.round(rl.precio) + ' € · serie ' + rl.etiqueta); }
       else _respVoz('Dime cuántas entradas creo'); break;
     }
     case 'crear_fase': {
@@ -14770,7 +14772,7 @@ function ejecutarAccionIA(accion, args) {
           if (f3) { f3.precio = fP; f3.cantidad = fC; addLog('actualizó la fase ' + f3.nombre + ' (' + fP + ' €, cupo ' + fC + ')', 'config'); }
         });
         duenoTab('entradas');
-        _respVoz(fYa.nombre + ' ya existía: la dejo a ' + Math.round(fP) + ' euros con cupo de ' + fC); break;
+        _hecho(fYa.nombre + ' → ' + Math.round(fP) + ' € · cupo ' + fC); break;
       }
       var fId = 'f' + Date.now();
       mutate(function (s) {
@@ -14780,7 +14782,7 @@ function ejecutarAccionIA(accion, args) {
         addLog('añadió la fase ' + fN + ' (' + fP + ' €)', 'config');
       });
       duenoTab('entradas');
-      _respVoz(fN + ' creada a ' + Math.round(fP) + ' euros, con cupo de ' + fC + ' entradas'); break;
+      _hecho(fN + ' · ' + Math.round(fP) + ' € · cupo ' + fC); break;
     }
     case 'poner_precio_fase': {
       var pfQ = _normVoz(args.fase || ''), pfP = Number(args.precio) || 0;
@@ -14791,7 +14793,7 @@ function ejecutarAccionIA(accion, args) {
         var f2 = (s.config.fases || []).find(function (x) { return x.id === pfF.id; });
         if (f2) { f2.precio = pfP; addLog('cambió el precio de ' + f2.nombre + ' a ' + pfP + ' €', 'config'); }
       });
-      _respVoz(pfF.nombre + ' ahora a ' + Math.round(pfP) + ' euros'); break;
+      _hecho(pfF.nombre + ' → ' + Math.round(pfP) + ' €'); break;
     }
     case 'descargar_zip': {
       var sz = String(args.serie || '').trim() || _ultimaRemesa();
@@ -14816,7 +14818,7 @@ function ejecutarAccionIA(accion, args) {
         s.gastos.push({ id: 'g' + Date.now(), concepto: gc, importe: gi, categoria: String(args.categoria || 'otros'), hora: nowHM() });
         addLog('registró gasto ' + gc + ' (' + gi + ' €)', 'gasto');
       });
-      _respVoz('Gasto apuntado: ' + gc + ', ' + Math.round(gi) + ' euros'); break;
+      _hecho('Gasto: ' + gc + ' · ' + Math.round(gi) + ' €'); break;
     }
     case 'crear_bonos': {
       var bq = Math.max(1, Math.min(200, parseInt(args.cantidad, 10) || 0));
@@ -14832,7 +14834,7 @@ function ejecutarAccionIA(accion, args) {
       }
       mutate(function (s) { if (!s.bonos) s.bonos = []; bNuevos.forEach(function (b) { s.bonos.push(b); }); addLog('creó lote de ' + bq + ' bonos de ' + bc + ' copas', 'alta'); });
       duenoTab('fiesta');
-      _respVoz(bq + ' bonos de ' + bc + ' copas creados' + (bp > 0 ? (' a ' + Math.round(bp) + ' euros') : ' de regalo')); break;
+      _hecho(bq + ' bonos · ' + bc + ' copas' + (bp > 0 ? (' · ' + Math.round(bp) + ' €') : ' · regalo')); break;
     }
     case 'marcar_pagada': {
       var mpP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada']));
@@ -14845,7 +14847,7 @@ function ejecutarAccionIA(accion, args) {
         px.pagado = true; px.importePagado = (px.importePagado || 0) + imp;
         addLog('marcó pagada (por IA) la entrada de ' + _nombreDe(px) + (imp ? ' (' + imp + ' €)' : ''), 'cobro');
       });
-      _respVoz('Marcada como pagada: ' + _nombreDe(mpP)); break;
+      _hecho('Pagada: ' + _nombreDe(mpP)); break;
     }
     case 'dar_acceso': {
       var daP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada']));
@@ -14856,7 +14858,7 @@ function ejecutarAccionIA(accion, args) {
         py.dentro = true; py.horaEntrada = nowHM();
         addLog('dio acceso (por IA) a ' + _nombreDe(py), 'acceso');
       });
-      _respVoz(_nombreDe(daP) + ' dentro. ¡Que disfrute!'); break;
+      _hecho(_nombreDe(daP) + ' dentro'); break;
     }
     case 'borrar_entrada': {
       var boP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada']));
@@ -14878,7 +14880,7 @@ function ejecutarAccionIA(accion, args) {
           s.personas = s.personas.filter(function (p) { return beIds.indexOf(p.id) === -1; });
           addLog('borró ' + beIds.length + ' entradas (por voz, confirmado)', 'config');
         });
-        _respVoz(beIds.length + ' entradas borradas');
+        _hecho(beIds.length + ' entradas borradas');
       } else {
         hablar('Vas a borrar ' + beL.length + ' entradas. Confírmalo en pantalla, o dime: bórralas, confirmo');
         duenoBorrarEntradasFiltro();
@@ -14920,7 +14922,7 @@ function ejecutarAccionIA(accion, args) {
         val = Number(val) || 0; if (val <= 0) { _respVoz('Dime un número válido'); break; }
       } else { val = String(val || '').trim(); }
       mutate(function (s) { s.config[campo] = val; addLog('cambió ' + campo + ' (por IA)', 'config'); });
-      _respVoz('Hecho: ' + String(args.campo) + ' ahora es ' + val); break;
+      _hecho(String(args.campo) + ' = ' + val); break;
     }
     case 'modo_secreto': mutateSilent(function (s) { s.config.entregaUnaVez = (args.on === true || args.on === 'true' || args.on === 1); }); _duenoTab = 'entregar'; if (typeof renderDueno === 'function') renderDueno(); _respVoz(state.config.entregaUnaVez ? 'Modo secreto activado' : 'Modo secreto quitado'); break;
     case 'instalar_app': if (window.__deferredPrompt) { window.__deferredPrompt.prompt(); } else _respVoz('Abre el menú del navegador y pulsa Añadir a pantalla de inicio'); break;
@@ -14968,7 +14970,7 @@ function ejecutarAccionIA(accion, args) {
           precio: Number(args.precio) || s.config.precioEntrada || 0, comision: Number(args.comision) || 0 });
         addLog('añadió al RRPP ' + rn, 'rrpp');
       });
-      _respVoz('Promotor ' + rn + ' dado de alta' + (args.comision ? (' con ' + Math.round(Number(args.comision)) + ' euros de comisión') : '')); break;
+      _hecho('RRPP ' + rn + (args.comision ? (' · com ' + Math.round(Number(args.comision)) + ' €') : '')); break;
     }
     case 'repartir_rrpp': {
       var rpN = _normVoz(args.promotor), rpD = parseInt(args.desde, 10), rpH = parseInt(args.hasta, 10);
@@ -14985,7 +14987,7 @@ function ejecutarAccionIA(accion, args) {
         });
         addLog('repartió entradas #' + rpD + '–#' + rpH + ' a RRPP ' + rp0.nombre + ' (' + rpC + ')', 'rrpp');
       });
-      _respVoz(rpC ? (rpC + ' entradas repartidas a ' + rp0.nombre) : 'No había entradas en ese rango'); break;
+      if (rpC) _hecho(rpC + ' → ' + rp0.nombre); else _respVoz('No había entradas en ese rango'); break;
     }
     case 'marcar_salida': {
       var msP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada']));
@@ -15003,8 +15005,8 @@ function ejecutarAccionIA(accion, args) {
     case 'enviar_email_a': { var eeP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada'])); if (!eeP) { _respVoz('No encuentro esa entrada'); break; } emailEntrada(eeP.id); hablar('Abriendo el email para ' + _nombreDe(eeP)); break; }
     case 'ver_entrada': { var veP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada'])); if (!veP) { _respVoz('No encuentro esa entrada'); break; } verEntrada(veP.id); break; }
     case 'blindar': { var blP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada'])); if (!blP) { _respVoz('No encuentro esa entrada'); break; } blindarEntrada(blP.id); break; }
-    case 'poner_vigilantes': { var nv = parseInt(_arg(args, ['n', 'cantidad', 'numero', 'vigilantes', 'valor']), 10); if (nv >= 1 && nv <= 20) { setVigilantes(nv); _respVoz(nv + (nv === 1 ? ' vigilante configurado' : ' vigilantes configurados')); } else _respVoz('Dime cuántos vigilantes, del 1 al 20'); break; }
-    case 'poner_camareros': { var nc = parseInt(_arg(args, ['n', 'cantidad', 'numero', 'camareros', 'valor']), 10); if (nc >= 1 && nc <= 20) { setCamareros(nc); _respVoz(nc + (nc === 1 ? ' camarero configurado' : ' camareros configurados')); } else _respVoz('Dime cuántos camareros, del 1 al 20'); break; }
+    case 'poner_vigilantes': { var nv = parseInt(_arg(args, ['n', 'cantidad', 'numero', 'vigilantes', 'valor']), 10); if (nv >= 1 && nv <= 20) { setVigilantes(nv); _hecho(nv + ' vigilantes'); } else _respVoz('Dime cuántos vigilantes, del 1 al 20'); break; }
+    case 'poner_camareros': { var nc = parseInt(_arg(args, ['n', 'cantidad', 'numero', 'camareros', 'valor']), 10); if (nc >= 1 && nc <= 20) { setCamareros(nc); _hecho(nc + ' camareros'); } else _respVoz('Dime cuántos camareros, del 1 al 20'); break; }
     case 'anadir_producto': {
       var apN = String(args.nombre || '').trim(), apP = Number(args.precio) || 0;
       if (!apN) { _respVoz('Dime el nombre del producto'); break; }
@@ -15013,7 +15015,7 @@ function ejecutarAccionIA(accion, args) {
         s.config.productos.push({ id: nid, nombre: apN, precio: apP || 5, stock: 100, stockInicial: 100, refrescosIncluidos: 0 });
         addLog('añadió el producto ' + apN + ' (por IA)', 'config');
       });
-      _respVoz(apN + ' añadido a la barra a ' + Math.round(apP || 5) + ' euros'); break;
+      _hecho(apN + ' · ' + Math.round(apP || 5) + ' €'); break;
     }
     case 'precio_producto': {
       var ppN = _normVoz(args.producto), ppP = Number(args.precio) || 0;
@@ -15024,7 +15026,7 @@ function ejecutarAccionIA(accion, args) {
         var px2 = s.config.productos.find(function (x) { return x.id === ppX.id; });
         if (px2) { px2.precio = ppP; addLog('cambió el precio de ' + px2.nombre + ' a ' + ppP + ' € (por IA)', 'config'); }
       });
-      _respVoz(ppX.nombre + ' ahora cuesta ' + Math.round(ppP) + ' euros'); break;
+      _hecho(ppX.nombre + ' → ' + Math.round(ppP) + ' €'); break;
     }
     case 'activar_modo_rrpp': { var vr = (args.on === true || args.on === 'true' || args.on === 1); if (puertaVentaRRPP() !== vr) duenoTogglePuertaRRPP(); _respVoz(vr ? 'Modo RRPP activado: en la puerta no se cobra' : 'Modo RRPP quitado: se cobra en la puerta'); break; }
     case 'activar_acceso_auto': { var va = (args.on === true || args.on === 'true' || args.on === 1); if (!!state.config.accesoAuto !== va) duenoToggleAccesoAuto(); _respVoz(va ? 'Acceso automático activado' : 'Acceso automático quitado'); break; }
