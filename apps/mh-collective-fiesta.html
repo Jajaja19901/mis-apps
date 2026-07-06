@@ -13897,6 +13897,7 @@ function seedState() {
     gastos: [],
     bonos: [],
     presencia: {},
+    notas: [], // bloc "Mis notas" del dueño (la IA apunta, lee y borra)
     historico: [],
     log: [
       { hora: "22:00", actor: "Sistema", texto: "Evento iniciado", tipo: "config" }
@@ -13981,6 +13982,7 @@ function migrar(s) {
   if (typeof s.config.geminiKey !== 'string') s.config.geminiKey = '';
   if (typeof s.config.vozAsistente !== 'string') s.config.vozAsistente = '';
   if (!s.presencia || typeof s.presencia !== 'object') s.presencia = {};
+  if (!Array.isArray(s.notas)) s.notas = [];
   if (!s.ventasPorProducto || typeof s.ventasPorProducto !== 'object') s.ventasPorProducto = {};
   if (!Array.isArray(s.monederos)) s.monederos = [];
   if (typeof s.ingresosMonederos !== 'number') s.ingresosMonederos = 0;
@@ -14468,6 +14470,15 @@ function ejecutarComandoVoz(frases) {
   if (/(empezar limpio|empieza de cero|borrar todo|borra todo|reinicia|limpiar todo|empezar de cero)/.test(t)) {
     duenoTab('ajustes'); _respVoz('Eso borra todo. Por seguridad hazlo tú a mano en ajustes'); return;
   }
+  // Notas por voz: "apunta que falta hielo" / "léeme las notas"
+  if (/(lee|leeme|dime|cuales|que hay en).*(nota)/.test(t)) {
+    var nsV = state.notas || [];
+    _respVoz(nsV.length ? ('Tienes ' + nsV.length + ' notas: ' + nsV.map(function (n, i) { return (i + 1) + '. ' + n.texto; }).join('. ')) : 'No tienes notas'); return;
+  }
+  var mNo = t.match(/^(?:apunta|anota)(?:me)?(?:\s+en\s+(?:mis\s+)?notas?)?[:,]?\s+(?:que\s+)?(.+)$/);
+  if (mNo && !/(entrada|invitad|lote|gasto)/.test(t)) {
+    anadirNota(mNo[1].trim()); _hecho('Nota: ' + mNo[1].trim()); return;
+  }
   // Buscar a una persona por su nombre
   var mB = t.match(/(?:busca|buscar|encuentra|localiza)\s+(?:a\s+)?([a-z0-9 ]{2,40})$/);
   if (mB) { _buscarPersonaVoz(mB[1].trim()); return; }
@@ -14560,6 +14571,44 @@ function descargarEntradasCsv(serie) {
   descargarCsv('entradas' + (serie ? '-' + String(serie).replace(/\s+/g, '_') : '') + '.csv', L.join('\n'));
   _respVoz('Descargadas ' + lista.length + ' entradas en un archivo para Excel');
 }
+/* ===== MIS NOTAS: bloc del dueño (la IA apunta "me falta hielo", las lee y las borra) ===== */
+function anadirNota(texto) {
+  var tN = String(texto || '').trim();
+  if (!tN) return false;
+  mutate(function (s) {
+    if (!Array.isArray(s.notas)) s.notas = [];
+    s.notas.push({ id: 'n' + Date.now(), texto: tN, hora: nowHM() });
+    addLog('apuntó una nota', 'config');
+  });
+  return true;
+}
+function anadirNotaUI() {
+  var inp = document.getElementById('nota-nueva');
+  if (anadirNota(inp ? inp.value : '')) { if (inp) inp.value = ''; toast('✅ Nota apuntada'); }
+  else toast('Escribe la nota');
+}
+function borrarNota(id) {
+  mutate(function (s) { s.notas = (s.notas || []).filter(function (n) { return n.id !== id; }); });
+  toast('Nota borrada');
+}
+function seccionNotas() {
+  var ns = state.notas || [];
+  var html = '<section class="panel" data-testid="seccion-notas"><h2>📝 Mis notas</h2>';
+  html += '<p class="nota">Tu bloc: díselo a la IA («apunta que falta hielo») o escríbelo aquí.</p>';
+  html += '<div class="contador"><input type="text" id="nota-nueva" placeholder="Escribe una nota…" style="flex:1" onkeydown="if(event.key===\'Enter\')anadirNotaUI()">' +
+          '<button type="button" data-testid="btn-add-nota" onclick="anadirNotaUI()">➕</button></div>';
+  if (!ns.length) html += '<p class="lista-vacia">Sin notas.</p>';
+  else {
+    html += '<ul class="lista-entradas">';
+    ns.slice().reverse().forEach(function (n) {
+      html += '<li><span class="ent-info">' + esc(n.texto) + ' <small style="color:#889">' + esc(n.hora || '') + '</small></span>' +
+        '<button type="button" class="btn-mini-borrar" onclick="borrarNota(\'' + escJs(n.id) + '\')">🗑️</button></li>';
+    });
+    html += '</ul>';
+  }
+  html += '</section>';
+  return html;
+}
 function _nombreDe(p) { return ((p.nombre || '') + ' ' + (p.apellido || '')).trim() || p.codigoReserva; }
 /* Encuentra una entrada por código (exacto, con o sin guiones) o por nombre (contiene). */
 function _personaDeIA(quien) {
@@ -14588,7 +14637,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V3'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V4'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -14619,6 +14668,7 @@ function _accionesIA() {
     'activar_cobro(metodo:bizum|tarjeta|monedero|nfc, on, numero?) activar_modulo(nombre:qr|cierre|gastos|stock, on) activar_modo_rrpp(on) activar_acceso_auto(on) modo_secreto(on)',
     'poner_config(campo:precio_entrada|precio_vip|aforo|nombre|fecha|hora|lugar|lema|video|instagram, valor) poner_vigilantes(n) poner_camareros(n) anadir_producto(nombre,precio) precio_producto(producto,precio)',
     'poner_pin(pin) poner_contrasena_portada(clave) poner_codigo_trabajador(rol,codigo)',
+    'apuntar_nota(texto) leer_notas borrar_nota(cual) borrar_notas — bloc Mis notas del dueño',
     'cerrar_fiesta(confirmar?) instalar_app ir_a(pestana:resumen|entradas|entregar|dinero|ajustes|registro) responder(texto)'
   ].join('\n');
 }
@@ -14648,6 +14698,7 @@ function _estadoIA() {
       vigilantes: c.nVigilantes, camareros: c.nCamareros,
       cobros: { bizum: bizumActivo(), tarjeta: tarjetaActiva(), monedero: monederoActivo(), nfc: nfcActivo() },
       modo_rrpp: puertaVentaRRPP(), modo_secreto: !!c.entregaUnaVez,
+      notas: (s.notas || []).slice(0, 10).map(function (n) { return n.texto; }),
       ultima_serie: _ultimaRemesa(), hora_actual: nowHM(), asistente_version: IA_VERSION
     };
     Object.keys(o).forEach(function (k) {
@@ -15031,6 +15082,23 @@ function ejecutarAccionIA(accion, args) {
     case 'activar_modo_rrpp': { var vr = (args.on === true || args.on === 'true' || args.on === 1); if (puertaVentaRRPP() !== vr) duenoTogglePuertaRRPP(); _respVoz(vr ? 'Modo RRPP activado: en la puerta no se cobra' : 'Modo RRPP quitado: se cobra en la puerta'); break; }
     case 'activar_acceso_auto': { var va = (args.on === true || args.on === 'true' || args.on === 1); if (!!state.config.accesoAuto !== va) duenoToggleAccesoAuto(); _respVoz(va ? 'Acceso automático activado' : 'Acceso automático quitado'); break; }
     case 'descargar_informe': if (typeof duenoDescargarCsv === 'function') { duenoDescargarCsv(); hablar('Descargando el informe del dinero'); } break;
+    case 'apuntar_nota': {
+      var tNo = String(_arg(args, ['texto', 'nota', 'contenido', 'que']) || '').trim();
+      if (!tNo) { _respVoz('¿Qué apunto?'); break; }
+      anadirNota(tNo); _hecho('Nota: ' + tNo); break;
+    }
+    case 'leer_notas': {
+      var nsL = state.notas || [];
+      _respVoz(nsL.length ? ('Tienes ' + nsL.length + (nsL.length === 1 ? ' nota: ' : ' notas: ') + nsL.map(function (n, i) { return (i + 1) + '. ' + n.texto; }).join('. ')) : 'No tienes notas'); break;
+    }
+    case 'borrar_nota': {
+      var qNo = _normVoz(String(_arg(args, ['cual', 'texto', 'numero', 'nota']) || ''));
+      var nsB = state.notas || [];
+      var iNo = /^\d+$/.test(qNo) ? (parseInt(qNo, 10) - 1) : nsB.findIndex(function (n) { return _normVoz(n.texto).indexOf(qNo) !== -1; });
+      if (iNo < 0 || iNo >= nsB.length) { _respVoz('No encuentro esa nota'); break; }
+      borrarNota(nsB[iNo].id); _hecho('Nota borrada'); break;
+    }
+    case 'borrar_notas': mutate(function (s) { s.notas = []; }); _hecho('Notas borradas'); break;
     case 'responder': _respVoz(args.texto || 'Hecho'); break;
     default:
       // Que quede constancia de lo que la IA pidió y no existe: se ve en el Registro.
@@ -17595,7 +17663,7 @@ function renderDueno() {
     { id: 'resumen', label: '📊 Resumen', build: function () {
         return seccionConexion() + seccionEquipo() + seccionPreparar() +
           intro('De un vistazo: cuánta gente hay dentro, cuánto dinero llevas, qué se consume más y cuánto ha recaudado cada trabajador.') +
-          seccionKpis() + seccionConsumo() + seccionRecaudacion();
+          seccionKpis() + seccionConsumo() + seccionRecaudacion() + seccionNotas();
       } },
     { id: 'entradas', label: '🎟️ Entradas', build: function () {
         return intro('Primero fija tus fases (precios), y luego crea las entradas con nombre o generales.') +
