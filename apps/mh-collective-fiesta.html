@@ -14585,6 +14585,18 @@ function _accionesIA() {
     'activar_cobro(metodo, on, numero?) — metodo: bizum|tarjeta|monedero|nfc; para bizum pasa el número en numero',
     'activar_modulo(nombre, on) — nombre: qr|cierre|gastos|stock',
     'poner_config(campo, valor) — campo: precio_entrada|precio_vip|aforo|nombre|fecha|hora|lugar|lema|video|instagram',
+    'crear_rrpp(nombre, comision?, precio?) — da de alta un promotor RRPP',
+    'repartir_rrpp(promotor, desde, hasta) — reparte las entradas de remesa #desde–#hasta a ese RRPP',
+    'marcar_salida(quien) — marca que alguien ha salido de la fiesta',
+    'anular_bono(codigo) — anula un bono de copas por su código',
+    'enviar_whatsapp(quien) — abre WhatsApp con la entrada de esa persona lista para mandar',
+    'enviar_email_a(quien) — abre el email con la entrada de esa persona',
+    'ver_entrada(quien) — abre la entrada de esa persona para verla',
+    'blindar(quien) — crea el enlace blindado de un solo uso de esa persona (necesita Firebase)',
+    'poner_vigilantes(n) — cuántos vigilantes trabajan',
+    'poner_camareros(n) — cuántos camareros trabajan',
+    'anadir_producto(nombre, precio) — añade un producto a la barra',
+    'precio_producto(producto, precio) — cambia el precio de un producto de barra',
     'modo_secreto(on) — activa (on=true) o quita (on=false) el modo de un solo uso',
     'instalar_app — lanza la instalación de la app',
     'ir_a(pestana) — pestana: resumen|entradas|entregar|dinero|ajustes|registro',
@@ -14792,6 +14804,75 @@ function ejecutarAccionIA(accion, args) {
     case 'instalar_app': if (window.__deferredPrompt) { window.__deferredPrompt.prompt(); } else _respVoz('Abre el menú del navegador y pulsa Añadir a pantalla de inicio'); break;
     case 'ir_a': { var mp = { resumen: 'resumen', entradas: 'entradas', entregar: 'entregar', dinero: 'fiesta', fiesta: 'fiesta', ajustes: 'ajustes', registro: 'registro' }; duenoTab(mp[_normVoz(args.pestana)] || 'resumen'); break; }
     case 'cerrar_fiesta': duenoTab('registro'); _respVoz('Te llevo al cierre, confírmalo tú por seguridad'); break;
+    case 'crear_rrpp': {
+      var rn = String(args.nombre || '').trim();
+      if (!rn) { _respVoz('Dime el nombre del promotor'); break; }
+      var rsg = rrppSlug(rn);
+      if ((state.rrpp || []).some(function (x) { return x.slug === rsg; })) { _respVoz(rn + ' ya existe como RRPP'); break; }
+      mutate(function (s) {
+        if (!Array.isArray(s.rrpp)) s.rrpp = [];
+        s.rrpp.push({ id: 'rrpp-' + rsg, slug: rsg, nombre: rn, vendidas: 0,
+          precio: Number(args.precio) || s.config.precioEntrada || 0, comision: Number(args.comision) || 0 });
+        addLog('añadió al RRPP ' + rn, 'rrpp');
+      });
+      _respVoz('Promotor ' + rn + ' dado de alta' + (args.comision ? (' con ' + Math.round(Number(args.comision)) + ' euros de comisión') : '')); break;
+    }
+    case 'repartir_rrpp': {
+      var rpN = _normVoz(args.promotor), rpD = parseInt(args.desde, 10), rpH = parseInt(args.hasta, 10);
+      var rp0 = (state.rrpp || []).find(function (x) { return _normVoz(x.nombre).indexOf(rpN) !== -1 || x.slug === rpN; });
+      if (!rp0) { _respVoz('No encuentro a ese promotor'); break; }
+      if (isNaN(rpD) || isNaN(rpH)) { _respVoz('Dime de qué número a qué número'); break; }
+      if (rpD > rpH) { var rpT = rpD; rpD = rpH; rpH = rpT; }
+      var rpC = 0;
+      mutate(function (s) {
+        (s.personas || []).forEach(function (p) {
+          if (!p.remesa) return;
+          var num = parseInt(String(p.apellido || '').replace(/\D/g, ''), 10);
+          if (!isNaN(num) && num >= rpD && num <= rpH) { p.rrppSlug = rp0.slug; rpC++; }
+        });
+        addLog('repartió entradas #' + rpD + '–#' + rpH + ' a RRPP ' + rp0.nombre + ' (' + rpC + ')', 'rrpp');
+      });
+      _respVoz(rpC ? (rpC + ' entradas repartidas a ' + rp0.nombre) : 'No había entradas en ese rango'); break;
+    }
+    case 'marcar_salida': {
+      var msP = _personaDeIA(args.quien);
+      if (!msP) { _respVoz('No encuentro esa entrada'); break; }
+      if (!msP.dentro) { _respVoz(_nombreDe(msP) + ' no está dentro'); break; }
+      marcarSalida(msP.id); hablar(_nombreDe(msP) + ' ha salido'); break;
+    }
+    case 'anular_bono': {
+      var abQ = String(args.codigo || '').toLowerCase().replace(/[\s-]/g, '');
+      var abB = (state.bonos || []).find(function (b) { return String(b.codigo || '').toLowerCase().replace(/[\s-]/g, '') === abQ; });
+      if (!abB) { _respVoz('No encuentro ese bono'); break; }
+      anularBono(abB.id); hablar('Bono ' + abB.codigo + ' anulado'); break;
+    }
+    case 'enviar_whatsapp': { var ewP = _personaDeIA(args.quien); if (!ewP) { _respVoz('No encuentro esa entrada'); break; } whatsappEntrada(ewP.id); hablar('Abriendo WhatsApp para ' + _nombreDe(ewP)); break; }
+    case 'enviar_email_a': { var eeP = _personaDeIA(args.quien); if (!eeP) { _respVoz('No encuentro esa entrada'); break; } emailEntrada(eeP.id); hablar('Abriendo el email para ' + _nombreDe(eeP)); break; }
+    case 'ver_entrada': { var veP = _personaDeIA(args.quien); if (!veP) { _respVoz('No encuentro esa entrada'); break; } verEntrada(veP.id); break; }
+    case 'blindar': { var blP = _personaDeIA(args.quien); if (!blP) { _respVoz('No encuentro esa entrada'); break; } blindarEntrada(blP.id); break; }
+    case 'poner_vigilantes': { var nv = parseInt(args.n, 10); if (nv >= 1 && nv <= 20) { setVigilantes(nv); _respVoz(nv + ' vigilantes configurados'); } else _respVoz('Dime un número entre 1 y 20'); break; }
+    case 'poner_camareros': { var nc = parseInt(args.n, 10); if (nc >= 1 && nc <= 20) { setCamareros(nc); _respVoz(nc + ' camareros configurados'); } else _respVoz('Dime un número entre 1 y 20'); break; }
+    case 'anadir_producto': {
+      var apN = String(args.nombre || '').trim(), apP = Number(args.precio) || 0;
+      if (!apN) { _respVoz('Dime el nombre del producto'); break; }
+      mutate(function (s) {
+        var nid = 'prod' + (s.config.productos.length + 1) + '_' + Date.now();
+        s.config.productos.push({ id: nid, nombre: apN, precio: apP || 5, stock: 100, stockInicial: 100, refrescosIncluidos: 0 });
+        addLog('añadió el producto ' + apN + ' (por IA)', 'config');
+      });
+      _respVoz(apN + ' añadido a la barra a ' + Math.round(apP || 5) + ' euros'); break;
+    }
+    case 'precio_producto': {
+      var ppN = _normVoz(args.producto), ppP = Number(args.precio) || 0;
+      var ppX = ((state.config && state.config.productos) || []).find(function (x) { return _normVoz(x.nombre).indexOf(ppN) !== -1; });
+      if (!ppX) { _respVoz('No encuentro ese producto en la barra'); break; }
+      if (ppP <= 0) { _respVoz('Dime un precio válido'); break; }
+      mutate(function (s) {
+        var px2 = s.config.productos.find(function (x) { return x.id === ppX.id; });
+        if (px2) { px2.precio = ppP; addLog('cambió el precio de ' + px2.nombre + ' a ' + ppP + ' € (por IA)', 'config'); }
+      });
+      _respVoz(ppX.nombre + ' ahora cuesta ' + Math.round(ppP) + ' euros'); break;
+    }
     case 'responder': _respVoz(args.texto || 'Hecho'); break;
     default: _respVoz('Eso no lo sé hacer todavía');
   }
