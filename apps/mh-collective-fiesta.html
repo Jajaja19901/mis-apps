@@ -14756,6 +14756,24 @@ function _intentLocal(t0) {
     if (prHit) { var ppp = euros(tn); if (ppp) return { accion: 'precio_producto', args: { producto: prHit.nombre, precio: ppp } }; }
   }
 
+  // ---------- BORRAR / REPONER / LOGO ----------
+  if (/(quita|quitar|borra|borrar|elimina)/.test(t) && /\blogo\b/.test(t)) return { accion: 'quitar_logo', args: {} };
+  if (/(quita|quitar|borra|borrar|elimina)/.test(t) && /\bcartel\b/.test(t)) return { accion: 'quitar_cartel', args: {} };
+  if (/(repon|reponer|rellena|rellenar|recarga|recargar|mas stock|añade stock|anade stock)/.test(t) && /stock|barra|existencias/.test(t)) {
+    var rsm = t.match(/(?:stock|existencias)\s+(?:de|del|de la|de los)\s+([a-z][a-z ]{1,25})$/) || t.match(/(?:repon|reponer|rellena|recarga)\s+(?:el\s+)?(?:stock\s+de\s+)?([a-z][a-z ]{1,25})$/);
+    var rsc = rsm ? rsm[1].trim().replace(/\b(stock|barra|existencias|todo|el|la)\b/g, '').trim() : '';
+    return { accion: 'reponer_stock', args: { producto: rsc } };
+  }
+  if (/(borra|borrar|elimina|quita)/.test(t) && !/(entrada|invitad|nota|\bfase\b|gasto|bono|todas|promotor|rrpp|admin)/.test(t)) {
+    var mbp = t.match(/producto\s+([a-z][a-z ]{1,25})$/);
+    if (mbp) return { accion: 'borrar_producto', args: { producto: mbp[1].trim() } };
+    if (/(barra|producto)/.test(t)) { var prodsB = (state.config && state.config.productos) || []; var prHitB = prodsB.find(function (p) { var np = _normVoz(p.nombre); return np && t.indexOf(np) !== -1; }); if (prHitB) return { accion: 'borrar_producto', args: { producto: prHitB.nombre } }; }
+  }
+  if (/(borra|borrar|elimina|quita)/.test(t) && /\bfase\b/.test(t)) { var mbf = tn.match(/fase\s+([a-z0-9]+)/); var fnm = { una: 1, uno: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9 }; if (mbf) return { accion: 'borrar_fase', args: { fase: 'Fase ' + (fnm[mbf[1]] || mbf[1]) } }; }
+  if (/(borra|borrar|elimina|quita)/.test(t) && /(promotor|rrpp)/.test(t)) { var mbr = t.match(/(?:promotor|rrpp)\s+(?:a\s+)?([a-z][a-z ]{1,25})$/); if (mbr) return { accion: 'borrar_rrpp', args: { promotor: mbr[1].trim() } }; }
+  if (/(borra|borrar|elimina|quita)/.test(t) && /\bgasto\b/.test(t)) { var mbg = t.match(/gasto\s+(?:de|del)?\s*([a-z][a-z ]{1,25})$/); if (mbg) return { accion: 'borrar_gasto', args: { concepto: mbg[1].trim() } }; }
+  if (/(borra|borrar|elimina|quita)/.test(t) && /(administrador|admin)/.test(t)) { var mba = t.match(/(?:administrador|admin)\s+(?:a\s+)?([a-z][a-z ]{1,25})$/); if (mba) return { accion: 'borrar_admin', args: { nombre: mba[1].trim() } }; }
+
   // ---------- CONFIG numérico (nunca si la frase habla de contraseña/pin/código, ni si es pregunta) ----------
   var esClave = /(contrasena|clave|password|contrasenya|\bpin\b|codigo)/.test(t);
   var esPreg0 = /^(que|cual|cuant|dime|dame|sabes|hay|tengo|tienes)\b/.test(t);
@@ -14929,6 +14947,7 @@ function _accionesIA() {
     'poner_config(campo:precio_entrada|precio_vip|aforo|nombre|fecha|hora|lugar|lema|video|instagram, valor) poner_vigilantes(n) poner_camareros(n) anadir_producto(nombre,precio) precio_producto(producto,precio)',
     'poner_pin(pin) poner_contrasena_portada(clave) poner_codigo_trabajador(rol,codigo)',
     'apuntar_nota(texto) leer_notas borrar_nota(cual) borrar_notas — bloc Mis notas del dueño',
+    'borrar_producto(producto) reponer_stock(producto?) borrar_fase(fase) borrar_rrpp(promotor) borrar_gasto(concepto) borrar_admin(nombre) quitar_logo quitar_cartel',
     'cerrar_fiesta(confirmar?) instalar_app ir_a(pestana:resumen|entradas|entregar|dinero|ajustes|registro) responder(texto)'
   ].join('\n');
 }
@@ -15341,6 +15360,46 @@ function ejecutarAccionIA(accion, args) {
       borrarNota(nsB[iNo].id); _hecho('Nota borrada'); break;
     }
     case 'borrar_notas': mutate(function (s) { s.notas = []; }); _hecho('Notas borradas'); break;
+    case 'borrar_producto': {
+      var bpN = _normVoz(_arg(args, ['producto', 'nombre', 'cual']) || '');
+      var bpX = ((state.config && state.config.productos) || []).find(function (x) { return _normVoz(x.nombre).indexOf(bpN) !== -1; });
+      if (!bpX) { _respVoz('No encuentro ese producto en la barra'); break; }
+      duenoBorrarProducto(bpX.id); _hecho('Producto borrado: ' + bpX.nombre); break;
+    }
+    case 'reponer_stock': {
+      var rsN = _normVoz(_arg(args, ['producto', 'nombre', 'cual']) || '');
+      var rsProds = (state.config && state.config.productos) || [];
+      var rsX = rsN ? rsProds.find(function (x) { return _normVoz(x.nombre).indexOf(rsN) !== -1; }) : null;
+      if (rsX) { duenoReponerStock(rsX.id); _hecho('Stock repuesto: ' + rsX.nombre); }
+      else if (!rsN && rsProds.length) { rsProds.forEach(function (p) { duenoReponerStock(p.id); }); _hecho('Stock repuesto en todos'); }
+      else _respVoz('No encuentro ese producto'); break;
+    }
+    case 'borrar_fase': {
+      var bfN = _normVoz(_arg(args, ['fase', 'nombre', 'cual']) || '');
+      var bfX = fasesLista().find(function (f) { var nf = _normVoz(f.nombre); return nf.indexOf(bfN) !== -1 || bfN.indexOf(nf) !== -1; });
+      if (!bfX) { _respVoz('No encuentro esa fase'); break; }
+      duenoBorrarFase(bfX.id); _hecho('Fase borrada: ' + bfX.nombre); break;
+    }
+    case 'borrar_rrpp': {
+      var brN = _normVoz(_arg(args, ['promotor', 'nombre', 'rrpp', 'cual']) || '');
+      var brX = (state.rrpp || []).find(function (x) { return _normVoz(x.nombre).indexOf(brN) !== -1 || x.slug === brN; });
+      if (!brX) { _respVoz('No encuentro ese promotor'); break; }
+      duenoBorrarRrpp(brX.slug); _hecho('Promotor borrado: ' + brX.nombre); break;
+    }
+    case 'borrar_gasto': {
+      var bgN = _normVoz(_arg(args, ['concepto', 'gasto', 'cual', 'nombre']) || '');
+      var bgX = (state.gastos || []).find(function (x) { return _normVoz(x.concepto).indexOf(bgN) !== -1; });
+      if (!bgX) { _respVoz('No encuentro ese gasto'); break; }
+      duenoBorrarGasto(bgX.id); _hecho('Gasto borrado: ' + bgX.concepto); break;
+    }
+    case 'borrar_admin': {
+      var baN = _normVoz(_arg(args, ['nombre', 'admin', 'cual']) || '');
+      var baX = ((state.config && state.config.adminsExtra) || []).find(function (x) { return _normVoz(x.nombre).indexOf(baN) !== -1; });
+      if (!baX) { _respVoz('No encuentro ese administrador'); break; }
+      duenoBorrarAdmin(baX.id); _hecho('Administrador borrado: ' + baX.nombre); break;
+    }
+    case 'quitar_logo': if (typeof quitarLogo === 'function') { quitarLogo(); _hecho('Logo quitado'); } break;
+    case 'quitar_cartel': if (typeof quitarCartel === 'function') { quitarCartel(); _hecho('Cartel quitado'); } break;
     case 'responder': _respVoz(args.texto || 'Hecho'); break;
     default:
       // Que quede constancia de lo que la IA pidió y no existe: se ve en el Registro.
