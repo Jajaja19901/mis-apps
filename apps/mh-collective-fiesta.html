@@ -14182,6 +14182,8 @@ function _respVoz(msg) { toast(msg); hablar(msg); }
 function ejecutarComandoVoz(frases) {
   var t = _normVoz((frases || []).join('  ||  '));
   if (!t.trim()) { _respVoz('No te he oido, repite'); return; }
+  // Callar / parar de hablar
+  if (/(callate|calla|silencio|para de hablar|basta|deja de hablar)/.test(t)) { try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {} toast('🤫'); return; }
   var caja = (typeof cajaDesglose === 'function') ? cajaDesglose() : { total: 0, barra: 0 };
   var dentro = (state.personas || []).filter(function (p) { return p.dentro; }).length;
   var totalEnt = (state.personas || []).length;
@@ -14208,16 +14210,21 @@ function ejecutarComandoVoz(frases) {
     var gT2 = (state.gastos || []).reduce(function (a, g) { return a + (g.importe || 0); }, 0);
     _respVoz('Has gastado ' + Math.round(gT2) + ' euros'); return;
   }
-  // Cuánto dinero / caja
-  if (/(cuanto|cuanta|dime|dame|que).*(dinero|recaud|caja|llevo|llevamos|ingres)/.test(t)) {
+  // Cuánto dinero / caja (excluye si preguntan por un sitio concreto: taquilla, barra, vip, monedero…)
+  if (/(cuanto|cuanta|dime|dame|que).*(dinero|recaud|caja|llevo|llevamos|ingres)/.test(t) && !/(taquilla|barra|vip|mesa|monedero|cashless|camarero|vigilante)/.test(t)) {
     _respVoz('Llevas recaudado ' + Math.round(caja.total) + ' euros. La barra lleva ' + Math.round(caja.barra || 0) + ' euros'); return;
+  }
+  // Aforo libre (huecos hasta el máximo)
+  if (/(aforo).*(libre|queda|hueco|cabe|caben)|(libre|queda|hueco).*(aforo)/.test(t)) {
+    var mx = (state.config && state.config.maxAforo) || 0;
+    _respVoz(mx ? ('Quedan ' + Math.max(0, mx - dentro) + ' huecos de aforo, de ' + mx) : 'No hay aforo máximo puesto'); return;
   }
   // Cuántas quedan por entrar (ANTES que aforo, si no "entrar" se lo comería el aforo)
   if (/(cuant).*(quedan|falta|por entrar|por venir)/.test(t)) {
     _respVoz('Quedan ' + Math.max(0, totalEnt - dentro) + ' por entrar'); return;
   }
   // Cuántas entradas creadas (ANTES que aforo; "entrada" es distinto de "entrado")
-  if (/(cuant).*(entrada|vendid|reserv|creada)/.test(t)) {
+  if (/(cuant).*(entrada|vendid|reserv|creada)/.test(t) && !/(pendiente|sin pagar|deben|por pagar|por cobrar)/.test(t)) {
     _respVoz('Hay ' + totalEnt + (totalEnt === 1 ? ' entrada creada' : ' entradas creadas')); return;
   }
   // Cuántos dentro / aforo (sin "hay" ni "entra", que causaban confusión)
@@ -14240,6 +14247,10 @@ function ejecutarComandoVoz(frases) {
   if (/(copia|copiar).*(enlace|link|entrada|todo)/.test(t)) {
     if (typeof copiarTodosEnlaces === 'function') { copiarTodosEnlaces(); hablar('Enlaces copiados'); } else _respVoz('No encuentro los enlaces');
     return;
+  }
+  // ¿Está activado el modo secreto? (consulta, ANTES de activar/quitar)
+  if (/(esta|como esta|dime si|activado|activada|puesto).*(secret|solo uso|una vez)|(secret|solo uso|una vez).*(activad|puesto|encend)/.test(t)) {
+    _respVoz(state.config && state.config.entregaUnaVez ? 'El modo secreto está activado' : 'El modo secreto está apagado'); return;
   }
   // Activar / quitar el modo secreto de un solo uso
   if (/(activa|activar|pon|poner|enciende)/.test(t) && /(secret|solo uso|una vez|autodestru)/.test(t)) {
@@ -14264,6 +14275,46 @@ function ejecutarComandoVoz(frases) {
     if (nombre) _crearEntradaVoz(nombre); else _respVoz('Di: crea una entrada para, y luego el nombre');
     return;
   }
+  // Comisiones RRPP (ANTES de la navegación y del recuento de RRPP)
+  if (/(comision|pagar|paga|deben).*(rrpp|promotor|relaciones)|(rrpp|promotor).*(comision|deben|pagar)/.test(t)) {
+    _respVoz('Comisiones de RRPP: ' + Math.round(rrppComisionTotal()) + ' euros a pagar a los promotores'); return;
+  }
+  if (/(cuant).*(rrpp|promotor|relaciones)/.test(t)) { _respVoz('Hay ' + ((state.rrpp || []).length) + ' RRPP'); return; }
+  // Dinero por sitio
+  if (/(cuanto|dime|dame).*(taquilla)/.test(t)) { _respVoz('En taquilla llevas ' + Math.round(caja.taquilla || 0) + ' euros'); return; }
+  if (/(cuanto|dime|dame|lleva).*(barra)/.test(t)) { _respVoz('La barra lleva ' + Math.round(caja.barra || 0) + ' euros'); return; }
+  if (/(vip|mesas)/.test(t) && /(euro|dinero)/.test(t)) { _respVoz('En mesas VIP llevas ' + Math.round(caja.vip || 0) + ' euros'); return; }
+  if (/(cuanto|dime|dame).*(monedero|cashless)/.test(t)) { _respVoz('En monederos hay ' + Math.round(caja.monederos || 0) + ' euros cargados'); return; }
+  // Recuentos por tipo
+  if (/(cuant).*(invitad|gratis)/.test(t)) { _respVoz('Hay ' + (state.personas || []).filter(function (p) { return p.tipo === 'invitado'; }).length + ' invitados'); return; }
+  if (/(cuant).*(vip|mesa)/.test(t)) { _respVoz('Hay ' + (state.personas || []).filter(function (p) { return p.tipo === 'vip'; }).length + ' mesas VIP'); return; }
+  if (/(cuant).*(pendiente|sin pagar|deben|por pagar|por cobrar)/.test(t)) {
+    var pend = (state.personas || []).filter(function (p) { return p.tipo !== 'invitado' && !taquillaLiquidada(p); }).length;
+    _respVoz('Hay ' + pend + ' entradas sin pagar'); return;
+  }
+  // Datos del evento
+  if (/(que hora|hora es|dime la hora)/.test(t)) { _respVoz('Son las ' + nowHM()); return; }
+  if (/(como se llama|nombre).*(fiesta|evento)|(fiesta|evento).*(se llama|nombre)/.test(t)) { _respVoz('La fiesta se llama ' + ((state.config && state.config.eventName) || 'sin nombre')); return; }
+  if (/(cuando|que dia).*(fiesta|evento|es)|(fecha).*(fiesta|evento)/.test(t)) { _respVoz((state.config && state.config.fecha) ? ('Es el ' + state.config.fecha) : 'No hay fecha puesta'); return; }
+  if (/(donde|en que sitio|direccion|lugar).*(fiesta|evento|es)|lugar de la fiesta/.test(t)) { _respVoz((state.config && state.config.lugar) ? ('Es en ' + state.config.lugar) : 'No hay lugar puesto'); return; }
+  // Contraseña de entrada (ANTES de la navegación, que lleva "contrasena")
+  if (/(contrasena|clave|password|contrasenya).*(entrada|acceso|web|portada)|(cual|dime|dame).*(contrasena|clave|password)/.test(t)) {
+    _respVoz('La contraseña de entrada es: ' + ((state.config && state.config.accesoClave) || '')); return;
+  }
+  // Equipo conectado (ANTES de la navegación, que lleva "equipo")
+  if (/(quien|cuant|dime|dame).*(conect|online|equipo)|(equipo|gente).*(conect|online)/.test(t)) {
+    var pr = state.presencia || {}, ahora = Date.now(), on = 0;
+    Object.keys(pr).forEach(function (k) { if (pr[k] && (ahora - pr[k].t) <= 75000) on++; });
+    _respVoz(on ? ('Hay ' + on + ' del equipo conectados') : 'No hay nadie del equipo conectado ahora'); return;
+  }
+  // Copia de seguridad
+  if (/(copia de seguridad|haz.*copia|backup|respaldo|guarda.*datos|descarga.*datos)/.test(t)) {
+    if (typeof exportarDatos === 'function') { exportarDatos(); hablar('Descargando la copia de seguridad'); } else _respVoz('No encuentro la copia de seguridad'); return;
+  }
+  // Empezar limpio / borrar todo (peligroso: no lo hago solo)
+  if (/(empezar limpio|empieza de cero|borrar todo|borra todo|reinicia|limpiar todo|empezar de cero)/.test(t)) {
+    duenoTab('ajustes'); _respVoz('Eso borra todo. Por seguridad hazlo tú a mano en ajustes'); return;
+  }
   // Cerrar la fiesta: por seguridad NO lo hago solo, te llevo al cierre para que confirmes tú
   if (/(cierra|cerrar|finaliza|termina|acaba)/.test(t) && /(fiesta|noche|evento)/.test(t)) {
     duenoTab('registro'); _respVoz('Te llevo al cierre. Púlsalo tú para confirmar, por seguridad'); return;
@@ -14275,6 +14326,10 @@ function ejecutarComandoVoz(frases) {
   if (/(ajuste|config|producto|contrasena|personal|modulo)/.test(t)) { duenoTab('ajustes'); hablar('Ajustes'); return; }
   if (/(registro|historial|cierre|log)/.test(t)) { duenoTab('registro'); hablar('Registro'); return; }
   if (/(resumen|inicio|principal|empezar|equipo|conexion)/.test(t)) { duenoTab('resumen'); hablar('Resumen'); return; }
+  // Saludo / cortesía
+  if (/^(hola|buenas|buenos dias|buenas tardes|buenas noches|hey|holi)\b/.test(t) || /(gracias|muy bien|perfecto|genial)/.test(t)) {
+    _respVoz('¡Hola! Estoy listo. Di ayuda para saber todo lo que puedo hacer'); return;
+  }
   // Ayuda
   if (/(ayuda|que puedo|que digo|comando|opcion|no se que)/.test(t)) {
     _respVoz('Puedes decir: envia los emails; cuanto dinero llevo; cuanto ha vendido cada camarero; cuanto beneficio llevo; cuanto he gastado; que se vende mas; cuantos han entrado; cuantas entradas hay; cuantos bonos hay; copia los enlaces; crea una entrada para un nombre; activa o quita el modo secreto; instala la app; o llevame a entradas, dinero, entregar, ajustes o registro'); return;
