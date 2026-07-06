@@ -13874,6 +13874,8 @@ function seedState() {
       emailjsCfg: { publicKey: "", serviceId: "", templateId: "" },
       // Clave gratis de Google Gemini para el asistente por voz con IA (opcional). Vacío = órdenes por voz.
       geminiKey: "",
+      // Voz con la que habla el asistente (nombre de una voz del móvil). Vacío = la mejor en español.
+      vozAsistente: "",
       fecha: "", hora: "", lugar: "", lema: "",
       logo: null, colorTema: "#00d4ff",
       vipPack: { botellas: 1, refrescos: 4 },
@@ -13977,6 +13979,7 @@ function migrar(s) {
   if (!s.config.emailjsCfg || typeof s.config.emailjsCfg !== 'object') s.config.emailjsCfg = { publicKey: '', serviceId: '', templateId: '' };
   ['publicKey', 'serviceId', 'templateId'].forEach(function (k) { if (typeof s.config.emailjsCfg[k] !== 'string') s.config.emailjsCfg[k] = ''; });
   if (typeof s.config.geminiKey !== 'string') s.config.geminiKey = '';
+  if (typeof s.config.vozAsistente !== 'string') s.config.vozAsistente = '';
   if (!s.presencia || typeof s.presencia !== 'object') s.presencia = {};
   if (!s.ventasPorProducto || typeof s.ventasPorProducto !== 'object') s.ventasPorProducto = {};
   if (!Array.isArray(s.monederos)) s.monederos = [];
@@ -14228,15 +14231,40 @@ function _escUI(on) {
 }
 function _pasarAEscribir() { try { if (_vozRec) _vozRec.stop(); } catch (e) {} _escUI(false); abrirPanelAsistente(); }
 function _pintaMicro(on) { var b = document.getElementById('mic-asistente'); if (b) b.classList.toggle('on', !!on); }
+/* Voces en español disponibles en ESTE móvil (cada teléfono trae las suyas). */
+var _vocesCache = [];
+function _cargarVoces() {
+  try { _vocesCache = (window.speechSynthesis && window.speechSynthesis.getVoices()) || []; } catch (e) { _vocesCache = []; }
+}
+try { if (window.speechSynthesis) { _cargarVoces(); window.speechSynthesis.onvoiceschanged = _cargarVoces; } } catch (e) {}
+function _vocesES() {
+  if (!_vocesCache.length) _cargarVoces();
+  return _vocesCache.filter(function (v) { return /^es/i.test(v.lang || ''); });
+}
+/* La voz elegida por el dueño; si no eligió, la más natural en español (las "Google"
+   de Android suenan mucho mejor que la de fábrica). */
+function _vozElegida() {
+  var quiere = (state && state.config && state.config.vozAsistente) || '';
+  var es = _vocesES();
+  if (quiere) { var v = es.find(function (x) { return x.name === quiere; }); if (v) return v; }
+  return es.find(function (x) { return /google/i.test(x.name) && /es[-_]es/i.test(x.lang); }) ||
+         es.find(function (x) { return /google/i.test(x.name); }) || es[0] || null;
+}
 function hablar(txt) {
   _ultimaVoz = String(txt || ''); // para el comando "repite"
   try {
     if (!window.speechSynthesis) return;
     var u = new SpeechSynthesisUtterance(String(txt));
-    u.lang = 'es-ES'; u.rate = 1.02;
+    u.lang = 'es-ES'; u.rate = 1.0; u.pitch = 1.0;
+    var v = _vozElegida(); if (v) u.voice = v;
     window.speechSynthesis.speak(u); // sin cancelar: así varias respuestas seguidas se encolan
   } catch (e) {}
 }
+function duenoSetVoz(nombre) {
+  mutateSilent(function (s) { s.config.vozAsistente = String(nombre || ''); });
+  hablar(nombre ? 'Hola, así sueno yo. ¿Te gusto más?' : 'Voz automática puesta');
+}
+function probarVozAsistente() { hablar('Hola, soy la voz de tu fiesta. Llevas ' + Math.round((cajaDesglose() || {}).total || 0) + ' euros en caja'); }
 /* Permite ENCADENAR varias órdenes en una frase: "envía los emails Y copia los enlaces
    Y dime cuánto dinero llevo". Parte la frase por los conectores y ejecuta cada trozo. */
 function procesarComandosVoz(frases) {
@@ -14488,10 +14516,17 @@ function _crearLote(cantidad, opts) {
   opts = opts || {};
   cantidad = Math.max(1, Math.min(500, parseInt(cantidad, 10) || 0));
   if (!cantidad) return null;
-  var precio = Number(opts.precio); if (!(precio > 0)) precio = Number(state.config && state.config.precioEntrada) || 0;
+  // Si dan una fase ("Fase 2"), el lote se engancha a ella: hereda su precio y su nombre.
+  var faseObj = null;
+  if (opts.fase) {
+    var qF = _normVoz(String(opts.fase));
+    faseObj = fasesLista().find(function (f) { var nf = _normVoz(f.nombre); return nf.indexOf(qF) !== -1 || qF.indexOf(nf) !== -1; }) || null;
+  }
+  var precio = Number(opts.precio);
+  if (!(precio > 0)) precio = (faseObj && Number(faseObj.precio) > 0) ? Number(faseObj.precio) : (Number(state.config && state.config.precioEntrada) || 0);
   var copas = parseInt(opts.copas, 10) || 0;
   var pagadas = !!opts.pagadas;
-  var etiqueta = String(opts.etiqueta || 'Entrada').trim() || 'Entrada';
+  var etiqueta = String(opts.etiqueta || '').trim() || (faseObj ? faseObj.nombre : 'Entrada');
   var existentes = {};
   state.personas.forEach(function (x) { if (x.remesa) existentes[x.remesa] = true; });
   if (existentes[etiqueta]) { var n = 2; while (existentes[etiqueta + ' (' + n + ')']) n++; etiqueta = etiqueta + ' (' + n + ')'; }
@@ -14502,7 +14537,7 @@ function _crearLote(cantidad, opts) {
         id: 'p' + Date.now() + '_r' + i, nombre: etiqueta, apellido: '#' + String(ya + i + 1).padStart(3, '0'),
         tipo: 'taquilla', codigoReserva: nuevoCodigoLista(s), mesa: null, pagado: pagadas,
         importePagado: pagadas ? precio : 0, dentro: false, horaEntrada: null,
-        precioVenta: precio, consumicionesIncluidas: copas, remesa: etiqueta, faseId: null
+        precioVenta: precio, consumicionesIncluidas: copas, remesa: etiqueta, faseId: faseObj ? faseObj.id : null
       });
     }
     addLog('creó por voz/IA el lote "' + etiqueta + '" (' + cantidad + ' entradas)', 'alta');
@@ -14551,7 +14586,15 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V2'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V3'; // sello visible: para saber qué versión del asistente hay subida
+/* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
+function _arg(args, nombres) {
+  for (var i = 0; i < nombres.length; i++) {
+    var v = args ? args[nombres[i]] : undefined;
+    if (v !== undefined && v !== null && v !== '') return v;
+  }
+  return undefined;
+}
 /* Se pueden pegar VARIAS claves separadas por comas/espacios (de cuentas de Google
    distintas): cuando el cupo gratis de una se llena, la app salta a la siguiente. */
 function _iaClaves() {
@@ -14567,7 +14610,7 @@ function _accionesIA() {
   return [
     'decir_dinero decir_recaudacion decir_beneficio decir_gastos decir_top decir_aforo decir_entradas decir_quedan decir_bonos — dicen ese dato en voz alta',
     'enviar_emails(limite?) copiar_enlaces descargar_zip(serie?) descargar_pdf(serie?) descargar_csv(serie?) descargar_informe copia_seguridad',
-    'crear_entrada(nombre,email?,telefono?) crear_lote(cantidad,precio?,pagadas?,etiqueta?) borrar_entrada(quien) borrar_entradas(serie?,confirmar?)',
+    'crear_entrada(nombre,email?,telefono?) crear_lote(cantidad,precio?,pagadas?,etiqueta?,fase?) crear_fase(nombre?,precio,cantidad?) poner_precio_fase(fase,precio) borrar_entrada(quien) borrar_entradas(serie?,confirmar?)',
     'marcar_pagada(quien) dar_acceso(quien) marcar_salida(quien) buscar(quien) ver_entrada(quien) blindar(quien) enviar_whatsapp(quien) enviar_email_a(quien)',
     'anadir_gasto(concepto,importe,categoria?) crear_bonos(cantidad,copas,precio?) anular_bono(codigo)',
     'crear_rrpp(nombre,comision?,precio?) repartir_rrpp(promotor,desde,hasta)',
@@ -14597,6 +14640,7 @@ function _estadoIA() {
         vip: Math.round(caja.vip || 0), barra: Math.round(caja.barra || 0), monederos: Math.round(caja.monederos || 0) },
       gastos_eur: Math.round(gT), beneficio_eur: Math.round((caja.total || 0) - gT),
       bonos: { total: (s.bonos || []).length, vendidos: (s.bonos || []).filter(function (b) { return b.vendido; }).length },
+      fases: fasesLista().slice(0, 8).map(function (f) { return f.nombre + ' ' + f.precio + '€ cupo:' + (f.cantidad || 0); }),
       rrpp: (s.rrpp || []).slice(0, 12).map(function (r) { return r.nombre + '(com ' + (r.comision || 0) + '€)'; }),
       productos: (c.productos || []).slice(0, 12).map(function (p) { return p.nombre + ' ' + p.precio + '€ stock:' + p.stock; }),
       vigilantes: c.nVigilantes, camareros: c.nCamareros,
@@ -14710,9 +14754,44 @@ function ejecutarAccionIA(accion, args) {
     case 'copiar_enlaces': if (typeof copiarTodosEnlaces === 'function') { copiarTodosEnlaces(); hablar('Enlaces copiados'); } break;
     case 'crear_entrada': _crearEntradaIA(args); break;
     case 'crear_lote': {
-      var rl = _crearLote(args.cantidad, { precio: args.precio, pagadas: (args.pagadas === true || args.pagadas === 'true'), etiqueta: args.etiqueta, copas: args.copas });
+      var rl = _crearLote(_arg(args, ['cantidad', 'n', 'numero', 'entradas']), { precio: _arg(args, ['precio', 'euros', 'valor']), pagadas: (args.pagadas === true || args.pagadas === 'true'), etiqueta: args.etiqueta, copas: args.copas, fase: args.fase });
       if (rl) { duenoTab('entradas'); _respVoz('Lote ' + rl.etiqueta + ' creado: ' + rl.cantidad + ' entradas a ' + Math.round(rl.precio) + ' euros'); }
       else _respVoz('Dime cuántas entradas creo'); break;
+    }
+    case 'crear_fase': {
+      var fN = String(args.nombre || '').trim(), fP = Number(args.precio) || 0, fC = parseInt(args.cantidad, 10) || 100;
+      if (!(fP > 0)) { _respVoz('Dime el precio de la fase'); break; }
+      // Si ya hay una fase con ese nombre, se ACTUALIZA (no se duplica).
+      var fNq = _normVoz(fN);
+      var fYa = fN ? fasesLista().find(function (f) { return _normVoz(f.nombre) === fNq; }) : null;
+      if (fYa) {
+        mutate(function (s) {
+          var f3 = (s.config.fases || []).find(function (x) { return x.id === fYa.id; });
+          if (f3) { f3.precio = fP; f3.cantidad = fC; addLog('actualizó la fase ' + f3.nombre + ' (' + fP + ' €, cupo ' + fC + ')', 'config'); }
+        });
+        duenoTab('entradas');
+        _respVoz(fYa.nombre + ' ya existía: la dejo a ' + Math.round(fP) + ' euros con cupo de ' + fC); break;
+      }
+      var fId = 'f' + Date.now();
+      mutate(function (s) {
+        if (!Array.isArray(s.config.fases)) s.config.fases = [];
+        if (!fN) fN = 'Fase ' + (s.config.fases.length + 1);
+        s.config.fases.push({ id: fId, nombre: fN, precio: fP, cantidad: fC });
+        addLog('añadió la fase ' + fN + ' (' + fP + ' €)', 'config');
+      });
+      duenoTab('entradas');
+      _respVoz(fN + ' creada a ' + Math.round(fP) + ' euros, con cupo de ' + fC + ' entradas'); break;
+    }
+    case 'poner_precio_fase': {
+      var pfQ = _normVoz(args.fase || ''), pfP = Number(args.precio) || 0;
+      var pfF = fasesLista().find(function (f) { var nf = _normVoz(f.nombre); return nf.indexOf(pfQ) !== -1 || pfQ.indexOf(nf) !== -1; });
+      if (!pfF) { _respVoz('No encuentro esa fase'); break; }
+      if (!(pfP > 0)) { _respVoz('Dime un precio válido'); break; }
+      mutate(function (s) {
+        var f2 = (s.config.fases || []).find(function (x) { return x.id === pfF.id; });
+        if (f2) { f2.precio = pfP; addLog('cambió el precio de ' + f2.nombre + ' a ' + pfP + ' €', 'config'); }
+      });
+      _respVoz(pfF.nombre + ' ahora a ' + Math.round(pfP) + ' euros'); break;
     }
     case 'descargar_zip': {
       var sz = String(args.serie || '').trim() || _ultimaRemesa();
@@ -14756,7 +14835,7 @@ function ejecutarAccionIA(accion, args) {
       _respVoz(bq + ' bonos de ' + bc + ' copas creados' + (bp > 0 ? (' a ' + Math.round(bp) + ' euros') : ' de regalo')); break;
     }
     case 'marcar_pagada': {
-      var mpP = _personaDeIA(args.quien);
+      var mpP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada']));
       if (!mpP) { _respVoz('No encuentro esa entrada'); break; }
       if (mpP.tipo === 'invitado') { _respVoz(_nombreDe(mpP) + ' es invitado, no paga'); break; }
       if (taquillaLiquidada(mpP)) { _respVoz(_nombreDe(mpP) + ' ya estaba pagada'); break; }
@@ -14769,7 +14848,7 @@ function ejecutarAccionIA(accion, args) {
       _respVoz('Marcada como pagada: ' + _nombreDe(mpP)); break;
     }
     case 'dar_acceso': {
-      var daP = _personaDeIA(args.quien);
+      var daP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada']));
       if (!daP) { _respVoz('No encuentro esa entrada'); break; }
       if (daP.dentro) { _respVoz(_nombreDe(daP) + ' ya está dentro'); break; }
       mutate(function (s) {
@@ -14780,7 +14859,7 @@ function ejecutarAccionIA(accion, args) {
       _respVoz(_nombreDe(daP) + ' dentro. ¡Que disfrute!'); break;
     }
     case 'borrar_entrada': {
-      var boP = _personaDeIA(args.quien);
+      var boP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada']));
       if (!boP) { _respVoz('No encuentro esa entrada'); break; }
       hablar('Te pido confirmación en pantalla para borrar a ' + _nombreDe(boP));
       duenoBorrarEntrada(boP.id); break; // usa su confirmación de siempre (seguridad)
@@ -14909,7 +14988,7 @@ function ejecutarAccionIA(accion, args) {
       _respVoz(rpC ? (rpC + ' entradas repartidas a ' + rp0.nombre) : 'No había entradas en ese rango'); break;
     }
     case 'marcar_salida': {
-      var msP = _personaDeIA(args.quien);
+      var msP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada']));
       if (!msP) { _respVoz('No encuentro esa entrada'); break; }
       if (!msP.dentro) { _respVoz(_nombreDe(msP) + ' no está dentro'); break; }
       marcarSalida(msP.id); hablar(_nombreDe(msP) + ' ha salido'); break;
@@ -14920,12 +14999,12 @@ function ejecutarAccionIA(accion, args) {
       if (!abB) { _respVoz('No encuentro ese bono'); break; }
       anularBono(abB.id); hablar('Bono ' + abB.codigo + ' anulado'); break;
     }
-    case 'enviar_whatsapp': { var ewP = _personaDeIA(args.quien); if (!ewP) { _respVoz('No encuentro esa entrada'); break; } whatsappEntrada(ewP.id); hablar('Abriendo WhatsApp para ' + _nombreDe(ewP)); break; }
-    case 'enviar_email_a': { var eeP = _personaDeIA(args.quien); if (!eeP) { _respVoz('No encuentro esa entrada'); break; } emailEntrada(eeP.id); hablar('Abriendo el email para ' + _nombreDe(eeP)); break; }
-    case 'ver_entrada': { var veP = _personaDeIA(args.quien); if (!veP) { _respVoz('No encuentro esa entrada'); break; } verEntrada(veP.id); break; }
-    case 'blindar': { var blP = _personaDeIA(args.quien); if (!blP) { _respVoz('No encuentro esa entrada'); break; } blindarEntrada(blP.id); break; }
-    case 'poner_vigilantes': { var nv = parseInt(args.n, 10); if (nv >= 1 && nv <= 20) { setVigilantes(nv); _respVoz(nv + ' vigilantes configurados'); } else _respVoz('Dime un número entre 1 y 20'); break; }
-    case 'poner_camareros': { var nc = parseInt(args.n, 10); if (nc >= 1 && nc <= 20) { setCamareros(nc); _respVoz(nc + ' camareros configurados'); } else _respVoz('Dime un número entre 1 y 20'); break; }
+    case 'enviar_whatsapp': { var ewP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada'])); if (!ewP) { _respVoz('No encuentro esa entrada'); break; } whatsappEntrada(ewP.id); hablar('Abriendo WhatsApp para ' + _nombreDe(ewP)); break; }
+    case 'enviar_email_a': { var eeP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada'])); if (!eeP) { _respVoz('No encuentro esa entrada'); break; } emailEntrada(eeP.id); hablar('Abriendo el email para ' + _nombreDe(eeP)); break; }
+    case 'ver_entrada': { var veP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada'])); if (!veP) { _respVoz('No encuentro esa entrada'); break; } verEntrada(veP.id); break; }
+    case 'blindar': { var blP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada'])); if (!blP) { _respVoz('No encuentro esa entrada'); break; } blindarEntrada(blP.id); break; }
+    case 'poner_vigilantes': { var nv = parseInt(_arg(args, ['n', 'cantidad', 'numero', 'vigilantes', 'valor']), 10); if (nv >= 1 && nv <= 20) { setVigilantes(nv); _respVoz(nv + (nv === 1 ? ' vigilante configurado' : ' vigilantes configurados')); } else _respVoz('Dime cuántos vigilantes, del 1 al 20'); break; }
+    case 'poner_camareros': { var nc = parseInt(_arg(args, ['n', 'cantidad', 'numero', 'camareros', 'valor']), 10); if (nc >= 1 && nc <= 20) { setCamareros(nc); _respVoz(nc + (nc === 1 ? ' camarero configurado' : ' camareros configurados')); } else _respVoz('Dime cuántos camareros, del 1 al 20'); break; }
     case 'anadir_producto': {
       var apN = String(args.nombre || '').trim(), apP = Number(args.precio) || 0;
       if (!apN) { _respVoz('Dime el nombre del producto'); break; }
@@ -15005,6 +15084,23 @@ function seccionAsistenteIA() {
     ? 'IA conectada ✅. Toca el micro 🎤 y habla como quieras (ej.: «manda los emails a los primeros diez y dime cuánto llevo»).'
     : '¿No tienes la clave? Sácala gratis en <b>aistudio.google.com/app/apikey</b> o pídeme la guía.') + '</p>';
   html += '<p class="nota">Sin clave o sin internet, el micro sigue funcionando con la <b>lista de órdenes por voz</b> (gratis, sin conexión).</p>';
+  // Elegir la voz con la que habla (las que traiga ESTE móvil; las "Google" suenan más naturales)
+  var voces = _vocesES();
+  var vozAct = (state.config && state.config.vozAsistente) || '';
+  html += '<hr class="cobros-sep"><h3>🗣️ Voz del asistente</h3>';
+  if (voces.length) {
+    html += '<label>Elige cómo suena<select id="voz-asistente" onchange="duenoSetVoz(this.value)">';
+    html += '<option value=""' + (vozAct ? '' : ' selected') + '>Automática (la mejor en español)</option>';
+    voces.forEach(function (v) {
+      html += '<option value="' + esc(v.name) + '"' + (vozAct === v.name ? ' selected' : '') + '>' + esc(v.name) + ' (' + esc(v.lang) + ')</option>';
+    });
+    html += '</select></label>';
+    html += '<button type="button" class="btn-secundario" onclick="probarVozAsistente()" style="width:100%;min-height:48px">🔊 Probar esta voz</button>';
+    html += '<p class="nota">Las voces las pone tu móvil. Si todas suenan robóticas, instala/actualiza <b>"Síntesis de voz de Google"</b> en Play Store y en Ajustes del móvil → Salida de texto a voz elige Google; aparecerán voces mucho más naturales.</p>';
+  } else {
+    html += '<p class="nota">Tu navegador aún no me ha dado la lista de voces: toca 🔊 y vuelve a abrir este apartado.</p>' +
+      '<button type="button" class="btn-secundario" onclick="probarVozAsistente();setTimeout(function(){_duenoTab=\'ajustes\';renderDueno();},400)" style="width:100%;min-height:48px">🔊 Cargar voces</button>';
+  }
   html += '</section>';
   return html;
 }
