@@ -14581,6 +14581,7 @@ function _accionesIA() {
     'marcar_pagada(quien) — marca como pagada una entrada (nombre o código)',
     'dar_acceso(quien) — marca a alguien como DENTRO de la fiesta (nombre o código)',
     'borrar_entrada(quien) — borra una entrada (pide confirmación en pantalla)',
+    'borrar_entradas(serie?) — borra TODAS las entradas de golpe (o solo las de una serie); pide confirmación en pantalla',
     'buscar(quien) — di si alguien está dentro y si pagó',
     'activar_cobro(metodo, on, numero?) — metodo: bizum|tarjeta|monedero|nfc; para bizum pasa el número en numero',
     'activar_modulo(nombre, on) — nombre: qr|cierre|gastos|stock',
@@ -14769,6 +14770,15 @@ function ejecutarAccionIA(accion, args) {
       duenoBorrarEntrada(boP.id); break; // usa su confirmación de siempre (seguridad)
     }
     case 'buscar': _buscarPersonaVoz(String(args.quien || '')); break;
+    case 'borrar_entradas': {
+      var beS = String(args.serie || '').trim();
+      _entFiltro = beS ? ('serie:' + beS) : 'todas'; _entBusca = '';
+      var beN = entradasFiltradas().length;
+      if (!beN) { _respVoz('No hay entradas que borrar'); break; }
+      hablar('Vas a borrar ' + beN + ' entradas. Confírmalo en pantalla');
+      duenoBorrarEntradasFiltro(); // su aviso de siempre: dice cuántas son y si había dinero cobrado
+      break;
+    }
     case 'activar_cobro': {
       var met = _normVoz(args.metodo), von = (args.on === true || args.on === 'true' || args.on === 1);
       if (met === 'bizum') {
