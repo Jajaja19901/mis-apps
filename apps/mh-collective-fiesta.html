@@ -349,8 +349,12 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .recib-msg{margin-top:14px;color:var(--text);font-weight:700}
 .recib-cerrar{margin-top:16px;min-height:46px;padding:.6rem 1.6rem;border:none;border-radius:12px;background:var(--neon-verde);color:var(--bg);font-weight:800;cursor:pointer}
 /* Botón flotante del asistente por voz (solo en el panel del dueño). */
-.mic-fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:1200;width:62px;height:62px;border-radius:50%;border:0;background:var(--neon-verde);color:#04150e;font-size:1.7rem;box-shadow:0 6px 24px rgba(0,0,0,.45);cursor:pointer}
-.mic-fab.on{background:#ff4d6d;color:#fff;animation:micPulso 1s infinite}
+.mic-fab{position:fixed;right:16px;bottom:calc(20px + env(safe-area-inset-bottom));z-index:1200;width:66px;height:66px;padding:0;border-radius:50%;border:2px solid var(--neon-verde);background:#0a0a14;box-shadow:0 6px 24px rgba(0,0,0,.5),0 0 18px rgba(0,212,138,.45);cursor:pointer;touch-action:none;overflow:visible}
+.mic-fab .mic-logo{position:absolute;inset:0;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#000}
+.mic-fab .mic-logo img,.mic-fab .mic-logo svg{width:100%;height:100%;object-fit:cover;display:block}
+.mic-badge{position:absolute;left:50%;bottom:-9px;transform:translateX(-50%);background:var(--neon-verde);color:#04150e;font-size:.58rem;font-weight:900;letter-spacing:.3px;padding:2px 7px;border-radius:9px;white-space:nowrap;box-shadow:0 2px 6px rgba(0,0,0,.5);pointer-events:none}
+.mic-fab.on{border-color:#ff4d6d;animation:micPulso 1s infinite}
+.mic-fab.on .mic-badge{background:#ff4d6d;color:#fff}
 @keyframes micPulso{0%{box-shadow:0 0 0 0 rgba(255,77,109,.6)}100%{box-shadow:0 0 0 22px rgba(255,77,109,0)}}
 .recib-conf{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .recib-conf .conf{position:absolute;top:-8%;font-size:1.5rem;animation:confFall 2.6s linear infinite}
@@ -14131,14 +14135,56 @@ function cajaDesglose() {
 /* ===== ASISTENTE POR VOZ (gratis, dentro de la app) =====
    Botón de micro 🎤: hablas y hace las acciones de la app, y te contesta hablando.
    Usa el reconocimiento de voz del navegador (gratis; va mejor en Android/Chrome). */
-var _vozRec = null, _vozEscuchando = false;
+var _vozRec = null, _vozEscuchando = false, _ultimaVoz = '';
 function asistenteVozDisponible() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
+var _micDrag = null;
+function _micPos() { try { return JSON.parse(localStorage.getItem('mh_mic_pos') || 'null'); } catch (e) { return null; } }
 function micFab() {
   if (!asistenteVozDisponible()) return '';
-  return '<button type="button" id="mic-asistente" class="mic-fab" onclick="toggleAsistenteVoz()" aria-label="Asistente por voz" title="Habla para controlar la app">🎤</button>';
+  var pos = _micPos(), style = '';
+  if (pos && typeof pos.x === 'number' && typeof pos.y === 'number') {
+    var x = Math.max(4, Math.min(pos.x, (window.innerWidth || 400) - 66));
+    var y = Math.max(4, Math.min(pos.y, (window.innerHeight || 800) - 66));
+    style = ' style="left:' + x + 'px;top:' + y + 'px;right:auto;bottom:auto"';
+  }
+  return '<button type="button" id="mic-asistente" class="mic-fab" onpointerdown="_micDown(event)"' + style +
+    ' aria-label="Asistente de voz con IA" title="Tócame para hablar · arrástrame para moverme">' +
+    _micLogoHTML() + '<span class="mic-badge">IA 🎤</span></button>';
+}
+// Logo del botón: el que subió el dueño, o el emblema MH por defecto.
+function _micLogoHTML() {
+  var logo = state.config && state.config.logo;
+  return '<span class="mic-logo">' + (logo ? '<img src="' + esc(logo) + '" alt="MH">' : _emblemaMH()) + '</span>';
+}
+// El botón es FLOTANTE y MOVIBLE: arrástralo donde quieras; un toque (sin mover) abre el micro.
+function _micDown(e) {
+  var b = document.getElementById('mic-asistente'); if (!b) return;
+  var r = b.getBoundingClientRect();
+  _micDrag = { dx: e.clientX - r.left, dy: e.clientY - r.top, x0: e.clientX, y0: e.clientY, moved: false };
+  try { b.setPointerCapture(e.pointerId); } catch (err) {}
+  b.onpointermove = _micMove; b.onpointerup = _micUp; b.onpointercancel = _micUp;
+  if (e.preventDefault) e.preventDefault();
+}
+function _micMove(e) {
+  if (!_micDrag) return;
+  var b = document.getElementById('mic-asistente'); if (!b) return;
+  var w = b.offsetWidth || 62, h = b.offsetHeight || 62;
+  var x = Math.max(4, Math.min(e.clientX - _micDrag.dx, (window.innerWidth || 400) - w - 4));
+  var y = Math.max(4, Math.min(e.clientY - _micDrag.dy, (window.innerHeight || 800) - h - 4));
+  b.style.left = x + 'px'; b.style.top = y + 'px'; b.style.right = 'auto'; b.style.bottom = 'auto';
+  if (Math.abs(e.clientX - _micDrag.x0) > 6 || Math.abs(e.clientY - _micDrag.y0) > 6) _micDrag.moved = true;
+}
+function _micUp(e) {
+  var b = document.getElementById('mic-asistente');
+  if (b) { b.onpointermove = null; b.onpointerup = null; b.onpointercancel = null; try { b.releasePointerCapture(e.pointerId); } catch (err) {} }
+  var moved = _micDrag && _micDrag.moved;
+  if (moved && b) { try { localStorage.setItem('mh_mic_pos', JSON.stringify({ x: parseInt(b.style.left, 10) || 0, y: parseInt(b.style.top, 10) || 0 })); } catch (err) {} }
+  _micDrag = null;
+  if (!moved) toggleAsistenteVoz(); // fue un toque, no un arrastre
 }
 function _pintaMicro(on) { var b = document.getElementById('mic-asistente'); if (b) b.classList.toggle('on', !!on); }
 function hablar(txt) {
+  _ultimaVoz = String(txt || ''); // para el comando "repite"
   try {
     if (!window.speechSynthesis) return;
     var u = new SpeechSynthesisUtterance(String(txt));
@@ -14184,6 +14230,8 @@ function ejecutarComandoVoz(frases) {
   if (!t.trim()) { _respVoz('No te he oido, repite'); return; }
   // Callar / parar de hablar
   if (/(callate|calla|silencio|para de hablar|basta|deja de hablar)/.test(t)) { try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {} toast('🤫'); return; }
+  // Repite lo último
+  if (/(repite|repitelo|otra vez|que has dicho|no te entendi|repiteme)/.test(t)) { if (_ultimaVoz) hablar(_ultimaVoz); else _respVoz('No he dicho nada todavía'); return; }
   var caja = (typeof cajaDesglose === 'function') ? cajaDesglose() : { total: 0, barra: 0 };
   var dentro = (state.personas || []).filter(function (p) { return p.dentro; }).length;
   var totalEnt = (state.personas || []).length;
@@ -14223,8 +14271,11 @@ function ejecutarComandoVoz(frases) {
   if (/(cuant).*(quedan|falta|por entrar|por venir)/.test(t)) {
     _respVoz('Quedan ' + Math.max(0, totalEnt - dentro) + ' por entrar'); return;
   }
+  // Precio de la entrada / de la mesa VIP (antes del recuento de entradas)
+  if (/(precio|vale|cuesta|cuanto vale|cuanto cuesta).*(entrada)/.test(t)) { _respVoz('La entrada cuesta ' + Math.round((state.config && state.config.precioEntrada) || 0) + ' euros'); return; }
+  if (/(precio|vale|cuesta).*(vip|mesa)/.test(t)) { _respVoz('La mesa VIP cuesta ' + Math.round((state.config && state.config.precioMesaVip) || 0) + ' euros'); return; }
   // Cuántas entradas creadas (ANTES que aforo; "entrada" es distinto de "entrado")
-  if (/(cuant).*(entrada|vendid|reserv|creada)/.test(t) && !/(pendiente|sin pagar|deben|por pagar|por cobrar)/.test(t)) {
+  if (/(cuant).*(entrada|vendid|reserv|creada)/.test(t) && !/(pendiente|sin pagar|deben|por pagar|por cobrar|pagad|cobrad)/.test(t)) {
     _respVoz('Hay ' + totalEnt + (totalEnt === 1 ? ' entrada creada' : ' entradas creadas')); return;
   }
   // Cuántos dentro / aforo (sin "hay" ni "entra", que causaban confusión)
@@ -14292,6 +14343,7 @@ function ejecutarComandoVoz(frases) {
     var pend = (state.personas || []).filter(function (p) { return p.tipo !== 'invitado' && !taquillaLiquidada(p); }).length;
     _respVoz('Hay ' + pend + ' entradas sin pagar'); return;
   }
+  if (/(cuant).*(pagad|cobrad)/.test(t)) { _respVoz('Hay ' + (state.personas || []).filter(function (p) { return taquillaLiquidada(p); }).length + ' entradas pagadas'); return; }
   // Datos del evento
   if (/(que hora|hora es|dime la hora)/.test(t)) { _respVoz('Son las ' + nowHM()); return; }
   if (/(como se llama|nombre).*(fiesta|evento)|(fiesta|evento).*(se llama|nombre)/.test(t)) { _respVoz('La fiesta se llama ' + ((state.config && state.config.eventName) || 'sin nombre')); return; }
@@ -14314,6 +14366,14 @@ function ejecutarComandoVoz(frases) {
   // Empezar limpio / borrar todo (peligroso: no lo hago solo)
   if (/(empezar limpio|empieza de cero|borrar todo|borra todo|reinicia|limpiar todo|empezar de cero)/.test(t)) {
     duenoTab('ajustes'); _respVoz('Eso borra todo. Por seguridad hazlo tú a mano en ajustes'); return;
+  }
+  // Buscar a una persona por su nombre
+  var mB = t.match(/(?:busca|buscar|encuentra|localiza)\s+(?:a\s+)?([a-z0-9 ]{2,40})$/);
+  if (mB) { _buscarPersonaVoz(mB[1].trim()); return; }
+  // Resumen / estado de la noche (dinero + dentro + entradas de un tirón)
+  if (/(como va|como vamos|que tal va|todo bien|dame.*resumen|resumen de la noche|estado de la noche|como esta la noche|balance)/.test(t)) {
+    var af2 = (state.config && state.config.maxAforo) ? (' de ' + state.config.maxAforo) : '';
+    _respVoz('Llevas ' + Math.round(caja.total) + ' euros, hay ' + dentro + ' dentro' + af2 + ', y ' + totalEnt + ' entradas creadas'); return;
   }
   // Cerrar la fiesta: por seguridad NO lo hago solo, te llevo al cierre para que confirmes tú
   if (/(cierra|cerrar|finaliza|termina|acaba)/.test(t) && /(fiesta|noche|evento)/.test(t)) {
@@ -14349,6 +14409,15 @@ function _crearEntradaVoz(nombreCompleto) {
   });
   duenoTab('entradas');
   _respVoz('Entrada creada para ' + nombreCompleto);
+}
+
+function _buscarPersonaVoz(q) {
+  q = _normVoz(q);
+  var lista = (state.personas || []).filter(function (p) { return _normVoz((p.nombre || '') + ' ' + (p.apellido || '')).indexOf(q) !== -1; });
+  if (!lista.length) { _respVoz('No encuentro a nadie que se llame ' + q); return; }
+  var p = lista[0], nom = ((p.nombre || '') + ' ' + (p.apellido || '')).trim();
+  var estado = p.dentro ? 'ya está dentro' : (taquillaLiquidada(p) ? 'ha pagado, no ha entrado' : 'no ha pagado todavía');
+  _respVoz(nom + ': ' + estado + (lista.length > 1 ? ('. Hay ' + lista.length + ' con ese nombre') : ''));
 }
 
 /* ===== MODO IA (Google Gemini, gratis) =====
