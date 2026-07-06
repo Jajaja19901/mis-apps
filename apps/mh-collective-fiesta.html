@@ -356,15 +356,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .mic-fab.on{border-color:#ff4d6d;animation:micPulso 1s infinite}
 .mic-fab.on .mic-badge{background:#ff4d6d;color:#fff}
 @keyframes micPulso{0%{box-shadow:0 0 0 0 rgba(255,77,109,.6)}100%{box-shadow:0 0 0 22px rgba(255,77,109,0)}}
-.asis-panel{position:fixed;inset:0;z-index:1300;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);padding:16px}
-.asis-card{width:100%;max-width:460px;background:var(--panel);border:1px solid var(--neon-verde);border-radius:16px;padding:16px;box-shadow:0 10px 40px rgba(0,0,0,.6)}
-.asis-tit{font-weight:900;color:#fff;margin-bottom:10px;font-size:1.1rem}
-.asis-row{display:flex;gap:8px;align-items:center}
-.asis-row input{flex:1;min-height:48px;padding:.6rem .8rem;border-radius:10px;border:1px solid #333;background:#0d0d16;color:#fff;font-size:1rem}
-.asis-mic{width:48px;height:48px;flex-shrink:0;border-radius:50%;border:0;background:var(--neon-verde);color:#04150e;font-size:1.3rem;cursor:pointer}
-.asis-acc{display:flex;gap:8px;margin-top:10px}
-.asis-acc>button{flex:1;min-height:46px}
-.asis-hint{margin-top:8px;font-size:.82rem;color:#9aa}
+.asis-panel{position:fixed;inset:0;z-index:1300;display:flex;align-items:flex-end;justify-content:center;background:rgba(0,0,0,.3);padding:14px}
+.asis-bar{width:100%;max-width:460px;display:flex;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--neon-verde);border-radius:14px;padding:8px;box-shadow:0 8px 30px rgba(0,0,0,.5)}
+.asis-bar input{flex:1;min-height:46px;padding:.5rem .7rem;border-radius:10px;border:1px solid #333;background:#0d0d16;color:#fff;font-size:1rem}
+.asis-mic{width:46px;height:46px;flex-shrink:0;border-radius:50%;border:0;background:var(--neon-verde);color:#04150e;font-size:1.2rem;cursor:pointer}
+.asis-send{width:46px;height:46px;flex-shrink:0;border-radius:10px;border:0;background:var(--neon-verde);color:#04150e;font-size:1.2rem;font-weight:900;cursor:pointer}
+.esc-bar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:1250;display:flex;gap:10px;align-items:center;background:rgba(10,10,20,.96);border:1px solid var(--neon-verde);border-radius:24px;padding:8px 14px;box-shadow:0 6px 24px rgba(0,0,0,.5);color:#fff;font-weight:700;font-size:.9rem}
+.esc-bar button{border:0;background:var(--neon-verde);color:#04150e;font-weight:800;border-radius:14px;padding:6px 12px;cursor:pointer}
 .recib-conf{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .recib-conf .conf{position:absolute;top:-8%;font-size:1.5rem;animation:confFall 2.6s linear infinite}
 @keyframes confFall{0%{transform:translateY(-10vh) rotate(0)}100%{transform:translateY(110vh) rotate(360deg)}}
@@ -14189,28 +14187,27 @@ function _micUp(e) {
   var moved = _micDrag && _micDrag.moved;
   if (moved && b) { try { localStorage.setItem('mh_mic_pos', JSON.stringify({ x: parseInt(b.style.left, 10) || 0, y: parseInt(b.style.top, 10) || 0 })); } catch (err) {} }
   _micDrag = null;
-  if (!moved) abrirPanelAsistente(); // fue un toque (no arrastre): abre el panel escribir/hablar
+  if (!moved) _tocarAsistente(); // toque (no arrastre)
 }
-/* Panel del asistente: sirve en iPhone (escribir) y Android (escribir o hablar).
-   Lo que escribas o digas pasa por el mismo motor (IA de Gemini si hay clave, o las órdenes). */
+// Al tocar: si hay voz (Android) escucha directo; si no (iPhone) abre la barra de escribir.
+function _tocarAsistente() {
+  if (asistenteVozDisponible()) toggleAsistenteVoz();
+  else abrirPanelAsistente();
+}
+// Barra FINA para ESCRIBIR la orden (iPhone, o quien prefiera escribir). Pasa por el mismo motor.
 function abrirPanelAsistente() {
   if (document.getElementById('asisPanel')) { cerrarPanelAsistente(); return; }
+  var vozOk = asistenteVozDisponible();
   var ov = document.createElement('div');
   ov.id = 'asisPanel'; ov.className = 'asis-panel';
   ov.onclick = function (e) { if (e.target === ov) cerrarPanelAsistente(); };
-  var vozOk = asistenteVozDisponible();
-  var micBtn = vozOk ? '<button type="button" class="asis-mic" onclick="_asisVoz()" title="Hablar">🎤</button>' : '';
-  ov.innerHTML =
-    '<div class="asis-card">' +
-      '<div class="asis-tit">🎙️ Asistente' + (iaConfigurada() ? ' con IA' : '') + '</div>' +
-      '<div class="asis-row"><input id="asis-input" type="text" placeholder="Escribe lo que quieras…" autocomplete="off">' + micBtn + '</div>' +
-      '<div class="asis-acc"><button type="button" class="btn" onclick="_asisEnviar()">Enviar</button>' +
-      '<button type="button" class="btn-secundario" onclick="cerrarPanelAsistente()">Cerrar</button></div>' +
-      '<p class="asis-hint">' + (vozOk ? 'Toca 🎤 para hablar, o escribe y pulsa Enviar.' : 'Escribe aquí (la voz solo va en Android). ' + (iaConfigurada() ? 'La IA entiende cualquier frase.' : '')) + '</p>' +
-    '</div>';
+  var mic = vozOk ? '<button type="button" class="asis-mic" onclick="_asisVoz()" title="Hablar">🎤</button>' : '';
+  ov.innerHTML = '<div class="asis-bar">' + mic +
+    '<input id="asis-input" type="text" placeholder="' + (iaConfigurada() ? 'Dile lo que quieras…' : 'Escribe una orden…') + '" autocomplete="off">' +
+    '<button type="button" class="asis-send" onclick="_asisEnviar()" aria-label="Enviar">➤</button></div>';
   document.body.appendChild(ov);
   var inp = document.getElementById('asis-input');
-  if (inp) { try { inp.focus(); } catch (e) {} inp.onkeydown = function (e) { if (e.key === 'Enter') _asisEnviar(); }; }
+  if (inp) { if (!vozOk) { try { inp.focus(); } catch (e) {} } inp.onkeydown = function (e) { if (e.key === 'Enter') _asisEnviar(); }; }
 }
 function cerrarPanelAsistente() { var o = document.getElementById('asisPanel'); if (o) o.remove(); }
 function _asisEnviar() {
@@ -14220,6 +14217,16 @@ function _asisEnviar() {
   if (txt) procesarComandosVoz([txt]);
 }
 function _asisVoz() { cerrarPanelAsistente(); toggleAsistenteVoz(); }
+// Mientras escucha: aviso pequeño con opción de pasar a ESCRIBIR (para quien no quiera hablar).
+function _escUI(on) {
+  var b = document.getElementById('escBar');
+  if (!on) { if (b) b.remove(); return; }
+  if (b) return;
+  b = document.createElement('div'); b.id = 'escBar'; b.className = 'esc-bar';
+  b.innerHTML = '<span>🎤 Escuchando…</span><button type="button" onclick="_pasarAEscribir()">✏️ Escribir</button>';
+  document.body.appendChild(b);
+}
+function _pasarAEscribir() { try { if (_vozRec) _vozRec.stop(); } catch (e) {} _escUI(false); abrirPanelAsistente(); }
 function _pintaMicro(on) { var b = document.getElementById('mic-asistente'); if (b) b.classList.toggle('on', !!on); }
 function hablar(txt) {
   _ultimaVoz = String(txt || ''); // para el comando "repite"
@@ -14250,15 +14257,16 @@ function toggleAsistenteVoz() {
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   try { _vozRec = new SR(); } catch (e) { toast('No se pudo abrir el micro'); return; }
   _vozRec.lang = 'es-ES'; _vozRec.interimResults = false; _vozRec.maxAlternatives = 4; _vozRec.continuous = false;
-  _vozEscuchando = true; _pintaMicro(true); toast('🎤 Te escucho… habla');
+  _vozEscuchando = true; _pintaMicro(true); _escUI(true);
   _vozRec.onresult = function (ev) {
+    _escUI(false);
     var frases = [];
     for (var i = 0; i < ev.results.length; i++) for (var j = 0; j < ev.results[i].length; j++) frases.push(ev.results[i][j].transcript);
     procesarComandosVoz(frases);
   };
-  _vozRec.onerror = function () { _vozEscuchando = false; _pintaMicro(false); };
-  _vozRec.onend = function () { _vozEscuchando = false; _pintaMicro(false); };
-  try { _vozRec.start(); } catch (e) { _vozEscuchando = false; _pintaMicro(false); }
+  _vozRec.onerror = function () { _vozEscuchando = false; _pintaMicro(false); _escUI(false); };
+  _vozRec.onend = function () { _vozEscuchando = false; _pintaMicro(false); _escUI(false); };
+  try { _vozRec.start(); } catch (e) { _vozEscuchando = false; _pintaMicro(false); _escUI(false); }
 }
 function _respVoz(msg) { toast(msg); hablar(msg); }
 /* Entiende la orden hablada y ejecuta la acción de la app. Cubre lo importante:
