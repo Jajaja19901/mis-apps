@@ -14694,6 +14694,10 @@ function _intentLocal(t0) {
     if (q3) return { accion: 'marcar_pagada', args: { quien: q3 } };
   }
   if (/(blinda|blindar|protege la entrada|asegura la entrada)/.test(t)) { var q4 = quienDe(); if (q4) return { accion: 'blindar', args: { quien: q4 } }; }
+  // Borrar TODAS las entradas (destructivo: pide confirmación en pantalla salvo que diga "confirmo")
+  if (/(borra|borrar|elimina|eliminar|vacia|limpia)/.test(t) && /(todas|toda|todos|entera)/.test(t) && /(entrada|invitad|lista)/.test(t)) {
+    return { accion: 'borrar_entradas', args: { confirmar: /confirmo|sin preguntar|seguro|hazlo ya/.test(t) } };
+  }
   if (/(borra|borrar|elimina|eliminar|quita|anula).*(entrada|invitad).*(de|a)\s/.test(t) || /(borra|elimina|quita)\s+(?:la\s+entrada\s+)?(?:de|a)\s+[a-z]/.test(t)) { if (!/todas|todo/.test(t)) { var q5 = quienDe(); if (q5) return { accion: 'borrar_entrada', args: { quien: q5 } }; } }
   if (/(ensename|muestrame|enseñame|ver|mira).*(entrada|codigo|qr).*(de|a)\s/.test(t)) { var q6 = quienDe(); if (q6) return { accion: 'ver_entrada', args: { quien: q6 } }; }
   if (/(whatsapp|guasap|wasap)/.test(t) && /\b(a|de|para)\s+[a-z]/.test(t) && !/todos/.test(t)) { var q7 = quienDe(); if (q7) return { accion: 'enviar_whatsapp', args: { quien: q7 } }; }
