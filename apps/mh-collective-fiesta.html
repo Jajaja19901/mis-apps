@@ -13861,6 +13861,8 @@ function seedState() {
       // Envío de entradas por email DESDE la app (servicio EmailJS, gratis). 3 códigos que
       // el dueño pega una vez. Vacío = no configurado (se usa el envío manual por email).
       emailjsCfg: { publicKey: "", serviceId: "", templateId: "" },
+      // Clave gratis de Google Gemini para el asistente por voz con IA (opcional). Vacío = órdenes por voz.
+      geminiKey: "",
       fecha: "", hora: "", lugar: "", lema: "",
       logo: null, colorTema: "#00d4ff",
       vipPack: { botellas: 1, refrescos: 4 },
@@ -13963,6 +13965,7 @@ function migrar(s) {
   if (typeof s.config.instagramFiesta !== 'string') s.config.instagramFiesta = '';
   if (!s.config.emailjsCfg || typeof s.config.emailjsCfg !== 'object') s.config.emailjsCfg = { publicKey: '', serviceId: '', templateId: '' };
   ['publicKey', 'serviceId', 'templateId'].forEach(function (k) { if (typeof s.config.emailjsCfg[k] !== 'string') s.config.emailjsCfg[k] = ''; });
+  if (typeof s.config.geminiKey !== 'string') s.config.geminiKey = '';
   if (!s.presencia || typeof s.presencia !== 'object') s.presencia = {};
   if (!s.ventasPorProducto || typeof s.ventasPorProducto !== 'object') s.ventasPorProducto = {};
   if (!Array.isArray(s.monederos)) s.monederos = [];
@@ -14147,7 +14150,10 @@ function hablar(txt) {
    Y dime cuánto dinero llevo". Parte la frase por los conectores y ejecuta cada trozo. */
 function procesarComandosVoz(frases) {
   try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
-  var best = _normVoz((frases && frases[0]) || '');
+  var raw = (frases && frases[0]) || '';
+  // Si hay clave de Gemini, manda a la IA (entiende cualquier frase). Si no, órdenes por voz.
+  if (typeof iaConfigurada === 'function' && iaConfigurada()) { procesarConIA(raw); return; }
+  var best = _normVoz(raw);
   var partes = best.split(/\s+(?:y luego|y despues|y tambien|y ademas|y despue|luego|tambien|ademas|y)\s+/)
     .map(function (p) { return p.trim(); }).filter(Boolean);
   if (partes.length <= 1) { ejecutarComandoVoz(frases); return; }
@@ -14288,6 +14294,131 @@ function _crearEntradaVoz(nombreCompleto) {
   });
   duenoTab('entradas');
   _respVoz('Entrada creada para ' + nombreCompleto);
+}
+
+/* ===== MODO IA (Google Gemini, gratis) =====
+   Si el dueño pega su clave gratis de Gemini, el micro entiende CUALQUIER frase
+   (y varias cosas a la vez): manda el texto a Gemini, que devuelve las acciones a
+   ejecutar, y las hacemos. Sin clave/sin internet, se usan las órdenes por voz. */
+var IA_MODELO = 'gemini-2.0-flash';
+function iaConfigurada() { return !!(state.config && String(state.config.geminiKey || '').trim()); }
+function duenoSetGemini(v) {
+  mutateSilent(function (s) { s.config.geminiKey = String(v || '').trim(); });
+  toast(String(v || '').trim() ? 'IA conectada ✅ (Gemini)' : 'IA desconectada');
+  _duenoTab = 'ajustes'; if (typeof renderDueno === 'function') renderDueno();
+}
+function _accionesIA() {
+  return [
+    'enviar_emails(limite?) — manda las entradas por email; limite opcional (número)',
+    'decir_dinero — di la caja total y lo de la barra',
+    'decir_recaudacion — di lo recaudado por cada trabajador',
+    'decir_beneficio — di el beneficio neto (caja menos gastos)',
+    'decir_gastos — di el total gastado',
+    'decir_top — di el producto más vendido',
+    'decir_aforo — di cuántos hay dentro',
+    'decir_entradas — di cuántas entradas hay creadas',
+    'decir_quedan — di cuántos quedan por entrar',
+    'decir_bonos — di cuántos bonos hay y cuántos vendidos',
+    'copiar_enlaces — copia todos los enlaces de entradas',
+    'crear_entrada(nombre, email?, telefono?) — crea una entrada nominal',
+    'modo_secreto(on) — activa (on=true) o quita (on=false) el modo de un solo uso',
+    'instalar_app — lanza la instalación de la app',
+    'ir_a(pestana) — pestana: resumen|entradas|entregar|dinero|ajustes|registro',
+    'cerrar_fiesta — lleva al cierre para que lo confirme el dueño',
+    'responder(texto) — para contestar hablando algo sin ejecutar acción'
+  ].join('\n');
+}
+function procesarConIA(texto) {
+  var key = String((state.config && state.config.geminiKey) || '').trim();
+  if (!key) { procesarComandosVoz([texto]); return; }
+  var sys = 'Eres el asistente de voz de una app para gestionar una fiesta (accesos, barra y dinero). '
+    + 'El dueño te habla; traduce lo que pide a una o varias ACCIONES de esta lista:\n' + _accionesIA()
+    + '\n\nDevuelve SOLO un JSON con esta forma: {"acciones":[{"accion":"nombre","args":{}}],"respuesta":"frase corta"}. '
+    + 'Si pide varias cosas, pon varias acciones en orden. Si no encaja en ninguna acción, usa "responder" con una frase útil. '
+    + 'Responde en español, breve y natural.';
+  var body = {
+    systemInstruction: { parts: [{ text: sys }] },
+    contents: [{ role: 'user', parts: [{ text: String(texto) }] }],
+    generationConfig: { responseMimeType: 'application/json', temperature: 0.2 }
+  };
+  toast('🧠 Pensando…');
+  return fetch('https://generativelanguage.googleapis.com/v1beta/models/' + IA_MODELO + ':generateContent?key=' + encodeURIComponent(key), {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  }).then(function (r) { return r.json(); }).then(function (j) {
+    var c = j && j.candidates && j.candidates[0], txt = c && c.content && c.content.parts && c.content.parts[0] && c.content.parts[0].text;
+    if (!txt) throw new Error('sin respuesta');
+    var plan = JSON.parse(txt);
+    if (plan.respuesta) hablar(plan.respuesta);
+    var acc = plan.acciones || [];
+    acc.forEach(function (a, i) { setTimeout(function () { ejecutarAccionIA(a.accion, a.args || {}); }, i * 350 + (plan.respuesta ? 350 : 0)); });
+    if (!acc.length && !plan.respuesta) _respVoz('No te he entendido, repite');
+  }).catch(function (e) {
+    // Si la IA falla (clave mala, sin internet, cupo), no te dejo tirado: uso las órdenes por voz.
+    hablar('La IA no responde, uso las ordenes normales');
+    ejecutarComandoVoz([texto]);
+  });
+}
+function ejecutarAccionIA(accion, args) {
+  args = args || {};
+  var caja = (typeof cajaDesglose === 'function') ? cajaDesglose() : { total: 0, barra: 0 };
+  var dentro = (state.personas || []).filter(function (p) { return p.dentro; }).length;
+  var totalEnt = (state.personas || []).length;
+  var gastos = function () { return (state.gastos || []).reduce(function (a, g) { return a + (g.importe || 0); }, 0); };
+  switch (accion) {
+    case 'enviar_emails':
+      if (args.limite) { var el = document.getElementById('ej-limite'); if (el) el.value = args.limite; }
+      duenoTab('entregar'); if (typeof enviarTodosEmail === 'function') setTimeout(enviarTodosEmail, 500); break;
+    case 'decir_dinero': _respVoz('Llevas recaudado ' + Math.round(caja.total) + ' euros, y la barra ' + Math.round(caja.barra || 0)); break;
+    case 'decir_recaudacion': {
+      var m = state.recaudacionPorPerfil || {};
+      var ps = Object.keys(m).filter(function (k) { return /^(vig|cam)-/.test(k); }).map(function (k) { return etiquetaPerfil(k) + ' ' + Math.round(m[k] || 0) + ' euros'; });
+      _respVoz(ps.length ? ('Recaudación: ' + ps.join(', ')) : 'Aún no ha recaudado nadie'); break; }
+    case 'decir_beneficio': _respVoz('Beneficio neto ' + Math.round(caja.total - gastos()) + ' euros'); break;
+    case 'decir_gastos': _respVoz('Has gastado ' + Math.round(gastos()) + ' euros'); break;
+    case 'decir_top': {
+      var vp = state.ventasPorProducto || {}, top = null;
+      Object.keys(vp).forEach(function (k) { var v = vp[k] || {}; if (!top || (v.uds || 0) > (top.uds || 0)) top = { nombre: v.nombre || k, uds: v.uds || 0 }; });
+      _respVoz(top && top.uds > 0 ? ('Lo más vendido es ' + top.nombre + ', con ' + top.uds + ' unidades') : 'Todavía no se ha vendido nada'); break; }
+    case 'decir_aforo': { var af = (state.config && state.config.maxAforo) ? (' de ' + state.config.maxAforo) : ''; _respVoz('Hay ' + dentro + (dentro === 1 ? ' persona dentro' : ' personas dentro') + af); break; }
+    case 'decir_entradas': _respVoz('Hay ' + totalEnt + (totalEnt === 1 ? ' entrada creada' : ' entradas creadas')); break;
+    case 'decir_quedan': _respVoz('Quedan ' + Math.max(0, totalEnt - dentro) + ' por entrar'); break;
+    case 'decir_bonos': { var bs = state.bonos || []; _respVoz('Hay ' + bs.length + ' bonos, ' + bs.filter(function (b) { return b.vendido; }).length + ' vendidos'); break; }
+    case 'copiar_enlaces': if (typeof copiarTodosEnlaces === 'function') { copiarTodosEnlaces(); hablar('Enlaces copiados'); } break;
+    case 'crear_entrada': _crearEntradaIA(args); break;
+    case 'modo_secreto': mutateSilent(function (s) { s.config.entregaUnaVez = (args.on === true || args.on === 'true' || args.on === 1); }); _duenoTab = 'entregar'; if (typeof renderDueno === 'function') renderDueno(); _respVoz(state.config.entregaUnaVez ? 'Modo secreto activado' : 'Modo secreto quitado'); break;
+    case 'instalar_app': if (window.__deferredPrompt) { window.__deferredPrompt.prompt(); } else _respVoz('Abre el menú del navegador y pulsa Añadir a pantalla de inicio'); break;
+    case 'ir_a': { var mp = { resumen: 'resumen', entradas: 'entradas', entregar: 'entregar', dinero: 'fiesta', fiesta: 'fiesta', ajustes: 'ajustes', registro: 'registro' }; duenoTab(mp[_normVoz(args.pestana)] || 'resumen'); break; }
+    case 'cerrar_fiesta': duenoTab('registro'); _respVoz('Te llevo al cierre, confírmalo tú por seguridad'); break;
+    case 'responder': _respVoz(args.texto || 'Hecho'); break;
+    default: _respVoz('Eso no lo sé hacer todavía');
+  }
+}
+function _crearEntradaIA(args) {
+  var nombreCompleto = String((args && args.nombre) || '').trim();
+  if (!nombreCompleto) { _respVoz('¿Para quién creo la entrada?'); return; }
+  var cap = function (w) { return w ? w.charAt(0).toUpperCase() + w.slice(1) : w; };
+  var partes = nombreCompleto.split(/\s+/).map(cap);
+  var id = 'p' + Date.now();
+  mutate(function (s) {
+    s.personas.push({ id: id, nombre: partes[0] || 'Invitado', apellido: partes.slice(1).join(' '),
+      codigoReserva: nuevoCodigoLista(s), telefono: String((args && args.telefono) || '').trim(), email: String((args && args.email) || '').trim(),
+      mesa: null, pagado: false, importePagado: 0, dentro: false, horaEntrada: null, tipo: 'taquilla' });
+    addLog('creó por voz (IA) la entrada de ' + nombreCompleto, 'alta');
+  });
+  duenoTab('entradas');
+  _respVoz('Entrada creada para ' + nombreCompleto);
+}
+function seccionAsistenteIA() {
+  var k = (state.config && state.config.geminiKey) || '';
+  var html = '<section class="panel"><h2>🎤 Asistente por voz con IA</h2>';
+  html += '<p class="nota">Con esto hablas con <b>cualquier frase</b> y la app entiende y hace lo que pidas, incluso <b>varias cosas a la vez</b>. Necesita una <b>clave gratis de Google Gemini</b> (sin tarjeta) y conexión.</p>';
+  html += '<label>Clave de Gemini (gratis)<input type="text" id="ia-key" value="' + esc(k) + '" onchange="duenoSetGemini(this.value)" placeholder="pega aquí tu API key"></label>';
+  html += '<p class="nota">' + (iaConfigurada()
+    ? 'IA conectada ✅. Toca el micro 🎤 y habla como quieras (ej.: «manda los emails a los primeros diez y dime cuánto llevo»).'
+    : '¿No tienes la clave? Sácala gratis en <b>aistudio.google.com/app/apikey</b> o pídeme la guía.') + '</p>';
+  html += '<p class="nota">Sin clave o sin internet, el micro sigue funcionando con la <b>lista de órdenes por voz</b> (gratis, sin conexión).</p>';
+  html += '</section>';
+  return html;
 }
 function productoPorId(id) {
   var lista = (state.config && state.config.productos) || [];
@@ -16809,7 +16940,8 @@ function renderDueno() {
           acc('aj-personal', '👥 Personal', 'Cuántos vigilantes y camareros, y el código con el que entra cada uno', seccionPersonal()) +
           acc('aj-prod', '🍹 Productos de barra', 'Bebidas, precios, tipos de combinado y stock', seccionProductos()) +
           acc('aj-cobros', '💳 Formas de cobro', 'Monedero, Bizum, tarjeta y NFC — activa las que uses', seccionCobros()) +
-          acc('aj-modulos', '🧩 Módulos y acceso automático', 'Enciende/apaga QR, cierre, gastos, stock…', seccionModulos());
+          acc('aj-modulos', '🧩 Módulos y acceso automático', 'Enciende/apaga QR, cierre, gastos, stock…', seccionModulos()) +
+          acc('aj-ia', '🎤 Asistente por voz (IA)', 'Habla con cualquier frase y la app lo hace — clave gratis de Gemini', seccionAsistenteIA());
       } },
     { id: 'registro', label: '📋 Registro', build: function () {
         return intro('El historial de todo (no se puede borrar) y el cierre de la fiesta al terminar.') +
