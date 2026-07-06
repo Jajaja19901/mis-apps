@@ -14597,6 +14597,9 @@ function _accionesIA() {
     'poner_camareros(n) — cuántos camareros trabajan',
     'anadir_producto(nombre, precio) — añade un producto a la barra',
     'precio_producto(producto, precio) — cambia el precio de un producto de barra',
+    'activar_modo_rrpp(on) — modo "las entradas las venden los RRPP" (en puerta no se cobra)',
+    'activar_acceso_auto(on) — los ya pagados entran solos al escanear',
+    'descargar_informe — descarga el informe del dinero de la fiesta (Excel)',
     'modo_secreto(on) — activa (on=true) o quita (on=false) el modo de un solo uso',
     'instalar_app — lanza la instalación de la app',
     'ir_a(pestana) — pestana: resumen|entradas|entregar|dinero|ajustes|registro',
@@ -14612,6 +14615,9 @@ function procesarConIA(texto) {
     + '\n\nDevuelve SOLO un JSON con esta forma: {"acciones":[{"accion":"nombre","args":{}}],"respuesta":""}. '
     + 'Si pide varias cosas, pon varias acciones en orden. Las acciones ya hablan solas: deja "respuesta" VACÍA '
     + 'cuando haya acciones (si no, se oye doble). Solo usa "respuesta" (o la acción responder) si no encaja ninguna acción. '
+    + '\nREGLA DE ORO: NUNCA digas solo "no puedo". Si nada encaja exactamente, combina lo que haya: usa ir_a para '
+    + 'llevarle a la pestaña correcta Y responder explicando qué botón tocar allí (las pestañas son: resumen, entradas, '
+    + 'entregar, dinero, ajustes, registro). Nunca inventes nombres de acciones que no estén en la lista. '
     + 'Responde en español, breve y natural.';
   var body = {
     systemInstruction: { parts: [{ text: sys }] },
@@ -14873,8 +14879,14 @@ function ejecutarAccionIA(accion, args) {
       });
       _respVoz(ppX.nombre + ' ahora cuesta ' + Math.round(ppP) + ' euros'); break;
     }
+    case 'activar_modo_rrpp': { var vr = (args.on === true || args.on === 'true' || args.on === 1); if (puertaVentaRRPP() !== vr) duenoTogglePuertaRRPP(); _respVoz(vr ? 'Modo RRPP activado: en la puerta no se cobra' : 'Modo RRPP quitado: se cobra en la puerta'); break; }
+    case 'activar_acceso_auto': { var va = (args.on === true || args.on === 'true' || args.on === 1); if (!!state.config.accesoAuto !== va) duenoToggleAccesoAuto(); _respVoz(va ? 'Acceso automático activado' : 'Acceso automático quitado'); break; }
+    case 'descargar_informe': if (typeof duenoDescargarCsv === 'function') { duenoDescargarCsv(); hablar('Descargando el informe del dinero'); } break;
     case 'responder': _respVoz(args.texto || 'Hecho'); break;
-    default: _respVoz('Eso no lo sé hacer todavía');
+    default:
+      // Que quede constancia de lo que la IA pidió y no existe: se ve en el Registro.
+      try { addLog('la IA pidió una acción desconocida: ' + String(accion), 'config'); } catch (eU) {}
+      _respVoz('Eso concreto aún no tiene orden directa. Está apuntado en el Registro para añadirlo');
   }
 }
 function _crearEntradaIA(args) {
