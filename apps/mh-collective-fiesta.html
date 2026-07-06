@@ -14276,15 +14276,26 @@ function probarVozAsistente() { hablar('Hola, soy la voz de tu fiesta. Llevas ' 
 function procesarComandosVoz(frases) {
   try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
   var raw = (frases && frases[0]) || '';
-  // Si hay clave de Gemini, manda a la IA (entiende cualquier frase). Si no, órdenes por voz.
-  if (typeof iaConfigurada === 'function' && iaConfigurada()) { procesarConIA(raw); return; }
   var best = _normVoz(raw);
-  // Una NOTA no se trocea por la "y" (puede llevar "vasos y hielo"): va entera.
-  if (/^(apunta|anota|nota)\b/.test(best)) { ejecutarComandoVoz([raw]); return; }
-  var partes = best.split(/\s+(?:y luego|y despues|y tambien|y ademas|y despue|luego|tambien|ademas|y)\s+/)
-    .map(function (p) { return p.trim(); }).filter(Boolean);
-  if (partes.length <= 1) { ejecutarComandoVoz(frases); return; }
-  partes.forEach(function (p, i) { setTimeout(function () { ejecutarComandoVoz([p]); }, i * 300); });
+  var hayIA = (typeof iaConfigurada === 'function' && iaConfigurada());
+  // Trocea por conectores ("A y luego B"), salvo las NOTAS (pueden llevar "vasos y hielo").
+  var partes;
+  if (/^(apunta|anota|nota)\b/.test(best)) partes = [raw];
+  else {
+    partes = best.split(/\s+(?:y luego|y despues|y tambien|y ademas|y despue|luego|tambien|ademas|y)\s+/)
+      .map(function (p) { return p.trim(); }).filter(Boolean);
+    if (partes.length <= 1) partes = [raw]; // una sola orden: usa el texto ORIGINAL (conserva mayúsculas/nombres)
+  }
+  // MOTOR LOCAL PRIMERO (silencioso). Lo que el motor entienda se hace al instante SIN llamar a
+  // Google (ni "pensando" ni "no responde"). Solo lo que NO entienda se manda a Gemini, si hay clave.
+  partes.forEach(function (p, i) {
+    setTimeout(function () {
+      ejecutarComandoVoz([p], true);            // intento local, sin hablar si no lo pilla
+      if (_cvHandled) return;                    // entendido: hecho, sin Google
+      if (hayIA) { procesarConIA(p); return; }   // no entendido + hay clave: que lo mire Google
+      _respVoz('No te he entendido. Di ayuda para oír lo que puedo hacer');
+    }, i * 320);
+  });
 }
 function _normVoz(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
 function toggleAsistenteVoz() {
@@ -14309,9 +14320,11 @@ function _respVoz(msg) { toast(msg); hablar(msg); }
 function _hecho(detalle) { toast('✅ ' + detalle); hablar('Hecho'); }
 /* Entiende la orden hablada y ejecuta la acción de la app. Cubre lo importante:
    enviar emails, dinero, aforo, entradas, copiar enlaces, crear entrada, y navegar. */
-function ejecutarComandoVoz(frases) {
+var _cvHandled = false; // ¿el motor local entendió la última orden? (para decidir si llamar a Google)
+function ejecutarComandoVoz(frases, quiet) {
+  _cvHandled = true; // se asume ENTENDIDA; cualquier regla que la resuelva sale con return y la deja en true
   var t = _normVoz((frases || []).join('  ||  '));
-  if (!t.trim()) { _respVoz('No te he oido, repite'); return; }
+  if (!t.trim()) { _cvHandled = false; if (!quiet) _respVoz('No te he oido, repite'); return; }
   // Callar / parar de hablar
   if (/(callate|calla|silencio|para de hablar|basta|deja de hablar)/.test(t)) { try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {} toast('🤫'); return; }
   // Repite lo último
@@ -14549,7 +14562,9 @@ function ejecutarComandoVoz(frases) {
   if (/(ayuda|que puedo|que digo|comando|opcion|no se que)/.test(t)) {
     _respVoz('Puedes decir: envia los emails; cuanto dinero llevo; cuanto ha vendido cada camarero; cuanto beneficio llevo; cuanto he gastado; que se vende mas; cuantos han entrado; cuantas entradas hay; cuantos bonos hay; copia los enlaces; crea una entrada para un nombre; crea cien entradas a veinte euros; crea la fase dos a treinta euros con cien entradas; pon dos camareros y tres vigilantes; apunta que falta hielo; leeme las notas; descarga las entradas en zip; busca a alguien; activa o quita el modo secreto; haz una copia de seguridad; instala la app; o llevame a entradas, dinero, entregar, ajustes o registro'); return;
   }
-  _respVoz('No te he entendido. Di ayuda para oir lo que puedo hacer');
+  // Ninguna regla local lo pilló: lo marcamos como NO entendido (para que lo mire Google si hay clave).
+  _cvHandled = false;
+  if (!quiet) _respVoz('No te he entendido. Di ayuda para oir lo que puedo hacer');
 }
 function _crearEntradaVoz(nombreCompleto) {
   var cap = function (w) { return w ? w.charAt(0).toUpperCase() + w.slice(1) : w; };
@@ -14927,7 +14942,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V9'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V10'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -15060,9 +15075,10 @@ function _iaIntento(keys, body, texto, ki, mi) {
     .catch(function (e) { _iaFallo('sin conexión con la IA (¿tienes internet?)', texto); });
 }
 function _iaFallo(motivo, texto) {
+  // A Google solo se le llama cuando el motor local NO entendió la frase. Así que si Google
+  // también falla, ya no reintentamos el local (no lo iba a pillar): avisamos claro y en corto.
   toast('⚠️ ' + motivo);
-  hablar('La IA no responde. Uso las ordenes normales');
-  ejecutarComandoVoz([texto]);
+  _respVoz('No he pillado eso. Dilo más simple, por ejemplo: crea cien entradas.');
 }
 // Saca el JSON aunque venga envuelto en ```json ... ``` o con texto alrededor.
 function _parseJSONia(txt) {
