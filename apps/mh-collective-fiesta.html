@@ -14176,8 +14176,25 @@ function ejecutarComandoVoz(frases) {
     else _respVoz('No encuentro el envio de emails');
     return;
   }
+  // Recaudación por trabajador (ANTES que "dinero", porque lleva "recaud")
+  if (/(camarero|vigilante|trabajador|terminal|cada uno|cada camarero|cada vigilante)/.test(t) && /(recaud|vend|dinero|cuant|lleva|dime|dame)/.test(t)) {
+    var mapa = state.recaudacionPorPerfil || {};
+    var partes = Object.keys(mapa).filter(function (k) { return /^(vig|cam)-/.test(k); })
+      .map(function (k) { return etiquetaPerfil(k) + ', ' + Math.round(mapa[k] || 0) + ' euros'; });
+    _respVoz(partes.length ? ('Recaudación: ' + partes.join('. ')) : 'Aún no ha recaudado nadie'); return;
+  }
+  // Beneficio neto (caja menos gastos)
+  if (/(beneficio|ganancia|neto|ganado|cuanto gano|me queda limpio|gano limpio)/.test(t)) {
+    var gT = (state.gastos || []).reduce(function (a, g) { return a + (g.importe || 0); }, 0);
+    _respVoz('Beneficio neto ' + Math.round(caja.total - gT) + ' euros. Es la caja menos los gastos'); return;
+  }
+  // Gastos
+  if (/(cuant|dime|dame|total).*(gast)/.test(t)) {
+    var gT2 = (state.gastos || []).reduce(function (a, g) { return a + (g.importe || 0); }, 0);
+    _respVoz('Has gastado ' + Math.round(gT2) + ' euros'); return;
+  }
   // Cuánto dinero / caja
-  if (/(cuanto|cuanta|dime|dame|que).*(dinero|recaud|caja|llevo|llevamos|ingres|beneficio)/.test(t)) {
+  if (/(cuanto|cuanta|dime|dame|que).*(dinero|recaud|caja|llevo|llevamos|ingres)/.test(t)) {
     _respVoz('Llevas recaudado ' + Math.round(caja.total) + ' euros. La barra lleva ' + Math.round(caja.barra || 0) + ' euros'); return;
   }
   // Cuántas quedan por entrar (ANTES que aforo, si no "entrar" se lo comería el aforo)
@@ -14193,9 +14210,35 @@ function ejecutarComandoVoz(frases) {
     var af = (state.config && state.config.maxAforo) ? (' de ' + state.config.maxAforo) : '';
     _respVoz('Hay ' + dentro + (dentro === 1 ? ' persona dentro' : ' personas dentro') + af); return;
   }
+  // Producto más vendido / lo que más se consume
+  if (/(mas).*(vend|consum|popular|pide)|(vend|consum|popular).*(mas)|producto estrella|se vende mas|que se vende/.test(t)) {
+    var vp = state.ventasPorProducto || {}, top = null;
+    Object.keys(vp).forEach(function (k) { var v = vp[k] || {}; if (!top || (v.uds || 0) > (top.uds || 0)) top = { nombre: v.nombre || k, uds: v.uds || 0 }; });
+    _respVoz(top && top.uds > 0 ? ('Lo más vendido es ' + top.nombre + ', con ' + top.uds + ' unidades') : 'Todavía no se ha vendido nada en barra'); return;
+  }
+  // Bonos
+  if (/(cuant|dime|dame|hay|quedan).*bono/.test(t)) {
+    var bs = state.bonos || [], vend = bs.filter(function (b) { return b.vendido; }).length;
+    _respVoz('Hay ' + bs.length + ' bonos, ' + vend + ' vendidos'); return;
+  }
   // Copiar todos los enlaces
   if (/(copia|copiar).*(enlace|link|entrada|todo)/.test(t)) {
     if (typeof copiarTodosEnlaces === 'function') { copiarTodosEnlaces(); hablar('Enlaces copiados'); } else _respVoz('No encuentro los enlaces');
+    return;
+  }
+  // Activar / quitar el modo secreto de un solo uso
+  if (/(activa|activar|pon|poner|enciende)/.test(t) && /(secret|solo uso|una vez|autodestru)/.test(t)) {
+    mutateSilent(function (s) { s.config.entregaUnaVez = true; }); _duenoTab = 'entregar'; if (typeof renderDueno === 'function') renderDueno();
+    _respVoz('Modo secreto de un solo uso activado'); return;
+  }
+  if (/(quita|quitar|desactiva|apaga|normal)/.test(t) && /(secret|solo uso|una vez|autodestru)/.test(t)) {
+    mutateSilent(function (s) { s.config.entregaUnaVez = false; }); _duenoTab = 'entregar'; if (typeof renderDueno === 'function') renderDueno();
+    _respVoz('Modo secreto quitado, enlaces normales'); return;
+  }
+  // Instalar la app
+  if (/(instala|instalar|instalame)/.test(t)) {
+    if (window.__deferredPrompt) { window.__deferredPrompt.prompt(); hablar('Instalando la app'); }
+    else _respVoz('Para instalar, abre el menú del navegador y pulsa Añadir a pantalla de inicio');
     return;
   }
   // Crear una entrada para <nombre>
@@ -14206,6 +14249,10 @@ function ejecutarComandoVoz(frases) {
     if (nombre) _crearEntradaVoz(nombre); else _respVoz('Di: crea una entrada para, y luego el nombre');
     return;
   }
+  // Cerrar la fiesta: por seguridad NO lo hago solo, te llevo al cierre para que confirmes tú
+  if (/(cierra|cerrar|finaliza|termina|acaba)/.test(t) && /(fiesta|noche|evento)/.test(t)) {
+    duenoTab('registro'); _respVoz('Te llevo al cierre. Púlsalo tú para confirmar, por seguridad'); return;
+  }
   // Navegar por las pestañas
   if (/(entregar|reparto|mandar entradas)/.test(t)) { duenoTab('entregar'); hablar('Entregar'); return; }
   if (/(dinero|caja|bono|gasto|stock|rrpp|promotor)/.test(t)) { duenoTab('fiesta'); hablar('Dinero'); return; }
@@ -14215,7 +14262,7 @@ function ejecutarComandoVoz(frases) {
   if (/(resumen|inicio|principal|empezar|equipo|conexion)/.test(t)) { duenoTab('resumen'); hablar('Resumen'); return; }
   // Ayuda
   if (/(ayuda|que puedo|que digo|comando|opcion|no se que)/.test(t)) {
-    _respVoz('Puedes decir: envia los emails; cuanto dinero llevo; cuantos han entrado; cuantas entradas hay; copia los enlaces; crea una entrada para un nombre; o llevame a entradas, dinero, entregar, ajustes o registro'); return;
+    _respVoz('Puedes decir: envia los emails; cuanto dinero llevo; cuanto ha vendido cada camarero; cuanto beneficio llevo; cuanto he gastado; que se vende mas; cuantos han entrado; cuantas entradas hay; cuantos bonos hay; copia los enlaces; crea una entrada para un nombre; activa o quita el modo secreto; instala la app; o llevame a entradas, dinero, entregar, ajustes o registro'); return;
   }
   _respVoz('No te he entendido. Di ayuda para oir lo que puedo hacer');
 }
