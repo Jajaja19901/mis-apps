@@ -14365,6 +14365,31 @@ function ejecutarComandoVoz(frases) {
     return;
   }
   // Crear una entrada para <nombre>
+  // Crear un LOTE: "crea 100 entradas (pagadas) (a 20 euros)" — también con el número en letras
+  var tNum = t;
+  var mapaNum = { diez: 10, veinte: 20, treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90, cien: 100, ciento: 100, doscientas: 200, doscientos: 200, trescientas: 300, trescientos: 300, quinientas: 500, quinientos: 500 };
+  Object.keys(mapaNum).forEach(function (k) { tNum = tNum.replace(new RegExp('\\b' + k + '\\b', 'g'), mapaNum[k]); });
+  var mL = tNum.match(/(?:crea|crear|haz|genera|prepara)\w*\s+(?:un lote de\s+)?(\d{1,3})\s+entradas?/);
+  if (mL) {
+    var mP = tNum.match(/a\s+(\d+(?:[.,]\d+)?)\s*euros?/);
+    var rL = _crearLote(mL[1], { pagadas: /pagad/.test(t), precio: mP ? Number(mP[1].replace(',', '.')) : 0 });
+    if (rL) { duenoTab('entradas'); _respVoz('Lote creado: ' + rL.cantidad + ' entradas a ' + Math.round(rL.precio) + ' euros. Serie ' + rL.etiqueta + '. Para el ZIP di: descarga las entradas en zip'); }
+    else _respVoz('Dime cuántas entradas creo');
+    return;
+  }
+  // Descargar entradas: ZIP de PDFs sueltos, PDF junto para imprimir, o lista para Excel
+  if (/(descarga|descargar|baja|bajame|dame|exporta)/.test(t) && /(entrada|lote|codigo|qr)/.test(t)) {
+    var serieU = _ultimaRemesa();
+    if (/zip|sueltos/.test(t)) {
+      if (serieU) { toast('Preparando el ZIP…'); try { descargarPdfsRemesa(serieU); hablar('Descargando el ZIP del lote ' + serieU); } catch (eZ) { _respVoz('No pude preparar el ZIP'); } }
+      else _respVoz('No hay lotes todavía. Di: crea 100 entradas'); return;
+    }
+    if (/pdf|imprimir/.test(t)) {
+      if (serieU) { try { descargarPdfRemesa(serieU); hablar('Descargando el PDF del lote ' + serieU); } catch (eP) { _respVoz('No pude preparar el PDF'); } }
+      else _respVoz('No hay lotes todavía'); return;
+    }
+    descargarEntradasCsv(''); return;
+  }
   if (/(crea|crear|nueva|apunta|anade|agrega|pon).*(entrada|invitad|persona|reserva)/.test(t)) {
     var mm = t.match(/\bpara\s+([a-z0-9 ]{2,40})$/);
     var nombre = mm ? mm[1].trim() : '';
@@ -14438,7 +14463,7 @@ function ejecutarComandoVoz(frases) {
   }
   // Ayuda
   if (/(ayuda|que puedo|que digo|comando|opcion|no se que)/.test(t)) {
-    _respVoz('Puedes decir: envia los emails; cuanto dinero llevo; cuanto ha vendido cada camarero; cuanto beneficio llevo; cuanto he gastado; que se vende mas; cuantos han entrado; cuantas entradas hay; cuantos bonos hay; copia los enlaces; crea una entrada para un nombre; activa o quita el modo secreto; instala la app; o llevame a entradas, dinero, entregar, ajustes o registro'); return;
+    _respVoz('Puedes decir: envia los emails; cuanto dinero llevo; cuanto ha vendido cada camarero; cuanto beneficio llevo; cuanto he gastado; que se vende mas; cuantos han entrado; cuantas entradas hay; cuantos bonos hay; copia los enlaces; crea una entrada para un nombre; crea cien entradas a veinte euros; descarga las entradas en zip; busca a alguien; activa o quita el modo secreto; haz una copia de seguridad; instala la app; o llevame a entradas, dinero, entregar, ajustes o registro'); return;
   }
   _respVoz('No te he entendido. Di ayuda para oir lo que puedo hacer');
 }
@@ -14457,6 +14482,59 @@ function _crearEntradaVoz(nombreCompleto) {
   _respVoz('Entrada creada para ' + nombreCompleto);
 }
 
+/* Crea un LOTE de entradas generales (remesa) sin pasar por el formulario. Lo usan
+   la voz y la IA ("crea 100 entradas para vender"). Mismo comportamiento que crearRemesa. */
+function _crearLote(cantidad, opts) {
+  opts = opts || {};
+  cantidad = Math.max(1, Math.min(500, parseInt(cantidad, 10) || 0));
+  if (!cantidad) return null;
+  var precio = Number(opts.precio); if (!(precio > 0)) precio = Number(state.config && state.config.precioEntrada) || 0;
+  var copas = parseInt(opts.copas, 10) || 0;
+  var pagadas = !!opts.pagadas;
+  var etiqueta = String(opts.etiqueta || 'Entrada').trim() || 'Entrada';
+  var existentes = {};
+  state.personas.forEach(function (x) { if (x.remesa) existentes[x.remesa] = true; });
+  if (existentes[etiqueta]) { var n = 2; while (existentes[etiqueta + ' (' + n + ')']) n++; etiqueta = etiqueta + ' (' + n + ')'; }
+  mutate(function (s) {
+    var ya = s.personas.filter(function (x) { return x.remesa; }).length;
+    for (var i = 0; i < cantidad; i++) {
+      s.personas.push({
+        id: 'p' + Date.now() + '_r' + i, nombre: etiqueta, apellido: '#' + String(ya + i + 1).padStart(3, '0'),
+        tipo: 'taquilla', codigoReserva: nuevoCodigoLista(s), mesa: null, pagado: pagadas,
+        importePagado: pagadas ? precio : 0, dentro: false, horaEntrada: null,
+        precioVenta: precio, consumicionesIncluidas: copas, remesa: etiqueta, faseId: null
+      });
+    }
+    addLog('creó por voz/IA el lote "' + etiqueta + '" (' + cantidad + ' entradas)', 'alta');
+  });
+  return { etiqueta: etiqueta, cantidad: cantidad, precio: precio };
+}
+function _ultimaRemesa() { var e = ''; (state.personas || []).forEach(function (p) { if (p.remesa) e = p.remesa; }); return e; }
+/* Descarga la lista de entradas (todas o de una serie) en CSV, que abre en Excel. */
+function descargarEntradasCsv(serie) {
+  var lista = (state.personas || []);
+  if (serie) lista = lista.filter(function (p) { return p.remesa === serie; });
+  if (!lista.length) { _respVoz('No hay entradas que descargar'); return; }
+  var L = ['Nombre;Codigo;Serie;Precio;Pagada;Dentro'];
+  lista.forEach(function (p) {
+    L.push(csvEscape(((p.nombre || '') + ' ' + (p.apellido || '')).trim()) + ';' + csvEscape(p.codigoReserva) + ';' +
+      csvEscape(p.remesa || '') + ';' + (p.precioVenta != null ? p.precioVenta : '') + ';' + (p.pagado ? 'si' : 'no') + ';' + (p.dentro ? 'si' : 'no'));
+  });
+  descargarCsv('entradas' + (serie ? '-' + String(serie).replace(/\s+/g, '_') : '') + '.csv', L.join('\n'));
+  _respVoz('Descargadas ' + lista.length + ' entradas en un archivo para Excel');
+}
+function _nombreDe(p) { return ((p.nombre || '') + ' ' + (p.apellido || '')).trim() || p.codigoReserva; }
+/* Encuentra una entrada por código (exacto, con o sin guiones) o por nombre (contiene). */
+function _personaDeIA(quien) {
+  var q = _normVoz(String(quien || '')).trim();
+  if (!q) return null;
+  var qCod = q.replace(/[\s-]/g, '');
+  var porCodigo = (state.personas || []).find(function (p) {
+    return String(p.codigoReserva || '').toLowerCase().replace(/[\s-]/g, '') === qCod;
+  });
+  if (porCodigo) return porCodigo;
+  return (state.personas || []).find(function (p) { return _normVoz(_nombreDe(p)).indexOf(q) !== -1; }) || null;
+}
 function _buscarPersonaVoz(q) {
   q = _normVoz(q);
   var lista = (state.personas || []).filter(function (p) { return _normVoz((p.nombre || '') + ' ' + (p.apellido || '')).indexOf(q) !== -1; });
@@ -14493,6 +14571,20 @@ function _accionesIA() {
     'decir_bonos — di cuántos bonos hay y cuántos vendidos',
     'copiar_enlaces — copia todos los enlaces de entradas',
     'crear_entrada(nombre, email?, telefono?) — crea una entrada nominal',
+    'crear_lote(cantidad, precio?, pagadas?, etiqueta?) — crea un LOTE de entradas generales para vender (hasta 500)',
+    'descargar_zip(serie?) — descarga un ZIP con los PDFs sueltos del lote (el último si no se indica)',
+    'descargar_pdf(serie?) — descarga un PDF junto del lote, para imprimir',
+    'descargar_csv(serie?) — descarga la lista de entradas con sus códigos (Excel)',
+    'copia_seguridad — descarga la copia de seguridad completa de la app',
+    'anadir_gasto(concepto, importe, categoria?) — apunta un gasto (bebida, personal, local, otros)',
+    'crear_bonos(cantidad, copas, precio?, etiqueta?) — crea un lote de bonos de copas (precio 0 = regalo)',
+    'marcar_pagada(quien) — marca como pagada una entrada (nombre o código)',
+    'dar_acceso(quien) — marca a alguien como DENTRO de la fiesta (nombre o código)',
+    'borrar_entrada(quien) — borra una entrada (pide confirmación en pantalla)',
+    'buscar(quien) — di si alguien está dentro y si pagó',
+    'activar_cobro(metodo, on, numero?) — metodo: bizum|tarjeta|monedero|nfc; para bizum pasa el número en numero',
+    'activar_modulo(nombre, on) — nombre: qr|cierre|gastos|stock',
+    'poner_config(campo, valor) — campo: precio_entrada|precio_vip|aforo|nombre|fecha|hora|lugar|lema|video|instagram',
     'modo_secreto(on) — activa (on=true) o quita (on=false) el modo de un solo uso',
     'instalar_app — lanza la instalación de la app',
     'ir_a(pestana) — pestana: resumen|entradas|entregar|dinero|ajustes|registro',
@@ -14505,8 +14597,9 @@ function procesarConIA(texto) {
   if (!key) { procesarComandosVoz([texto]); return; }
   var sys = 'Eres el asistente de voz de una app para gestionar una fiesta (accesos, barra y dinero). '
     + 'El dueño te habla; traduce lo que pide a una o varias ACCIONES de esta lista:\n' + _accionesIA()
-    + '\n\nDevuelve SOLO un JSON con esta forma: {"acciones":[{"accion":"nombre","args":{}}],"respuesta":"frase corta"}. '
-    + 'Si pide varias cosas, pon varias acciones en orden. Si no encaja en ninguna acción, usa "responder" con una frase útil. '
+    + '\n\nDevuelve SOLO un JSON con esta forma: {"acciones":[{"accion":"nombre","args":{}}],"respuesta":""}. '
+    + 'Si pide varias cosas, pon varias acciones en orden. Las acciones ya hablan solas: deja "respuesta" VACÍA '
+    + 'cuando haya acciones (si no, se oye doble). Solo usa "respuesta" (o la acción responder) si no encaja ninguna acción. '
     + 'Responde en español, breve y natural.';
   var body = {
     systemInstruction: { parts: [{ text: sys }] },
@@ -14534,9 +14627,10 @@ function _iaIntento(key, body, texto, i) {
       var txt = c && c.content && c.content.parts && c.content.parts[0] && c.content.parts[0].text;
       if (!txt) { if (i + 1 < IA_MODELOS.length) return _iaIntento(key, body, texto, i + 1); _iaFallo('la IA no devolvió nada', texto); return; }
       var plan; try { plan = _parseJSONia(txt); } catch (e) { _iaFallo('la IA devolvió algo raro', texto); return; }
-      if (plan.respuesta) hablar(plan.respuesta);
       var acc = plan.acciones || [];
-      acc.forEach(function (a, k) { setTimeout(function () { ejecutarAccionIA(a.accion, a.args || {}); }, k * 350 + (plan.respuesta ? 350 : 0)); });
+      // Si hay acciones, ellas ya hablan solas: no leemos también la "respuesta" (sonaba doble).
+      if (plan.respuesta && !acc.length) hablar(plan.respuesta);
+      acc.forEach(function (a, k) { setTimeout(function () { ejecutarAccionIA(a.accion, a.args || {}); }, k * 350); });
       if (!acc.length && !plan.respuesta) _respVoz('No te he entendido, repite');
     })
     .catch(function (e) { _iaFallo('sin conexión con la IA (¿tienes internet?)', texto); });
@@ -14580,6 +14674,120 @@ function ejecutarAccionIA(accion, args) {
     case 'decir_bonos': { var bs = state.bonos || []; _respVoz('Hay ' + bs.length + ' bonos, ' + bs.filter(function (b) { return b.vendido; }).length + ' vendidos'); break; }
     case 'copiar_enlaces': if (typeof copiarTodosEnlaces === 'function') { copiarTodosEnlaces(); hablar('Enlaces copiados'); } break;
     case 'crear_entrada': _crearEntradaIA(args); break;
+    case 'crear_lote': {
+      var rl = _crearLote(args.cantidad, { precio: args.precio, pagadas: (args.pagadas === true || args.pagadas === 'true'), etiqueta: args.etiqueta, copas: args.copas });
+      if (rl) { duenoTab('entradas'); _respVoz('Lote ' + rl.etiqueta + ' creado: ' + rl.cantidad + ' entradas a ' + Math.round(rl.precio) + ' euros'); }
+      else _respVoz('Dime cuántas entradas creo'); break;
+    }
+    case 'descargar_zip': {
+      var sz = String(args.serie || '').trim() || _ultimaRemesa();
+      if (!sz) { _respVoz('No hay ningún lote todavía'); break; }
+      toast('Preparando el ZIP…');
+      try { descargarPdfsRemesa(sz); hablar('Descargando el ZIP del lote ' + sz); } catch (ez) { _respVoz('No pude preparar el ZIP'); }
+      break;
+    }
+    case 'descargar_pdf': {
+      var sp = String(args.serie || '').trim() || _ultimaRemesa();
+      if (!sp) { _respVoz('No hay ningún lote todavía'); break; }
+      try { descargarPdfRemesa(sp); hablar('Descargando el PDF del lote ' + sp); } catch (ep) { _respVoz('No pude preparar el PDF'); }
+      break;
+    }
+    case 'descargar_csv': descargarEntradasCsv(String(args.serie || '').trim()); break;
+    case 'copia_seguridad': if (typeof exportarDatos === 'function') { exportarDatos(); hablar('Descargando la copia de seguridad'); } break;
+    case 'anadir_gasto': {
+      var gc = String(args.concepto || '').trim(), gi = Number(args.importe) || 0;
+      if (!gc || gi <= 0) { _respVoz('Dime el concepto y el importe del gasto'); break; }
+      mutate(function (s) {
+        if (s.config.modulos && !s.config.modulos.gastos) s.config.modulos.gastos = true; // que se vea en Dinero
+        s.gastos.push({ id: 'g' + Date.now(), concepto: gc, importe: gi, categoria: String(args.categoria || 'otros'), hora: nowHM() });
+        addLog('registró gasto ' + gc + ' (' + gi + ' €)', 'gasto');
+      });
+      _respVoz('Gasto apuntado: ' + gc + ', ' + Math.round(gi) + ' euros'); break;
+    }
+    case 'crear_bonos': {
+      var bq = Math.max(1, Math.min(200, parseInt(args.cantidad, 10) || 0));
+      var bc = parseInt(args.copas, 10) || 0;
+      var bp = Number(args.precio) || 0; if (bp < 0) bp = 0;
+      if (!bq || !bc) { _respVoz('Dime cuántos bonos y de cuántas copas'); break; }
+      var bEti = String(args.etiqueta || '').trim();
+      var bNuevos = [];
+      for (var bi = 0; bi < bq; bi++) {
+        var bFake = Object.assign({}, state, { bonos: (state.bonos || []).concat(bNuevos) });
+        bNuevos.push({ id: 'b' + Date.now() + '_' + bi, codigo: nuevoCodigoBono(bFake, bc), copas: bc, usadas: 0,
+          etiqueta: bEti, hora: nowHM(), anulado: false, precio: bp, vendido: false, regalo: bp === 0 });
+      }
+      mutate(function (s) { if (!s.bonos) s.bonos = []; bNuevos.forEach(function (b) { s.bonos.push(b); }); addLog('creó lote de ' + bq + ' bonos de ' + bc + ' copas', 'alta'); });
+      duenoTab('fiesta');
+      _respVoz(bq + ' bonos de ' + bc + ' copas creados' + (bp > 0 ? (' a ' + Math.round(bp) + ' euros') : ' de regalo')); break;
+    }
+    case 'marcar_pagada': {
+      var mpP = _personaDeIA(args.quien);
+      if (!mpP) { _respVoz('No encuentro esa entrada'); break; }
+      if (mpP.tipo === 'invitado') { _respVoz(_nombreDe(mpP) + ' es invitado, no paga'); break; }
+      if (taquillaLiquidada(mpP)) { _respVoz(_nombreDe(mpP) + ' ya estaba pagada'); break; }
+      mutate(function (s) {
+        var px = s.personas.find(function (x) { return x.id === mpP.id; }); if (!px) return;
+        var imp = Number(px.precioVenta) || Number(s.config.precioEntrada) || 0;
+        px.pagado = true; px.importePagado = (px.importePagado || 0) + imp;
+        addLog('marcó pagada (por IA) la entrada de ' + _nombreDe(px) + (imp ? ' (' + imp + ' €)' : ''), 'cobro');
+      });
+      _respVoz('Marcada como pagada: ' + _nombreDe(mpP)); break;
+    }
+    case 'dar_acceso': {
+      var daP = _personaDeIA(args.quien);
+      if (!daP) { _respVoz('No encuentro esa entrada'); break; }
+      if (daP.dentro) { _respVoz(_nombreDe(daP) + ' ya está dentro'); break; }
+      mutate(function (s) {
+        var py = s.personas.find(function (x) { return x.id === daP.id; }); if (!py) return;
+        py.dentro = true; py.horaEntrada = nowHM();
+        addLog('dio acceso (por IA) a ' + _nombreDe(py), 'acceso');
+      });
+      _respVoz(_nombreDe(daP) + ' dentro. ¡Que disfrute!'); break;
+    }
+    case 'borrar_entrada': {
+      var boP = _personaDeIA(args.quien);
+      if (!boP) { _respVoz('No encuentro esa entrada'); break; }
+      hablar('Te pido confirmación en pantalla para borrar a ' + _nombreDe(boP));
+      duenoBorrarEntrada(boP.id); break; // usa su confirmación de siempre (seguridad)
+    }
+    case 'buscar': _buscarPersonaVoz(String(args.quien || '')); break;
+    case 'activar_cobro': {
+      var met = _normVoz(args.metodo), von = (args.on === true || args.on === 'true' || args.on === 1);
+      if (met === 'bizum') {
+        mutate(function (s) {
+          if (!s.config.bizumCfg) s.config.bizumCfg = { activo: false, telefono: '' };
+          s.config.bizumCfg.activo = von;
+          if (args.numero) s.config.bizumCfg.telefono = String(args.numero).trim();
+          addLog((von ? 'activó' : 'desactivó') + ' el cobro por Bizum (IA)', 'config');
+        });
+        _respVoz(von ? ('Bizum activado' + (args.numero ? ' con tu número' : '. Falta tu número en Ajustes')) : 'Bizum desactivado');
+      } else if (met === 'tarjeta') { if (tarjetaActiva() !== von) duenoToggleTarjeta(); _respVoz(von ? 'Tarjeta activada' : 'Tarjeta desactivada'); }
+      else if (met === 'monedero') { if (monederoActivo() !== von) duenoToggleMonedero(); _respVoz(von ? 'Monedero activado' : 'Monedero desactivado'); }
+      else if (met === 'nfc') { if (nfcActivo() !== von) duenoToggleNfc(); _respVoz(von ? 'NFC activado' : 'NFC desactivado'); }
+      else _respVoz('Ese método no lo conozco');
+      break;
+    }
+    case 'activar_modulo': {
+      var mod = _normVoz(args.nombre), mon = (args.on === true || args.on === 'true' || args.on === 1);
+      if (state.config.modulos && (mod in state.config.modulos)) {
+        if (!!state.config.modulos[mod] !== mon) duenoToggleModulo(mod);
+        _respVoz('Módulo ' + mod + (mon ? ' encendido' : ' apagado'));
+      } else _respVoz('Ese módulo no existe');
+      break;
+    }
+    case 'poner_config': {
+      var mapa = { precio_entrada: 'precioEntrada', precio_vip: 'precioMesaVip', aforo: 'maxAforo',
+        nombre: 'eventName', fecha: 'fecha', hora: 'hora', lugar: 'lugar', lema: 'lema',
+        video: 'videoFiesta', instagram: 'instagramFiesta' };
+      var campo = mapa[_normVoz(args.campo).replace(/\s+/g, '_')];
+      if (!campo) { _respVoz('Ese ajuste no lo puedo tocar por voz. Las contraseñas se cambian a mano en Ajustes'); break; }
+      var val = args.valor;
+      if (campo === 'precioEntrada' || campo === 'precioMesaVip' || campo === 'maxAforo') {
+        val = Number(val) || 0; if (val <= 0) { _respVoz('Dime un número válido'); break; }
+      } else { val = String(val || '').trim(); }
+      mutate(function (s) { s.config[campo] = val; addLog('cambió ' + campo + ' (por IA)', 'config'); });
+      _respVoz('Hecho: ' + String(args.campo) + ' ahora es ' + val); break;
+    }
     case 'modo_secreto': mutateSilent(function (s) { s.config.entregaUnaVez = (args.on === true || args.on === 'true' || args.on === 1); }); _duenoTab = 'entregar'; if (typeof renderDueno === 'function') renderDueno(); _respVoz(state.config.entregaUnaVez ? 'Modo secreto activado' : 'Modo secreto quitado'); break;
     case 'instalar_app': if (window.__deferredPrompt) { window.__deferredPrompt.prompt(); } else _respVoz('Abre el menú del navegador y pulsa Añadir a pantalla de inicio'); break;
     case 'ir_a': { var mp = { resumen: 'resumen', entradas: 'entradas', entregar: 'entregar', dinero: 'fiesta', fiesta: 'fiesta', ajustes: 'ajustes', registro: 'registro' }; duenoTab(mp[_normVoz(args.pestana)] || 'resumen'); break; }
