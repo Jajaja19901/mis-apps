@@ -14470,7 +14470,7 @@ function _buscarPersonaVoz(q) {
    Si el dueño pega su clave gratis de Gemini, el micro entiende CUALQUIER frase
    (y varias cosas a la vez): manda el texto a Gemini, que devuelve las acciones a
    ejecutar, y las hacemos. Sin clave/sin internet, se usan las órdenes por voz. */
-var IA_MODELO = 'gemini-2.0-flash';
+var IA_MODELOS = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
 function iaConfigurada() { return !!(state.config && String(state.config.geminiKey || '').trim()); }
 function duenoSetGemini(v) {
   mutateSilent(function (s) { s.config.geminiKey = String(v || '').trim(); });
@@ -14512,21 +14512,44 @@ function procesarConIA(texto) {
     generationConfig: { responseMimeType: 'application/json', temperature: 0.2 }
   };
   toast('🧠 Pensando…');
-  return fetch('https://generativelanguage.googleapis.com/v1beta/models/' + IA_MODELO + ':generateContent?key=' + encodeURIComponent(key), {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
-  }).then(function (r) { return r.json(); }).then(function (j) {
-    var c = j && j.candidates && j.candidates[0], txt = c && c.content && c.content.parts && c.content.parts[0] && c.content.parts[0].text;
-    if (!txt) throw new Error('sin respuesta');
-    var plan = JSON.parse(txt);
-    if (plan.respuesta) hablar(plan.respuesta);
-    var acc = plan.acciones || [];
-    acc.forEach(function (a, i) { setTimeout(function () { ejecutarAccionIA(a.accion, a.args || {}); }, i * 350 + (plan.respuesta ? 350 : 0)); });
-    if (!acc.length && !plan.respuesta) _respVoz('No te he entendido, repite');
-  }).catch(function (e) {
-    // Si la IA falla (clave mala, sin internet, cupo), no te dejo tirado: uso las órdenes por voz.
-    hablar('La IA no responde, uso las ordenes normales');
-    ejecutarComandoVoz([texto]);
-  });
+  return _iaIntento(key, body, texto, 0);
+}
+// Intenta con un modelo; si el modelo no existe/no vale, prueba el siguiente. Si es otro error, lo muestra.
+function _iaIntento(key, body, texto, i) {
+  if (i >= IA_MODELOS.length) { _iaFallo('la IA no respondió (prueba con otra clave)', texto); return; }
+  var url = 'https://generativelanguage.googleapis.com/v1beta/models/' + IA_MODELOS[i] + ':generateContent?key=' + encodeURIComponent(key);
+  return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    .then(function (r) { return r.json().then(function (j) { return { status: r.status, j: j }; }); })
+    .then(function (res) {
+      var j = res.j || {};
+      if (j.error) {
+        var msg = String((j.error && j.error.message) || 'error');
+        // Si es problema del modelo, prueba el siguiente; si no (clave, permisos, cupo), muéstralo.
+        if (res.status === 404 || /not found|not supported|is not found|unsupported/i.test(msg)) return _iaIntento(key, body, texto, i + 1);
+        _iaFallo('Error de la IA: ' + msg, texto); return;
+      }
+      var c = j.candidates && j.candidates[0];
+      var txt = c && c.content && c.content.parts && c.content.parts[0] && c.content.parts[0].text;
+      if (!txt) { if (i + 1 < IA_MODELOS.length) return _iaIntento(key, body, texto, i + 1); _iaFallo('la IA no devolvió nada', texto); return; }
+      var plan; try { plan = _parseJSONia(txt); } catch (e) { _iaFallo('la IA devolvió algo raro', texto); return; }
+      if (plan.respuesta) hablar(plan.respuesta);
+      var acc = plan.acciones || [];
+      acc.forEach(function (a, k) { setTimeout(function () { ejecutarAccionIA(a.accion, a.args || {}); }, k * 350 + (plan.respuesta ? 350 : 0)); });
+      if (!acc.length && !plan.respuesta) _respVoz('No te he entendido, repite');
+    })
+    .catch(function (e) { _iaFallo('sin conexión con la IA (¿tienes internet?)', texto); });
+}
+function _iaFallo(motivo, texto) {
+  toast('⚠️ ' + motivo);
+  hablar('La IA no responde. Uso las ordenes normales');
+  ejecutarComandoVoz([texto]);
+}
+// Saca el JSON aunque venga envuelto en ```json ... ``` o con texto alrededor.
+function _parseJSONia(txt) {
+  var t = String(txt || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+  var a = t.indexOf('{'), b = t.lastIndexOf('}');
+  if (a !== -1 && b > a) t = t.slice(a, b + 1);
+  return JSON.parse(t);
 }
 function ejecutarAccionIA(accion, args) {
   args = args || {};
