@@ -14312,6 +14312,10 @@ function ejecutarComandoVoz(frases) {
   if (/(callate|calla|silencio|para de hablar|basta|deja de hablar)/.test(t)) { try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {} toast('🤫'); return; }
   // Repite lo último
   if (/(repite|repitelo|otra vez|que has dicho|no te entendi|repiteme)/.test(t)) { if (_ultimaVoz) hablar(_ultimaVoz); else _respVoz('No he dicho nada todavía'); return; }
+  // TRADUCTOR LOCAL: si la frase es una orden de acción, la ejecuta con la misma maquinaria
+  // que usa Google (así funciona TODO aunque Google esté caído o sin cupo).
+  var _int = _intentLocal((frases || []).join(' '));
+  if (_int) { ejecutarAccionIA(_int.accion, _int.args); return; }
   var caja = (typeof cajaDesglose === 'function') ? cajaDesglose() : { total: 0, barra: 0 };
   var dentro = (state.personas || []).filter(function (p) { return p.dentro; }).length;
   var totalEnt = (state.personas || []).length;
@@ -14625,6 +14629,141 @@ function _numPeq(str) {
   var m = s.match(/\b(un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieciseis|veinte)\b/);
   return m ? w[m[1]] : null;
 }
+/* Convierte números en palabras a dígitos dentro de una frase ("treinta euros" -> "30 euros"). */
+var _NUM_PAL = { cero: 0, un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19, veinte: 20, veintiuno: 21, veintidos: 22, veinticinco: 25, treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90, cien: 100, ciento: 100, doscientos: 200, doscientas: 200, trescientos: 300, trescientas: 300, cuatrocientos: 400, cuatrocientas: 400, quinientos: 500, quinientas: 500, mil: 1000 };
+function _convNum(s) {
+  var out = String(s || '');
+  out = out.replace(/\b(veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa)\s+y\s+(uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve)\b/g, function (m, a, b) { return String(_NUM_PAL[a] + _NUM_PAL[b]); });
+  // OJO: no convertimos "un/uno/una" (rompería "un gasto" -> "1 gasto"); esos los lee _numPeq aparte.
+  Object.keys(_NUM_PAL).filter(function (k) { return k !== 'un' && k !== 'uno' && k !== 'una'; })
+    .forEach(function (k) { out = out.replace(new RegExp('\\b' + k + '\\b', 'g'), _NUM_PAL[k]); });
+  return out;
+}
+function _cap(s) { return String(s || '').replace(/\b([a-záéíóúñ])/g, function (m, c) { return c.toUpperCase(); }); }
+/* ===== TRADUCTOR LOCAL (sin Google) =====
+   Convierte una frase hablada en {accion,args} y la ejecuta con la MISMA maquinaria que
+   usa Google (ejecutarAccionIA). Así todo lo que la IA hace con internet, la app lo hace
+   también SIN internet. Devuelve null si no reconoce una orden de acción (entonces sigue
+   el motor de siempre con las preguntas y la navegación). */
+function _intentLocal(t0) {
+  var t = _normVoz(t0);
+  var tn = _convNum(t);
+  var on = !/\b(quita|quitar|desactiva|desactivar|apaga|apagar|desconecta|off|fuera)\b/.test(t);
+  var euros = function (str) { var m = String(str).match(/(\d+(?:[.,]\d+)?)\s*(?:euros?|eur|€|pavos)?/); return m ? Number(m[1].replace(',', '.')) : null; };
+  var quienDe = function () { var m = t.match(/\b(?:a|de|para)\s+([a-z0-9][a-z0-9 ]{1,39})\s*$/); return m ? m[1].trim().replace(/\b(la|el|los|las|una|un)\s+/g, '') : ''; };
+  var tieneVerbo = /(activa|activar|pon|poner|enciende|encender|quita|quitar|desactiva|apaga|conecta|cobr)/.test(t);
+
+  // ---------- COBROS ----------
+  if (/\bbizum\b/.test(t) && (tieneVerbo || /numero/.test(t))) { var nB = (tn.match(/\b(\d{9})\b/) || [])[1]; return { accion: 'activar_cobro', args: { metodo: 'bizum', on: on, numero: nB } }; }
+  if (/(tarjeta|datafono|visa)/.test(t) && tieneVerbo) return { accion: 'activar_cobro', args: { metodo: 'tarjeta', on: on } };
+  if (/(monedero|cashless|pulsera)/.test(t) && tieneVerbo) return { accion: 'activar_cobro', args: { metodo: 'monedero', on: on } };
+  if (/\bnfc\b|contactless/.test(t) && tieneVerbo) return { accion: 'activar_cobro', args: { metodo: 'nfc', on: on } };
+
+  // ---------- MÓDULOS / MODOS ----------
+  if (/modulo/.test(t) && tieneVerbo) {
+    var modN = /gasto/.test(t) ? 'gastos' : /stock|almacen|inventario/.test(t) ? 'stock' : /qr|escane/.test(t) ? 'qr' : /cierre|arqueo/.test(t) ? 'cierre' : '';
+    if (modN) return { accion: 'activar_modulo', args: { nombre: modN, on: on } };
+  }
+  if (/(modo\s+rrpp|puerta.*rrpp|rrpp.*puerta)/.test(t) && tieneVerbo) return { accion: 'activar_modo_rrpp', args: { on: on } };
+  if (/acceso\s+automatic|entrada\s+automatic|automatic.*(acceso|entrar|puerta)/.test(t)) return { accion: 'activar_acceso_auto', args: { on: on } };
+
+  // ---------- PERSONAS ----------
+  if (/(dale acceso|da acceso|deja entrar|haz entrar|que entre|abre la puerta|hazlo entrar|marca.*entrada de|entra ya)/.test(t)) { var q1 = quienDe(); if (q1) return { accion: 'dar_acceso', args: { quien: q1 } }; }
+  if (/(marca la salida|marca que sale|saca a|ha salido|se va|marcar salida)/.test(t)) { var q2 = quienDe(); if (q2) return { accion: 'marcar_salida', args: { quien: q2 } }; }
+  if (/(marca.*pagad|ha pagado|ya pago|cobra la entrada de|cobrale a|marcar pagad|pon como pagad)/.test(t)) { var q3 = quienDe(); if (q3) return { accion: 'marcar_pagada', args: { quien: q3 } }; }
+  if (/(blinda|blindar|protege la entrada|asegura la entrada)/.test(t)) { var q4 = quienDe(); if (q4) return { accion: 'blindar', args: { quien: q4 } }; }
+  if (/(borra|borrar|elimina|eliminar|quita|anula).*(entrada|invitad).*(de|a)\s/.test(t) || /(borra|elimina|quita)\s+(?:la\s+entrada\s+)?(?:de|a)\s+[a-z]/.test(t)) { if (!/todas|todo/.test(t)) { var q5 = quienDe(); if (q5) return { accion: 'borrar_entrada', args: { quien: q5 } }; } }
+  if (/(ensename|muestrame|enseñame|ver|mira).*(entrada|codigo|qr).*(de|a)\s/.test(t)) { var q6 = quienDe(); if (q6) return { accion: 'ver_entrada', args: { quien: q6 } }; }
+  if (/(whatsapp|guasap|wasap)/.test(t) && /\b(a|de|para)\s+[a-z]/.test(t) && !/todos/.test(t)) { var q7 = quienDe(); if (q7) return { accion: 'enviar_whatsapp', args: { quien: q7 } }; }
+  if (/(email|correo|mail)/.test(t) && /\b(a|de|para)\s+[a-z]/.test(t) && !/todos|todas/.test(t)) { var q8 = quienDe(); if (q8) return { accion: 'enviar_email_a', args: { quien: q8 } }; }
+
+  // ---------- DINERO ----------
+  if (/\bgast/.test(t) && /\d/.test(tn)) {
+    var mgi = tn.match(/(\d+(?:[.,]\d+)?)\s*(?:euros?|eur|€|pavos)/) || tn.match(/(\d{1,7})/);
+    var gi = mgi ? Number(mgi[1].replace(',', '.')) : null;
+    // El concepto es lo que va tras "de/en/por/para" y NO es un número (por eso miramos tn, con los números en dígitos).
+    var mgc = tn.match(/\b(?:de|en|por|para)\s+([a-z][a-z ]{1,25}?)\s*$/);
+    var gc = mgc ? mgc[1].trim() : '';
+    if (/^euros?$/.test(gc)) gc = '';
+    if (gi) return { accion: 'anadir_gasto', args: { concepto: gc || 'gasto', importe: gi } };
+  }
+  if (/\bbono/.test(t) && /(crea|crear|haz|genera|nuevo|nueva|añade|anade|saca|mete)/.test(t)) {
+    var mBq = tn.match(/(\d{1,3})\s+bonos?/), mBc = tn.match(/(\d{1,2})\s+cop/), mBp = tn.match(/a\s+(\d+(?:[.,]\d+)?)\s*euros?/);
+    var bq = mBq ? parseInt(mBq[1], 10) : 0, bc = mBc ? parseInt(mBc[1], 10) : 0;
+    if (bq && bc) return { accion: 'crear_bonos', args: { cantidad: bq, copas: bc, precio: mBp ? Number(mBp[1].replace(',', '.')) : 0 } };
+  }
+  if (/(anula|anular|cancela|invalida).*(bono)/.test(t) || /bono\s+[a-z0-9]{3,}/.test(t) && /(anula|anular|cancela)/.test(t)) {
+    var mAb = t.match(/bono\s+([a-z0-9\- ]{3,20})/); if (mAb) return { accion: 'anular_bono', args: { codigo: mAb[1].trim() } };
+  }
+  if (/(rrpp|promotor|relaciones publicas)/.test(t) && /(crea|crear|nuevo|nueva|añade|anade|da de alta|registra|mete)/.test(t)) {
+    var mRn = t.match(/(?:llamad[oa]|se llama|de nombre)\s+([a-z ]{2,30}?)(?:\s+con\b|\s+de\b|\s+a\b|\s+y\b|$)/)
+           || t.match(/(?:promotor|rrpp)\s+([a-z ]{2,30}?)(?:\s+con\b|\s+de\b|\s+a\b|$)/);
+    var rn = mRn ? _cap(mRn[1].trim().replace(/^(llamad[oa]|de nombre)\s+/, '')) : '';
+    var mRc = tn.match(/(\d+(?:[.,]\d+)?)\s*euros?/);
+    if (rn && !/publicas|publico/.test(rn)) return { accion: 'crear_rrpp', args: { nombre: rn, comision: mRc ? Number(mRc[1].replace(',', '.')) : 0 } };
+  }
+  if (/(reparte|repartir|asigna|asignar)\b/.test(t) && !/email|correo|mail/.test(t)) {
+    var mpr = tn.match(/(?:de la|del|de|desde)\s+(\d+)\s+(?:a la|al|a|hasta)\s+(\d+)/);
+    var prom = (t.match(/\ba\s+([a-z ]{2,30}?)(?:\s+de\b|\s+la\b|\s+las\b|\s+desde\b|\s+entradas?\b|$)/) || [])[1];
+    if (prom) { prom = prom.trim(); if (mpr) return { accion: 'repartir_rrpp', args: { promotor: prom, desde: mpr[1], hasta: mpr[2] } }; return { accion: 'responder', args: { texto: 'Dime de qué número a qué número reparto a ' + prom } }; }
+  }
+
+  // ---------- PRODUCTOS ----------
+  if (/producto/.test(t) && /(añade|anade|agrega|crea|nuevo|nueva|mete|pon)/.test(t)) {
+    var mApn = t.match(/producto\s+([a-z ]{2,30}?)(?:\s+a\b|\s+por\b|\s+de\b|\s+\d|$)/);
+    if (mApn) return { accion: 'anadir_producto', args: { nombre: _cap(mApn[1].trim()), precio: euros(tn) || 0 } };
+  }
+  if (/(pon|poner|cambia|cambiar|precio|cuesta|vale|sube|baja|deja)/.test(t) && /\d/.test(tn)) {
+    var prods = (state.config && state.config.productos) || [];
+    var prHit = prods.find(function (p) { var np = _normVoz(p.nombre); return np && t.indexOf(np) !== -1; });
+    if (prHit) { var ppp = euros(tn); if (ppp) return { accion: 'precio_producto', args: { producto: prHit.nombre, precio: ppp } }; }
+  }
+
+  // ---------- CONFIG numérico (nunca si la frase habla de contraseña/pin/código) ----------
+  var esClave = /(contrasena|clave|password|contrasenya|\bpin\b|codigo)/.test(t);
+  if (!esClave && /(pon|poner|cambia|cambiar|ajusta|establece|deja|sube|baja)/.test(t) && /(entrada|general)/.test(t) && /\d/.test(tn) && !/\bpara\b/.test(t) && !/vip|mesa/.test(t)) { var pe = euros(tn); if (pe) return { accion: 'poner_config', args: { campo: 'precio_entrada', valor: pe } }; }
+  if (!esClave && /(mesa\s*vip|vip|reservado)/.test(t) && /(pon|poner|cambia|cambiar|precio|cuesta|vale|deja)/.test(t) && /\d/.test(tn)) { var pv = euros(tn); if (pv) return { accion: 'poner_config', args: { campo: 'precio_vip', valor: pv } }; }
+  if (!esClave && /\baforo\b/.test(t) && /(pon|poner|cambia|cambiar|maximo|limite|sube|baja|establece|deja)/.test(t) && /\d/.test(tn)) { var af = parseInt((tn.match(/\b(\d{1,5})\b/) || [])[1], 10); if (af) return { accion: 'poner_config', args: { campo: 'aforo', valor: af } }; }
+
+  // ---------- SEGURIDAD (nunca se dice en voz; la app lo muestra en pantalla) ----------
+  if (/\bpin\b/.test(t) && /(cambia|cambiar|pon|poner|nuevo|nueva|sera|es|ponme)/.test(t)) { var mp = t.match(/\b(\d{4,8})\b/); if (mp) return { accion: 'poner_pin', args: { pin: mp[1] } }; }
+  if (/(contrasena|clave|password|contrasenya)/.test(t) && /(cambia|cambiar|pon|poner|nueva|nuevo|ponme)/.test(t) && /(portada|entrada|acceso|web|principal|de la fiesta)/.test(t)) {
+    var mcp = t0.match(/\ba\s+(\S{3,40})\s*$/) || t0.match(/(?:sera|es|:)\s+(\S{3,40})\s*$/);
+    if (mcp) return { accion: 'poner_contrasena_portada', args: { clave: mcp[1].trim() } };
+  }
+  if (/(codigo|clave|contrasena)/.test(t) && /(vigilante|portero|camarero|barra|puerta)/.test(t) && /(es|sera|:|pon|cambia|poner|ponme)/.test(t)) {
+    var mcv = t0.match(/(?:es|sera|:|\ba\b)\s+(\S{2,30})\s*$/);
+    var rolM = (tn.match(/(vigilante|portero|camarero|barra|puerta)\s*(\d+)?/) || [])[0] || '';
+    if (mcv && rolM) return { accion: 'poner_codigo_trabajador', args: { rol: rolM, codigo: mcv[1].trim() } };
+  }
+
+  // ---------- NOTAS: borrar ----------
+  if (/\bnota/.test(t) && /(borra|borrar|elimina|quita|quitar|tacha)/.test(t)) {
+    if (/(todas|todo|todos|limpia|vacia)/.test(t)) return { accion: 'borrar_notas', args: {} };
+    var mbn = tn.match(/nota\s+(?:numero\s+)?(\d+)/) || t.match(/nota\s+(?:de\s+|que\s+)?([a-z ]{2,30})$/);
+    return { accion: 'borrar_nota', args: { cual: mbn ? mbn[1].trim() : '' } };
+  }
+
+  // ---------- INFORME ----------
+  if (/(descarga|bajame|baja|dame|exporta|quiero|sacame)/.test(t) && /(informe|reporte|cuentas)/.test(t)) return { accion: 'descargar_informe', args: {} };
+
+  // ---------- CONFIG texto (solo si NO es pregunta) ----------
+  var esPregunta = /^(que|cual|cuando|donde|como|cuanto|cuanta|dime|dame|sabes|hay|tengo|tienes)\b/.test(t);
+  if (!esPregunta) {
+    var mNom = t.match(/(?:la fiesta|el evento)\s+se llama\s+(.+)$/) || t.match(/(?:ponle de nombre|llama la fiesta|el nombre es|ponle el nombre)\s+(.+)$/);
+    if (mNom) return { accion: 'poner_config', args: { campo: 'nombre', valor: _cap(mNom[1].trim()) } };
+    var mLug = t.match(/(?:la fiesta|el evento)\s+(?:es|sera)\s+en\s+(.+)$/) || t.match(/(?:se hace|se celebra)\s+en\s+(.+)$/) || t.match(/(?:el lugar|el sitio|la sala)\s+(?:es|sera)\s+(.+)$/) || t.match(/(?:pon el lugar|pon la sala)\s+(.+)$/);
+    if (mLug) return { accion: 'poner_config', args: { campo: 'lugar', valor: _cap(mLug[1].trim()) } };
+    var mFec = t.match(/(?:la fiesta|el evento)\s+(?:es|sera)\s+el\s+(.+)$/) || t.match(/(?:la fecha es|pon la fecha)\s+(?:el\s+)?(.+)$/);
+    if (mFec) return { accion: 'poner_config', args: { campo: 'fecha', valor: mFec[1].trim() } };
+    var mHor = t.match(/(?:empieza|comienza|abre|arranca)\s+a\s+las?\s+(.+)$/) || t.match(/(?:la hora es|pon la hora)\s+(?:a\s+las?\s+)?(.+)$/);
+    if (mHor) return { accion: 'poner_config', args: { campo: 'hora', valor: mHor[1].trim() } };
+    var mLem = t.match(/(?:el lema|el eslogan|la frase)\s+(?:es|sera)\s+(.+)$/) || t.match(/(?:pon el lema|pon de lema)\s+(.+)$/);
+    if (mLem) return { accion: 'poner_config', args: { campo: 'lema', valor: _cap(mLem[1].trim()) } };
+  }
+
+  return null;
+}
 function _ultimaRemesa() { var e = ''; (state.personas || []).forEach(function (p) { if (p.remesa) e = p.remesa; }); return e; }
 /* Descarga la lista de entradas (todas o de una serie) en CSV, que abre en Excel. */
 function descargarEntradasCsv(serie) {
@@ -14705,7 +14844,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V5'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V6'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -15104,7 +15243,7 @@ function ejecutarAccionIA(accion, args) {
     }
     case 'enviar_whatsapp': { var ewP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada'])); if (!ewP) { _respVoz('No encuentro esa entrada'); break; } whatsappEntrada(ewP.id); hablar('Abriendo WhatsApp para ' + _nombreDe(ewP)); break; }
     case 'enviar_email_a': { var eeP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada'])); if (!eeP) { _respVoz('No encuentro esa entrada'); break; } emailEntrada(eeP.id); hablar('Abriendo el email para ' + _nombreDe(eeP)); break; }
-    case 'ver_entrada': { var veP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada'])); if (!veP) { _respVoz('No encuentro esa entrada'); break; } verEntrada(veP.id); break; }
+    case 'ver_entrada': { var veP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada'])); if (!veP) { _respVoz('No encuentro esa entrada'); break; } verEntrada(veP.id); hablar('Aquí está la entrada de ' + _nombreDe(veP)); break; }
     case 'blindar': { var blP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada'])); if (!blP) { _respVoz('No encuentro esa entrada'); break; } blindarEntrada(blP.id); break; }
     case 'poner_vigilantes': { var nv = parseInt(_arg(args, ['n', 'cantidad', 'numero', 'vigilantes', 'valor']), 10); if (nv >= 1 && nv <= 20) { setVigilantes(nv); _hecho(nv + ' vigilantes'); } else _respVoz('Dime cuántos vigilantes, del 1 al 20'); break; }
     case 'poner_camareros': { var nc = parseInt(_arg(args, ['n', 'cantidad', 'numero', 'camareros', 'valor']), 10); if (nc >= 1 && nc <= 20) { setCamareros(nc); _hecho(nc + ' camareros'); } else _respVoz('Dime cuántos camareros, del 1 al 20'); break; }
