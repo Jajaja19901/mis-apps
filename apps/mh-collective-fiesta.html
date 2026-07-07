@@ -14566,10 +14566,7 @@ function ejecutarComandoVoz(frases, quiet) {
   // Crear ENTRADAS para una fase que YA existe (hereda su precio): "hazme las entradas de la fase 2",
   // "crea 50 entradas de la segunda fase". OJO: va ANTES de crear/definir fase, para no pedir precio.
   if (/\bfase\b/.test(t) && /entrada/.test(t) && /(crea|crear|haz|hazme|genera|generar|dame|saca|sacame|prepara|monta|quiero|pon|ponme)/.test(t) && /(de|para|en)\s+la\s+/.test(t)) {
-    var ordEF = { primera: 1, segunda: 2, tercera: 3, cuarta: 4, quinta: 5, sexta: 6 };
-    var moEF = t.match(/(primera|segunda|tercera|cuarta|quinta|sexta)\s+fase/);
-    var mnEF = tNum.match(/fase\s+(\d+)/);
-    var fnEF = moEF ? ordEF[moEF[1]] : (mnEF ? mnEF[1] : '');
+    var fnEF = _faseNumDe(t, tNum); // entiende "fase uno/una", "primera fase", "fase 1"…
     if (fnEF) {
       var faseEFo = fasesLista().find(function (f) { return _normVoz(f.nombre) === _normVoz('Fase ' + fnEF); });
       if (!faseEFo) { _respVoz('No encuentro la fase ' + fnEF + '. Créala primero: crea la fase ' + fnEF + ' a X euros'); return; }
@@ -14617,10 +14614,7 @@ function ejecutarComandoVoz(frases, quiet) {
   // Si dices "de la fase X", filtra por la serie de esa fase.
   if (/(descarga|descargar|baja|bajame|dame|exporta|sacame|saca)/.test(t) && /(entrada|lote|codigo|qr|pdf|zip|excel|csv)/.test(t)) {
     var serieU = '';
-    var ordD = { primera: 1, segunda: 2, tercera: 3, cuarta: 4, quinta: 5, sexta: 6 };
-    var moD = t.match(/(primera|segunda|tercera|cuarta|quinta|sexta)\s+fase/);
-    var mnD = tNum.match(/fase\s+(\d+)/);
-    var fnD = moD ? ordD[moD[1]] : (mnD ? mnD[1] : '');
+    var fnD = _faseNumDe(t, tNum); // "fase uno/una", "primera fase", "fase 1"…
     if (fnD) {
       var fObjD = fasesLista().find(function (f) { return _normVoz(f.nombre) === _normVoz('Fase ' + fnD); });
       var nomD = fObjD ? _normVoz(fObjD.nombre) : ('fase ' + fnD);
@@ -14746,7 +14740,7 @@ function _crearEntradaVoz(nombreCompleto) {
    la voz y la IA ("crea 100 entradas para vender"). Mismo comportamiento que crearRemesa. */
 function _crearLote(cantidad, opts) {
   opts = opts || {};
-  cantidad = Math.max(1, Math.min(500, parseInt(cantidad, 10) || 0));
+  cantidad = Math.max(1, Math.min(1000, parseInt(cantidad, 10) || 0));
   if (!cantidad) return null;
   // Si dan una fase ("Fase 2"), el lote se engancha a ella: hereda su precio y su nombre.
   var faseObj = null;
@@ -14756,6 +14750,10 @@ function _crearLote(cantidad, opts) {
   }
   var precio = Number(opts.precio);
   if (!(precio > 0)) precio = (faseObj && Number(faseObj.precio) > 0) ? Number(faseObj.precio) : (Number(state.config && state.config.precioEntrada) || 0);
+  // Para que el PANEL DE FASES refleje las entradas creadas: si el dueño NO dijo fase, se cuentan
+  // en la fase ACTIVA (la que se está vendiendo). Así "crea 100 entradas" SÍ se ve en su fase, no
+  // se queda en "0 / 300". (El precio NO cambia por esto; solo el conteo.)
+  var faseParaContar = faseObj || (typeof faseActiva === 'function' ? faseActiva() : null);
   var copas = parseInt(opts.copas, 10) || 0;
   var pagadas = !!opts.pagadas;
   var etiqueta = String(opts.etiqueta || '').trim() || (faseObj ? faseObj.nombre : 'Entrada');
@@ -14769,7 +14767,7 @@ function _crearLote(cantidad, opts) {
         id: 'p' + Date.now() + '_r' + i, nombre: etiqueta, apellido: '#' + String(ya + i + 1).padStart(3, '0'),
         tipo: 'taquilla', codigoReserva: nuevoCodigoLista(s), mesa: null, pagado: pagadas,
         importePagado: pagadas ? precio : 0, dentro: false, horaEntrada: null,
-        precioVenta: precio, consumicionesIncluidas: copas, remesa: etiqueta, faseId: faseObj ? faseObj.id : null
+        precioVenta: precio, consumicionesIncluidas: copas, remesa: etiqueta, faseId: faseParaContar ? faseParaContar.id : null
       });
     }
     addLog('creó por voz/IA el lote "' + etiqueta + '" (' + cantidad + ' entradas)', 'alta');
@@ -14825,6 +14823,20 @@ function _convNum(s) {
   return out;
 }
 function _cap(s) { return String(s || '').replace(/\b([a-záéíóúñ])/g, function (m, c) { return c.toUpperCase(); }); }
+/* Saca el NÚMERO de fase de una frase: "fase 1", "fase uno", "fase una", "primera fase",
+   "fase primera". Devuelve 1..8 o '' si no hay. Clave: _convNum convierte dos..diez pero NO
+   uno/una (para no romper "un gasto"), así que "fase uno" hay que cazarlo aparte. Por eso
+   "de la fase uno" no se apuntaba: caía sin número. */
+function _faseNumDe(t, tNum) {
+  t = _normVoz(t || ''); tNum = tNum || _convNum(t);
+  var ord = { primera: 1, primer: 1, primero: 1, segunda: 2, segundo: 2, tercera: 3, tercero: 3, cuarta: 4, cuarto: 4, quinta: 5, quinto: 5, sexta: 6, sexto: 6, septima: 7, octava: 8 };
+  var mo = t.match(/\b(primer[ao]?|segund[ao]|tercer[ao]|cuart[ao]|quint[ao]|sext[ao]|septim[ao]|octav[ao])\s+fase\b/) ||
+           t.match(/\bfase\s+(primer[ao]?|segund[ao]|tercer[ao]|cuart[ao]|quint[ao]|sext[ao]|septim[ao]|octav[ao])\b/);
+  if (mo && ord[mo[1]]) return ord[mo[1]];
+  if (/\bfase\s+(uno|una)\b/.test(t) || /\b(uno|una)\s+fase\b/.test(t)) return 1;
+  var md = tNum.match(/\bfase\s+(\d{1,2})\b/) || tNum.match(/\b(\d{1,2})\s*a?\s+fase\b/);
+  return md ? parseInt(md[1], 10) : '';
+}
 /* ===== TRADUCTOR LOCAL (sin Google) =====
    Convierte una frase hablada en {accion,args} y la ejecuta con la MISMA maquinaria que
    usa Google (ejecutarAccionIA). Así todo lo que la IA hace con internet, la app lo hace
@@ -15126,7 +15138,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V18'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V19'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
