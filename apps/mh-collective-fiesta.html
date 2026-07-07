@@ -13886,6 +13886,9 @@ function seedState() {
       vozTono: 1, vozVelocidad: 0.95,
       // Sonido al escanear en la puerta: "tin" si la entrada es buena, zumbido si es falsa.
       sonidoEscaner: true,
+      // Si mandas HACER algo, por defecto NO habla (solo un pitido + aviso en pantalla); solo
+      // contesta cuando le PREGUNTAS. Ponlo en true si quieres que diga "Hecho" en voz alta.
+      hablarAlHacer: false,
       fecha: "", hora: "", lugar: "", lema: "",
       logo: null, colorTema: "#00d4ff",
       vipPack: { botellas: 1, refrescos: 4 },
@@ -13995,6 +13998,7 @@ function migrar(s) {
   if (typeof s.config.vozTono !== 'number' || !(s.config.vozTono > 0)) s.config.vozTono = 1;
   if (typeof s.config.vozVelocidad !== 'number' || !(s.config.vozVelocidad > 0)) s.config.vozVelocidad = 0.95;
   if (typeof s.config.sonidoEscaner !== 'boolean') s.config.sonidoEscaner = true;
+  if (typeof s.config.hablarAlHacer !== 'boolean') s.config.hablarAlHacer = false;
   if (typeof s.config.carpetaArchivos !== 'string') s.config.carpetaArchivos = 'https://raw.githubusercontent.com/jajaja19901/mis-apps/claude/party-access-finance-app-pybmqt/apps/archivos/';
   if (!s.presencia || typeof s.presencia !== 'object') s.presencia = {};
   if (!Array.isArray(s.notas)) s.notas = [];
@@ -14163,6 +14167,7 @@ function cajaDesglose() {
    Botón de micro 🎤: hablas y hace las acciones de la app, y te contesta hablando.
    Usa el reconocimiento de voz del navegador (gratis; va mejor en Android/Chrome). */
 var _vozRec = null, _vozEscuchando = false, _ultimaVoz = '';
+var _manosLibres = false, _hablandoTTS = false, _mlReinicio = null, _mlTTSGuard = null;
 function asistenteVozDisponible() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
 var _micDrag = null;
 function _micPos() { try { return JSON.parse(localStorage.getItem('mh_mic_pos') || 'null'); } catch (e) { return null; } }
@@ -14234,6 +14239,7 @@ function _asisEnviar() {
   var inp = document.getElementById('asis-input');
   var txt = inp ? String(inp.value || '').trim() : '';
   cerrarPanelAsistente();
+  _desbloquearSonido();
   if (txt) procesarComandosVoz([txt]);
 }
 function _asisVoz() { cerrarPanelAsistente(); toggleAsistenteVoz(); }
@@ -14280,9 +14286,77 @@ function hablar(txt) {
     u.rate = _clamp(cf.vozVelocidad, 0.5, 1.6, 0.95);
     u.pitch = _clamp(cf.vozTono, 0.4, 1.8, 1.0);
     var v = _vozElegida(); if (v) u.voice = v;
+    if (_manosLibres) {
+      // Manos libres: para no OÍRSE a sí misma, pausa el micro mientras habla y lo
+      // reanuda al terminar. (Cuando tú hablas, procesarComandosVoz corta la voz → se calla.)
+      _hablandoTTS = true;
+      try { if (_vozRec) _vozRec.stop(); } catch (e) {}
+      if (_mlTTSGuard) clearTimeout(_mlTTSGuard);
+      _mlTTSGuard = setTimeout(function () { _hablandoTTS = false; _mlProgramar(200); }, 9000); // por si onend no llega
+      u.onend = function () { _hablandoTTS = false; if (_mlTTSGuard) clearTimeout(_mlTTSGuard); _mlProgramar(250); };
+      u.onerror = function () { _hablandoTTS = false; if (_mlTTSGuard) clearTimeout(_mlTTSGuard); _mlProgramar(250); };
+    }
     window.speechSynthesis.speak(u); // sin cancelar: así varias respuestas seguidas se encolan
   } catch (e) {}
 }
+/* ===== MANOS LIBRES: escucha SEGUIDO (para tareas largas sin tocar el micro) =====
+   - Si le MANDAS hacer algo → lo hace y NO habla (solo un pitido). Solo contesta cuando PREGUNTAS.
+   - Se calla en cuanto empiezas a hablar (procesarComandosVoz corta la voz al recibir tu orden).
+   - Se reinicia sola cuando el navegador corta la escucha. En iPhone puede fallar (aviso al dueño). */
+function _mlProgramar(ms) { if (!_manosLibres) return; if (_mlReinicio) clearTimeout(_mlReinicio); _mlReinicio = setTimeout(_mlArranca, ms); }
+function _mlBanner(on) {
+  var b = document.getElementById('mlBar');
+  if (!on) { if (b) b.remove(); return; }
+  if (b) return;
+  b = document.createElement('div'); b.id = 'mlBar'; b.className = 'esc-bar';
+  b.innerHTML = '<span>🎙️ Manos libres — te escucho</span><button type="button" onclick="pararManosLibres()">✋ Parar</button>';
+  document.body.appendChild(b);
+}
+function _mlArranca() {
+  if (!_manosLibres) return;
+  if (_hablandoTTS) { _mlProgramar(400); return; }   // espera a que termine de hablar
+  if (_vozEscuchando) return;                          // ya está escuchando
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { pararManosLibres(); return; }
+  try { _vozRec = new SR(); } catch (e) { pararManosLibres(); return; }
+  _vozRec.lang = 'es-ES'; _vozRec.interimResults = false; _vozRec.maxAlternatives = 4;
+  try { _vozRec.continuous = true; } catch (e) {}
+  _vozEscuchando = true; _pintaMicro(true);
+  _vozRec.onresult = function (ev) {
+    var frases = [];
+    for (var i = ev.resultIndex; i < ev.results.length; i++) {
+      if (ev.results[i].isFinal) for (var j = 0; j < ev.results[i].length; j++) frases.push(ev.results[i][j].transcript);
+    }
+    if (frases.length) procesarComandosVoz(frases);
+  };
+  _vozRec.onerror = function (e) {
+    if (e && (e.error === 'not-allowed' || e.error === 'service-not-allowed')) {
+      pararManosLibres(); toast('Este móvil no deja escuchar seguido. Usa el micro normal.'); return;
+    }
+    // 'no-speech'/'aborted'/'network': onend se encargará de reintentar.
+  };
+  _vozRec.onend = function () { _vozEscuchando = false; _pintaMicro(false); _mlProgramar(350); };
+  try { _vozRec.start(); } catch (e) { _mlProgramar(500); }
+}
+function iniciarManosLibres() {
+  if (_manosLibres) return;
+  if (!asistenteVozDisponible()) { toast('El micro no va en este navegador (usa Chrome en Android)'); hablar('Este móvil no me deja escuchar seguido'); return; }
+  if (_vozEscuchando) { try { if (_vozRec) _vozRec.stop(); } catch (e) {} }
+  _manosLibres = true; _desbloquearSonido();
+  _mlBanner(true); _pintaMicro(true);
+  hablar('Manos libres puesto. Dime lo que quieras. Cuando acabes, di, para de escuchar.');
+  _mlProgramar(1400); // arranca el micro tras el saludo (por si onend del saludo no llega)
+}
+function pararManosLibres() {
+  _manosLibres = false;
+  if (_mlReinicio) { clearTimeout(_mlReinicio); _mlReinicio = null; }
+  if (_mlTTSGuard) { clearTimeout(_mlTTSGuard); _mlTTSGuard = null; }
+  try { if (_vozRec) _vozRec.stop(); } catch (e) {}
+  _vozEscuchando = false; _hablandoTTS = false; _pintaMicro(false); _mlBanner(false);
+  toast('Manos libres apagado');
+}
+function manosLibresToggle() { if (_manosLibres) pararManosLibres(); else iniciarManosLibres(); }
+function duenoToggleHablarHacer(on) { mutateSilent(function (s) { s.config.hablarAlHacer = !!on; }); toast(on ? 'Dirá "Hecho" al ejecutar' : 'Solo un pitido al ejecutar'); }
 function duenoSetVoz(nombre) {
   mutateSilent(function (s) { s.config.vozAsistente = String(nombre || ''); });
   hablar(nombre ? 'Hola, así sueno yo. ¿Te gusto más?' : 'Voz automática puesta');
@@ -14329,6 +14403,8 @@ function procesarComandosVoz(frases) {
       ejecutarComandoVoz([p], true);            // intento local, sin hablar si no lo pilla
       if (_cvHandled) return;                    // entendido: hecho, sin Google
       if (hayIA) { procesarConIA(p); return; }   // no entendido + hay clave: que lo mire Google
+      // En manos libres no soltamos "no te he entendido" en voz por cada ruido: solo aviso mudo.
+      if (_manosLibres) { toast('🎤 ¿cómo? repite'); return; }
       _respVoz('No te he entendido. Di ayuda para oír lo que puedo hacer');
     }, i * 320);
   });
@@ -14336,6 +14412,8 @@ function procesarComandosVoz(frases) {
 function _normVoz(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
 function toggleAsistenteVoz() {
   if (!asistenteVozDisponible()) { toast('El micro no va en este navegador (usa Chrome en Android)'); return; }
+  if (_manosLibres) { pararManosLibres(); return; } // si estaba en manos libres, el toque lo apaga
+  _desbloquearSonido(); // gesto: habilita el pitido de confirmación
   if (_vozEscuchando) { try { _vozRec.stop(); } catch (e) {} return; }
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   try { _vozRec = new SR(); } catch (e) { toast('No se pudo abrir el micro'); return; }
@@ -14352,8 +14430,14 @@ function toggleAsistenteVoz() {
   try { _vozRec.start(); } catch (e) { _vozEscuchando = false; _pintaMicro(false); _escUI(false); }
 }
 function _respVoz(msg) { toast(msg); hablar(msg); }
-/* Confirmación ESCUETA: habla solo "Hecho" y el detalle va por escrito (no cansa ni gasta). */
-function _hecho(detalle) { toast('✅ ' + detalle); hablar('Hecho'); }
+/* Confirmación de una ACCIÓN. Por defecto NO habla ("si te mando hacer algo, hazlo y no me
+   hables"): deja el aviso en pantalla y un pitido corto. Solo dice "Hecho" en voz si el dueño
+   activó hablarAlHacer. Las PREGUNTAS sí se contestan (usan _respVoz, no _hecho). */
+function _hecho(detalle) {
+  toast('✅ ' + detalle);
+  if (state && state.config && state.config.hablarAlHacer) hablar('Hecho');
+  else if (typeof _sonar === 'function') _sonar('ok');
+}
 /* Entiende la orden hablada y ejecuta la acción de la app. Cubre lo importante:
    enviar emails, dinero, aforo, entradas, copiar enlaces, crear entrada, y navegar. */
 var _cvHandled = false; // ¿el motor local entendió la última orden? (para decidir si llamar a Google)
@@ -14367,6 +14451,9 @@ function ejecutarComandoVoz(frases, quiet) {
   if (/(repite|repitelo|otra vez|que has dicho|no te entendi|repiteme)/.test(t)) { if (_ultimaVoz) hablar(_ultimaVoz); else _respVoz('No he dicho nada todavía'); return; }
   // Olvidar el hilo (cambiar de tema): borra la memoria de conversación
   if (/(olvida|olvidalo|empieza de cero|empecemos de nuevo|cambia de tema|nuevo tema|borra la memoria|olvida lo anterior|desde cero)/.test(t)) { if (typeof _iaOlvida === 'function') _iaOlvida(); _respVoz('Vale, empezamos de cero'); return; }
+  // Manos libres (escuchar seguido) ON/OFF por voz
+  if (/(para de escuchar|deja de escuchar|para ya de escuchar|deja de oirme|ya no escuches|manos libres fuera|quita manos libres|apaga el micro|descansa el micro)/.test(t)) { pararManosLibres(); return; }
+  if (/(manos libres|escucha seguido|escuchame seguido|modo continuo|modo manos libres|no voy a tocar el micro)/.test(t)) { iniciarManosLibres(); return; }
   // Ajustar la VOZ por voz: tono (grave/agudo), velocidad (despacio/rápido) y preset tranquila.
   if (/\b(voz|habla|hablas|hablame)\b/.test(t) && /(tranquil|normal|natural|relaj|suave|que no canse|que no agote)/.test(t)) { duenoVozTranquila(); return; }
   if (/(mas grave|mas seri|voz grave|tono grave|mas bajo de tono)/.test(t)) { mutateSilent(function (s) { s.config.vozTono = _clamp((s.config.vozTono || 1) - 0.15, 0.4, 1.8, 1.0); }); hablar('Ahora hablo más grave'); return; }
@@ -14451,11 +14538,11 @@ function ejecutarComandoVoz(frases, quiet) {
   // Activar / quitar el modo secreto de un solo uso
   if (/(activa|activar|pon|poner|enciende)/.test(t) && /(secret|solo uso|una vez|autodestru)/.test(t)) {
     mutateSilent(function (s) { s.config.entregaUnaVez = true; }); _duenoTab = 'entregar'; if (typeof renderDueno === 'function') renderDueno();
-    _respVoz('Modo secreto de un solo uso activado'); return;
+    _hecho('Modo secreto de un solo uso activado'); return;
   }
   if (/(quita|quitar|desactiva|apaga|normal)/.test(t) && /(secret|solo uso|una vez|autodestru)/.test(t)) {
     mutateSilent(function (s) { s.config.entregaUnaVez = false; }); _duenoTab = 'entregar'; if (typeof renderDueno === 'function') renderDueno();
-    _respVoz('Modo secreto quitado, enlaces normales'); return;
+    _hecho('Modo secreto quitado, enlaces normales'); return;
   }
   // Instalar la app
   if (/(instala|instalar|instalame)/.test(t)) {
@@ -14522,7 +14609,7 @@ function ejecutarComandoVoz(frases, quiet) {
   if (mL) {
     var mP = tNum.match(/a\s+(\d+(?:[.,]\d+)?)\s*euros?/);
     var rL = _crearLote(mL[1], { pagadas: /pagad/.test(t), precio: mP ? Number(mP[1].replace(',', '.')) : 0 });
-    if (rL) { duenoTab('entradas'); _respVoz('Lote creado: ' + rL.cantidad + ' entradas a ' + Math.round(rL.precio) + ' euros. Serie ' + rL.etiqueta + '. Para el ZIP di: descarga las entradas en zip'); }
+    if (rL) { duenoTab('entradas'); _hecho('Lote creado · ' + rL.cantidad + ' entradas · ' + Math.round(rL.precio) + ' € · serie ' + rL.etiqueta + ' · (para el ZIP di: descarga las entradas en zip)'); }
     else _respVoz('Dime cuántas entradas creo');
     return;
   }
@@ -14652,7 +14739,7 @@ function _crearEntradaVoz(nombreCompleto) {
     addLog('creo por voz la entrada de ' + nombreCompleto, 'alta');
   });
   duenoTab('entradas');
-  _respVoz('Entrada creada para ' + nombreCompleto);
+  _hecho('Entrada creada · ' + nombreCompleto);
 }
 
 /* Crea un LOTE de entradas generales (remesa) sin pasar por el formulario. Lo usan
@@ -15016,7 +15103,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V15'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V16'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -15611,7 +15698,7 @@ function _crearEntradaIA(args) {
     addLog('creó por voz (IA) la entrada de ' + nombreCompleto, 'alta');
   });
   duenoTab('entradas');
-  _respVoz('Entrada creada para ' + nombreCompleto);
+  _hecho('Entrada creada · ' + nombreCompleto);
 }
 /* Prueba la clave y la IA en 2 pasos y CUENTA lo que pasa (sin esconder nada):
    1) valida la clave contra la lista de modelos (GET); 2) lanza una orden real. */
@@ -15675,6 +15762,15 @@ function seccionAsistenteIA() {
     html += '<p class="nota">Tu navegador aún no me ha dado la lista de voces: toca 🔊 y vuelve a abrir este apartado.</p>' +
       '<button type="button" class="btn-secundario" onclick="probarVozAsistente();setTimeout(function(){_duenoTab=\'ajustes\';renderDueno();},400)" style="width:100%;min-height:48px">🔊 Cargar voces</button>';
   }
+  // ── Manos libres + hablar-al-hacer ──
+  html += '<hr class="cobros-sep"><h3>🎙️ Manos libres</h3>';
+  html += '<p class="nota">Para tareas largas: púlsalo y te escucho <b>seguido</b>, sin tocar el micro cada vez. Si me <b>mandas hacer</b> algo, lo hago y <b>no te hablo</b> (solo un pitido); solo te <b>contesto cuando preguntas</b>. Para terminar, di <b>«para de escuchar»</b> o pulsa Parar.</p>';
+  html += '<button type="button" class="btn-secundario" data-testid="btn-manos-libres" onclick="manosLibresToggle()" style="width:100%;min-height:48px">🎙️ Activar manos libres (escucha seguido)</button>';
+  html += '<p class="nota">⚠️ En iPhone la escucha continua a veces se corta sola (es cosa del navegador de Apple). En Android/Chrome va fino.</p>';
+  var _dh = !!(state.config && state.config.hablarAlHacer);
+  html += '<label style="display:flex;align-items:center;gap:10px;margin-top:8px;cursor:pointer">' +
+    '<input type="checkbox" ' + (_dh ? 'checked' : '') + ' data-testid="chk-hablar-hacer" onchange="duenoToggleHablarHacer(this.checked)" style="width:22px;height:22px">' +
+    '<span>Que diga «Hecho» en voz al ejecutar una orden <span class="nota" style="font-weight:400">(si lo dejas apagado, solo hace un pitido y te avisa en pantalla)</span></span></label>';
   html += '</section>';
   return html;
 }
