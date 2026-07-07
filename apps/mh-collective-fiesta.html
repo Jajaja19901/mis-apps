@@ -14835,6 +14835,26 @@ function _intentLocal(t0) {
   var quienDe = function () { var m = t.match(/\b(?:a|de|para)\s+([a-z0-9][a-z0-9 ]{1,39})\s*$/); return m ? m[1].trim().replace(/\b(la|el|los|las|una|un)\s+/g, '') : ''; };
   var tieneVerbo = /(activa|activar|pon|poner|enciende|encender|quita|quitar|desactiva|apaga|conecta|cobr)/.test(t);
 
+  // ---------- CREAR ENTRADAS (LOTE) POR CANTIDAD ----------
+  // "N entradas" (un número JUSTO antes de "entradas") = crear un lote de N. Cubre CUALQUIER
+  // verbo ("ponme/quiero/necesito/dame/saca/hazme/genera…") e incluso sin verbo ("diez entradas").
+  // Va ANTES que las reglas de precio para que "ponme diez entradas" NO se confunda con poner el
+  // precio de la entrada a 10 (el bug que soltaba cantidades locas). Se excluye lo que es una
+  // FASE, borrar, descargar/enviar, o una pregunta ("cuántas entradas hay").
+  var mLoteN = tn.match(/\b(\d{1,3})\s+entradas?\b/);
+  if (mLoteN && !/\bfase\b/.test(t)
+      && !/(borra|borrar|elimina|quita|quitar|anula)/.test(t)
+      && !/(descarga|descargar|baja|bajame|exporta|export|manda|mandar|envia|enviar|reparte|repartir|email|correo|imprime|imprimir|\bpdf\b|\bzip\b|excel|\bcsv\b|enlace)/.test(t)
+      && !/(cuant|hay\b|tengo|quedan|vendid|creada|cuesta|vale\b|precio)/.test(t)) {
+    var cantLote = parseInt(mLoteN[1], 10);
+    if (cantLote > 0 && cantLote <= 999) {
+      var mPrecLote = tn.match(/a\s+(\d+(?:[.,]\d+)?)\s*euros?/);
+      var argsLote = { cantidad: cantLote, pagadas: /pagad/.test(t) };
+      if (mPrecLote) argsLote.precio = Number(mPrecLote[1].replace(',', '.'));
+      return { accion: 'crear_lote', args: argsLote };
+    }
+  }
+
   // ---------- CARPETA DE ARCHIVOS (coge cosas de GitHub por voz) ----------
   if (/(la carpeta (de archivos )?(es|esta en|sera)|cambia la carpeta|pon la carpeta|carpeta de archivos)/.test(t)) { var mcu = t0.match(/(https?:\/\/\S+)/i); if (mcu) return { accion: 'poner_carpeta', args: { url: mcu[1] } }; }
   var cargaVerbo = /(coge|cogeme|carga|cargame|cargar|trae|traeme|pon|poner|importa|importar|baja|bajame|mete|saca|actualiza|coloca)/.test(t);
@@ -15103,7 +15123,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V16'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V17'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -15195,6 +15215,10 @@ function _sysIA() {
     + 'Con acciones, respuesta="". Preguntas: contéstalas en "respuesta" con DATOS. '
     + 'Nunca digas solo "no puedo": ir_a + explica el botón. '
     + 'confirmar:true solo si dice "confirmo"/"sin preguntar". Nunca repitas claves en voz. NUNCA repitas ni parafrasees lo que pidió el dueño: ejecuta y calla. No inventes acciones. Español, mínimo de palabras. '
+    + 'NÚMEROS: usa EXACTAMENTE los que diga el dueño. Si dice "diez", cantidad=10 (nunca 500 ni otro). '
+    + 'JAMÁS te inventes una cantidad ni copies un número de DATOS (aforo, cupo…) que el dueño no haya dicho. '
+    + 'Si una acción necesita un número y el dueño no lo dijo, no adivines: usa "responder" para pedírselo. '
+    + 'Ej: "ponme diez entradas" → {"acciones":[{"accion":"crear_lote","args":{"cantidad":10}}]}. '
     + 'Puede haber turnos anteriores en la conversación: úsalos para entender referencias como "esas", "y cuánto valen", "bórralas", "la misma", "ahora la fase 3".';
 }
 /* Ejecuta el plan (JSON) que devuelve cualquier IA (Gemini u OpenRouter). */
@@ -15225,7 +15249,20 @@ function _ejecutarPlanIA(txt, texto) {
   if (!acc.length && !plan.respuesta) { _respVoz('No te he entendido, repite'); return; }
   _iaRecuerda(texto, _resumenPlan(plan)); // guarda el turno para mantener el hilo
 }
+var _txtUsuarioIA = ''; // lo último que dijo el dueño: para blindar los números que devuelve la IA
+/* BLINDAJE DE CANTIDAD: la IA a veces suelta un número que el dueño NO dijo (típico: copia el
+   aforo o el cupo de una fase de los DATOS). Si el dueño dijo un número justo antes de "entradas"
+   (o "un lote de N"), ESE manda sobre el que devuelva la IA. Así "diez" nunca se vuelve 500. */
+function _blindaCantEntradas(cantIA) {
+  try {
+    var td = _convNum(_normVoz(_txtUsuarioIA || ''));
+    var m = td.match(/\b(\d{1,4})\s+entradas?\b/) || td.match(/\blote\s+de\s+(\d{1,4})\b/);
+    if (m) return parseInt(m[1], 10);
+  } catch (e) {}
+  return cantIA;
+}
 function procesarConIA(texto) {
+  _txtUsuarioIA = String(texto || '');
   var gk = _iaClaves(), ok = _orClaves();
   if (!gk.length && !ok.length) { procesarComandosVoz([texto]); return; }
   var sys = _sysIA();
@@ -15359,7 +15396,8 @@ function ejecutarAccionIA(accion, args) {
     case 'copiar_enlaces': if (typeof copiarTodosEnlaces === 'function') { copiarTodosEnlaces(); hablar('Enlaces copiados'); } break;
     case 'crear_entrada': _crearEntradaIA(args); break;
     case 'crear_lote': {
-      var rl = _crearLote(_arg(args, ['cantidad', 'n', 'numero', 'entradas']), { precio: _arg(args, ['precio', 'euros', 'valor']), pagadas: (args.pagadas === true || args.pagadas === 'true'), etiqueta: args.etiqueta, copas: args.copas, fase: args.fase });
+      var _cantOk = _blindaCantEntradas(_arg(args, ['cantidad', 'n', 'numero', 'entradas']));
+      var rl = _crearLote(_cantOk, { precio: _arg(args, ['precio', 'euros', 'valor']), pagadas: (args.pagadas === true || args.pagadas === 'true'), etiqueta: args.etiqueta, copas: args.copas, fase: args.fase });
       if (rl) { duenoTab('entradas'); _hecho(rl.cantidad + ' entradas · ' + Math.round(rl.precio) + ' € · serie ' + rl.etiqueta); }
       else _respVoz('Dime cuántas entradas creo'); break;
     }
