@@ -14819,6 +14819,9 @@ function _convNum(s) {
   // OJO: no convertimos "un/uno/una" (rompería "un gasto" -> "1 gasto"); esos los lee _numPeq aparte.
   Object.keys(_NUM_PAL).filter(function (k) { return k !== 'un' && k !== 'uno' && k !== 'una'; })
     .forEach(function (k) { out = out.replace(new RegExp('\\b' + k + '\\b', 'g'), _NUM_PAL[k]); });
+  // COMBINA centenas + resto: "doscientos cincuenta" -> "200 50" -> "250"; "ciento veinte" -> 120;
+  // "trescientos cinco" -> 305. (Si tras la centena no viene otro número, se queda igual: "cien" = 100.)
+  out = out.replace(/\b([1-9])00\s+(\d{1,2})\b/g, function (m, h, r) { return String(parseInt(h, 10) * 100 + parseInt(r, 10)); });
   return out;
 }
 function _cap(s) { return String(s || '').replace(/\b([a-záéíóúñ])/g, function (m, c) { return c.toUpperCase(); }); }
@@ -15123,7 +15126,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V17'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V18'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
