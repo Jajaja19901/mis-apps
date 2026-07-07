@@ -14162,6 +14162,14 @@ function cajaDesglose() {
   var netoRRPP = 0;
   return { taquilla: taquilla, vip: vip, barra: barra, monederos: monederos, netoRRPP: netoRRPP, total: taquilla + vip + barra + monederos };
 }
+/* Cabezas REALES dentro para el AFORO: cada persona dentro cuenta 1, más los acompañantes VIP
+   que hayan entrado (mesa.acompanantesDentro). Antes el aforo contaba 1 por mesa e ignoraba a
+   los acompañantes, así que una mesa de 8 salía como 1 y el dueño podía pasarse del aforo. */
+function aforoDentro() {
+  return (state.personas || []).reduce(function (a, p) {
+    return a + (p.dentro ? 1 : 0) + ((p.mesa && p.mesa.acompanantesDentro) || 0);
+  }, 0);
+}
 
 /* ===== ASISTENTE POR VOZ (gratis, dentro de la app) =====
    Botón de micro 🎤: hablas y hace las acciones de la app, y te contesta hablando.
@@ -14491,7 +14499,8 @@ function ejecutarComandoVoz(frases, quiet) {
   // Beneficio neto (caja menos gastos)
   if (/(beneficio|ganancia|neto|ganado|cuanto gano|me queda limpio|gano limpio|llevo limpio|me llevo limpio|saco limpio)/.test(t)) {
     var gT = (state.gastos || []).reduce(function (a, g) { return a + (g.importe || 0); }, 0);
-    _respVoz('Beneficio neto ' + Math.round(caja.total - gT) + ' euros. Es la caja menos los gastos'); return;
+    var comR = (typeof rrppComisionTotal === 'function') ? rrppComisionTotal() : 0;
+    _respVoz('Beneficio neto ' + Math.round(caja.total - gT - comR) + ' euros. Es la caja menos gastos' + (comR > 0 ? ' y menos las comisiones de los promotores' : '')); return;
   }
   // Gastos
   if (/(cuant|dime|dame|total).*(gast)/.test(t)) {
@@ -14521,7 +14530,8 @@ function ejecutarComandoVoz(frases, quiet) {
   // Cuántos dentro / aforo (sin "hay" ni "entra", que causaban confusión)
   if (/(cuant|dime|dame).*(dentro|entrado|gente|personas|aforo)/.test(t)) {
     var af = (state.config && state.config.maxAforo) ? (' de ' + state.config.maxAforo) : '';
-    _respVoz('Hay ' + dentro + (dentro === 1 ? ' persona dentro' : ' personas dentro') + af); return;
+    var dd = (typeof aforoDentro === 'function') ? aforoDentro() : dentro; // incluye acompañantes VIP
+    _respVoz('Hay ' + dd + (dd === 1 ? ' persona dentro' : ' personas dentro') + af); return;
   }
   // Producto más vendido / lo que más se consume
   if (/(mas).*(vend|consum|popular|pide)|(vend|consum|popular).*(mas)|producto estrella|se vende mas|que se vende/.test(t)) {
@@ -14567,8 +14577,8 @@ function ejecutarComandoVoz(frases, quiet) {
   var mVig = t.match(new RegExp(_np + '\\s+(?:vigilantes?|porteros?|seguratas?|segurdad|en la puerta|para la puerta|a la puerta)'));
   if ((mCam || mVig) && !/(recaud|vend|dinero|cuant|lleva|cobrad|vendid|codigo|contrasena|clave)/.test(t)) {
     var hechoP = [];
-    if (mCam && typeof setCamareros === 'function') { var nCa = _numPeq(mCam[1]); if (nCa >= 1 && nCa <= 20) { setCamareros(nCa); hechoP.push(nCa + ' camareros'); } }
-    if (mVig && typeof setVigilantes === 'function') { var nVi = _numPeq(mVig[1]); if (nVi >= 1 && nVi <= 20) { setVigilantes(nVi); hechoP.push(nVi + ' vigilantes'); } }
+    if (mCam && typeof setCamareros === 'function') { var nCa = _numPeq(mCam[1]); if (nCa >= 1 && nCa <= 20) { mutate(function () { setCamareros(nCa); }); hechoP.push(state.config.nCamareros + ' camareros'); } }
+    if (mVig && typeof setVigilantes === 'function') { var nVi = _numPeq(mVig[1]); if (nVi >= 1 && nVi <= 20) { mutate(function () { setVigilantes(nVi); }); hechoP.push(state.config.nVigilantes + ' vigilantes'); } }
     if (hechoP.length) { duenoTab('ajustes'); _hecho(hechoP.join(' y ')); return; }
   }
   // Crear ENTRADAS para una fase que YA existe (hereda su precio): "hazme las entradas de la fase 2",
@@ -14586,7 +14596,7 @@ function ejecutarComandoVoz(frases, quiet) {
     }
   }
   // Crear / ajustar una FASE por voz: "crea la fase 2 a 30 euros", "monta la segunda fase a 25"
-  if (/\bfase\b/.test(t) && /(crea|crear|haz|hazme|nueva|nuevo|pon|poner|anade|agrega|monta|prepara|genera|añade|saca)/.test(t)) {
+  if (/\bfase\b/.test(t) && /(crea|crear|haz|hazme|nueva|nuevo|pon|poner|anade|agrega|monta|prepara|genera|añade|saca|cambia|cambiar|ajusta|modifica|sube|baja|actualiza)/.test(t)) {
     var faseNumMap = { una: 1, uno: 1, un: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10 };
     var ordMap = { primera: 1, primer: 1, '1a': 1, segunda: 2, '2a': 2, tercera: 3, '3a': 3, cuarta: 4, '4a': 4, quinta: 5, '5a': 5, sexta: 6, '6a': 6 };
     var mOrd = t.match(/(primera|segunda|tercera|cuarta|quinta|sexta|1a|2a|3a|4a|5a|6a)\s+fase/);
@@ -14695,7 +14705,9 @@ function ejecutarComandoVoz(frases, quiet) {
     _respVoz(nsV.length ? ('Tienes ' + nsV.length + ' notas: ' + nsV.map(function (n, i) { return (i + 1) + '. ' + n.texto; }).join('. ')) : 'No tienes notas'); return;
   }
   var mNo = t.match(/^(?:apunta|anota)(?:me)?(?:\s+en\s+(?:mis\s+)?notas?)?[:,]?\s+(?:que\s+)?(.+)$/);
-  if (mNo && !/(entrada|invitad|lote|gasto)/.test(t)) {
+  // "apunta a Pedro" = añadir a Pedro a la lista (persona), NO una nota. Solo es nota si el texto
+  // NO empieza por "a <algo>" (eso lo maneja crear_entrada) y no habla de entradas/invitados/gastos.
+  if (mNo && !/^a\s+[a-záéíóúñ]/.test(mNo[1]) && !/(entrada|invitad|lote|gasto)/.test(mNo[1])) {
     anadirNota(mNo[1].trim()); _hecho('Nota: ' + mNo[1].trim()); return;
   }
   // Buscar a una persona por su nombre
@@ -14818,7 +14830,7 @@ function _numPeq(str) {
   return m ? w[m[1]] : null;
 }
 /* Convierte números en palabras a dígitos dentro de una frase ("treinta euros" -> "30 euros"). */
-var _NUM_PAL = { cero: 0, un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19, veinte: 20, veintiuno: 21, veintidos: 22, veinticinco: 25, treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90, cien: 100, ciento: 100, doscientos: 200, doscientas: 200, trescientos: 300, trescientas: 300, cuatrocientos: 400, cuatrocientas: 400, quinientos: 500, quinientas: 500, mil: 1000 };
+var _NUM_PAL = { cero: 0, un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16, diecisiete: 17, dieciocho: 18, diecinueve: 19, veinte: 20, veintiuno: 21, veintiuna: 21, veintidos: 22, veintitres: 23, veinticuatro: 24, veinticinco: 25, veintiseis: 26, veintisiete: 27, veintiocho: 28, veintinueve: 29, treinta: 30, cuarenta: 40, cincuenta: 50, sesenta: 60, setenta: 70, ochenta: 80, noventa: 90, cien: 100, ciento: 100, doscientos: 200, doscientas: 200, trescientos: 300, trescientas: 300, cuatrocientos: 400, cuatrocientas: 400, quinientos: 500, quinientas: 500, mil: 1000 };
 function _convNum(s) {
   var out = String(s || '');
   out = out.replace(/\b(veinte|treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa)\s+y\s+(uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve)\b/g, function (m, a, b) { return String(_NUM_PAL[a] + _NUM_PAL[b]); });
@@ -14855,8 +14867,20 @@ function _intentLocal(t0) {
   var tn = _convNum(t);
   var on = !/\b(quita|quitar|desactiva|desactivar|apaga|apagar|desconecta|off|fuera)\b/.test(t);
   var euros = function (str) { var m = String(str).match(/(\d+(?:[.,]\d+)?)\s*(?:euros?|eur|€|pavos)?/); return m ? Number(m[1].replace(',', '.')) : null; };
-  var quienDe = function () { var m = t.match(/\b(?:a|de|para)\s+([a-z0-9][a-z0-9 ]{1,39})\s*$/); return m ? m[1].trim().replace(/\b(la|el|los|las|una|un)\s+/g, '') : ''; };
-  var tieneVerbo = /(activa|activar|pon|poner|enciende|encender|quita|quitar|desactiva|apaga|conecta|cobr)/.test(t);
+  var quienDe = function () { var m = t.match(/\b(?:a|de|para)\s+([a-z0-9][a-z0-9 ]{1,39})\s*$/); return m ? m[1].trim().replace(/^que\s+/, '').replace(/\b(la|el|los|las|una|un)\s+/g, '') : ''; };
+  // ¿PREGUNTA por el estado ("¿está activada la tarjeta?") en vez de ORDEN? El participio
+  // (activado/activada/encendido/apagado) delata la pregunta; una orden usa "activa/enciende/pon".
+  // Antes "está activada" colaba por tieneVerbo (activa⊂activada) y ENCENDÍA lo que solo se preguntaba.
+  var preguntaEstado = /\b(activad[oa]s?|desactivad[oa]s?|encendid[oa]s?|apagad[oa]s?|conectad[oa]s?)\b/.test(t);
+  var tieneVerbo = /(activa|activar|pon|poner|enciende|encender|quita|quitar|desactiva|apaga|conecta|cobr)/.test(t) && !preguntaEstado;
+  if (preguntaEstado) {
+    if (/\bbizum\b/.test(t)) return { accion: 'responder', args: { texto: (typeof bizumActivo === 'function' && bizumActivo()) ? 'El bizum está activado' : 'El bizum está apagado' } };
+    if (/(tarjeta|datafono|visa)/.test(t)) return { accion: 'responder', args: { texto: (typeof tarjetaActiva === 'function' && tarjetaActiva()) ? 'La tarjeta está activada' : 'La tarjeta está apagada' } };
+    if (/(monedero|cashless)/.test(t)) return { accion: 'responder', args: { texto: (typeof monederoActivo === 'function' && monederoActivo()) ? 'El monedero está activado' : 'El monedero está apagado' } };
+    if (/\bnfc\b|contactless/.test(t)) return { accion: 'responder', args: { texto: (typeof nfcActivo === 'function' && nfcActivo()) ? 'El NFC está activado' : 'El NFC está apagado' } };
+    if (/gasto/.test(t)) return { accion: 'responder', args: { texto: (state.config.modulos && state.config.modulos.gastos) ? 'El módulo de gastos está activado' : 'El módulo de gastos está apagado' } };
+    if (/stock|inventario/.test(t)) return { accion: 'responder', args: { texto: (state.config.modulos && state.config.modulos.stock) ? 'El stock está activado' : 'El stock está apagado' } };
+  }
 
   // ---------- CREAR ENTRADAS (LOTE) POR CANTIDAD ----------
   // "N entradas" (un número JUSTO antes de "entradas") = crear un lote de N. Cubre CUALQUIER
@@ -14909,7 +14933,7 @@ function _intentLocal(t0) {
 
   // ---------- PERSONAS ----------
   // El nombre puede ir tras "a/de/para" (final) o ANTES de "se va / ha pagado".
-  var nomAntes = function (verbo) { var m = t.match(new RegExp('\\b([a-z]+(?:\\s+[a-z]+)?)\\s+(?:' + verbo + ')\\b')); return m ? m[1].trim() : ''; };
+  var nomAntes = function (verbo) { var m = t.match(new RegExp('\\b([a-z]+(?:\\s+[a-z]+)?)\\s+(?:' + verbo + ')\\b')); return m ? m[1].trim().replace(/^(que|y|el|la|a)\s+/, '') : ''; };
   if (/(dale acceso|da acceso|dar acceso|deja entrar|dejar entrar|deja pasar|dejalo entrar|dejala entrar|que entre|que pase|haz entrar|hazlo entrar|hazla entrar|mete dentro|metelo dentro|metela dentro|mete adentro|abre la puerta a|abrele a|abrele la puerta|ya puede entrar|ya puede pasar|puede pasar|puede entrar|dale paso|dale el paso|paso a|marca.*entrada de|entra ya)/.test(t)) {
     var q1 = quienDe()
       || (t.match(/(?:que pase|que entre|deja entrar a|deja pasar a|haz entrar a|dale acceso a|mete dentro a|abrele a|paso a)\s+([a-z]+(?:\s+[a-z]+)?)/) || [])[1]
@@ -14935,8 +14959,13 @@ function _intentLocal(t0) {
   if (/(manda|envia|mandale|enviale).*(email|correo|mail)/.test(t) && /\b(a|de|para)\s+[a-z]/.test(t) && !/todos|todas/.test(t)) { var q8 = quienDe(); if (q8 && q8 !== 'todos') return { accion: 'enviar_email_a', args: { quien: q8 } }; }
   // AÑADIR a la lista (entrada con nombre): "apuntame a Pedro", "mete a Juan en la lista", "invitacion para Lucia"
   if (/(apuntame a|anotame a|apunta a|anota a|añademe a|anademe a|añade a|anade a|agrega a|mete a|metela a|metelo a|invita a|apunta en la lista a|entrada para|invitacion para|invitad[oa] para|crea (?:una )?(?:entrada|invitacion) para)/.test(t) && !/dentro|acceso|pagad|salida|se va|se marcha/.test(t)) {
-    var mn = t.match(/\b(?:a|para)\s+([a-z]+(?:\s+[a-z]+)?)(?:\s+en\s+la\s+lista|\s+a\s+la\s+lista|\s*$)/);
-    if (mn) { var nm = mn[1].trim(); if (nm && !/^(la lista|lista)$/.test(nm) && !/entrada|invitad|fase|bono|gasto|nota/.test(nm)) return { accion: 'crear_entrada', args: { nombre: _cap(nm) } }; }
+    var mn = t.match(/\b(?:a|para)\s+(.+?)(?:\s+en\s+la\s+lista|\s+a\s+la\s+lista)?\s*$/);
+    if (mn) {
+      // Nombre completo (hasta 4 palabras): antes solo cogía 2, así "Juan Carlos Pérez" fallaba
+      // y acababa como NOTA. Limpiamos relleno ("que/el/la") y validamos que sea un nombre.
+      var nm = mn[1].trim().replace(/^(que|el|la|un|una)\s+/, '').replace(/\s+(en|a)\s+la\s+lista$/, '').trim();
+      if (nm && /^[a-záéíóúñ][a-záéíóúñ ]{1,39}$/.test(nm) && nm.split(/\s+/).length <= 4 && !/^(la lista|lista)$/.test(nm) && !/\b(entrada|invitad|fase|bono|gasto|nota|acceso|salida|pagad)\b/.test(nm)) return { accion: 'crear_entrada', args: { nombre: _cap(nm) } };
+    }
   }
 
   // ---------- DINERO ----------
@@ -15146,7 +15175,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V20'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V21'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -15406,13 +15435,13 @@ function ejecutarAccionIA(accion, args) {
       var m = state.recaudacionPorPerfil || {};
       var ps = Object.keys(m).filter(function (k) { return /^(vig|cam)-/.test(k); }).map(function (k) { return etiquetaPerfil(k) + ' ' + Math.round(m[k] || 0) + ' euros'; });
       _respVoz(ps.length ? ('Recaudación: ' + ps.join(', ')) : 'Aún no ha recaudado nadie'); break; }
-    case 'decir_beneficio': _respVoz('Beneficio neto ' + Math.round(caja.total - gastos()) + ' euros'); break;
+    case 'decir_beneficio': _respVoz('Beneficio neto ' + Math.round(caja.total - gastos() - ((typeof rrppComisionTotal === 'function') ? rrppComisionTotal() : 0)) + ' euros'); break;
     case 'decir_gastos': _respVoz('Has gastado ' + Math.round(gastos()) + ' euros'); break;
     case 'decir_top': {
       var vp = state.ventasPorProducto || {}, top = null;
       Object.keys(vp).forEach(function (k) { var v = vp[k] || {}; if (!top || (v.uds || 0) > (top.uds || 0)) top = { nombre: v.nombre || k, uds: v.uds || 0 }; });
       _respVoz(top && top.uds > 0 ? ('Lo más vendido es ' + top.nombre + ', con ' + top.uds + ' unidades') : 'Todavía no se ha vendido nada'); break; }
-    case 'decir_aforo': { var af = (state.config && state.config.maxAforo) ? (' de ' + state.config.maxAforo) : ''; _respVoz('Hay ' + dentro + (dentro === 1 ? ' persona dentro' : ' personas dentro') + af); break; }
+    case 'decir_aforo': { var af = (state.config && state.config.maxAforo) ? (' de ' + state.config.maxAforo) : ''; var dd = (typeof aforoDentro === 'function') ? aforoDentro() : dentro; _respVoz('Hay ' + dd + (dd === 1 ? ' persona dentro' : ' personas dentro') + af); break; }
     case 'decir_entradas': _respVoz('Hay ' + totalEnt + (totalEnt === 1 ? ' entrada creada' : ' entradas creadas')); break;
     case 'decir_quedan': _respVoz('Quedan ' + Math.max(0, totalEnt - dentro) + ' por entrar'); break;
     case 'decir_bonos': { var bs = state.bonos || []; _respVoz('Hay ' + bs.length + ' bonos, ' + bs.filter(function (b) { return b.vendido; }).length + ' vendidos'); break; }
@@ -15651,8 +15680,8 @@ function ejecutarAccionIA(accion, args) {
     case 'enviar_email_a': { var eeP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada'])); if (!eeP) { _respVoz('No encuentro esa entrada'); break; } emailEntrada(eeP.id); hablar('Abriendo el email para ' + _nombreDe(eeP)); break; }
     case 'ver_entrada': { var veP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada'])); if (!veP) { _respVoz('No encuentro esa entrada'); break; } verEntrada(veP.id); hablar('Aquí está la entrada de ' + _nombreDe(veP)); break; }
     case 'blindar': { var blP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada'])); if (!blP) { _respVoz('No encuentro esa entrada'); break; } blindarEntrada(blP.id); break; }
-    case 'poner_vigilantes': { var nv = parseInt(_arg(args, ['n', 'cantidad', 'numero', 'vigilantes', 'valor']), 10); if (nv >= 1 && nv <= 20) { setVigilantes(nv); _hecho(nv + ' vigilantes'); } else _respVoz('Dime cuántos vigilantes, del 1 al 20'); break; }
-    case 'poner_camareros': { var nc = parseInt(_arg(args, ['n', 'cantidad', 'numero', 'camareros', 'valor']), 10); if (nc >= 1 && nc <= 20) { setCamareros(nc); _hecho(nc + ' camareros'); } else _respVoz('Dime cuántos camareros, del 1 al 20'); break; }
+    case 'poner_vigilantes': { var nv = parseInt(_arg(args, ['n', 'cantidad', 'numero', 'vigilantes', 'valor']), 10); if (nv >= 1 && nv <= 20) { mutate(function () { setVigilantes(nv); }); _hecho(state.config.nVigilantes + ' vigilantes'); } else _respVoz('Dime cuántos vigilantes, del 1 al 20'); break; }
+    case 'poner_camareros': { var nc = parseInt(_arg(args, ['n', 'cantidad', 'numero', 'camareros', 'valor']), 10); if (nc >= 1 && nc <= 20) { mutate(function () { setCamareros(nc); }); _hecho(state.config.nCamareros + ' camareros'); } else _respVoz('Dime cuántos camareros, del 1 al 20'); break; }
     case 'anadir_producto': {
       var apN = String(args.nombre || '').trim(), apP = Number(args.precio) || 0;
       if (!apN) { _respVoz('Dime el nombre del producto'); break; }
@@ -18498,14 +18527,15 @@ function seccionPreparar() {
 function seccionKpis() {
   var s = state;
   var caja = cajaDesglose();
-  var dentro = s.personas.filter(function (p) { return p.dentro; }).length;
+  var dentro = s.personas.filter(function (p) { return p.dentro; }).length; // registros de persona (asistencia)
+  var aforoReal = aforoDentro(); // cabezas reales dentro, incluidos los acompañantes VIP
   var totalPersonas = s.personas.length || 1;
   var pct = Math.round((dentro / totalPersonas) * 100);
-  var pctAforo = s.config.maxAforo ? Math.min(100, Math.round((dentro / s.config.maxAforo) * 100)) : 0;
-  var alerta = s.config.maxAforo && dentro >= 0.9 * s.config.maxAforo ? " alerta" : "";
+  var pctAforo = s.config.maxAforo ? Math.min(100, Math.round((aforoReal / s.config.maxAforo) * 100)) : 0;
+  var alerta = s.config.maxAforo && aforoReal >= 0.9 * s.config.maxAforo ? " alerta" : "";
   var html = '<section class="panel kpis">';
   html += '<div class="kpi kpi-aforo' + alerta + '" data-testid="kpi-aforo"><h3>Aforo</h3>';
-  html += '<p class="kpi-big">' + esc(dentro) + ' / ' + esc(s.config.maxAforo) + ' dentro</p>';
+  html += '<p class="kpi-big">' + esc(aforoReal) + ' / ' + esc(s.config.maxAforo) + ' dentro</p>';
   html += '<div class="barra"><div class="barra-fill" style="width:' + pctAforo + '%"></div></div></div>';
   html += '<div class="kpi" data-testid="kpi-caja"><h3>Caja total</h3><p class="kpi-big">' + esc(money(caja.total)) + '</p>';
   html += '<ul class="desglose">';
@@ -18521,10 +18551,13 @@ function seccionKpis() {
     esc(dentro) + ' registrados (' + esc(pct) + '%)</p></div>';
   if (s.config.modulos.gastos) {
     var gastosTotal = s.gastos.reduce(function (a, g) { return a + g.importe; }, 0);
-    var beneficioNeto = caja.total - gastosTotal;
-    var beneficioCaja = caja.taquilla + caja.vip + caja.barra + (caja.monederos || 0) - gastosTotal;
-    html += '<div class="kpi" data-testid="kpi-beneficio"><h3>Beneficio neto</h3><p class="kpi-big">' + esc(money(beneficioNeto)) + '</p></div>';
-    html += '<div class="kpi" data-testid="kpi-beneficio-caja"><h3>Beneficio en caja</h3><p class="kpi-big">' + esc(money(beneficioCaja)) + '</p></div>';
+    var comisRRPP = (typeof rrppComisionTotal === 'function') ? rrppComisionTotal() : 0;
+    var enCaja = caja.total - gastosTotal;            // dinero que tienes AHORA (antes de pagar a los RRPP)
+    var beneficioNeto = enCaja - comisRRPP;           // lo que te queda DE VERDAD tras pagar comisiones
+    html += '<div class="kpi" data-testid="kpi-beneficio"><h3>Beneficio neto</h3><p class="kpi-big">' + esc(money(beneficioNeto)) + '</p>' +
+      (comisRRPP > 0 ? '<p class="nota">ya descontados ' + esc(money(comisRRPP)) + ' de comisiones RRPP</p>' : '') + '</div>';
+    html += '<div class="kpi" data-testid="kpi-beneficio-caja"><h3>Dinero en caja</h3><p class="kpi-big">' + esc(money(enCaja)) + '</p>' +
+      (comisRRPP > 0 ? '<p class="nota">antes de pagar a los promotores</p>' : '') + '</div>';
   }
   html += '</section>';
   return html;
@@ -19264,8 +19297,8 @@ function cargarInvitadosDeCarpeta() {
   _fetchArchivo(['invitados.csv', 'invitados.txt', 'lista.csv', 'lista.txt'], 0, function (blob) {
     if (!blob) { _respVoz('No encuentro invitados.csv en la carpeta'); return; }
     blob.text().then(function (txt) {
-      var n = _anadirBulkTexto(txt, 'taquilla');
-      if (n) { duenoTab('entradas'); _hecho(n + ' invitados añadidos desde la carpeta'); }
+      var n = _anadirBulkTexto(txt, 'invitado'); // invitados.csv = invitados GRATIS (antes entraban como taquilla de pago)
+      if (n) { duenoTab('entradas'); _hecho(n + ' invitados (gratis) añadidos desde la carpeta'); }
       else _respVoz('La lista está vacía o no la entiendo');
     });
   });
@@ -20444,7 +20477,7 @@ function duenoConfirmarCierre() {
       monederos: monederoTotales(), // cuadre cashless de la noche (cargado/gastado/vivo)
       ventasPorProducto: JSON.parse(JSON.stringify(s.ventasPorProducto || {})), // qué se consumió
       gastos: JSON.parse(JSON.stringify(s.gastos)),
-      beneficioNeto: caja.total - gastosTotal,
+      beneficioNeto: caja.total - gastosTotal - (typeof rrppComisionTotal === 'function' ? rrppComisionTotal() : 0),
       asistentes: dentroCount,
       log: JSON.parse(JSON.stringify(s.log))
     });
@@ -20554,7 +20587,7 @@ function duenoDescargarCsv() {
   var gastosTotal = s.gastos.reduce(function (a, g) { return a + g.importe; }, 0);
   var datos = {
     nombre: s.config.eventName, fecha: nowHM(), totales: caja, gastosTotal: gastosTotal,
-    beneficioNeto: caja.total - gastosTotal, recaudacionPorPerfil: s.recaudacionPorPerfil,
+    beneficioNeto: caja.total - gastosTotal - (typeof rrppComisionTotal === 'function' ? rrppComisionTotal() : 0), recaudacionPorPerfil: s.recaudacionPorPerfil,
     // Cada RRPP con sus "vendidas" reales (calculadas de las personas), no el campo muerto r.vendidas.
     rrpp: (s.rrpp || []).map(function (r) { return Object.assign({}, r, { vendidas: rrppVendidasDe(r.slug) }); }),
     monederos: monederoTotales(),
