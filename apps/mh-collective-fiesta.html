@@ -14332,6 +14332,8 @@ function ejecutarComandoVoz(frases, quiet) {
   if (/(callate|calla|silencio|para de hablar|basta|deja de hablar)/.test(t)) { try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {} toast('🤫'); return; }
   // Repite lo último
   if (/(repite|repitelo|otra vez|que has dicho|no te entendi|repiteme)/.test(t)) { if (_ultimaVoz) hablar(_ultimaVoz); else _respVoz('No he dicho nada todavía'); return; }
+  // Olvidar el hilo (cambiar de tema): borra la memoria de conversación
+  if (/(olvida|olvidalo|empieza de cero|empecemos de nuevo|cambia de tema|nuevo tema|borra la memoria|olvida lo anterior|desde cero)/.test(t)) { if (typeof _iaOlvida === 'function') _iaOlvida(); _respVoz('Vale, empezamos de cero'); return; }
   // TRADUCTOR LOCAL: si la frase es una orden de acción, la ejecuta con la misma maquinaria
   // que usa Google (así funciona TODO aunque Google esté caído o sin cupo).
   var _int = _intentLocal((frases || []).join(' '));
@@ -14975,7 +14977,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V12'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V13'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -15066,15 +15068,36 @@ function _sysIA() {
     + '\nSOLO JSON: {"acciones":[{"accion":"n","args":{}}],"respuesta":""}. Varias peticiones=varias acciones en orden. '
     + 'Con acciones, respuesta="". Preguntas: contéstalas en "respuesta" con DATOS. '
     + 'Nunca digas solo "no puedo": ir_a + explica el botón. '
-    + 'confirmar:true solo si dice "confirmo"/"sin preguntar". Nunca repitas claves en voz. NUNCA repitas ni parafrasees lo que pidió el dueño: ejecuta y calla. No inventes acciones. Español, mínimo de palabras.';
+    + 'confirmar:true solo si dice "confirmo"/"sin preguntar". Nunca repitas claves en voz. NUNCA repitas ni parafrasees lo que pidió el dueño: ejecuta y calla. No inventes acciones. Español, mínimo de palabras. '
+    + 'Puede haber turnos anteriores en la conversación: úsalos para entender referencias como "esas", "y cuánto valen", "bórralas", "la misma", "ahora la fase 3".';
 }
 /* Ejecuta el plan (JSON) que devuelve cualquier IA (Gemini u OpenRouter). */
+/* ===== MEMORIA DE CONVERSACIÓN (para no perder el hilo) =====
+   Guarda los últimos turnos (lo que pediste y lo que hizo/contestó la IA) y se los manda
+   en la siguiente pregunta. Así "¿y cuánto valen?" sabe que hablas de lo de antes.
+   Solo los últimos 4 turnos, y recortados, para gastar poquísimos tokens. */
+var _iaHistorial = [];
+function _iaRecuerda(u, a) {
+  if (!u) return;
+  _iaHistorial.push({ u: String(u).slice(0, 180), a: String(a || 'hecho').slice(0, 180) });
+  while (_iaHistorial.length > 4) _iaHistorial.shift();
+}
+function _iaOlvida() { _iaHistorial = []; }
+function _iaHistContents() { var o = []; _iaHistorial.forEach(function (h) { o.push({ role: 'user', parts: [{ text: h.u }] }); o.push({ role: 'model', parts: [{ text: h.a }] }); }); return o; }
+function _iaHistMessages() { var o = []; _iaHistorial.forEach(function (h) { o.push({ role: 'user', content: h.u }); o.push({ role: 'assistant', content: h.a }); }); return o; }
+function _resumenPlan(plan) {
+  if (plan.respuesta) return plan.respuesta;
+  var acc = plan.acciones || [];
+  if (acc.length) return 'Hecho: ' + acc.map(function (a) { return a.accion + (a.args && Object.keys(a.args).length ? '(' + Object.keys(a.args).map(function (k) { return k + '=' + a.args[k]; }).join(',') + ')' : ''); }).join('; ');
+  return 'ok';
+}
 function _ejecutarPlanIA(txt, texto) {
   var plan; try { plan = _parseJSONia(txt); } catch (e) { _iaFallo('la IA devolvió algo raro', texto); return; }
   var acc = plan.acciones || [];
   if (plan.respuesta && !acc.length) hablar(plan.respuesta);
   acc.forEach(function (a, k) { setTimeout(function () { ejecutarAccionIA(a.accion, a.args || {}); }, k * 350); });
-  if (!acc.length && !plan.respuesta) _respVoz('No te he entendido, repite');
+  if (!acc.length && !plan.respuesta) { _respVoz('No te he entendido, repite'); return; }
+  _iaRecuerda(texto, _resumenPlan(plan)); // guarda el turno para mantener el hilo
 }
 function procesarConIA(texto) {
   var gk = _iaClaves(), ok = _orClaves();
@@ -15085,7 +15108,7 @@ function procesarConIA(texto) {
   if (gk.length) {
     var body = {
       systemInstruction: { parts: [{ text: sys }] },
-      contents: [{ role: 'user', parts: [{ text: String(texto) }] }],
+      contents: _iaHistContents().concat([{ role: 'user', parts: [{ text: String(texto) }] }]),
       generationConfig: { responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 256 }
     };
     return _iaIntento(gk, body, texto, 0, 0);
@@ -15098,7 +15121,7 @@ function _orIntento(keys, sys, texto, ki, mi) {
   if (mi >= OR_MODELOS.length) return _orIntento(keys, sys, texto, ki + 1, 0);
   var body = {
     model: OR_MODELOS[mi],
-    messages: [{ role: 'system', content: sys }, { role: 'user', content: String(texto) }],
+    messages: [{ role: 'system', content: sys }].concat(_iaHistMessages()).concat([{ role: 'user', content: String(texto) }]),
     temperature: 0.2, max_tokens: 256
   };
   return fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -15165,12 +15188,7 @@ function _iaIntento(keys, body, texto, ki, mi) {
       var c = j.candidates && j.candidates[0];
       var txt = c && c.content && c.content.parts && c.content.parts[0] && c.content.parts[0].text;
       if (!txt) { return _iaIntento(keys, body, texto, ki, mi + 1); }
-      var plan; try { plan = _parseJSONia(txt); } catch (e) { _iaFallo('la IA devolvió algo raro', texto); return; }
-      var acc = plan.acciones || [];
-      // Si hay acciones, ellas ya hablan solas: no leemos también la "respuesta" (sonaba doble).
-      if (plan.respuesta && !acc.length) hablar(plan.respuesta);
-      acc.forEach(function (a, k) { setTimeout(function () { ejecutarAccionIA(a.accion, a.args || {}); }, k * 350); });
-      if (!acc.length && !plan.respuesta) _respVoz('No te he entendido, repite');
+      _ejecutarPlanIA(txt, texto); // ejecuta el plan Y guarda el turno en la memoria (mantiene el hilo)
     })
     .catch(function (e) { _iaFallo('sin conexión con la IA (¿tienes internet?)', texto); });
 }
