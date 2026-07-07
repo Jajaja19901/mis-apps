@@ -14166,7 +14166,7 @@ function cajaDesglose() {
 /* ===== ASISTENTE POR VOZ (gratis, dentro de la app) =====
    Botón de micro 🎤: hablas y hace las acciones de la app, y te contesta hablando.
    Usa el reconocimiento de voz del navegador (gratis; va mejor en Android/Chrome). */
-var _vozRec = null, _vozEscuchando = false, _ultimaVoz = '';
+var _vozRec = null, _vozEscuchando = false, _ultimaVoz = '', _ultimoResumen = '';
 var _manosLibres = false, _hablandoTTS = false, _mlReinicio = null, _mlTTSGuard = null;
 function asistenteVozDisponible() { return !!(window.SpeechRecognition || window.webkitSpeechRecognition); }
 var _micDrag = null;
@@ -14275,7 +14275,7 @@ function _vozElegida() {
 }
 function _clamp(n, min, max, def) { n = parseFloat(n); if (!(n >= min && n <= max)) return def; return n; }
 function hablar(txt) {
-  _ultimaVoz = String(txt || ''); // para el comando "repite"
+  _ultimaVoz = _ultimoResumen = String(txt || ''); // "repite" + memoria de conversación
   try {
     if (!window.speechSynthesis) return;
     var u = new SpeechSynthesisUtterance(String(txt));
@@ -14400,8 +14400,15 @@ function procesarComandosVoz(frases) {
   // Google (ni "pensando" ni "no responde"). Solo lo que NO entienda se manda a Gemini, si hay clave.
   partes.forEach(function (p, i) {
     setTimeout(function () {
+      _ultimoResumen = '';
       ejecutarComandoVoz([p], true);            // intento local, sin hablar si no lo pilla
-      if (_cvHandled) return;                    // entendido: hecho, sin Google
+      if (_cvHandled) {                          // entendido en local: hecho, sin Google...
+        // ...pero lo GUARDAMOS en la memoria igual, para que un "¿y esas cuánto valen?" o
+        // "bórralas" que sí vaya a la IA sepa de qué hablas (antes solo se recordaban los
+        // turnos que resolvía la IA, así que se perdía el hilo tras una orden local).
+        if (typeof _iaRecuerda === 'function') _iaRecuerda(p, _ultimoResumen || 'hecho');
+        return;
+      }
       if (hayIA) { procesarConIA(p); return; }   // no entendido + hay clave: que lo mire Google
       // En manos libres no soltamos "no te he entendido" en voz por cada ruido: solo aviso mudo.
       if (_manosLibres) { toast('🎤 ¿cómo? repite'); return; }
@@ -14434,6 +14441,7 @@ function _respVoz(msg) { toast(msg); hablar(msg); }
    hables"): deja el aviso en pantalla y un pitido corto. Solo dice "Hecho" en voz si el dueño
    activó hablarAlHacer. Las PREGUNTAS sí se contestan (usan _respVoz, no _hecho). */
 function _hecho(detalle) {
+  _ultimoResumen = 'Hecho: ' + detalle; // para la memoria de conversación (aunque no hable)
   toast('✅ ' + detalle);
   if (state && state.config && state.config.hablarAlHacer) hablar('Hecho');
   else if (typeof _sonar === 'function') _sonar('ok');
@@ -15138,7 +15146,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V19'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V20'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
