@@ -13884,6 +13884,8 @@ function seedState() {
       // Tono (grave↔agudo) y velocidad (lento↔rápido) de la voz. 1 = normal. Con el mismo
       // motor de voz, cambiar tono/velocidad hace que suene distinta y menos cansina.
       vozTono: 1, vozVelocidad: 0.95,
+      // Sonido al escanear en la puerta: "tin" si la entrada es buena, zumbido si es falsa.
+      sonidoEscaner: true,
       fecha: "", hora: "", lugar: "", lema: "",
       logo: null, colorTema: "#00d4ff",
       vipPack: { botellas: 1, refrescos: 4 },
@@ -13992,6 +13994,7 @@ function migrar(s) {
   if (typeof s.config.vozAsistente !== 'string') s.config.vozAsistente = '';
   if (typeof s.config.vozTono !== 'number' || !(s.config.vozTono > 0)) s.config.vozTono = 1;
   if (typeof s.config.vozVelocidad !== 'number' || !(s.config.vozVelocidad > 0)) s.config.vozVelocidad = 0.95;
+  if (typeof s.config.sonidoEscaner !== 'boolean') s.config.sonidoEscaner = true;
   if (typeof s.config.carpetaArchivos !== 'string') s.config.carpetaArchivos = 'https://raw.githubusercontent.com/jajaja19901/mis-apps/claude/party-access-finance-app-pybmqt/apps/archivos/';
   if (!s.presencia || typeof s.presencia !== 'object') s.presencia = {};
   if (!Array.isArray(s.notas)) s.notas = [];
@@ -15013,7 +15016,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V14'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V15'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -17539,11 +17542,70 @@ function nfcLeerBarra() {
   nfcLeer(function (c) { consDesdeCodigo(c); });
 }
 
+/* ===== SONIDO AL ESCANEAR ===================================================
+   En la puerta, a oscuras y con música, el portero no debería tener que MIRAR la
+   pantalla para saber si una entrada es buena. Al escanear suena:
+     · "tin" agudo y ascendente  → entrada BUENA (adelante)
+     · zumbido grave descendente → entrada FALSA o ya usada (para)
+   Se genera con Web Audio (sin archivos, sin internet). En iPhone el sonido está
+   bloqueado hasta que tocas la pantalla; por eso lo "desbloqueamos" al abrir el
+   escáner (que es un toque tuyo) y así ya puede sonar al leer el código.
+   NADA de vibración: en web (sobre todo iPhone) no es fiable, así que no la usamos. */
+var _audioCtx = null;
+function _audioCtxGet() {
+  try { if (!_audioCtx) { var AC = window.AudioContext || window.webkitAudioContext; if (AC) _audioCtx = new AC(); } } catch (e) { _audioCtx = null; }
+  return _audioCtx;
+}
+function _desbloquearSonido() {
+  var c = _audioCtxGet();
+  try { if (c && c.state === 'suspended') c.resume(); } catch (e) {}
+}
+function _tono(c, freq, t0, dur, forma, vol) {
+  try {
+    var o = c.createOscillator(), g = c.createGain();
+    o.type = forma || 'sine'; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol || 0.3, t0 + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(c.destination);
+    o.start(t0); o.stop(t0 + dur + 0.03);
+  } catch (e) {}
+}
+function _sonar(tipo) {
+  if (state && state.config && state.config.sonidoEscaner === false) return; // el dueño lo apagó
+  var c = _audioCtxGet(); if (!c) return;
+  try { if (c.state === 'suspended') c.resume(); } catch (e) {}
+  var t = 0;
+  try { t = c.currentTime; } catch (e) { t = 0; }
+  if (tipo === 'error') {
+    _tono(c, 320, t, 0.15, 'square', 0.28);          // grave...
+    _tono(c, 165, t + 0.14, 0.34, 'square', 0.3);    // ...y más grave = "no"
+  } else {
+    _tono(c, 720, t, 0.10, 'sine', 0.32);            // agudo...
+    _tono(c, 1080, t + 0.09, 0.16, 'sine', 0.32);    // ...y más agudo = "adelante"
+  }
+}
+/* Botón 🔊/🔇 del escáner: enciende o apaga el sonido y da un toque de prueba. */
+function toggleSonidoEscaner(btn) {
+  var on = !(state.config && state.config.sonidoEscaner === false);
+  var nuevo = !on;
+  mutateSilent(function (s) { s.config.sonidoEscaner = nuevo; });
+  if (btn) btn.textContent = nuevo ? '🔊' : '🔇';
+  if (nuevo) { _desbloquearSonido(); _sonar('ok'); } else toast('Sonido del escáner apagado');
+}
+function _btnSonidoEscaner() {
+  var on = !(state.config && state.config.sonidoEscaner === false);
+  return '<button type="button" title="Sonido al escanear" onclick="toggleSonidoEscaner(this)" ' +
+    'style="float:right;font-size:1.1rem;line-height:1;background:transparent;border:0;padding:4px 6px;cursor:pointer">' +
+    (on ? '🔊' : '🔇') + '</button>';
+}
+
 /* ===== ESCÁNER QR (con fallback de teclado SIEMPRE visible) ===== */
 function abreEscaner() {
+  _desbloquearSonido(); // este onclick es un gesto del usuario: aprovechamos para permitir sonido
   var html = "";
   html += '<div class="modal-escaner">';
-  html += "<h2>Escanear QR</h2>";
+  html += "<h2>Escanear QR" + _btnSonidoEscaner() + "</h2>";
   html += '<button type="button" class="btn-camara" data-testid="btn-camara" onclick="escanearConCamara(function(c){var i=document.getElementById(\'qr-codigo\');if(i)i.value=c;resolverEscaneo(c,true);})">📷 Escanear con cámara</button>';
   if (nfcActivo()) html += '<button type="button" class="btn-nfc" data-testid="btn-nfc-escaner" onclick="nfcLeerEscaner()">📡 Leer pulsera/tarjeta NFC</button>';
   html += '<p id="escanerAviso">' + (nfcActivo() ? 'Haz una foto al QR, acerca una pulsera NFC, o teclea el código a mano.' : 'Haz una foto al QR, o teclea el código a mano.') + '</p>';
@@ -17566,6 +17628,7 @@ function abreEscaner() {
    Funciona desde file://, http y https, en Android y iPhone (usa el selector de
    archivos con cámara, no getUserMedia, que exigiría https). */
 function escanearConCamara(onCodigo) {
+  _desbloquearSonido(); // gesto del usuario: habilita el sonido para cuando se lea el código
   var input = document.createElement('input');
   input.type = 'file';
   input.accept = 'image/*';
@@ -17603,6 +17666,7 @@ function escanearConCamara(onCodigo) {
 
 function onEscanerSubmit(ev) {
   ev.preventDefault();
+  _desbloquearSonido();
   var input = document.getElementById("qr-codigo");
   var valor = input ? input.value.trim() : "";
   if (!valor) return;
@@ -17647,6 +17711,7 @@ function resolverEscaneo(valor, deCamara) {
     // ¿Es un monedero? En puerta se enseña el saldo y se puede RECARGAR aquí mismo.
     var mon = monederoUsable() ? monederoPorCodigo(valor) : null;
     if (mon) {
+      _sonar('ok');
       if (out) out.innerHTML = '<div class="scan-res scan-ok"><b class="scan-verde">💰 MONEDERO</b>' +
         '<span>' + esc(mon.codigo) + ' · Saldo: <b data-testid="scan-mon-saldo">' + esc(money(mon.saldo)) + '</b></span></div>' +
         '<div class="contador"><input type="number" id="recarga-importe" min="1" placeholder="€ a recargar" inputmode="numeric" style="flex:1">' +
@@ -17654,6 +17719,7 @@ function resolverEscaneo(valor, deCamara) {
         '<p class="nota">Cobra ese dinero al cliente (efectivo/Bizum) y pulsa Recargar: el saldo sube al momento en todos los móviles.</p>';
       return;
     }
+    _sonar('error');
     if (out) out.innerHTML = '<div class="scan-res scan-rojo"><b>❌ Código no válido</b>' +
       '<span>' + esc(valor) + ' no existe en la lista.</span></div>' +
       '<button type="button" onclick="closeModal();abreExpress();">Dar de alta express</button>';
@@ -17665,6 +17731,7 @@ function resolverEscaneo(valor, deCamara) {
   var sinDeuda = p.tipo === "invitado" || (p.importePagado || 0) > 0 && pend <= 0;
   if (deCamara && state.config.accesoAuto && !p.dentro && sinDeuda) {
     darAccesoSimple(p.id, p.tipo === "invitado" ? "Invitado" : (p.tipo === "vip" ? "VIP" : "Taquilla"));
+    _sonar('ok');
     if (out) out.innerHTML = '<div class="scan-res scan-ok"><b class="scan-verde">✔ DENTRO</b>' +
       '<span>' + nombre + ' · ' + esc(p.codigoReserva) + '</span></div>' +
       '<button type="button" onclick="closeModal()">Siguiente</button>';
@@ -17672,6 +17739,7 @@ function resolverEscaneo(valor, deCamara) {
   }
   if (p.dentro) {
     // YA USADO: alarma clara. No deja pasar de nuevo con el mismo código.
+    _sonar('error');
     addLog("intento de reentrada con código ya usado: " + p.nombre + " " + p.apellido + " (" + p.codigoReserva + ")", "salida");
     if (out) out.innerHTML = '<div class="scan-res scan-rojo"><b>⚠️ YA ENTRÓ</b>' +
       '<span>' + nombre + ' entró a las ' + esc(p.horaEntrada || "?") + '. Código repetido.</span></div>' +
@@ -17687,6 +17755,7 @@ function resolverEscaneo(valor, deCamara) {
       : (puertaVentaRRPP() && p.tipo === "taquilla" ? '<b class="scan-verde">✔ ENTRADA VÁLIDA</b>'
         : '<b class="scan-ambar">€ SIN PAGAR · cobra ' + esc(p.tipo === "vip" ? ((p.mesa.total || 0) - (p.importePagado || 0)) : precioEntradaDe(p)) + ' €</b>'));
   var copas = consIncluidas(p);
+  _sonar('ok'); // entrada válida (aunque quede por cobrar): suena "adelante"
   if (out) out.innerHTML = '<div class="scan-res scan-ok">' + linea +
     '<span>' + nombre + ' · ' + esc(p.codigoReserva) +
     (copas > 0 ? ' · ' + copas + ' copa' + (copas === 1 ? '' : 's') : '') + '</span></div>' +
