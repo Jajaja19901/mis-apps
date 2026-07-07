@@ -14435,6 +14435,23 @@ function ejecutarComandoVoz(frases, quiet) {
     if (mVig && typeof setVigilantes === 'function') { var nVi = _numPeq(mVig[1]); if (nVi >= 1 && nVi <= 20) { setVigilantes(nVi); hechoP.push(nVi + ' vigilantes'); } }
     if (hechoP.length) { duenoTab('ajustes'); _hecho(hechoP.join(' y ')); return; }
   }
+  // Crear ENTRADAS para una fase que YA existe (hereda su precio): "hazme las entradas de la fase 2",
+  // "crea 50 entradas de la segunda fase". OJO: va ANTES de crear/definir fase, para no pedir precio.
+  if (/\bfase\b/.test(t) && /entrada/.test(t) && /(crea|crear|haz|hazme|genera|generar|dame|saca|sacame|prepara|monta|quiero|pon|ponme)/.test(t) && /(de|para|en)\s+la\s+/.test(t)) {
+    var ordEF = { primera: 1, segunda: 2, tercera: 3, cuarta: 4, quinta: 5, sexta: 6 };
+    var moEF = t.match(/(primera|segunda|tercera|cuarta|quinta|sexta)\s+fase/);
+    var mnEF = tNum.match(/fase\s+(\d+)/);
+    var fnEF = moEF ? ordEF[moEF[1]] : (mnEF ? mnEF[1] : '');
+    if (fnEF) {
+      var faseEFo = fasesLista().find(function (f) { return _normVoz(f.nombre) === _normVoz('Fase ' + fnEF); });
+      if (!faseEFo) { _respVoz('No encuentro la fase ' + fnEF + '. Créala primero: crea la fase ' + fnEF + ' a X euros'); return; }
+      var mCantEF = tNum.match(/(\d{1,4})\s+entradas?/);
+      var cantEF = mCantEF ? parseInt(mCantEF[1], 10) : (parseInt(faseEFo.cantidad, 10) || 100);
+      var rEF = _crearLote(cantEF, { fase: faseEFo.nombre, etiqueta: faseEFo.nombre });
+      if (rEF) { duenoTab('entradas'); _hecho(rEF.cantidad + ' entradas · ' + Math.round(rEF.precio) + ' € · ' + faseEFo.nombre); return; }
+      _respVoz('No pude crear las entradas de la ' + faseEFo.nombre); return;
+    }
+  }
   // Crear / ajustar una FASE por voz: "crea la fase 2 a 30 euros", "monta la segunda fase a 25"
   if (/\bfase\b/.test(t) && /(crea|crear|haz|hazme|nueva|nuevo|pon|poner|anade|agrega|monta|prepara|genera|añade|saca)/.test(t)) {
     var faseNumMap = { una: 1, uno: 1, un: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10 };
@@ -14468,18 +14485,31 @@ function ejecutarComandoVoz(frases, quiet) {
     else _respVoz('Dime cuántas entradas creo');
     return;
   }
-  // Descargar entradas: ZIP de PDFs sueltos, PDF junto para imprimir, o lista para Excel
-  if (/(descarga|descargar|baja|bajame|dame|exporta)/.test(t) && /(entrada|lote|codigo|qr)/.test(t)) {
-    var serieU = _ultimaRemesa();
+  // Descargar entradas: ZIP de PDFs sueltos, PDF junto (con QR) para imprimir, o lista para Excel.
+  // Si dices "de la fase X", filtra por la serie de esa fase.
+  if (/(descarga|descargar|baja|bajame|dame|exporta|sacame|saca)/.test(t) && /(entrada|lote|codigo|qr|pdf|zip|excel|csv)/.test(t)) {
+    var serieU = '';
+    var ordD = { primera: 1, segunda: 2, tercera: 3, cuarta: 4, quinta: 5, sexta: 6 };
+    var moD = t.match(/(primera|segunda|tercera|cuarta|quinta|sexta)\s+fase/);
+    var mnD = tNum.match(/fase\s+(\d+)/);
+    var fnD = moD ? ordD[moD[1]] : (mnD ? mnD[1] : '');
+    if (fnD) {
+      var fObjD = fasesLista().find(function (f) { return _normVoz(f.nombre) === _normVoz('Fase ' + fnD); });
+      var nomD = fObjD ? _normVoz(fObjD.nombre) : ('fase ' + fnD);
+      var enFase = (state.personas || []).filter(function (p) { return p.remesa && _normVoz(p.remesa).indexOf(nomD) === 0; });
+      if (!enFase.length) { _respVoz('La fase ' + fnD + ' no tiene entradas todavía. Di: hazme las entradas de la fase ' + fnD); return; }
+      serieU = enFase[enFase.length - 1].remesa;
+    }
+    if (!serieU) serieU = _ultimaRemesa();
     if (/zip|sueltos/.test(t)) {
-      if (serieU) { toast('Preparando el ZIP…'); try { descargarPdfsRemesa(serieU); hablar('Descargando el ZIP del lote ' + serieU); } catch (eZ) { _respVoz('No pude preparar el ZIP'); } }
+      if (serieU) { toast('Preparando el ZIP…'); try { descargarPdfsRemesa(serieU); hablar('Descargando el ZIP de ' + serieU); } catch (eZ) { _respVoz('No pude preparar el ZIP'); } }
       else _respVoz('No hay lotes todavía. Di: crea 100 entradas'); return;
     }
-    if (/pdf|imprimir/.test(t)) {
-      if (serieU) { try { descargarPdfRemesa(serieU); hablar('Descargando el PDF del lote ' + serieU); } catch (eP) { _respVoz('No pude preparar el PDF'); } }
+    if (/pdf|imprimir|qr|codigo/.test(t)) {
+      if (serieU) { try { descargarPdfRemesa(serieU); hablar('Descargando el PDF con los códigos de ' + serieU); } catch (eP) { _respVoz('No pude preparar el PDF'); } }
       else _respVoz('No hay lotes todavía'); return;
     }
-    descargarEntradasCsv(''); return;
+    descargarEntradasCsv(serieU); return;
   }
   if (/(crea|crear|nueva|apunta|anade|agrega|pon).*(entrada|invitad|persona|reserva)/.test(t) && !/(ponme en|llevame|vete a|ve a|abre|abreme|enseñame|muestrame|ir a)/.test(t)) {
     var mm = t.match(/\bpara\s+([a-z0-9 ]{2,40})$/);
@@ -14945,7 +14975,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V11'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V12'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
