@@ -13881,6 +13881,9 @@ function seedState() {
       carpetaArchivos: "https://raw.githubusercontent.com/jajaja19901/mis-apps/claude/party-access-finance-app-pybmqt/apps/archivos/",
       // Voz con la que habla el asistente (nombre de una voz del móvil). Vacío = la mejor en español.
       vozAsistente: "",
+      // Tono (grave↔agudo) y velocidad (lento↔rápido) de la voz. 1 = normal. Con el mismo
+      // motor de voz, cambiar tono/velocidad hace que suene distinta y menos cansina.
+      vozTono: 1, vozVelocidad: 0.95,
       fecha: "", hora: "", lugar: "", lema: "",
       logo: null, colorTema: "#00d4ff",
       vipPack: { botellas: 1, refrescos: 4 },
@@ -13987,6 +13990,8 @@ function migrar(s) {
   if (typeof s.config.geminiKey !== 'string') s.config.geminiKey = '';
   if (typeof s.config.openrouterKey !== 'string') s.config.openrouterKey = '';
   if (typeof s.config.vozAsistente !== 'string') s.config.vozAsistente = '';
+  if (typeof s.config.vozTono !== 'number' || !(s.config.vozTono > 0)) s.config.vozTono = 1;
+  if (typeof s.config.vozVelocidad !== 'number' || !(s.config.vozVelocidad > 0)) s.config.vozVelocidad = 0.95;
   if (typeof s.config.carpetaArchivos !== 'string') s.config.carpetaArchivos = 'https://raw.githubusercontent.com/jajaja19901/mis-apps/claude/party-access-finance-app-pybmqt/apps/archivos/';
   if (!s.presencia || typeof s.presencia !== 'object') s.presencia = {};
   if (!Array.isArray(s.notas)) s.notas = [];
@@ -14259,12 +14264,18 @@ function _vozElegida() {
   return es.find(function (x) { return /google/i.test(x.name) && /es[-_]es/i.test(x.lang); }) ||
          es.find(function (x) { return /google/i.test(x.name); }) || es[0] || null;
 }
+function _clamp(n, min, max, def) { n = parseFloat(n); if (!(n >= min && n <= max)) return def; return n; }
 function hablar(txt) {
   _ultimaVoz = String(txt || ''); // para el comando "repite"
   try {
     if (!window.speechSynthesis) return;
     var u = new SpeechSynthesisUtterance(String(txt));
-    u.lang = 'es-ES'; u.rate = 1.0; u.pitch = 1.0;
+    var cf = (state && state.config) || {};
+    // tono (pitch) y velocidad (rate) los pone el dueño; por defecto un pelín lentos y
+    // graves = suena más tranquila y menos cansina que la robótica de fábrica.
+    u.lang = 'es-ES';
+    u.rate = _clamp(cf.vozVelocidad, 0.5, 1.6, 0.95);
+    u.pitch = _clamp(cf.vozTono, 0.4, 1.8, 1.0);
     var v = _vozElegida(); if (v) u.voice = v;
     window.speechSynthesis.speak(u); // sin cancelar: así varias respuestas seguidas se encolan
   } catch (e) {}
@@ -14272,6 +14283,25 @@ function hablar(txt) {
 function duenoSetVoz(nombre) {
   mutateSilent(function (s) { s.config.vozAsistente = String(nombre || ''); });
   hablar(nombre ? 'Hola, así sueno yo. ¿Te gusto más?' : 'Voz automática puesta');
+}
+function duenoSetVozTono(v) {
+  mutateSilent(function (s) { s.config.vozTono = _clamp(v, 0.4, 1.8, 1.0); });
+  var et = document.getElementById('voz-tono-val'); if (et) et.textContent = _etiquetaTono(state.config.vozTono);
+  hablar('Así sueno con este tono');
+}
+function duenoSetVozVel(v) {
+  mutateSilent(function (s) { s.config.vozVelocidad = _clamp(v, 0.5, 1.6, 0.95); });
+  var ev = document.getElementById('voz-vel-val'); if (ev) ev.textContent = _etiquetaVel(state.config.vozVelocidad);
+  hablar('Y a esta velocidad hablo');
+}
+function _etiquetaTono(n) { n = parseFloat(n) || 1; if (n < 0.85) return 'Grave'; if (n > 1.15) return 'Agudo'; return 'Normal'; }
+function _etiquetaVel(n) { n = parseFloat(n) || 0.95; if (n < 0.85) return 'Lenta'; if (n > 1.1) return 'Rápida'; return 'Normal'; }
+/* Preset "voz tranquila": un pelín grave y lenta = calmada, no cansa. Deja también la voz
+   automática (la más natural del móvil) por si el dueño había elegido una rara. */
+function duenoVozTranquila() {
+  mutateSilent(function (s) { s.config.vozAsistente = ''; s.config.vozTono = 0.9; s.config.vozVelocidad = 0.9; });
+  hablar('Listo. Así sueno más tranquila');
+  try { if (typeof _duenoTab !== 'undefined') { _duenoTab = 'ajustes'; renderDueno(); } } catch (e) {}
 }
 function probarVozAsistente() { hablar('Hola, soy la voz de tu fiesta. Llevas ' + Math.round((cajaDesglose() || {}).total || 0) + ' euros en caja'); }
 /* Permite ENCADENAR varias órdenes en una frase: "envía los emails Y copia los enlaces
@@ -14334,6 +14364,12 @@ function ejecutarComandoVoz(frases, quiet) {
   if (/(repite|repitelo|otra vez|que has dicho|no te entendi|repiteme)/.test(t)) { if (_ultimaVoz) hablar(_ultimaVoz); else _respVoz('No he dicho nada todavía'); return; }
   // Olvidar el hilo (cambiar de tema): borra la memoria de conversación
   if (/(olvida|olvidalo|empieza de cero|empecemos de nuevo|cambia de tema|nuevo tema|borra la memoria|olvida lo anterior|desde cero)/.test(t)) { if (typeof _iaOlvida === 'function') _iaOlvida(); _respVoz('Vale, empezamos de cero'); return; }
+  // Ajustar la VOZ por voz: tono (grave/agudo), velocidad (despacio/rápido) y preset tranquila.
+  if (/\b(voz|habla|hablas|hablame)\b/.test(t) && /(tranquil|normal|natural|relaj|suave|que no canse|que no agote)/.test(t)) { duenoVozTranquila(); return; }
+  if (/(mas grave|mas seri|voz grave|tono grave|mas bajo de tono)/.test(t)) { mutateSilent(function (s) { s.config.vozTono = _clamp((s.config.vozTono || 1) - 0.15, 0.4, 1.8, 1.0); }); hablar('Ahora hablo más grave'); return; }
+  if (/(mas agud|mas fin|voz aguda|tono agudo|mas alto de tono)/.test(t)) { mutateSilent(function (s) { s.config.vozTono = _clamp((s.config.vozTono || 1) + 0.15, 0.4, 1.8, 1.0); }); hablar('Ahora hablo más agudo'); return; }
+  if (/(mas despacio|mas lento|habla lento|mas lenta|mas pausad)/.test(t)) { mutateSilent(function (s) { s.config.vozVelocidad = _clamp((s.config.vozVelocidad || 0.95) - 0.12, 0.5, 1.6, 0.95); }); hablar('Vale, hablo más despacio'); return; }
+  if (/(mas rapido|mas rapida|habla rapido|mas deprisa|corre mas)/.test(t)) { mutateSilent(function (s) { s.config.vozVelocidad = _clamp((s.config.vozVelocidad || 0.95) + 0.12, 0.5, 1.6, 0.95); }); hablar('Vale, hablo más rápido'); return; }
   // TRADUCTOR LOCAL: si la frase es una orden de acción, la ejecuta con la misma maquinaria
   // que usa Google (así funciona TODO aunque Google esté caído o sin cupo).
   var _int = _intentLocal((frases || []).join(' '));
@@ -14977,7 +15013,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V13'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V14'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -15621,8 +15657,17 @@ function seccionAsistenteIA() {
       html += '<option value="' + esc(v.name) + '"' + (vozAct === v.name ? ' selected' : '') + '>' + esc(v.name) + ' (' + esc(v.lang) + ')</option>';
     });
     html += '</select></label>';
+    // Tono y velocidad: aunque el móvil traiga pocas voces (y suenen parecidas), moviendo
+    // estos dos deslizadores la voz cambia de verdad y se puede dejar tranquila (que no agote).
+    var vt = (state.config && state.config.vozTono) || 1;
+    var vv = (state.config && state.config.vozVelocidad) || 0.95;
+    html += '<label style="margin-top:10px">Tono: <b id="voz-tono-val">' + _etiquetaTono(vt) + '</b> <span class="nota" style="font-weight:400">(grave ←→ agudo)</span>' +
+      '<input type="range" min="0.6" max="1.4" step="0.05" value="' + vt + '" oninput="document.getElementById(\'voz-tono-val\').textContent=_etiquetaTono(this.value)" onchange="duenoSetVozTono(this.value)" style="width:100%"></label>';
+    html += '<label>Velocidad: <b id="voz-vel-val">' + _etiquetaVel(vv) + '</b> <span class="nota" style="font-weight:400">(lenta ←→ rápida)</span>' +
+      '<input type="range" min="0.7" max="1.3" step="0.05" value="' + vv + '" oninput="document.getElementById(\'voz-vel-val\').textContent=_etiquetaVel(this.value)" onchange="duenoSetVozVel(this.value)" style="width:100%"></label>';
     html += '<button type="button" class="btn-secundario" onclick="probarVozAsistente()" style="width:100%;min-height:48px">🔊 Probar esta voz</button>';
-    html += '<p class="nota">Las voces las pone tu móvil. Si todas suenan robóticas, instala/actualiza <b>"Síntesis de voz de Google"</b> en Play Store y en Ajustes del móvil → Salida de texto a voz elige Google; aparecerán voces mucho más naturales.</p>';
+    html += '<button type="button" class="btn-secundario" onclick="duenoVozTranquila()" style="width:100%;min-height:44px;margin-top:6px">😌 Voz tranquila (recomendada)</button>';
+    html += '<p class="nota">Las voces las pone tu móvil. Si todas suenan robóticas o parecidas, instala/actualiza <b>"Síntesis de voz de Google"</b> en Play Store y en Ajustes del móvil → Salida de texto a voz elige Google; aparecerán voces mucho más naturales. Con el tono y la velocidad puedes dejarla como te guste.</p>';
   } else {
     html += '<p class="nota">Tu navegador aún no me ha dado la lista de voces: toca 🔊 y vuelve a abrir este apartado.</p>' +
       '<button type="button" class="btn-secundario" onclick="probarVozAsistente();setTimeout(function(){_duenoTab=\'ajustes\';renderDueno();},400)" style="width:100%;min-height:48px">🔊 Cargar voces</button>';
