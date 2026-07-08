@@ -527,12 +527,23 @@ function cfg_exportarCSV() {
  * RESTAURAR VALORES DE FÁBRICA
  * ==========================================================================*/
 function cfg_restaurar() {
-  if (!confirm('¿Restaurar todos los ajustes a los valores de fábrica? Se perderán los cambios de configuración (no se borran zonas, PIN ni el registro de alertas).')) return;
-  estado.cfg = Object.assign({}, CFG_DEFECTOS);
-  nuc_guardar('cfg', estado.cfg);
-  bus.emit('cfg:cambio', { clave: '*' });
-  cfg_resincronizarTodos();
-  cfg_avisar('Ajustes restaurados a los valores de fábrica.', 'info');
+  cfg_confirmar('¿Restaurar todos los ajustes a los valores de fábrica? Se perderán los cambios de configuración (no se borran zonas, PIN ni el registro de alertas).', 'Sí, restaurar', function () {
+    estado.cfg = Object.assign({}, CFG_DEFECTOS);
+    nuc_guardar('cfg', estado.cfg);
+    bus.emit('cfg:cambio', { clave: '*' });
+    cfg_resincronizarTodos();
+    cfg_avisar('Ajustes restaurados a los valores de fábrica.', 'info');
+  });
+}
+
+/* Confirmación asíncrona (nada de confirm() nativo: bloquea el hilo y congela
+ * la app bajo el verificador automático). */
+function cfg_confirmar(msg, textoOk, alConfirmar) {
+  if (typeof ui_confirmar === 'function') {
+    ui_confirmar(msg, textoOk).then(function (si) { if (si) alConfirmar(); }).catch(function () {});
+  } else {
+    cfg_avisar('No se pudo abrir la confirmación.', 'sospecha');
+  }
 }
 
 /* ============================================================================
@@ -597,18 +608,20 @@ function cfg_conectarBotones() {
 
   const btnBorrarLog = $('cfg-btnBorrarLog');
   if (btnBorrarLog) btnBorrarLog.addEventListener('click', function () {
-    if (!confirm('¿Borrar todo el registro de alertas? No se puede deshacer.')) return;
-    if (typeof alerta_borrarLog === 'function') {
-      try { alerta_borrarLog(); cfg_avisar('Registro de alertas borrado.', 'info'); } catch (e) { console.warn('[ajustes] alerta_borrarLog:', e && e.message); }
-    } else { cfg_avisar('El módulo de alertas aún no está disponible.', 'sospecha'); }
+    cfg_confirmar('¿Borrar todo el registro de alertas? No se puede deshacer.', 'Sí, borrar', function () {
+      if (typeof alerta_borrarLog === 'function') {
+        try { alerta_borrarLog(); cfg_avisar('Registro de alertas borrado.', 'info'); } catch (e) { console.warn('[ajustes] alerta_borrarLog:', e && e.message); }
+      } else { cfg_avisar('El módulo de alertas aún no está disponible.', 'sospecha'); }
+    });
   });
 
   const btnBorrarZonas = $('cfg-btnBorrarZonas');
   if (btnBorrarZonas) btnBorrarZonas.addEventListener('click', function () {
-    if (!confirm('¿Borrar todas las zonas y líneas dibujadas? No se puede deshacer.')) return;
-    if (typeof zona_borrarTodo === 'function') {
-      try { zona_borrarTodo(); cfg_avisar('Zonas y líneas borradas.', 'info'); } catch (e) { console.warn('[ajustes] zona_borrarTodo:', e && e.message); }
-    } else { cfg_avisar('El módulo de zonas aún no está disponible.', 'sospecha'); }
+    cfg_confirmar('¿Borrar todas las zonas y líneas dibujadas? No se puede deshacer.', 'Sí, borrar', function () {
+      if (typeof zona_borrarTodo === 'function') {
+        try { zona_borrarTodo(); cfg_avisar('Zonas y líneas borradas.', 'info'); } catch (e) { console.warn('[ajustes] zona_borrarTodo:', e && e.message); }
+      } else { cfg_avisar('El módulo de zonas aún no está disponible.', 'sospecha'); }
+    });
   });
 
   const btnRestaurar = $('cfg-btnRestaurar');

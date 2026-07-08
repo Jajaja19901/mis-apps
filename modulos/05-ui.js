@@ -556,3 +556,26 @@ function ui_modal(titulo, cuerpo, botones) {
 
   return { cerrar };
 }
+
+/* Confirmación asíncrona con el modal propio (NUNCA confirm() nativo: bloquea
+ * el hilo y congela la app en la verificación automática). */
+function ui_confirmar(msg, textoOk) {
+  return new Promise((resolve) => {
+    let decidido = false;
+    const decidir = (v) => { if (!decidido) { decidido = true; resolve(v); } };
+    const m = ui_modal('Confirmar', '<p>' + String(msg || '¿Seguro?') + '</p>', [
+      { texto: 'Cancelar', clase: 'btn-fantasma', fn: () => { decidir(false); } },
+      { texto: textoOk || 'Sí, continuar', clase: 'btn-peligro', fn: () => { decidir(true); } },
+    ]);
+    if (!m || !m.cerrar) { decidir(false); return; }
+    // Si el usuario cierra con la X o tocando el fondo, cuenta como "cancelar"
+    const contM = document.getElementById('ui-modales');
+    if (contM) {
+      const obs = new MutationObserver(() => {
+        if (!contM.children.length) { decidir(false); obs.disconnect(); }
+      });
+      obs.observe(contM, { childList: true });
+      setTimeout(() => { obs.disconnect(); decidir(false); }, 120000);
+    }
+  });
+}

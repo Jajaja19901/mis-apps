@@ -2119,7 +2119,12 @@ function zona_conectarToolbar() {
   zona_boton('zona-cerrar', function () { zona_terminarDibujo(); });
   zona_boton('zona-cancelar', function () { zona_cancelarDibujo(); });
   zona_boton('zona-borrarTodo', function () {
-    if (window.confirm('¿Borrar TODAS las zonas y líneas? Esta acción no se puede deshacer.')) zona_borrarTodo();
+    // Nada de confirm() nativo: bloquea el hilo y congela la app bajo el verificador.
+    if (typeof ui_confirmar === 'function') {
+      ui_confirmar('¿Borrar TODAS las zonas y líneas? Esta acción no se puede deshacer.', 'Sí, borrar todo')
+        .then(function (si) { if (si) zona_borrarTodo(); })
+        .catch(function () {});
+    } else { zona_aviso('No se pudo abrir la confirmación.'); }
   });
 }
 function zona_boton(id, fn) {
@@ -3866,6 +3871,29 @@ function ui_modal(titulo, cuerpo, botones) {
   fondo.addEventListener('click', (ev) => { if (ev.target === fondo) cerrar(); });
 
   return { cerrar };
+}
+
+/* Confirmación asíncrona con el modal propio (NUNCA confirm() nativo: bloquea
+ * el hilo y congela la app en la verificación automática). */
+function ui_confirmar(msg, textoOk) {
+  return new Promise((resolve) => {
+    let decidido = false;
+    const decidir = (v) => { if (!decidido) { decidido = true; resolve(v); } };
+    const m = ui_modal('Confirmar', '<p>' + String(msg || '¿Seguro?') + '</p>', [
+      { texto: 'Cancelar', clase: 'btn-fantasma', fn: () => { decidir(false); } },
+      { texto: textoOk || 'Sí, continuar', clase: 'btn-peligro', fn: () => { decidir(true); } },
+    ]);
+    if (!m || !m.cerrar) { decidir(false); return; }
+    // Si el usuario cierra con la X o tocando el fondo, cuenta como "cancelar"
+    const contM = document.getElementById('ui-modales');
+    if (contM) {
+      const obs = new MutationObserver(() => {
+        if (!contM.children.length) { decidir(false); obs.disconnect(); }
+      });
+      obs.observe(contM, { childList: true });
+      setTimeout(() => { obs.disconnect(); decidir(false); }, 120000);
+    }
+  });
 }
 
 
@@ -6072,12 +6100,23 @@ function cfg_exportarCSV() {
  * RESTAURAR VALORES DE FÁBRICA
  * ==========================================================================*/
 function cfg_restaurar() {
-  if (!confirm('¿Restaurar todos los ajustes a los valores de fábrica? Se perderán los cambios de configuración (no se borran zonas, PIN ni el registro de alertas).')) return;
-  estado.cfg = Object.assign({}, CFG_DEFECTOS);
-  nuc_guardar('cfg', estado.cfg);
-  bus.emit('cfg:cambio', { clave: '*' });
-  cfg_resincronizarTodos();
-  cfg_avisar('Ajustes restaurados a los valores de fábrica.', 'info');
+  cfg_confirmar('¿Restaurar todos los ajustes a los valores de fábrica? Se perderán los cambios de configuración (no se borran zonas, PIN ni el registro de alertas).', 'Sí, restaurar', function () {
+    estado.cfg = Object.assign({}, CFG_DEFECTOS);
+    nuc_guardar('cfg', estado.cfg);
+    bus.emit('cfg:cambio', { clave: '*' });
+    cfg_resincronizarTodos();
+    cfg_avisar('Ajustes restaurados a los valores de fábrica.', 'info');
+  });
+}
+
+/* Confirmación asíncrona (nada de confirm() nativo: bloquea el hilo y congela
+ * la app bajo el verificador automático). */
+function cfg_confirmar(msg, textoOk, alConfirmar) {
+  if (typeof ui_confirmar === 'function') {
+    ui_confirmar(msg, textoOk).then(function (si) { if (si) alConfirmar(); }).catch(function () {});
+  } else {
+    cfg_avisar('No se pudo abrir la confirmación.', 'sospecha');
+  }
 }
 
 /* ============================================================================
@@ -6142,18 +6181,20 @@ function cfg_conectarBotones() {
 
   const btnBorrarLog = $('cfg-btnBorrarLog');
   if (btnBorrarLog) btnBorrarLog.addEventListener('click', function () {
-    if (!confirm('¿Borrar todo el registro de alertas? No se puede deshacer.')) return;
-    if (typeof alerta_borrarLog === 'function') {
-      try { alerta_borrarLog(); cfg_avisar('Registro de alertas borrado.', 'info'); } catch (e) { console.warn('[ajustes] alerta_borrarLog:', e && e.message); }
-    } else { cfg_avisar('El módulo de alertas aún no está disponible.', 'sospecha'); }
+    cfg_confirmar('¿Borrar todo el registro de alertas? No se puede deshacer.', 'Sí, borrar', function () {
+      if (typeof alerta_borrarLog === 'function') {
+        try { alerta_borrarLog(); cfg_avisar('Registro de alertas borrado.', 'info'); } catch (e) { console.warn('[ajustes] alerta_borrarLog:', e && e.message); }
+      } else { cfg_avisar('El módulo de alertas aún no está disponible.', 'sospecha'); }
+    });
   });
 
   const btnBorrarZonas = $('cfg-btnBorrarZonas');
   if (btnBorrarZonas) btnBorrarZonas.addEventListener('click', function () {
-    if (!confirm('¿Borrar todas las zonas y líneas dibujadas? No se puede deshacer.')) return;
-    if (typeof zona_borrarTodo === 'function') {
-      try { zona_borrarTodo(); cfg_avisar('Zonas y líneas borradas.', 'info'); } catch (e) { console.warn('[ajustes] zona_borrarTodo:', e && e.message); }
-    } else { cfg_avisar('El módulo de zonas aún no está disponible.', 'sospecha'); }
+    cfg_confirmar('¿Borrar todas las zonas y líneas dibujadas? No se puede deshacer.', 'Sí, borrar', function () {
+      if (typeof zona_borrarTodo === 'function') {
+        try { zona_borrarTodo(); cfg_avisar('Zonas y líneas borradas.', 'info'); } catch (e) { console.warn('[ajustes] zona_borrarTodo:', e && e.message); }
+      } else { cfg_avisar('El módulo de zonas aún no está disponible.', 'sospecha'); }
+    });
   });
 
   const btnRestaurar = $('cfg-btnRestaurar');

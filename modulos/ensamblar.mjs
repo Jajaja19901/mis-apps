@@ -106,7 +106,7 @@ const PUBLICAS = [
   "zona_borrar","zona_borrarTodo","zona_evaluar","zona_pintar","zona_puntoEnPoligono","zona_plazas",
   "vid_init","vid_usarCamara","vid_usarIP","vid_usarArchivo","vid_detener","vid_fuente",
   "vid_dimensiones","vid_registrarPintor","vid_componer","vid_capturaJPEG","vid_grabarEvento","vid_vigilarSabotaje",
-  "ui_init","ui_render","ui_toast","ui_error","ui_onboarding","ui_aforoPublico","ui_abrirAjustes","ui_cerrarAjustes","ui_modal",
+  "ui_init","ui_render","ui_toast","ui_error","ui_onboarding","ui_aforoPublico","ui_abrirAjustes","ui_cerrarAjustes","ui_modal","ui_confirmar",
   "alerta_init","alerta_disparar","alerta_silenciar","alerta_probar","alerta_log","alerta_borrarLog",
   "alerta_ruidoInit","alerta_ruidoParar","alerta_telegramProbar",
   "stats_init","stats_acumular","stats_aforoActual","stats_datosHoy","stats_grafico",
@@ -127,6 +127,9 @@ if (!errores.some((e) => e.startsWith("Contrato roto"))) console.log(`✓ Contra
 if (/\+\s*\+(?!\+)/.test(jsVal.replace(/\+\+/g, ""))) avisos.push('Concatenación sospechosa "+ +" en el JS.');
 for (const m3 of jsVal.matchAll(/console\.error\s*\(/g)) errores.push("console.error prohibido (el verificador lo trata como fallo). Usa console.warn + banner.");
 if (/\bwindow\.storage\b/.test(jsVal)) errores.push("window.storage está PROHIBIDO.");
+for (const m5 of jsVal.matchAll(/(?<![\w.$])(?:window\.)?(confirm|alert|prompt)\s*\(/g)) {
+  errores.push(`Diálogo nativo bloqueante ${m5[1]}() prohibido (congela la app en headless): usa ui_confirmar/ui_modal/ui_toast.`);
+}
 if (/lorem ipsum/i.test(cuerpoVal + jsVal)) errores.push("Hay 'lorem ipsum' en el contenido.");
 if (/\b(TODO|FIXME|PENDIENTE:)\b/.test(jsVal)) avisos.push("Quedan TODO/FIXME en el JS.");
 for (const palabra of ["robo detectado", "ladr[oó]n", "hurto detect"]) {

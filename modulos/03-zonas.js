@@ -74,7 +74,12 @@ function zona_conectarToolbar() {
   zona_boton('zona-cerrar', function () { zona_terminarDibujo(); });
   zona_boton('zona-cancelar', function () { zona_cancelarDibujo(); });
   zona_boton('zona-borrarTodo', function () {
-    if (window.confirm('¿Borrar TODAS las zonas y líneas? Esta acción no se puede deshacer.')) zona_borrarTodo();
+    // Nada de confirm() nativo: bloquea el hilo y congela la app bajo el verificador.
+    if (typeof ui_confirmar === 'function') {
+      ui_confirmar('¿Borrar TODAS las zonas y líneas? Esta acción no se puede deshacer.', 'Sí, borrar todo')
+        .then(function (si) { if (si) zona_borrarTodo(); })
+        .catch(function () {});
+    } else { zona_aviso('No se pudo abrir la confirmación.'); }
   });
 }
 function zona_boton(id, fn) {
