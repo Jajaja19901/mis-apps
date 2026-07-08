@@ -7494,14 +7494,19 @@ function pwa_init() {
     // Si el dueño subió los archivos de despliegue (manifest.webmanifest con
     // SUS iconos icon-192/512.png), se usan esos en vez del manifest embebido.
     if (location.protocol !== 'file:') {
+      // Acepta cualquiera de los dos nombres habituales del manifest.
+      const pwa_usarManifest = (ruta) => {
+        linkManifest.href = ruta;
+        const la = document.querySelector('link[rel="apple-touch-icon"]');
+        if (la) la.href = 'icon-192.png';
+        const lf = document.querySelector('link[rel="icon"]');
+        if (lf) lf.href = 'icon-192.png';
+      };
       fetch('manifest.webmanifest', { method: 'HEAD' }).then((r) => {
-        if (r && r.ok) {
-          linkManifest.href = 'manifest.webmanifest';
-          const la = document.querySelector('link[rel="apple-touch-icon"]');
-          if (la) la.href = 'icon-192.png';
-          const lf = document.querySelector('link[rel="icon"]');
-          if (lf) lf.href = 'icon-192.png';
-        }
+        if (r && r.ok) { pwa_usarManifest('manifest.webmanifest'); return null; }
+        return fetch('manifest.json', { method: 'HEAD' });
+      }).then((r2) => {
+        if (r2 && r2.ok) pwa_usarManifest('manifest.json');
       }).catch(() => { /* sin archivo: se queda el embebido */ });
     }
   } catch (e) {
