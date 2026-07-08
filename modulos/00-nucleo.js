@@ -18,7 +18,9 @@ const CONFIG = {
 const CFG_DEFECTOS = {
   modo: 'super',            // 'super' | 'carretera'
   fps: 8,                   // FPS de inferencia (3-10)
-  scoreMin: 0.35,           // confianza mínima COCO-SSD (bajo = detecta más personas)
+  scoreMin: 0.35,           // confianza mínima (bajo = detecta más personas)
+  motor: 'coco',            // 'coco' (rápido, ligero) | 'yolo' (potente, corre en el móvil)
+  yoloModelo: 'Xenova/yolos-tiny',  // modelo del motor potente (configurable)
   fuente: 'camara',         // 'camara' | 'ip' | 'archivo'
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
@@ -218,9 +220,19 @@ async function nuc_cargarModelos() {
     return false;
   }
 }
-/* Detecta sobre un <video>/<img>/<canvas> listo. Devuelve [] si algo falla. */
+/* ¿Hay algún motor de detección listo? (COCO rápido o YOLO potente) */
+function nuc_modeloListo() {
+  return estado.modelos.cocoListo || (typeof yolo_activo === 'function' && yolo_activo());
+}
+
+/* Detecta sobre un <video>/<img>/<canvas> listo. Devuelve [] si algo falla.
+ * Enruta al motor POTENTE (YOLO) si está activo; si no, al rápido (COCO-SSD). */
 async function nuc_detectar(fuente) {
-  if (!fuente || !estado.modelos.cocoListo) return [];
+  if (!fuente) return [];
+  if (typeof yolo_activo === 'function' && yolo_activo()) {
+    return yolo_detectar(fuente);
+  }
+  if (!estado.modelos.cocoListo) return [];
   try {
     const res = await estado.modelos.coco.detect(fuente, 40, estado.cfg.scoreMin);
     return res.map((d) => ({

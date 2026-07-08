@@ -36,7 +36,10 @@ async function app_init() {
     bus.on('video:listo', () => { try { trk_reiniciar(); } catch (e) {} });
 
     // Cargas pesadas en paralelo, sin bloquear la interfaz
-    nuc_cargarModelos().catch(() => {});
+    nuc_cargarModelos().catch(() => {});         // motor rápido (siempre, como respaldo)
+    if (estado.cfg.motor === 'yolo' && typeof yolo_init === 'function') {
+      yolo_init().catch(() => {});               // motor potente si el dueño lo eligió
+    }
     gesto_init().catch(() => {});
 
     // Onboarding la primera vez (elige modo → fuente → primera línea/zona)
@@ -58,7 +61,7 @@ function app_ciclo(tsAnim) {
 
     // 2) Inferencia limitada a cfg.fps, sin re-entrar
     const intervalo = 1000 / nuc_clamp(estado.cfg.fps || 8, 3, 10);
-    if (!app_ocupado && estado.modelos.cocoListo && estado.video.listo &&
+    if (!app_ocupado && nuc_modeloListo() && estado.video.listo &&
         (ahora - app_ultimaInferencia) >= intervalo) {
       app_ocupado = true;
       app_ultimaInferencia = ahora;

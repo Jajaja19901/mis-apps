@@ -592,6 +592,18 @@ function cfg_conectarBotones() {
     }
   });
 
+  // Motor de detección: al elegir "Potente" cargamos YOLO en el móvil.
+  const selMotor = $('cfg-motor');
+  if (selMotor) selMotor.addEventListener('change', function () {
+    if (selMotor.value === 'yolo') {
+      if (typeof yolo_init === 'function') {
+        Promise.resolve(yolo_init()).catch(function (e) { console.warn('[ajustes] yolo_init:', e && e.message); });
+      } else { cfg_avisar('El motor potente no está disponible.', 'sospecha'); }
+    } else {
+      cfg_avisar('Detector rápido activo.', 'info');
+    }
+  });
+
   // Modo preciso: recargar el modelo en caliente (ve más, algo más lento)
   const chkPreciso = $('cfg-modeloPreciso');
   if (chkPreciso) chkPreciso.addEventListener('change', function () {
