@@ -318,19 +318,41 @@ function gesto_detectarCaida(tracks, ts) {
   }
 }
 
-/* --- 3b) Carrera: velocidad del track sostenida por encima del umbral ------*/
+/* Desplazamiento NETO del centroide en los últimos `ms` (no la suma de saltos).
+ * Un detector fantasma salta en el sitio: mucha velocidad instantánea pero
+ * desplazamiento neto casi cero. Un corredor real recorre distancia de verdad. */
+function gesto_desplazamientoNeto(t, ms, ts) {
+  const h = t.historial;
+  if (!h || h.length < 2) return 0;
+  let viejo = h[0];
+  for (let i = h.length - 1; i >= 0; i--) { if (ts - h[i].ts >= ms) { viejo = h[i]; break; } }
+  return nuc_dist(viejo.cx, viejo.cy, t.cx, t.cy);
+}
+
+/* --- 3b) Carrera: velocidad del track sostenida, con guardas anti-fantasma --*/
+const GESTO_CARRERA_EDAD_MIN_MS = 1200;   // el track debe llevar ≥1,2 s vivo
+const GESTO_CARRERA_SCORE_MIN = 0.45;     // confianza decente (no caja basura)
+const GESTO_CARRERA_DESP_REL = 0.12;      // desplazamiento neto ≥12% del ancho
 function gesto_detectarCarrera(tracks, ts) {
   const g = estado.gesto;
   const umbral = estado.cfg.carreraVel * estado.video.w / 10; // px/s
+  const despMin = GESTO_CARRERA_DESP_REL * (estado.video.w || 1);
   for (let i = 0; i < tracks.length; i++) {
     const t = tracks[i];
     if (NUC_PERSONA.indexOf(t.clase) < 0) continue;
     let c = g.carrera[t.id];
     if (!c) c = g.carrera[t.id] = { rapidoDesde: null, ultima: 0 };
     const vel = gesto_velocidad(t);
-    if (vel > umbral && umbral > 0) {
+    // Guardas: track maduro + confianza decente + velocidad sobre umbral.
+    const fiable = (ts - (t.creadoEn || ts)) >= GESTO_CARRERA_EDAD_MIN_MS
+      && (t.score == null || t.score >= GESTO_CARRERA_SCORE_MIN);
+    if (fiable && vel > umbral && umbral > 0) {
       if (c.rapidoDesde == null) c.rapidoDesde = ts;
-      if ((ts - c.rapidoDesde) >= GESTO_CARRERA_SOSTENIDA_MS && (ts - c.ultima) >= GESTO_COOLDOWN_CARRERA_MS) {
+      // Además del tiempo sostenido, exige desplazamiento NETO real (mata fantasmas).
+      const despNeto = gesto_desplazamientoNeto(t, GESTO_CARRERA_SOSTENIDA_MS, ts);
+      if ((ts - c.rapidoDesde) >= GESTO_CARRERA_SOSTENIDA_MS
+          && despNeto >= despMin
+          && (ts - c.ultima) >= GESTO_COOLDOWN_CARRERA_MS) {
         c.ultima = ts;
         bus.emit('gesto:carrera', { trackId: t.id, velPxS: Math.round(vel) });
       }
