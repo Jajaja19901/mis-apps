@@ -1236,6 +1236,11 @@ h1, h2, h3, p { margin: 0; }
       <span>Avisar al PRIMER gesto claro (coger de estante → mano al bolsillo y quedarse) <span class="etiqueta">Sin esto, hacen falta 2 gestos. Más avisos = también más falsos: sigue siendo «para revisión», nunca una acusación.</span></span>
     </label>
 
+    <label class="fila" style="align-items:flex-start;gap:8px;">
+      <input type="checkbox" id="cfg-ocultacionSoloEstanteria" data-cfg="ocultacionSoloEstanteria">
+      <span>El «coger» solo cuenta si la mano toca una <b>zona sensible dibujada</b> (tu estantería) <span class="etiqueta">Dibuja «＋ Sensible» sobre las estanterías a vigilar. Meter la mano al bolsillo SIN haber cogido del estante NUNCA avisa — es el diseño: la foto/clip de cada alerta te enseña cuál de las metidas fue la sospechosa.</span></span>
+    </label>
+
     <div class="campo">
       <label for="cfg-ocultacionPermanencia">Permanencia de la mano en bolsillo/cintura (segundos)</label>
       <div class="fila">
@@ -1598,6 +1603,7 @@ const CFG_DEFECTOS = {
   abandonoDistRel: 0.18,
   ocultacionUmbral: 60,
   ocultacionUnGesto: false, // true = avisa al PRIMER gesto claro coger→bolsillo (más avisos, más falsos)
+  ocultacionSoloEstanteria: false, // true = el "coger" solo cuenta si la mano tocó una zona SENSIBLE dibujada (estantería)
   ocultacionPermanencia: 0.7, // seg que la mano debe quedarse en bolsillo/cintura (bajar pilla metidas rápidas)
   fueraHorarioOn: false,
   fueraHorarioIni: '22:00',
@@ -2477,6 +2483,27 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
   // Si una mano está en la zona del bolsillo/pecho, NO cuenta como "alcanzando":
   // el bolsillo gana (clave cuando el torso es estimado y queda corto).
   if (cerca) extendida = false;
+
+  // Discriminador de ESTANTERÍA: si el dueño lo activa y hay zonas sensibles
+  // dibujadas, el "coger" solo cuenta cuando la muñeca extendida TOCA una de
+  // ellas. Así, señalar o estirarse no arma la secuencia — solo coger del
+  // estante vigilado. (Sin zonas sensibles dibujadas, no se exige.)
+  if (extendida && estado.cfg.ocultacionSoloEstanteria) {
+    const sensibles = (estado.zonas || []).filter((z) => z && z.tipo === 'sensible' && z.puntos && z.puntos.length >= 3);
+    if (sensibles.length && typeof zona_puntoEnPoligono === 'function') {
+      const w = estado.video.w || 640, hFr = estado.video.h || 480;
+      let toca = false;
+      for (let k = 0; k < munecas.length && !toca; k++) {
+        const mu = munecas[k];
+        if (!gesto_visible(mu)) continue;
+        for (let zi = 0; zi < sensibles.length && !toca; zi++) {
+          const pts = sensibles[zi].puntos.map((p) => ({ x: p.x * w, y: p.y * hFr }));
+          if (zona_puntoEnPoligono(mu.x, mu.y, pts)) toca = true;
+        }
+      }
+      if (!toca) extendida = false;
+    }
+  }
 
   let m = g.maquinas[id];
   if (!m) m = g.maquinas[id] = { fase: 'reposo', tAlcance: 0, tCerca: 0, completado: false, bonus: false };

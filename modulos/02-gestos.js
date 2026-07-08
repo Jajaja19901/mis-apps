@@ -250,6 +250,27 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
   // el bolsillo gana (clave cuando el torso es estimado y queda corto).
   if (cerca) extendida = false;
 
+  // Discriminador de ESTANTERÍA: si el dueño lo activa y hay zonas sensibles
+  // dibujadas, el "coger" solo cuenta cuando la muñeca extendida TOCA una de
+  // ellas. Así, señalar o estirarse no arma la secuencia — solo coger del
+  // estante vigilado. (Sin zonas sensibles dibujadas, no se exige.)
+  if (extendida && estado.cfg.ocultacionSoloEstanteria) {
+    const sensibles = (estado.zonas || []).filter((z) => z && z.tipo === 'sensible' && z.puntos && z.puntos.length >= 3);
+    if (sensibles.length && typeof zona_puntoEnPoligono === 'function') {
+      const w = estado.video.w || 640, hFr = estado.video.h || 480;
+      let toca = false;
+      for (let k = 0; k < munecas.length && !toca; k++) {
+        const mu = munecas[k];
+        if (!gesto_visible(mu)) continue;
+        for (let zi = 0; zi < sensibles.length && !toca; zi++) {
+          const pts = sensibles[zi].puntos.map((p) => ({ x: p.x * w, y: p.y * hFr }));
+          if (zona_puntoEnPoligono(mu.x, mu.y, pts)) toca = true;
+        }
+      }
+      if (!toca) extendida = false;
+    }
+  }
+
   let m = g.maquinas[id];
   if (!m) m = g.maquinas[id] = { fase: 'reposo', tAlcance: 0, tCerca: 0, completado: false, bonus: false };
 
