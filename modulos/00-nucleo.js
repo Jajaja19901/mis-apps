@@ -57,6 +57,13 @@ const CFG_DEFECTOS = {
   ocultacionUmbral: 60,
   ocultacionUnGesto: false, // true = avisa al PRIMER gesto claro coger→bolsillo (más avisos, más falsos)
   ocultacionSoloEstanteria: false, // true = el "coger" solo cuenta si la mano tocó una zona SENSIBLE dibujada (estantería)
+  // Acciones avanzadas (módulo 17)
+  accMochila: true,         // coger → mano en mochila/bolso detectado
+  accSecuenciaSalida: true, // ocultación reciente + salida/carrera → aviso reforzado
+  accAgachado: false,       // persona agachada junto al estante (actívalo si aplica)
+  accContrasentido: false,  // entrar por la línea de SALIDA (la 2ª línea dibujada)
+  accAglomeracion: false,   // grupo con movimiento brusco (posible incidente)
+  accColarse: false,        // dos entradas casi pegadas (tailgating)
   ocultacionPermanencia: 0.7, // seg que la mano debe quedarse en bolsillo/cintura (bajar pilla metidas rápidas)
   fueraHorarioOn: false,
   fueraHorarioIni: '22:00',
