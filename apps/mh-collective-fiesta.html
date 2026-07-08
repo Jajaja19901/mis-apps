@@ -15203,7 +15203,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V24'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V25'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -16066,11 +16066,21 @@ function mutateSilent(fn) {
 function adoptarRemoto(remoto) {
   if (!remoto) return -1;
   var perfilLocal = state ? state.perfilActivo : null;
+  // Las IMÁGENES (logo/cartel) no siempre viajan por la nube: si el estado pesa mucho se suben
+  // "todo menos las imágenes" (se quedan en cada móvil). Por eso guardamos las de ESTE móvil y,
+  // si el estado remoto no las trae, las conservamos. Sin esto, el cartel/logo recién subido
+  // DESAPARECÍA de las entradas al primer sync (el remoto traía null y machacaba el local).
+  var logoLocal = (state && state.config) ? state.config.logo : null;
+  var cartelLocal = (state && state.config) ? state.config.cartel : null;
   // migrar() rellena los valores por defecto NUEVOS que el estado de la nube (guardado por
   // una versión anterior) no traiga. Sin esto, un ajuste nuevo (p.ej. "venta por RRPP")
   // se quedaba apagado al sincronizar desde datos viejos.
   state = migrar(remoto);
   if (perfilLocal) state.perfilActivo = perfilLocal;
+  if (state.config) {
+    if (!state.config.logo && logoLocal) state.config.logo = logoLocal;
+    if (!state.config.cartel && cartelLocal) state.config.cartel = cartelLocal;
+  }
   var pend = (window.__mhSync && window.__mhSync.pendientes) || [];
   var quedan = [];
   for (var i = 0; i < pend.length; i++) {
@@ -17417,7 +17427,8 @@ function quitarCartel() {
 function cartelListo() {
   return new Promise(function (resolve) {
     if (!state.config.cartel) { resolve(null); return; }
-    if (_cartelImg && _cartelImg.complete) { resolve(_cartelImg); return; }
+    // Comprueba que la imagen en caché sea LA de ahora (si no, cargaba un cartel viejo).
+    if (_cartelImg && _cartelImg.complete && _cartelImg.src === state.config.cartel) { resolve(_cartelImg); return; }
     var img = new Image();
     img.onload = function () { _cartelImg = img; resolve(img); };
     img.onerror = function () { resolve(null); };
