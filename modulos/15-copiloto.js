@@ -33,6 +33,23 @@ const COP_COL_AREA_MIN = 0.05;            // el vehículo ocupa ≥5% del encuad
 const COP_COL_CENTRO_REL = 0.22;          // centrado: |cx - w/2| < 22% del ancho
 const COP_COL_CRECE = 1.12;               // el área crece >12% entre inferencias
 const COP_COL_FRAMES = 3;                 // crecimiento sostenido N inferencias
+/* Peatón delante: umbrales propios (una persona es más estrecha que un coche) */
+const COP_PEATON_AREA_MIN = 0.03;         // la persona ocupa ≥3% del encuadre
+const COP_PEATON_CENTRO_REL = 0.25;
+const COP_PEATON_FRAMES = 2;              // acercándose 2 inferencias seguidas
+/* STOP / distancia de seguridad / auto-trayecto / fatiga */
+const COP_STOP_AREA_MIN = 0.004;          // la señal ocupa ≥0.4% del encuadre
+const COP_STOP_COOLDOWN_MS = 30000;
+const COP_DIST_AREA = 0.08;               // vehículo delante ≥8% del encuadre…
+const COP_DIST_MS = 3000;                 // …sostenido ≥3 s = vas muy pegado
+const COP_DIST_COOLDOWN_MS = 60000;
+const COP_DIST_VEL_MIN = 30;              // solo avisa a más de 30 km/h (pegado en ciudad es normal)
+const COP_AUTO_KMH = 15;                  // auto-iniciar trayecto al superar esto
+const COP_FATIGA_MS = 2 * 3600000;        // aviso de descanso a las 2 h…
+const COP_FATIGA_REPETIR_MS = 30 * 60000; // …y recordatorio cada 30 min
+const COP_RUTA_MIN_M = 20;                // punto de ruta cada ≥20 m (GPX)
+const COP_RUTA_MAX_PTS = 4000;            // tope en memoria
+const COP_RUTA_GUARDAR_PTS = 600;         // puntos guardados por trayecto (simplificado)
 
 /* ============================================================================
  * ARRANQUE (idempotente): crea estado, cablea botón y controles, registra el
@@ -55,8 +72,9 @@ function cop_init() {
     sinAcelAvisado: false, gpsErrAvisado: false, permisoAvisado: false,
     // Cooldowns
     ultImpacto: 0, ultAparcado: 0, ultColision: 0,
-    // Colisión frontal
-    colisionHasta: 0, veh: {},
+    ultStop: 0, ultDistSeg: 0, ultFatiga: 0,
+    // Colisión frontal / peatón / distancia
+    colisionHasta: 0, colisionTexto: '⚠ FRENA', veh: {}, peat: {}, distDesde: 0,
     // Bitácora
     viaje: null,
     // Render
@@ -110,6 +128,22 @@ function cop_cablearControles() {
     }
   });
 
+  // Interruptores nuevos (peatón / stop / distancia / auto-trayecto / fatiga)
+  const cop_chk = (id, clave) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', function () {
+      estado.cfg[clave] = !!el.checked;
+      nuc_guardar('cfg', estado.cfg);
+    });
+  };
+  cop_chk('cop-peaton', 'copPeaton');
+  cop_chk('cop-stop', 'copStopAviso');
+  cop_chk('cop-distSeg', 'copDistSeg');
+  cop_chk('cop-autoTrayecto', 'copAutoTrayecto');
+  cop_chk('cop-fatiga', 'copFatiga');
+  const bGpx = document.getElementById('cop-btnGpx');
+  if (bGpx) bGpx.addEventListener('click', cop_exportarGPX);
+
   const sens = document.getElementById('cop-sensibilidad');
   if (sens) sens.addEventListener('input', function () {
     const v = parseFloat(sens.value);
@@ -134,6 +168,12 @@ function cop_sincronizarControles() {
   if (colision) colision.checked = !!estado.cfg.copColisionAviso;
   const parking = document.getElementById('cop-parking');
   if (parking) parking.checked = !!estado.cfg.copParkingOn;
+  const pares = [['cop-peaton', 'copPeaton'], ['cop-stop', 'copStopAviso'], ['cop-distSeg', 'copDistSeg'],
+                 ['cop-autoTrayecto', 'copAutoTrayecto'], ['cop-fatiga', 'copFatiga']];
+  for (let i = 0; i < pares.length; i++) {
+    const el = document.getElementById(pares[i][0]);
+    if (el) el.checked = !!estado.cfg[pares[i][1]];
+  }
   const sens = document.getElementById('cop-sensibilidad');
   if (sens) sens.value = String(estado.cfg.copSensibilidadG || 2.2);
   cop_pintarSensibilidad();
@@ -359,6 +399,35 @@ function cop_alPosicion(pos) {
       c.velActual = kmh;
       if (kmh > c.velMax) c.velMax = kmh;
       if (c.viaje && kmh > c.viaje.vMax) c.viaje.vMax = kmh;
+      // ▶ Auto-iniciar trayecto al superar el umbral (si el dueño lo quiere)
+      if (estado.cfg.copAutoTrayecto && !c.viaje && kmh > COP_AUTO_KMH) {
+        cop_iniciarViaje();
+        cop_anotarEvento('auto_inicio', 'Trayecto iniciado automáticamente (' + Math.round(kmh) + ' km/h)');
+      }
+    }
+
+    // 🗺 Ruta del trayecto (para el GPX): un punto cada ≥20 m
+    if (c.viaje) {
+      if (!c.viaje.ruta) c.viaje.ruta = [];
+      const ult = c.viaje.ruta[c.viaje.ruta.length - 1];
+      const lejos = !ult || cop_haversine(ult.lat, ult.lon, co.latitude, co.longitude) >= COP_RUTA_MIN_M;
+      if (lejos && c.viaje.ruta.length < COP_RUTA_MAX_PTS) {
+        c.viaje.ruta.push({ lat: co.latitude, lon: co.longitude, ts: ahora });
+      }
+      // 😴 Fatiga: a las 2 h de trayecto, y recordatorio cada 30 min
+      if (estado.cfg.copFatiga) {
+        const conduciendo = ahora - c.viaje.inicio;
+        if (conduciendo >= COP_FATIGA_MS &&
+            ahora - (c.ultFatiga || 0) >= COP_FATIGA_REPETIR_MS) {
+          c.ultFatiga = ahora;
+          const horas = Math.round(conduciendo / 360000) / 10;
+          const texto = 'Llevas ' + horas + ' h de trayecto: para y descansa un poco.';
+          if (typeof alerta_disparar === 'function') {
+            try { alerta_disparar('fatiga', 'info', texto); } catch (e) {}
+          }
+          cop_anotarEvento('fatiga', texto);
+        }
+      }
     }
 
     c.ultPos = { lat: co.latitude, lon: co.longitude, ts: ahora };
@@ -438,6 +507,7 @@ function cop_analizarColision() {
   if (alarma) {
     const ahora = Date.now();
     c.colisionHasta = ahora + COP_COLISION_MOSTRAR_MS;
+    c.colisionTexto = '⚠ FRENA';
     if (ahora - c.ultColision >= COP_COOLDOWN_COLISION_MS) {
       c.ultColision = ahora;
       const texto = 'Posible colisión: vehículo delante acercándose';
@@ -446,6 +516,100 @@ function cop_analizarColision() {
       }
       cop_anotarEvento('colision_frontal', texto);
     }
+  }
+
+  cop_analizarPeaton(tracks, w, areaFrame);
+  cop_analizarStop(tracks, areaFrame);
+  cop_analizarDistancia(tracks, w, areaFrame);
+}
+
+/* 🚶 PEATÓN delante: persona grande, centrada y acercándose → "FRENA · PEATÓN". */
+function cop_analizarPeaton(tracks, w, areaFrame) {
+  const c = estado.cop;
+  if (!estado.cfg.copPeaton) return;
+  const vistos = {};
+  let alarma = false;
+  for (let i = 0; i < tracks.length; i++) {
+    const t = tracks[i];
+    if (!t || !t.caja || t.clase !== 'person') continue;
+    const area = t.caja.an * t.caja.al;
+    const cx = (t.cx != null) ? t.cx : (t.caja.x + t.caja.an / 2);
+    const centrado = Math.abs(cx - w / 2) < w * COP_PEATON_CENTRO_REL;
+    const grande = area > areaFrame * COP_PEATON_AREA_MIN;
+    const prev = c.peat[t.id];
+    let crecidas = 0;
+    if (prev && prev.area > 0) crecidas = (area > prev.area * COP_COL_CRECE) ? (prev.crecidas + 1) : 0;
+    c.peat[t.id] = { area: area, crecidas: crecidas };
+    vistos[t.id] = true;
+    if (grande && centrado && crecidas >= COP_PEATON_FRAMES) alarma = true;
+  }
+  for (const id in c.peat) {
+    if (Object.prototype.hasOwnProperty.call(c.peat, id) && !vistos[id]) delete c.peat[id];
+  }
+  if (alarma) {
+    const ahora = Date.now();
+    c.colisionHasta = ahora + COP_COLISION_MOSTRAR_MS;
+    c.colisionTexto = '⚠ PEATÓN';
+    if (ahora - c.ultColision >= COP_COOLDOWN_COLISION_MS) {
+      c.ultColision = ahora;
+      const texto = 'PEATÓN delante acercándose — frena';
+      if (typeof alerta_disparar === 'function') {
+        try { alerta_disparar('peaton_delante', 'critico', texto); } catch (e) {}
+      }
+      cop_anotarEvento('peaton_delante', texto);
+    }
+  }
+}
+
+/* 🛑 Señal de STOP delante (el detector ya reconoce 'stop sign'). */
+function cop_analizarStop(tracks, areaFrame) {
+  const c = estado.cop;
+  if (!estado.cfg.copStopAviso) return;
+  const ahora = Date.now();
+  if (ahora - c.ultStop < COP_STOP_COOLDOWN_MS) return;
+  for (let i = 0; i < tracks.length; i++) {
+    const t = tracks[i];
+    if (!t || !t.caja || t.clase !== 'stop sign') continue;
+    if (t.caja.an * t.caja.al > areaFrame * COP_STOP_AREA_MIN) {
+      c.ultStop = ahora;
+      const texto = 'Señal de STOP delante';
+      if (typeof alerta_disparar === 'function') {
+        try { alerta_disparar('stop_delante', 'sospecha', texto); } catch (e) {}
+      }
+      cop_anotarEvento('stop', texto);
+      return;
+    }
+  }
+}
+
+/* ↔ Distancia de seguridad: vehículo delante MUY grande sostenido ≥3 s yendo
+ * a más de 30 km/h → "vas muy pegado" (orientativo, por tamaño de caja). */
+function cop_analizarDistancia(tracks, w, areaFrame) {
+  const c = estado.cop;
+  if (!estado.cfg.copDistSeg) { c.distDesde = 0; return; }
+  if ((c.velActual || 0) < COP_DIST_VEL_MIN) { c.distDesde = 0; return; }
+  const ahora = Date.now();
+  let pegado = false;
+  for (let i = 0; i < tracks.length && !pegado; i++) {
+    const t = tracks[i];
+    if (!t || !t.caja) continue;
+    if (t.clase !== 'car' && t.clase !== 'truck' && t.clase !== 'bus') continue;
+    const cx = (t.cx != null) ? t.cx : (t.caja.x + t.caja.an / 2);
+    if (Math.abs(cx - w / 2) > w * COP_COL_CENTRO_REL) continue;
+    if (t.caja.an * t.caja.al > areaFrame * COP_DIST_AREA) pegado = true;
+  }
+  if (pegado) {
+    if (!c.distDesde) c.distDesde = ahora;
+    else if (ahora - c.distDesde >= COP_DIST_MS && ahora - c.ultDistSeg >= COP_DIST_COOLDOWN_MS) {
+      c.ultDistSeg = ahora; c.distDesde = 0;
+      const texto = 'Vas muy pegado al vehículo de delante (orientativo)';
+      if (typeof alerta_disparar === 'function') {
+        try { alerta_disparar('muy_pegado', 'sospecha', texto); } catch (e) {}
+      }
+      cop_anotarEvento('muy_pegado', texto);
+    }
+  } else {
+    c.distDesde = 0;
   }
 }
 
@@ -520,7 +684,7 @@ function cop_pintarHUD(ctx) {
       ctx.fill();
       ctx.fillStyle = '#ffffff';
       ctx.font = "bold 46px 'SFMono-Regular',ui-monospace,Consolas,monospace";
-      ctx.fillText('⚠ FRENA', w / 2, h / 2 + 14);
+      ctx.fillText(estado.cop.colisionTexto || '⚠ FRENA', w / 2, h / 2 + 14);
     }
 
     ctx.restore();
@@ -575,11 +739,21 @@ function cop_persistirViaje(viaje) {
   try {
     let viajes = nuc_cargar('copiloto_viajes', []);
     if (!Array.isArray(viajes)) viajes = [];
+    // Ruta simplificada (máx COP_RUTA_GUARDAR_PTS puntos) para el GPX
+    let ruta = viaje.ruta || [];
+    if (ruta.length > COP_RUTA_GUARDAR_PTS) {
+      const paso = Math.ceil(ruta.length / COP_RUTA_GUARDAR_PTS);
+      const compacta = [];
+      for (let i = 0; i < ruta.length; i += paso) compacta.push(ruta[i]);
+      compacta.push(ruta[ruta.length - 1]);
+      ruta = compacta;
+    }
     viajes.push({
       inicio: viaje.inicio, fin: viaje.fin,
       distancia: Math.round(viaje.distancia),
       vMax: Math.round(viaje.vMax), gMax: Math.round(viaje.gMax * 10) / 10,
       eventos: (viaje.eventos || []).slice(0, 200),
+      ruta: ruta,
     });
     while (viajes.length > COP_VIAJES_MAX) viajes.shift();
     nuc_guardar('copiloto_viajes', viajes);
@@ -623,6 +797,44 @@ function cop_exportarBitacora() {
   } catch (e) {
     cop_toast('No se pudo exportar la bitácora.', 'sospecha');
   }
+}
+
+/* 🗺 Exporta la ruta del último trayecto (o el actual) como GPX estándar. */
+function cop_exportarGPX() {
+  try {
+    let viajes = nuc_cargar('copiloto_viajes', []);
+    if (!Array.isArray(viajes)) viajes = [];
+    let viaje = null;
+    if (estado.cop && estado.cop.viaje && (estado.cop.viaje.ruta || []).length >= 2) {
+      viaje = estado.cop.viaje;               // el trayecto en curso
+    } else {
+      for (let i = viajes.length - 1; i >= 0 && !viaje; i--) {
+        if ((viajes[i].ruta || []).length >= 2) viaje = viajes[i];
+      }
+    }
+    if (!viaje) { cop_toast('Aún no hay ruta GPS que exportar (inicia un trayecto y muévete).', 'info'); return; }
+    const gpx = cop_gpxDe(viaje);
+    const nombre = 'ruta-copiloto_' + cop_fechaArchivo(viaje.inicio) + '.gpx';
+    if (typeof nuc_descargar === 'function') nuc_descargar(nombre, gpx, 'application/gpx+xml');
+    cop_toast('Ruta GPX exportada (' + (viaje.ruta || []).length + ' puntos). Ábrela en Google Earth o una app de rutas.', 'info');
+  } catch (e) {
+    cop_toast('No se pudo exportar la ruta.', 'sospecha');
+  }
+}
+
+/* GPX 1.1 mínimo y válido a partir de un viaje con ruta [{lat,lon,ts}]. */
+function cop_gpxDe(viaje) {
+  const pts = (viaje.ruta || []).map((p) =>
+    '      <trkpt lat="' + Number(p.lat).toFixed(6) + '" lon="' + Number(p.lon).toFixed(6) + '">' +
+    '<time>' + new Date(p.ts || viaje.inicio).toISOString() + '</time></trkpt>'
+  ).join('\n');
+  return '<?xml version="1.0" encoding="UTF-8"?>\n' +
+    '<gpx version="1.1" creator="Vigía IA" xmlns="http://www.topografix.com/GPX/1/1">\n' +
+    '  <trk>\n' +
+    '    <name>Trayecto ' + cop_esc(nuc_fechaHora(viaje.inicio)) + '</name>\n' +
+    '    <trkseg>\n' + pts + '\n    </trkseg>\n' +
+    '  </trk>\n' +
+    '</gpx>\n';
 }
 
 /* Construye el HTML de la bitácora (autocontenido, sin dependencias). */

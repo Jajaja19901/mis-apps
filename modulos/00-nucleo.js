@@ -41,6 +41,11 @@ const CFG_DEFECTOS = {
   copColisionAviso: true,   // aviso de colisión frontal (vehículo que se acerca rápido)
   copParkingOn: false,      // vigilancia de coche aparcado (acelerómetro + alertas)
   copSensibilidadG: 2.2,    // umbral de golpe (g) para la caja negra / aparcado
+  copPeaton: true,          // aviso de PEATÓN delante (FRENA)
+  copStopAviso: true,       // aviso de señal de STOP delante
+  copDistSeg: false,        // aviso de distancia de seguridad (muy pegado sostenido, >30 km/h)
+  copAutoTrayecto: true,    // iniciar trayecto solo al pasar de 15 km/h
+  copFatiga: true,          // aviso de descanso cada 2 h de trayecto
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
   resolucion: '720',        // '480' | '720' | '1080'
