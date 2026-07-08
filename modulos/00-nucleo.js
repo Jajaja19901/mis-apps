@@ -55,6 +55,8 @@ const CFG_DEFECTOS = {
   abandonoSeg: 30,
   abandonoDistRel: 0.18,
   ocultacionUmbral: 60,
+  ocultacionUnGesto: false, // true = avisa al PRIMER gesto claro coger→bolsillo (más avisos, más falsos)
+  ocultacionPermanencia: 0.7, // seg que la mano debe quedarse en bolsillo/cintura (bajar pilla metidas rápidas)
   fueraHorarioOn: false,
   fueraHorarioIni: '22:00',
   fueraHorarioFin: '07:00',

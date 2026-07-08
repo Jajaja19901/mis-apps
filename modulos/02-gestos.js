@@ -211,15 +211,19 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
   const caderasVisibles = gesto_visible(ci) && gesto_visible(cd);
   let caderasC;
   const refsBolsillo = [];
+  // Radio de "mano en el bolsillo": estricto con caderas reales; más tolerante
+  // cuando el bolsillo es ESTIMADO (la estimación tiene error inherente).
+  let radioCerca = GESTO_CERCA_CUERPO * anchoHombros;
   if (caderasVisibles) {
     caderasC = { x: (ci.x + cd.x) / 2, y: (ci.y + cd.y) / 2 };
     refsBolsillo.push(ci, cd, caderasC);
   } else {
-    // torso ≈ 1.4× la anchura de hombros hacia abajo (en el plano de imagen)
-    caderasC = { x: hombrosC.x, y: hombrosC.y + anchoHombros * 1.4 };
+    // torso ≈ 1.5× la anchura de hombros hacia abajo (en el plano de imagen)
+    caderasC = { x: hombrosC.x, y: hombrosC.y + anchoHombros * 1.5 };
     refsBolsillo.push(caderasC,
-      { x: hi.x, y: hi.y + anchoHombros * 1.4 },   // bolsillo izq. estimado
-      { x: hd.x, y: hd.y + anchoHombros * 1.4 });  // bolsillo der. estimado
+      { x: hi.x, y: hi.y + anchoHombros * 1.5 },   // bolsillo izq. estimado
+      { x: hd.x, y: hd.y + anchoHombros * 1.5 });  // bolsillo der. estimado
+    radioCerca = 0.75 * anchoHombros;
   }
   const torsoC = { x: (hombrosC.x + caderasC.x) / 2, y: (hombrosC.y + caderasC.y) / 2 };
   const pechoC = {
@@ -240,8 +244,11 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
       if (d < dCadera) dCadera = d;
     }
     const dPecho = nuc_dist(muneca.x, muneca.y, pechoC.x, pechoC.y);
-    if (dCadera < GESTO_CERCA_CUERPO * anchoHombros || dPecho < GESTO_CERCA_CUERPO * anchoHombros) cerca = true;
+    if (dCadera < radioCerca || dPecho < GESTO_CERCA_CUERPO * anchoHombros) cerca = true;
   }
+  // Si una mano está en la zona del bolsillo/pecho, NO cuenta como "alcanzando":
+  // el bolsillo gana (clave cuando el torso es estimado y queda corto).
+  if (cerca) extendida = false;
 
   let m = g.maquinas[id];
   if (!m) m = g.maquinas[id] = { fase: 'reposo', tAlcance: 0, tCerca: 0, completado: false, bonus: false };
@@ -259,9 +266,15 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
     case 'ocultando':
       if (cerca) {
         const dwell = ts - m.tCerca;
-        if (dwell >= GESTO_DWELL_MS && !m.completado) {
+        const permanenciaMs = nuc_clamp((estado.cfg.ocultacionPermanencia || 0.7) * 1000, 200, 2000);
+        if (dwell >= permanenciaMs && !m.completado) {
           m.completado = true;
-          gesto_sumarSospecha(id, GESTO_PTS_CICLO, ts);   // ciclo alcanzar→esconder completo
+          // Modo "primer gesto claro": UN ciclo coger→bolsillo completo basta
+          // para avisar (empuja la puntuación hasta el umbral directamente).
+          const puntos_ciclo = estado.cfg.ocultacionUnGesto
+            ? Math.max(GESTO_PTS_CICLO, estado.cfg.ocultacionUmbral || 60)
+            : GESTO_PTS_CICLO;
+          gesto_sumarSospecha(id, puntos_ciclo, ts);   // ciclo alcanzar→esconder completo
         }
         if (dwell >= GESTO_DWELL_LARGO_MS && !m.bonus) {
           m.bonus = true;
