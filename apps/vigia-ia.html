@@ -354,6 +354,7 @@ h1, h2, h3, p { margin: 0; }
       </div>
     </div>
     <div class="fila ui-header-acciones">
+      <button type="button" class="btn btn-mini btn-fantasma" id="ui-btnCopiloto">🚗 Copiloto</button>
       <button type="button" class="btn btn-mini btn-fantasma" id="ui-btnModoMando">🧠 Mando</button>
       <button type="button" class="btn btn-mini btn-fantasma" id="ui-btnAforo">Aforo</button>
       <button type="button" class="btn btn-mini btn-fantasma" id="ui-btnAjustes" aria-label="Abrir ajustes">⚙ Ajustes</button>
@@ -399,6 +400,105 @@ h1, h2, h3, p { margin: 0; }
   <button type="button" id="zona-borrarTodo" class="btn btn-mini btn-peligro">🗑 Borrar todo</button>
   <span id="zona-ayuda" class="zona-ayuda etiqueta oculto">Toca el vídeo para añadir puntos</span>
 </div>
+
+      
+<!-- SLOT:DETALLE (inyectado desde 14-detalle.html) -->
+<!-- 14-detalle.html — barra de interruptores de detalle y recorrido (SLOT:DETALLE).
+     Fragmento sin html/head/body: se inyecta bajo el vídeo. Prefijo det-. -->
+<style>
+  #det-barra { display:flex; flex-wrap:wrap; gap:6px; padding:6px 10px; }
+  #det-barra .btn.det-activo { background:var(--azul,#3fa9ff); border-color:var(--azul,#3fa9ff); color:#051019; }
+</style>
+<div id="det-barra" class="det-barra fila" role="toolbar" aria-label="Detalle y recorrido">
+  <button type="button" id="det-btnRecorrido" class="btn btn-mini" aria-pressed="false">🐾 Recorrido</button>
+  <button type="button" id="det-btnVelocidad" class="btn btn-mini" aria-pressed="false">⏱ Velocidad</button>
+  <button type="button" id="det-btnModo" class="btn btn-mini" aria-pressed="false">🔎 Detalle</button>
+</div>
+
+    </section>
+
+    <section id="ui-secCopiloto" class="sec oculto">
+      
+<!-- SLOT:COPILOTO (inyectado desde 15-copiloto.html) -->
+<!-- SLOT:COPILOTO — panel del MODO COPILOTO / COCHE (dashcam) (cop_) -->
+<div id="cop-panel">
+  <h2 class="sec-titulo">🚗 Modo copiloto / coche</h2>
+
+  <!-- Lecturas en vivo -->
+  <div class="fila" style="flex-wrap:wrap;">
+    <div class="tarjeta">
+      <div class="etiqueta">Velocidad (~aprox.)</div>
+      <div class="dato-grande" id="cop-velocidad">0 km/h</div>
+    </div>
+    <div class="tarjeta">
+      <div class="etiqueta">Fuerza G</div>
+      <div class="dato-grande" id="cop-fuerzaG">0.0 g</div>
+    </div>
+    <div class="tarjeta">
+      <div class="etiqueta">Distancia del trayecto</div>
+      <div class="dato-grande" id="cop-distancia">0 m</div>
+    </div>
+  </div>
+
+  <!-- Interruptores -->
+  <div class="tarjeta">
+    <label class="fila cop-linea">
+      <input type="checkbox" id="cop-colision">
+      <span>Aviso de colisión frontal <small class="cop-nota">(vehículo delante que se acerca rápido)</small></span>
+    </label>
+    <label class="fila cop-linea">
+      <input type="checkbox" id="cop-parking">
+      <span>🅿 Vigilar coche aparcado <small class="cop-nota">(detecta golpes/movimiento del coche parado)</small></span>
+    </label>
+    <p class="cop-nota cop-parking-aviso">Con el coche aparcado: deja el móvil y la dashcam fijos y <b>enchufados a corriente</b>.</p>
+  </div>
+
+  <!-- Sensibilidad de golpe -->
+  <div class="tarjeta">
+    <div class="campo">
+      <label for="cop-sensibilidad">Sensibilidad de golpe / caja negra: <b id="cop-sensibilidadVal">2.2 g</b></label>
+      <input type="range" id="cop-sensibilidad" min="1.5" max="4" step="0.1">
+      <span class="cop-nota">Más bajo = salta con frenazos suaves; más alto = solo con golpes fuertes.</span>
+    </div>
+  </div>
+
+  <!-- Trayecto / bitácora -->
+  <div class="tarjeta">
+    <div class="etiqueta">Bitácora de trayectos</div>
+    <div class="fila cop-botonera">
+      <button type="button" class="btn btn-primario btn-mini" id="cop-btnIniciar">▶ Iniciar trayecto</button>
+      <button type="button" class="btn btn-peligro btn-mini" id="cop-btnTerminar" disabled>⏹ Terminar</button>
+      <button type="button" class="btn btn-mini" id="cop-btnExportar">⬇ Exportar bitácora</button>
+    </div>
+  </div>
+
+  <!-- Aviso honesto -->
+  <p class="cop-aviso">
+    La velocidad viene del GPS del móvil (<b>~aprox.</b>). Los avisos de colisión son una
+    <b>ayuda</b>, NO sustituyen tu atención al volante. El acelerómetro es el del móvil:
+    colócalo <b>fijo</b> en el coche para que las lecturas sean fiables.
+  </p>
+</div>
+
+<style>
+  /* Estilos propios del módulo copiloto (todos con prefijo cop-). */
+  #cop-panel { display: flex; flex-direction: column; gap: 10px; }
+  #cop-panel .cop-linea { align-items: center; gap: 10px; cursor: pointer; }
+  #cop-panel .cop-linea input[type="checkbox"] { width: 20px; height: 20px; flex: 0 0 auto; }
+  #cop-panel .cop-nota { color: var(--texto2, #7d8fa0); font-size: .82rem; }
+  #cop-panel .cop-parking-aviso { margin: 8px 0 0; }
+  #cop-panel .cop-botonera { flex-wrap: wrap; gap: 8px; }
+  #cop-panel .cop-botonera .btn[disabled] { opacity: .5; cursor: not-allowed; }
+  #cop-panel input[type="range"] { width: 100%; accent-color: var(--azul, #3fa9ff); }
+  #cop-panel .cop-aviso {
+    color: var(--ambar, #ffb224);
+    font-size: .84rem;
+    line-height: 1.45;
+    border-left: 3px solid var(--ambar, #ffb224);
+    padding: 4px 0 4px 10px;
+    margin: 4px 0 0;
+  }
+</style>
 
     </section>
 
@@ -907,6 +1007,7 @@ h1, h2, h3, p { margin: 0; }
       <div class="fila">
         <label><input type="radio" name="cfg-fuente" id="cfg-fuente-camara" data-cfg="fuente" value="camara"> Cámara del dispositivo</label>
         <label><input type="radio" name="cfg-fuente" id="cfg-fuente-ip" data-cfg="fuente" value="ip"> Cámara IP</label>
+        <label><input type="radio" name="cfg-fuente" id="cfg-fuente-dashcam" data-cfg="fuente" value="dashcam"> Dashcam / cámara RTSP (vía go2rtc)</label>
         <label><input type="radio" name="cfg-fuente" id="cfg-fuente-archivo" data-cfg="fuente" value="archivo"> Vídeo de prueba (demo)</label>
       </div>
     </fieldset>
@@ -949,6 +1050,19 @@ h1, h2, h3, p { margin: 0; }
       </div>
       <button type="button" class="btn btn-primario" id="cfg-btnConectarIP">Conectar</button>
       <p class="etiqueta">Instala la app gratuita IP Webcam en un móvil viejo, arranca el servidor de vídeo y pega aquí su URL.</p>
+    </div>
+
+    <div id="cfg-grupoDashcam" class="oculto">
+      <div class="campo">
+        <label for="cfg-urlDashcam">URL del stream de go2rtc</label>
+        <input type="text" id="cfg-urlDashcam" data-cfg="urlDashcam" placeholder="http://localhost:1984/api/stream.mjpeg?src=dashcam" inputmode="url" autocomplete="off">
+      </div>
+      <div class="fila">
+        <button type="button" class="btn btn-primario" id="cfg-btnConectarDashcam">Conectar dashcam</button>
+        <button type="button" class="btn" id="cfg-btnProbarDashcam">Probar conexión</button>
+      </div>
+      <p id="cfg-dashcamResultado" class="etiqueta"></p>
+      <button type="button" class="btn btn-mini btn-fantasma" id="cfg-btnGuiaDashcam">📖 Guía: conectar mi dashcam paso a paso</button>
     </div>
 
     <div id="cfg-grupoArchivo" class="oculto">
@@ -1391,7 +1505,17 @@ const CFG_DEFECTOS = {
   motor: 'coco',            // 'coco' (rápido, ligero) | 'yolo' (potente, corre en el móvil)
   yoloModelo: 'Xenova/yolos-tiny',  // modelo del motor potente (yolos-tiny|yolos-small|detr-resnet-50)
   yoloRes: 512,             // ancho de análisis del motor potente (más alto = ve más lejos, más lento)
-  fuente: 'camara',         // 'camara' | 'ip' | 'archivo'
+  fuente: 'camara',         // 'camara' | 'ip' | 'archivo' | 'dashcam'
+  urlDashcam: 'http://localhost:1984/api/stream.mjpeg?src=dashcam',  // MJPEG de go2rtc
+  // Detalle / recorrido (módulo 14)
+  detalleRecorrido: false,  // dibujar la estela/trayectoria de cada objeto
+  detalleVelocidad: false,  // mostrar velocidad (km/h) también de peatones
+  detalleModo: false,       // overlay de detalle (dirección, tiempo parado…)
+  // Copiloto / coche (módulo 15)
+  copActivo: false,         // panel copiloto visible
+  copColisionAviso: true,   // aviso de colisión frontal (vehículo que se acerca rápido)
+  copParkingOn: false,      // vigilancia de coche aparcado (acelerómetro + alertas)
+  copSensibilidadG: 2.2,    // umbral de golpe (g) para la caja negra / aparcado
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
   resolucion: '720',        // '480' | '720' | '1080'
@@ -3366,6 +3490,141 @@ async function vid_usarArchivo(file) {
   }
 }
 
+/* ===========================================================================
+ * DASHCAM / CÁMARA RTSP (vía go2rtc → stream MJPEG pintado en el mismo canvas).
+ * go2rtc corre en Termux en el propio móvil y traduce el RTSP de la dashcam a
+ * MJPEG en http://localhost:1984. TODO el pipeline (detección, tracker, alertas,
+ * grabación) consume el canvas/vid_fuente(), así que funciona sin más cambios.
+ * ========================================================================= */
+/* Deriva una URL de FOTOGRAMA suelto (más robusto que el MJPEG multipart, que
+ * no siempre dispara onload). go2rtc: /api/stream.mjpeg → /api/frame.jpeg. */
+function vid_dashcamFrameUrl(u) {
+  if (/stream\.mjpe?g/i.test(u)) return u.replace(/stream\.mjpe?g/i, 'frame.jpeg');
+  if (/\.(jpe?g|png)(\?|$)/i.test(u)) return u;       // ya apunta a un fotograma
+  return u; // se usa tal cual (se sondea igualmente)
+}
+
+async function vid_usarDashcam(url) {
+  const v = estado.vid; if (!v) return false;
+  try {
+    let u = (url != null ? url : (estado.cfg.urlDashcam || '')).toString().trim();
+    if (!u) { bus.emit('video:error', { msg: 'Escribe la URL del stream de la dashcam (go2rtc).' }); return false; }
+    vid_detener();
+    const img = vid_el.mjpeg;
+    if (!img) { bus.emit('video:error', { msg: 'No se encontró el visor de vídeo.' }); return false; }
+    v.dcUrl = u;
+    v.dcFrameUrl = vid_dashcamFrameUrl(u);              // sondeamos fotogramas sueltos
+    v.dcActivo = true; v.dcCaidaDesde = 0; v.dcAvisado = false; v.dcTaint = false;
+    v.dcPrimero = false; v.dcErrores = 0; v.dcResolver = null;
+    try { img.crossOrigin = 'anonymous'; } catch (e) {}   // necesario para poder analizar
+
+    return await new Promise((resolve) => {
+      v.dcResolver = resolve;
+      v.dcGuardaT = setTimeout(() => {
+        if (!v.dcPrimero && v.dcResolver) {
+          v.dcActivo = false;
+          bus.emit('video:error', { msg: 'No se conecta con la dashcam. ¿Arrancaste go2rtc en Termux y estás en el WiFi de la cámara? (Guía en Ajustes → Conectar mi dashcam)' });
+          const r = v.dcResolver; v.dcResolver = null; r(false);
+        }
+      }, 6000);
+      vid_dashcamSondear();
+    });
+  } catch (e) {
+    bus.emit('video:error', { msg: 'No se pudo abrir la dashcam.' });
+    return false;
+  }
+}
+
+/* Bucle de sondeo: pide un fotograma JPEG, lo pinta y encadena el siguiente
+ * a ~10 fps. Cada fotograma nuevo confirma señal viva (y recuperación). */
+function vid_dashcamSondear() {
+  const v = estado.vid;
+  if (!v || !v.dcActivo) return;
+  const img = vid_el.mjpeg; if (!img) return;
+
+  img.onload = () => {
+    if (!v.dcActivo) return;
+    v.dcErrores = 0; v.dcCaidaDesde = 0; v.dcAvisado = false;
+    if (!v.dcPrimero) {
+      v.dcPrimero = true;
+      clearTimeout(v.dcGuardaT);
+      let cont = false;
+      try {
+        const t = document.createElement('canvas'); t.width = 8; t.height = 8;
+        t.getContext('2d').drawImage(img, 0, 0, 8, 8); t.toDataURL('image/jpeg');
+      } catch (e) { cont = true; }
+      v.dcTaint = cont;
+      v.tipoFuente = 'dashcam'; v.fuenteEl = img;
+      const dims = vid_dimensiones();
+      estado.video.tipo = 'dashcam'; estado.video.listo = true;
+      estado.video.w = dims.w; estado.video.h = dims.h; estado.video.grabando = false;
+      vid_ocultarEstado();
+      if (cont) bus.emit('video:error', { msg: 'La dashcam se ve, pero go2rtc no envía cabeceras CORS: no se puede analizar ni grabar. Añade "cors" a la config de go2rtc (la guía lo explica).' });
+      bus.emit('video:listo', { tipo: 'dashcam', w: dims.w, h: dims.h });
+      if (v.dcResolver) { const r = v.dcResolver; v.dcResolver = null; r(true); }
+    } else if (!estado.video.listo) {
+      estado.video.listo = true; vid_ocultarEstado();   // recuperada tras caída
+    }
+    v.dcTimer = setTimeout(vid_dashcamSondear, 100);     // ~10 fps
+  };
+  img.onerror = () => {
+    if (!v.dcActivo) return;
+    v.dcErrores = (v.dcErrores || 0) + 1;
+    vid_dashcamReconectar();
+  };
+  const sep = v.dcFrameUrl.indexOf('?') >= 0 ? '&' : '?';
+  img.src = v.dcFrameUrl + sep + '_t=' + Date.now();
+}
+
+/* Reconexión automática del stream de la dashcam (WiFi de cámara inestable). */
+function vid_dashcamReconectar() {
+  const v = estado.vid; if (!v || !v.dcActivo) return;
+  if (!v.dcCaidaDesde) v.dcCaidaDesde = Date.now();
+  if (v.dcPrimero) { estado.video.listo = false; }     // pausa el análisis mientras no hay señal
+  if (vid_el.estado) { vid_el.estado.textContent = 'Reconectando con dashcam…'; }
+  if (v.dcPrimero) vid_mostrarEstado();
+  const caidoMs = Date.now() - v.dcCaidaDesde;
+  if (caidoMs > 30000 && !v.dcAvisado) {
+    v.dcAvisado = true;
+    bus.emit('video:error', { msg: 'La dashcam lleva más de 30 s sin señal. Comprueba el WiFi de la cámara y que go2rtc siga arrancado.' });
+  }
+  clearTimeout(v.dcTimer);
+  v.dcTimer = setTimeout(vid_dashcamSondear, 3000);      // reintento cada 3 s
+}
+
+/* Prueba de conexión de la dashcam: intenta cargar el stream ~5 s y devuelve
+ * Promise<{ok, msg, w, h}> con resultado claro (para el botón "Probar conexión"). */
+function vid_probarDashcam(url) {
+  return new Promise((resolve) => {
+    let u = (url != null ? url : (estado.cfg.urlDashcam || '')).toString().trim();
+    if (!u) { resolve({ ok: false, msg: 'Escribe primero la URL del stream.' }); return; }
+    u = vid_dashcamFrameUrl(u);   // probamos un fotograma suelto (robusto)
+    const img = new Image();
+    try { img.crossOrigin = 'anonymous'; } catch (e) {}
+    let hecho = false;
+    const t = setTimeout(() => {
+      if (hecho) return; hecho = true; img.src = '';
+      resolve({ ok: false, msg: 'No responde en 5 s. Causas típicas: go2rtc no está arrancado en Termux, la URL está mal, o el móvil no está en el WiFi de la dashcam.' });
+    }, 5000);
+    img.onload = () => {
+      if (hecho) return; hecho = true; clearTimeout(t);
+      let cors = true;
+      try { const c = document.createElement('canvas'); c.width = 8; c.height = 8;
+        c.getContext('2d').drawImage(img, 0, 0, 8, 8); c.toDataURL('image/jpeg'); }
+      catch (e) { cors = false; }
+      resolve({ ok: true, w: img.naturalWidth, h: img.naturalHeight, cors: cors,
+        msg: 'Conectado ✅ (' + img.naturalWidth + '×' + img.naturalHeight + ')' +
+          (cors ? '' : ' — OJO: go2rtc no envía CORS, se verá pero no se podrá analizar.') });
+    };
+    img.onerror = () => {
+      if (hecho) return; hecho = true; clearTimeout(t);
+      resolve({ ok: false, msg: 'Error de conexión. ¿go2rtc arrancado? ¿URL correcta? ¿WiFi de la cámara conectado (sin quitar los datos móviles)?' });
+    };
+    const sep = u.indexOf('?') >= 0 ? '&' : '?';
+    img.src = u + sep + '_t=' + Date.now();
+  });
+}
+
 /* Espera a tener dimensiones de vídeo (con tope de tiempo, sin colgarse). */
 function vid_esperarMetadatos(video) {
   return new Promise((resolve) => {
@@ -3395,6 +3654,10 @@ function vid_detener() {
       if (video.getAttribute('src')) { video.removeAttribute('src'); try { video.load(); } catch (e) {} }
     }
     if (v.objectURL) { try { URL.revokeObjectURL(v.objectURL); } catch (e) {} v.objectURL = null; }
+
+    v.dcActivo = false; clearTimeout(v.dcTimer); clearTimeout(v.dcGuardaT);
+    v.dcCaidaDesde = 0; v.dcAvisado = false; v.dcTaint = false; v.dcPrimero = false;
+    if (v.dcResolver) { try { v.dcResolver(false); } catch (e) {} v.dcResolver = null; }
 
     const img = vid_el.mjpeg;
     if (img) { img.onload = null; img.onerror = null; img.removeAttribute('src'); }
@@ -6212,9 +6475,11 @@ function cfg_actualizarVisibilidadFuente() {
   const actual = estado.cfg.fuente;
   const gCam = document.getElementById('cfg-grupoCamara');
   const gIP = document.getElementById('cfg-grupoIP');
+  const gDash = document.getElementById('cfg-grupoDashcam');
   const gArc = document.getElementById('cfg-grupoArchivo');
   if (gCam) gCam.classList.toggle('oculto', actual !== 'camara');
   if (gIP) gIP.classList.toggle('oculto', actual !== 'ip');
+  if (gDash) gDash.classList.toggle('oculto', actual !== 'dashcam');
   if (gArc) gArc.classList.toggle('oculto', actual !== 'archivo');
 }
 
@@ -6606,6 +6871,87 @@ function cfg_restaurar() {
   });
 }
 
+/* Copia texto al portapapeles (con reserva si no hay API). */
+function cfg_copiar(texto, boton) {
+  const ok = function () { if (boton) { const t = boton.textContent; boton.textContent = '✓ Copiado'; setTimeout(function () { boton.textContent = t; }, 1500); } };
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(texto).then(ok).catch(function () { cfg_copiarReserva(texto, ok); });
+    } else { cfg_copiarReserva(texto, ok); }
+  } catch (e) { cfg_copiarReserva(texto, ok); }
+}
+function cfg_copiarReserva(texto, ok) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = texto; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove(); if (ok) ok();
+  } catch (e) { /* sin portapapeles: el usuario copia a mano */ }
+}
+
+/* GUÍA "Conectar mi dashcam": asistente paso a paso con botones de copiar. */
+function cfg_guiaDashcam() {
+  const urlRtsp = 'rtsp://192.168.1.254/liveRTSP/av4';
+  const cmdInstalar =
+    'pkg update -y && pkg install wget -y\n' +
+    'mkdir -p ~/vigia && cd ~/vigia\n' +
+    'wget -O go2rtc https://github.com/AlexxIT/go2rtc/releases/latest/download/go2rtc_linux_arm64\n' +
+    'chmod +x go2rtc';
+  const cmdYaml =
+    "cat > ~/vigia/go2rtc.yaml <<'EOF'\n" +
+    'api:\n' +
+    '  listen: ":1984"\n' +
+    '  origin: "*"\n' +          // CORS: sin esto el navegador no puede analizar el vídeo
+    'streams:\n' +
+    '  dashcam: ' + urlRtsp + '\n' +
+    'EOF';
+  const cmdArrancar = 'cd ~/vigia && ./go2rtc';
+  const cmdScript =
+    "cat > ~/vigia/arrancar-dashcam.sh <<'EOF'\n" +
+    '#!/data/data/com.termux/files/usr/bin/bash\n' +
+    'cd ~/vigia && ./go2rtc\n' +
+    'EOF\n' +
+    'chmod +x ~/vigia/arrancar-dashcam.sh';
+
+  const cont = document.createElement('div');
+  cont.className = 'cfg-guia';
+  cont.innerHTML =
+    '<p><b>Paso 1.</b> Conecta el móvil al <b>WiFi de tu dashcam</b> (el mismo que usas con su app, TiCam). <b>NO</b> quites los datos móviles: hacen falta para las alertas de Telegram.</p>' +
+    '<p><b>Paso 2.</b> Comprueba el vídeo con <b>VLC</b> → «Abrir ubicación de red» y prueba estas direcciones; apunta la que funcione:</p>' +
+    '<div class="cfg-cmd"><code>rtsp://192.168.1.254/liveRTSP/av4</code></div>' +
+    '<div class="cfg-cmd"><code>rtsp://192.168.1.254/xxx.mov</code></div>' +
+    '<p><b>Paso 3.</b> Instala <b>Termux</b> (desde F-Droid) y pega estos bloques uno a uno. Si tu URL RTSP del paso 2 es distinta, cámbiala en el segundo bloque.</p>' +
+    '<p class="etiqueta">a) Descargar go2rtc:</p>' + cfg_bloqueCmd(cmdInstalar, 'g1') +
+    '<p class="etiqueta">b) Crear la configuración (con la cámara y CORS activado):</p>' + cfg_bloqueCmd(cmdYaml, 'g2') +
+    '<p class="etiqueta">c) Arrancarlo:</p>' + cfg_bloqueCmd(cmdArrancar, 'g3') +
+    '<p class="etiqueta">d) (Opcional) Script para arrancarlo de un toque las próximas veces:</p>' + cfg_bloqueCmd(cmdScript, 'g4') +
+    '<p><b>Paso 4.</b> Vuelve a VIGÍA, deja la fuente en <b>Dashcam</b> y pulsa <b>«Probar conexión»</b>. Si va, pulsa <b>«Conectar dashcam»</b>.</p>' +
+    '<p class="cfg-aviso">⚠ Avisos honestos:<br>' +
+    '• En algunos firmwares, la app de la dashcam (TiCam) y VIGÍA <b>no pueden</b> usar el stream a la vez: <b>cierra TiCam</b> primero.<br>' +
+    '• La calidad del stream por WiFi suele ser <b>menor</b> que la grabación en la tarjeta SD. La SD sigue siendo la grabación buena; VIGÍA es el <b>análisis y los avisos</b>.<br>' +
+    '• Si el vídeo se ve pero «no se puede analizar», es que falta el <code>origin: "*"</code> del bloque b).</p>';
+
+  if (typeof ui_modal === 'function') {
+    ui_modal('Conectar mi dashcam', cont, [{ texto: 'Cerrar', clase: 'btn-primario', fn: function () {} }]);
+    // conectar los botones de copiar (tras insertarse en el DOM)
+    setTimeout(function () {
+      [['cfg-copiar-g1', cmdInstalar], ['cfg-copiar-g2', cmdYaml], ['cfg-copiar-g3', cmdArrancar], ['cfg-copiar-g4', cmdScript]]
+        .forEach(function (par) {
+          const b = document.getElementById(par[0]);
+          if (b) b.addEventListener('click', function () { cfg_copiar(par[1], b); });
+        });
+    }, 30);
+  } else {
+    cfg_avisar('Abre Ajustes para ver la guía.', 'info');
+  }
+}
+function cfg_bloqueCmd(texto, id) {
+  const estiloPre = 'style="background:#0b0f14;border:1px solid #233140;border-radius:8px;padding:10px;margin:4px 0;overflow-x:auto;white-space:pre;font-family:ui-monospace,monospace;font-size:.8rem;color:#cfdae4;"';
+  return '<div class="cfg-cmd">' +
+    '<pre ' + estiloPre + '>' + cfg_escapar(texto) + '</pre>' +
+    '<button type="button" class="btn btn-mini" id="cfg-copiar-' + id + '">Copiar</button></div>';
+}
+
 /* Confirmación asíncrona (nada de confirm() nativo: bloquea el hilo y congela
  * la app bajo el verificador automático). */
 function cfg_confirmar(msg, textoOk, alConfirmar) {
@@ -6717,6 +7063,31 @@ function cfg_conectarBotones() {
       Promise.resolve(vid_usarArchivo(file)).catch(function (e) { console.warn('[ajustes] vid_usarArchivo:', e && e.message); });
     } catch (e) { console.warn('[ajustes] vid_usarArchivo:', e && e.message); }
   });
+
+  // --- Dashcam / cámara RTSP vía go2rtc ---
+  const btnDash = $('cfg-btnConectarDashcam');
+  if (btnDash) btnDash.addEventListener('click', function () {
+    const campo = $('cfg-urlDashcam');
+    const url = campo ? campo.value.trim() : '';
+    if (typeof vid_usarDashcam !== 'function') { cfg_avisar('El módulo de vídeo aún no está disponible.', 'sospecha'); return; }
+    try { Promise.resolve(vid_usarDashcam(url)).catch(function (e) { console.warn('[ajustes] vid_usarDashcam:', e && e.message); }); }
+    catch (e) { console.warn('[ajustes] vid_usarDashcam:', e && e.message); }
+  });
+  const btnProbarDash = $('cfg-btnProbarDashcam');
+  if (btnProbarDash) btnProbarDash.addEventListener('click', function () {
+    const campo = $('cfg-urlDashcam');
+    const url = campo ? campo.value.trim() : '';
+    const res = $('cfg-dashcamResultado');
+    if (typeof vid_probarDashcam !== 'function') { if (res) res.textContent = 'El módulo de vídeo no está disponible.'; return; }
+    if (res) res.textContent = 'Probando…';
+    btnProbarDash.disabled = true;
+    Promise.resolve(vid_probarDashcam(url)).then(function (r) {
+      if (res) res.textContent = (r && r.msg) || (r && r.ok ? 'Conectado' : 'Sin conexión');
+    }).catch(function () { if (res) res.textContent = 'No se pudo probar.'; })
+      .then(function () { btnProbarDash.disabled = false; });
+  });
+  const btnGuiaDash = $('cfg-btnGuiaDashcam');
+  if (btnGuiaDash) btnGuiaDash.addEventListener('click', cfg_guiaDashcam);
 
   const btnStop = $('cfg-btnDetenerFuente');
   if (btnStop) btnStop.addEventListener('click', function () {
@@ -9172,6 +9543,1121 @@ function yolo_activo() {
 }
 
 
+/* ===== 14-detalle.js ===== */
+/* ============================================================================
+ * 14-DETALLE — VIGÍA IA · overlay de recorrido, velocidad y detalle por objeto.
+ * Prefijo: det_ / DET_. Estado interno en estado.det (creado en det_init).
+ *
+ * Tres capas independientes, activables cada una desde la barra de chips
+ * (SLOT:DETALLE), que leen/escriben estado.cfg.detalleRecorrido /
+ * .detalleVelocidad / .detalleModo:
+ *   - RECORRIDO: estela de los últimos ~2s de estado.tracks[].historial (el
+ *     propio tracker ya guarda esa ventana; este módulo NO la duplica).
+ *   - VELOCIDAD: sobre cada objeto, en km/h si estado.car.pxPorMetro está
+ *     calibrado (car_velocidadKmh no vale porque solo cubre vehículos; aquí
+ *     se necesita también para personas, así que se recalcula igual que
+ *     08-carretera pero para CUALQUIER clase), o en px/s si no hay calibrar.
+ *   - DETALLE: id + clase (ES) + dirección (flecha) + tiempo parado. La
+ *     dirección y el "parado Ns" SÍ necesitan memoria propia entre frames
+ *     (el historial del tracker solo cubre ~2s, insuficiente para "parado
+ *     30s"), por eso estado.det.rastros guarda, por track, desde cuándo
+ *     lleva quieto y su última flecha de dirección.
+ *
+ * Se pinta como pintor registrado en vid_registrarPintor('detalle', det_pintar,
+ * 60): se ejecuta en cada frame compuesto (bucle rAF), no solo en los frames
+ * de inferencia. Por eso usa performance.now() (el mismo reloj con el que el
+ * tracker sella su historial vía requestAnimationFrame), no Date.now().
+ * ==========================================================================*/
+
+/* --- Parámetros del módulo --------------------------------------------------*/
+const DET_MAX_RASTROS = 60;          // tope duro de tracks recordados en estado.det.rastros
+const DET_RASTRO_MAX_EDAD_MS = 30000; // poda por antigüedad si no se actualiza en 30s
+const DET_VENTANA_MOV_MS = 1200;      // ventana reciente para decidir dirección / "quieto"
+const DET_QUIETO_REL = 0.03;          // desplazamiento < 3% del ancho de frame = "quieto"
+const DET_QUIETO_MIN_SEG = 2;         // no se muestra "parado" hasta llevar al menos 2s así
+
+/* --- Estética (tokens del sistema de diseño §8) -----------------------------*/
+const DET_FUENTE = "ui-monospace,SFMono-Regular,'Cascadia Mono',Consolas,monospace";
+const DET_COLOR_PERSONA = '#2ee584';
+const DET_COLOR_VEHICULO = '#3fa9ff';
+const DET_COLOR_OTRO = '#7d8fa0';
+const DET_COLOR_VELOCIDAD = '#ffb224';
+const DET_COLOR_TEXTO = '#e9f0f7';
+
+/* Refs de DOM cacheadas (no son "estado de negocio": son punteros a los chips) */
+let det_refs = {};
+
+/* ---------------------------------------------------------------------------
+ * INIT
+ * -------------------------------------------------------------------------*/
+
+/* Arranca el módulo: estado, cablea los 3 chips de la barra y los pintores.
+ * Idempotente y seguro de llamar siempre (con o sin vídeo/DOM montado). */
+function det_init() {
+  if (estado.det && estado.det.inicializado) return;
+  estado.det = {
+    inicializado: true,
+    rastros: {}, // trackId -> { quietoDesde: ts|null, flecha: str|null, ultimaVez: ts }
+  };
+
+  det_refs = {
+    recorrido: document.getElementById('det-btnRecorrido'),
+    velocidad: document.getElementById('det-btnVelocidad'),
+    modo: document.getElementById('det-btnModo'),
+  };
+
+  det_cablearBoton(det_refs.recorrido, 'detalleRecorrido');
+  det_cablearBoton(det_refs.velocidad, 'detalleVelocidad');
+  det_cablearBoton(det_refs.modo, 'detalleModo');
+  det_sincronizarBotones();
+
+  bus.on('cfg:cambio', (datos) => {
+    if (!datos || datos.clave === 'detalleRecorrido' || datos.clave === 'detalleVelocidad' || datos.clave === 'detalleModo') {
+      det_sincronizarBotones();
+    }
+  });
+
+  bus.on('track:perdido', (datos) => {
+    if (estado.det && estado.det.rastros && datos && datos.track) delete estado.det.rastros[datos.track.id];
+  });
+
+  if (typeof vid_registrarPintor === 'function') vid_registrarPintor('detalle', det_pintar, 60);
+}
+
+/* Cablea un chip: click → invierte el booleano en cfg, guarda y avisa al bus. */
+function det_cablearBoton(btn, clave) {
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    if (!estado.cfg) return;
+    estado.cfg[clave] = !estado.cfg[clave];
+    nuc_guardar('cfg', estado.cfg);
+    bus.emit('cfg:cambio', { clave: clave });
+    det_sincronizarBotones();
+  });
+}
+
+/* Refleja estado.cfg.detalle* en la clase/aria-pressed de los 3 chips. */
+function det_sincronizarBotones() {
+  if (!estado.cfg) return;
+  det_marcarBoton(det_refs.recorrido, !!estado.cfg.detalleRecorrido);
+  det_marcarBoton(det_refs.velocidad, !!estado.cfg.detalleVelocidad);
+  det_marcarBoton(det_refs.modo, !!estado.cfg.detalleModo);
+}
+function det_marcarBoton(btn, activo) {
+  if (!btn) return;
+  btn.classList.toggle('det-activo', activo);
+  btn.setAttribute('aria-pressed', activo ? 'true' : 'false');
+}
+
+/* ---------------------------------------------------------------------------
+ * UTILIDADES INTERNAS
+ * -------------------------------------------------------------------------*/
+
+/* Reloj coherente con el ts que el tracker sella en su historial: el bucle
+ * (app_ciclo) usa Date.now() y se lo pasa a trk_actualizar, así que el historial
+ * está en epoch Date.now(). Hay que usar el MISMO reloj o las comparaciones de
+ * tiempo ("parado Ns", ventana de dirección) darían valores absurdos. */
+function det_ahora() {
+  return Date.now();
+}
+
+/* Color de la estela/acento según el grupo de clase del track. */
+function det_colorClase(clase) {
+  if (typeof NUC_PERSONA !== 'undefined' && NUC_PERSONA.indexOf(clase) >= 0) return DET_COLOR_PERSONA;
+  if (typeof NUC_VEHICULOS !== 'undefined' && NUC_VEHICULOS.indexOf(clase) >= 0) return DET_COLOR_VEHICULO;
+  return DET_COLOR_OTRO;
+}
+
+/* '#rrggbb' + alpha → 'rgba(r,g,b,a)'. Sin dependencias externas. */
+function det_hexRgba(hex, alpha) {
+  const h = (hex || '#7d8fa0').replace('#', '');
+  const r = parseInt(h.substring(0, 2), 16) || 0;
+  const g = parseInt(h.substring(2, 4), 16) || 0;
+  const b = parseInt(h.substring(4, 6), 16) || 0;
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+}
+
+/* Flecha de dirección (8 rumbos) a partir de un desplazamiento en px de
+ * pantalla (dy positivo = hacia abajo). null si el desplazamiento es nulo. */
+function det_flecha(dx, dy) {
+  if (Math.abs(dx) < 0.001 && Math.abs(dy) < 0.001) return null;
+  const flechas = ['→', '↗', '↑', '↖', '←', '↙', '↓', '↘'];
+  const deg = (Math.atan2(-dy, dx) * 180 / Math.PI + 360) % 360;
+  const idx = Math.round(deg / 45) % 8;
+  return flechas[idx];
+}
+
+/* Actualiza (o crea) el registro de estado.det.rastros para este track:
+ * decide si está "quieto" (desplazamiento reciente < 3% del ancho de frame)
+ * y, si no lo está, su flecha de dirección. quietoDesde se mantiene mientras
+ * siga quieto (así "parado Ns" puede superar la ventana de historial ~2s del
+ * tracker) y se limpia en cuanto vuelve a moverse. */
+function det_actualizarRastro(track, ahora, w) {
+  if (!estado.det || !estado.det.rastros || !track) return null;
+  let reg = estado.det.rastros[track.id];
+  if (!reg) { reg = { quietoDesde: null, flecha: null, ultimaVez: ahora }; estado.det.rastros[track.id] = reg; }
+  reg.ultimaVez = ahora;
+
+  const hist = Array.isArray(track.historial) ? track.historial : [];
+  let dx = 0, dy = 0;
+  if (hist.length >= 2) {
+    const limite = ahora - DET_VENTANA_MOV_MS;
+    let primero = hist[0];
+    for (let i = 0; i < hist.length; i++) {
+      if (hist[i] && hist[i].ts >= limite) { primero = hist[i]; break; }
+    }
+    const ultimo = hist[hist.length - 1];
+    if (primero && ultimo) { dx = ultimo.pieX - primero.pieX; dy = ultimo.pieY - primero.pieY; }
+  }
+
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const umbral = DET_QUIETO_REL * (w || 640);
+
+  if (dist < umbral) {
+    if (!reg.quietoDesde) reg.quietoDesde = ahora;
+    reg.flecha = null;
+  } else {
+    reg.quietoDesde = null;
+    reg.flecha = det_flecha(dx, dy);
+  }
+  return reg;
+}
+
+/* Poda estado.det.rastros: primero por antigüedad (sin actualizarse hace
+ * demasiado, p.ej. si se perdió el track:perdido por algún motivo), luego
+ * por tope duro de tracks recordados (los más viejos primero). */
+function det_podarRastros(ahora) {
+  if (!estado.det || !estado.det.rastros) return;
+  const rastros = estado.det.rastros;
+  const ids = Object.keys(rastros);
+  for (let i = 0; i < ids.length; i++) {
+    const r = rastros[ids[i]];
+    if (!r || (ahora - (r.ultimaVez || 0)) > DET_RASTRO_MAX_EDAD_MS) delete rastros[ids[i]];
+  }
+  const restantes = Object.keys(rastros);
+  if (restantes.length > DET_MAX_RASTROS) {
+    restantes.sort((a, b) => (rastros[a].ultimaVez || 0) - (rastros[b].ultimaVez || 0));
+    const sobran = restantes.length - DET_MAX_RASTROS;
+    for (let i = 0; i < sobran; i++) delete rastros[restantes[i]];
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * VELOCIDAD (helper reutilizable + capa VELOCIDAD)
+ * -------------------------------------------------------------------------*/
+
+/* Texto de velocidad de un track: "~NN km/h" (+ "(X.X m/s)" si es persona a
+ * paso humano <12km/h) cuando estado.car.pxPorMetro está calibrado; si no,
+ * "NN px/s" — NUNCA se inventa un km/h sin calibración. '' si no hay nada
+ * que mostrar (velocidad ~0 o track inválido). */
+function det_velocidadTexto(track) {
+  if (!track) return '';
+  const pxs = (typeof trk_velocidad === 'function') ? trk_velocidad(track) : 0;
+  if (typeof pxs !== 'number' || !isFinite(pxs)) return '';
+
+  const calibrado = !!(estado.car && typeof estado.car.pxPorMetro === 'number' && estado.car.pxPorMetro > 0);
+  if (calibrado) {
+    const kmh = Math.round((pxs / estado.car.pxPorMetro) * 3.6);
+    if (kmh <= 0) return '';
+    if (track.clase === 'person' && kmh < 12) {
+      const ms = Math.round((pxs / estado.car.pxPorMetro) * 10) / 10;
+      return '~' + kmh + ' km/h (' + ms + ' m/s)';
+    }
+    return '~' + kmh + ' km/h';
+  }
+
+  const redondeada = Math.round(pxs);
+  if (redondeada <= 0) return '';
+  return redondeada + ' px/s';
+}
+
+/* Pinta la banda de velocidad (esquina superior derecha de cada caja). */
+function det_pintarVelocidades(ctx, tracks) {
+  if (!ctx || !Array.isArray(tracks) || !tracks.length) return;
+  const cw = ctx.canvas.width || (estado.video && estado.video.w) || 640;
+  const ch = ctx.canvas.height || (estado.video && estado.video.h) || 480;
+  const fuentePx = nuc_clamp(Math.round(ch / 46), 10, 15);
+  const padX = 4, padY = 2;
+  const alto = fuentePx + padY * 2;
+
+  ctx.save();
+  ctx.font = fuentePx + 'px ' + DET_FUENTE;
+  ctx.textBaseline = 'top';
+
+  for (let i = 0; i < tracks.length; i++) {
+    const t = tracks[i];
+    if (!t || !t.caja) continue;
+    const texto = det_velocidadTexto(t);
+    if (!texto) continue;
+
+    const c = t.caja;
+    const anTxt = ctx.measureText(texto).width;
+    const ancho = anTxt + padX * 2;
+    let ex = c.x + c.an - ancho;
+    let ey = c.y - alto - 2;
+    if (ey < 0) ey = c.y + 2;
+    if (ex < 0) ex = 0;
+    if (ex + ancho > cw) ex = cw - ancho;
+
+    ctx.fillStyle = 'rgba(11,15,20,0.72)';
+    ctx.fillRect(ex, ey, ancho, alto);
+    ctx.fillStyle = DET_COLOR_VELOCIDAD;
+    ctx.fillText(texto, ex + padX, ey + padY);
+  }
+  ctx.restore();
+}
+
+/* ---------------------------------------------------------------------------
+ * RECORRIDO (estela)
+ * -------------------------------------------------------------------------*/
+
+/* Dibuja la estela de cada track (línea que une su historial de puntos de
+ * pie, del más viejo al actual) con opacidad creciente hacia el presente, y
+ * un punto en la posición actual. Usa DIRECTAMENTE track.historial: el
+ * tracker ya mantiene esa ventana de ~2s, no hace falta duplicarla aquí. */
+function det_pintarEstelas(ctx, tracks) {
+  if (!ctx || !Array.isArray(tracks) || !tracks.length) return;
+  const cw = ctx.canvas.width || (estado.video && estado.video.w) || 640;
+  const grosor = nuc_clamp((cw / 640) * 1.6, 1.5, 2);
+
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  for (let i = 0; i < tracks.length; i++) {
+    const t = tracks[i];
+    if (!t || !Array.isArray(t.historial) || t.historial.length < 2) continue;
+    const color = det_colorClase(t.clase);
+    const h = t.historial;
+    const n = h.length;
+
+    for (let j = 1; j < n; j++) {
+      const p0 = h[j - 1], p1 = h[j];
+      if (!p0 || !p1) continue;
+      const alpha = 0.08 + 0.55 * (j / (n - 1)); // más transparente lo antiguo, opaco lo reciente
+      ctx.strokeStyle = det_hexRgba(color, alpha);
+      ctx.lineWidth = grosor;
+      ctx.beginPath();
+      ctx.moveTo(p0.pieX, p0.pieY);
+      ctx.lineTo(p1.pieX, p1.pieY);
+      ctx.stroke();
+    }
+
+    const ultimo = h[n - 1];
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(ultimo.pieX, ultimo.pieY, Math.max(2, grosor + 1), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* ---------------------------------------------------------------------------
+ * MODO DETALLE (id + clase + dirección + tiempo parado)
+ * -------------------------------------------------------------------------*/
+
+/* Pinta, bajo cada caja, "#id clase [· flecha | · parado Ns]". La flecha sale
+ * de estado.det.rastros[id].flecha; "parado Ns" de quietoDesde, y solo se
+ * muestra a partir de DET_QUIETO_MIN_SEG (evita ruido de un instante quieto). */
+function det_pintarDetalle(ctx, tracks, ahora) {
+  if (!ctx || !Array.isArray(tracks) || !tracks.length || !estado.det || !estado.det.rastros) return;
+  const cw = ctx.canvas.width || (estado.video && estado.video.w) || 640;
+  const ch = ctx.canvas.height || (estado.video && estado.video.h) || 480;
+  const fuentePx = nuc_clamp(Math.round(ch / 52), 9, 13);
+  const padX = 4, padY = 2;
+  const alto = fuentePx + padY * 2;
+
+  ctx.save();
+  ctx.font = fuentePx + 'px ' + DET_FUENTE;
+  ctx.textBaseline = 'top';
+
+  for (let i = 0; i < tracks.length; i++) {
+    const t = tracks[i];
+    if (!t || !t.caja) continue;
+    const reg = estado.det.rastros[t.id];
+
+    let extra = '';
+    if (reg && reg.quietoDesde) {
+      const seg = Math.round((ahora - reg.quietoDesde) / 1000);
+      if (seg >= DET_QUIETO_MIN_SEG) extra = 'parado ' + seg + 's';
+    } else if (reg && reg.flecha) {
+      extra = reg.flecha;
+    }
+
+    let texto = '#' + t.id + ' ' + nuc_claseES(t.clase);
+    if (extra) texto += ' · ' + extra;
+
+    const c = t.caja;
+    const anTxt = ctx.measureText(texto).width;
+    const ancho = anTxt + padX * 2;
+    let ex = c.x;
+    let ey = c.y + c.al + 2;
+    if (ey + alto > ch) ey = c.y + c.al - alto - 2;
+    if (ex < 0) ex = 0;
+    if (ex + ancho > cw) ex = cw - ancho;
+
+    ctx.fillStyle = 'rgba(11,15,20,0.72)';
+    ctx.fillRect(ex, ey, ancho, alto);
+    ctx.fillStyle = DET_COLOR_TEXTO;
+    ctx.fillText(texto, ex + padX, ey + padY);
+  }
+  ctx.restore();
+}
+
+/* ---------------------------------------------------------------------------
+ * PINTOR PRINCIPAL — registrado en vid_registrarPintor('detalle', ..., 60)
+ * -------------------------------------------------------------------------*/
+
+/* Se ejecuta en cada frame compuesto. Guarda-clausulas totales: sin ctx, sin
+ * tracks o sin estado.video.w no pinta nada y no rompe. */
+function det_pintar(ctx) {
+  if (!ctx || !ctx.canvas) return;
+  if (!estado.det || !estado.det.rastros) return;
+  const tracks = Array.isArray(estado.tracks) ? estado.tracks : [];
+  const w = (estado.video && estado.video.w) || 0;
+  const ahora = det_ahora();
+
+  if (!tracks.length || !w) { det_podarRastros(ahora); return; }
+
+  const cfg = estado.cfg || {};
+  for (let i = 0; i < tracks.length; i++) det_actualizarRastro(tracks[i], ahora, w);
+
+  try {
+    if (cfg.detalleRecorrido) det_pintarEstelas(ctx, tracks);
+    if (cfg.detalleVelocidad) det_pintarVelocidades(ctx, tracks);
+    if (cfg.detalleModo) det_pintarDetalle(ctx, tracks, ahora);
+  } catch (e) {
+    console.warn('[detalle] fallo pintando overlay:', e && e.message);
+  }
+
+  det_podarRastros(ahora);
+}
+
+
+/* ===== 15-copiloto.js ===== */
+/* ============================================================================
+ * 15-COPILOTO — VIGÍA IA · MODO COPILOTO / COCHE (dashcam de conducción).
+ * Convierte el móvil colocado en el coche en una dashcam con:
+ *   · Caja negra por acelerómetro (frenazo/golpe → clip de evidencia + alerta).
+ *   · Velocímetro por GPS (~aprox., nunca válido como medición legal).
+ *   · HUD tipo salpicadero sobre el vídeo (velocidad, fuerza G, hora, REC).
+ *   · Aviso de posible colisión frontal (vehículo delante que se acerca rápido).
+ *   · Bitácora de trayectos (distancia, vMax, gMax, eventos) con export.
+ *   · Modo "coche aparcado": golpe/movimiento del coche parado → alerta crítica.
+ *
+ * Prefijo público: cop_ / COP_. Estado propio en estado.cop.
+ * Honestidad: la velocidad viene del GPS (~aprox.) y los avisos de colisión son
+ * una AYUDA, no sustituyen la atención al volante. Nada de precisión de radar.
+ *
+ * Seguridad: TODAS las funciones son seguras sin vídeo y sin sensores. En
+ * headless (Chromium sin acelerómetro ni GPS) no se dispara ningún evento y
+ * ninguna función lanza excepciones (guarda-clauses + try/catch).
+ * ==========================================================================*/
+
+/* --- Constantes ------------------------------------------------------------*/
+const COP_G = 9.81;                       // gravedad (m/s²) para pasar a "g"
+const COP_COOLDOWN_IMPACTO_MS = 8000;     // caja negra por frenazo/golpe
+const COP_COOLDOWN_APARCADO_MS = 8000;    // golpe con el coche aparcado
+const COP_COOLDOWN_COLISION_MS = 5000;    // aviso de colisión frontal
+const COP_SENSOR_TIMEOUT_MS = 4000;       // sin señal del acelerómetro → aviso
+const COP_COLISION_MOSTRAR_MS = 1500;     // duración del cartel "⚠ FRENA"
+const COP_VIAJES_MAX = 50;                // trayectos guardados (rotación)
+const COP_DIST_MIN_M = 2;                 // mínimo para sumar distancia (anti-jitter GPS)
+const COP_DIST_MAX_M = 200;               // máximo por salto (descarta teletransportes)
+const COP_VEL_MAX_KMH = 300;              // tope defensivo de velocidad mostrada
+/* Colisión frontal: umbrales sobre los tracks de vehículos (relativos al frame) */
+const COP_COL_AREA_MIN = 0.05;            // el vehículo ocupa ≥5% del encuadre
+const COP_COL_CENTRO_REL = 0.22;          // centrado: |cx - w/2| < 22% del ancho
+const COP_COL_CRECE = 1.12;               // el área crece >12% entre inferencias
+const COP_COL_FRAMES = 3;                 // crecimiento sostenido N inferencias
+
+/* ============================================================================
+ * ARRANQUE (idempotente): crea estado, cablea botón y controles, registra el
+ * pintor del HUD. NO arranca los sensores (eso solo al activar el copiloto).
+ * ==========================================================================*/
+function cop_init() {
+  if (estado.cop && estado.cop.inited) return;
+
+  estado.cop = {
+    inited: false,
+    // Lecturas en vivo
+    velActual: 0, velMax: 0,
+    gActual: 0, gMax: 0, gMedia: 0,
+    // Filtro de gravedad (para restarla cuando solo hay accelIncludingGravity)
+    grav: { x: 0, y: 0, z: COP_G }, gravInit: false,
+    // GPS
+    gpsId: 0, ultPos: null,
+    // Sensores
+    sensoresOn: false, motionRecibido: false, motionTimer: 0,
+    sinAcelAvisado: false, gpsErrAvisado: false, permisoAvisado: false,
+    // Cooldowns
+    ultImpacto: 0, ultAparcado: 0, ultColision: 0,
+    // Colisión frontal
+    colisionHasta: 0, veh: {},
+    // Bitácora
+    viaje: null,
+    // Render
+    _ultRender: 0,
+  };
+
+  // Botón del header (typeof-check implícito: solo si existe el nodo).
+  const btn = document.getElementById('ui-btnCopiloto');
+  if (btn) btn.addEventListener('click', function () { cop_alternar(); });
+
+  // Controles del panel (interruptores, sensibilidad y trayecto).
+  cop_cablearControles();
+  cop_sincronizarControles();
+
+  // Pintor del HUD sobre el compuesto (orden 70, encima de tracks/zonas).
+  if (typeof vid_registrarPintor === 'function') {
+    vid_registrarPintor('copiloto', cop_pintarHUD, 70);
+  }
+
+  // Análisis de colisión frontal: una vez por inferencia (evento 'frame').
+  if (typeof bus !== 'undefined' && bus.on) {
+    bus.on('frame', cop_analizarColision);
+  }
+
+  estado.cop.inited = true;
+
+  // Restaura el estado activo si el dueño lo dejó encendido (arranca sensores).
+  if (estado.cfg && estado.cfg.copActivo) cop_aplicar(true);
+}
+
+/* Enlaza los controles del panel con guarda-clause en cada uno. */
+function cop_cablearControles() {
+  const colision = document.getElementById('cop-colision');
+  if (colision) colision.addEventListener('change', function () {
+    estado.cfg.copColisionAviso = !!colision.checked;
+    nuc_guardar('cfg', estado.cfg);
+    bus.emit('cfg:cambio', { clave: 'copColisionAviso' });
+  });
+
+  const parking = document.getElementById('cop-parking');
+  if (parking) parking.addEventListener('change', function () {
+    estado.cfg.copParkingOn = !!parking.checked;
+    nuc_guardar('cfg', estado.cfg);
+    bus.emit('cfg:cambio', { clave: 'copParkingOn' });
+    if (typeof ui_toast === 'function') {
+      try {
+        ui_toast(estado.cfg.copParkingOn
+          ? 'Vigilancia de coche aparcado activada. Deja el móvil fijo y enchufado.'
+          : 'Vigilancia de coche aparcado desactivada.', 'info');
+      } catch (e) { /* sin toast no pasa nada */ }
+    }
+  });
+
+  const sens = document.getElementById('cop-sensibilidad');
+  if (sens) sens.addEventListener('input', function () {
+    const v = parseFloat(sens.value);
+    if (!isNaN(v)) {
+      estado.cfg.copSensibilidadG = nuc_clamp(v, 1.5, 4);
+      nuc_guardar('cfg', estado.cfg);
+      cop_pintarSensibilidad();
+    }
+  });
+
+  const bIni = document.getElementById('cop-btnIniciar');
+  if (bIni) bIni.addEventListener('click', cop_iniciarViaje);
+  const bFin = document.getElementById('cop-btnTerminar');
+  if (bFin) bFin.addEventListener('click', cop_terminarViaje);
+  const bExp = document.getElementById('cop-btnExportar');
+  if (bExp) bExp.addEventListener('click', cop_exportarBitacora);
+}
+
+/* Coloca en los controles los valores guardados en cfg. */
+function cop_sincronizarControles() {
+  const colision = document.getElementById('cop-colision');
+  if (colision) colision.checked = !!estado.cfg.copColisionAviso;
+  const parking = document.getElementById('cop-parking');
+  if (parking) parking.checked = !!estado.cfg.copParkingOn;
+  const sens = document.getElementById('cop-sensibilidad');
+  if (sens) sens.value = String(estado.cfg.copSensibilidadG || 2.2);
+  cop_pintarSensibilidad();
+  cop_actualizarBotonesViaje();
+}
+
+/* ============================================================================
+ * ACTIVAR / DESACTIVAR EL MODO COPILOTO
+ * ==========================================================================*/
+function cop_alternar(forzar) {
+  if (!estado.cop) { cop_init(); if (!estado.cop) return; }
+  const destino = (typeof forzar === 'boolean') ? forzar : !estado.cfg.copActivo;
+  cop_aplicar(destino);
+}
+
+/* Aplica el estado activo/inactivo: sección, botón, persistencia y sensores. */
+function cop_aplicar(activo) {
+  estado.cfg.copActivo = !!activo;
+  nuc_guardar('cfg', estado.cfg);
+
+  const sec = document.getElementById('ui-secCopiloto');
+  if (sec) sec.classList.toggle('oculto', !activo);
+  const btn = document.getElementById('ui-btnCopiloto');
+  if (btn) {
+    btn.setAttribute('aria-pressed', activo ? 'true' : 'false');
+    btn.textContent = activo ? '🚗 Copiloto ✓' : '🚗 Copiloto';
+  }
+
+  if (activo) cop_arrancarSensores();
+  else cop_pararSensores();
+
+  cop_render(true);
+}
+
+/* ============================================================================
+ * SENSORES: acelerómetro (caja negra) + GPS (velocidad). Solo con el copiloto
+ * activo. En iOS, DeviceMotion necesita permiso dentro del gesto del usuario.
+ * ==========================================================================*/
+function cop_arrancarSensores() {
+  if (!estado.cop || estado.cop.sensoresOn) return;
+  estado.cop.sensoresOn = true;
+  cop_pedirPermisoMovimiento().then(function (ok) {
+    if (!estado.cop || !estado.cop.sensoresOn) return; // se desactivó mientras tanto
+    if (ok) cop_engancharMovimiento();
+    else if (!estado.cop.permisoAvisado) {
+      estado.cop.permisoAvisado = true;
+      cop_toast('Permiso de sensores denegado: la caja negra por golpes no funcionará.', 'sospecha');
+    }
+  }).catch(function () { /* nunca rompe: sin acelerómetro se sigue */ });
+  cop_arrancarGPS();
+}
+
+function cop_pararSensores() {
+  if (!estado.cop) return;
+  estado.cop.sensoresOn = false;
+  try { window.removeEventListener('devicemotion', cop_alMovimiento); } catch (e) {}
+  if (estado.cop.motionTimer) { try { clearTimeout(estado.cop.motionTimer); } catch (e) {} estado.cop.motionTimer = 0; }
+  cop_pararGPS();
+}
+
+/* Pide permiso de DeviceMotion (iOS 13+). En Android/otros no hace falta. */
+function cop_pedirPermisoMovimiento() {
+  return new Promise(function (resolve) {
+    try {
+      if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+        DeviceMotionEvent.requestPermission()
+          .then(function (res) { resolve(res === 'granted'); })
+          .catch(function () { resolve(false); });
+      } else {
+        resolve(true); // no requiere permiso explícito
+      }
+    } catch (e) { resolve(true); }
+  });
+}
+
+function cop_engancharMovimiento() {
+  if (!estado.cop) return;
+  // ¿Este dispositivo expone el evento? Si no, aviso honesto una sola vez.
+  const hayEvento = (typeof DeviceMotionEvent !== 'undefined') || ('ondevicemotion' in window);
+  if (!hayEvento) { cop_avisarSinAcelerometro(); return; }
+  try {
+    window.addEventListener('devicemotion', cop_alMovimiento);
+  } catch (e) { cop_avisarSinAcelerometro(); return; }
+  estado.cop.motionRecibido = false;
+  // Si en unos segundos no llega ninguna lectura, es que no hay acelerómetro.
+  estado.cop.motionTimer = setTimeout(function () {
+    if (estado.cop && estado.cop.sensoresOn && !estado.cop.motionRecibido) cop_avisarSinAcelerometro();
+  }, COP_SENSOR_TIMEOUT_MS);
+}
+
+function cop_avisarSinAcelerometro() {
+  if (!estado.cop || estado.cop.sinAcelAvisado) return;
+  estado.cop.sinAcelAvisado = true;
+  cop_toast('Este dispositivo no expone acelerómetro: la caja negra por golpes no estará disponible. El resto del copiloto sigue funcionando.', 'sospecha');
+}
+
+/* Lectura del acelerómetro: fuerza G dinámica (gravedad restada) y picos. */
+function cop_alMovimiento(e) {
+  const c = estado.cop;
+  if (!c || !c.sensoresOn) return;
+  try {
+    c.motionRecibido = true;
+    if (c.motionTimer) { clearTimeout(c.motionTimer); c.motionTimer = 0; }
+
+    let dx = 0, dy = 0, dz = 0;
+    const a = e && e.acceleration;
+    if (a && a.x != null && a.y != null && a.z != null && (a.x !== 0 || a.y !== 0 || a.z !== 0)) {
+      // Aceleración lineal (ya sin gravedad): ideal.
+      dx = a.x; dy = a.y; dz = a.z;
+    } else {
+      const g = e && e.accelerationIncludingGravity;
+      if (!g || g.x == null || g.y == null || g.z == null) return; // lectura vacía
+      // Filtro paso-bajo para estimar la gravedad y restarla → parte dinámica.
+      if (!c.gravInit) { c.grav.x = g.x; c.grav.y = g.y; c.grav.z = g.z; c.gravInit = true; }
+      const alfa = 0.8;
+      c.grav.x = c.grav.x * alfa + g.x * (1 - alfa);
+      c.grav.y = c.grav.y * alfa + g.y * (1 - alfa);
+      c.grav.z = c.grav.z * alfa + g.z * (1 - alfa);
+      dx = g.x - c.grav.x; dy = g.y - c.grav.y; dz = g.z - c.grav.z;
+    }
+
+    const mag = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const gForce = mag / COP_G; // fuerza G dinámica (~0 en reposo)
+
+    // Suavizado para el HUD y medias/picos.
+    c.gActual = c.gActual * 0.6 + gForce * 0.4;
+    c.gMedia = c.gMedia * 0.98 + gForce * 0.02;
+    if (gForce > c.gMax) c.gMax = gForce;
+    if (c.viaje && gForce > c.viaje.gMax) c.viaje.gMax = gForce;
+
+    const umbral = nuc_clamp(estado.cfg.copSensibilidadG || 2.2, 1.5, 4);
+    if (gForce >= umbral) cop_dispararGolpe(gForce);
+
+    cop_render(false);
+  } catch (err) { /* una lectura mala no rompe la app */ }
+}
+
+/* Un pico por encima del umbral: caja negra + alerta. Enruta según si el coche
+ * está en modo "aparcado" (crítico) o en marcha (frenazo/golpe → sospecha). */
+function cop_dispararGolpe(gForce) {
+  const c = estado.cop;
+  const ahora = Date.now();
+  const gTxt = gForce.toFixed(1);
+
+  if (estado.cfg.copParkingOn) {
+    if (ahora - c.ultAparcado < COP_COOLDOWN_APARCADO_MS) return;
+    c.ultAparcado = ahora;
+    cop_grabarCajaNegra('aparcado');
+    const texto = 'Golpe/movimiento en el coche aparcado (' + gTxt + ' g)';
+    if (typeof alerta_disparar === 'function') {
+      try { alerta_disparar('aparcado_golpe', 'critico', texto); } catch (e) {}
+    }
+    cop_anotarEvento('aparcado', texto);
+  } else {
+    if (ahora - c.ultImpacto < COP_COOLDOWN_IMPACTO_MS) return;
+    c.ultImpacto = ahora;
+    cop_grabarCajaNegra('copiloto_impacto');
+    const texto = 'Frenazo/golpe brusco detectado (' + gTxt + ' g)';
+    if (typeof alerta_disparar === 'function') {
+      try { alerta_disparar('impacto', 'sospecha', texto); } catch (e) {}
+    }
+    cop_anotarEvento('impacto', texto);
+  }
+}
+
+/* Graba un clip de evidencia (buffer 10s antes + 20s después), con typeof-check. */
+function cop_grabarCajaNegra(motivo) {
+  if (typeof vid_grabarEvento !== 'function') return;
+  try { vid_grabarEvento(motivo); } catch (e) { /* sin vídeo no graba, no rompe */ }
+}
+
+/* ============================================================================
+ * GPS: velocidad (~aprox.) y distancia del trayecto.
+ * ==========================================================================*/
+function cop_arrancarGPS() {
+  const c = estado.cop; if (!c) return;
+  try {
+    if (!navigator.geolocation || typeof navigator.geolocation.watchPosition !== 'function') {
+      cop_avisarSinGPS();
+      return;
+    }
+    c.ultPos = null;
+    c.gpsId = navigator.geolocation.watchPosition(
+      cop_alPosicion, cop_gpsError,
+      { enableHighAccuracy: true, maximumAge: 1000, timeout: 20000 }
+    );
+  } catch (e) { cop_avisarSinGPS(); }
+}
+
+function cop_pararGPS() {
+  const c = estado.cop; if (!c) return;
+  try { if (c.gpsId && navigator.geolocation) navigator.geolocation.clearWatch(c.gpsId); } catch (e) {}
+  c.gpsId = 0; c.ultPos = null;
+}
+
+function cop_alPosicion(pos) {
+  const c = estado.cop;
+  if (!c || !c.sensoresOn || !pos || !pos.coords) return;
+  try {
+    const co = pos.coords;
+    const ahora = (typeof pos.timestamp === 'number') ? pos.timestamp : Date.now();
+
+    // Velocidad: preferimos coords.speed (m/s). Si no la da, la derivamos.
+    let kmh = null;
+    if (co.speed != null && !isNaN(co.speed) && co.speed >= 0) {
+      kmh = co.speed * 3.6;
+    }
+
+    if (c.ultPos) {
+      const d = cop_haversine(c.ultPos.lat, c.ultPos.lon, co.latitude, co.longitude); // metros
+      const dt = (ahora - c.ultPos.ts) / 1000; // segundos
+      if (kmh == null && dt > 0 && d >= COP_DIST_MIN_M && d <= COP_DIST_MAX_M) {
+        kmh = (d / dt) * 3.6;
+      }
+      // Distancia del trayecto (filtrando saltos absurdos del GPS).
+      if (d >= COP_DIST_MIN_M && d <= COP_DIST_MAX_M && c.viaje) {
+        c.viaje.distancia += d;
+      }
+    }
+
+    if (kmh != null) {
+      kmh = nuc_clamp(kmh, 0, COP_VEL_MAX_KMH);
+      c.velActual = kmh;
+      if (kmh > c.velMax) c.velMax = kmh;
+      if (c.viaje && kmh > c.viaje.vMax) c.viaje.vMax = kmh;
+    }
+
+    c.ultPos = { lat: co.latitude, lon: co.longitude, ts: ahora };
+    cop_render(false);
+  } catch (e) { /* una posición mala se ignora */ }
+}
+
+function cop_gpsError(err) {
+  // Permiso denegado o sin señal: aviso honesto una sola vez, sin bloquear.
+  cop_avisarSinGPS(err && err.code === 1);
+}
+
+function cop_avisarSinGPS(denegado) {
+  const c = estado.cop; if (!c || c.gpsErrAvisado) return;
+  c.gpsErrAvisado = true;
+  cop_toast(denegado
+    ? 'Permiso de ubicación denegado: no se mostrará la velocidad (GPS).'
+    : 'Sin señal de GPS: la velocidad no está disponible ahora mismo.', 'info');
+}
+
+/* Distancia entre dos coordenadas (fórmula del haversine), en metros. */
+function cop_haversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000; // radio terrestre (m)
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad;
+  const dLon = (lon2 - lon1) * rad;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+/* ============================================================================
+ * AVISO DE COLISIÓN FRONTAL — vehículo delante, grande y centrado, cuya caja
+ * CRECE rápido entre inferencias (se nos acerca). Corre una vez por 'frame'.
+ * Es una AYUDA, no un radar: por eso se acompaña siempre del aviso honesto.
+ * ==========================================================================*/
+function cop_analizarColision() {
+  const c = estado.cop;
+  if (!c || !estado.cfg.copActivo || !estado.cfg.copColisionAviso) return;
+  if (estado.cfg.copParkingOn) return;              // aparcado: no aplica
+  if (!estado.video || !estado.video.listo) return;
+
+  const w = estado.video.w || 0, h = estado.video.h || 0;
+  if (w <= 0 || h <= 0) return;
+  const areaFrame = w * h;
+
+  const tracks = estado.tracks || [];
+  const vistos = {};
+  let alarma = false;
+
+  for (let i = 0; i < tracks.length; i++) {
+    const t = tracks[i];
+    if (!t || !t.caja) continue;
+    if (t.clase !== 'car' && t.clase !== 'truck' && t.clase !== 'bus' && t.clase !== 'motorcycle') continue;
+
+    const area = t.caja.an * t.caja.al;
+    const cx = (t.cx != null) ? t.cx : (t.caja.x + t.caja.an / 2);
+    const centrado = Math.abs(cx - w / 2) < w * COP_COL_CENTRO_REL;
+    const grande = area > areaFrame * COP_COL_AREA_MIN;
+
+    const prev = c.veh[t.id];
+    let crecidas = 0;
+    if (prev && prev.area > 0) {
+      crecidas = (area > prev.area * COP_COL_CRECE) ? (prev.crecidas + 1) : 0;
+    }
+    c.veh[t.id] = { area: area, crecidas: crecidas };
+    vistos[t.id] = true;
+
+    if (grande && centrado && crecidas >= COP_COL_FRAMES) alarma = true;
+  }
+
+  // Limpia vehículos que ya no se ven (evita fugas de memoria).
+  for (const id in c.veh) {
+    if (Object.prototype.hasOwnProperty.call(c.veh, id) && !vistos[id]) delete c.veh[id];
+  }
+
+  if (alarma) {
+    const ahora = Date.now();
+    c.colisionHasta = ahora + COP_COLISION_MOSTRAR_MS;
+    if (ahora - c.ultColision >= COP_COOLDOWN_COLISION_MS) {
+      c.ultColision = ahora;
+      const texto = 'Posible colisión: vehículo delante acercándose';
+      if (typeof alerta_disparar === 'function') {
+        try { alerta_disparar('colision_frontal', 'critico', texto); } catch (e) {}
+      }
+      cop_anotarEvento('colision_frontal', texto);
+    }
+  }
+}
+
+/* ============================================================================
+ * HUD (pintor de orden 70). Esquinas tipo salpicadero sobre el compuesto.
+ * Guarda-clauses: sin ctx, sin copiloto activo o sin vídeo → no pinta.
+ * ==========================================================================*/
+function cop_pintarHUD(ctx) {
+  if (!ctx || !estado.cop || !estado.cfg.copActivo) return;
+  if (!estado.video || !estado.video.listo) return;
+  const w = estado.video.w || 0, h = estado.video.h || 0;
+  if (w <= 0 || h <= 0) return;
+
+  try {
+    ctx.save();
+    ctx.textBaseline = 'alphabetic';
+
+    // --- Velocidad (arriba izquierda) ------------------------------------
+    const kmh = Math.round(estado.cop.velActual || 0);
+    cop_panel(ctx, 10, 10, 150, 58);
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'left';
+    ctx.font = "bold 34px 'SFMono-Regular',ui-monospace,Consolas,monospace";
+    ctx.fillText(String(kmh), 20, 46);
+    ctx.fillStyle = '#7d8fa0';
+    ctx.font = "12px 'SFMono-Regular',ui-monospace,Consolas,monospace";
+    ctx.fillText('km/h ~aprox.', 74, 46);
+
+    // --- Fuerza G (arriba derecha) ---------------------------------------
+    const g = estado.cop.gActual || 0;
+    const umbral = nuc_clamp(estado.cfg.copSensibilidadG || 2.2, 1.5, 4);
+    let colG = '#2ee584';
+    if (g >= umbral) colG = '#ff4155';
+    else if (g >= umbral * 0.6) colG = '#ffb224';
+    cop_panel(ctx, w - 160, 10, 150, 58);
+    ctx.textAlign = 'right';
+    ctx.fillStyle = colG;
+    ctx.font = "bold 30px 'SFMono-Regular',ui-monospace,Consolas,monospace";
+    ctx.fillText(g.toFixed(1) + ' g', w - 20, 42);
+    ctx.fillStyle = '#7d8fa0';
+    ctx.font = "11px 'SFMono-Regular',ui-monospace,Consolas,monospace";
+    ctx.fillText('máx ' + (estado.cop.gMax || 0).toFixed(1) + ' g', w - 20, 58);
+
+    // --- Hora (centro superior) ------------------------------------------
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(0,0,0,.5)';
+    const hora = nuc_horaCorta(Date.now());
+    ctx.font = "13px 'SFMono-Regular',ui-monospace,Consolas,monospace";
+    const anchoH = ctx.measureText(hora).width + 14;
+    ctx.fillRect(w / 2 - anchoH / 2, 10, anchoH, 22);
+    ctx.fillStyle = '#cfdae4';
+    ctx.fillText(hora, w / 2, 26);
+
+    // --- Indicador de caja negra grabando --------------------------------
+    if (estado.video.grabando) {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      ctx.font = "bold 13px 'SFMono-Regular',ui-monospace,Consolas,monospace";
+      const t = '● CAJA NEGRA';
+      const aw = ctx.measureText(t).width + 16;
+      ctx.fillRect(w / 2 - aw / 2, 36, aw, 22);
+      ctx.fillStyle = '#ff4155';
+      ctx.fillText(t, w / 2, 52);
+    }
+
+    // --- Aviso de colisión frontal ("⚠ FRENA") ---------------------------
+    if (Date.now() < (estado.cop.colisionHasta || 0)) {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(255,65,85,.85)';
+      const bw = Math.min(w * 0.8, 420), bh = 80;
+      cop_rectRedondo(ctx, w / 2 - bw / 2, h / 2 - bh / 2, bw, bh, 14);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.font = "bold 46px 'SFMono-Regular',ui-monospace,Consolas,monospace";
+      ctx.fillText('⚠ FRENA', w / 2, h / 2 + 14);
+    }
+
+    ctx.restore();
+  } catch (e) { /* un fallo de pintado no rompe el compuesto */ }
+}
+
+/* Panelito de fondo semitransparente con esquinas redondeadas. */
+function cop_panel(ctx, x, y, an, al) {
+  ctx.fillStyle = 'rgba(0,0,0,.55)';
+  cop_rectRedondo(ctx, x, y, an, al, 10);
+  ctx.fill();
+}
+
+function cop_rectRedondo(ctx, x, y, an, al, r) {
+  const rr = Math.min(r, an / 2, al / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rr, y);
+  ctx.arcTo(x + an, y, x + an, y + al, rr);
+  ctx.arcTo(x + an, y + al, x, y + al, rr);
+  ctx.arcTo(x, y + al, x, y, rr);
+  ctx.arcTo(x, y, x + an, y, rr);
+  ctx.closePath();
+}
+
+/* ============================================================================
+ * BITÁCORA DE TRAYECTOS
+ * ==========================================================================*/
+function cop_iniciarViaje() {
+  if (!estado.cop) return;
+  if (estado.cop.viaje) { cop_toast('Ya hay un trayecto en marcha.', 'info'); return; }
+  estado.cop.viaje = { inicio: Date.now(), fin: 0, distancia: 0, vMax: 0, gMax: 0, eventos: [] };
+  estado.cop.velMax = 0; estado.cop.gMax = 0;
+  cop_actualizarBotonesViaje();
+  cop_render(true);
+  cop_toast('Trayecto iniciado. Conduce con atención; el copiloto es solo una ayuda.', 'info');
+}
+
+function cop_terminarViaje() {
+  const c = estado.cop;
+  if (!c || !c.viaje) { cop_toast('No hay ningún trayecto en marcha.', 'info'); return; }
+  c.viaje.fin = Date.now();
+  cop_persistirViaje(c.viaje);
+  const km = (c.viaje.distancia / 1000).toFixed(2);
+  c.viaje = null;
+  cop_actualizarBotonesViaje();
+  cop_render(true);
+  cop_toast('Trayecto terminado (' + km + ' km). Guardado en la bitácora.', 'info');
+}
+
+/* Guarda el trayecto en localStorage (vía núcleo) con rotación de máx 50. */
+function cop_persistirViaje(viaje) {
+  try {
+    let viajes = nuc_cargar('copiloto_viajes', []);
+    if (!Array.isArray(viajes)) viajes = [];
+    viajes.push({
+      inicio: viaje.inicio, fin: viaje.fin,
+      distancia: Math.round(viaje.distancia),
+      vMax: Math.round(viaje.vMax), gMax: Math.round(viaje.gMax * 10) / 10,
+      eventos: (viaje.eventos || []).slice(0, 200),
+    });
+    while (viajes.length > COP_VIAJES_MAX) viajes.shift();
+    nuc_guardar('copiloto_viajes', viajes);
+  } catch (e) { /* si no cabe, el núcleo ya avisa por almacen:aviso */ }
+}
+
+/* Anota un evento en el trayecto en curso (si lo hay). */
+function cop_anotarEvento(tipo, texto) {
+  const c = estado.cop;
+  if (!c || !c.viaje) return;
+  try {
+    c.viaje.eventos.push({ ts: Date.now(), tipo: tipo, texto: texto });
+    if (c.viaje.eventos.length > 200) c.viaje.eventos.shift();
+  } catch (e) {}
+}
+
+function cop_actualizarBotonesViaje() {
+  const activo = !!(estado.cop && estado.cop.viaje);
+  const bIni = document.getElementById('cop-btnIniciar');
+  const bFin = document.getElementById('cop-btnTerminar');
+  if (bIni) bIni.disabled = activo;
+  if (bFin) bFin.disabled = !activo;
+}
+
+/* Exporta la bitácora (trayectos guardados + el actual) como HTML descargable. */
+function cop_exportarBitacora() {
+  try {
+    let viajes = nuc_cargar('copiloto_viajes', []);
+    if (!Array.isArray(viajes)) viajes = [];
+    const lista = viajes.slice();
+    if (estado.cop && estado.cop.viaje) {
+      const v = estado.cop.viaje;
+      lista.push({ inicio: v.inicio, fin: 0, distancia: Math.round(v.distancia), vMax: Math.round(v.vMax), gMax: Math.round(v.gMax * 10) / 10, eventos: v.eventos, actual: true });
+    }
+    if (!lista.length) { cop_toast('Aún no hay trayectos que exportar.', 'info'); return; }
+
+    const html = cop_bitacoraHTML(lista);
+    const nombre = 'bitacora-copiloto_' + cop_fechaArchivo(Date.now()) + '.html';
+    if (typeof nuc_descargar === 'function') nuc_descargar(nombre, html, 'text/html');
+    cop_toast('Bitácora exportada (' + lista.length + ' trayectos).', 'info');
+  } catch (e) {
+    cop_toast('No se pudo exportar la bitácora.', 'sospecha');
+  }
+}
+
+/* Construye el HTML de la bitácora (autocontenido, sin dependencias). */
+function cop_bitacoraHTML(lista) {
+  const marca = (typeof CONFIG !== 'undefined') ? CONFIG : { NOMBRE_APP: 'Vigía IA', STUDIO_BRAND: '', STUDIO_AUTHOR: '' };
+  let filas = '';
+  for (let i = lista.length - 1; i >= 0; i--) {
+    const v = lista[i];
+    const km = ((v.distancia || 0) / 1000).toFixed(2);
+    const dur = cop_duracion(v.inicio, v.fin);
+    let eventos = '';
+    (v.eventos || []).forEach(function (ev) {
+      eventos += '<li><b>' + cop_esc(nuc_fechaHora(ev.ts)) + '</b> — ' + cop_esc(ev.texto || ev.tipo || '') + '</li>';
+    });
+    if (!eventos) eventos = '<li class="vacio">Sin incidencias registradas.</li>';
+    filas += '<article>' +
+      '<h2>' + cop_esc(nuc_fechaHora(v.inicio)) + (v.actual ? ' <span class="chip">en curso</span>' : '') + '</h2>' +
+      '<p class="datos">Distancia: <b>' + km + ' km</b> · Duración: <b>' + cop_esc(dur) + '</b> · ' +
+      'Vel. máx: <b>~' + (v.vMax || 0) + ' km/h</b> · Fuerza G máx: <b>' + (v.gMax || 0).toFixed(1) + ' g</b></p>' +
+      '<ul>' + eventos + '</ul>' +
+      '</article>';
+  }
+  const firma = (marca.STUDIO_BRAND ? ('Diseñado por ' + cop_esc(marca.STUDIO_BRAND) + ' · por ' + cop_esc(marca.STUDIO_AUTHOR || '')) : '');
+  return '<!doctype html><html lang="es"><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+    '<title>Bitácora de conducción — ' + cop_esc(marca.NOMBRE_APP || 'Vigía IA') + '</title>' +
+    '<style>body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;background:#0b0f14;color:#cfdae4;margin:0;padding:24px;}' +
+    'h1{color:#3fa9ff;font-size:1.4rem;} article{background:#131a22;border:1px solid #233140;border-radius:10px;padding:14px 16px;margin:14px 0;}' +
+    'h2{font-size:1.05rem;margin:0 0 6px;} .datos{color:#7d8fa0;font-size:.9rem;margin:0 0 8px;} ' +
+    'ul{margin:0;padding-left:18px;} li{margin:3px 0;font-size:.9rem;} .vacio{color:#7d8fa0;list-style:none;margin-left:-18px;} ' +
+    '.chip{background:#2ee584;color:#0b0f14;font-size:.7rem;padding:1px 6px;border-radius:6px;vertical-align:middle;} ' +
+    'footer{color:#7d8fa0;font-size:.8rem;margin-top:24px;} .aviso{color:#ffb224;font-size:.82rem;}</style></head><body>' +
+    '<h1>Bitácora de conducción — ' + cop_esc(marca.NOMBRE_APP || 'Vigía IA') + '</h1>' +
+    '<p class="aviso">Velocidades orientativas (~aprox., GPS del móvil). No válidas como medición legal. ' +
+    'Los avisos de colisión son una ayuda y no sustituyen la atención al volante.</p>' +
+    filas +
+    '<footer>Generado el ' + cop_esc(nuc_fechaHora(Date.now())) + '. ' + firma + '</footer>' +
+    '</body></html>';
+}
+
+/* ============================================================================
+ * RENDER DEL PANEL (tarjetas de velocidad / fuerza G / distancia). Throttle.
+ * ==========================================================================*/
+function cop_render(forzar) {
+  const c = estado.cop; if (!c) return;
+  const ahora = Date.now();
+  if (!forzar && ahora - (c._ultRender || 0) < 250) return;
+  c._ultRender = ahora;
+
+  const elV = document.getElementById('cop-velocidad');
+  if (elV) elV.textContent = Math.round(c.velActual || 0) + ' km/h';
+  const elG = document.getElementById('cop-fuerzaG');
+  if (elG) elG.textContent = (c.gActual || 0).toFixed(1) + ' g';
+  const elD = document.getElementById('cop-distancia');
+  if (elD) elD.textContent = cop_fmtDist(c.viaje ? c.viaje.distancia : 0);
+}
+
+function cop_pintarSensibilidad() {
+  const out = document.getElementById('cop-sensibilidadVal');
+  if (out) out.textContent = (estado.cfg.copSensibilidadG || 2.2).toFixed(1) + ' g';
+}
+
+/* ============================================================================
+ * AUXILIARES
+ * ==========================================================================*/
+function cop_fmtDist(m) {
+  m = m || 0;
+  return (m < 1000) ? (Math.round(m) + ' m') : ((m / 1000).toFixed(2) + ' km');
+}
+
+function cop_duracion(ini, fin) {
+  if (!ini) return '—';
+  const f = fin || Date.now();
+  let s = Math.max(0, Math.round((f - ini) / 1000));
+  const hh = Math.floor(s / 3600); s -= hh * 3600;
+  const mm = Math.floor(s / 60); s -= mm * 60;
+  const p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return (hh ? (hh + 'h ') : '') + p(mm) + 'm ' + p(s) + 's';
+}
+
+function cop_fechaArchivo(ts) {
+  const d = new Date(ts || Date.now());
+  const p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '_' + p(d.getHours()) + p(d.getMinutes());
+}
+
+function cop_esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+/* Aviso al usuario sin romper nada (usa ui_toast si está disponible). */
+function cop_toast(msg, nivel) {
+  if (typeof ui_toast === 'function') { try { ui_toast(msg, nivel || 'info'); } catch (e) {} }
+}
+
+
 /* ===== 99-app.js ===== */
 /* ============================================================================
  * 99-APP — arranque y bucle principal (integrador, Fase 2).
@@ -9199,6 +10685,9 @@ async function app_init() {
     // v2 — puesto de mando remoto (idempotentes: tienen guarda interna)
     if (typeof mando_init === 'function') mando_init();
     if (typeof mdash_init === 'function') mdash_init();
+    // Ampliación — detalle/recorrido y copiloto/coche (idempotentes)
+    if (typeof det_init === 'function') det_init();
+    if (typeof cop_init === 'function') cop_init();
 
     estado.arrancado = true;
 
