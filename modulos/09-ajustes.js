@@ -675,22 +675,95 @@ function cfg_conectarBotones() {
     }
   });
 
-  // Motor de detección: al elegir "Potente" cargamos YOLO en el móvil.
+  // Motor de detección: Básico / Potente (Transformers.js) / Supercerebro (ONNX).
   const selMotor = $('cfg-motor');
   const grupoYolo = $('cfg-grupoYolo');
-  const cfg_mostrarYolo = function () {
+  const grupoOnnx = $('cfg-grupoOnnx');
+  const cfg_mostrarMotor = function () {
     if (grupoYolo) grupoYolo.classList.toggle('oculto', estado.cfg.motor !== 'yolo');
+    if (grupoOnnx) grupoOnnx.classList.toggle('oculto', estado.cfg.motor !== 'onnx');
+    const b = $('cfg-scBackend');
+    if (b) b.textContent = (estado.sc && estado.sc.backend) ? estado.sc.backend.toUpperCase() : '—';
   };
-  cfg_mostrarYolo();
+  cfg_mostrarMotor();
   if (selMotor) selMotor.addEventListener('change', function () {
-    cfg_mostrarYolo();
+    cfg_mostrarMotor();
     if (selMotor.value === 'yolo') {
       if (typeof yolo_init === 'function') {
         Promise.resolve(yolo_init()).catch(function (e) { console.warn('[ajustes] yolo_init:', e && e.message); });
       } else { cfg_avisar('El motor potente no está disponible.', 'sospecha'); }
+    } else if (selMotor.value === 'onnx') {
+      cfg_avisar('Elige un modelo y pulsa «Descargar y activar».', 'info');
     } else {
-      cfg_avisar('Detector rápido activo.', 'info');
+      cfg_avisar('Detector básico activo.', 'info');
     }
+  });
+
+  // --- Supercerebro (ONNX-YOLO11) ---
+  const selSc = $('cfg-scModelo');
+  if (selSc) selSc.value = estado.cfg.scModelo || 'n';
+  const progSc = $('cfg-scProgreso');
+  const resSc = $('cfg-scResultados');
+  const btnScActivar = $('cfg-btnScActivar');
+  if (btnScActivar) btnScActivar.addEventListener('click', function () {
+    if (typeof sc_activar !== 'function') { cfg_avisar('El supercerebro no está disponible.', 'sospecha'); return; }
+    const clave = selSc ? selSc.value : 'n';
+    btnScActivar.disabled = true;
+    if (progSc) progSc.textContent = 'Descargando…';
+    Promise.resolve(sc_activar(clave, function (pct, mb) {
+      if (progSc) progSc.textContent = 'Descargando ' + (pct != null ? pct + '%' : Math.round(mb) + ' MB…');
+    })).then(function (ok) {
+      if (progSc) progSc.textContent = ok
+        ? '✅ Activo (' + ((estado.sc && estado.sc.backend) || '?').toUpperCase() + ')'
+        : '❌ No se pudo activar (mira el aviso).';
+      cfg_mostrarMotor();
+    }).catch(function () { if (progSc) progSc.textContent = '❌ Error.'; })
+      .then(function () { btnScActivar.disabled = false; });
+  });
+  const btnScBench = $('cfg-btnScBench');
+  if (btnScBench) btnScBench.addEventListener('click', function () {
+    if (typeof sc_benchmark !== 'function') return;
+    btnScBench.disabled = true;
+    if (resSc) resSc.textContent = 'Midiendo…';
+    Promise.resolve(sc_benchmark(function (t) { if (resSc) resSc.textContent = t; })).then(function (inf) {
+      if (!resSc) return;
+      if (!inf) { resSc.textContent = 'No se pudo medir.'; return; }
+      let html = '<b>Backend:</b> ' + cfg_escapar((inf.backend || '?').toUpperCase());
+      if (inf.memoriaMB) html += ' · <b>Memoria JS:</b> ' + inf.memoriaMB + ' MB';
+      html += '<br>';
+      ['n', 's', 'm'].forEach(function (k) {
+        const r = inf.resultados[k] || {};
+        const nombre = { n: 'YOLO11n', s: 'YOLO11s', m: 'YOLO11m' }[k];
+        if (r.fps != null) html += nombre + ': <b>' + r.fps + ' FPS</b> (' + r.ms + ' ms)<br>';
+        else if (r.sinDescargar) html += nombre + ': sin descargar (actívalo antes para medirlo)<br>';
+        else html += nombre + ': error<br>';
+      });
+      html += inf.recomendado
+        ? '👉 <b>Recomendado en este móvil: YOLO11' + inf.recomendado + '</b> (≥4 FPS)'
+        : '⚠ Ninguno llega a 4 FPS aquí: usa el motor Potente o Básico.';
+      resSc.innerHTML = html;
+    }).catch(function () { if (resSc) resSc.textContent = 'Error midiendo.'; })
+      .then(function () { btnScBench.disabled = false; });
+  });
+  // Test de aceptación de detección: 5 fotogramas espaciados, personas contadas
+  // por la máquina — el dueño las compara con su conteo a mano (números reales).
+  const btnScTest = $('cfg-btnScTest');
+  if (btnScTest) btnScTest.addEventListener('click', function () {
+    if (!estado.video.listo) { cfg_avisar('Pon primero un vídeo (demo o cámara) con gente.', 'sospecha'); return; }
+    if (typeof nuc_detectar !== 'function') return;
+    btnScTest.disabled = true;
+    if (resSc) resSc.textContent = 'Analizando 5 fotogramas (uno por segundo)…';
+    const cuentas = [];
+    const paso = function () {
+      Promise.resolve(nuc_detectar(typeof vid_fuente === 'function' ? vid_fuente() : null)).then(function (dets) {
+        cuentas.push((dets || []).filter(function (d) { return d.clase === 'person'; }).length);
+        if (cuentas.length < 5) { setTimeout(paso, 1000); return; }
+        if (resSc) resSc.innerHTML = '<b>Personas detectadas por fotograma:</b> ' + cuentas.join(' · ') +
+          '<br>Cuenta tú a mano cuántas personas se VEN en el vídeo y compara: el objetivo del modo precisión es detectar al menos el 80%. Si sale menos, prueba el modelo M o baja la sensibilidad.';
+        btnScTest.disabled = false;
+      }).catch(function () { btnScTest.disabled = false; });
+    };
+    paso();
   });
   // Cambiar el modelo potente: recargarlo (el detalle/res se aplica en caliente).
   const selYoloModelo = $('cfg-yoloModelo');

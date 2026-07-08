@@ -19,9 +19,16 @@ const CFG_DEFECTOS = {
   modo: 'super',            // 'super' | 'carretera'
   fps: 8,                   // FPS de inferencia (3-10)
   scoreMin: 0.35,           // confianza mínima (bajo = detecta más personas)
-  motor: 'coco',            // 'coco' (rápido, ligero) | 'yolo' (potente, corre en el móvil)
+  motor: 'coco',            // 'coco' básico | 'yolo' potente (Transformers.js) | 'onnx' SUPERCEREBRO (YOLO11)
   yoloModelo: 'Xenova/yolos-tiny',  // modelo del motor potente (yolos-tiny|yolos-small|detr-resnet-50)
   yoloRes: 512,             // ancho de análisis del motor potente (más alto = ve más lejos, más lento)
+  // Supercerebro (ONNX Runtime + YOLO11, módulo 16)
+  scModelo: 'n',            // 'n' rápido | 's' equilibrado | 'm' máxima precisión
+  scUrlN: '', scUrlS: '', scUrlM: '',   // URLs personalizadas de los .onnx ('' = por defecto)
+  // Cerebro adaptativo del copiloto
+  copCerebroAuto: true,     // cambiar de modelo según la velocidad GPS
+  copUmbralVel: 30,         // km/h: por encima, cerebro rápido (la latencia manda)
+  copForzarGrande: false,   // forzar PRECISIÓN siempre (con aviso honesto)
   fuente: 'camara',         // 'camara' | 'ip' | 'archivo' | 'dashcam'
   urlDashcam: 'http://localhost:1984/api/stream.mjpeg?src=dashcam',  // MJPEG de go2rtc
   // Detalle / recorrido (módulo 14)
@@ -231,15 +238,21 @@ async function nuc_cargarModelos() {
     return false;
   }
 }
-/* ¿Hay algún motor de detección listo? (COCO rápido o YOLO potente) */
+/* ¿Hay algún motor de detección listo? (básico, potente o supercerebro) */
 function nuc_modeloListo() {
-  return estado.modelos.cocoListo || (typeof yolo_activo === 'function' && yolo_activo());
+  return estado.modelos.cocoListo
+    || (typeof yolo_activo === 'function' && yolo_activo())
+    || (typeof sc_activo === 'function' && sc_activo());
 }
 
 /* Detecta sobre un <video>/<img>/<canvas> listo. Devuelve [] si algo falla.
- * Enruta al motor POTENTE (YOLO) si está activo; si no, al rápido (COCO-SSD). */
+ * Enruta según el motor elegido: SUPERCEREBRO (ONNX-YOLO11) → POTENTE
+ * (Transformers.js) → básico (COCO-SSD, siempre de respaldo). */
 async function nuc_detectar(fuente) {
   if (!fuente) return [];
+  if (typeof sc_activo === 'function' && sc_activo()) {
+    return sc_detectar(fuente);
+  }
   if (typeof yolo_activo === 'function' && yolo_activo()) {
     return yolo_detectar(fuente);
   }

@@ -27,6 +27,14 @@ async function app_init() {
     // Ampliación — detalle/recorrido y copiloto/coche (idempotentes)
     if (typeof det_init === 'function') det_init();
     if (typeof cop_init === 'function') cop_init();
+    // Supercerebro (ONNX-YOLO11): init siempre; si era el motor elegido,
+    // reactiva el modelo guardado (desde la caché, sin re-descargar).
+    if (typeof sc_init === 'function') {
+      sc_init();
+      if (estado.cfg.motor === 'onnx' && typeof sc_activar === 'function') {
+        sc_activar(estado.cfg.scModelo || 'n').catch(() => {});
+      }
+    }
 
     estado.arrancado = true;
 

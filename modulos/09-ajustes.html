@@ -92,8 +92,9 @@
     <div class="campo">
       <label for="cfg-motor">Motor de detección</label>
       <select id="cfg-motor" data-cfg="motor">
-        <option value="coco">Rápido (ligero, va fluido en cualquier móvil)</option>
-        <option value="yolo">Potente / YOLO (detecta mucho más, va más lento)</option>
+        <option value="coco">Básico (ligero, va fluido en cualquier móvil)</option>
+        <option value="yolo">Potente (Transformers.js, detecta más)</option>
+        <option value="onnx">🧠 SUPERCEREBRO (YOLO11 + WebGPU, máxima precisión)</option>
       </select>
       <p class="etiqueta">«Potente» carga un modelo YOLO de verdad en el móvil (necesita internet la primera vez y un móvil con cierta potencia). Es lo que hay que usar si «detecta poco». Si tu móvil se atasca, vuelve a «Rápido».</p>
     </div>
@@ -118,6 +119,40 @@
         </div>
       </div>
       <p class="etiqueta">Si tu móvil lo mueve, «Máxima precisión» + «Alto» es lo que menos falla. Si va a tirones, baja a «Rápido» + «Normal» y reduce los FPS.</p>
+    </div>
+
+    <div id="cfg-grupoOnnx" class="oculto">
+      <p class="etiqueta">El SUPERCEREBRO corre YOLO11 de verdad en tu móvil (WebGPU en un S22; si no hay, WASM). Descarga el modelo UNA vez y queda guardado. Backend activo: <b id="cfg-scBackend">—</b></p>
+      <div class="campo">
+        <label for="cfg-scModelo">Modelo del supercerebro</label>
+        <select id="cfg-scModelo">
+          <option value="n">Rápido — YOLO11n (~10 MB, para Copiloto)</option>
+          <option value="s">Equilibrado — YOLO11s (~36 MB)</option>
+          <option value="m">Máxima precisión — YOLO11m (~77 MB, sesiones de vigilancia)</option>
+        </select>
+      </div>
+      <div class="fila">
+        <button type="button" class="btn btn-primario" id="cfg-btnScActivar">⬇ Descargar y activar</button>
+        <button type="button" class="btn" id="cfg-btnScBench">📊 Benchmark (20 inferencias)</button>
+        <button type="button" class="btn btn-mini" id="cfg-btnScTest">🎯 Test de detección</button>
+      </div>
+      <p id="cfg-scProgreso" class="etiqueta"></p>
+      <div id="cfg-scResultados" class="etiqueta"></div>
+      <details class="cfg-sec">
+        <summary class="etiqueta">Avanzado: URLs de los modelos (.onnx)</summary>
+        <div class="campo"><label for="cfg-scUrlN">YOLO11n</label><input type="text" id="cfg-scUrlN" data-cfg="scUrlN" placeholder="(por defecto: onnx-community en Hugging Face)"></div>
+        <div class="campo"><label for="cfg-scUrlS">YOLO11s</label><input type="text" id="cfg-scUrlS" data-cfg="scUrlS" placeholder="(por defecto)"></div>
+        <div class="campo"><label for="cfg-scUrlM">YOLO11m</label><input type="text" id="cfg-scUrlM" data-cfg="scUrlM" placeholder="(por defecto)"></div>
+      </details>
+      <fieldset class="campo">
+        <legend class="etiqueta">Cerebro adaptativo en el Copiloto</legend>
+        <label class="fila"><input type="checkbox" id="cfg-copCerebroAuto" data-cfg="copCerebroAuto"> <span>Cambiar solo según la velocidad (parado: precisión · en marcha: rápido)</span></label>
+        <div class="campo">
+          <label for="cfg-copUmbralVel">Umbral de velocidad (km/h)</label>
+          <input type="number" id="cfg-copUmbralVel" data-cfg="copUmbralVel" min="10" max="90" step="5">
+        </div>
+        <label class="fila"><input type="checkbox" id="cfg-copForzarGrande" data-cfg="copForzarGrande"> <span>Forzar cerebro grande siempre <b>⚠ A alta velocidad los avisos llegarán más tarde. No recomendado en carretera.</b></span></label>
+      </fieldset>
     </div>
 
     <div class="campo">
