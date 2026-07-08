@@ -14581,6 +14581,15 @@ function ejecutarComandoVoz(frases, quiet) {
     if (mVig && typeof setVigilantes === 'function') { var nVi = _numPeq(mVig[1]); if (nVi >= 1 && nVi <= 20) { mutate(function () { setVigilantes(nVi); }); hechoP.push(state.config.nVigilantes + ' vigilantes'); } }
     if (hechoP.length) { duenoTab('ajustes'); _hecho(hechoP.join(' y ')); return; }
   }
+  // Poner/generar las CLAVES (códigos) de TODOS los trabajadores de golpe: "ponme las claves",
+  // "genera las claves de los camareros y vigilantes". No confundir con "el código del camarero
+  // uno ES puerta5" (uno concreto, lo maneja _intentLocal) ni con la contraseña de la portada.
+  if (/(pon|ponme|genera|generar|generame|dame|damelas|crea|crear|sacame|saca|reparte|asigna|necesito|quiero)\b/.test(t)
+      && /\b(claves|codigos|contrasenas|clave|codigo)\b/.test(t)
+      && !/\b(es|sera|:)\s+\S/.test(t) && !/(portada|de entrada|de la fiesta|del pin|de admin|principal|web)/.test(t)
+      && (/(trabajador|camarero|barra|vigilante|portero|segurata|equipo|acceso|todos|todas|de cada)/.test(t) || /^(pon|ponme|genera|generar|generame|dame|crea|crear|necesito|quiero)\s+(me\s+)?(las|los|unas|unos)?\s*(claves|codigos)\b/.test(t))) {
+    _generarClavesTrabajadores(false); return;
+  }
   // Crear ENTRADAS para una fase que YA existe (hereda su precio): "hazme las entradas de la fase 2",
   // "crea 50 entradas de la segunda fase". OJO: va ANTES de crear/definir fase, para no pedir precio.
   if (/\bfase\b/.test(t) && /entrada/.test(t) && /(crea|crear|haz|hazme|genera|generar|dame|saca|sacame|prepara|monta|quiero|pon|ponme)/.test(t) && /(de|para|en)\s+la\s+/.test(t)) {
@@ -14882,6 +14891,18 @@ function _intentLocal(t0) {
     if (/stock|inventario/.test(t)) return { accion: 'responder', args: { texto: (state.config.modulos && state.config.modulos.stock) ? 'El stock está activado' : 'El stock está apagado' } };
   }
 
+  // ---------- CLAVES DE TODOS LOS TRABAJADORES DE GOLPE ----------
+  // "ponme las claves", "genera los códigos de los camareros y vigilantes". Va aquí ARRIBA para
+  // que "dame los códigos" no lo pille la regla de descargar. Se excluye "el código del camarero
+  // uno ES x" (uno concreto) y la contraseña de la portada/PIN.
+  if (/(pon|ponme|genera|generar|generame|dame|damelas|crea|crear|sacame|saca|reparte|asigna|necesito|quiero|renueva|regenera|cambia)\b/.test(t)
+      && /\b(claves|codigos|clave|codigo|contrasenas)\b/.test(t)
+      && !/\b(es|sera|:)\s+\S/.test(t) && !/(portada|de entrada|de la fiesta|del pin|de admin|principal|\bweb\b|\bpin\b)/.test(t)
+      && (/(trabajador|camarero|barra|vigilante|portero|segurata|equipo|acceso|todos|todas|de cada)/.test(t)
+          || /^(pon|ponme|genera|generar|generame|dame|crea|crear|necesito|quiero|renueva|regenera)\s+(me\s+)?(las|los|unas|unos)?\s*(claves|codigos)\b/.test(t))) {
+    return { accion: 'generar_claves', args: { regenerar: /(regenera|renueva|cambia|nuevas|otra vez|de nuevo|todas)/.test(t) } };
+  }
+
   // ---------- CREAR ENTRADAS (LOTE) POR CANTIDAD ----------
   // "N entradas" (un número JUSTO antes de "entradas") = crear un lote de N. Cubre CUALQUIER
   // verbo ("ponme/quiero/necesito/dame/saca/hazme/genera…") e incluso sin verbo ("diez entradas").
@@ -15175,7 +15196,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V21'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V22'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -15216,7 +15237,7 @@ function _accionesIA() {
     'crear_rrpp(nombre,comision?,precio?) repartir_rrpp(promotor,desde,hasta)',
     'activar_cobro(metodo:bizum|tarjeta|monedero|nfc, on, numero?) activar_modulo(nombre:qr|cierre|gastos|stock, on) activar_modo_rrpp(on) activar_acceso_auto(on) modo_secreto(on)',
     'poner_config(campo:precio_entrada|precio_vip|aforo|nombre|fecha|hora|lugar|lema|video|instagram, valor) poner_vigilantes(n) poner_camareros(n) anadir_producto(nombre,precio) precio_producto(producto,precio)',
-    'poner_pin(pin) poner_contrasena_portada(clave) poner_codigo_trabajador(rol,codigo)',
+    'poner_pin(pin) poner_contrasena_portada(clave) poner_codigo_trabajador(rol,codigo) generar_claves(regenerar?) — genera el código de TODOS los trabajadores de golpe',
     'apuntar_nota(texto) leer_notas borrar_nota(cual) borrar_notas — bloc Mis notas del dueño',
     'borrar_producto(producto) reponer_stock(producto?) borrar_fase(fase) borrar_rrpp(promotor) borrar_gasto(concepto) borrar_admin(nombre) quitar_logo quitar_cartel',
     'cargar_cartel cargar_logo importar_invitados cargar_copia poner_carpeta(url) — coge archivos de la carpeta (GitHub) por voz',
@@ -15634,6 +15655,7 @@ function ejecutarAccionIA(accion, args) {
       toast('🔑 ' + etiquetaPerfil(idP) + ': ' + codV);
       hablar('Código de ' + etiquetaPerfil(idP) + ' cambiado. Está en pantalla'); break;
     }
+    case 'generar_claves': _generarClavesTrabajadores(!!(args && (args.regenerar === true || args.regenerar === 'true' || args.todas === true))); break;
     case 'crear_rrpp': {
       var rn = String(args.nombre || '').trim();
       if (!rn) { _respVoz('Dime el nombre del promotor'); break; }
@@ -19546,6 +19568,7 @@ function seccionPersonal() {
   // Código propio por trabajador: sirve para entrar DIRECTO a su puesto desde la portada.
   html += '<h3>Código de cada trabajador</h3>';
   html += '<p class="nota">Dale a cada uno el suyo. Con ese código, al abrir la web y escribirlo en la portada, entra <b>directo a su puesto</b> (el portero a la puerta, el camarero a la barra), sin elegir rol. Que sean <b>distintos entre sí y del PIN de administrador</b>. Déjalo en blanco si ese trabajador no necesita código.</p>';
+  html += '<button type="button" class="btn-secundario" data-testid="btn-generar-claves" onclick="duenoGenerarClaves()" style="width:100%;min-height:44px">🎲 Generar códigos automáticos para todos</button>';
   var claves = c.claves || {};
   perfilesLista().forEach(function (pf) {
     if (pf.id === 'dueno') return;
@@ -19567,6 +19590,32 @@ function duenoSetClavePerfil(id, valor) {
   _perfilOK[id] = false; // si cambia la clave, que la vuelvan a pedir
   toast('Contraseña guardada');
 }
+/* Genera de golpe un código para CADA camarero y vigilante que aún no tenga uno (los puestos
+   a mano se respetan). Los códigos NO se dicen en voz (son de acceso): se ven en pantalla,
+   en Ajustes → "Código de cada trabajador". Lo usa la voz ("ponme las claves") y el botón.
+   Nunca toca el NÚMERO de trabajadores (ese fue el fallo antiguo: pedir claves no debe borrar a nadie). */
+function _generarClavesTrabajadores(regenerar) {
+  var nCam = (state.config && state.config.nCamareros) || 0, nVig = (state.config && state.config.nVigilantes) || 0;
+  if (nCam + nVig === 0) { _respVoz('Primero dime cuántos camareros y vigilantes quieres. Por ejemplo: pon 3 camareros y 2 vigilantes'); return; }
+  var usados = {};
+  var cl = (state.config && state.config.claves) || {};
+  Object.keys(cl).forEach(function (k) { if (cl[k]) usados[String(cl[k])] = true; });
+  if (state.config && state.config.pin) usados[String(state.config.pin)] = true;
+  function nuevo() { var c, it = 0; do { c = String(Math.floor(1000 + Math.random() * 9000)); it++; } while (usados[c] && it < 400); usados[c] = true; return c; }
+  var ids = [], i;
+  for (i = 1; i <= nCam; i++) ids.push('cam-' + i);
+  for (i = 1; i <= nVig; i++) ids.push('vig-' + i);
+  var puestas = 0;
+  mutate(function (s) {
+    s.config.claves = s.config.claves || {};
+    ids.forEach(function (id) { if (regenerar || !s.config.claves[id]) { s.config.claves[id] = nuevo(); puestas++; } });
+    addLog('generó ' + puestas + ' códigos de trabajador', 'personal');
+  });
+  _duenoTab = 'ajustes'; if (typeof renderDueno === 'function') renderDueno();
+  toast('🔑 ' + puestas + ' códigos puestos. Los ves abajo, en «Código de cada trabajador»');
+  hablar((puestas ? 'Listo. Cada trabajador tiene ya su código' : 'Ya tenían todos su código') + ', en Ajustes, apartado Código de cada trabajador');
+}
+function duenoGenerarClaves() { _generarClavesTrabajadores(true); } // botón: regenera todas
 
 function duenoCambiarVigilantes(delta) {
   var n = Math.max(1, Math.min(9, state.config.nVigilantes + delta));
