@@ -12,7 +12,7 @@ const YOLO_TJS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0
 /* Modelo por defecto: YOLOS-tiny (ligero, corre en móvil). Alternativa más
  * precisa y más lenta: 'Xenova/detr-resnet-50'. Configurable en Ajustes. */
 const YOLO_MODELO_DEF = 'Xenova/yolos-tiny';
-const YOLO_ANCHO_INFER = 512;   // ancho al que reducimos el frame para inferir (velocidad)
+const YOLO_ANCHO_INFER_DEF = 512;   // ancho de análisis por defecto (configurable en Ajustes)
 
 function yolo_estado() {
   if (!estado.yolo) {
@@ -66,8 +66,10 @@ async function yolo_detectar(fuente) {
   if (!fuente || !y || !y.listo || !y.detector) return [];
   try {
     const W = estado.video.w || 640, H = estado.video.h || 480;
-    // Reducimos el frame para inferir más rápido; luego reescalamos las cajas.
-    const dw = Math.min(YOLO_ANCHO_INFER, W);
+    // Ancho de análisis configurable: más alto = pilla gente más pequeña/lejana
+    // (a costa de velocidad). Luego reescalamos las cajas al espacio de frame.
+    const anchoInfer = Math.max(320, Math.min(768, Number(estado.cfg.yoloRes) || YOLO_ANCHO_INFER_DEF));
+    const dw = Math.min(anchoInfer, W);
     const dh = Math.max(1, Math.round(H * dw / W));
     let cnv = y.cnv;
     if (!cnv) { cnv = y.cnv = document.createElement('canvas'); }

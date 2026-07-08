@@ -594,13 +594,27 @@ function cfg_conectarBotones() {
 
   // Motor de detección: al elegir "Potente" cargamos YOLO en el móvil.
   const selMotor = $('cfg-motor');
+  const grupoYolo = $('cfg-grupoYolo');
+  const cfg_mostrarYolo = function () {
+    if (grupoYolo) grupoYolo.classList.toggle('oculto', estado.cfg.motor !== 'yolo');
+  };
+  cfg_mostrarYolo();
   if (selMotor) selMotor.addEventListener('change', function () {
+    cfg_mostrarYolo();
     if (selMotor.value === 'yolo') {
       if (typeof yolo_init === 'function') {
         Promise.resolve(yolo_init()).catch(function (e) { console.warn('[ajustes] yolo_init:', e && e.message); });
       } else { cfg_avisar('El motor potente no está disponible.', 'sospecha'); }
     } else {
       cfg_avisar('Detector rápido activo.', 'info');
+    }
+  });
+  // Cambiar el modelo potente: recargarlo (el detalle/res se aplica en caliente).
+  const selYoloModelo = $('cfg-yoloModelo');
+  if (selYoloModelo) selYoloModelo.addEventListener('change', function () {
+    if (estado.cfg.motor === 'yolo' && typeof yolo_init === 'function') {
+      if (estado.yolo) estado.yolo.listo = false;   // fuerza recarga del nuevo modelo
+      Promise.resolve(yolo_init()).catch(function (e) { console.warn('[ajustes] recarga yolo:', e && e.message); });
     }
   });
 

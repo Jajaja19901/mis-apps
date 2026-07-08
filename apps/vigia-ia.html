@@ -976,6 +976,28 @@ h1, h2, h3, p { margin: 0; }
       <p class="etiqueta">«Potente» carga un modelo YOLO de verdad en el móvil (necesita internet la primera vez y un móvil con cierta potencia). Es lo que hay que usar si «detecta poco». Si tu móvil se atasca, vuelve a «Rápido».</p>
     </div>
 
+    <div id="cfg-grupoYolo" class="oculto">
+      <div class="fila">
+        <div class="campo">
+          <label for="cfg-yoloModelo">Modelo potente</label>
+          <select id="cfg-yoloModelo" data-cfg="yoloModelo">
+            <option value="Xenova/yolos-tiny">Rápido (yolos-tiny)</option>
+            <option value="Xenova/yolos-small">Equilibrado (yolos-small)</option>
+            <option value="Xenova/detr-resnet-50">Máxima precisión (detr-50)</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="cfg-yoloRes">Detalle de análisis</label>
+          <select id="cfg-yoloRes" data-cfg="yoloRes">
+            <option value="512">Normal (512)</option>
+            <option value="640">Alto (640) · ve más lejos</option>
+            <option value="768">Máximo (768) · lento</option>
+          </select>
+        </div>
+      </div>
+      <p class="etiqueta">Si tu móvil lo mueve, «Máxima precisión» + «Alto» es lo que menos falla. Si va a tirones, baja a «Rápido» + «Normal» y reduce los FPS.</p>
+    </div>
+
     <div class="campo">
       <label for="cfg-fps">Fotogramas por segundo de análisis</label>
       <div class="fila">
@@ -1367,7 +1389,8 @@ const CFG_DEFECTOS = {
   fps: 8,                   // FPS de inferencia (3-10)
   scoreMin: 0.35,           // confianza mínima (bajo = detecta más personas)
   motor: 'coco',            // 'coco' (rápido, ligero) | 'yolo' (potente, corre en el móvil)
-  yoloModelo: 'Xenova/yolos-tiny',  // modelo del motor potente (configurable)
+  yoloModelo: 'Xenova/yolos-tiny',  // modelo del motor potente (yolos-tiny|yolos-small|detr-resnet-50)
+  yoloRes: 512,             // ancho de análisis del motor potente (más alto = ve más lejos, más lento)
   fuente: 'camara',         // 'camara' | 'ip' | 'archivo'
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
@@ -6639,13 +6662,27 @@ function cfg_conectarBotones() {
 
   // Motor de detección: al elegir "Potente" cargamos YOLO en el móvil.
   const selMotor = $('cfg-motor');
+  const grupoYolo = $('cfg-grupoYolo');
+  const cfg_mostrarYolo = function () {
+    if (grupoYolo) grupoYolo.classList.toggle('oculto', estado.cfg.motor !== 'yolo');
+  };
+  cfg_mostrarYolo();
   if (selMotor) selMotor.addEventListener('change', function () {
+    cfg_mostrarYolo();
     if (selMotor.value === 'yolo') {
       if (typeof yolo_init === 'function') {
         Promise.resolve(yolo_init()).catch(function (e) { console.warn('[ajustes] yolo_init:', e && e.message); });
       } else { cfg_avisar('El motor potente no está disponible.', 'sospecha'); }
     } else {
       cfg_avisar('Detector rápido activo.', 'info');
+    }
+  });
+  // Cambiar el modelo potente: recargarlo (el detalle/res se aplica en caliente).
+  const selYoloModelo = $('cfg-yoloModelo');
+  if (selYoloModelo) selYoloModelo.addEventListener('change', function () {
+    if (estado.cfg.motor === 'yolo' && typeof yolo_init === 'function') {
+      if (estado.yolo) estado.yolo.listo = false;   // fuerza recarga del nuevo modelo
+      Promise.resolve(yolo_init()).catch(function (e) { console.warn('[ajustes] recarga yolo:', e && e.message); });
     }
   });
 
@@ -9039,7 +9076,7 @@ const YOLO_TJS_URL = 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.0
 /* Modelo por defecto: YOLOS-tiny (ligero, corre en móvil). Alternativa más
  * precisa y más lenta: 'Xenova/detr-resnet-50'. Configurable en Ajustes. */
 const YOLO_MODELO_DEF = 'Xenova/yolos-tiny';
-const YOLO_ANCHO_INFER = 512;   // ancho al que reducimos el frame para inferir (velocidad)
+const YOLO_ANCHO_INFER_DEF = 512;   // ancho de análisis por defecto (configurable en Ajustes)
 
 function yolo_estado() {
   if (!estado.yolo) {
@@ -9093,8 +9130,10 @@ async function yolo_detectar(fuente) {
   if (!fuente || !y || !y.listo || !y.detector) return [];
   try {
     const W = estado.video.w || 640, H = estado.video.h || 480;
-    // Reducimos el frame para inferir más rápido; luego reescalamos las cajas.
-    const dw = Math.min(YOLO_ANCHO_INFER, W);
+    // Ancho de análisis configurable: más alto = pilla gente más pequeña/lejana
+    // (a costa de velocidad). Luego reescalamos las cajas al espacio de frame.
+    const anchoInfer = Math.max(320, Math.min(768, Number(estado.cfg.yoloRes) || YOLO_ANCHO_INFER_DEF));
+    const dw = Math.min(anchoInfer, W);
     const dh = Math.max(1, Math.round(H * dw / W));
     let cnv = y.cnv;
     if (!cnv) { cnv = y.cnv = document.createElement('canvas'); }

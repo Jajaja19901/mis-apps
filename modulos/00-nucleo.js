@@ -20,7 +20,8 @@ const CFG_DEFECTOS = {
   fps: 8,                   // FPS de inferencia (3-10)
   scoreMin: 0.35,           // confianza mínima (bajo = detecta más personas)
   motor: 'coco',            // 'coco' (rápido, ligero) | 'yolo' (potente, corre en el móvil)
-  yoloModelo: 'Xenova/yolos-tiny',  // modelo del motor potente (configurable)
+  yoloModelo: 'Xenova/yolos-tiny',  // modelo del motor potente (yolos-tiny|yolos-small|detr-resnet-50)
+  yoloRes: 512,             // ancho de análisis del motor potente (más alto = ve más lejos, más lento)
   fuente: 'camara',         // 'camara' | 'ip' | 'archivo'
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
