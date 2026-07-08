@@ -1,0 +1,34 @@
+# Plantilla de servicio systemd para VIGÍA CEREBRO.
+# NO editar a mano: instalar.sh sustituye __RUTA__ y __USUARIO__ y la copia a
+# /etc/systemd/system/vigia-cerebro.service.
+#
+# Si prefieres editarla tú mismo:
+#   __RUTA__     → ruta absoluta de esta carpeta (donde está instalar.sh)
+#   __USUARIO__  → tu usuario de Linux (el que instaló VIGÍA CEREBRO)
+
+[Unit]
+Description=VIGIA CEREBRO - videovigilancia 24/7 (analisis local, sin nube)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__USUARIO__
+WorkingDirectory=__RUTA__
+ExecStart=__RUTA__/venv/bin/python -m vigia_cerebro.principal
+Restart=always
+RestartSec=5
+StandardOutput=append:__RUTA__/datos/cerebro.log
+StandardError=append:__RUTA__/datos/cerebro.log
+
+# El archivo de log de arriba crece sin límite por sí solo: revísalo o rótalo
+# tú de vez en cuando (por ejemplo con logrotate), o bórralo si ocupa mucho:
+#   rm __RUTA__/datos/cerebro.log
+#
+# Si en vez de un archivo prefieres usar el journal de systemd, cambia las dos
+# líneas StandardOutput/StandardError de arriba por "journal" y limita su
+# tamaño en /etc/systemd/journald.conf con, por ejemplo:
+#   SystemMaxUse=200M
+
+[Install]
+WantedBy=multi-user.target

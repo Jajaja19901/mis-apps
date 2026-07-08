@@ -21,6 +21,9 @@ async function app_init() {
     car_init();
     cfg_init();
     pwa_init();
+    // v2 — puesto de mando remoto (idempotentes: tienen guarda interna)
+    if (typeof mando_init === 'function') mando_init();
+    if (typeof mdash_init === 'function') mdash_init();
 
     estado.arrancado = true;
 

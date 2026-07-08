@@ -154,6 +154,10 @@ class Alertas:
             )
             return
         self._almacen.incrementar(dia, hora, camara_id, clave, 1)
+        # Semántica v1: los visitantes por hora son las entradas por la línea
+        # (es la serie que pinta el gráfico de afluencia del dashboard).
+        if clave == "entradas":
+            self._almacen.incrementar(dia, hora, camara_id, "visitantes", 1)
 
     @staticmethod
     def _clave_agregado(evento: dict) -> str | None:
@@ -250,7 +254,14 @@ class Alertas:
                 return
             self._calor_ultimo[camara_id] = ahora
         dia = self._dia_hora(ts)[0]
-        self._almacen.sumar_calor(dia, camara_id, celdas)
+        # Copia y vacía la rejilla viva de la analítica: sin esto, cada
+        # persistencia re-sumaría todo lo acumulado (dobles conteos).
+        copia = dict(celdas)
+        try:
+            celdas.clear()
+        except AttributeError:
+            pass
+        self._almacen.sumar_calor(dia, camara_id, copia)
 
     def _on_clip_listo(self, datos: dict) -> None:
         """Suscripción a bus 'evento.clip_listo' {evento_id, ruta}."""

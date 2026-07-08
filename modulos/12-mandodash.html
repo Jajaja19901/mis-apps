@@ -1,0 +1,149 @@
+<!-- ============================================================================
+     SLOT:MANDODASH — Dashboard remoto del cerebro (módulo 12-mandodash).
+     Se inyecta ENTERO dentro de #mando-panel (11-mando.html). Contiene dos
+     partes en un único archivo, tal como pide el encargo:
+       1) La sección visible del dashboard (#mdash-sec), siempre en el DOM.
+       2) Un <template id="mdash-tplAjustes"> con la sección de ajustes
+          remotos. modulos/ensamblar.mjs NO sustituye el marcador
+          SLOT:MANDOAJUSTES del drawer v1 (05-ui.html) por ningún archivo —
+          por eso esa sección viaja aquí dentro y 12-mandodash.js la clona
+          en tiempo de ejecución (mdash_init() → mdash_montarAjustes())
+          dentro de #ui-panelAjustes .ui-drawer-cuerpo. Ver el comentario
+          completo al principio de 12-mandodash.js.
+     ============================================================================ -->
+<section class="sec" id="mdash-sec">
+  <style>
+    #mdash-grafico { width: 100%; height: 160px; display: block; }
+    #mdash-calor { width: 100%; height: auto; aspect-ratio: 16 / 9; display: block; background: #0b0f14; border-radius: var(--radio); }
+    .mdash-chips { flex-wrap: wrap; }
+    .mdash-chip[aria-pressed="true"] { outline: 2px solid var(--azul); }
+    .mdash-lista { list-style: none; margin: 0; padding: 0; }
+    .mdash-eventoItem { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--borde); flex-wrap: wrap; }
+    .mdash-eventoMini { width: 48px; height: 36px; object-fit: cover; border-radius: 6px; background: var(--panel2); flex: none; }
+    .mdash-eventoTexto { flex: 1 1 160px; }
+    .mdash-eventoHora { white-space: nowrap; }
+    .mdash-filaCamCfg { margin-bottom: 8px; }
+  </style>
+
+  <h2 class="sec-titulo">Datos del cerebro</h2>
+  <p class="etiqueta oculto" id="mdash-msg">🧠 Cerebro sin conexión.</p>
+
+  <div class="fila">
+    <div class="campo">
+      <label for="mdash-selCamara">Cámara</label>
+      <select id="mdash-selCamara">
+        <option value="">Todas las cámaras</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label for="mdash-selDia">Día</label>
+      <input type="date" id="mdash-selDia">
+    </div>
+  </div>
+
+  <div class="tarjeta">
+    <canvas id="mdash-grafico" role="img" aria-label="Afluencia por hora, hoy comparado con ayer (datos del cerebro remoto)"></canvas>
+  </div>
+
+  <div class="fila">
+    <div class="tarjeta">
+      <div class="etiqueta">Visitantes</div>
+      <div class="dato-grande" id="mdash-visitantes">0</div>
+    </div>
+    <div class="tarjeta">
+      <div class="etiqueta">Entradas</div>
+      <div class="dato-grande" id="mdash-entradas">0</div>
+    </div>
+    <div class="tarjeta">
+      <div class="etiqueta">Salidas</div>
+      <div class="dato-grande" id="mdash-salidas">0</div>
+    </div>
+    <div class="tarjeta">
+      <div class="etiqueta">Alertas</div>
+      <div class="dato-grande" id="mdash-alertasTotal">0</div>
+      <div class="fila">
+        <span class="insignia-info" id="mdash-alertaInfo">0</span>
+        <span class="insignia-sospecha" id="mdash-alertaSospecha">0</span>
+        <span class="insignia-critico" id="mdash-alertaCritico">0</span>
+      </div>
+    </div>
+    <div class="tarjeta">
+      <div class="etiqueta">Aforo actual</div>
+      <div class="dato-grande" id="mdash-aforoActual">0</div>
+    </div>
+    <div class="tarjeta">
+      <div class="etiqueta">Pico de aforo</div>
+      <div class="dato-grande" id="mdash-picoAforo">0</div>
+    </div>
+    <div class="tarjeta oculto" id="mdash-tarjetaVehiculos">
+      <div class="etiqueta">Vehículos</div>
+      <div class="dato-grande" id="mdash-vehiculos">🚗0 🚚0 🚌0 🏍0 🚲0</div>
+    </div>
+  </div>
+
+  <div class="tarjeta">
+    <div class="etiqueta">Mapa de calor (cámara seleccionada)</div>
+    <canvas id="mdash-calor" role="img" aria-label="Mapa de calor de aforo sobre el último frame de la cámara"></canvas>
+  </div>
+
+  <div class="tarjeta">
+    <div class="etiqueta">Historial de eventos</div>
+    <div class="fila mdash-chips" id="mdash-chips">
+      <button type="button" class="btn btn-mini mdash-chip" data-nivel="info">Info</button>
+      <button type="button" class="btn btn-mini mdash-chip" data-nivel="sospecha">Sospecha</button>
+      <button type="button" class="btn btn-mini mdash-chip" data-nivel="critico">Crítico</button>
+    </div>
+    <ul id="mdash-listaEventos" class="mdash-lista"></ul>
+    <p class="etiqueta" id="mdash-eventosVacio">Sin eventos que mostrar.</p>
+    <button type="button" class="btn btn-mini oculto" id="mdash-cargarMas">Cargar más</button>
+  </div>
+</section>
+
+<template id="mdash-tplAjustes">
+  <details class="tarjeta cfg-sec" id="mdash-secCerebro">
+    <summary class="sec-titulo">🧠 Cerebro (remoto)</summary>
+    <p class="etiqueta oculto" id="mdash-msgAjustes">🧠 Cerebro sin conexión.</p>
+
+    <div class="etiqueta">Salud del cerebro</div>
+    <div class="fila">
+      <div class="tarjeta">
+        <div class="etiqueta">CPU</div>
+        <div class="dato-grande" id="mdash-saludCpu">—</div>
+      </div>
+      <div class="tarjeta">
+        <div class="etiqueta">RAM</div>
+        <div class="dato-grande" id="mdash-saludRam">—</div>
+      </div>
+      <div class="tarjeta">
+        <div class="etiqueta">Disco clips</div>
+        <div class="dato-grande" id="mdash-saludDisco">—</div>
+      </div>
+      <div class="tarjeta">
+        <div class="etiqueta">En marcha</div>
+        <div class="dato-grande" id="mdash-saludUptime">—</div>
+      </div>
+      <div class="tarjeta">
+        <div class="etiqueta">Versión</div>
+        <div class="dato-grande" id="mdash-saludVersion">—</div>
+      </div>
+    </div>
+
+    <div class="etiqueta">Cámaras</div>
+    <div id="mdash-listaCamarasCfg"></div>
+    <button type="button" class="btn btn-primario" id="mdash-guardarConfig">Guardar cambios</button>
+
+    <div class="etiqueta">Franja horaria de armado</div>
+    <label class="fila"><input type="checkbox" id="mdash-horarioActivo"> Armar solo en esta franja</label>
+    <div class="fila">
+      <div class="campo">
+        <label for="mdash-horarioIni">Inicio</label>
+        <input type="time" id="mdash-horarioIni">
+      </div>
+      <div class="campo">
+        <label for="mdash-horarioFin">Fin</label>
+        <input type="time" id="mdash-horarioFin">
+      </div>
+    </div>
+    <button type="button" class="btn btn-mini" id="mdash-guardarHorario">Guardar horario</button>
+  </details>
+</template>

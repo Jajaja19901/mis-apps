@@ -16,7 +16,7 @@ Quién decide si se alerta (armado, cooldowns, mascotas) es `alertas.py`; aquí 
 describe lo que se ve. Los umbrales son CONSTANTES DE CLASE (los ajustará /config).
 
 Reglas del contrato §0: nada corre en el import (supervision/numpy se importan de
-forma perezosa); español en textos; PROHIBIDO "robo/ladrón" (se dice "revisar").
+forma perezosa); español en textos; nada de acusaciones (los textos piden "revisar").
 """
 from __future__ import annotations
 
@@ -92,6 +92,7 @@ class Analitica:
         self._animales_vistos: dict[int, int] = {}  # tid -> ts
         self._ultima_vez: dict[int, int] = {}   # tid -> ts
         self._aforo_ultima: int = 0             # ts del último aviso de aforo
+        self._plazas_ult: tuple | None = None   # último (libres, total) emitido
 
         # Contadores públicos (los lee camaras.py para el almacén / stats).
         self.entradas: int = 0
@@ -397,7 +398,7 @@ class Analitica:
     # --- Líneas: cruces → entradas/salidas y por clase de vehículo -----------
     def _eval_lineas(self, personas, vehiculos, ts_ms, eventos) -> None:
         cruzables = personas + vehiculos
-        if not self._lineas:
+        if not self._lineas or not cruzables:
             return
         det = self._detecciones(cruzables)
         for lc in self._lineas:

@@ -40,6 +40,7 @@ Nada corre en import: todo arranca desde GestorCamaras.arrancar().
 from __future__ import annotations
 
 import logging
+import os
 import subprocess
 import threading
 import time
@@ -166,18 +167,25 @@ class _EstadoCam:
             _log.debug("cam %s: fallo al codificar JPEG: %s", self.id, e)
 
 
-class _Contexto:
-    """Contexto ligero para quien procese eventos (persistir agregados)."""
+def _contexto_para_alertas(camara_id: str, analitica, tracks: list, ts_ms: int) -> dict:
+    """Contexto que consume alertas.procesar (contrato: dict con tracks/ts/celdas_calor).
 
-    __slots__ = ("camara_id", "aforo_actual", "calor_pendiente", "contadores", "analitica")
-
-    def __init__(self, camara_id: str, analitica) -> None:
-        self.camara_id = camara_id
-        self.analitica = analitica
-        # se leen de la analítica de forma defensiva (agente 1 los expone)
-        self.aforo_actual = getattr(analitica, "aforo_actual", 0)
-        self.calor_pendiente = getattr(analitica, "calor_pendiente", None)
-        self.contadores = getattr(analitica, "contadores", {})
+    celdas_calor es la referencia VIVA de analitica.calor_pendiente: alertas la
+    copia y la vacía cuando persiste (throttle 60 s); entre persistencias la
+    analítica sigue acumulando ahí, sin pérdidas ni dobles conteos.
+    """
+    aforo = getattr(analitica, "aforo_actual", None)
+    try:
+        aforo_val = int(aforo()) if callable(aforo) else int(aforo or 0)
+    except Exception:
+        aforo_val = 0
+    return {
+        "camara_id": camara_id,
+        "ts": ts_ms,
+        "tracks": tracks,
+        "aforo_actual": aforo_val,
+        "celdas_calor": getattr(analitica, "calor_pendiente", None),
+    }
 
 
 class GestorCamaras:
@@ -350,10 +358,25 @@ class GestorCamaras:
     # === hilo lector (por cámara) =========================================
     def _bucle_lector(self, cid: str) -> None:
         st = self._estados[cid]
-        url = f"rtsp://127.0.0.1:{self.cfg.go2rtc.puerto_rtsp}/{cid}"
+        # MODO PRUEBA sin go2rtc (decisión del integrador, ver pruebas/camara_falsa.sh):
+        # si el campo rtsp de la cámara es un ARCHIVO local existente, se lee
+        # directamente en bucle con la cadencia del propio vídeo.
+        camcfg = self.cfg.camara(cid)
+        es_archivo = bool(camcfg and camcfg.rtsp and os.path.isfile(camcfg.rtsp))
+        url = camcfg.rtsp if es_archivo else \
+            f"rtsp://127.0.0.1:{self.cfg.go2rtc.puerto_rtsp}/{cid}"
+        if es_archivo:
+            _log.info("cam %s: MODO ARCHIVO (prueba) — %s", cid, url)
         backoff = _BACKOFF_MIN
         while self._corriendo:
-            cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
+            cap = cv2.VideoCapture(url) if es_archivo else cv2.VideoCapture(url, cv2.CAP_FFMPEG)
+            paso_archivo = 0.1
+            if es_archivo:
+                try:
+                    fps_arch = cap.get(cv2.CAP_PROP_FPS) or 10
+                    paso_archivo = 1.0 / max(1.0, min(30.0, fps_arch))
+                except Exception:
+                    pass
             try:
                 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # menos latencia
             except Exception:
@@ -373,12 +396,16 @@ class GestorCamaras:
             while self._corriendo:
                 ok, frame = cap.read()
                 if not ok or frame is None:
+                    if es_archivo:  # fin del archivo ⇒ rebobinar (bucle)
+                        break
                     fallos += 1
                     if fallos > 30:  # ~1.5 s de fallos seguidos ⇒ reconectar
                         break
                     time.sleep(0.05)
                     continue
                 fallos = 0
+                if es_archivo:
+                    time.sleep(paso_archivo)  # cadencia real del vídeo
                 ts = int(time.time() * 1000)
 
                 # 1) evidencia SIEMPRE (buffer circular para clips)
@@ -517,7 +544,7 @@ class GestorCamaras:
         st.registrar_inferencia(time.monotonic())
 
         # entrega a quien procese (alertas)
-        contexto = _Contexto(cid, analitica)
+        contexto = _contexto_para_alertas(cid, analitica, tracks, ts)
         try:
             self._al_evento(cid, eventos, contexto)
         except Exception as e:
