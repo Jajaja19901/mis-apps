@@ -266,6 +266,13 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .scan-ambar{color:var(--ambar)}
 /* TPV (alias de rejilla + carrito) */
 .productos-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
+.mas-pedidos{margin-bottom:14px}
+.mp-titulo{font-size:.8rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;opacity:.75;margin:0 2px 8px}
+.mp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.btn-rapido{min-height:104px;border-radius:var(--radius-card);border:2px solid var(--color-tema,#00d4ff);background:linear-gradient(180deg,rgba(0,212,138,.10),var(--surface));color:var(--text);display:flex;flex-direction:column;justify-content:center;gap:6px;cursor:pointer;padding:12px;text-align:center;font-size:1.08rem}
+.btn-rapido .prod-nombre{font-weight:800;font-size:1.12rem}
+.btn-rapido:active{transform:scale(.97)}
+.btn-rapido[disabled]{opacity:.4;cursor:not-allowed}
 .prod-nombre{font-weight:600}.prod-precio{color:var(--neon-verde);font-weight:700}.prod-stock{font-size:.75rem;color:var(--text-dim)}
 .prod-incluye{font-size:.72rem;color:var(--vip-morado)}
 .prod-edit{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;padding:10px 0;border-bottom:1px solid var(--border)}
@@ -15196,7 +15203,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V23'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V24'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -15951,6 +15958,26 @@ function registrarVenta(s, prodId, nombre, uds, imp) {
   v.nombre = nombre || v.nombre;
   v.uds += uds;
   v.imp += imp;
+}
+/* Los productos MÁS PEDIDOS de la noche (para la fila de botones rápidos de la barra).
+   Automático, sin marcar nada: cuenta lo vendido esta noche (ventasPorProducto), suma las
+   variantes del mismo producto, ignora las consumiciones incluidas (_copa_incl…), y devuelve
+   hasta `max` productos que hayan vendido al menos MIN unidades. Vacío al principio = fila oculta. */
+function productosMasPedidos(max) {
+  max = max || 4;
+  var MIN = 2; // hace falta vender 2 para que aparezca (evita ruido al empezar)
+  var vp = state.ventasPorProducto || {};
+  var productos = (state.config && state.config.productos) || [];
+  var porId = {};
+  Object.keys(vp).forEach(function (k) {
+    if (k.charAt(0) === '_') return;          // saltar copas/refrescos/botellas incluidas
+    var base = k.split(':')[0];               // sumar variantes (Ron cola / Ron limón…) al mismo producto
+    porId[base] = (porId[base] || 0) + ((vp[k] && vp[k].uds) || 0);
+  });
+  return productos
+    .filter(function (p) { return (porId[p.id] || 0) >= MIN; })
+    .sort(function (a, b) { return (porId[b.id] || 0) - (porId[a.id] || 0); })
+    .slice(0, max);
 }
 function nuevoCodigoMonedero(s) {
   var seq = (s.monederos || []).length + 1;
@@ -18083,6 +18110,22 @@ function renderBarra() {
       '</button>';
   }).join('');
 
+  // Fila AUTOMÁTICA de "Más pedidos": botones grandes con lo que más se vende esta noche (hasta 4).
+  // No hay que marcar nada: sale solo cuando un producto ya se ha pedido varias veces.
+  var top = (typeof productosMasPedidos === 'function') ? productosMasPedidos(4) : [];
+  var masPedidosHtml = '';
+  if (top.length) {
+    masPedidosHtml = '<div class="mas-pedidos"><div class="mp-titulo">⚡ Más pedidos</div><div class="mp-grid">' +
+      top.map(function (p) {
+        var agot = modulos.stock && p.stock === 0;
+        return '<button type="button" class="btn-rapido" data-testid="rapido-' + esc(p.id) + '"' +
+          (agot ? ' disabled' : ' onclick="barraAgregar(\'' + esc(p.id) + '\')"') + '>' +
+          '<span class="prod-nombre">' + esc(p.nombre) + '</span>' +
+          '<span class="prod-precio">' + money(p.precio) + '</span>' +
+          (agot ? '<span class="prod-stock">Agotado</span>' : '') + '</button>';
+      }).join('') + '</div></div>';
+  }
+
   var lineasHtml = carrito.map(function (l) {
     var vSlug = l.variante ? '-' + _slugVariante(l.variante) : '';
     var vArg = l.variante ? ',\'' + esc(escJs(l.variante)) + '\'' : '';
@@ -18113,6 +18156,7 @@ function renderBarra() {
   vista.innerHTML =
     '<section class="vista-barra">' +
       '<h2>Barra</h2>' +
+      masPedidosHtml +
       '<div class="productos-grid">' + botonesHtml + '</div>' +
       '<div class="carrito" data-testid="carrito">' +
         lineasHtml +
