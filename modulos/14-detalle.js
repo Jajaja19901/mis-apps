@@ -19,8 +19,8 @@
  *
  * Se pinta como pintor registrado en vid_registrarPintor('detalle', det_pintar,
  * 60): se ejecuta en cada frame compuesto (bucle rAF), no solo en los frames
- * de inferencia. Por eso usa performance.now() (el mismo reloj con el que el
- * tracker sella su historial vía requestAnimationFrame), no Date.now().
+ * de inferencia. Usa Date.now() — el MISMO reloj con el que el bucle sella el
+ * historial del tracker (ver det_ahora).
  * ==========================================================================*/
 
 /* --- Parámetros del módulo --------------------------------------------------*/
