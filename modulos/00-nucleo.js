@@ -18,7 +18,7 @@ const CONFIG = {
 const CFG_DEFECTOS = {
   modo: 'super',            // 'super' | 'carretera'
   fps: 8,                   // FPS de inferencia (3-10)
-  scoreMin: 0.5,            // confianza mínima COCO-SSD
+  scoreMin: 0.35,           // confianza mínima COCO-SSD (bajo = detecta más personas)
   fuente: 'camara',         // 'camara' | 'ip' | 'archivo'
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
@@ -222,7 +222,7 @@ async function nuc_cargarModelos() {
 async function nuc_detectar(fuente) {
   if (!fuente || !estado.modelos.cocoListo) return [];
   try {
-    const res = await estado.modelos.coco.detect(fuente, 20, estado.cfg.scoreMin);
+    const res = await estado.modelos.coco.detect(fuente, 40, estado.cfg.scoreMin);
     return res.map((d) => ({
       clase: d.class, score: d.score,
       caja: { x: d.bbox[0], y: d.bbox[1], an: d.bbox[2], al: d.bbox[3] },

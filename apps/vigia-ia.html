@@ -978,7 +978,7 @@ h1, h2, h3, p { margin: 0; }
     <div class="campo">
       <label for="cfg-scoreMin">Sensibilidad de detección</label>
       <div class="fila">
-        <input type="range" id="cfg-scoreMin" data-cfg="scoreMin" min="0.3" max="0.8" step="0.05">
+        <input type="range" id="cfg-scoreMin" data-cfg="scoreMin" min="0.2" max="0.8" step="0.05">
         <output id="cfg-scoreMin-out" class="etiqueta"></output>
       </div>
       <p class="etiqueta">Más a la izquierda = detecta más cosas (también más falsos). Si «detecta poco», baja este valor a 0,35.</p>
@@ -1356,7 +1356,7 @@ const CONFIG = {
 const CFG_DEFECTOS = {
   modo: 'super',            // 'super' | 'carretera'
   fps: 8,                   // FPS de inferencia (3-10)
-  scoreMin: 0.5,            // confianza mínima COCO-SSD
+  scoreMin: 0.35,           // confianza mínima COCO-SSD (bajo = detecta más personas)
   fuente: 'camara',         // 'camara' | 'ip' | 'archivo'
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
@@ -1560,7 +1560,7 @@ async function nuc_cargarModelos() {
 async function nuc_detectar(fuente) {
   if (!fuente || !estado.modelos.cocoListo) return [];
   try {
-    const res = await estado.modelos.coco.detect(fuente, 20, estado.cfg.scoreMin);
+    const res = await estado.modelos.coco.detect(fuente, 40, estado.cfg.scoreMin);
     return res.map((d) => ({
       clase: d.class, score: d.score,
       caja: { x: d.bbox[0], y: d.bbox[1], an: d.bbox[2], al: d.bbox[3] },
