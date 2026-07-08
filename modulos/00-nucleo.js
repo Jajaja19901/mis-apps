@@ -46,6 +46,7 @@ const CFG_DEFECTOS = {
   copDistSeg: false,        // aviso de distancia de seguridad (muy pegado sostenido, >30 km/h)
   copAutoTrayecto: true,    // iniciar trayecto solo al pasar de 15 km/h
   copFatiga: true,          // aviso de descanso cada 2 h de trayecto
+  copSonido: true,          // pitido + vibración con los avisos FRENA/PEATÓN
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
   resolucion: '720',        // '480' | '720' | '1080'
@@ -262,6 +263,15 @@ function nuc_modeloListo() {
     || (typeof sc_activo === 'function' && sc_activo());
 }
 
+/* Umbral de confianza EFECTIVO: en modo carretera o con el copiloto activo se
+ * baja un poco (los coches lejanos puntúan más bajo que las personas y se
+ * perdían). El resto del tiempo manda el ajuste del dueño tal cual. */
+function nuc_scoreMin() {
+  const base = estado.cfg.scoreMin || 0.35;
+  const enCoche = estado.cfg.modo === 'carretera' || estado.cfg.copActivo;
+  return enCoche ? Math.max(0.2, base - 0.1) : base;
+}
+
 /* Detecta sobre un <video>/<img>/<canvas> listo. Devuelve [] si algo falla.
  * Enruta según el motor elegido: SUPERCEREBRO (ONNX-YOLO11) → POTENTE
  * (Transformers.js) → básico (COCO-SSD, siempre de respaldo). */
@@ -275,7 +285,7 @@ async function nuc_detectar(fuente) {
   }
   if (!estado.modelos.cocoListo) return [];
   try {
-    const res = await estado.modelos.coco.detect(fuente, 40, estado.cfg.scoreMin);
+    const res = await estado.modelos.coco.detect(fuente, 40, nuc_scoreMin());
     return res.map((d) => ({
       clase: d.class, score: d.score,
       caja: { x: d.bbox[0], y: d.bbox[1], an: d.bbox[2], al: d.bbox[3] },

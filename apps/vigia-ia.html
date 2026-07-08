@@ -455,6 +455,10 @@ h1, h2, h3, p { margin: 0; }
       <span>🛑 Aviso de <b>señal de STOP</b> delante</span>
     </label>
     <label class="fila cop-linea">
+      <input type="checkbox" id="cop-sonido">
+      <span>🔊 <b>Pitido + vibración</b> con FRENA/PEATÓN <small class="cop-nota">(suena aunque no mires la pantalla)</small></span>
+    </label>
+    <label class="fila cop-linea">
       <input type="checkbox" id="cop-distSeg">
       <span>↔ Aviso de <b>distancia de seguridad</b> <small class="cop-nota">(vas muy pegado sostenido, solo a más de 30 km/h; orientativo)</small></span>
     </label>
@@ -1019,6 +1023,17 @@ h1, h2, h3, p { margin: 0; }
      de 09-ajustes.js contra estado.cfg). Secciones plegables con <details>/<summary>.
    ============================================================================ -->
 <div class="cfg-panel">
+
+  <!-- 0. INICIO RÁPIDO: atajos de un toque a lo más usado -->
+  <div class="tarjeta cfg-sec" id="cfg-secInicio">
+    <p class="etiqueta" style="margin:0 0 8px;">¿Qué quieres hacer? Un toque y te llevo al sitio:</p>
+    <div class="fila" style="flex-wrap:wrap; gap:8px;">
+      <button type="button" class="btn btn-mini" id="cfg-irCamara">📷 Usar la cámara del móvil</button>
+      <button type="button" class="btn btn-mini" id="cfg-irMotor">⚡ Cambiar el motor de IA</button>
+      <button type="button" class="btn btn-mini" id="cfg-irDashcam">📹 Conectar la dashcam</button>
+      <button type="button" class="btn btn-mini" id="cfg-irCopiloto">🚗 Modo coche (copiloto)</button>
+    </div>
+  </div>
 
   <!-- 1. FUENTE DE VÍDEO -->
   <details class="tarjeta cfg-sec" id="cfg-secFuente" open>
@@ -1638,6 +1653,7 @@ const CFG_DEFECTOS = {
   copDistSeg: false,        // aviso de distancia de seguridad (muy pegado sostenido, >30 km/h)
   copAutoTrayecto: true,    // iniciar trayecto solo al pasar de 15 km/h
   copFatiga: true,          // aviso de descanso cada 2 h de trayecto
+  copSonido: true,          // pitido + vibración con los avisos FRENA/PEATÓN
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
   resolucion: '720',        // '480' | '720' | '1080'
@@ -1854,6 +1870,15 @@ function nuc_modeloListo() {
     || (typeof sc_activo === 'function' && sc_activo());
 }
 
+/* Umbral de confianza EFECTIVO: en modo carretera o con el copiloto activo se
+ * baja un poco (los coches lejanos puntúan más bajo que las personas y se
+ * perdían). El resto del tiempo manda el ajuste del dueño tal cual. */
+function nuc_scoreMin() {
+  const base = estado.cfg.scoreMin || 0.35;
+  const enCoche = estado.cfg.modo === 'carretera' || estado.cfg.copActivo;
+  return enCoche ? Math.max(0.2, base - 0.1) : base;
+}
+
 /* Detecta sobre un <video>/<img>/<canvas> listo. Devuelve [] si algo falla.
  * Enruta según el motor elegido: SUPERCEREBRO (ONNX-YOLO11) → POTENTE
  * (Transformers.js) → básico (COCO-SSD, siempre de respaldo). */
@@ -1867,7 +1892,7 @@ async function nuc_detectar(fuente) {
   }
   if (!estado.modelos.cocoListo) return [];
   try {
-    const res = await estado.modelos.coco.detect(fuente, 40, estado.cfg.scoreMin);
+    const res = await estado.modelos.coco.detect(fuente, 40, nuc_scoreMin());
     return res.map((d) => ({
       clase: d.class, score: d.score,
       caja: { x: d.bbox[0], y: d.bbox[1], an: d.bbox[2], al: d.bbox[3] },
@@ -7228,6 +7253,23 @@ function cfg_confirmar(msg, textoOk, alConfirmar) {
 function cfg_conectarBotones() {
   const $ = function (id) { return document.getElementById(id); };
 
+  // Inicio rápido: atajos de un toque a las secciones más usadas.
+  const cfg_atajo = function (idBtn, fn) {
+    const b = $(idBtn); if (b) b.addEventListener('click', fn);
+  };
+  const cfg_marcarFuente = function (idRadio) {
+    const r = $(idRadio);
+    if (r && !r.checked) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }
+    cfg_ir('cfg-secFuente');
+  };
+  cfg_atajo('cfg-irCamara', function () { cfg_marcarFuente('cfg-fuente-camara'); });
+  cfg_atajo('cfg-irDashcam', function () { cfg_marcarFuente('cfg-fuente-dashcam'); });
+  cfg_atajo('cfg-irMotor', function () { cfg_ir('cfg-secDeteccion'); });
+  cfg_atajo('cfg-irCopiloto', function () {
+    if (typeof ui_cerrarAjustes === 'function') { try { ui_cerrarAjustes(); } catch (e) {} }
+    if (typeof cop_alternar === 'function') { try { cop_alternar(true); } catch (e) {} }
+  });
+
   const btnCam = $('cfg-btnActivarCamara');
   if (btnCam) btnCam.addEventListener('click', function () {
     if (typeof vid_usarCamara !== 'function') { cfg_avisar('El módulo de vídeo aún no está disponible.', 'sospecha'); return; }
@@ -9874,7 +9916,8 @@ async function yolo_detectar(fuente) {
     catch (e) { return []; }   // canvas contaminado (cámara IP sin CORS)
 
     const img = new y.RawImage(datos.data, dw, dh, 4);
-    const umbral = Math.max(0.15, Math.min(0.8, estado.cfg.scoreMin || 0.35));
+    const umbral = Math.max(0.15, Math.min(0.8,
+      (typeof nuc_scoreMin === 'function' ? nuc_scoreMin() : estado.cfg.scoreMin) || 0.35));
     const salida = await y.detector(img, { threshold: umbral, percentage: false });
 
     const sx = W / dw, sy = H / dh;
@@ -10436,6 +10479,7 @@ function cop_cablearControles() {
   cop_chk('cop-distSeg', 'copDistSeg');
   cop_chk('cop-autoTrayecto', 'copAutoTrayecto');
   cop_chk('cop-fatiga', 'copFatiga');
+  cop_chk('cop-sonido', 'copSonido');
   const bGpx = document.getElementById('cop-btnGpx');
   if (bGpx) bGpx.addEventListener('click', cop_exportarGPX);
 
@@ -10464,7 +10508,8 @@ function cop_sincronizarControles() {
   const parking = document.getElementById('cop-parking');
   if (parking) parking.checked = !!estado.cfg.copParkingOn;
   const pares = [['cop-peaton', 'copPeaton'], ['cop-stop', 'copStopAviso'], ['cop-distSeg', 'copDistSeg'],
-                 ['cop-autoTrayecto', 'copAutoTrayecto'], ['cop-fatiga', 'copFatiga']];
+                 ['cop-autoTrayecto', 'copAutoTrayecto'], ['cop-fatiga', 'copFatiga'],
+                 ['cop-sonido', 'copSonido']];
   for (let i = 0; i < pares.length; i++) {
     const el = document.getElementById(pares[i][0]);
     if (el) el.checked = !!estado.cfg[pares[i][1]];
@@ -10473,6 +10518,32 @@ function cop_sincronizarControles() {
   if (sens) sens.value = String(estado.cfg.copSensibilidadG || 2.2);
   cop_pintarSensibilidad();
   cop_actualizarBotonesViaje();
+}
+
+/* 🔊 Pitido de emergencia (dos tonos agudos) + vibración. Acompaña al cartel
+ * FRENA/PEATÓN para que el aviso llegue aunque no mires la pantalla. Se apaga
+ * con el interruptor copSonido. Nunca lanza: sin audio, sigue en silencio. */
+function cop_pitar() {
+  if (!estado.cfg.copSonido) return;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) {
+      if (!estado.cop._audio) estado.cop._audio = new AC();
+      const actx = estado.cop._audio;
+      if (actx.state === 'suspended') { actx.resume().catch(function () {}); }
+      for (let i = 0; i < 2; i++) {
+        const t = actx.currentTime + i * 0.22;
+        const osc = actx.createOscillator(), gan = actx.createGain();
+        osc.type = 'square'; osc.frequency.value = 880;
+        gan.gain.setValueAtTime(0.0001, t);
+        gan.gain.exponentialRampToValueAtTime(0.35, t + 0.02);
+        gan.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+        osc.connect(gan); gan.connect(actx.destination);
+        osc.start(t); osc.stop(t + 0.2);
+      }
+    }
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  } catch (e) { /* sin audio/vibración no pasa nada */ }
 }
 
 /* ============================================================================
@@ -10497,8 +10568,16 @@ function cop_aplicar(activo) {
     btn.textContent = activo ? '🚗 Copiloto ✓' : '🚗 Copiloto';
   }
 
-  if (activo) cop_arrancarSensores();
-  else cop_pararSensores();
+  if (activo) {
+    cop_arrancarSensores();
+    // Consejo una sola vez: con el motor básico los coches lejanos se pierden.
+    if (estado.cfg.motor === 'coco' && !nuc_cargar('cop_avisoMotor', false)) {
+      nuc_guardar('cop_avisoMotor', true);
+      cop_toast('Consejo: para detectar mejor los coches, cambia el motor a «Potente» en Ajustes → Detección.', 'info');
+    }
+  } else {
+    cop_pararSensores();
+  }
 
   cop_render(true);
 }
@@ -10805,6 +10884,7 @@ function cop_analizarColision() {
     c.colisionTexto = '⚠ FRENA';
     if (ahora - c.ultColision >= COP_COOLDOWN_COLISION_MS) {
       c.ultColision = ahora;
+      cop_pitar();
       const texto = 'Posible colisión: vehículo delante acercándose';
       if (typeof alerta_disparar === 'function') {
         try { alerta_disparar('colision_frontal', 'critico', texto); } catch (e) {}
@@ -10847,6 +10927,7 @@ function cop_analizarPeaton(tracks, w, areaFrame) {
     c.colisionTexto = '⚠ PEATÓN';
     if (ahora - c.ultColision >= COP_COOLDOWN_COLISION_MS) {
       c.ultColision = ahora;
+      cop_pitar();
       const texto = 'PEATÓN delante acercándose — frena';
       if (typeof alerta_disparar === 'function') {
         try { alerta_disparar('peaton_delante', 'critico', texto); } catch (e) {}
@@ -11585,7 +11666,8 @@ async function sc_detectar(fuente) {
     const salida = await sesion.run(alim);
     const primera = salida[sesion.outputNames && sesion.outputNames[0]] || salida[Object.keys(salida)[0]];
     if (!primera) return [];
-    const umbral = Math.max(0.15, Math.min(0.8, estado.cfg.scoreMin || 0.30));
+    const umbral = Math.max(0.15, Math.min(0.8,
+      (typeof nuc_scoreMin === 'function' ? nuc_scoreMin() : estado.cfg.scoreMin) || 0.30));
     const dets = sc_decodificar(primera.data, primera.dims, pre.lb, umbral, w, h);
     const ms = performance.now() - t0;
     s.msMedia = s.msMedia ? (s.msMedia * 0.85 + ms * 0.15) : ms;

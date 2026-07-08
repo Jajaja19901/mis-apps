@@ -81,7 +81,8 @@ async function yolo_detectar(fuente) {
     catch (e) { return []; }   // canvas contaminado (cámara IP sin CORS)
 
     const img = new y.RawImage(datos.data, dw, dh, 4);
-    const umbral = Math.max(0.15, Math.min(0.8, estado.cfg.scoreMin || 0.35));
+    const umbral = Math.max(0.15, Math.min(0.8,
+      (typeof nuc_scoreMin === 'function' ? nuc_scoreMin() : estado.cfg.scoreMin) || 0.35));
     const salida = await y.detector(img, { threshold: umbral, percentage: false });
 
     const sx = W / dw, sy = H / dh;

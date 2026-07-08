@@ -646,6 +646,23 @@ function cfg_confirmar(msg, textoOk, alConfirmar) {
 function cfg_conectarBotones() {
   const $ = function (id) { return document.getElementById(id); };
 
+  // Inicio rápido: atajos de un toque a las secciones más usadas.
+  const cfg_atajo = function (idBtn, fn) {
+    const b = $(idBtn); if (b) b.addEventListener('click', fn);
+  };
+  const cfg_marcarFuente = function (idRadio) {
+    const r = $(idRadio);
+    if (r && !r.checked) { r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); }
+    cfg_ir('cfg-secFuente');
+  };
+  cfg_atajo('cfg-irCamara', function () { cfg_marcarFuente('cfg-fuente-camara'); });
+  cfg_atajo('cfg-irDashcam', function () { cfg_marcarFuente('cfg-fuente-dashcam'); });
+  cfg_atajo('cfg-irMotor', function () { cfg_ir('cfg-secDeteccion'); });
+  cfg_atajo('cfg-irCopiloto', function () {
+    if (typeof ui_cerrarAjustes === 'function') { try { ui_cerrarAjustes(); } catch (e) {} }
+    if (typeof cop_alternar === 'function') { try { cop_alternar(true); } catch (e) {} }
+  });
+
   const btnCam = $('cfg-btnActivarCamara');
   if (btnCam) btnCam.addEventListener('click', function () {
     if (typeof vid_usarCamara !== 'function') { cfg_avisar('El módulo de vídeo aún no está disponible.', 'sospecha'); return; }

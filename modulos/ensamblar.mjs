@@ -126,7 +126,8 @@ const PUBLICAS = [
   "yolo_init","yolo_detectar","yolo_activo",
   "vid_usarDashcam","vid_probarDashcam",
   "det_init","det_pintar",
-  "cop_init","cop_alternar",
+  "cop_init","cop_alternar","cop_pitar",
+  "nuc_scoreMin","cfg_ir",
   "sc_init","sc_activo","sc_detectar","sc_activar","sc_benchmark",
   "acc_init","acc_marcarFalsa",
 ];

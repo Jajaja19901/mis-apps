@@ -141,6 +141,7 @@ function cop_cablearControles() {
   cop_chk('cop-distSeg', 'copDistSeg');
   cop_chk('cop-autoTrayecto', 'copAutoTrayecto');
   cop_chk('cop-fatiga', 'copFatiga');
+  cop_chk('cop-sonido', 'copSonido');
   const bGpx = document.getElementById('cop-btnGpx');
   if (bGpx) bGpx.addEventListener('click', cop_exportarGPX);
 
@@ -169,7 +170,8 @@ function cop_sincronizarControles() {
   const parking = document.getElementById('cop-parking');
   if (parking) parking.checked = !!estado.cfg.copParkingOn;
   const pares = [['cop-peaton', 'copPeaton'], ['cop-stop', 'copStopAviso'], ['cop-distSeg', 'copDistSeg'],
-                 ['cop-autoTrayecto', 'copAutoTrayecto'], ['cop-fatiga', 'copFatiga']];
+                 ['cop-autoTrayecto', 'copAutoTrayecto'], ['cop-fatiga', 'copFatiga'],
+                 ['cop-sonido', 'copSonido']];
   for (let i = 0; i < pares.length; i++) {
     const el = document.getElementById(pares[i][0]);
     if (el) el.checked = !!estado.cfg[pares[i][1]];
@@ -178,6 +180,32 @@ function cop_sincronizarControles() {
   if (sens) sens.value = String(estado.cfg.copSensibilidadG || 2.2);
   cop_pintarSensibilidad();
   cop_actualizarBotonesViaje();
+}
+
+/* 🔊 Pitido de emergencia (dos tonos agudos) + vibración. Acompaña al cartel
+ * FRENA/PEATÓN para que el aviso llegue aunque no mires la pantalla. Se apaga
+ * con el interruptor copSonido. Nunca lanza: sin audio, sigue en silencio. */
+function cop_pitar() {
+  if (!estado.cfg.copSonido) return;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (AC) {
+      if (!estado.cop._audio) estado.cop._audio = new AC();
+      const actx = estado.cop._audio;
+      if (actx.state === 'suspended') { actx.resume().catch(function () {}); }
+      for (let i = 0; i < 2; i++) {
+        const t = actx.currentTime + i * 0.22;
+        const osc = actx.createOscillator(), gan = actx.createGain();
+        osc.type = 'square'; osc.frequency.value = 880;
+        gan.gain.setValueAtTime(0.0001, t);
+        gan.gain.exponentialRampToValueAtTime(0.35, t + 0.02);
+        gan.gain.exponentialRampToValueAtTime(0.0001, t + 0.18);
+        osc.connect(gan); gan.connect(actx.destination);
+        osc.start(t); osc.stop(t + 0.2);
+      }
+    }
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  } catch (e) { /* sin audio/vibración no pasa nada */ }
 }
 
 /* ============================================================================
@@ -202,8 +230,16 @@ function cop_aplicar(activo) {
     btn.textContent = activo ? '🚗 Copiloto ✓' : '🚗 Copiloto';
   }
 
-  if (activo) cop_arrancarSensores();
-  else cop_pararSensores();
+  if (activo) {
+    cop_arrancarSensores();
+    // Consejo una sola vez: con el motor básico los coches lejanos se pierden.
+    if (estado.cfg.motor === 'coco' && !nuc_cargar('cop_avisoMotor', false)) {
+      nuc_guardar('cop_avisoMotor', true);
+      cop_toast('Consejo: para detectar mejor los coches, cambia el motor a «Potente» en Ajustes → Detección.', 'info');
+    }
+  } else {
+    cop_pararSensores();
+  }
 
   cop_render(true);
 }
@@ -510,6 +546,7 @@ function cop_analizarColision() {
     c.colisionTexto = '⚠ FRENA';
     if (ahora - c.ultColision >= COP_COOLDOWN_COLISION_MS) {
       c.ultColision = ahora;
+      cop_pitar();
       const texto = 'Posible colisión: vehículo delante acercándose';
       if (typeof alerta_disparar === 'function') {
         try { alerta_disparar('colision_frontal', 'critico', texto); } catch (e) {}
@@ -552,6 +589,7 @@ function cop_analizarPeaton(tracks, w, areaFrame) {
     c.colisionTexto = '⚠ PEATÓN';
     if (ahora - c.ultColision >= COP_COOLDOWN_COLISION_MS) {
       c.ultColision = ahora;
+      cop_pitar();
       const texto = 'PEATÓN delante acercándose — frena';
       if (typeof alerta_disparar === 'function') {
         try { alerta_disparar('peaton_delante', 'critico', texto); } catch (e) {}

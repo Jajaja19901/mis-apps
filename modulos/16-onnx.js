@@ -354,7 +354,8 @@ async function sc_detectar(fuente) {
     const salida = await sesion.run(alim);
     const primera = salida[sesion.outputNames && sesion.outputNames[0]] || salida[Object.keys(salida)[0]];
     if (!primera) return [];
-    const umbral = Math.max(0.15, Math.min(0.8, estado.cfg.scoreMin || 0.30));
+    const umbral = Math.max(0.15, Math.min(0.8,
+      (typeof nuc_scoreMin === 'function' ? nuc_scoreMin() : estado.cfg.scoreMin) || 0.30));
     const dets = sc_decodificar(primera.data, primera.dims, pre.lb, umbral, w, h);
     const ms = performance.now() - t0;
     s.msMedia = s.msMedia ? (s.msMedia * 0.85 + ms * 0.15) : ms;
