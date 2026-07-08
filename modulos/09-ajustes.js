@@ -144,9 +144,11 @@ function cfg_actualizarVisibilidadFuente() {
   const actual = estado.cfg.fuente;
   const gCam = document.getElementById('cfg-grupoCamara');
   const gIP = document.getElementById('cfg-grupoIP');
+  const gDash = document.getElementById('cfg-grupoDashcam');
   const gArc = document.getElementById('cfg-grupoArchivo');
   if (gCam) gCam.classList.toggle('oculto', actual !== 'camara');
   if (gIP) gIP.classList.toggle('oculto', actual !== 'ip');
+  if (gDash) gDash.classList.toggle('oculto', actual !== 'dashcam');
   if (gArc) gArc.classList.toggle('oculto', actual !== 'archivo');
 }
 
@@ -538,6 +540,87 @@ function cfg_restaurar() {
   });
 }
 
+/* Copia texto al portapapeles (con reserva si no hay API). */
+function cfg_copiar(texto, boton) {
+  const ok = function () { if (boton) { const t = boton.textContent; boton.textContent = '✓ Copiado'; setTimeout(function () { boton.textContent = t; }, 1500); } };
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(texto).then(ok).catch(function () { cfg_copiarReserva(texto, ok); });
+    } else { cfg_copiarReserva(texto, ok); }
+  } catch (e) { cfg_copiarReserva(texto, ok); }
+}
+function cfg_copiarReserva(texto, ok) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = texto; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove(); if (ok) ok();
+  } catch (e) { /* sin portapapeles: el usuario copia a mano */ }
+}
+
+/* GUÍA "Conectar mi dashcam": asistente paso a paso con botones de copiar. */
+function cfg_guiaDashcam() {
+  const urlRtsp = 'rtsp://192.168.1.254/liveRTSP/av4';
+  const cmdInstalar =
+    'pkg update -y && pkg install wget -y\n' +
+    'mkdir -p ~/vigia && cd ~/vigia\n' +
+    'wget -O go2rtc https://github.com/AlexxIT/go2rtc/releases/latest/download/go2rtc_linux_arm64\n' +
+    'chmod +x go2rtc';
+  const cmdYaml =
+    "cat > ~/vigia/go2rtc.yaml <<'EOF'\n" +
+    'api:\n' +
+    '  listen: ":1984"\n' +
+    '  origin: "*"\n' +          // CORS: sin esto el navegador no puede analizar el vídeo
+    'streams:\n' +
+    '  dashcam: ' + urlRtsp + '\n' +
+    'EOF';
+  const cmdArrancar = 'cd ~/vigia && ./go2rtc';
+  const cmdScript =
+    "cat > ~/vigia/arrancar-dashcam.sh <<'EOF'\n" +
+    '#!/data/data/com.termux/files/usr/bin/bash\n' +
+    'cd ~/vigia && ./go2rtc\n' +
+    'EOF\n' +
+    'chmod +x ~/vigia/arrancar-dashcam.sh';
+
+  const cont = document.createElement('div');
+  cont.className = 'cfg-guia';
+  cont.innerHTML =
+    '<p><b>Paso 1.</b> Conecta el móvil al <b>WiFi de tu dashcam</b> (el mismo que usas con su app, TiCam). <b>NO</b> quites los datos móviles: hacen falta para las alertas de Telegram.</p>' +
+    '<p><b>Paso 2.</b> Comprueba el vídeo con <b>VLC</b> → «Abrir ubicación de red» y prueba estas direcciones; apunta la que funcione:</p>' +
+    '<div class="cfg-cmd"><code>rtsp://192.168.1.254/liveRTSP/av4</code></div>' +
+    '<div class="cfg-cmd"><code>rtsp://192.168.1.254/xxx.mov</code></div>' +
+    '<p><b>Paso 3.</b> Instala <b>Termux</b> (desde F-Droid) y pega estos bloques uno a uno. Si tu URL RTSP del paso 2 es distinta, cámbiala en el segundo bloque.</p>' +
+    '<p class="etiqueta">a) Descargar go2rtc:</p>' + cfg_bloqueCmd(cmdInstalar, 'g1') +
+    '<p class="etiqueta">b) Crear la configuración (con la cámara y CORS activado):</p>' + cfg_bloqueCmd(cmdYaml, 'g2') +
+    '<p class="etiqueta">c) Arrancarlo:</p>' + cfg_bloqueCmd(cmdArrancar, 'g3') +
+    '<p class="etiqueta">d) (Opcional) Script para arrancarlo de un toque las próximas veces:</p>' + cfg_bloqueCmd(cmdScript, 'g4') +
+    '<p><b>Paso 4.</b> Vuelve a VIGÍA, deja la fuente en <b>Dashcam</b> y pulsa <b>«Probar conexión»</b>. Si va, pulsa <b>«Conectar dashcam»</b>.</p>' +
+    '<p class="cfg-aviso">⚠ Avisos honestos:<br>' +
+    '• En algunos firmwares, la app de la dashcam (TiCam) y VIGÍA <b>no pueden</b> usar el stream a la vez: <b>cierra TiCam</b> primero.<br>' +
+    '• La calidad del stream por WiFi suele ser <b>menor</b> que la grabación en la tarjeta SD. La SD sigue siendo la grabación buena; VIGÍA es el <b>análisis y los avisos</b>.<br>' +
+    '• Si el vídeo se ve pero «no se puede analizar», es que falta el <code>origin: "*"</code> del bloque b).</p>';
+
+  if (typeof ui_modal === 'function') {
+    ui_modal('Conectar mi dashcam', cont, [{ texto: 'Cerrar', clase: 'btn-primario', fn: function () {} }]);
+    // conectar los botones de copiar (tras insertarse en el DOM)
+    setTimeout(function () {
+      [['cfg-copiar-g1', cmdInstalar], ['cfg-copiar-g2', cmdYaml], ['cfg-copiar-g3', cmdArrancar], ['cfg-copiar-g4', cmdScript]]
+        .forEach(function (par) {
+          const b = document.getElementById(par[0]);
+          if (b) b.addEventListener('click', function () { cfg_copiar(par[1], b); });
+        });
+    }, 30);
+  } else {
+    cfg_avisar('Abre Ajustes para ver la guía.', 'info');
+  }
+}
+function cfg_bloqueCmd(texto, id) {
+  const estiloPre = 'style="background:#0b0f14;border:1px solid #233140;border-radius:8px;padding:10px;margin:4px 0;overflow-x:auto;white-space:pre;font-family:ui-monospace,monospace;font-size:.8rem;color:#cfdae4;"';
+  return '<div class="cfg-cmd">' +
+    '<pre ' + estiloPre + '>' + cfg_escapar(texto) + '</pre>' +
+    '<button type="button" class="btn btn-mini" id="cfg-copiar-' + id + '">Copiar</button></div>';
+}
+
 /* Confirmación asíncrona (nada de confirm() nativo: bloquea el hilo y congela
  * la app bajo el verificador automático). */
 function cfg_confirmar(msg, textoOk, alConfirmar) {
@@ -649,6 +732,31 @@ function cfg_conectarBotones() {
       Promise.resolve(vid_usarArchivo(file)).catch(function (e) { console.warn('[ajustes] vid_usarArchivo:', e && e.message); });
     } catch (e) { console.warn('[ajustes] vid_usarArchivo:', e && e.message); }
   });
+
+  // --- Dashcam / cámara RTSP vía go2rtc ---
+  const btnDash = $('cfg-btnConectarDashcam');
+  if (btnDash) btnDash.addEventListener('click', function () {
+    const campo = $('cfg-urlDashcam');
+    const url = campo ? campo.value.trim() : '';
+    if (typeof vid_usarDashcam !== 'function') { cfg_avisar('El módulo de vídeo aún no está disponible.', 'sospecha'); return; }
+    try { Promise.resolve(vid_usarDashcam(url)).catch(function (e) { console.warn('[ajustes] vid_usarDashcam:', e && e.message); }); }
+    catch (e) { console.warn('[ajustes] vid_usarDashcam:', e && e.message); }
+  });
+  const btnProbarDash = $('cfg-btnProbarDashcam');
+  if (btnProbarDash) btnProbarDash.addEventListener('click', function () {
+    const campo = $('cfg-urlDashcam');
+    const url = campo ? campo.value.trim() : '';
+    const res = $('cfg-dashcamResultado');
+    if (typeof vid_probarDashcam !== 'function') { if (res) res.textContent = 'El módulo de vídeo no está disponible.'; return; }
+    if (res) res.textContent = 'Probando…';
+    btnProbarDash.disabled = true;
+    Promise.resolve(vid_probarDashcam(url)).then(function (r) {
+      if (res) res.textContent = (r && r.msg) || (r && r.ok ? 'Conectado' : 'Sin conexión');
+    }).catch(function () { if (res) res.textContent = 'No se pudo probar.'; })
+      .then(function () { btnProbarDash.disabled = false; });
+  });
+  const btnGuiaDash = $('cfg-btnGuiaDashcam');
+  if (btnGuiaDash) btnGuiaDash.addEventListener('click', cfg_guiaDashcam);
 
   const btnStop = $('cfg-btnDetenerFuente');
   if (btnStop) btnStop.addEventListener('click', function () {

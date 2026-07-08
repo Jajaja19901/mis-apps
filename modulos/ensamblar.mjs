@@ -28,7 +28,8 @@ const lee = (f) => {
 const JS_ORDEN = [
   "00-nucleo.js", "01-tracker.js", "02-gestos.js", "03-zonas.js", "04-video.js",
   "05-ui.js", "06-alertas.js", "07-stats.js", "08-carretera.js", "09-ajustes.js",
-  "10-pwa.js", "11-mando.js", "12-mandodash.js", "13-yolo.js", "99-app.js",
+  "10-pwa.js", "11-mando.js", "12-mandodash.js", "13-yolo.js",
+  "14-detalle.js", "15-copiloto.js", "99-app.js",
 ];
 // Los slots se sustituyen en orden: MANDO va antes que MANDODASH porque
 // 11-mando.html contiene a su vez el marcador <!-- SLOT:MANDODASH -->.
@@ -41,6 +42,8 @@ const HTML_SLOTS = {
   "SLOT:AJUSTES": "09-ajustes.html",
   "SLOT:MANDO": "11-mando.html",
   "SLOT:MANDODASH": "12-mandodash.html",
+  "SLOT:DETALLE": "14-detalle.html",
+  "SLOT:COPILOTO": "15-copiloto.html",
 };
 
 const js = JS_ORDEN.map((f) => `/* ===== ${f} ===== */\n` + lee(f)).join("\n\n");
@@ -121,6 +124,9 @@ const PUBLICAS = [
   "mando_init","mando_alternar","mando_fetch","mando_editarZonas",
   "mdash_init","mdash_grafico",
   "yolo_init","yolo_detectar","yolo_activo",
+  "vid_usarDashcam","vid_probarDashcam",
+  "det_init","det_pintar",
+  "cop_init","cop_alternar",
 ];
 for (const fn of PUBLICAS) {
   const def = new RegExp(`(?:function\\s+${fn}\\s*\\(|(?:const|let)\\s+${fn}\\s*=)`);

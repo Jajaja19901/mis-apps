@@ -24,6 +24,9 @@ async function app_init() {
     // v2 — puesto de mando remoto (idempotentes: tienen guarda interna)
     if (typeof mando_init === 'function') mando_init();
     if (typeof mdash_init === 'function') mdash_init();
+    // Ampliación — detalle/recorrido y copiloto/coche (idempotentes)
+    if (typeof det_init === 'function') det_init();
+    if (typeof cop_init === 'function') cop_init();
 
     estado.arrancado = true;
 

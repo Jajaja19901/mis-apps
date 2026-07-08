@@ -22,7 +22,17 @@ const CFG_DEFECTOS = {
   motor: 'coco',            // 'coco' (rápido, ligero) | 'yolo' (potente, corre en el móvil)
   yoloModelo: 'Xenova/yolos-tiny',  // modelo del motor potente (yolos-tiny|yolos-small|detr-resnet-50)
   yoloRes: 512,             // ancho de análisis del motor potente (más alto = ve más lejos, más lento)
-  fuente: 'camara',         // 'camara' | 'ip' | 'archivo'
+  fuente: 'camara',         // 'camara' | 'ip' | 'archivo' | 'dashcam'
+  urlDashcam: 'http://localhost:1984/api/stream.mjpeg?src=dashcam',  // MJPEG de go2rtc
+  // Detalle / recorrido (módulo 14)
+  detalleRecorrido: false,  // dibujar la estela/trayectoria de cada objeto
+  detalleVelocidad: false,  // mostrar velocidad (km/h) también de peatones
+  detalleModo: false,       // overlay de detalle (dirección, tiempo parado…)
+  // Copiloto / coche (módulo 15)
+  copActivo: false,         // panel copiloto visible
+  copColisionAviso: true,   // aviso de colisión frontal (vehículo que se acerca rápido)
+  copParkingOn: false,      // vigilancia de coche aparcado (acelerómetro + alertas)
+  copSensibilidadG: 2.2,    // umbral de golpe (g) para la caja negra / aparcado
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
   resolucion: '720',        // '480' | '720' | '1080'

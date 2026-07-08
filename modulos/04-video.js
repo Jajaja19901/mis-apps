@@ -324,6 +324,124 @@ async function vid_usarArchivo(file) {
   }
 }
 
+/* ===========================================================================
+ * DASHCAM / CÁMARA RTSP (vía go2rtc → stream MJPEG pintado en el mismo canvas).
+ * go2rtc corre en Termux en el propio móvil y traduce el RTSP de la dashcam a
+ * MJPEG en http://localhost:1984. TODO el pipeline (detección, tracker, alertas,
+ * grabación) consume el canvas/vid_fuente(), así que funciona sin más cambios.
+ * ========================================================================= */
+async function vid_usarDashcam(url) {
+  const v = estado.vid; if (!v) return false;
+  try {
+    let u = (url != null ? url : (estado.cfg.urlDashcam || '')).toString().trim();
+    if (!u) { bus.emit('video:error', { msg: 'Escribe la URL del stream de la dashcam (go2rtc).' }); return false; }
+    vid_detener();
+    const img = vid_el.mjpeg;
+    if (!img) { bus.emit('video:error', { msg: 'No se encontró el visor de vídeo.' }); return false; }
+    v.dcUrl = u; v.dcActivo = true; v.dcCaidaDesde = 0; v.dcAvisado = false; v.dcTaint = false;
+    try { img.crossOrigin = 'anonymous'; } catch (e) {}   // necesario para poder analizar
+
+    return await new Promise((resolve) => {
+      let hecho = false;
+      const guardaT = setTimeout(() => {
+        if (!hecho) {
+          hecho = true; v.dcActivo = false;
+          bus.emit('video:error', { msg: 'No se conecta con la dashcam. ¿Arrancaste go2rtc en Termux y estás en el WiFi de la cámara? (Guía en Ajustes → Conectar mi dashcam)' });
+          resolve(false);
+        }
+      }, 6000);
+
+      img.onload = () => {
+        // Cada frame del MJPEG dispara onload: sirve para detectar recuperación.
+        v.dcCaidaDesde = 0; v.dcAvisado = false;
+        if (v.dcActivo && v.tipoFuente === 'dashcam' && !estado.video.listo) {
+          estado.video.listo = true; vid_ocultarEstado();   // reconexión recuperada
+        }
+        if (!hecho) {
+          hecho = true; clearTimeout(guardaT);
+          let cont = false;
+          try {
+            const t = document.createElement('canvas'); t.width = 8; t.height = 8;
+            t.getContext('2d').drawImage(img, 0, 0, 8, 8); t.toDataURL('image/jpeg');
+          } catch (e) { cont = true; }
+          v.dcTaint = cont;
+          v.tipoFuente = 'dashcam'; v.fuenteEl = img;
+          const dims = vid_dimensiones();
+          estado.video.tipo = 'dashcam'; estado.video.listo = true;
+          estado.video.w = dims.w; estado.video.h = dims.h; estado.video.grabando = false;
+          vid_ocultarEstado();
+          if (cont) bus.emit('video:error', { msg: 'La dashcam se ve, pero go2rtc no envía cabeceras CORS: no se puede analizar ni grabar. Añade "cors" a la config de go2rtc (la guía lo explica).' });
+          bus.emit('video:listo', { tipo: 'dashcam', w: dims.w, h: dims.h });
+          resolve(true);
+        }
+      };
+      img.onerror = () => {
+        if (!v.dcActivo) return;
+        if (!hecho) { hecho = true; clearTimeout(guardaT); }   // primer intento falló → deja resolver por reconexión
+        vid_dashcamReconectar();
+        if (!estado.video.listo && !hecho) resolve(false);
+      };
+      img.src = u;   // MJPEG multipart: el navegador lo va renderizando solo
+    });
+  } catch (e) {
+    bus.emit('video:error', { msg: 'No se pudo abrir la dashcam.' });
+    return false;
+  }
+}
+
+/* Reconexión automática del stream de la dashcam (WiFi de cámara inestable). */
+function vid_dashcamReconectar() {
+  const v = estado.vid; if (!v || !v.dcActivo) return;
+  if (!v.dcCaidaDesde) v.dcCaidaDesde = Date.now();
+  estado.video.listo = false;                 // pausa el análisis mientras no hay señal
+  if (vid_el.estado) { vid_el.estado.textContent = 'Reconectando con dashcam…'; }
+  vid_mostrarEstado();
+  const caidoMs = Date.now() - v.dcCaidaDesde;
+  if (caidoMs > 30000 && !v.dcAvisado) {
+    v.dcAvisado = true;
+    bus.emit('video:error', { msg: 'La dashcam lleva más de 30 s sin señal. Comprueba el WiFi de la cámara y que go2rtc siga arrancado.' });
+  }
+  clearTimeout(v.dcTimer);
+  v.dcTimer = setTimeout(() => {
+    if (!v.dcActivo) return;
+    const img = vid_el.mjpeg; if (!img) return;
+    const sep = v.dcUrl.indexOf('?') >= 0 ? '&' : '?';
+    img.src = v.dcUrl + sep + '_r=' + Date.now();   // fuerza recarga del stream
+  }, 3000);
+}
+
+/* Prueba de conexión de la dashcam: intenta cargar el stream ~5 s y devuelve
+ * Promise<{ok, msg, w, h}> con resultado claro (para el botón "Probar conexión"). */
+function vid_probarDashcam(url) {
+  return new Promise((resolve) => {
+    let u = (url != null ? url : (estado.cfg.urlDashcam || '')).toString().trim();
+    if (!u) { resolve({ ok: false, msg: 'Escribe primero la URL del stream.' }); return; }
+    const img = new Image();
+    try { img.crossOrigin = 'anonymous'; } catch (e) {}
+    let hecho = false;
+    const t = setTimeout(() => {
+      if (hecho) return; hecho = true; img.src = '';
+      resolve({ ok: false, msg: 'No responde en 5 s. Causas típicas: go2rtc no está arrancado en Termux, la URL está mal, o el móvil no está en el WiFi de la dashcam.' });
+    }, 5000);
+    img.onload = () => {
+      if (hecho) return; hecho = true; clearTimeout(t);
+      let cors = true;
+      try { const c = document.createElement('canvas'); c.width = 8; c.height = 8;
+        c.getContext('2d').drawImage(img, 0, 0, 8, 8); c.toDataURL('image/jpeg'); }
+      catch (e) { cors = false; }
+      resolve({ ok: true, w: img.naturalWidth, h: img.naturalHeight, cors: cors,
+        msg: 'Conectado ✅ (' + img.naturalWidth + '×' + img.naturalHeight + ')' +
+          (cors ? '' : ' — OJO: go2rtc no envía CORS, se verá pero no se podrá analizar.') });
+    };
+    img.onerror = () => {
+      if (hecho) return; hecho = true; clearTimeout(t);
+      resolve({ ok: false, msg: 'Error de conexión. ¿go2rtc arrancado? ¿URL correcta? ¿WiFi de la cámara conectado (sin quitar los datos móviles)?' });
+    };
+    const sep = u.indexOf('?') >= 0 ? '&' : '?';
+    img.src = u + sep + '_t=' + Date.now();
+  });
+}
+
 /* Espera a tener dimensiones de vídeo (con tope de tiempo, sin colgarse). */
 function vid_esperarMetadatos(video) {
   return new Promise((resolve) => {
@@ -353,6 +471,9 @@ function vid_detener() {
       if (video.getAttribute('src')) { video.removeAttribute('src'); try { video.load(); } catch (e) {} }
     }
     if (v.objectURL) { try { URL.revokeObjectURL(v.objectURL); } catch (e) {} v.objectURL = null; }
+
+    v.dcActivo = false; clearTimeout(v.dcTimer);
+    v.dcCaidaDesde = 0; v.dcAvisado = false; v.dcTaint = false;
 
     const img = vid_el.mjpeg;
     if (img) { img.onload = null; img.onerror = null; img.removeAttribute('src'); }
