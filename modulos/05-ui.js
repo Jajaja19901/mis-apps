@@ -413,7 +413,7 @@ function ui_initOnboarding() {
     ui_onboardingPaso(3);
   });
 
-  if (fuenteSaltar) fuenteSaltar.addEventListener('click', ui_onboardingCerrar);
+  if (fuenteSaltar) fuenteSaltar.addEventListener('click', () => { ui_onboardingPaso(3); });
 
   if (dibujarLinea) dibujarLinea.addEventListener('click', () => {
     if (typeof zona_iniciarLinea === 'function') zona_iniciarLinea();

@@ -560,7 +560,7 @@ h1, h2, h3, p { margin: 0; }
       <span id="car-calibEstado">Sin calibrar</span>
       <button type="button" class="btn btn-mini" id="car-calibBtn">📏 Calibrar velocidad</button>
     </div>
-    <p class="etiqueta">La velocidad es orientativa (~aprox.), no válida como medición legal</p>
+    <p id="car-avisoVelocidad" style="font-size:.85rem;color:var(--texto2,#7d8fa0);margin:6px 0 0;">La velocidad es orientativa (~aprox.), no válida como medición legal.</p>
   </div>
 </section>
 
@@ -3729,7 +3729,7 @@ function ui_initOnboarding() {
     ui_onboardingPaso(3);
   });
 
-  if (fuenteSaltar) fuenteSaltar.addEventListener('click', ui_onboardingCerrar);
+  if (fuenteSaltar) fuenteSaltar.addEventListener('click', () => { ui_onboardingPaso(3); });
 
   if (dibujarLinea) dibujarLinea.addEventListener('click', () => {
     if (typeof zona_iniciarLinea === 'function') zona_iniciarLinea();
@@ -5122,14 +5122,21 @@ function stats_init() {
       bus.emit('cfg:cambio', { clave: 'calor' });
     });
   }
-  if (stats_refs.calorReset) stats_refs.calorReset.addEventListener('click', stats_calorReset);
-  if (stats_refs.calorPng) stats_refs.calorPng.addEventListener('click', stats_calorExportar);
+  if (stats_refs.calorReset) stats_refs.calorReset.addEventListener('click', () => {
+    stats_calorReset();
+    if (typeof ui_toast === 'function') ui_toast('Mapa de calor reiniciado.', 'info');
+  });
+  if (stats_refs.calorPng) stats_refs.calorPng.addEventListener('click', () => {
+    stats_calorExportar();
+    if (typeof ui_toast === 'function') ui_toast('Exportando el mapa de calor…', 'info');
+  });
   if (stats_refs.tlExportar) stats_refs.tlExportar.addEventListener('click', stats_timelapseExportar);
   if (stats_refs.tlBorrar) stats_refs.tlBorrar.addEventListener('click', () => {
     if (!estado.stats) return;
     estado.stats.timelapse = [];
     estado.stats.timelapseAvisoLleno = false;
     stats_actualizarInfoTimelapse();
+    if (typeof ui_toast === 'function') ui_toast('Time-lapse borrado.', 'info');
   });
   if (stats_refs.exportarInforme) stats_refs.exportarInforme.addEventListener('click', () => {
     if (typeof cfg_exportarInforme === 'function') cfg_exportarInforme();
@@ -6080,6 +6087,7 @@ function cfg_exportarInforme() {
     '</body></html>'
   );
   nuc_descargar('informe_' + nuc_diaClave() + '.html', html, 'text/html');
+  cfg_avisar('Informe del día descargado.', 'info');
 }
 
 function cfg_exportarCSV() {
@@ -6094,6 +6102,7 @@ function cfg_exportarCSV() {
   // stats_datosCSV() ya antepone el BOM UTF-8; no lo dupliquemos aquí.
   const conBOM = csv.charCodeAt(0) === 0xFEFF ? csv : '﻿' + csv;
   nuc_descargar('vigia_' + nuc_diaClave() + '.csv', conBOM, 'text/csv;charset=utf-8');
+  cfg_avisar('CSV del día descargado.', 'info');
 }
 
 /* ============================================================================

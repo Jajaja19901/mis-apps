@@ -507,6 +507,7 @@ function cfg_exportarInforme() {
     '</body></html>'
   );
   nuc_descargar('informe_' + nuc_diaClave() + '.html', html, 'text/html');
+  cfg_avisar('Informe del día descargado.', 'info');
 }
 
 function cfg_exportarCSV() {
@@ -521,6 +522,7 @@ function cfg_exportarCSV() {
   // stats_datosCSV() ya antepone el BOM UTF-8; no lo dupliquemos aquí.
   const conBOM = csv.charCodeAt(0) === 0xFEFF ? csv : '﻿' + csv;
   nuc_descargar('vigia_' + nuc_diaClave() + '.csv', conBOM, 'text/csv;charset=utf-8');
+  cfg_avisar('CSV del día descargado.', 'info');
 }
 
 /* ============================================================================

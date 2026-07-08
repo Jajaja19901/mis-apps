@@ -647,14 +647,21 @@ function stats_init() {
       bus.emit('cfg:cambio', { clave: 'calor' });
     });
   }
-  if (stats_refs.calorReset) stats_refs.calorReset.addEventListener('click', stats_calorReset);
-  if (stats_refs.calorPng) stats_refs.calorPng.addEventListener('click', stats_calorExportar);
+  if (stats_refs.calorReset) stats_refs.calorReset.addEventListener('click', () => {
+    stats_calorReset();
+    if (typeof ui_toast === 'function') ui_toast('Mapa de calor reiniciado.', 'info');
+  });
+  if (stats_refs.calorPng) stats_refs.calorPng.addEventListener('click', () => {
+    stats_calorExportar();
+    if (typeof ui_toast === 'function') ui_toast('Exportando el mapa de calor…', 'info');
+  });
   if (stats_refs.tlExportar) stats_refs.tlExportar.addEventListener('click', stats_timelapseExportar);
   if (stats_refs.tlBorrar) stats_refs.tlBorrar.addEventListener('click', () => {
     if (!estado.stats) return;
     estado.stats.timelapse = [];
     estado.stats.timelapseAvisoLleno = false;
     stats_actualizarInfoTimelapse();
+    if (typeof ui_toast === 'function') ui_toast('Time-lapse borrado.', 'info');
   });
   if (stats_refs.exportarInforme) stats_refs.exportarInforme.addEventListener('click', () => {
     if (typeof cfg_exportarInforme === 'function') cfg_exportarInforme();
