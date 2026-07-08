@@ -1375,6 +1375,16 @@ h1, h2, h3, p { margin: 0; }
     <summary class="sec-titulo">Sistema</summary>
 
     <div class="campo">
+      <label for="cfg-sabotajeModo">Anti-sabotaje según tu cámara</label>
+      <select id="cfg-sabotajeModo" data-cfg="sabotajeModo">
+        <option value="completo">Cámara FIJA — vigilar tapada Y encuadre movido</option>
+        <option value="oscuro">Cámara MÓVIL (PTZ/patrulla) — solo vigilar tapada</option>
+        <option value="off">Desactivado</option>
+      </select>
+      <p class="etiqueta">Si tu cámara se mueve sola (PTZ, barridos) o analizas vídeos grabados de cámaras que se mueven, elige «Cámara MÓVIL»: el encuadre cambia por diseño y avisar de ello sería un falso constante. La alerta de cámara tapada/negra sigue activa.</p>
+    </div>
+
+    <div class="campo">
       <label for="cfg-sabotajeSens">Sensibilidad ante sabotaje (cámara tapada/movida)</label>
       <div class="fila">
         <input type="range" id="cfg-sabotajeSens" data-cfg="sabotajeSens" min="0" max="100" step="5">
@@ -1611,6 +1621,7 @@ const CFG_DEFECTOS = {
   ruidoOn: false,
   ruidoNivel: 80,
   sabotajeSens: 60,
+  sabotajeModo: 'completo', // 'completo' | 'oscuro' (solo cámara tapada; para PTZ/cámaras que se mueven) | 'off'
   privacidad: false,
   clipSospecha: true,
   alertaCooldownSeg: 30,
@@ -4182,6 +4193,12 @@ function vid_vigilarSabotaje(ts) {
   if (v.sabUltimo && ahora - v.sabUltimo < 500) return;   // throttle ~500ms
   v.sabUltimo = ahora;
 
+  // Modo del anti-sabotaje: 'off' = nada; 'oscuro' = SOLO cámara tapada/negra
+  // (para cámaras PTZ o de patrulla, cuyo encuadre cambia por diseño y haría
+  // saltar el aviso de "encuadre cambiado" sin razón). 'completo' = todo.
+  const sabModo = estado.cfg.sabotajeModo || 'completo';
+  if (sabModo === 'off') { v.sabRef = null; return; }
+
   if (!estado.video.listo || !v.fuenteEl) { v.sabRef = null; return; }
   if (!v.listoTs || ahora - v.listoTs < 3000) return;      // calibración inicial ~3s
   if (v.sabCooldown && ahora - v.sabCooldown < 30000) return; // cooldown 30s tras disparar
@@ -4198,6 +4215,16 @@ function vid_vigilarSabotaje(ts) {
 
   /* Oscuridad global súbita: la escena era clara y de golpe cae por debajo de ~18 */
   if (media < 18 && v.sabRefLum >= 30) { vid_dispararSabotaje('oscuro', ahora); return; }
+
+  /* Cámara móvil (PTZ): solo vigilamos "tapada"; el encuadre cambia por diseño.
+   * La referencia se adapta rápido para que la luminancia siga a la escena. */
+  if (sabModo === 'oscuro') {
+    const alfaRapida = 0.2;
+    for (let i = 0; i < mini.length; i++) v.sabRef[i] = v.sabRef[i] * (1 - alfaRapida) + mini[i] * alfaRapida;
+    v.sabRefLum = v.sabRefLum * (1 - alfaRapida) + media * alfaRapida;
+    v.sabCambioDesde = 0;
+    return;
+  }
 
   /* Diferencia media absoluta contra la referencia */
   let dif = 0;
@@ -7464,6 +7491,19 @@ function pwa_init() {
     linkManifest.rel = 'manifest';
     linkManifest.href = manifestDataUri;
     document.head.appendChild(linkManifest);
+    // Si el dueño subió los archivos de despliegue (manifest.webmanifest con
+    // SUS iconos icon-192/512.png), se usan esos en vez del manifest embebido.
+    if (location.protocol !== 'file:') {
+      fetch('manifest.webmanifest', { method: 'HEAD' }).then((r) => {
+        if (r && r.ok) {
+          linkManifest.href = 'manifest.webmanifest';
+          const la = document.querySelector('link[rel="apple-touch-icon"]');
+          if (la) la.href = 'icon-192.png';
+          const lf = document.querySelector('link[rel="icon"]');
+          if (lf) lf.href = 'icon-192.png';
+        }
+      }).catch(() => { /* sin archivo: se queda el embebido */ });
+    }
   } catch (e) {
     console.warn('[pwa] error inyectando manifest:', e && e.message);
   }
@@ -7549,12 +7589,19 @@ function pwa_init() {
     `;
     const blob = new Blob([swCode], { type: 'text/javascript' });
     const swUrl = URL.createObjectURL(blob);
-    if (navigator.serviceWorker) {
-      navigator.serviceWorker.register(swUrl).then((reg) => {
-        estado.pwa.swEstado = 'activo';
-      }).catch((err) => {
-        console.warn('[pwa] SW register rechazado:', err && err.message);
-        estado.pwa.swEstado = 'no disponible en este navegador (los modelos usarán la caché normal)';
+    if (navigator.serviceWorker && location.protocol !== 'file:') {
+      // PRIMERO el sw.js REAL (si el dueño subió los archivos de despliegue:
+      // sw.js + manifest.webmanifest + iconos → PWA completa e instalable);
+      // si no existe o falla, probamos el SW embebido en blob (mejor esfuerzo).
+      navigator.serviceWorker.register('sw.js').then(() => {
+        estado.pwa.swEstado = 'activo (sw.js)';
+      }).catch(() => {
+        navigator.serviceWorker.register(swUrl).then(() => {
+          estado.pwa.swEstado = 'activo';
+        }).catch((err) => {
+          console.warn('[pwa] SW register rechazado:', err && err.message);
+          estado.pwa.swEstado = 'no disponible en este navegador (los modelos usarán la caché normal)';
+        });
       });
     }
   } catch (e) {

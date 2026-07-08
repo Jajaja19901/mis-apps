@@ -64,6 +64,7 @@ const CFG_DEFECTOS = {
   ruidoOn: false,
   ruidoNivel: 80,
   sabotajeSens: 60,
+  sabotajeModo: 'completo', // 'completo' | 'oscuro' (solo cámara tapada; para PTZ/cámaras que se mueven) | 'off'
   privacidad: false,
   clipSospecha: true,
   alertaCooldownSeg: 30,

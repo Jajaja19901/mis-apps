@@ -40,6 +40,19 @@ function pwa_init() {
     linkManifest.rel = 'manifest';
     linkManifest.href = manifestDataUri;
     document.head.appendChild(linkManifest);
+    // Si el dueño subió los archivos de despliegue (manifest.webmanifest con
+    // SUS iconos icon-192/512.png), se usan esos en vez del manifest embebido.
+    if (location.protocol !== 'file:') {
+      fetch('manifest.webmanifest', { method: 'HEAD' }).then((r) => {
+        if (r && r.ok) {
+          linkManifest.href = 'manifest.webmanifest';
+          const la = document.querySelector('link[rel="apple-touch-icon"]');
+          if (la) la.href = 'icon-192.png';
+          const lf = document.querySelector('link[rel="icon"]');
+          if (lf) lf.href = 'icon-192.png';
+        }
+      }).catch(() => { /* sin archivo: se queda el embebido */ });
+    }
   } catch (e) {
     console.warn('[pwa] error inyectando manifest:', e && e.message);
   }
@@ -125,12 +138,19 @@ function pwa_init() {
     `;
     const blob = new Blob([swCode], { type: 'text/javascript' });
     const swUrl = URL.createObjectURL(blob);
-    if (navigator.serviceWorker) {
-      navigator.serviceWorker.register(swUrl).then((reg) => {
-        estado.pwa.swEstado = 'activo';
-      }).catch((err) => {
-        console.warn('[pwa] SW register rechazado:', err && err.message);
-        estado.pwa.swEstado = 'no disponible en este navegador (los modelos usarán la caché normal)';
+    if (navigator.serviceWorker && location.protocol !== 'file:') {
+      // PRIMERO el sw.js REAL (si el dueño subió los archivos de despliegue:
+      // sw.js + manifest.webmanifest + iconos → PWA completa e instalable);
+      // si no existe o falla, probamos el SW embebido en blob (mejor esfuerzo).
+      navigator.serviceWorker.register('sw.js').then(() => {
+        estado.pwa.swEstado = 'activo (sw.js)';
+      }).catch(() => {
+        navigator.serviceWorker.register(swUrl).then(() => {
+          estado.pwa.swEstado = 'activo';
+        }).catch((err) => {
+          console.warn('[pwa] SW register rechazado:', err && err.message);
+          estado.pwa.swEstado = 'no disponible en este navegador (los modelos usarán la caché normal)';
+        });
       });
     }
   } catch (e) {

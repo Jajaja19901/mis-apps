@@ -839,6 +839,12 @@ function vid_vigilarSabotaje(ts) {
   if (v.sabUltimo && ahora - v.sabUltimo < 500) return;   // throttle ~500ms
   v.sabUltimo = ahora;
 
+  // Modo del anti-sabotaje: 'off' = nada; 'oscuro' = SOLO cámara tapada/negra
+  // (para cámaras PTZ o de patrulla, cuyo encuadre cambia por diseño y haría
+  // saltar el aviso de "encuadre cambiado" sin razón). 'completo' = todo.
+  const sabModo = estado.cfg.sabotajeModo || 'completo';
+  if (sabModo === 'off') { v.sabRef = null; return; }
+
   if (!estado.video.listo || !v.fuenteEl) { v.sabRef = null; return; }
   if (!v.listoTs || ahora - v.listoTs < 3000) return;      // calibración inicial ~3s
   if (v.sabCooldown && ahora - v.sabCooldown < 30000) return; // cooldown 30s tras disparar
@@ -855,6 +861,16 @@ function vid_vigilarSabotaje(ts) {
 
   /* Oscuridad global súbita: la escena era clara y de golpe cae por debajo de ~18 */
   if (media < 18 && v.sabRefLum >= 30) { vid_dispararSabotaje('oscuro', ahora); return; }
+
+  /* Cámara móvil (PTZ): solo vigilamos "tapada"; el encuadre cambia por diseño.
+   * La referencia se adapta rápido para que la luminancia siga a la escena. */
+  if (sabModo === 'oscuro') {
+    const alfaRapida = 0.2;
+    for (let i = 0; i < mini.length; i++) v.sabRef[i] = v.sabRef[i] * (1 - alfaRapida) + mini[i] * alfaRapida;
+    v.sabRefLum = v.sabRefLum * (1 - alfaRapida) + media * alfaRapida;
+    v.sabCambioDesde = 0;
+    return;
+  }
 
   /* Diferencia media absoluta contra la referencia */
   let dif = 0;
