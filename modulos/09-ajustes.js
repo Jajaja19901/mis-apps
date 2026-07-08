@@ -35,6 +35,15 @@ function cfg_intentar(fn, valorDefecto) {
   } catch (e) { return valorDefecto; }
 }
 
+/* Navega a un acordeón y lo abre. */
+function cfg_ir(idAcordeon) {
+  const el = document.getElementById(idAcordeon);
+  if (el) {
+    el.setAttribute('open', '');
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
 /* ============================================================================
  * BINDING DECLARATIVO: recorre [data-cfg] dentro del panel de ajustes.
  * ==========================================================================*/
