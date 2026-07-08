@@ -98,12 +98,26 @@ async function vid_usarCamara() {
       return false;
     }
     vid_detener(); // detiene la fuente anterior
-    const res = estado.cfg.resolucion === '480' ? { w: 640, h: 480 } : { w: 1280, h: 720 };
-    const restr = {
-      video: { facingMode: estado.cfg.camara, width: { ideal: res.w }, height: { ideal: res.h } },
-      audio: false,
-    };
-    const stream = await navigator.mediaDevices.getUserMedia(restr);
+    const res = estado.cfg.resolucion === '480' ? { w: 640, h: 480 }
+      : estado.cfg.resolucion === '1080' ? { w: 1920, h: 1080 }
+      : { w: 1280, h: 720 };
+    // Si el dueño eligió una LENTE concreta (deviceId), la pedimos exacta —
+    // así se evita que el navegador coja la gran angular (mala para detectar).
+    // Si no, caemos al lado (frontal/trasera) genérico.
+    const vconstr = { width: { ideal: res.w }, height: { ideal: res.h } };
+    if (estado.cfg.camaraId) vconstr.deviceId = { exact: estado.cfg.camaraId };
+    else vconstr.facingMode = estado.cfg.camara;
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: vconstr, audio: false });
+    } catch (e1) {
+      // La lente exacta pudo dejar de existir (otro móvil): reintenta por lado.
+      if (estado.cfg.camaraId) {
+        delete vconstr.deviceId;
+        vconstr.facingMode = estado.cfg.camara;
+        stream = await navigator.mediaDevices.getUserMedia({ video: vconstr, audio: false });
+      } else { throw e1; }
+    }
     v.stream = stream;
     const video = vid_el.video;
     if (!video) { stream.getTracks().forEach((t) => { try { t.stop(); } catch (e) {} }); return false; }
@@ -122,6 +136,33 @@ async function vid_usarCamara() {
   } catch (e) {
     bus.emit('video:error', { msg: vid_mensajeCamara(e) });
     return false;
+  }
+}
+
+/* Lista las cámaras REALES del dispositivo (para elegir la lente buena).
+ * Devuelve Promise<[{id, etiqueta}]>. Las etiquetas solo aparecen tras haber
+ * dado permiso una vez; por eso pedimos un permiso efímero si hace falta. */
+async function vid_listarCamaras() {
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return [];
+    let dispositivos = await navigator.mediaDevices.enumerateDevices();
+    let camaras = dispositivos.filter((d) => d.kind === 'videoinput');
+    // Sin etiquetas = aún sin permiso: pedimos uno breve y volvemos a enumerar.
+    if (camaras.length && !camaras[0].label) {
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({ video: true });
+        s.getTracks().forEach((t) => { try { t.stop(); } catch (e) {} });
+        dispositivos = await navigator.mediaDevices.enumerateDevices();
+        camaras = dispositivos.filter((d) => d.kind === 'videoinput');
+      } catch (e) { /* si deniega, devolvemos lo que haya (sin etiquetas) */ }
+    }
+    return camaras.map((d, i) => ({
+      id: d.deviceId,
+      etiqueta: d.label || ('Cámara ' + (i + 1)),
+    }));
+  } catch (e) {
+    console.warn('[vídeo] no se pudieron listar las cámaras:', e && e.message);
+    return [];
   }
 }
 

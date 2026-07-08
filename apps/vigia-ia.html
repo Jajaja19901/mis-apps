@@ -907,9 +907,19 @@ h1, h2, h3, p { margin: 0; }
     </fieldset>
 
     <div id="cfg-grupoCamara">
+      <div class="campo">
+        <label for="cfg-camaraDispositivo">Lente concreta</label>
+        <div class="fila">
+          <select id="cfg-camaraDispositivo" style="flex:1;min-width:0;">
+            <option value="">Automática (por lado)</option>
+          </select>
+          <button type="button" class="btn btn-mini" id="cfg-btnBuscarCamaras">🔄 Buscar</button>
+        </div>
+        <p class="etiqueta">En móviles con varias cámaras traseras, elige la <b>principal</b> (no la gran angular): detecta mejor. Pulsa «Buscar» y prueba cuál va mejor.</p>
+      </div>
       <div class="fila">
         <div class="campo">
-          <label for="cfg-camara">Cámara</label>
+          <label for="cfg-camara">Lado (si es automática)</label>
           <select id="cfg-camara" data-cfg="camara">
             <option value="user">Frontal</option>
             <option value="environment">Trasera</option>
@@ -919,7 +929,8 @@ h1, h2, h3, p { margin: 0; }
           <label for="cfg-resolucion">Resolución</label>
           <select id="cfg-resolucion" data-cfg="resolucion">
             <option value="480">480p (más ligero)</option>
-            <option value="720">720p (más nítido)</option>
+            <option value="720">720p (equilibrado)</option>
+            <option value="1080">1080p (ve más lejos)</option>
           </select>
         </div>
       </div>
@@ -965,7 +976,13 @@ h1, h2, h3, p { margin: 0; }
         <input type="range" id="cfg-scoreMin" data-cfg="scoreMin" min="0.3" max="0.8" step="0.05">
         <output id="cfg-scoreMin-out" class="etiqueta"></output>
       </div>
+      <p class="etiqueta">Más a la izquierda = detecta más cosas (también más falsos). Si «detecta poco», baja este valor a 0,35.</p>
     </div>
+
+    <label class="fila" style="align-items:flex-start;gap:8px;">
+      <input type="checkbox" id="cfg-modeloPreciso" data-cfg="modeloPreciso">
+      <span>Modo preciso <span class="etiqueta">(ve más objetos y más pequeños; va algo más lento. Se recarga el modelo al activarlo.)</span></span>
+    </label>
 
     <fieldset class="campo">
       <legend class="etiqueta">Modo de trabajo</legend>
@@ -1336,8 +1353,10 @@ const CFG_DEFECTOS = {
   fps: 8,                   // FPS de inferencia (3-10)
   scoreMin: 0.5,            // confianza mínima COCO-SSD
   fuente: 'camara',         // 'camara' | 'ip' | 'archivo'
-  camara: 'environment',    // 'user' | 'environment'
-  resolucion: '720',        // '480' | '720'
+  camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
+  camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
+  resolucion: '720',        // '480' | '720' | '1080'
+  modeloPreciso: false,     // true = modelo más certero (ve más, va algo más lento)
   urlIP: '',
   aforoMax: 50,
   merodeoSeg: 30,
@@ -1516,9 +1535,14 @@ async function nuc_cargarModelos() {
     }
     try { await tf.setBackend('webgl'); } catch (e) { /* cae a cpu/wasm solo */ }
     await tf.ready();
-    estado.modelos.coco = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+    // Modo preciso: modelo mayor (mobilenet_v2) — ve más objetos y más pequeños,
+    // a cambio de algo menos de FPS. Modo ligero (lite): rápido, para equipos flojos.
+    const base = estado.cfg.modeloPreciso ? 'mobilenet_v2' : 'lite_mobilenet_v2';
+    estado.modelos.cocoListo = false;
+    estado.modelos.coco = await cocoSsd.load({ base: base });
     estado.modelos.cocoListo = true;
-    bus.emit('modelos:listos', {});
+    estado.modelos.base = base;
+    bus.emit('modelos:listos', { base: base });
     return true;
   } catch (e) {
     estado.modelos.error = (e && e.message) || 'error desconocido';
@@ -3007,12 +3031,26 @@ async function vid_usarCamara() {
       return false;
     }
     vid_detener(); // detiene la fuente anterior
-    const res = estado.cfg.resolucion === '480' ? { w: 640, h: 480 } : { w: 1280, h: 720 };
-    const restr = {
-      video: { facingMode: estado.cfg.camara, width: { ideal: res.w }, height: { ideal: res.h } },
-      audio: false,
-    };
-    const stream = await navigator.mediaDevices.getUserMedia(restr);
+    const res = estado.cfg.resolucion === '480' ? { w: 640, h: 480 }
+      : estado.cfg.resolucion === '1080' ? { w: 1920, h: 1080 }
+      : { w: 1280, h: 720 };
+    // Si el dueño eligió una LENTE concreta (deviceId), la pedimos exacta —
+    // así se evita que el navegador coja la gran angular (mala para detectar).
+    // Si no, caemos al lado (frontal/trasera) genérico.
+    const vconstr = { width: { ideal: res.w }, height: { ideal: res.h } };
+    if (estado.cfg.camaraId) vconstr.deviceId = { exact: estado.cfg.camaraId };
+    else vconstr.facingMode = estado.cfg.camara;
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: vconstr, audio: false });
+    } catch (e1) {
+      // La lente exacta pudo dejar de existir (otro móvil): reintenta por lado.
+      if (estado.cfg.camaraId) {
+        delete vconstr.deviceId;
+        vconstr.facingMode = estado.cfg.camara;
+        stream = await navigator.mediaDevices.getUserMedia({ video: vconstr, audio: false });
+      } else { throw e1; }
+    }
     v.stream = stream;
     const video = vid_el.video;
     if (!video) { stream.getTracks().forEach((t) => { try { t.stop(); } catch (e) {} }); return false; }
@@ -3031,6 +3069,33 @@ async function vid_usarCamara() {
   } catch (e) {
     bus.emit('video:error', { msg: vid_mensajeCamara(e) });
     return false;
+  }
+}
+
+/* Lista las cámaras REALES del dispositivo (para elegir la lente buena).
+ * Devuelve Promise<[{id, etiqueta}]>. Las etiquetas solo aparecen tras haber
+ * dado permiso una vez; por eso pedimos un permiso efímero si hace falta. */
+async function vid_listarCamaras() {
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return [];
+    let dispositivos = await navigator.mediaDevices.enumerateDevices();
+    let camaras = dispositivos.filter((d) => d.kind === 'videoinput');
+    // Sin etiquetas = aún sin permiso: pedimos uno breve y volvemos a enumerar.
+    if (camaras.length && !camaras[0].label) {
+      try {
+        const s = await navigator.mediaDevices.getUserMedia({ video: true });
+        s.getTracks().forEach((t) => { try { t.stop(); } catch (e) {} });
+        dispositivos = await navigator.mediaDevices.enumerateDevices();
+        camaras = dispositivos.filter((d) => d.kind === 'videoinput');
+      } catch (e) { /* si deniega, devolvemos lo que haya (sin etiquetas) */ }
+    }
+    return camaras.map((d, i) => ({
+      id: d.deviceId,
+      etiqueta: d.label || ('Cámara ' + (i + 1)),
+    }));
+  } catch (e) {
+    console.warn('[vídeo] no se pudieron listar las cámaras:', e && e.message);
+    return [];
   }
 }
 
@@ -6450,6 +6515,46 @@ function cfg_conectarBotones() {
     try {
       Promise.resolve(vid_usarCamara()).catch(function (e) { console.warn('[ajustes] vid_usarCamara:', e && e.message); });
     } catch (e) { console.warn('[ajustes] vid_usarCamara:', e && e.message); }
+  });
+
+  // Buscar las cámaras/lentes reales y rellenar el selector
+  const selLente = $('cfg-camaraDispositivo');
+  const btnBuscar = $('cfg-btnBuscarCamaras');
+  if (btnBuscar && selLente) btnBuscar.addEventListener('click', function () {
+    if (typeof vid_listarCamaras !== 'function') { cfg_avisar('El módulo de vídeo aún no está disponible.', 'sospecha'); return; }
+    btnBuscar.disabled = true;
+    Promise.resolve(vid_listarCamaras()).then(function (camaras) {
+      const elegida = estado.cfg.camaraId || '';
+      selLente.innerHTML = '<option value="">Automática (por lado)</option>';
+      (camaras || []).forEach(function (c) {
+        const op = document.createElement('option');
+        op.value = c.id; op.textContent = c.etiqueta;
+        if (c.id === elegida) op.selected = true;
+        selLente.appendChild(op);
+      });
+      if (!camaras || !camaras.length) cfg_avisar('No se encontraron cámaras (¿permiso denegado o sin HTTPS?).', 'sospecha');
+      else cfg_avisar('Encontradas ' + camaras.length + ' cámara(s). Elige la principal y pulsa «Activar cámara».', 'info');
+    }).catch(function (e) { console.warn('[ajustes] listar cámaras:', e && e.message); })
+      .then(function () { btnBuscar.disabled = false; });
+  });
+  // Al elegir una lente concreta: guardar deviceId y reactivar la cámara
+  if (selLente) selLente.addEventListener('change', function () {
+    estado.cfg.camaraId = selLente.value || '';
+    nuc_guardar('cfg', estado.cfg);
+    bus.emit('cfg:cambio', { clave: 'camaraId' });
+    if (estado.cfg.fuente === 'camara' && typeof vid_usarCamara === 'function') {
+      Promise.resolve(vid_usarCamara()).catch(function () {});
+    }
+  });
+
+  // Modo preciso: recargar el modelo en caliente (ve más, algo más lento)
+  const chkPreciso = $('cfg-modeloPreciso');
+  if (chkPreciso) chkPreciso.addEventListener('change', function () {
+    if (typeof nuc_cargarModelos !== 'function') return;
+    cfg_avisar(chkPreciso.checked ? 'Cargando el modelo preciso…' : 'Volviendo al modelo ligero…', 'info');
+    Promise.resolve(nuc_cargarModelos()).then(function (ok) {
+      if (ok) cfg_avisar('Modelo ' + (chkPreciso.checked ? 'preciso' : 'ligero') + ' listo.', 'info');
+    }).catch(function (e) { console.warn('[ajustes] recarga de modelo:', e && e.message); });
   });
 
   const btnIP = $('cfg-btnConectarIP');

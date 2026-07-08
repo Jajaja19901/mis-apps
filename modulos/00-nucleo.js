@@ -20,8 +20,10 @@ const CFG_DEFECTOS = {
   fps: 8,                   // FPS de inferencia (3-10)
   scoreMin: 0.5,            // confianza mínima COCO-SSD
   fuente: 'camara',         // 'camara' | 'ip' | 'archivo'
-  camara: 'environment',    // 'user' | 'environment'
-  resolucion: '720',        // '480' | '720'
+  camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
+  camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
+  resolucion: '720',        // '480' | '720' | '1080'
+  modeloPreciso: false,     // true = modelo más certero (ve más, va algo más lento)
   urlIP: '',
   aforoMax: 50,
   merodeoSeg: 30,
@@ -200,9 +202,14 @@ async function nuc_cargarModelos() {
     }
     try { await tf.setBackend('webgl'); } catch (e) { /* cae a cpu/wasm solo */ }
     await tf.ready();
-    estado.modelos.coco = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+    // Modo preciso: modelo mayor (mobilenet_v2) — ve más objetos y más pequeños,
+    // a cambio de algo menos de FPS. Modo ligero (lite): rápido, para equipos flojos.
+    const base = estado.cfg.modeloPreciso ? 'mobilenet_v2' : 'lite_mobilenet_v2';
+    estado.modelos.cocoListo = false;
+    estado.modelos.coco = await cocoSsd.load({ base: base });
     estado.modelos.cocoListo = true;
-    bus.emit('modelos:listos', {});
+    estado.modelos.base = base;
+    bus.emit('modelos:listos', { base: base });
     return true;
   } catch (e) {
     estado.modelos.error = (e && e.message) || 'error desconocido';

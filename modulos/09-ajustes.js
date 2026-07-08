@@ -562,6 +562,46 @@ function cfg_conectarBotones() {
     } catch (e) { console.warn('[ajustes] vid_usarCamara:', e && e.message); }
   });
 
+  // Buscar las cámaras/lentes reales y rellenar el selector
+  const selLente = $('cfg-camaraDispositivo');
+  const btnBuscar = $('cfg-btnBuscarCamaras');
+  if (btnBuscar && selLente) btnBuscar.addEventListener('click', function () {
+    if (typeof vid_listarCamaras !== 'function') { cfg_avisar('El módulo de vídeo aún no está disponible.', 'sospecha'); return; }
+    btnBuscar.disabled = true;
+    Promise.resolve(vid_listarCamaras()).then(function (camaras) {
+      const elegida = estado.cfg.camaraId || '';
+      selLente.innerHTML = '<option value="">Automática (por lado)</option>';
+      (camaras || []).forEach(function (c) {
+        const op = document.createElement('option');
+        op.value = c.id; op.textContent = c.etiqueta;
+        if (c.id === elegida) op.selected = true;
+        selLente.appendChild(op);
+      });
+      if (!camaras || !camaras.length) cfg_avisar('No se encontraron cámaras (¿permiso denegado o sin HTTPS?).', 'sospecha');
+      else cfg_avisar('Encontradas ' + camaras.length + ' cámara(s). Elige la principal y pulsa «Activar cámara».', 'info');
+    }).catch(function (e) { console.warn('[ajustes] listar cámaras:', e && e.message); })
+      .then(function () { btnBuscar.disabled = false; });
+  });
+  // Al elegir una lente concreta: guardar deviceId y reactivar la cámara
+  if (selLente) selLente.addEventListener('change', function () {
+    estado.cfg.camaraId = selLente.value || '';
+    nuc_guardar('cfg', estado.cfg);
+    bus.emit('cfg:cambio', { clave: 'camaraId' });
+    if (estado.cfg.fuente === 'camara' && typeof vid_usarCamara === 'function') {
+      Promise.resolve(vid_usarCamara()).catch(function () {});
+    }
+  });
+
+  // Modo preciso: recargar el modelo en caliente (ve más, algo más lento)
+  const chkPreciso = $('cfg-modeloPreciso');
+  if (chkPreciso) chkPreciso.addEventListener('change', function () {
+    if (typeof nuc_cargarModelos !== 'function') return;
+    cfg_avisar(chkPreciso.checked ? 'Cargando el modelo preciso…' : 'Volviendo al modelo ligero…', 'info');
+    Promise.resolve(nuc_cargarModelos()).then(function (ok) {
+      if (ok) cfg_avisar('Modelo ' + (chkPreciso.checked ? 'preciso' : 'ligero') + ' listo.', 'info');
+    }).catch(function (e) { console.warn('[ajustes] recarga de modelo:', e && e.message); });
+  });
+
   const btnIP = $('cfg-btnConectarIP');
   if (btnIP) btnIP.addEventListener('click', function () {
     const campo = $('cfg-urlIP');
