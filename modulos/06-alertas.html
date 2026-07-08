@@ -1,0 +1,33 @@
+<!-- 06-alertas.html — SLOT:ALERTAS — overlay de alerta a pantalla completa.
+     Solo estructura + un <style> con selectores exclusivamente "alerta-*"
+     (excepción permitida para este overlay). El feed de alertas vive en la UI (#ui-feedAlertas). -->
+<style>
+  .alerta-flash{position:fixed;inset:0;z-index:990;display:flex;align-items:center;justify-content:center;
+    padding:20px;box-sizing:border-box;text-align:center;}
+  .alerta-flash-velo{position:absolute;inset:0;background:var(--azul,#3fa9ff);opacity:.92;}
+  .alerta-flash.alerta-nivel-sospecha .alerta-flash-velo{background:var(--ambar,#ffb224);}
+  .alerta-flash.alerta-nivel-critico .alerta-flash-velo{background:var(--rojo,#ff4155);
+    animation:alerta-parpadeo 1s step-start infinite;}
+  @keyframes alerta-parpadeo{0%,49%{opacity:.92;}50%,100%{opacity:.6;}}
+  .alerta-flash-caja{position:relative;z-index:1;max-width:420px;width:100%;
+    background:var(--panel,#131a22);color:var(--texto,#cfdae4);
+    border:1px solid var(--borde,#233140);border-radius:var(--radio,10px);
+    box-shadow:var(--sombra,0 4px 16px rgba(0,0,0,.45));padding:28px 22px;}
+  .alerta-flash-icono{font-size:56px;line-height:1;margin-bottom:10px;}
+  .alerta-flash-txt{font-size:1.15rem;font-weight:700;margin:0 0 6px;}
+  .alerta-flash-hora{font-family:var(--mono,monospace);color:var(--texto2,#7d8fa0);
+    margin:0 0 18px;font-size:.9rem;}
+  .alerta-flash-botones{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+</style>
+<div id="alerta-flash" class="alerta-flash oculto" role="alert" aria-live="assertive">
+  <div class="alerta-flash-velo" aria-hidden="true"></div>
+  <div class="alerta-flash-caja">
+    <div class="alerta-flash-icono" id="alerta-flashIcono" aria-hidden="true">⚠️</div>
+    <p class="alerta-flash-txt" id="alerta-flashTxt">Alerta</p>
+    <p class="alerta-flash-hora" id="alerta-flashHora">--:--</p>
+    <div class="alerta-flash-botones">
+      <button type="button" class="btn btn-fantasma btn-mini" id="alerta-btnSilenciar">Silenciar 5 min</button>
+      <button type="button" class="btn btn-primario btn-mini" id="alerta-btnCerrar">Cerrar</button>
+    </div>
+  </div>
+</div>
