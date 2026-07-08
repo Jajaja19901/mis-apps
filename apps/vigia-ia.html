@@ -2319,10 +2319,14 @@ async function gesto_init() {
     const nPoses = gesto_posesMax();
     const mp = await import(GESTO_MP_URL);
     const fileset = await mp.FilesetResolver.forVisionTasks(GESTO_WASM_URL);
+    // Modo IMAGE + numPoses:1: la pose se calcula sobre el RECORTE de cada
+    // persona (no sobre el fotograma entero). Con personas pequeñas o
+    // parciales —cámara de tienda— es la diferencia entre ver el esqueleto
+    // o no ver nada. posesMax limita cuántos recortes por fotograma.
     const opciones = (delegado) => ({
       baseOptions: { modelAssetPath: GESTO_MODELO_URL, delegate: delegado },
-      runningMode: 'VIDEO',
-      numPoses: nPoses,
+      runningMode: 'IMAGE',
+      numPoses: 1,
     });
     let lm = null;
     try {
@@ -2373,7 +2377,9 @@ function gesto_procesar(fuente, ts) {
   gesto_detectarCarrera(tracks, t);
 }
 
-/* Ejecuta la inferencia de pose, la asocia a tracks y evalúa la ocultación. */
+/* Ejecuta la pose SOBRE EL RECORTE de cada persona (hasta posesMax, las más
+ * grandes primero) y evalúa la ocultación. Sin asociación pose↔track: cada
+ * recorte YA es de un track concreto. Deja diagnóstico en g.sinPose. */
 function gesto_analizarPose(fuente, ts, tracks) {
   const g = estado.gesto;
   // Limitación de coste: si va lento (> media 80 ms), inferimos 1 de cada 2 frames.
@@ -2381,38 +2387,54 @@ function gesto_analizarPose(fuente, ts, tracks) {
     g.saltarContador = (g.saltarContador + 1) % 2;
     if (g.saltarContador === 0) return;   // este frame se salta (conserva poses previas)
   }
-  // MediaPipe exige timestamps de vídeo estrictamente crecientes.
-  let tsPose = Math.round(ts);
-  if (tsPose <= g.ultimoTsPose) tsPose = g.ultimoTsPose + 1;
-  g.ultimoTsPose = tsPose;
+
+  const w = estado.video.w, h = estado.video.h;
+  const personas = tracks
+    .filter((t) => t && t.clase === 'person' && t.caja && t.caja.an > 8 && t.caja.al > 12)
+    .sort((a, b) => (b.caja.an * b.caja.al) - (a.caja.an * a.caja.al))
+    .slice(0, gesto_posesMax());
+  if (!personas.length) { g.poses = []; return; }
+
+  let cnv = g.cnvRecorte;
+  if (!cnv) { cnv = g.cnvRecorte = document.createElement('canvas'); }
+  if (!g.sinPose) g.sinPose = {};
 
   const t0 = gesto_ahora();
-  let resultado = null;
-  try {
-    resultado = g.landmarker.detectForVideo(fuente, tsPose);
-  } catch (e) {
-    console.warn('[gesto] detectForVideo falló:', e && e.message);
-    return;
+  const poses = [];
+  for (let i = 0; i < personas.length; i++) {
+    const trk = personas[i];
+    try {
+      // Recorte con margen del 15%, acotado al fotograma, reescalado a 256 px de alto.
+      const m = 0.15;
+      const rx = nuc_clamp(trk.caja.x - trk.caja.an * m, 0, w);
+      const ry = nuc_clamp(trk.caja.y - trk.caja.al * m, 0, h);
+      const rw = nuc_clamp(trk.caja.an * (1 + 2 * m), 8, w - rx);
+      const rh = nuc_clamp(trk.caja.al * (1 + 2 * m), 12, h - ry);
+      const escala = 256 / rh;
+      const cw = Math.max(32, Math.round(rw * escala)), ch = 256;
+      if (cnv.width !== cw || cnv.height !== ch) { cnv.width = cw; cnv.height = ch; }
+      const cctx = cnv.getContext('2d', { willReadFrequently: true });
+      cctx.drawImage(fuente, rx, ry, rw, rh, 0, 0, cw, ch);
+
+      const resultado = g.landmarker.detect(cnv);
+      const lms = resultado && resultado.landmarks && resultado.landmarks[0];
+      if (!lms || !lms.length) { g.sinPose[trk.id] = ts; continue; }
+      delete g.sinPose[trk.id];
+
+      // Del recorte (normalizado 0..1) al espacio de frame (px).
+      const puntos = new Array(lms.length);
+      for (let j = 0; j < lms.length; j++) {
+        const p = lms[j];
+        puntos[j] = { x: rx + p.x * rw, y: ry + p.y * rh, v: (p.visibility == null ? 1 : p.visibility) };
+      }
+      poses.push({ trackId: trk.id, puntos: puntos, caja: gesto_cajaDePuntos(puntos) });
+      gesto_evaluarOcultacion(trk, puntos, ts);
+    } catch (e) {
+      console.warn('[gesto] pose sobre recorte falló:', e && e.message);
+    }
   }
   const dt = gesto_ahora() - t0;
   g.msMedia = g.msMedia ? (g.msMedia * 0.8 + dt * 0.2) : dt;
-
-  const w = estado.video.w, h = estado.video.h;
-  const listas = (resultado && resultado.landmarks) || [];
-  const poses = [];
-  for (let i = 0; i < listas.length; i++) {
-    const lms = listas[i];
-    if (!lms || !lms.length) continue;
-    const puntos = new Array(lms.length);
-    for (let j = 0; j < lms.length; j++) {
-      const p = lms[j];
-      puntos[j] = { x: p.x * w, y: p.y * h, v: (p.visibility == null ? 1 : p.visibility) };
-    }
-    const caja = gesto_cajaDePuntos(puntos);
-    const trk = gesto_trackParaPose(caja, tracks);
-    poses.push({ trackId: trk ? trk.id : null, puntos: puntos, caja: caja });
-    if (trk) gesto_evaluarOcultacion(trk, puntos, ts);
-  }
   g.poses = poses;
 }
 
@@ -2653,7 +2675,28 @@ function gesto_detectarCarrera(tracks, ts) {
 function gesto_pintar(ctx) {
   if (!ctx || !estado.cfg.debugPose) return;
   const g = estado.gesto;
-  if (!g || !g.poses || !g.poses.length) return;
+  if (!g) return;
+  // Diagnóstico: personas cuyo RECORTE no dio esqueleto → "sin postura".
+  // Así se ve al instante por qué un gesto no puntúa (persona demasiado
+  // pequeña/tapada, o el modelo de pose no cargó).
+  try {
+    const sinPose = g.sinPose || {};
+    const tracks = estado.tracks || [];
+    ctx.save();
+    ctx.font = 'bold 12px ui-monospace,Consolas,monospace';
+    for (let i = 0; i < tracks.length; i++) {
+      const t = tracks[i];
+      if (!t || t.clase !== 'person' || !sinPose[t.id]) continue;
+      const txt = '⌐ sin postura';
+      const anx = ctx.measureText(txt).width + 10;
+      ctx.fillStyle = 'rgba(11,15,20,.75)';
+      ctx.fillRect(t.caja.x, Math.max(0, t.caja.y - 34), anx, 18);
+      ctx.fillStyle = '#ffb224';
+      ctx.fillText(txt, t.caja.x + 5, Math.max(13, t.caja.y - 21));
+    }
+    ctx.restore();
+  } catch (e) { /* diagnóstico jamás rompe el pintado */ }
+  if (!g.poses || !g.poses.length) return;
   ctx.save();
   ctx.strokeStyle = '#3fa9ff';
   ctx.fillStyle = '#3fa9ff';
