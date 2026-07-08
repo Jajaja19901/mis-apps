@@ -15196,7 +15196,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V22'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V23'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -17198,6 +17198,8 @@ function admitirAcompanante(id) {
   }
   mutate(function () {
     var q = personaPorId(id);
+    if (!q || !q.mesa) return;
+    if ((q.mesa.acompanantesDentro || 0) >= (q.mesa.acompanantesPermitidos || 0)) return; // re-chequeo DENTRO (no pasar del cupo con dos puertas)
     q.mesa.acompanantesDentro = (q.mesa.acompanantesDentro || 0) + 1;
     var dentro = q.mesa.acompanantesDentro + 1;
     addLog("admitió acompañante de Mesa " + q.mesa.numero + " (" + dentro + "/" + (permit + 1) + ")", "entrada");
@@ -17948,11 +17950,12 @@ function resolverEscaneo(valor, deCamara) {
   if (p.dentro) {
     // YA USADO: alarma clara. No deja pasar de nuevo con el mismo código.
     _sonar('error');
-    addLog("intento de reentrada con código ya usado: " + p.nombre + " " + p.apellido + " (" + p.codigoReserva + ")", "salida");
+    // Antes: addLog + save() sueltos → el aviso antifraude no subía a Firebase y el siguiente
+    // snapshot lo borraba. Con mutate lleva opId, se sincroniza y le llega al dueño.
+    mutate(function () { addLog("intento de reentrada con código ya usado: " + p.nombre + " " + p.apellido + " (" + p.codigoReserva + ")", "salida"); });
     if (out) out.innerHTML = '<div class="scan-res scan-rojo"><b>⚠️ YA ENTRÓ</b>' +
       '<span>' + nombre + ' entró a las ' + esc(p.horaEntrada || "?") + '. Código repetido.</span></div>' +
       '<button type="button" onclick="verFicha(\'' + escJs(valor) + '\')">Ver su ficha</button>';
-    save(); // deja constancia del intento en el log
     return;
   }
   // VÁLIDO y aún fuera: estado de pago + acción directa.
@@ -18171,7 +18174,8 @@ function refrescosDisp(p) { return (p.tipo === 'vip' && p.mesa) ? Math.max(0, vi
 function canjearBotella(id) {
   var p = personaPorId(id);
   if (!p || botellasDisp(p) <= 0) { toast('Sin botellas'); return; }
-  mutate(function (s) { var q = personaPorId(id); q.mesa.botellasUsadas = (q.mesa.botellasUsadas || 0) + 1;
+  mutate(function (s) { var q = personaPorId(id); if (!q || !q.mesa || botellasDisp(q) <= 0) return; // re-chequeo DENTRO: dos barras a la vez no sirven 2 gratis
+    q.mesa.botellasUsadas = (q.mesa.botellasUsadas || 0) + 1;
     registrarVenta(s, '_botella_incl', 'Botella incluida (mesa VIP)', 1, 0); // consumo a 0 € (ya pagada en la mesa)
     addLog('sirvió 1 botella de Mesa ' + q.mesa.numero + ' (quedan ' + botellasDisp(q) + ')', 'cobro'); });
   toast('Botella servida'); consBuscar();
@@ -18179,7 +18183,8 @@ function canjearBotella(id) {
 function canjearRefresco(id) {
   var p = personaPorId(id);
   if (!p || refrescosDisp(p) <= 0) { toast('Sin refrescos'); return; }
-  mutate(function (s) { var q = personaPorId(id); q.mesa.refrescosUsados = (q.mesa.refrescosUsados || 0) + 1;
+  mutate(function (s) { var q = personaPorId(id); if (!q || !q.mesa || refrescosDisp(q) <= 0) return; // re-chequeo DENTRO (anti doble servicio concurrente)
+    q.mesa.refrescosUsados = (q.mesa.refrescosUsados || 0) + 1;
     registrarVenta(s, '_refresco_incl', 'Refresco incluido (botella/VIP)', 1, 0);
     addLog('sirvió 1 refresco de Mesa ' + q.mesa.numero + ' (quedan ' + refrescosDisp(q) + ')', 'cobro'); });
   toast('Refresco servido'); consBuscar();
@@ -18266,7 +18271,7 @@ function canjearBonoCopa(id) {
   mutate(function (s) {
     var q = null;
     for (var j = 0; j < (s.bonos || []).length; j++) if (s.bonos[j].id === id) q = s.bonos[j];
-    if (!q) return;
+    if (!q || ((q.copas || 0) - (q.usadas || 0)) <= 0) return; // re-chequeo DENTRO: dos barras no canjean 1 copa dos veces
     q.usadas = (q.usadas || 0) + 1;
     registrarVenta(s, '_copa_incl', 'Copa de canje (bono/entrada)', 1, 0); // consumo a 0 € (ya pagada en el bono)
     addLog('canjeó 1 copa del bono ' + q.codigo + ' (quedan ' + Math.max(0, q.copas - q.usadas) + ')', 'cobro');
@@ -18280,6 +18285,7 @@ function canjearConsumicion(id) {
   if (!p || consDisponibles(p) <= 0) { toast('Sin consumiciones'); return; }
   mutate(function (s) {
     var q = personaPorId(id);
+    if (!q || consDisponibles(q) <= 0) return; // re-chequeo DENTRO (anti doble canje concurrente)
     q.consumicionesUsadas = (q.consumicionesUsadas || 0) + 1;
     registrarVenta(s, '_copa_incl', 'Copa de canje (bono/entrada)', 1, 0);
     addLog('canjeó 1 consumición de ' + q.nombre + ' ' + q.apellido +
@@ -19484,13 +19490,16 @@ function importarDatosTexto(txt) {
   var datos;
   try { datos = JSON.parse(txt); } catch (e) { toast('Archivo no válido'); return false; }
   if (!datos || !Array.isArray(datos.personas)) { toast('Archivo no válido'); return false; }
-  state = datos;
-  if (typeof migrar === 'function') migrar(state);
-  state.version = (state.version || 0) + 1;
-  addLog('cargó una copia de datos (' + state.personas.length + ' personas)', 'config');
-  save();
-  renderApp();
-  toast('Datos cargados: ' + state.personas.length + ' personas');
+  // Restaurar = reemplazar TODO por el backup, pero DENTRO de mutate para que SE SINCRONICE.
+  // (Antes era `state = datos` + save() suelto: en Firebase no subía —pendientes vacío— y el
+  //  siguiente snapshot de otro móvil lo machacaba a los segundos. Ahora lleva opId y gana.)
+  mutate(function (st) {
+    Object.keys(st).forEach(function (k) { if (k !== '_ops') delete st[k]; });
+    Object.keys(datos).forEach(function (k) { st[k] = datos[k]; });
+    if (typeof migrar === 'function') migrar(st);
+    addLog('cargó una copia de datos (' + ((st.personas || []).length) + ' personas)', 'config');
+  });
+  toast('Datos cargados: ' + ((state.personas || []).length) + ' personas');
   return true;
 }
 
