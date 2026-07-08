@@ -1626,6 +1626,7 @@ function nuc_init() {
 const TRK_IOU_MIN = 0.25;        // solape mínimo para casar detección↔track por IoU
 const TRK_DIST_MAX_REL = 0.1;    // distancia máx. de centroides = TRK_DIST_MAX_REL * ancho de frame
 const TRK_MAX_PERDIDOS = 15;     // frames de inferencia que un track vive "perdido" antes de morir
+const TRK_MIN_HITS = 2;          // detecciones seguidas para CONFIRMAR un track (mata fantasmas de 1 frame)
 const TRK_HIST_MS = 2000;        // ventana de historial (~2 s)
 const TRK_HIST_MAX = 80;         // tope defensivo de muestras de historial (evita crecimiento patológico)
 const TRK_VEL_MS = 700;          // ventana de la media móvil de velocidad (~0.7 s)
@@ -1663,7 +1664,7 @@ function trk_reiniciar() {
   if (!estado.trk) { trk_init(); return; }
   const previos = Array.isArray(estado.trk.pistas) ? estado.trk.pistas : [];
   for (let i = 0; i < previos.length; i++) {
-    if (previos[i]) bus.emit('track:perdido', { track: previos[i] });
+    if (previos[i] && previos[i].emitidoNuevo) bus.emit('track:perdido', { track: previos[i] });
   }
   estado.trk.pistas = [];
   estado.tracks = [];
@@ -1758,6 +1759,9 @@ function trk_crear(D, ts, S) {
     vel: 0,
     creadoEn: ts, ultimaVez: ts,
     framesPerdidos: 0,
+    hits: 1,                 // veces vista (confirma al llegar a TRK_MIN_HITS)
+    confirmado: false,       // ¿ya es fiable? (deja de ser candidato-fantasma)
+    emitidoNuevo: false,     // ¿ya se avisó 'track:nuevo'? (se emite al confirmar)
   };
 }
 
@@ -1773,6 +1777,7 @@ function trk_aplicarDeteccion(t, D, ts) {
   t.vel = trk_calcularVel(t, ts);
   t.ultimaVez = ts;
   t.framesPerdidos = 0;
+  t.hits = (t.hits || 1) + 1;
 }
 
 /* ---------------------------------------------------------------------------
@@ -1880,18 +1885,34 @@ function trk_actualizar(detecciones, ts) {
   }
   S.pistas = vivos.concat(nuevos);
 
-  // --- estado.tracks = SOLO los visibles este frame ---
+  // --- Confirmación: un track se vuelve fiable al acumular TRK_MIN_HITS ---
+  //     detecciones. Antes de eso es un CANDIDATO (posible fantasma de COCO):
+  //     no aparece en estado.tracks ni dispara eventos. Así se puede detectar
+  //     con umbral bajo (más gente real) sin sufrir cajas basura de un frame.
+  const enSuper = !!(estado.cfg && estado.cfg.modo === 'super');
+  const reciénConfirmados = [];
+  for (let i = 0; i < S.pistas.length; i++) {
+    const t = S.pistas[i];
+    if (!t.confirmado && (t.hits || 1) >= TRK_MIN_HITS) {
+      t.confirmado = true;
+      if (!t.emitidoNuevo) { t.emitidoNuevo = true; reciénConfirmados.push(t); }
+    }
+  }
+
+  // --- estado.tracks = SOLO los confirmados y visibles este frame ---
   const visibles = [];
   for (let i = 0; i < S.pistas.length; i++) {
-    if (S.pistas[i].framesPerdidos === 0) visibles.push(S.pistas[i]);
+    const t = S.pistas[i];
+    if (t.confirmado && t.framesPerdidos === 0) visibles.push(t);
   }
   estado.tracks = visibles;
 
   // --- Eventos (el bus envuelve cada oyente en try/catch) ---
-  for (let i = 0; i < perdidos.length; i++) bus.emit('track:perdido', { track: perdidos[i] });
-  const enSuper = !!(estado.cfg && estado.cfg.modo === 'super');
-  for (let i = 0; i < nuevos.length; i++) {
-    const t = nuevos[i];
+  for (let i = 0; i < perdidos.length; i++) {
+    if (perdidos[i].emitidoNuevo) bus.emit('track:perdido', { track: perdidos[i] });
+  }
+  for (let i = 0; i < reciénConfirmados.length; i++) {
+    const t = reciénConfirmados[i];
     bus.emit('track:nuevo', { track: t });
     if (enSuper && NUC_ANIMALES.indexOf(t.clase) >= 0) bus.emit('animal', { track: t });
   }
