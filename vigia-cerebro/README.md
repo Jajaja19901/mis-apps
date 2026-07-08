@@ -78,6 +78,15 @@ Puedes pegarlos a mano, o pegar el contenido completo del QR
 cámaras, podrás armar/desarmar, recibir alertas en vivo y revisar el
 historial — todo igual que si estuvieras delante del cerebro.
 
+**Nota técnica honesta sobre el vídeo en vivo:** el vídeo viaja por **MSE**
+(trocitos de MP4 por WebSocket, ~1 segundo de retardo), no por WebRTC. ¿Por
+qué? WebRTC necesita conexiones UDP directas que **no atraviesan el túnel de
+Cloudflare** de forma fiable; MSE pasa por el túnel sin problemas y funciona
+en cualquier navegador moderno. Para vigilancia, 1 segundo de retardo es
+irrelevante — y a cambio funciona desde cualquier lugar del mundo sin abrir
+puertos. Si el navegador no soporta MSE, la app cae sola a MP4 progresivo y,
+en último caso, a "modo foto" (una imagen cada 2 segundos).
+
 ## URL fija (para no tener que escanear el QR cada vez)
 
 Por defecto, el instalador usa el **túnel rápido y gratuito** de Cloudflare

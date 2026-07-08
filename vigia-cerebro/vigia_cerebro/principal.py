@@ -64,12 +64,16 @@ def main() -> int:
     detector = Detector(cfg)
     gestos = Gestos()
     analiticas = {c.id: Analitica(c, cfg.deteccion) for c in cfg.camaras}
-    # Reponer zonas guardadas (persistidas por POST /zonas en el almacén kv)
+    # Reponer zonas guardadas (POST /zonas las persiste como JSON en el kv)
+    import json as _json
     for c in cfg.camaras:
         guardado = almacen.kv_get("zonas_" + c.id)
         if guardado:
             try:
-                analiticas[c.id].cargar_zonas(guardado.get("zonas", []), guardado.get("lineas", []))
+                d = _json.loads(guardado) if isinstance(guardado, str) else guardado
+                analiticas[c.id].cargar_zonas(d.get("zonas", []), d.get("lineas", []))
+                log.info("zonas de %s repuestas (%d zonas, %d líneas)",
+                         c.id, len(d.get("zonas", [])), len(d.get("lineas", [])))
             except Exception as e:  # noqa: BLE001
                 log.warning("zonas guardadas de %s no se pudieron cargar: %s", c.id, e)
 
@@ -77,9 +81,10 @@ def main() -> int:
     retencion = Retencion(cfg, almacen)
 
     def _aplicar_zonas(camara_id: str, zonas: list, lineas: list) -> None:
+        # Solo aplica en caliente: la PERSISTENCIA la hace api.py (JSON en kv).
+        # Persistir aquí de nuevo machacaba el JSON con un repr de Python.
         if camara_id in analiticas:
             analiticas[camara_id].cargar_zonas(zonas, lineas)
-        almacen.kv_set("zonas_" + camara_id, {"zonas": zonas, "lineas": lineas})
 
     def _aforo_actual(camara_id: str | None = None) -> int:
         if camara_id and camara_id in analiticas:
@@ -101,6 +106,12 @@ def main() -> int:
                 c.fps_objetivo = max(0.5, min(15.0, float(cam["fps_objetivo"])))
             if "ignorar_mascotas" in cam:
                 c.ignorar_mascotas = bool(cam["ignorar_mascotas"])
+            if "px_por_metro" in cam:
+                try:
+                    v = cam["px_por_metro"]
+                    c.px_por_metro = float(v) if v else None
+                except (TypeError, ValueError):
+                    pass  # la analítica lee c.px_por_metro en vivo (misma instancia)
 
     ctx = {"aforo_actual": _aforo_actual, "aplicar_zonas": _aplicar_zonas,
            "aplicar_config": _aplicar_config}

@@ -453,9 +453,8 @@ function mdash_uptimeLegible(seg) {
 function mdash_alternarArmada(camaraId, armar, checkbox) {
   const ruta = '/api/v1/' + (armar ? 'armar' : 'desarmar');
   mdash_fetch(ruta, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ camara_id: camaraId }),
+    metodo: 'POST',
+    cuerpo: { camara_id: camaraId },
   }).then((res) => {
     if (checkbox) checkbox.disabled = false;
     if (!res || res.ok !== true) {
@@ -504,6 +503,25 @@ function mdash_pintarCamarasCfg(camaras) {
     inputFps.value = String((typeof cam.fps_objetivo === 'number') ? cam.fps_objetivo : 5);
     campoFps.appendChild(labelFps); campoFps.appendChild(inputFps);
     filaControles.appendChild(campoFps);
+
+    // Calibración de velocidad de vehículos (~aprox.): px por metro real.
+    // Vacío = sin velocidad. Cómo medirlo: cuenta los píxeles entre dos puntos
+    // del suelo cuya distancia real conozcas (se explica en el título).
+    const campoPpm = document.createElement('div');
+    campoPpm.className = 'campo';
+    const idPpm = 'mdash-ppm-' + cam.id;
+    const labelPpm = document.createElement('label');
+    labelPpm.setAttribute('for', idPpm);
+    labelPpm.textContent = 'Píxeles por metro (velocidad ~)';
+    labelPpm.title = 'Calibración de velocidad orientativa: píxeles de imagen que ocupa 1 metro real en la zona de paso. Vacío = sin velocidad.';
+    const inputPpm = document.createElement('input');
+    inputPpm.type = 'number'; inputPpm.id = idPpm;
+    inputPpm.min = '1'; inputPpm.max = '2000'; inputPpm.step = '0.1';
+    inputPpm.className = 'mdash-inputPpm';
+    inputPpm.placeholder = 'vacío = no';
+    if (cam.px_por_metro) inputPpm.value = String(cam.px_por_metro);
+    campoPpm.appendChild(labelPpm); campoPpm.appendChild(inputPpm);
+    filaControles.appendChild(campoPpm);
 
     const labelMasc = document.createElement('label');
     labelMasc.className = 'fila';
@@ -572,13 +590,14 @@ function mdash_guardarConfigCamaras() {
       if (!id) return;
       const inputFps = fila.querySelector('.mdash-inputFps');
       const chkMasc = fila.querySelector('.mdash-chkMascota');
+      const inputPpm = fila.querySelector('.mdash-inputPpm');
       const fps = inputFps ? nuc_clamp(parseInt(inputFps.value, 10) || 5, 1, 15) : 5;
-      camaras.push({ id: id, fps_objetivo: fps, ignorar_mascotas: !!(chkMasc && chkMasc.checked) });
+      const ppm = inputPpm && inputPpm.value ? (parseFloat(inputPpm.value) || null) : null;
+      camaras.push({ id: id, fps_objetivo: fps, ignorar_mascotas: !!(chkMasc && chkMasc.checked), px_por_metro: ppm });
     });
     mdash_fetch('/api/v1/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ camaras: camaras }),
+      metodo: 'POST',
+      cuerpo: { camaras: camaras },
     }).then((res) => {
       if (!res || res.ok !== true) { mdash_toast('No se pudieron guardar los cambios (sin conexión con el cerebro).', 'critico'); return; }
       mdash_toast('Cambios guardados.', 'info');
@@ -594,9 +613,8 @@ function mdash_guardarHorario() {
     const inicio = (mdash_refs.horarioIni && mdash_refs.horarioIni.value) || '22:00';
     const fin = (mdash_refs.horarioFin && mdash_refs.horarioFin.value) || '08:00';
     mdash_fetch('/api/v1/horario', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ activo: activo, inicio: inicio, fin: fin }),
+      metodo: 'POST',
+      cuerpo: { activo: activo, inicio: inicio, fin: fin },
     }).then((res) => {
       if (!res || res.ok !== true) { mdash_toast('No se pudo guardar la franja horaria.', 'critico'); return; }
       mdash_toast('Franja horaria guardada.', 'info');

@@ -225,21 +225,73 @@ camaras:
         if evento_zona:
             r = c.get(f"/api/v1/miniatura/{evento_zona['id']}", headers={"X-Vigia-Token": token})
             comprobar(r.status_code == 200, "GET /miniatura/{id}")
-            r = c.get(f"/api/v1/clip/{evento_zona['id']}", headers={"X-Vigia-Token": token})
-            comprobar(r.status_code in (200, 404), "GET /clip/{id} responde (200 si el clip ya cerró)")
+            # espera a que ALGÚN evento tenga su clip cerrado y descárgalo (200 exigido)
+            id_con_clip = None
+            fin_clip = time.time() + 30
+            while time.time() < fin_clip and not id_con_clip:
+                evs_c = c.get("/api/v1/eventos", headers={"X-Vigia-Token": token}).json()["eventos"]
+                id_con_clip = next((e["id"] for e in evs_c if e.get("clip")), None)
+                if not id_con_clip:
+                    time.sleep(1)
+            comprobar(id_con_clip is not None, "algún evento queda ligado a su clip (clip:true)")
+            if id_con_clip:
+                r = c.get(f"/api/v1/clip/{id_con_clip}", headers={"X-Vigia-Token": token})
+                comprobar(r.status_code == 200 and "attachment" in r.headers.get("content-disposition", ""),
+                          "GET /clip/{id} descarga el MP4 (200 + attachment)")
         r = c.post("/api/v1/desarmar", json={}, headers={"X-Vigia-Token": token})
         comprobar(r.status_code == 200 and r.json()["armado"]["global"] is False, "POST /desarmar global")
         r = c.post("/api/v1/armar", json={}, headers={"X-Vigia-Token": token})
         comprobar(r.status_code == 200 and r.json()["armado"]["global"] is True, "POST /armar global")
-        r = c.post("/api/v1/zonas", json={"camara_id": "demo", "zonas": [], "lineas": []},
+        # IDA Y VUELTA de zonas (regresión: la persistencia se machacaba con un repr)
+        zonas_env = [{"id": "zz", "tipo": "caja", "nombre": "Caja 1",
+                       "puntos": [{"x": 0.1, "y": 0.1}, {"x": 0.3, "y": 0.1}, {"x": 0.3, "y": 0.4}]}]
+        r = c.post("/api/v1/zonas", json={"camara_id": "demo", "zonas": zonas_env, "lineas": []},
                    headers={"X-Vigia-Token": token})
-        comprobar(r.status_code == 200, "POST /zonas (borra en caliente)")
+        comprobar(r.status_code == 200, "POST /zonas (aplica en caliente)")
+        # el almacén escribe en lotes (hasta 2 s): reintenta la lectura
+        vuelta = {}
+        for _ in range(10):
+            r = c.get("/api/v1/zonas?camara=demo", headers={"X-Vigia-Token": token})
+            vuelta = r.json() if r.status_code == 200 else {}
+            if vuelta.get("zonas"):
+                break
+            time.sleep(0.5)
+        comprobar(vuelta.get("zonas") == zonas_env,
+                  f"GET /zonas devuelve EXACTAMENTE lo guardado (persistencia JSON sana) {vuelta if vuelta.get('zonas') != zonas_env else ''}")
+        # velocidad de vehículos: calibración px_por_metro por POST /config
+        r = c.post("/api/v1/config", json={"camaras": [{"id": "demo", "px_por_metro": 40}]},
+                   headers={"X-Vigia-Token": token})
+        comprobar(r.status_code == 200, "POST /config acepta px_por_metro")
+        r = c.get("/api/v1/estado", headers={"X-Vigia-Token": token})
+        cam0 = (r.json().get("camaras") or [{}])[0]
+        comprobar(cam0.get("px_por_metro") == 40, "px_por_metro aplicado y visible en /estado")
+        comprobar(getattr(cfg.camaras[0], "px_por_metro", None) == 40,
+                  "la analítica ve la calibración en vivo (misma instancia de config)")
         r = c.get("/api/v1/stats", headers={"X-Vigia-Token": token})
         comprobar(r.status_code == 200 and "mapa_calor" in r.json(), "GET /stats con mapa de calor")
 
     # telegram sin configurar: no debe haber reventado nada
     ok_tg, msg_tg = telegram.probar()
     comprobar(ok_tg is False, f"Telegram sin token degrada limpio ({msg_tg[:60]}…)")
+
+    # ---- anti-sabotaje (unidad, en tiempo real: ~7 s) -------------------------
+    import numpy as np
+    from vigia_cerebro.camaras import Sabotaje
+    sab = Sabotaje("Cámara demo")
+    claro = np.full((180, 320, 3), 150, np.uint8)
+    negro = np.zeros((180, 320, 3), np.uint8)
+    ev_sab = None
+    t0 = time.time()
+    while time.time() - t0 < 4.0:          # calibración con escena clara
+        sab.alimentar(claro, int(time.time() * 1000))
+        time.sleep(0.55)
+    t0 = time.time()
+    while time.time() - t0 < 3.5 and not ev_sab:   # cámara "tapada"
+        ev_sab = sab.alimentar(negro, int(time.time() * 1000))
+        time.sleep(0.55)
+    comprobar(ev_sab is not None and ev_sab.get("tipo") == "sabotaje"
+              and ev_sab.get("nivel_sugerido") == "critico",
+              f"anti-sabotaje detecta cámara tapada → alerta crítica ({(ev_sab or {}).get('subtipo')})")
 
     # ---- limpieza ------------------------------------------------------------
     servidor.should_exit = True

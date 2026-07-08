@@ -18,17 +18,14 @@ WorkingDirectory=__RUTA__
 ExecStart=__RUTA__/venv/bin/python -m vigia_cerebro.principal
 Restart=always
 RestartSec=5
-StandardOutput=append:__RUTA__/datos/cerebro.log
-StandardError=append:__RUTA__/datos/cerebro.log
+StandardOutput=journal
+StandardError=journal
 
-# El archivo de log de arriba crece sin límite por sí solo: revísalo o rótalo
-# tú de vez en cuando (por ejemplo con logrotate), o bórralo si ocupa mucho:
-#   rm __RUTA__/datos/cerebro.log
-#
-# Si en vez de un archivo prefieres usar el journal de systemd, cambia las dos
-# líneas StandardOutput/StandardError de arriba por "journal" y limita su
-# tamaño en /etc/systemd/journald.conf con, por ejemplo:
-#   SystemMaxUse=200M
+# El cerebro YA escribe su propio log CON ROTACIÓN en __RUTA__/datos/cerebro.log
+# (5 MB × 3 archivos). Por eso aquí va "journal" y no un archivo: duplicarlo a
+# un archivo sin rotación llenaría el disco con el tiempo. Para ver el journal:
+#   journalctl -u vigia-cerebro -f
+# y para limitar su tamaño, en /etc/systemd/journald.conf:  SystemMaxUse=200M
 
 [Install]
 WantedBy=multi-user.target

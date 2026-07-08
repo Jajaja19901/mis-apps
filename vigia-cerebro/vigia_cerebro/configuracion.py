@@ -60,6 +60,7 @@ class CamaraCfg:
     armada: bool = True
     ignorar_mascotas: bool = False
     fps_objetivo: float = 5.0
+    px_por_metro: float | None = None   # calibración de velocidad (~aprox.); None = sin velocidad
 
 
 @dataclass
@@ -159,6 +160,11 @@ def cargar_config(ruta: str = "config.yaml") -> Config:
             _err(f"modo inválido en '{cid}': {modo}")
         if not str(c.get("rtsp", "")).strip():
             _err(f"la cámara '{cid}' no tiene URL rtsp")
+        ppm = c.get("px_por_metro")
+        try:
+            ppm = float(ppm) if ppm else None
+        except (TypeError, ValueError):
+            ppm = None
         cfg.camaras.append(CamaraCfg(
             id=cid,
             nombre=str(c.get("nombre", cid)),
@@ -168,6 +174,7 @@ def cargar_config(ruta: str = "config.yaml") -> Config:
             armada=bool(c.get("armada", True)),
             ignorar_mascotas=bool(c.get("ignorar_mascotas", False)),
             fps_objetivo=max(0.5, min(15.0, float(c.get("fps_objetivo", 5)))),
+            px_por_metro=ppm,
         ))
 
     # Carpetas de datos
@@ -194,7 +201,8 @@ def guardar_config(cfg: Config) -> None:
                        "dispositivo": cfg.deteccion.dispositivo},
         "camaras": [{"id": c.id, "nombre": c.nombre, "rtsp": c.rtsp, "modo": c.modo,
                      "prioridad": c.prioridad, "armada": c.armada,
-                     "ignorar_mascotas": c.ignorar_mascotas, "fps_objetivo": c.fps_objetivo}
+                     "ignorar_mascotas": c.ignorar_mascotas, "fps_objetivo": c.fps_objetivo,
+                     "px_por_metro": c.px_por_metro}
                     for c in cfg.camaras],
     }
     tmp = cfg.ruta + ".tmp"

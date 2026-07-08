@@ -167,6 +167,81 @@ class _EstadoCam:
             _log.debug("cam %s: fallo al codificar JPEG: %s", self.id, e)
 
 
+class Sabotaje:
+    """Anti-sabotaje por cámara (misma semántica que la v1 en el navegador).
+
+    Compara una miniatura en gris (32×18) contra una referencia rodante:
+    · 'oscuro'  — la cámara se tapa o se apaga la luz de golpe (media < 18
+                  partiendo de una escena con media ≥ 30).
+    · 'cambio'  — el encuadre cambia bruscamente (diferencia media > umbral)
+                  sostenido ≥ 1.5 s (alguien mueve/reorienta la cámara).
+    Calibra los primeros 3 s; cooldown de 30 s; tras disparar, re-calibra.
+    Es barato (numpy sobre 576 píxeles cada ~500 ms): corre en el hilo lector.
+    """
+
+    UMBRAL_OSCURO = 18.0
+    REF_MIN_CLARA = 30.0
+    UMBRAL_CAMBIO = 35.0
+    SOSTENIDO_S = 1.5
+    CALIBRACION_S = 3.0
+    COOLDOWN_S = 30.0
+
+    def __init__(self, nombre_camara: str) -> None:
+        self._nombre = nombre_camara
+        self._ref = None            # referencia rodante (float32 32×18)
+        self._ref_media = 0.0
+        self._desde_mono: float | None = None   # inicio de la condición sospechosa
+        self._calibrando_hasta = time.monotonic() + self.CALIBRACION_S
+        self._ultimo_check = 0.0
+        self._cooldown_hasta = 0.0
+
+    def alimentar(self, frame_bgr, ts_ms: int) -> dict | None:
+        """Devuelve un evento parcial de sabotaje o None. Nunca lanza."""
+        try:
+            import numpy as np
+            ahora = time.monotonic()
+            if ahora - self._ultimo_check < 0.5:
+                return None
+            self._ultimo_check = ahora
+            gris = cv2.cvtColor(cv2.resize(frame_bgr, (32, 18)), cv2.COLOR_BGR2GRAY).astype("float32")
+            media = float(gris.mean())
+
+            if self._ref is None or ahora < self._calibrando_hasta:
+                self._ref = gris if self._ref is None else (0.7 * self._ref + 0.3 * gris)
+                self._ref_media = float(self._ref.mean())
+                return None
+
+            oscuro = media < self.UMBRAL_OSCURO and self._ref_media >= self.REF_MIN_CLARA
+            dif = float(np.abs(gris - self._ref).mean())
+            cambio = dif > self.UMBRAL_CAMBIO
+
+            if not (oscuro or cambio):
+                self._desde_mono = None
+                self._ref = 0.95 * self._ref + 0.05 * gris   # rodante solo en calma
+                self._ref_media = float(self._ref.mean())
+                return None
+
+            if self._desde_mono is None:
+                self._desde_mono = ahora
+                return None
+            if (ahora - self._desde_mono) < self.SOSTENIDO_S or ahora < self._cooldown_hasta:
+                return None
+
+            self._cooldown_hasta = ahora + self.COOLDOWN_S
+            self._desde_mono = None
+            self._calibrando_hasta = ahora + 5.0   # re-calibrar tras el aviso
+            self._ref = None
+            tipo = "oscuro" if oscuro else "cambio"
+            texto = (f"Cámara {self._nombre}: imagen tapada o a oscuras — posible sabotaje"
+                     if oscuro else
+                     f"Cámara {self._nombre}: el encuadre ha cambiado bruscamente — posible sabotaje")
+            return {"tipo": "sabotaje", "nivel_sugerido": "critico", "texto": texto,
+                    "subtipo": tipo}
+        except Exception as e:  # noqa: BLE001 - jamás tumbar el hilo lector
+            _log.debug("sabotaje: fallo interno: %s", e)
+            return None
+
+
 def _contexto_para_alertas(camara_id: str, analitica, tracks: list, ts_ms: int) -> dict:
     """Contexto que consume alertas.procesar (contrato: dict con tracks/ts/celdas_calor).
 
@@ -210,6 +285,7 @@ class GestorCamaras:
         self._estado = estado  # opcional; para el campo 'armada' de resumen()
 
         self._estados: dict[str, _EstadoCam] = {c.id: _EstadoCam(c) for c in cfg.camaras}
+        self._sabotajes: dict[str, Sabotaje] = {c.id: Sabotaje(c.nombre) for c in cfg.camaras}
         self._agenda: list[str] = []  # lista ponderada por prioridad para el planificador
 
         self._corriendo = False
@@ -414,6 +490,14 @@ class GestorCamaras:
                 except Exception as e:
                     _log.warning("cam %s: evidencia.alimentar falló: %s", cid, e)
 
+                # 1b) anti-sabotaje (throttle interno ~500 ms, nunca lanza)
+                ev_sab = self._sabotajes[cid].alimentar(frame, ts) if cid in self._sabotajes else None
+                if ev_sab:
+                    try:
+                        self._al_evento(cid, [ev_sab], None)
+                    except Exception as e:
+                        _log.warning("cam %s: al_evento(sabotaje) falló: %s", cid, e)
+
                 # 2) hueco fresco para la inferencia (descarta el anterior)
                 st.ofrecer(frame, ts)
 
@@ -602,6 +686,8 @@ class GestorCamaras:
                 "fps_objetivo": st.fps_objetivo,
                 "ultimo_frame_ts": ultimo_ts,
                 "ignorar_mascotas": st.ignorar_mascotas,
+                "px_por_metro": (self.cfg.camara(cid).px_por_metro
+                                  if self.cfg.camara(cid) else None),
             })
         return salida
 
@@ -637,6 +723,14 @@ class GestorCamaras:
                     _log.info("cam %s: fps_objetivo=%.2f (efectivo %.2f)", cid, nuevo, st.fps_efectivo)
                 except (TypeError, ValueError):
                     _log.warning("cam %s: fps_objetivo inválido: %r", cid, cam.get("fps_objetivo"))
+            if "px_por_metro" in cam and cfg_cam is not None:
+                try:
+                    v = cam["px_por_metro"]
+                    cfg_cam.px_por_metro = float(v) if v else None
+                    _log.info("cam %s: px_por_metro=%s (velocidad %s)", cid, cfg_cam.px_por_metro,
+                              "activada" if cfg_cam.px_por_metro else "desactivada")
+                except (TypeError, ValueError):
+                    _log.warning("cam %s: px_por_metro inválido: %r", cid, cam.get("px_por_metro"))
             if "ignorar_mascotas" in cam:
                 val = bool(cam["ignorar_mascotas"])
                 st.ignorar_mascotas = val

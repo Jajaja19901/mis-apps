@@ -421,10 +421,23 @@ class Analitica:
                 elif t.clase in _VEHICULOS:
                     d = self.cruces_vehiculos.setdefault(t.clase, {"entrada": 0, "salida": 0})
                     d[sentido] += 1
+                # Velocidad de vehículos (~aprox.): solo si la cámara está
+                # calibrada (px_por_metro en config, ajustable por POST /config).
+                # NUNCA como medición legal — es orientativa.
+                kmh = None
+                ppm = getattr(self._cam, "px_por_metro", None)
+                if ppm and t.clase in _VEHICULOS and t.vel_px_s > 0:
+                    try:
+                        kmh = int(round(t.vel_px_s / float(ppm) * 3.6))
+                    except (TypeError, ValueError, ZeroDivisionError):
+                        kmh = None
+                texto = f"Cruce de línea ({sentido})"
+                if kmh is not None:
+                    texto += f", ~{kmh} km/h aprox."
                 eventos.append({
                     "tipo": "cruce", "nivel_sugerido": "info", "silencioso": True,
-                    "texto": f"Cruce de línea ({sentido})", "track_id": t.id,
-                    "sentido": sentido, "clase": t.clase,
+                    "texto": texto, "track_id": t.id,
+                    "sentido": sentido, "clase": t.clase, "velocidad_kmh": kmh,
                 })
 
     # --- Carrera (velocidad de centroides sostenida) -------------------------
