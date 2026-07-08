@@ -63,6 +63,15 @@ try {
 }
 
 /* ---------- 3. Validar HTML (etiquetas y'ids) ---------- */
+// Para VALIDAR (no para la salida): fuera comentarios HTML y comentarios JS,
+// que mencionan etiquetas y palabras prohibidas al documentarlas.
+const cuerpoVal = cuerpo.replace(/<!--[\s\S]*?-->/g, "");
+const jsVal = js
+  .replace(/\/\*[\s\S]*?\*\//g, "")
+  .split("\n").map((l) => {
+    const i = l.search(/(?<!["'`:\w])\/\/(?![^"']*["'`]\s*[,;)\]])/);
+    return i >= 0 && !/https?:\/\//.test(l.slice(0, i + 2)) ? l.slice(0, i) : l;
+  }).join("\n");
 const VACIAS = new Set(["br","hr","img","input","meta","link","source","track","wbr","area","base","col","embed","param"]);
 function validaHTML(html, origen) {
   const pila = [];
@@ -83,9 +92,9 @@ function validaHTML(html, origen) {
   }
   pila.forEach((p) => errores.push(`${origen}: <${p.t}> sin cerrar (pos ${p.pos})`));
 }
-validaHTML(cuerpo, "HTML ensamblado");
+validaHTML(cuerpoVal, "HTML ensamblado");
 const ids = {};
-for (const m2 of cuerpo.matchAll(/\sid\s*=\s*["']([^"']+)["']/g)) ids[m2[1]] = (ids[m2[1]] || 0) + 1;
+for (const m2 of cuerpoVal.matchAll(/\sid\s*=\s*["']([^"']+)["']/g)) ids[m2[1]] = (ids[m2[1]] || 0) + 1;
 Object.entries(ids).filter(([, n]) => n > 1).forEach(([id, n]) => errores.push(`id duplicado: "${id}" ×${n}`));
 if (!errores.some((e) => e.includes("id duplicado") || e.includes("sin cerrar"))) console.log(`✓ HTML: ${Object.keys(ids).length} ids únicos, etiquetas balanceadas.`);
 
@@ -115,16 +124,16 @@ for (const fn of PUBLICAS) {
 if (!errores.some((e) => e.startsWith("Contrato roto"))) console.log(`✓ Contratos: las ${PUBLICAS.length} funciones públicas existen.`);
 
 /* ---------- 5. Sospechosos ---------- */
-if (/\+\s*\+(?!\+)/.test(js.replace(/\+\+/g, ""))) avisos.push('Concatenación sospechosa "+ +" en el JS.');
-for (const m3 of js.matchAll(/console\.error/g)) errores.push("console.error prohibido (el verificador lo trata como fallo). Usa console.warn + banner.");
-if (/\bwindow\.storage\b/.test(js)) errores.push("window.storage está PROHIBIDO.");
-if (/lorem ipsum/i.test(cuerpo + js)) errores.push("Hay 'lorem ipsum' en el contenido.");
-if (/\b(TODO|FIXME|PENDIENTE:)\b/.test(js)) avisos.push("Quedan TODO/FIXME en el JS.");
-for (const palabra of ["robo detectado", "ladrón", "ladron detect"]) {
-  if (new RegExp(palabra, "i").test(cuerpo + js)) errores.push(`Texto prohibido en la UI: "${palabra}" (usar "sospecha para revisión humana").`);
+if (/\+\s*\+(?!\+)/.test(jsVal.replace(/\+\+/g, ""))) avisos.push('Concatenación sospechosa "+ +" en el JS.');
+for (const m3 of jsVal.matchAll(/console\.error\s*\(/g)) errores.push("console.error prohibido (el verificador lo trata como fallo). Usa console.warn + banner.");
+if (/\bwindow\.storage\b/.test(jsVal)) errores.push("window.storage está PROHIBIDO.");
+if (/lorem ipsum/i.test(cuerpoVal + jsVal)) errores.push("Hay 'lorem ipsum' en el contenido.");
+if (/\b(TODO|FIXME|PENDIENTE:)\b/.test(jsVal)) avisos.push("Quedan TODO/FIXME en el JS.");
+for (const palabra of ["robo detectado", "ladr[oó]n", "hurto detect"]) {
+  if (new RegExp(palabra, "i").test(cuerpoVal + jsVal)) errores.push(`Texto prohibido en la UI: "${palabra}" (usar "sospecha para revisión humana").`);
 }
 // onclick= de HTML que apunte a función inexistente
-for (const m4 of cuerpo.matchAll(/onclick\s*=\s*["']\s*([a-zA-Z_$][\w$]*)\s*\(/g)) {
+for (const m4 of cuerpoVal.matchAll(/onclick\s*=\s*["']\s*([a-zA-Z_$][\w$]*)\s*\(/g)) {
   if (!new RegExp(`function\\s+${m4[1]}\\s*\\(|(?:const|let)\\s+${m4[1]}\\s*=`).test(js)) {
     errores.push(`onclick apunta a función inexistente: ${m4[1]}()`);
   }

@@ -222,10 +222,8 @@ function car_calibrarCancelar() {
 }
 
 /* Con los 2 puntos ya marcados, pide los metros reales y calcula px/metro.
- * NOTA: 05-ui.js (módulo UI) aún no está escrito en este reparto de trabajo;
- * asumimos para ui_modal(tituloHTML, cuerpoNodo, botones) que "botones" es un
- * array de {texto, accion, primario?}. Si la firma real difiere, solo hay que
- * ajustar esta función — el resto del módulo no depende de ese detalle. */
+ * NOTA de integración: ui_modal (05-ui.js) recibe botones como {texto, clase, fn};
+ * si fn devuelve false el modal no se cierra. Ajustado por el integrador. */
 function car_calibrarPedirMetros(puntos) {
   if (!estado.car) return;
   const p1 = puntos[0], p2 = puntos[1];
@@ -259,8 +257,8 @@ function car_calibrarPedirMetros(puntos) {
       cuerpo.appendChild(input);
 
       ui_modal('Calibrar velocidad', cuerpo, [
-        { texto: 'Cancelar', accion: () => car_calibrarCancelar() },
-        { texto: 'Guardar', primario: true, accion: () => confirmar(input.value) },
+        { texto: 'Cancelar', clase: 'btn-fantasma', fn: () => { car_calibrarCancelar(); } },
+        { texto: 'Guardar', clase: 'btn-primario', fn: () => { confirmar(input.value); } },
       ]);
     } catch (e) {
       console.warn('[carretera] fallo abriendo el modal de calibración:', e && e.message);

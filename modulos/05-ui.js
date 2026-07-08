@@ -76,7 +76,8 @@ function ui_init() {
       ui_abrirAjustes().then((abierto) => {
         if (!abierto) return;
         try {
-          const destino = document.getElementById('cfg-legal') || document.querySelector('[data-cfg-seccion="legal"]');
+          const destino = document.getElementById('cfg-secLegal') || document.getElementById('cfg-legal') || document.querySelector('[data-cfg-seccion="legal"]');
+          if (destino && destino.tagName === 'DETAILS') destino.open = true;
           if (destino && destino.scrollIntoView) destino.scrollIntoView({ behavior: 'smooth', block: 'start' });
         } catch (e) { /* mejor esfuerzo, sin romper nada */ }
       }).catch(() => {});

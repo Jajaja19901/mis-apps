@@ -1,0 +1,315 @@
+<!-- ============================================================================
+     SLOT:AJUSTES — Panel de ajustes y legal (módulo 09-ajustes)
+     Se inyecta dentro de #ui-panelAjustes (el drawer/overlay lo crea 05-ui.html).
+     Todos los controles de configuración llevan data-cfg="clave" (binding declarativo
+     de 09-ajustes.js contra estado.cfg). Secciones plegables con <details>/<summary>.
+   ============================================================================ -->
+<div class="cfg-panel">
+
+  <!-- 1. FUENTE DE VÍDEO -->
+  <details class="tarjeta cfg-sec" id="cfg-secFuente" open>
+    <summary class="sec-titulo">Fuente de vídeo</summary>
+
+    <fieldset class="campo">
+      <legend class="etiqueta">Origen de la imagen</legend>
+      <div class="fila">
+        <label><input type="radio" name="cfg-fuente" id="cfg-fuente-camara" data-cfg="fuente" value="camara"> Cámara del dispositivo</label>
+        <label><input type="radio" name="cfg-fuente" id="cfg-fuente-ip" data-cfg="fuente" value="ip"> Cámara IP</label>
+        <label><input type="radio" name="cfg-fuente" id="cfg-fuente-archivo" data-cfg="fuente" value="archivo"> Vídeo de prueba (demo)</label>
+      </div>
+    </fieldset>
+
+    <div id="cfg-grupoCamara">
+      <div class="fila">
+        <div class="campo">
+          <label for="cfg-camara">Cámara</label>
+          <select id="cfg-camara" data-cfg="camara">
+            <option value="user">Frontal</option>
+            <option value="environment">Trasera</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="cfg-resolucion">Resolución</label>
+          <select id="cfg-resolucion" data-cfg="resolucion">
+            <option value="480">480p (más ligero)</option>
+            <option value="720">720p (más nítido)</option>
+          </select>
+        </div>
+      </div>
+      <button type="button" class="btn btn-primario" id="cfg-btnActivarCamara">▶ Activar cámara</button>
+    </div>
+
+    <div id="cfg-grupoIP" class="oculto">
+      <div class="campo">
+        <label for="cfg-urlIP">URL de la cámara IP</label>
+        <input type="text" id="cfg-urlIP" data-cfg="urlIP" placeholder="http://192.168.1.50:8080" inputmode="url" autocomplete="off">
+      </div>
+      <button type="button" class="btn btn-primario" id="cfg-btnConectarIP">Conectar</button>
+      <p class="etiqueta">Instala la app gratuita IP Webcam en un móvil viejo, arranca el servidor de vídeo y pega aquí su URL.</p>
+    </div>
+
+    <div id="cfg-grupoArchivo" class="oculto">
+      <div class="campo">
+        <label for="cfg-archivoDemo">Vídeo de demostración</label>
+        <input type="file" id="cfg-archivoDemo" accept="video/*">
+      </div>
+      <button type="button" class="btn btn-primario" id="cfg-btnCargarDemo">🎬 Cargar vídeo demo</button>
+      <p class="etiqueta">Modo demo: sirve para calibrar los umbrales y enseñar la app a clientes cuando no tienes cámara a mano.</p>
+    </div>
+
+    <button type="button" class="btn btn-peligro" id="cfg-btnDetenerFuente">⏹ Detener fuente</button>
+  </details>
+
+  <!-- 2. DETECCIÓN -->
+  <details class="tarjeta cfg-sec" id="cfg-secDeteccion">
+    <summary class="sec-titulo">Detección</summary>
+
+    <div class="campo">
+      <label for="cfg-fps">Fotogramas por segundo de análisis</label>
+      <div class="fila">
+        <input type="range" id="cfg-fps" data-cfg="fps" min="3" max="10" step="1">
+        <output id="cfg-fps-out" class="etiqueta"></output>
+      </div>
+    </div>
+
+    <div class="campo">
+      <label for="cfg-scoreMin">Sensibilidad de detección</label>
+      <div class="fila">
+        <input type="range" id="cfg-scoreMin" data-cfg="scoreMin" min="0.3" max="0.8" step="0.05">
+        <output id="cfg-scoreMin-out" class="etiqueta"></output>
+      </div>
+    </div>
+
+    <fieldset class="campo">
+      <legend class="etiqueta">Modo de trabajo</legend>
+      <div class="fila">
+        <label><input type="radio" name="cfg-modo" id="cfg-modo-super" data-cfg="modo" value="super"> Supermercado / comercio</label>
+        <label><input type="radio" name="cfg-modo" id="cfg-modo-carretera" data-cfg="modo" value="carretera"> Carretera / tráfico</label>
+      </div>
+    </fieldset>
+  </details>
+
+  <!-- 3. AFORO Y ZONAS -->
+  <details class="tarjeta cfg-sec" id="cfg-secAforo">
+    <summary class="sec-titulo">Aforo y zonas</summary>
+
+    <div class="fila">
+      <div class="campo">
+        <label for="cfg-aforoMax">Aforo máximo</label>
+        <input type="number" id="cfg-aforoMax" data-cfg="aforoMax" min="1" max="1000" step="1">
+      </div>
+      <div class="campo">
+        <label for="cfg-merodeoSeg">Merodeo (segundos)</label>
+        <input type="number" id="cfg-merodeoSeg" data-cfg="merodeoSeg" min="5" max="600" step="5">
+      </div>
+    </div>
+    <div class="fila">
+      <div class="campo">
+        <label for="cfg-colaN">Personas para considerar cola</label>
+        <input type="number" id="cfg-colaN" data-cfg="colaN" min="2" max="20" step="1">
+      </div>
+      <div class="campo">
+        <label for="cfg-colaSeg">Cola sostenida (segundos)</label>
+        <input type="number" id="cfg-colaSeg" data-cfg="colaSeg" min="10" max="600" step="5">
+      </div>
+    </div>
+    <div class="campo">
+      <label for="cfg-abandonoSeg">Objeto abandonado (segundos)</label>
+      <input type="number" id="cfg-abandonoSeg" data-cfg="abandonoSeg" min="5" max="600" step="5">
+    </div>
+  </details>
+
+  <!-- 4. GESTOS -->
+  <details class="tarjeta cfg-sec" id="cfg-secGestos">
+    <summary class="sec-titulo">Gestos y comportamiento</summary>
+
+    <div class="campo">
+      <label for="cfg-ocultacionUmbral">Umbral de gesto de ocultación</label>
+      <div class="fila">
+        <input type="range" id="cfg-ocultacionUmbral" data-cfg="ocultacionUmbral" min="30" max="90" step="5">
+        <output id="cfg-ocultacionUmbral-out" class="etiqueta"></output>
+      </div>
+    </div>
+
+    <div class="campo">
+      <label for="cfg-carreraVel">Umbral de carrera</label>
+      <div class="fila">
+        <input type="range" id="cfg-carreraVel" data-cfg="carreraVel" min="1" max="5" step="0.1">
+        <output id="cfg-carreraVel-out" class="etiqueta"></output>
+      </div>
+    </div>
+
+    <div class="campo">
+      <label for="cfg-caidaSeg">Caída sostenida (segundos)</label>
+      <input type="number" id="cfg-caidaSeg" data-cfg="caidaSeg" min="1" max="30" step="1">
+    </div>
+
+    <label class="fila"><input type="checkbox" id="cfg-debugPose" data-cfg="debugPose"> Ver esqueleto (demo)</label>
+
+    <div class="tarjeta cfg-destacada">
+      <p><strong>Este sistema señala comportamientos para revisión. Nunca acuses a nadie basándote solo en una alerta.</strong></p>
+    </div>
+
+    <p id="cfg-notaGestos" class="etiqueta oculto">El análisis de gestos no está disponible (no cargó el modelo de pose); caída y carrera siguen funcionando.</p>
+  </details>
+
+  <!-- 5. FUERA DE HORARIO -->
+  <details class="tarjeta cfg-sec" id="cfg-secHorario">
+    <summary class="sec-titulo">Fuera de horario</summary>
+
+    <label class="fila"><input type="checkbox" id="cfg-fueraHorarioOn" data-cfg="fueraHorarioOn"> Activar vigilancia fuera de horario</label>
+
+    <div class="fila">
+      <div class="campo">
+        <label for="cfg-fueraHorarioIni">Inicio de la franja</label>
+        <input type="time" id="cfg-fueraHorarioIni" data-cfg="fueraHorarioIni">
+      </div>
+      <div class="campo">
+        <label for="cfg-fueraHorarioFin">Fin de la franja</label>
+        <input type="time" id="cfg-fueraHorarioFin" data-cfg="fueraHorarioFin">
+      </div>
+    </div>
+
+    <p class="etiqueta">Cualquier persona detectada en esa franja horaria dispara una alerta crítica y graba automáticamente.</p>
+  </details>
+
+  <!-- 6. RUIDO -->
+  <details class="tarjeta cfg-sec" id="cfg-secRuido">
+    <summary class="sec-titulo">Ruido</summary>
+
+    <label class="fila"><input type="checkbox" id="cfg-ruidoOn" data-cfg="ruidoOn"> Activar detección de ruido</label>
+
+    <div class="campo">
+      <label for="cfg-ruidoNivel">Umbral de nivel de ruido</label>
+      <div class="fila">
+        <input type="range" id="cfg-ruidoNivel" data-cfg="ruidoNivel" min="50" max="100" step="5">
+        <output id="cfg-ruidoNivel-out" class="etiqueta"></output>
+      </div>
+    </div>
+
+    <p class="etiqueta">Solo mide el nivel de ruido; nunca graba audio.</p>
+  </details>
+
+  <!-- 7. PRIVACIDAD EN VIVO -->
+  <details class="tarjeta cfg-sec" id="cfg-secPrivacidad">
+    <summary class="sec-titulo">Privacidad en vivo</summary>
+
+    <label class="fila"><input type="checkbox" id="cfg-privacidad" data-cfg="privacidad"> Pixelar caras en la vista en vivo</label>
+
+    <p class="etiqueta">Pixela las caras solo en la pantalla en vivo. Las grabaciones de evidencia se guardan SIEMPRE íntegras, sin difuminar. En una alerta crítica, esa persona se muestra sin pixelar.</p>
+  </details>
+
+  <!-- 8. ALERTAS -->
+  <details class="tarjeta cfg-sec" id="cfg-secAlertas">
+    <summary class="sec-titulo">Alertas</summary>
+
+    <label class="fila"><input type="checkbox" id="cfg-sonidoOn" data-cfg="sonidoOn"> Sonido de alarma</label>
+
+    <div class="campo">
+      <label for="cfg-alertaCooldownSeg">Tiempo mínimo entre alertas repetidas (segundos)</label>
+      <input type="number" id="cfg-alertaCooldownSeg" data-cfg="alertaCooldownSeg" min="5" max="300" step="5">
+    </div>
+
+    <label class="fila"><input type="checkbox" id="cfg-clipSospecha" data-cfg="clipSospecha"> Grabar clip también en alertas ámbar</label>
+
+    <div class="fila">
+      <button type="button" class="btn btn-mini" id="cfg-btnProbar-info">Probar info</button>
+      <button type="button" class="btn btn-mini" id="cfg-btnProbar-sospecha">Probar ámbar</button>
+      <button type="button" class="btn btn-mini btn-peligro" id="cfg-btnProbar-critico">Probar crítica</button>
+    </div>
+  </details>
+
+  <!-- 9. TELEGRAM -->
+  <details class="tarjeta cfg-sec" id="cfg-secTelegram">
+    <summary class="sec-titulo">Aviso por Telegram</summary>
+
+    <div class="campo">
+      <label for="cfg-telegramToken">Token del bot</label>
+      <input type="text" id="cfg-telegramToken" data-cfg="telegramToken" placeholder="123456789:AA...." autocomplete="off">
+    </div>
+    <div class="campo">
+      <label for="cfg-telegramChat">Chat ID</label>
+      <input type="text" id="cfg-telegramChat" data-cfg="telegramChat" placeholder="123456789" autocomplete="off">
+    </div>
+    <button type="button" class="btn btn-primario" id="cfg-btnTelegramProbar">Probar conexión</button>
+
+    <details class="cfg-sec">
+      <summary>¿Cómo consigo el token y el chat ID?</summary>
+      <ol>
+        <li>Abre Telegram y habla con <strong>@BotFather</strong> → <code>/newbot</code> → te da un TOKEN.</li>
+        <li>Habla con <strong>@userinfobot</strong> para saber tu chat ID (o crea un grupo y añade el bot).</li>
+        <li>Pega ambos aquí y pulsa Probar. Recibirás cada alerta con foto en tu móvil, estés donde estés. 2 minutos y listo.</li>
+      </ol>
+    </details>
+  </details>
+
+  <!-- 10. SISTEMA -->
+  <details class="tarjeta cfg-sec" id="cfg-secSistema">
+    <summary class="sec-titulo">Sistema</summary>
+
+    <div class="campo">
+      <label for="cfg-sabotajeSens">Sensibilidad ante sabotaje (cámara tapada/movida)</label>
+      <div class="fila">
+        <input type="range" id="cfg-sabotajeSens" data-cfg="sabotajeSens" min="0" max="100" step="5">
+        <output id="cfg-sabotajeSens-out" class="etiqueta"></output>
+      </div>
+    </div>
+
+    <label class="fila"><input type="checkbox" id="cfg-calor" data-cfg="calor"> Mapa de calor de aforo</label>
+
+    <div class="campo">
+      <label for="cfg-timelapseMin">Minutos entre capturas de time-lapse</label>
+      <input type="number" id="cfg-timelapseMin" data-cfg="timelapseMin" min="1" max="60" step="1">
+    </div>
+
+    <p class="etiqueta">Uso de almacenamiento: <span id="cfg-usoMB">0</span> MB de ~5 MB</p>
+
+    <div class="fila">
+      <button type="button" class="btn btn-fantasma" id="cfg-btnBorrarLog">Borrar log de alertas</button>
+      <button type="button" class="btn btn-fantasma" id="cfg-btnBorrarZonas">Borrar zonas y líneas</button>
+    </div>
+    <div class="fila">
+      <button type="button" class="btn btn-peligro" id="cfg-btnRestaurar">Restaurar valores de fábrica</button>
+      <button type="button" class="btn btn-fantasma" id="cfg-btnCambiarPin">Cambiar PIN</button>
+    </div>
+  </details>
+
+  <!-- 11. LEGAL -->
+  <details class="tarjeta cfg-sec" id="cfg-secLegal">
+    <summary class="sec-titulo">Legal y privacidad</summary>
+
+    <p>Este sistema utiliza cámaras para detectar aforo, comportamientos y vehículos con fines de seguridad. En España, el uso de videovigilancia en un negocio debe cumplir el art. 22 de la Ley Orgánica 3/2018 (LOPDGDD) y la guía de la AEPD:</p>
+    <ul>
+      <li><strong>Cartel informativo obligatorio</strong>: hay que colocar en un lugar visible, antes de entrar en la zona grabada, un cartel que informe de la videovigilancia y de dónde ejercer los derechos (usa el generador de abajo).</li>
+      <li><strong>Prohibido el reconocimiento facial biométrico</strong> en comercios sin consentimiento expreso e informado. <strong>Este sistema NO hace reconocimiento facial ni identifica personas</strong>: solo detecta personas, objetos y comportamientos genéricos, nadie queda identificado por su cara.</li>
+      <li><strong>Conservación máxima de 1 mes</strong>: las grabaciones e imágenes deben borrarse pasado ese plazo, salvo que estén vinculadas a una denuncia, investigación o procedimiento judicial en curso.</li>
+      <li><strong>Registro de actividades de tratamiento</strong>: el titular del negocio debe mantener un registro de este tratamiento de videovigilancia (responsable, finalidad, plazos, medidas de seguridad).</li>
+      <li><strong>Derecho de acceso</strong>: cualquier persona grabada puede solicitar acceder a sus imágenes o pedir su supresión, dirigiéndose al responsable indicado en el cartel.</li>
+    </ul>
+
+    <div class="fila">
+      <div class="campo">
+        <label for="cfg-legalResponsable">Responsable del tratamiento</label>
+        <input type="text" id="cfg-legalResponsable" data-cfg="legalResponsable" placeholder="Nombre o razón social" autocomplete="off">
+      </div>
+      <div class="campo">
+        <label for="cfg-legalContacto">Contacto para ejercer derechos</label>
+        <input type="text" id="cfg-legalContacto" data-cfg="legalContacto" placeholder="email o dirección postal" autocomplete="off">
+      </div>
+    </div>
+
+    <button type="button" class="btn btn-primario" id="cfg-btnCartel">🖨 Generar cartel ZONA VIDEOVIGILADA</button>
+
+    <p>Este software es una herramienta de apoyo; el responsable del tratamiento es el titular del negocio.</p>
+  </details>
+
+  <!-- 12. EXPORTAR -->
+  <details class="tarjeta cfg-sec" id="cfg-secExportar">
+    <summary class="sec-titulo">Exportar</summary>
+    <div class="fila">
+      <button type="button" class="btn btn-primario" id="cfg-btnInforme">📄 Informe del día (HTML)</button>
+      <button type="button" class="btn btn-fantasma" id="cfg-btnCSV">📊 Datos por hora (CSV)</button>
+    </div>
+  </details>
+
+</div>

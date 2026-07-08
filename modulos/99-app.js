@@ -24,6 +24,14 @@ async function app_init() {
 
     estado.arrancado = true;
 
+    // Pintores que no registra ningún módulo por sí mismo (orden del §6):
+    // zonas(10), calor(40) y carretera(50) se registran solos en sus init.
+    vid_registrarPintor('tracks', trk_pintar, 20);
+    vid_registrarPintor('gestos', gesto_pintar, 30);
+
+    // Al cambiar de fuente de vídeo, el tracker parte de cero (ids limpios)
+    bus.on('video:listo', () => { try { trk_reiniciar(); } catch (e) {} });
+
     // Cargas pesadas en paralelo, sin bloquear la interfaz
     nuc_cargarModelos().catch(() => {});
     gesto_init().catch(() => {});
