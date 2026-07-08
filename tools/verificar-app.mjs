@@ -57,6 +57,19 @@ const browser = await puppeteer.launch({
 });
 const page = await browser.newPage();
 await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
+// La app es AUTOCONTENIDA: no necesita internet para funcionar. Cortamos toda
+// petición externa (http/https) para que, en un entorno con internet real (CI de
+// GitHub), la app NO se conecte al Firebase real y sobrescriba los datos de demo
+// con los que corren las pruebas. Solo dejamos pasar file:// y data:.
+await page.setRequestInterception(true);
+page.on("request", (req) => {
+  const u = req.url();
+  if (u.startsWith("file://") || u.startsWith("data:") || u.startsWith("blob:")) {
+    req.continue().catch(() => {});
+  } else {
+    req.abort().catch(() => {});
+  }
+});
 page.on("pageerror", (e) => errors.push("JS: " + e.message));
 page.on("console", (m) => {
   if (m.type() === "error") {
@@ -104,23 +117,51 @@ function ctxOf(frame) {
 }
 
 async function load() {
-  await page.goto(fileUrl, { waitUntil: "networkidle0", timeout: 30000 });
-  await sleep(300);
+  // OJO: no usamos "networkidle0". La app arranca la sincronización de Firebase,
+  // que deja una conexión en vivo abierta; en un entorno con internet real (CI de
+  // GitHub) la red nunca queda "en silencio" y el goto agotaría los 30 s. La app es
+  // autocontenida (JS/CSS inline), así que con "domcontentloaded" ya está lista.
+  await page.goto(fileUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
+  await sleep(600);
+  // Portada de entrada: en las pruebas se desbloquea sola (no es lo que se está probando aquí;
+  // el flujo de la portada tiene su propia prueba dedicada).
+  await page.evaluate(() => {
+    try { if (typeof accesoClave === "function") localStorage.setItem("mh_acceso_ok", accesoClave()); } catch (e) {}
+    if (typeof ocultarGate === "function") ocultarGate();
+  }).catch(() => {});
 }
 
 // ===== Tests de aceptación por app (DSL embebido en <script type="application/json" id="acceptance-tests">) =====
 // Pasos disponibles: goto, reload, wait, click, clickText, fill{sel,value}, check, submit,
-//                    expect (texto que debe aparecer), expectHash, expectVisible, expectGone.
-async function runStep(step) {
+//                    expect (texto que debe aparecer), expectHash, expectVisible, expectGone,
+//                    copyText{sel,as}: guarda el texto de un elemento en una variable, y luego
+//                    "$NOMBRE" se sustituye en cualquier paso (clave para códigos generados al azar).
+function sustituirVars(valor, vars) {
+  if (typeof valor !== "string") return valor;
+  return valor.replace(/\$([A-Z][A-Z0-9_]*)/g, (m, k) => (vars[k] !== undefined ? vars[k] : m));
+}
+async function runStep(step, vars = {}) {
   const k = Object.keys(step)[0];
-  const v = step[k];
+  let v = step[k];
+  if (typeof v === "string") v = sustituirVars(v, vars);
+  else if (v && typeof v === "object") {
+    v = { ...v };
+    for (const key of Object.keys(v)) v[key] = sustituirVars(v[key], vars);
+  }
+  if (k === "copyText") {
+    const txt = await page.evaluate((s) => { const e = document.querySelector(s); return e ? e.textContent.trim() : null; }, v.sel);
+    if (txt === null) return { ok: false, msg: "no existe " + v.sel + " para copiar su texto" };
+    vars[v.as] = txt;
+    return { ok: true };
+  }
   switch (k) {
     case "goto": await page.evaluate((h) => { location.hash = h; }, v); await sleep(280); return { ok: true };
     case "reload": await load(); return { ok: true };
+    case "showGate": { await page.evaluate(() => { try { localStorage.removeItem("mh_acceso_ok"); } catch (e) {} try { duenoAutenticado = false; } catch (e) {} if (typeof chequearAcceso === "function") chequearAcceso(); else if (typeof mostrarGate === "function") mostrarGate(); }); await sleep(200); return { ok: true }; }
     case "wait": await sleep(Math.min(+v || 200, 3000)); return { ok: true };
     case "click": { const ok = await page.evaluate((s) => { const e = document.querySelector(s); if (!e) return false; e.click(); return true; }, v); await sleep(220); return { ok, msg: ok ? "" : "no existe el selector " + v }; }
     case "clickText": { const ok = await page.evaluate((t) => { const els = [...document.querySelectorAll('a,button,[role=button],input[type=submit],[data-action]')].filter((x) => x.offsetParent !== null && (x.innerText || x.value || "").includes(t)); if (!els.length) return false; els.sort((a, b) => (a.innerText || a.value || "").length - (b.innerText || b.value || "").length); els[0].click(); return true; }, v); await sleep(220); return { ok, msg: ok ? "" : 'no hay elemento visible con el texto "' + v + '"' }; }
-    case "fill": { const ok = await page.evaluate((o) => { const e = document.querySelector(o.sel); if (!e) return false; e.value = o.value; e.dispatchEvent(new Event("input", { bubbles: true })); return true; }, v); return { ok, msg: ok ? "" : "no existe el campo " + (v && v.sel) }; }
+    case "fill": { const ok = await page.evaluate((o) => { const e = document.querySelector(o.sel); if (!e) return false; e.value = o.value; e.dispatchEvent(new Event("input", { bubbles: true })); e.dispatchEvent(new Event("change", { bubbles: true })); return true; }, v); return { ok, msg: ok ? "" : "no existe el campo " + (v && v.sel) }; }
     case "check": { const ok = await page.evaluate((s) => { const e = document.querySelector(s); if (!e) return false; e.checked = true; e.dispatchEvent(new Event("change", { bubbles: true })); return true; }, v); return { ok, msg: ok ? "" : "no existe el checkbox " + v }; }
     case "submit": { const ok = await page.evaluate((s) => { const e = document.querySelector(s); if (!e) return false; if (e.requestSubmit) e.requestSubmit(); else e.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true })); return true; }, v); await sleep(320); return { ok, msg: ok ? "" : "no existe el formulario " + v }; }
     case "expect": { const ok = await page.evaluate((t) => document.body.innerText.includes(t), v); return { ok, msg: ok ? "" : 'no aparece el texto "' + v + '"' }; }
@@ -144,10 +185,11 @@ async function runAcceptanceTests() {
     await load();
     let fail = null;
     const steps = t.steps || [];
+    const vars = {}; // variables del test (copyText/$NOMBRE), aisladas por test
     for (let i = 0; i < steps.length; i++) {
       const before = errors.length;
       let r;
-      try { r = await runStep(steps[i]); } catch (e) { r = { ok: false, msg: e.message }; }
+      try { r = await runStep(steps[i], vars); } catch (e) { r = { ok: false, msg: e.message }; }
       if (errors.length > before) { fail = { i, msg: "error JS durante el paso" }; break; }
       if (!r.ok) { fail = { i, msg: r.msg || "falló" }; break; }
     }

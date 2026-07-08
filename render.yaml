@@ -1,0 +1,15 @@
+# Despliegue de MH Collective en Render (servidor Node con HTTPS gratis).
+# Render lee este archivo al conectar el repositorio y lo deja todo montado.
+services:
+  - type: web
+    name: mh-collective
+    runtime: node
+    plan: free                # gratis (se duerme tras 15 min de inactividad; el 1er acceso tarda ~30 s)
+    buildCommand: ""          # la app no tiene dependencias, no hay que instalar nada
+    startCommand: node apps/mh-collective-servidor.mjs
+    envVars:
+      - key: MH_HOST
+        value: 0.0.0.0        # escuchar en internet (Render lo exige)
+      - key: MH_TOKEN
+        sync: false           # AL DESPLEGAR, Render te pide este valor: pon TU contraseña de servidor
+      # PORT lo pone Render solo; el servidor lo respeta.
