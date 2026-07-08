@@ -1150,9 +1150,10 @@ h1, h2, h3, p { margin: 0; }
     <div class="campo">
       <label for="cfg-fps">Fotogramas por segundo de análisis</label>
       <div class="fila">
-        <input type="range" id="cfg-fps" data-cfg="fps" min="3" max="10" step="1">
+        <input type="range" id="cfg-fps" data-cfg="fps" min="3" max="20" step="1">
         <output id="cfg-fps-out" class="etiqueta"></output>
       </div>
+      <p class="etiqueta">Más fotogramas = reacciona antes y pierde menos movimientos. A partir de 10 exige móvil potente y motor rápido; si no llega, el sistema baja solo y te avisa.</p>
     </div>
 
     <div class="campo">
@@ -1220,6 +1221,15 @@ h1, h2, h3, p { margin: 0; }
   <!-- 4. GESTOS -->
   <details class="tarjeta cfg-sec" id="cfg-secGestos">
     <summary class="sec-titulo">Gestos y comportamiento</summary>
+
+    <div class="campo">
+      <label for="cfg-posesMax">Personas analizadas a la vez (gestos/postura)</label>
+      <div class="fila">
+        <input type="range" id="cfg-posesMax" data-cfg="posesMax" min="1" max="6" step="1">
+        <output id="cfg-posesMax-out" class="etiqueta"></output>
+      </div>
+      <p class="etiqueta">Si hay 5 personas y quieres vigilar los gestos de LAS 5, sube esto a 5-6. Cada persona extra cuesta CPU: si va lento, el sistema procesa 1 de cada 2 fotogramas de postura (y te lo compensa). Caídas, carrera, zonas y conteos analizan SIEMPRE a todas, esto solo afecta a los gestos de ocultación.</p>
+    </div>
 
     <div class="campo">
       <label for="cfg-ocultacionUmbral">Umbral de gesto de ocultación</label>
@@ -1535,7 +1545,8 @@ const CONFIG = {
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
 const CFG_DEFECTOS = {
   modo: 'super',            // 'super' | 'carretera'
-  fps: 8,                   // FPS de inferencia (3-10)
+  fps: 8,                   // FPS de inferencia (3-20; a partir de 10 exige móvil potente)
+  posesMax: 3,              // personas analizadas A LA VEZ por el modelo de postura (1-6)
   scoreMin: 0.35,           // confianza mínima (bajo = detecta más personas)
   motor: 'coco',            // 'coco' básico | 'yolo' potente (Transformers.js) | 'onnx' SUPERCEREBRO (YOLO11)
   yoloModelo: 'Xenova/yolos-tiny',  // modelo del motor potente (yolos-tiny|yolos-small|detr-resnet-50)
@@ -2272,14 +2283,24 @@ function gesto_estado() {
 /* --- 1) Arranque: carga MediaPipe. NUNCA rechaza (catch interno) -----------*/
 async function gesto_init() {
   const g = gesto_estado();
-  if (!g.suscrito) { bus.on('track:perdido', gesto_alPerderTrack); g.suscrito = true; }
+  if (!g.suscrito) {
+    bus.on('track:perdido', gesto_alPerderTrack);
+    // Si el dueño cambia "personas analizadas a la vez", se recrea el landmarker.
+    bus.on('cfg:cambio', (d) => {
+      if (d && d.clave === 'posesMax' && g.poseListo && g.numPosesActual !== gesto_posesMax()) {
+        gesto_init();
+      }
+    });
+    g.suscrito = true;
+  }
   try {
+    const nPoses = gesto_posesMax();
     const mp = await import(GESTO_MP_URL);
     const fileset = await mp.FilesetResolver.forVisionTasks(GESTO_WASM_URL);
     const opciones = (delegado) => ({
       baseOptions: { modelAssetPath: GESTO_MODELO_URL, delegate: delegado },
       runningMode: 'VIDEO',
-      numPoses: 3,
+      numPoses: nPoses,
     });
     let lm = null;
     try {
@@ -2288,7 +2309,10 @@ async function gesto_init() {
       console.warn('[gesto] GPU no disponible para pose, probando CPU:', eGpu && eGpu.message);
       lm = await mp.PoseLandmarker.createFromOptions(fileset, opciones('CPU'));
     }
+    // Cierra el landmarker anterior si esto era una recreación (cambio de posesMax)
+    if (g.landmarker && g.landmarker !== lm) { try { g.landmarker.close(); } catch (e) {} }
     g.landmarker = lm;
+    g.numPosesActual = nPoses;
     g.poseListo = true;
     estado.modelos.poseListo = true;
     bus.emit('pose:listo', {});
@@ -2304,6 +2328,12 @@ async function gesto_init() {
     });
     return false;
   }
+}
+
+/* Personas analizadas a la vez por el modelo de postura (configurable). */
+function gesto_posesMax() {
+  const v = parseInt((estado.cfg && estado.cfg.posesMax) || 3, 10);
+  return nuc_clamp(isNaN(v) ? 3 : v, 1, 6);
 }
 
 /* --- 2) Procesado por frame (SOLO en modo super, lo llama el bucle) --------*/
@@ -11404,7 +11434,7 @@ function app_ciclo(tsAnim) {
     vid_componer();
 
     // 2) Inferencia limitada a cfg.fps, sin re-entrar
-    const intervalo = 1000 / nuc_clamp(estado.cfg.fps || 8, 3, 10);
+    const intervalo = 1000 / nuc_clamp(estado.cfg.fps || 8, 3, 20);
     if (!app_ocupado && nuc_modeloListo() && estado.video.listo &&
         (ahora - app_ultimaInferencia) >= intervalo) {
       app_ocupado = true;

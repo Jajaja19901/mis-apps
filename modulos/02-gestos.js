@@ -71,14 +71,24 @@ function gesto_estado() {
 /* --- 1) Arranque: carga MediaPipe. NUNCA rechaza (catch interno) -----------*/
 async function gesto_init() {
   const g = gesto_estado();
-  if (!g.suscrito) { bus.on('track:perdido', gesto_alPerderTrack); g.suscrito = true; }
+  if (!g.suscrito) {
+    bus.on('track:perdido', gesto_alPerderTrack);
+    // Si el dueño cambia "personas analizadas a la vez", se recrea el landmarker.
+    bus.on('cfg:cambio', (d) => {
+      if (d && d.clave === 'posesMax' && g.poseListo && g.numPosesActual !== gesto_posesMax()) {
+        gesto_init();
+      }
+    });
+    g.suscrito = true;
+  }
   try {
+    const nPoses = gesto_posesMax();
     const mp = await import(GESTO_MP_URL);
     const fileset = await mp.FilesetResolver.forVisionTasks(GESTO_WASM_URL);
     const opciones = (delegado) => ({
       baseOptions: { modelAssetPath: GESTO_MODELO_URL, delegate: delegado },
       runningMode: 'VIDEO',
-      numPoses: 3,
+      numPoses: nPoses,
     });
     let lm = null;
     try {
@@ -87,7 +97,10 @@ async function gesto_init() {
       console.warn('[gesto] GPU no disponible para pose, probando CPU:', eGpu && eGpu.message);
       lm = await mp.PoseLandmarker.createFromOptions(fileset, opciones('CPU'));
     }
+    // Cierra el landmarker anterior si esto era una recreación (cambio de posesMax)
+    if (g.landmarker && g.landmarker !== lm) { try { g.landmarker.close(); } catch (e) {} }
     g.landmarker = lm;
+    g.numPosesActual = nPoses;
     g.poseListo = true;
     estado.modelos.poseListo = true;
     bus.emit('pose:listo', {});
@@ -103,6 +116,12 @@ async function gesto_init() {
     });
     return false;
   }
+}
+
+/* Personas analizadas a la vez por el modelo de postura (configurable). */
+function gesto_posesMax() {
+  const v = parseInt((estado.cfg && estado.cfg.posesMax) || 3, 10);
+  return nuc_clamp(isNaN(v) ? 3 : v, 1, 6);
 }
 
 /* --- 2) Procesado por frame (SOLO en modo super, lo llama el bucle) --------*/

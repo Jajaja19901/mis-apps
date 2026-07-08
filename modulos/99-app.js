@@ -71,7 +71,7 @@ function app_ciclo(tsAnim) {
     vid_componer();
 
     // 2) Inferencia limitada a cfg.fps, sin re-entrar
-    const intervalo = 1000 / nuc_clamp(estado.cfg.fps || 8, 3, 10);
+    const intervalo = 1000 / nuc_clamp(estado.cfg.fps || 8, 3, 20);
     if (!app_ocupado && nuc_modeloListo() && estado.video.listo &&
         (ahora - app_ultimaInferencia) >= intervalo) {
       app_ocupado = true;

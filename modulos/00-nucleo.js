@@ -17,7 +17,8 @@ const CONFIG = {
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
 const CFG_DEFECTOS = {
   modo: 'super',            // 'super' | 'carretera'
-  fps: 8,                   // FPS de inferencia (3-10)
+  fps: 8,                   // FPS de inferencia (3-20; a partir de 10 exige móvil potente)
+  posesMax: 3,              // personas analizadas A LA VEZ por el modelo de postura (1-6)
   scoreMin: 0.35,           // confianza mínima (bajo = detecta más personas)
   motor: 'coco',            // 'coco' básico | 'yolo' potente (Transformers.js) | 'onnx' SUPERCEREBRO (YOLO11)
   yoloModelo: 'Xenova/yolos-tiny',  // modelo del motor potente (yolos-tiny|yolos-small|detr-resnet-50)
