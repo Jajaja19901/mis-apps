@@ -421,6 +421,8 @@ function vid_componer() {
   const dims = vid_dimensiones();
   estado.video.w = dims.w; estado.video.h = dims.h;
   if (cnv.width !== dims.w || cnv.height !== dims.h) { cnv.width = dims.w; cnv.height = dims.h; }
+  // El visor adopta la forma real del vídeo (evita recortar arriba/abajo).
+  if (vid_el.visor) vid_el.visor.classList.add('vid-activo');
 
   const el = v.fuenteEl;
   try {
@@ -508,6 +510,8 @@ function vid_estampaFecha(ctx, cnv) {
 /* Pantalla "SIN SEÑAL" + reloj cuando no hay fuente. */
 function vid_sinSenal(ctx, cnv) {
   try {
+    // Sin fuente: vuelve al marco 16:9 de reposo (quita la forma del vídeo).
+    if (vid_el.visor) vid_el.visor.classList.remove('vid-activo');
     if (cnv.width < 320 || cnv.height < 180) { cnv.width = 640; cnv.height = 360; }
     ctx.fillStyle = '#0b0f14';
     ctx.fillRect(0, 0, cnv.width, cnv.height);

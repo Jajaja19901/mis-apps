@@ -178,13 +178,30 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
   const hi = puntos[GESTO_LM.HOMBRO_I], hd = puntos[GESTO_LM.HOMBRO_D];
   const ci = puntos[GESTO_LM.CADERA_I], cd = puntos[GESTO_LM.CADERA_D];
   const mi = puntos[GESTO_LM.MUNECA_I], md = puntos[GESTO_LM.MUNECA_D];
-  // Torso poco fiable → no evaluamos (honestidad: mejor no puntuar que inventar).
-  if (!gesto_visible(hi) || !gesto_visible(hd) || !gesto_visible(ci) || !gesto_visible(cd)) return;
+  // Necesitamos SIEMPRE los hombros (son la escala y la referencia de arriba).
+  if (!gesto_visible(hi) || !gesto_visible(hd)) return;
 
   const anchoHombros = nuc_dist(hi.x, hi.y, hd.x, hd.y);
   if (anchoHombros < 1) return;
   const hombrosC = { x: (hi.x + hd.x) / 2, y: (hi.y + hd.y) / 2 };
-  const caderasC = { x: (ci.x + cd.x) / 2, y: (ci.y + cd.y) / 2 };
+
+  // Caderas/cintura: si se ven, usamos las reales; si están TAPADAS (persona
+  // tras el mostrador, encuadre de medio cuerpo) las ESTIMAMOS bajo los hombros
+  // usando la anchura de hombros como escala. Así el gesto se detecta también
+  // con solo el torso a la vista — que es la vista típica de una tienda.
+  const caderasVisibles = gesto_visible(ci) && gesto_visible(cd);
+  let caderasC;
+  const refsBolsillo = [];
+  if (caderasVisibles) {
+    caderasC = { x: (ci.x + cd.x) / 2, y: (ci.y + cd.y) / 2 };
+    refsBolsillo.push(ci, cd, caderasC);
+  } else {
+    // torso ≈ 1.4× la anchura de hombros hacia abajo (en el plano de imagen)
+    caderasC = { x: hombrosC.x, y: hombrosC.y + anchoHombros * 1.4 };
+    refsBolsillo.push(caderasC,
+      { x: hi.x, y: hi.y + anchoHombros * 1.4 },   // bolsillo izq. estimado
+      { x: hd.x, y: hd.y + anchoHombros * 1.4 });  // bolsillo der. estimado
+  }
   const torsoC = { x: (hombrosC.x + caderasC.x) / 2, y: (hombrosC.y + caderasC.y) / 2 };
   const pechoC = {
     x: hombrosC.x + (caderasC.x - hombrosC.x) * 0.35,
@@ -198,11 +215,11 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
     if (!gesto_visible(muneca)) continue;
     const dT = nuc_dist(muneca.x, muneca.y, torsoC.x, torsoC.y);
     if (dT > GESTO_EXT_ALCANCE * anchoHombros) extendida = true;
-    const dCadera = Math.min(
-      nuc_dist(muneca.x, muneca.y, ci.x, ci.y),
-      nuc_dist(muneca.x, muneca.y, cd.x, cd.y),
-      nuc_dist(muneca.x, muneca.y, caderasC.x, caderasC.y)
-    );
+    let dCadera = Infinity;
+    for (let r = 0; r < refsBolsillo.length; r++) {
+      const d = nuc_dist(muneca.x, muneca.y, refsBolsillo[r].x, refsBolsillo[r].y);
+      if (d < dCadera) dCadera = d;
+    }
     const dPecho = nuc_dist(muneca.x, muneca.y, pechoC.x, pechoC.y);
     if (dCadera < GESTO_CERCA_CUERPO * anchoHombros || dPecho < GESTO_CERCA_CUERPO * anchoHombros) cerca = true;
   }
