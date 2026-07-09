@@ -48,6 +48,7 @@ const CFG_DEFECTOS = {
   copFatiga: true,          // aviso de descanso cada 2 h de trayecto
   copSonido: true,          // pitido + vibración con los avisos FRENA/PEATÓN
   matAuto: true,            // leer la matrícula sola tras un golpe (caja negra)
+  ahorroEnergia: true,      // sin movimiento 3s → baja a 2 fps (vuelve solo al instante)
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
   resolucion: '720',        // '480' | '720' | '1080'
@@ -273,23 +274,55 @@ function nuc_scoreMin() {
   return enCoche ? Math.max(0.2, base - 0.1) : base;
 }
 
+/* --- Eficiencia: COCO analiza una COPIA REDUCIDA del frame -------------------
+ * YOLO y el Supercerebro ya reducen dentro (dibujan a 640/768px y devuelven
+ * las cajas en espacio del frame completo). COCO en cambio trabaja el frame a
+ * tamaño nativo: a 1280px quema batería en copiar píxeles que el modelo ni
+ * aprovecha. Aquí se le da una copia a 640px y las cajas se devuelven al
+ * espacio real. Lo que se ve y se graba sigue a resolución completa. */
+const NUC_ANALISIS_MAX = 640;   // ancho máximo del frame que ve COCO
+let nuc_cnvAnalisis = null;
+
+/* Devuelve { fuente, escala }: la fuente que debe ver la IA y el factor para
+ * devolver las cajas al espacio del frame completo. Ante cualquier fallo
+ * (canvas contaminado, dims raras) devuelve la fuente original tal cual. */
+function nuc_frameAnalisis(fuente) {
+  try {
+    const w = estado.video.w || 0, h = estado.video.h || 0;
+    if (!w || !h || w <= NUC_ANALISIS_MAX) return { fuente: fuente, escala: 1 };
+    const factor = NUC_ANALISIS_MAX / w;
+    const cw = Math.round(w * factor), ch = Math.round(h * factor);
+    if (!nuc_cnvAnalisis) nuc_cnvAnalisis = document.createElement('canvas');
+    const cnv = nuc_cnvAnalisis;
+    if (cnv.width !== cw || cnv.height !== ch) { cnv.width = cw; cnv.height = ch; }
+    cnv.getContext('2d').drawImage(fuente, 0, 0, cw, ch);
+    return { fuente: cnv, escala: 1 / factor };
+  } catch (e) {
+    return { fuente: fuente, escala: 1 };
+  }
+}
+
 /* Detecta sobre un <video>/<img>/<canvas> listo. Devuelve [] si algo falla.
  * Enruta según el motor elegido: SUPERCEREBRO (ONNX-YOLO11) → POTENTE
  * (Transformers.js) → básico (COCO-SSD, siempre de respaldo). */
 async function nuc_detectar(fuente) {
   if (!fuente) return [];
   if (typeof sc_activo === 'function' && sc_activo()) {
-    return sc_detectar(fuente);
+    return sc_detectar(fuente);        // reduce dentro (letterbox 640)
   }
   if (typeof yolo_activo === 'function' && yolo_activo()) {
-    return yolo_detectar(fuente);
+    return yolo_detectar(fuente);      // reduce dentro (yoloRes 512-768)
   }
   if (!estado.modelos.cocoListo) return [];
   try {
-    const res = await estado.modelos.coco.detect(fuente, 40, nuc_scoreMin());
+    const prep = nuc_frameAnalisis(fuente);
+    const res = await estado.modelos.coco.detect(prep.fuente, 40, nuc_scoreMin());
     return res.map((d) => ({
       clase: d.class, score: d.score,
-      caja: { x: d.bbox[0], y: d.bbox[1], an: d.bbox[2], al: d.bbox[3] },
+      caja: {
+        x: d.bbox[0] * prep.escala, y: d.bbox[1] * prep.escala,
+        an: d.bbox[2] * prep.escala, al: d.bbox[3] * prep.escala,
+      },
     }));
   } catch (e) {
     console.warn('[detección] fallo:', e && e.message);

@@ -548,6 +548,56 @@ function vid_registrarPintor(nombre, fn, orden) {
   v.pintores.sort((a, b) => a.orden - b.orden);
 }
 
+/* ============================================================================
+ * AHORRO DE ENERGÍA — detector de movimiento barato (miniatura 32×24).
+ * Compara el frame actual con el anterior en una miniatura minúscula (768 px):
+ * cuesta ~0 y permite bajar la IA a 2 fps cuando la escena está quieta.
+ * En cuanto ≥2% de la miniatura cambia, estado.video.ultMovimiento se refresca
+ * y el bucle vuelve a los fps del dueño EN EL ACTO (latencia ≤200 ms).
+ * ==========================================================================*/
+const VID_MOV_ANCHO = 32;        // miniatura de comparación
+const VID_MOV_ALTO = 24;
+const VID_MOV_CADA_MS = 200;     // medir como mucho 5 veces por segundo
+const VID_MOV_UMBRAL_PX = 26;    // diferencia de gris que cuenta como cambio
+const VID_MOV_FRACCION = 0.02;   // ≥2% de píxeles cambiados = hay movimiento
+const VID_CALMA_MS = 3000;       // 3 s sin cambios = escena en calma
+
+function vid_medirMovimiento(ahora) {
+  const v = estado.vid;
+  if (!v || !estado.video.listo || !v.fuenteEl) { estado.video.enCalma = false; return; }
+  if (ahora - (v.movUltMedida || 0) < VID_MOV_CADA_MS) return;
+  v.movUltMedida = ahora;
+  try {
+    let cnv = v.cnvMov;
+    if (!cnv) {
+      cnv = document.createElement('canvas');
+      cnv.width = VID_MOV_ANCHO; cnv.height = VID_MOV_ALTO;
+      v.cnvMov = cnv;
+      v.ctxMov = cnv.getContext('2d', { willReadFrequently: true });
+    }
+    v.ctxMov.drawImage(v.fuenteEl, 0, 0, VID_MOV_ANCHO, VID_MOV_ALTO);
+    const px = v.ctxMov.getImageData(0, 0, VID_MOV_ANCHO, VID_MOV_ALTO).data;
+    const prev = v.movPrev;
+    if (prev && prev.length === px.length) {
+      let cambiados = 0;
+      for (let i = 0; i < px.length; i += 4) {
+        const g = (px[i] + px[i + 1] + px[i + 2]) / 3;
+        const gp = (prev[i] + prev[i + 1] + prev[i + 2]) / 3;
+        if (Math.abs(g - gp) > VID_MOV_UMBRAL_PX) cambiados++;
+      }
+      if (cambiados / (VID_MOV_ANCHO * VID_MOV_ALTO) >= VID_MOV_FRACCION) {
+        estado.video.ultMovimiento = ahora;
+      }
+    } else {
+      estado.video.ultMovimiento = ahora;   // primera medida: despierto
+    }
+    v.movPrev = px;
+    estado.video.enCalma = (ahora - (estado.video.ultMovimiento || 0)) > VID_CALMA_MS;
+  } catch (e) {
+    estado.video.enCalma = false;           // canvas contaminado u otro fallo: sin ahorro
+  }
+}
+
 /* Dibuja el frame actual + pintores + fecha/hora; gestiona REC y la capa de
  * privacidad. #vid-canvas queda SIEMPRE íntegro (fuente de grabación/capturas). */
 function vid_componer() {

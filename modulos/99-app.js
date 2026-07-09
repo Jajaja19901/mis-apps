@@ -7,6 +7,17 @@ let app_ocupado = false;        // evita re-entrar en la inferencia async
 let app_ultimaInferencia = 0;   // ts del último frame inferido
 let app_framesInferidos = 0;
 let app_fpsDesde = 0;
+let app_ultimaComposicion = 0;  // throttle del pintado (30 fps / 12 en calma)
+
+/* FPS objetivo del ciclo: los del dueño, salvo escena en calma con ahorro de
+ * energía activo (→ 2 fps). Grabando un evento NUNCA se baja el ritmo. */
+function app_fpsObjetivo() {
+  const base = nuc_clamp(estado.cfg.fps || 8, 3, 20);
+  if (estado.cfg.ahorroEnergia && estado.video.enCalma && !estado.video.grabando) {
+    return Math.min(base, 2);
+  }
+  return base;
+}
 
 async function app_init() {
   try {
@@ -69,11 +80,23 @@ function app_ciclo(tsAnim) {
   try {
     const ahora = Date.now();
 
-    // 1) Componer SIEMPRE (frame + pintores + fecha/hora + REC + privacidad)
-    vid_componer();
+    // 0) Medición de movimiento barata (throttle interno de 200 ms)
+    if (estado.cfg.ahorroEnergia && typeof vid_medirMovimiento === 'function') {
+      vid_medirMovimiento(ahora);
+    } else if (estado.video.enCalma) {
+      estado.video.enCalma = false;   // ahorro apagado: nunca en calma
+    }
 
-    // 2) Inferencia limitada a cfg.fps, sin re-entrar
-    const intervalo = 1000 / nuc_clamp(estado.cfg.fps || 8, 3, 20);
+    // 1) Componer a 30 fps (12 en calma): el ojo no nota más y la GPU sí.
+    //    Grabando un evento se mantienen los 30 fps para la evidencia.
+    const compCada = (estado.cfg.ahorroEnergia && estado.video.enCalma && !estado.video.grabando) ? 83 : 33;
+    if (ahora - app_ultimaComposicion >= compCada) {
+      app_ultimaComposicion = ahora;
+      vid_componer();
+    }
+
+    // 2) Inferencia limitada al fps objetivo (adaptativo), sin re-entrar
+    const intervalo = 1000 / app_fpsObjetivo();
     if (!app_ocupado && nuc_modeloListo() && estado.video.listo &&
         (ahora - app_ultimaInferencia) >= intervalo) {
       app_ocupado = true;

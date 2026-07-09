@@ -1209,6 +1209,11 @@ h1, h2, h3, p { margin: 0; }
       <p class="etiqueta">Más fotogramas = reacciona antes y pierde menos movimientos. A partir de 10 exige móvil potente y motor rápido; si no llega, el sistema baja solo y te avisa.</p>
     </div>
 
+    <label class="fila"><input type="checkbox" id="cfg-ahorroEnergia" data-cfg="ahorroEnergia">
+      <span>🌙 <b>Ahorro de energía</b>: si nada se mueve durante 3 s, baja solo a 2 fps y vuelve
+      a tus fps <b>al instante</b> en cuanto algo se mueva. Menos batería y menos calentamiento
+      en vigilancias largas.</span></label>
+
     <div class="campo">
       <label for="cfg-scoreMin">Sensibilidad de detección</label>
       <div class="fila">
@@ -1671,6 +1676,7 @@ const CFG_DEFECTOS = {
   copFatiga: true,          // aviso de descanso cada 2 h de trayecto
   copSonido: true,          // pitido + vibración con los avisos FRENA/PEATÓN
   matAuto: true,            // leer la matrícula sola tras un golpe (caja negra)
+  ahorroEnergia: true,      // sin movimiento 3s → baja a 2 fps (vuelve solo al instante)
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
   resolucion: '720',        // '480' | '720' | '1080'
@@ -1896,23 +1902,55 @@ function nuc_scoreMin() {
   return enCoche ? Math.max(0.2, base - 0.1) : base;
 }
 
+/* --- Eficiencia: COCO analiza una COPIA REDUCIDA del frame -------------------
+ * YOLO y el Supercerebro ya reducen dentro (dibujan a 640/768px y devuelven
+ * las cajas en espacio del frame completo). COCO en cambio trabaja el frame a
+ * tamaño nativo: a 1280px quema batería en copiar píxeles que el modelo ni
+ * aprovecha. Aquí se le da una copia a 640px y las cajas se devuelven al
+ * espacio real. Lo que se ve y se graba sigue a resolución completa. */
+const NUC_ANALISIS_MAX = 640;   // ancho máximo del frame que ve COCO
+let nuc_cnvAnalisis = null;
+
+/* Devuelve { fuente, escala }: la fuente que debe ver la IA y el factor para
+ * devolver las cajas al espacio del frame completo. Ante cualquier fallo
+ * (canvas contaminado, dims raras) devuelve la fuente original tal cual. */
+function nuc_frameAnalisis(fuente) {
+  try {
+    const w = estado.video.w || 0, h = estado.video.h || 0;
+    if (!w || !h || w <= NUC_ANALISIS_MAX) return { fuente: fuente, escala: 1 };
+    const factor = NUC_ANALISIS_MAX / w;
+    const cw = Math.round(w * factor), ch = Math.round(h * factor);
+    if (!nuc_cnvAnalisis) nuc_cnvAnalisis = document.createElement('canvas');
+    const cnv = nuc_cnvAnalisis;
+    if (cnv.width !== cw || cnv.height !== ch) { cnv.width = cw; cnv.height = ch; }
+    cnv.getContext('2d').drawImage(fuente, 0, 0, cw, ch);
+    return { fuente: cnv, escala: 1 / factor };
+  } catch (e) {
+    return { fuente: fuente, escala: 1 };
+  }
+}
+
 /* Detecta sobre un <video>/<img>/<canvas> listo. Devuelve [] si algo falla.
  * Enruta según el motor elegido: SUPERCEREBRO (ONNX-YOLO11) → POTENTE
  * (Transformers.js) → básico (COCO-SSD, siempre de respaldo). */
 async function nuc_detectar(fuente) {
   if (!fuente) return [];
   if (typeof sc_activo === 'function' && sc_activo()) {
-    return sc_detectar(fuente);
+    return sc_detectar(fuente);        // reduce dentro (letterbox 640)
   }
   if (typeof yolo_activo === 'function' && yolo_activo()) {
-    return yolo_detectar(fuente);
+    return yolo_detectar(fuente);      // reduce dentro (yoloRes 512-768)
   }
   if (!estado.modelos.cocoListo) return [];
   try {
-    const res = await estado.modelos.coco.detect(fuente, 40, nuc_scoreMin());
+    const prep = nuc_frameAnalisis(fuente);
+    const res = await estado.modelos.coco.detect(prep.fuente, 40, nuc_scoreMin());
     return res.map((d) => ({
       clase: d.class, score: d.score,
-      caja: { x: d.bbox[0], y: d.bbox[1], an: d.bbox[2], al: d.bbox[3] },
+      caja: {
+        x: d.bbox[0] * prep.escala, y: d.bbox[1] * prep.escala,
+        an: d.bbox[2] * prep.escala, al: d.bbox[3] * prep.escala,
+      },
     }));
   } catch (e) {
     console.warn('[detección] fallo:', e && e.message);
@@ -3989,6 +4027,56 @@ function vid_registrarPintor(nombre, fn, orden) {
   v.pintores = (v.pintores || []).filter((p) => p.nombre !== nombre);
   v.pintores.push({ nombre, fn, orden: typeof orden === 'number' ? orden : 50 });
   v.pintores.sort((a, b) => a.orden - b.orden);
+}
+
+/* ============================================================================
+ * AHORRO DE ENERGÍA — detector de movimiento barato (miniatura 32×24).
+ * Compara el frame actual con el anterior en una miniatura minúscula (768 px):
+ * cuesta ~0 y permite bajar la IA a 2 fps cuando la escena está quieta.
+ * En cuanto ≥2% de la miniatura cambia, estado.video.ultMovimiento se refresca
+ * y el bucle vuelve a los fps del dueño EN EL ACTO (latencia ≤200 ms).
+ * ==========================================================================*/
+const VID_MOV_ANCHO = 32;        // miniatura de comparación
+const VID_MOV_ALTO = 24;
+const VID_MOV_CADA_MS = 200;     // medir como mucho 5 veces por segundo
+const VID_MOV_UMBRAL_PX = 26;    // diferencia de gris que cuenta como cambio
+const VID_MOV_FRACCION = 0.02;   // ≥2% de píxeles cambiados = hay movimiento
+const VID_CALMA_MS = 3000;       // 3 s sin cambios = escena en calma
+
+function vid_medirMovimiento(ahora) {
+  const v = estado.vid;
+  if (!v || !estado.video.listo || !v.fuenteEl) { estado.video.enCalma = false; return; }
+  if (ahora - (v.movUltMedida || 0) < VID_MOV_CADA_MS) return;
+  v.movUltMedida = ahora;
+  try {
+    let cnv = v.cnvMov;
+    if (!cnv) {
+      cnv = document.createElement('canvas');
+      cnv.width = VID_MOV_ANCHO; cnv.height = VID_MOV_ALTO;
+      v.cnvMov = cnv;
+      v.ctxMov = cnv.getContext('2d', { willReadFrequently: true });
+    }
+    v.ctxMov.drawImage(v.fuenteEl, 0, 0, VID_MOV_ANCHO, VID_MOV_ALTO);
+    const px = v.ctxMov.getImageData(0, 0, VID_MOV_ANCHO, VID_MOV_ALTO).data;
+    const prev = v.movPrev;
+    if (prev && prev.length === px.length) {
+      let cambiados = 0;
+      for (let i = 0; i < px.length; i += 4) {
+        const g = (px[i] + px[i + 1] + px[i + 2]) / 3;
+        const gp = (prev[i] + prev[i + 1] + prev[i + 2]) / 3;
+        if (Math.abs(g - gp) > VID_MOV_UMBRAL_PX) cambiados++;
+      }
+      if (cambiados / (VID_MOV_ANCHO * VID_MOV_ALTO) >= VID_MOV_FRACCION) {
+        estado.video.ultMovimiento = ahora;
+      }
+    } else {
+      estado.video.ultMovimiento = ahora;   // primera medida: despierto
+    }
+    v.movPrev = px;
+    estado.video.enCalma = (ahora - (estado.video.ultMovimiento || 0)) > VID_CALMA_MS;
+  } catch (e) {
+    estado.video.enCalma = false;           // canvas contaminado u otro fallo: sin ahorro
+  }
 }
 
 /* Dibuja el frame actual + pintores + fecha/hora; gestiona REC y la capa de
@@ -12533,6 +12621,17 @@ let app_ocupado = false;        // evita re-entrar en la inferencia async
 let app_ultimaInferencia = 0;   // ts del último frame inferido
 let app_framesInferidos = 0;
 let app_fpsDesde = 0;
+let app_ultimaComposicion = 0;  // throttle del pintado (30 fps / 12 en calma)
+
+/* FPS objetivo del ciclo: los del dueño, salvo escena en calma con ahorro de
+ * energía activo (→ 2 fps). Grabando un evento NUNCA se baja el ritmo. */
+function app_fpsObjetivo() {
+  const base = nuc_clamp(estado.cfg.fps || 8, 3, 20);
+  if (estado.cfg.ahorroEnergia && estado.video.enCalma && !estado.video.grabando) {
+    return Math.min(base, 2);
+  }
+  return base;
+}
 
 async function app_init() {
   try {
@@ -12595,11 +12694,23 @@ function app_ciclo(tsAnim) {
   try {
     const ahora = Date.now();
 
-    // 1) Componer SIEMPRE (frame + pintores + fecha/hora + REC + privacidad)
-    vid_componer();
+    // 0) Medición de movimiento barata (throttle interno de 200 ms)
+    if (estado.cfg.ahorroEnergia && typeof vid_medirMovimiento === 'function') {
+      vid_medirMovimiento(ahora);
+    } else if (estado.video.enCalma) {
+      estado.video.enCalma = false;   // ahorro apagado: nunca en calma
+    }
 
-    // 2) Inferencia limitada a cfg.fps, sin re-entrar
-    const intervalo = 1000 / nuc_clamp(estado.cfg.fps || 8, 3, 20);
+    // 1) Componer a 30 fps (12 en calma): el ojo no nota más y la GPU sí.
+    //    Grabando un evento se mantienen los 30 fps para la evidencia.
+    const compCada = (estado.cfg.ahorroEnergia && estado.video.enCalma && !estado.video.grabando) ? 83 : 33;
+    if (ahora - app_ultimaComposicion >= compCada) {
+      app_ultimaComposicion = ahora;
+      vid_componer();
+    }
+
+    // 2) Inferencia limitada al fps objetivo (adaptativo), sin re-entrar
+    const intervalo = 1000 / app_fpsObjetivo();
     if (!app_ocupado && nuc_modeloListo() && estado.video.listo &&
         (ahora - app_ultimaInferencia) >= intervalo) {
       app_ocupado = true;
