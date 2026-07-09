@@ -12405,17 +12405,15 @@ function mat_init() {
 }
 
 /* ============================================================================
- * RECORTE: localiza el vehículo de delante (track centrado más grande) y
- * amplía la mitad inferior de su caja (donde vive la placa). Si no hay track
- * (coche demasiado cerca para el detector), usa la banda central del frame.
- * Devuelve { cnv, conVehiculo } o null si no hay imagen.
+ * RECORTES: localiza el vehículo de delante (track centrado más grande) y
+ * prepara VARIOS recortes ampliados, del más ceñido a la placa al más ancho.
+ * El OCR prueba todos y se queda con el primero que dé matrícula válida: el
+ * ceñido tiene las letras más grandes (acierta más), el ancho no falla nunca
+ * como imagen para el ojo humano. Sin track (coche pegado al morro), banda
+ * central del frame.
  * ==========================================================================*/
-function mat_recorte() {
-  const fuente = (typeof vid_fuente === 'function') ? vid_fuente() : null;
-  if (!fuente || !estado.video || !estado.video.listo) return null;
-  const w = estado.video.w || 0, h = estado.video.h || 0;
-  if (w <= 0 || h <= 0) return null;
-
+function mat_vehiculoDelante() {
+  const w = estado.video.w || 0;
   let mejor = null, mejorArea = 0;
   const tracks = estado.tracks || [];
   for (let i = 0; i < tracks.length; i++) {
@@ -12427,19 +12425,19 @@ function mat_recorte() {
     const area = t.caja.an * t.caja.al;
     if (area > mejorArea) { mejorArea = area; mejor = t; }
   }
+  return mejor;
+}
 
-  let rx, ry, rw, rh;
-  if (mejor) {
-    rx = mejor.caja.x + mejor.caja.an * 0.10; rw = mejor.caja.an * 0.80;
-    ry = mejor.caja.y + mejor.caja.al * 0.50; rh = mejor.caja.al * 0.50;
-  } else {
-    rx = w * 0.25; rw = w * 0.50; ry = h * 0.45; rh = h * 0.40;
-  }
+/* Amplía un rectángulo del frame a un canvas en gris con contraste estirado. */
+function mat_recorteZona(rx, ry, rw, rh) {
+  const fuente = (typeof vid_fuente === 'function') ? vid_fuente() : null;
+  if (!fuente || !estado.video || !estado.video.listo) return null;
+  const w = estado.video.w || 0, h = estado.video.h || 0;
+  if (w <= 0 || h <= 0) return null;
   rx = Math.max(0, Math.min(w - 8, rx)); ry = Math.max(0, Math.min(h - 8, ry));
   rw = Math.max(8, Math.min(w - rx, rw)); rh = Math.max(8, Math.min(h - ry, rh));
-
   try {
-    const escala = Math.max(1.5, Math.min(6, MAT_ALTO_OCR / rh));
+    const escala = Math.max(1.5, Math.min(8, MAT_ALTO_OCR / rh));
     const cnv = document.createElement('canvas');
     cnv.width = Math.round(rw * escala); cnv.height = Math.round(rh * escala);
     const ctx = cnv.getContext('2d', { willReadFrequently: true });
@@ -12461,10 +12459,69 @@ function mat_recorte() {
       px[i] = px[i + 1] = px[i + 2] = v;
     }
     ctx.putImageData(img, 0, 0);
-    return { cnv: cnv, conVehiculo: !!mejor };
+    return cnv;
   } catch (e) {
     return null;   // canvas «tainted» (CORS) u otro fallo: sin recorte
   }
+}
+
+/* Lista de recortes a probar, del más ceñido al más ancho. */
+function mat_recortes() {
+  const w = estado.video.w || 0, h = estado.video.h || 0;
+  if (!w || !h) return [];
+  const mejor = mat_vehiculoDelante();
+  const lista = [];
+  if (mejor) {
+    const c = mejor.caja;
+    // 1) Ceñido a la zona típica de la placa (centro-abajo del vehículo)
+    const ce = mat_recorteZona(c.x + c.an * 0.22, c.y + c.al * 0.60, c.an * 0.56, c.al * 0.32);
+    if (ce) lista.push({ cnv: ce, conVehiculo: true, zona: 'placa' });
+    // 2) Mitad inferior completa (por si la placa no está centrada)
+    const an = mat_recorteZona(c.x + c.an * 0.10, c.y + c.al * 0.50, c.an * 0.80, c.al * 0.50);
+    if (an) lista.push({ cnv: an, conVehiculo: true, zona: 'coche' });
+  } else {
+    // Sin track (coche pegado): banda central del frame
+    const ba = mat_recorteZona(w * 0.25, h * 0.45, w * 0.50, h * 0.40);
+    if (ba) lista.push({ cnv: ba, conVehiculo: false, zona: 'centro' });
+  }
+  return lista;
+}
+
+/* Compatibilidad: el recorte «bueno para el ojo humano» (el más ancho). */
+function mat_recorte() {
+  const lista = mat_recortes();
+  return lista.length ? lista[lista.length - 1] : null;
+}
+
+/* Saca una matrícula del texto del OCR, tolerando confusiones típicas
+ * (O↔0, I↔1, S↔5, B↔8, Z↔2…). Devuelve '' si no hay nada creíble. */
+function mat_candidata(crudo) {
+  const limpio = String(crudo || '').toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+  const n = limpio.match(MAT_RE_NUEVA);
+  const v = limpio.match(MAT_RE_VIEJA);
+  const directa = ((n && n[0]) || (v && v[0]) || '').replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+  if (directa) return directa;
+  // Rescate: ventana de 7 caracteres corrigiendo confusiones del OCR
+  const compacto = limpio.replace(/ /g, '');
+  const aDigito = { O: '0', Q: '0', D: '0', I: '1', L: '1', S: '5', B: '8', Z: '2', G: '6', T: '7' };
+  const aLetra = { 0: 'D', 8: 'B', 5: 'S', 2: 'Z', 6: 'G', 7: 'T', 1: 'L' };
+  for (let i = 0; i + 7 <= compacto.length; i++) {
+    let dig = '', let3 = '', vale = true;
+    for (let k = 0; k < 4 && vale; k++) {
+      const ch = compacto[i + k];
+      if (ch >= '0' && ch <= '9') dig += ch;
+      else if (aDigito[ch]) dig += aDigito[ch];
+      else vale = false;
+    }
+    for (let k = 4; k < 7 && vale; k++) {
+      let ch = compacto[i + k];
+      if (ch >= '0' && ch <= '9') ch = aLetra[ch] || '';
+      if (ch && 'BCDFGHJKLMNPRSTVWXYZ'.indexOf(ch) >= 0) let3 += ch;
+      else vale = false;
+    }
+    if (vale) return dig + ' ' + let3;
+  }
+  return '';
 }
 
 /* Carga Tesseract.js bajo demanda (una sola vez). Devuelve el global o null. */
@@ -12501,13 +12558,14 @@ async function mat_leer(manual) {
   const btn = document.getElementById('cop-btnMatricula');
   if (btn) { btn.disabled = true; btn.textContent = '📋 Leyendo…'; }
   try {
-    const rec = mat_recorte();
-    if (!rec) {
+    const recortes = mat_recortes();
+    if (!recortes.length) {
       if (manual) mat_toast('No se pudo capturar la imagen (¿la fuente de vídeo permite capturas?).', 'sospecha');
       return;
     }
 
     let matricula = '', crudo = '', sinOCR = false;
+    let recBueno = recortes[recortes.length - 1];   // el ancho: para el ojo humano
     const T = await mat_cargarOCR();
     if (T) {
       try {
@@ -12515,12 +12573,17 @@ async function mat_leer(manual) {
           m.worker = await T.createWorker('eng');
           await m.worker.setParameters({
             tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ- ',
+            tessedit_pageseg_mode: '6',   // bloque uniforme: mejor para placas
           });
         }
-        const r = await m.worker.recognize(rec.cnv);
-        crudo = String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
-        const n = crudo.match(MAT_RE_NUEVA), v = crudo.match(MAT_RE_VIEJA);
-        matricula = ((n && n[0]) || (v && v[0]) || '').replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
+        // Prueba del recorte más ceñido al más ancho: primero que acierte, gana.
+        for (let i = 0; i < recortes.length && !matricula; i++) {
+          const r = await m.worker.recognize(recortes[i].cnv);
+          const texto = String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
+          if (!crudo) crudo = texto;
+          const cand = mat_candidata(texto);
+          if (cand) { matricula = cand; recBueno = recortes[i]; crudo = texto; }
+        }
       } catch (e) { crudo = ''; }
     } else {
       sinOCR = true;
@@ -12529,7 +12592,7 @@ async function mat_leer(manual) {
     if (matricula) mat_guardarLectura(matricula, !!manual);
 
     if (manual) {
-      mat_mostrar(rec, matricula, crudo, sinOCR);
+      mat_mostrar(recBueno, matricula, crudo, sinOCR);
     } else if (matricula) {
       mat_toast('📋 Matrícula leída tras el golpe: ' + matricula + ' (guardada en la bitácora).', 'info');
     }
@@ -12578,11 +12641,14 @@ function mat_mostrar(rec, matricula, crudo, sinOCR) {
   const detalle = document.createElement('p');
   detalle.className = 'etiqueta';
   detalle.style.cssText = 'text-align:center;margin:0 0 8px;';
+  const esArchivo = (typeof location !== 'undefined' && location.protocol === 'file:');
   detalle.textContent = sinOCR
-    ? 'El lector OCR no está disponible (necesita internet la primera vez). Lee la placa en la imagen de arriba.'
+    ? (esArchivo
+      ? 'El lector OCR no funciona abriendo la app como archivo suelto: súbela a tu web (los 5 archivos) y sí leerá. Mientras, lee la placa en la imagen de arriba.'
+      : 'El lector OCR no está disponible (necesita internet la primera vez). Lee la placa en la imagen de arriba.')
     : (matricula
       ? (rec.conVehiculo ? 'Leída del vehículo de delante.' : 'Leída de la zona central de la imagen.')
-      : (crudo ? ('El OCR vio: «' + crudo.slice(0, 40) + '». Lee la placa en la imagen.') : 'Acércate o espera a que la placa se vea nítida y vuelve a probar.'));
+      : (crudo ? ('El OCR vio: «' + crudo.slice(0, 40) + '». Lee la placa en la imagen.') : 'Acércate (que la placa ocupe buena parte de la imagen), evita contraluz y vuelve a probar.'));
   cuerpo.appendChild(detalle);
 
   const legal = document.createElement('p');
