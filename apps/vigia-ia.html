@@ -1451,11 +1451,14 @@ h1, h2, h3, p { margin: 0; }
     <div class="campo">
       <label for="cfg-sabotajeModo">Anti-sabotaje según tu cámara</label>
       <select id="cfg-sabotajeModo" data-cfg="sabotajeModo">
-        <option value="completo">Cámara FIJA — vigilar tapada Y encuadre movido</option>
-        <option value="oscuro">Cámara MÓVIL (PTZ/patrulla) — solo vigilar tapada</option>
+        <option value="oscuro">Solo vigilar cámara TAPADA/negra (recomendado)</option>
+        <option value="completo">Cámara FIJA de local — vigilar tapada Y encuadre movido</option>
         <option value="off">Desactivado</option>
       </select>
-      <p class="etiqueta">Si tu cámara se mueve sola (PTZ, barridos) o analizas vídeos grabados de cámaras que se mueven, elige «Cámara MÓVIL»: el encuadre cambia por diseño y avisar de ello sería un falso constante. La alerta de cámara tapada/negra sigue activa.</p>
+      <p class="etiqueta">El aviso de «encuadre cambiado» solo tiene sentido con una cámara FIJA
+      atornillada en un local (detecta que alguien la gire). Con el móvil en la mano, en el coche
+      o con cámaras que se mueven es un falso constante, por eso ya no viene activado. En modo
+      coche/carretera queda desactivado siempre, elijas lo que elijas.</p>
     </div>
 
     <div class="campo">
@@ -1710,7 +1713,7 @@ const CFG_DEFECTOS = {
   ruidoOn: false,
   ruidoNivel: 80,
   sabotajeSens: 60,
-  sabotajeModo: 'completo', // 'completo' | 'oscuro' (solo cámara tapada; para PTZ/cámaras que se mueven) | 'off'
+  sabotajeModo: 'oscuro',   // 'oscuro' (solo cámara tapada — por defecto: el aviso de encuadre era un falso constante con cámaras móviles) | 'completo' | 'off'
   privacidad: false,
   clipSospecha: true,
   alertaCooldownSeg: 30,
@@ -1966,6 +1969,16 @@ function nuc_init() {
   const guardada = nuc_cargar('cfg', null);
   if (guardada && typeof guardada === 'object') {
     estado.cfg = Object.assign({}, CFG_DEFECTOS, guardada);
+  }
+  // Migración única: el aviso de «encuadre cambiado» era un falso constante
+  // con cámaras que se mueven → pasa a 'oscuro' (solo cámara tapada) también
+  // en configuraciones ya guardadas. Cámara fija: se reactiva en Ajustes.
+  if (!nuc_cargar('migr_sabotaje_v2', false)) {
+    nuc_guardar('migr_sabotaje_v2', true);
+    if (estado.cfg.sabotajeModo === 'completo') {
+      estado.cfg.sabotajeModo = 'oscuro';
+      if (guardada) nuc_guardar('cfg', estado.cfg);
+    }
   }
   estado.zonas = nuc_cargar('zonas', []);
   estado.lineas = nuc_cargar('lineas', []);
@@ -4381,7 +4394,12 @@ function vid_vigilarSabotaje(ts) {
   // Modo del anti-sabotaje: 'off' = nada; 'oscuro' = SOLO cámara tapada/negra
   // (para cámaras PTZ o de patrulla, cuyo encuadre cambia por diseño y haría
   // saltar el aviso de "encuadre cambiado" sin razón). 'completo' = todo.
-  const sabModo = estado.cfg.sabotajeModo || 'completo';
+  let sabModo = estado.cfg.sabotajeModo || 'oscuro';
+  // En el coche la cámara SIEMPRE se mueve: el aviso de encuadre queda
+  // imposible en copiloto/carretera aunque el modo guardado sea 'completo'.
+  if (sabModo === 'completo' && (estado.cfg.copActivo || estado.cfg.modo === 'carretera')) {
+    sabModo = 'oscuro';
+  }
   if (sabModo === 'off') { v.sabRef = null; return; }
 
   if (!estado.video.listo || !v.fuenteEl) { v.sabRef = null; return; }

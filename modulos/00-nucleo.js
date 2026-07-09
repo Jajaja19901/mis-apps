@@ -79,7 +79,7 @@ const CFG_DEFECTOS = {
   ruidoOn: false,
   ruidoNivel: 80,
   sabotajeSens: 60,
-  sabotajeModo: 'completo', // 'completo' | 'oscuro' (solo cámara tapada; para PTZ/cámaras que se mueven) | 'off'
+  sabotajeModo: 'oscuro',   // 'oscuro' (solo cámara tapada — por defecto: el aviso de encuadre era un falso constante con cámaras móviles) | 'completo' | 'off'
   privacidad: false,
   clipSospecha: true,
   alertaCooldownSeg: 30,
@@ -335,6 +335,16 @@ function nuc_init() {
   const guardada = nuc_cargar('cfg', null);
   if (guardada && typeof guardada === 'object') {
     estado.cfg = Object.assign({}, CFG_DEFECTOS, guardada);
+  }
+  // Migración única: el aviso de «encuadre cambiado» era un falso constante
+  // con cámaras que se mueven → pasa a 'oscuro' (solo cámara tapada) también
+  // en configuraciones ya guardadas. Cámara fija: se reactiva en Ajustes.
+  if (!nuc_cargar('migr_sabotaje_v2', false)) {
+    nuc_guardar('migr_sabotaje_v2', true);
+    if (estado.cfg.sabotajeModo === 'completo') {
+      estado.cfg.sabotajeModo = 'oscuro';
+      if (guardada) nuc_guardar('cfg', estado.cfg);
+    }
   }
   estado.zonas = nuc_cargar('zonas', []);
   estado.lineas = nuc_cargar('lineas', []);

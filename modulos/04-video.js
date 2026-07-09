@@ -897,7 +897,12 @@ function vid_vigilarSabotaje(ts) {
   // Modo del anti-sabotaje: 'off' = nada; 'oscuro' = SOLO cámara tapada/negra
   // (para cámaras PTZ o de patrulla, cuyo encuadre cambia por diseño y haría
   // saltar el aviso de "encuadre cambiado" sin razón). 'completo' = todo.
-  const sabModo = estado.cfg.sabotajeModo || 'completo';
+  let sabModo = estado.cfg.sabotajeModo || 'oscuro';
+  // En el coche la cámara SIEMPRE se mueve: el aviso de encuadre queda
+  // imposible en copiloto/carretera aunque el modo guardado sea 'completo'.
+  if (sabModo === 'completo' && (estado.cfg.copActivo || estado.cfg.modo === 'carretera')) {
+    sabModo = 'oscuro';
+  }
   if (sabModo === 'off') { v.sabRef = null; return; }
 
   if (!estado.video.listo || !v.fuenteEl) { v.sabRef = null; return; }
