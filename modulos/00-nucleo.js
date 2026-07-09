@@ -47,6 +47,7 @@ const CFG_DEFECTOS = {
   copAutoTrayecto: true,    // iniciar trayecto solo al pasar de 15 km/h
   copFatiga: true,          // aviso de descanso cada 2 h de trayecto
   copSonido: true,          // pitido + vibración con los avisos FRENA/PEATÓN
+  matAuto: true,            // leer la matrícula sola tras un golpe (caja negra)
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
   resolucion: '720',        // '480' | '720' | '1080'

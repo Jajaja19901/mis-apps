@@ -28,6 +28,7 @@ async function app_init() {
     if (typeof det_init === 'function') det_init();
     if (typeof cop_init === 'function') cop_init();
     if (typeof acc_init === 'function') acc_init();   // acciones avanzadas
+    if (typeof mat_init === 'function') mat_init();   // matrícula (evidencia)
     // Supercerebro (ONNX-YOLO11): init siempre; si era el motor elegido,
     // reactiva el modelo guardado (desde la caché, sin re-descargar).
     if (typeof sc_init === 'function') {
