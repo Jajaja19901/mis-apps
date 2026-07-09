@@ -710,8 +710,20 @@ function cfg_conectarBotones() {
     if (grupoOnnx) grupoOnnx.classList.toggle('oculto', estado.cfg.motor !== 'onnx');
     const b = $('cfg-scBackend');
     if (b) b.textContent = (estado.sc && estado.sc.backend) ? estado.sc.backend.toUpperCase() : '—';
+    // Chivato del motor potente: ¿corre en hilo aparte (fluido) o no?
+    const est = $('cfg-yoloEstado');
+    if (est) {
+      const y = estado.yolo;
+      if (!y || !y.listo) est.textContent = y && y.cargando ? '⏳ Cargando el motor potente…' : '';
+      else est.textContent = y.workerListo
+        ? '✅ Corre en un hilo aparte: NO traba la aplicación.'
+        : '⚠ Corre en el hilo principal: puede dar tirones (este navegador no permite el hilo aparte).';
+    }
   };
   cfg_mostrarMotor();
+  if (typeof bus !== 'undefined' && bus.on) bus.on('modelos:listos', function () { cfg_mostrarMotor(); });
+  const verApp = $('cfg-version');
+  if (verApp && typeof CONFIG !== 'undefined') verApp.textContent = 'v' + (CONFIG.VERSION || '?');
   if (selMotor) selMotor.addEventListener('change', function () {
     cfg_mostrarMotor();
     if (selMotor.value === 'yolo') {

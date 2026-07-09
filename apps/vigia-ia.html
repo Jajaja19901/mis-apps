@@ -1148,6 +1148,7 @@ h1, h2, h3, p { margin: 0; }
     </div>
 
     <div id="cfg-grupoYolo" class="oculto">
+      <p class="etiqueta" id="cfg-yoloEstado"></p>
       <div class="fila">
         <div class="campo">
           <label for="cfg-yoloModelo">Modelo potente</label>
@@ -1448,6 +1449,10 @@ h1, h2, h3, p { margin: 0; }
   <details class="tarjeta cfg-sec" id="cfg-secSistema">
     <summary class="sec-titulo">Sistema</summary>
 
+    <p class="etiqueta">Versión de la app: <b id="cfg-version">—</b> · Si pides un arreglo y no
+    lo notas, comprueba aquí que estás abriendo el archivo nuevo (el navegador o la PWA a veces
+    guardan el viejo en caché).</p>
+
     <div class="campo">
       <label for="cfg-sabotajeModo">Anti-sabotaje según tu cámara</label>
       <select id="cfg-sabotajeModo" data-cfg="sabotajeModo">
@@ -1645,7 +1650,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '2.0',
+  VERSION: '3.1',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -7448,8 +7453,20 @@ function cfg_conectarBotones() {
     if (grupoOnnx) grupoOnnx.classList.toggle('oculto', estado.cfg.motor !== 'onnx');
     const b = $('cfg-scBackend');
     if (b) b.textContent = (estado.sc && estado.sc.backend) ? estado.sc.backend.toUpperCase() : '—';
+    // Chivato del motor potente: ¿corre en hilo aparte (fluido) o no?
+    const est = $('cfg-yoloEstado');
+    if (est) {
+      const y = estado.yolo;
+      if (!y || !y.listo) est.textContent = y && y.cargando ? '⏳ Cargando el motor potente…' : '';
+      else est.textContent = y.workerListo
+        ? '✅ Corre en un hilo aparte: NO traba la aplicación.'
+        : '⚠ Corre en el hilo principal: puede dar tirones (este navegador no permite el hilo aparte).';
+    }
   };
   cfg_mostrarMotor();
+  if (typeof bus !== 'undefined' && bus.on) bus.on('modelos:listos', function () { cfg_mostrarMotor(); });
+  const verApp = $('cfg-version');
+  if (verApp && typeof CONFIG !== 'undefined') verApp.textContent = 'v' + (CONFIG.VERSION || '?');
   if (selMotor) selMotor.addEventListener('change', function () {
     cfg_mostrarMotor();
     if (selMotor.value === 'yolo') {
