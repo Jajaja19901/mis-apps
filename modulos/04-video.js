@@ -12,7 +12,7 @@
  * ==========================================================================*/
 
 /* --- Constantes -----------------------------------------------------------*/
-const VID_ANCHO_TOPE = 1280;          // tope de ancho del espacio de frame
+const VID_ANCHO_TOPE = 1920;          // tope de ancho del espacio de frame (1080p real)
 const VID_BUFFER_TROZOS = 10;         // trozos de ~1s conservados como pre-evidencia
 const VID_EVENTO_MS = 20000;          // se sigue grabando 20s tras el disparo
 const VID_EVENTO_MAX_TROZOS = 90;     // tope duro del buffer durante un evento (~90s)
@@ -104,7 +104,10 @@ async function vid_usarCamara() {
     // Si el dueño eligió una LENTE concreta (deviceId), la pedimos exacta —
     // así se evita que el navegador coja la gran angular (mala para detectar).
     // Si no, caemos al lado (frontal/trasera) genérico.
-    const vconstr = { width: { ideal: res.w }, height: { ideal: res.h } };
+    const vconstr = {
+      width: { ideal: res.w }, height: { ideal: res.h },
+      frameRate: { ideal: 30 },   // fluidez del visor (la IA va por su cuenta)
+    };
     if (estado.cfg.camaraId) vconstr.deviceId = { exact: estado.cfg.camaraId };
     else vconstr.facingMode = estado.cfg.camara;
     let stream;
@@ -619,7 +622,9 @@ function vid_componer() {
       let cf = v.cnvFuente;
       if (!cf) { cf = document.createElement('canvas'); cf.id = 'vid-fuenteEscalada'; v.cnvFuente = cf; }
       if (cf.width !== dims.w || cf.height !== dims.h) { cf.width = dims.w; cf.height = dims.h; }
-      cf.getContext('2d').drawImage(el, 0, 0, dims.w, dims.h);
+      const cctx = cf.getContext('2d');
+      cctx.imageSmoothingEnabled = true; cctx.imageSmoothingQuality = 'high';
+      cctx.drawImage(el, 0, 0, dims.w, dims.h);
       ctx.drawImage(cf, 0, 0);
     } else {
       ctx.drawImage(el, 0, 0, dims.w, dims.h);
