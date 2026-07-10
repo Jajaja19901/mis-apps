@@ -1,0 +1,126 @@
+════════════════════════════════════════════════════════════════════
+   VIGÍA IA — GUÍA COMPLETA DE MONTAJE (para que funcione y no se trabe)
+════════════════════════════════════════════════════════════════════
+
+Hay 3 partes. La PARTE 1 es OBLIGATORIA y hace que la app funcione entera.
+Las PARTES 2 y 3 son OPCIONALES: solo si quieres dashcam o descarga sin
+depender de internet. No hacen falta para que la app vaya bien.
+
+Antes de nada, comprueba la versión: Ajustes → Sistema → debe poner v3.4 o
+superior. Si no, estás abriendo una copia vieja (borra caché / vuelve a subir).
+
+
+────────────────────────────────────────────────────────────────────
+PARTE 1 · QUE NO SE TRABE  (obligatoria, 1 minuto, sin nada extra)
+────────────────────────────────────────────────────────────────────
+
+Esto es lo ÚNICO que de verdad quita los tirones. Los tirones dependen de la
+potencia del móvil, NO de Termux ni de dónde estén los modelos.
+
+  1. Abre la app.
+  2. Ajustes → Detección → pulsa «⚡ OPTIMIZAR PARA MI MÓVIL».
+     → La app mide tu teléfono y deja el motor y la calidad que mejor le van.
+     → Activa solo el «Ahorro de energía» y el «Monitor de rendimiento».
+  3. Vuelve a la pantalla principal y activa la cámara.
+  4. Mira el recuadro del monitor (arriba a la izquierda del vídeo):
+       • FLUIDEZ en verde  → va fino.
+       • FLUIDEZ en rojo ⚠ → algo lo traba: baja el motor (ver abajo).
+       • ANÁLISIS IA: los milisegundos que tarda cada análisis.
+
+  Si aún se traba con el motor «Potente»:
+     → En un Samsung S22, el mejor es el 🧠 SUPERCEREBRO (usa la GPU, no
+       ahoga el móvil): Ajustes → Detección → Motor «Supercerebro» → elige
+       «Rápido — YOLO11n» → «Descargar y activar» → luego «Benchmark».
+     → Para vigilancia de tienda normal, el motor «Básico» va fluido en
+       CUALQUIER móvil. Solo necesitas los potentes si «detecta poco».
+
+
+────────────────────────────────────────────────────────────────────
+PARTE 2 · DASHCAM POR TERMUX  (opcional — solo si usas cámara RTSP)
+────────────────────────────────────────────────────────────────────
+
+Esto NO es para que vaya más rápido. Es solo para meter en la app la imagen
+de una dashcam / cámara de vigilancia RTSP en vez de la cámara del móvil.
+Si usas la cámara del propio móvil, SÁLTATE esta parte entera.
+
+La app ya trae esta guía con botones de copiar:
+   Ajustes → Fuente de vídeo → Dashcam → «📖 Guía: conectar mi dashcam».
+
+Resumen de los pasos (cópialos desde la app, es más cómodo):
+
+  1. Conecta el móvil al WiFi de la dashcam (NO quites los datos móviles:
+     hacen falta para las alertas de Telegram).
+
+  2. Averigua la URL RTSP de tu cámara con VLC → «Abrir ubicación de red»:
+        rtsp://192.168.1.254/liveRTSP/av4      (prueba esta primero)
+        rtsp://192.168.1.254/xxx.mov
+     Apunta la que te dé imagen.
+
+  3. Instala TERMUX (desde F-Droid, NO desde Play Store) y pega por bloques:
+
+     a) Descargar go2rtc:
+        pkg update -y && pkg install wget -y
+        mkdir -p ~/vigia && cd ~/vigia
+        wget -O go2rtc https://github.com/AlexxIT/go2rtc/releases/latest/download/go2rtc_linux_arm64
+        chmod +x go2rtc
+
+     b) Crear la configuración (cambia la URL si la tuya es distinta):
+        cat > ~/vigia/go2rtc.yaml <<'EOF'
+        api:
+          listen: ":1984"
+          origin: "*"
+        streams:
+          dashcam: rtsp://192.168.1.254/liveRTSP/av4
+        EOF
+
+     c) Arrancarlo:
+        cd ~/vigia && ./go2rtc
+
+  4. En VIGÍA: Fuente = Dashcam → «Probar conexión» → «Conectar dashcam».
+     La URL que espera la app es:  http://localhost:1984/api/stream.mjpeg?src=dashcam
+
+  AVISOS honestos:
+   • Cierra la app de la dashcam (TiCam) antes: muchas no dejan ver el stream
+     a la vez que otra app.
+   • La calidad por WiFi es MENOR que la grabación en la tarjeta SD. La SD
+     sigue siendo la grabación buena; VIGÍA hace el análisis y los avisos.
+   • Si ves el vídeo pero dice «no se puede analizar», te falta el
+     origin: "*" del bloque (b).
+
+
+────────────────────────────────────────────────────────────────────
+PARTE 3 · ALOJAR EL CEREBRO EN TU WEB / GITHUB  (opcional)
+────────────────────────────────────────────────────────────────────
+
+Esto NO acelera la detección (eso lo pone el móvil). Solo hace que el modelo
+se DESCARGUE más rápido la primera vez y que funcione sin depender de
+Hugging Face (útil si quieres que arranque sin conexión).
+Una vez descargado, el modelo queda guardado en el móvil y ni se vuelve a bajar.
+
+  1. Descarga los 3 modelos (renómbralos como se indica):
+        yolo11n.onnx  ←  https://huggingface.co/onnx-community/yolo11n/resolve/main/onnx/model.onnx
+        yolo11s.onnx  ←  https://huggingface.co/onnx-community/yolo11s/resolve/main/onnx/model.onnx
+        yolo11m.onnx  ←  https://huggingface.co/onnx-community/yolo11m/resolve/main/onnx/model.onnx
+
+  2. Súbelos a una carpeta de tu web (Cloudflare Pages o GitHub Pages),
+     junto a la app o en una subcarpeta «modelos».
+        • GitHub Pages: límite 100 MB por archivo → los 3 entran (el mayor
+          pesa ~77 MB). Aún más rápido si los sirves por jsDelivr:
+          https://cdn.jsdelivr.net/gh/TU-USUARIO/TU-REPO@main/modelos/
+
+  3. En VIGÍA: Ajustes → Detección → Motor «Supercerebro» →
+     «Avanzado: alojar los modelos en tu web/GitHub» →
+     pega la dirección de tu carpeta (ej: https://tu-web.pages.dev/modelos/)
+     → pulsa «Aplicar» → luego «⬇ Descargar y activar».
+
+  Para volver a Hugging Face: borra los 3 campos de URL.
+
+
+────────────────────────────────────────────────────────────────────
+RESUMEN EN UNA LÍNEA
+────────────────────────────────────────────────────────────────────
+  • ¿Se traba?         → PARTE 1 (botón Optimizar). Es lo único que lo arregla.
+  • ¿Cámara dashcam?   → PARTE 2 (Termux). Da IMAGEN, no velocidad.
+  • ¿Descarga/offline? → PARTE 3 (tu web). Da descarga rápida, no velocidad.
+
+Diseñado por Incuba tu Negocio · por Jaime M. M.
