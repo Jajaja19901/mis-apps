@@ -397,6 +397,11 @@ async function sc_detectar(fuente) {
     const dets = sc_decodificar(primera.data, primera.dims, pre.lb, umbral, w, h);
     const ms = performance.now() - t0;
     s.msMedia = s.msMedia ? (s.msMedia * 0.85 + ms * 0.15) : ms;
+    // Tiempo medio POR MODELO (media móvil): el guardarraíl en vivo lo usa
+    // para bajar de modelo si ESTE móvil no puede con el elegido.
+    if (!s.msPor) { s.msPor = {}; s.msPorN = {}; }
+    s.msPor[clave] = s.msPor[clave] ? (s.msPor[clave] * 0.8 + ms * 0.2) : ms;
+    s.msPorN[clave] = (s.msPorN[clave] || 0) + 1;
     return dets;
   } catch (e) {
     console.warn('[supercerebro] fallo en inferencia:', e && e.message);
@@ -423,6 +428,49 @@ function sc_claveEfectiva() {
         else if (s.sesiones.n) clave = 'n';
       }
     } catch (e) { /* sin benchmark: se queda como estaba */ }
+    clave = sc_guardarrailVivo(clave);
+  }
+  return clave;
+}
+
+/* GUARDARRAÍL EN VIVO (sin benchmark manual): si el modelo elegido va MEDIDO
+ * a >300 ms por análisis (~<3 FPS) en ESTE móvil tras ≥8 inferencias reales,
+ * baja solo al hermano menor (m→s→n). La propia conducción es el benchmark.
+ * Si el menor no está cargado aún, se descarga en segundo plano y se cambia
+ * en cuanto está. Con «forzar grande», no actúa (decisión del dueño). */
+const SC_GUARDA_MS = 300;      // >300 ms medios = ese modelo NO vale para conducir
+const SC_GUARDA_MUESTRAS = 8;  // mínimo de inferencias reales antes de juzgar
+function sc_guardarrailVivo(clave) {
+  const s = estado.sc;
+  if (!s || !s.msPor) return clave;
+  const orden = ['n', 's', 'm'];
+  let idx = orden.indexOf(clave);
+  while (idx > 0
+         && (s.msPorN[orden[idx]] || 0) >= SC_GUARDA_MUESTRAS
+         && s.msPor[orden[idx]] > SC_GUARDA_MS) {
+    const menor = orden[idx - 1];
+    if (s.sesiones[menor]) {
+      clave = menor; idx--;
+      if (s.avisoGuarda !== menor) {
+        s.avisoGuarda = menor;
+        if (typeof ui_toast === 'function') {
+          try {
+            ui_toast('⚡ Este móvil no puede con el modelo grande (iba a ' +
+              Math.round(1000 / s.msPor[orden[idx + 1]]) + ' FPS). Cambiado solo a «' +
+              (SC_MODELOS[menor] ? SC_MODELOS[menor].nombre : menor) + '» para que el copiloto reaccione a tiempo.', 'info');
+          } catch (e) {}
+        }
+      }
+    } else {
+      // El menor no está cargado: descargarlo en segundo plano y, mientras,
+      // seguir con el actual (mejor lento que ciego).
+      if (!s.cargandoGuarda) {
+        s.cargandoGuarda = true;
+        Promise.resolve(sc_cargarModelo(menor)).catch(function () {})
+          .finally(function () { s.cargandoGuarda = false; });
+      }
+      break;
+    }
   }
   return clave;
 }
