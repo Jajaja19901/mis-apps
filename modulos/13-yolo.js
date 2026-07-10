@@ -27,7 +27,7 @@ function yolo_estado() {
     estado.yolo = { detector: null, RawImage: null, listo: false, cargando: false,
                     error: '', modelo: '', cnv: null, avisado: false,
                     worker: null, workerListo: false, pendientes: {}, sigId: 1,
-                    tiempos: [], avisoLento: false, autoRebajado: false };
+                    tiempos: [], avisoLento: false, autoRebajado: false, avisoGpu: false };
   }
   return estado.yolo;
 }
@@ -230,6 +230,21 @@ function yolo_vigilarLentitud(ms) {
   if (y.tiempos.length < 5) return;
   const orden = y.tiempos.slice().sort((a, b) => a - b);
   const mediana = orden[Math.floor(orden.length / 2)];
+
+  // Ahogo GRAVE (>4 s) con GPU disponible: el motor Potente va por CPU y aquí
+  // es inviable. Se sugiere UNA vez cambiar al Supercerebro (usa la GPU/WebGPU,
+  // ~50× más rápido). No cambia solo (hay que descargar el modelo), pero avisa
+  // muy claro para sacar al dueño de la trampa.
+  let hayGpu = false;
+  try { hayGpu = !!(navigator.gpu); } catch (e) {}
+  if (mediana > 4000 && hayGpu && !y.avisoGpu) {
+    y.avisoGpu = true;
+    if (typeof ui_toast === 'function') {
+      try { ui_toast('⚠ El motor «Potente» va MUY lento aquí (~' + Math.round(mediana / 1000) +
+        's/análisis) porque usa el procesador. Tu móvil tiene GPU: cambia a 🧠 Supercerebro en ' +
+        'Ajustes → Detección → Motor. Va ~50 veces más rápido y no se traba.', 'sospecha'); } catch (e) {}
+    }
+  }
 
   // Ahogo real: cambio automático al ligero (una sola vez por sesión).
   if (mediana > YOLO_AHOGO_MS && !y.autoRebajado &&
