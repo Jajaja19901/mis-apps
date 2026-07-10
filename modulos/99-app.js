@@ -117,8 +117,12 @@ function app_ciclo(tsAnim) {
     //    el siguiente análisis espera 1.5× lo que tardó el anterior. Sin esto,
     //    los análisis salen pegados, la CPU va al 100% sostenido, el móvil se
     //    calienta y el teléfono ENTERO se arrastra.
+    //    Con WebGPU el 1.5× castiga de más: msInferencia es tiempo de RELOJ y
+    //    la mayor parte es espera asíncrona de la GPU, no hilo principal →
+    //    factor 1.1 (la red térmica de sc_vigilar sigue vigilando por detrás).
+    const enGpu = estado.cfg.motor === 'onnx' && estado.sc && estado.sc.backend === 'webgpu';
     const intervalo = 1000 / app_fpsObjetivo();
-    const descanso = Math.max(intervalo, (estado.video.msInferencia || 0) * 1.5);
+    const descanso = Math.max(intervalo, (estado.video.msInferencia || 0) * (enGpu ? 1.1 : 1.5));
     if (!app_ocupado && nuc_modeloListo() && estado.video.listo &&
         (ahora - app_ultimaInferencia) >= descanso) {
       app_ocupado = true;

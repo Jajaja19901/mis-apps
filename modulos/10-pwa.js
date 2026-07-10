@@ -338,7 +338,19 @@ function pwa_generarIcono(tamaño) {
   }
 }
 
-/* ---- Wake Lock: mantener pantalla encendida ---------------------------------*/
+/* ---- Wake Lock: mantener pantalla encendida ---------------------------------
+ * OJO con el ciclo de vida: el navegador SUELTA el lock solo (al cambiar de
+ * app, al apagarse la pantalla…) sin avisar más que por el evento 'release'.
+ * Si no se escucha ese evento, el sentinel viejo se queda en la variable, la
+ * re-adquisición cree que "ya hay lock" y NO vuelve a pedirlo: la pantalla se
+ * apaga a mitad de trayecto y la dashcam muere en silencio. Por eso:
+ *   1) cada lock lleva su listener de 'release' que deja la variable a null;
+ *   2) al volver la página a visible se re-pide si no hay lock VIVO;
+ *   3) pwa_wlQuerido recuerda si el dueño lo quiere activo (para no re-pedir
+ *      uno que se soltó adrede con pwa_wakeLock(false)). */
+let pwa_wlQuerido = false;
+let pwa_wlVizRegistrado = false;
+
 async function pwa_wakeLock(on) {
   try {
     if (!navigator.wakeLock) {
@@ -355,26 +367,18 @@ async function pwa_wakeLock(on) {
       return;
     }
 
+    pwa_wlQuerido = !!on;
     if (on) {
-      try {
-        estado.pwa.wakeLock = await navigator.wakeLock.request('screen');
-        /* Re-adquirir si vuelve a ser visible */
-        const manejadorVisibilidad = () => {
+      await pwa_wlPedir();
+      if (!pwa_wlVizRegistrado) {
+        pwa_wlVizRegistrado = true;
+        document.addEventListener('visibilitychange', () => {
           try {
-            if (document.visibilityState === 'visible' && estado.pwa.wakeLock === null) {
-              navigator.wakeLock.request('screen').then((lock) => {
-                estado.pwa.wakeLock = lock;
-              }).catch(() => {});
+            if (document.visibilityState === 'visible' && pwa_wlQuerido && !estado.pwa.wakeLock) {
+              pwa_wlPedir();
             }
-          } catch (e) {}
-        };
-        if (!document.getElementById('pwa_vizListenerRegistrado')) {
-          document.addEventListener('visibilitychange', manejadorVisibilidad);
-          document.id = 'pwa_vizListenerRegistrado';
-        }
-      } catch (e) {
-        console.warn('[pwa] error pidiendo wake lock:', e && e.message);
-        estado.pwa.wakeLock = null;
+          } catch (e) { /* nunca rompe */ }
+        });
       }
     } else {
       if (estado.pwa.wakeLock) {
@@ -388,5 +392,21 @@ async function pwa_wakeLock(on) {
     }
   } catch (e) {
     console.warn('[pwa] error en pwa_wakeLock:', e && e.message);
+  }
+}
+
+/* Pide el lock y le engancha el listener de 'release' (ver nota de arriba). */
+async function pwa_wlPedir() {
+  try {
+    const lock = await navigator.wakeLock.request('screen');
+    estado.pwa.wakeLock = lock;
+    lock.addEventListener('release', () => {
+      if (estado.pwa.wakeLock === lock) estado.pwa.wakeLock = null;
+    });
+    return true;
+  } catch (e) {
+    console.warn('[pwa] error pidiendo wake lock:', e && e.message);
+    estado.pwa.wakeLock = null;
+    return false;
   }
 }
