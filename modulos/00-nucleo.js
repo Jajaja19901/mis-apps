@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.34',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.35',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -172,44 +172,66 @@ function nuc_usoAlmacenMB() {
   } catch (e) { return 0; }
 }
 
-/* --- Auto-actualización: fetch remoto de versión y recarga agresiva --------*/
+/* --- Auto-actualización: fetch INMEDIATO al abrir (no espera 5 min) --------*/
 function nuc_detectorVersiones() {
   try {
     const verLocal = nuc_cargar('version_cargada', '');
     const verActual = CONFIG.VERSION || '?';
 
-    // 1) Guarda la versión actual en localStorage
+    // Guarda la versión actual
     if (verLocal !== verActual) {
-      console.info('[versión] cambio detectado: ' + verLocal + ' → ' + verActual);
+      console.info('[versión] local: ' + verLocal + ' → actual: ' + verActual);
       nuc_guardar('version_cargada', verActual);
     }
 
-    // 2) Fetch agresivo de versión remota (sin caché, cada 5 minutos máximo)
-    nuc_checkVersionRemota();
-  } catch (e) { console.warn('[versión] error en detector:', e && e.message); }
+    // Fetch INMEDIATO al abrir (no esperar 5 minutos)
+    nuc_checkVersionRemota(true);  // true = fetch AHORA
+  } catch (e) { console.warn('[versión] error:', e && e.message); }
 }
 
-function nuc_checkVersionRemota() {
+function nuc_checkVersionRemota(fetchAhora) {
   try {
     const ahora = Date.now();
     const ultCheck = nuc_cargar('version_check_ts', 0);
-    if (ahora - ultCheck < 300000) return;  // solo cada 5 min
-    nuc_guardar('version_check_ts', ahora);
 
+    // Fetch INMEDIATO si es la primera carga, después cada 5 minutos
+    const debeChequear = fetchAhora || (ahora - ultCheck > 300000);
+    if (!debeChequear) return;
+
+    nuc_guardar('version_check_ts', ahora);
     const urlActual = window.location.href.split('#')[0].split('?')[0];
-    fetch(urlActual + '?_v=' + ahora, { cache: 'no-store' })
-      .then(resp => { if (resp.ok) return resp.text(); })
+
+    // Headers agresivos anti-caché
+    const opcionesFetch = {
+      cache: 'no-store',
+      method: 'GET',
+      headers: {
+        'pragma': 'no-cache',
+        'cache-control': 'no-cache, no-store, must-revalidate',
+      }
+    };
+
+    fetch(urlActual + '?_nocache=' + ahora, opcionesFetch)
+      .then(resp => {
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        return resp.text();
+      })
       .then(html => {
-        if (!html) return;
+        if (!html || html.length < 100) return;  // contenido muy pequeño: timeout/error
         const m = html.match(/VERSION:\s*['"]([^'"]+)['"]/);
         const verRemota = m ? m[1] : null;
         if (verRemota && verRemota !== CONFIG.VERSION) {
-          console.info('[actualización] recargando nueva versión: ' + verRemota);
-          setTimeout(() => window.location.reload(true), 500);
+          console.warn('[versión] remota: ' + verRemota + ' · local: ' + CONFIG.VERSION + ' → RECARGANDO');
+          // Recarga YA (no espera 500ms)
+          window.location.reload(true);
+        } else if (verRemota) {
+          console.info('[versión] está al día: ' + verRemota);
         }
       })
-      .catch(e => { /* sin internet: ok */ });
-  } catch (e) { /* sin drama */ }
+      .catch(e => {
+        console.debug('[versión] check falló (sin internet/timeout):', e && e.message);
+      });
+  } catch (e) { /* error fatal: no rompe */ }
 }
 
 /* --- Geometría y varios -----------------------------------------------------*/
