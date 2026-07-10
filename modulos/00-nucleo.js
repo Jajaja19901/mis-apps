@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.4',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.5',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -50,6 +50,7 @@ const CFG_DEFECTOS = {
   matAuto: true,            // leer la matrícula sola tras un golpe (caja negra)
   ahorroEnergia: true,      // sin movimiento 3s → baja a 2 fps (vuelve solo al instante)
   monitorRend: false,       // monitor de rendimiento en vivo sobre el vídeo
+  modoNoche: 'auto',        // 🌙 realce de imagen oscura antes de detectar: 'off'|'auto'|'on'
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
   resolucion: '720',        // '480' | '720' | '1080'
@@ -303,20 +304,88 @@ function nuc_frameAnalisis(fuente) {
   }
 }
 
+/* --- 🌙 MODO NOCHE: realce de imagen oscura ANTES de detectar ----------------
+ * Con poca luz los modelos detectan fatal (una persona en penumbra puntúa muy
+ * bajo). Aquí, si la escena está oscura, se hace UNA copia con más brillo y
+ * contraste y esa copia es la que ven TODOS los motores — así detectan mucho
+ * más de noche. Lo que se ve y se graba NO se toca (la evidencia va tal cual).
+ * Geometría segura: todos los motores escalan las cajas con estado.video.w/h y
+ * drawImage estira, así que da igual el tamaño de esta copia. */
+const NUC_NOCHE_UMBRAL = 95;    // luz media (0-255) por debajo → realza (modo auto)
+let nuc_cnvLuz = null, nuc_luzVal = 140;
+let nuc_cnvNoche = null;
+
+/* Luz media de la escena (muestra minúscula 16×12, coste ~0). */
+function nuc_luzMedia(fuente) {
+  try {
+    if (!nuc_cnvLuz) { nuc_cnvLuz = document.createElement('canvas'); nuc_cnvLuz.width = 16; nuc_cnvLuz.height = 12; }
+    const ctx = nuc_cnvLuz.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(fuente, 0, 0, 16, 12);
+    const px = ctx.getImageData(0, 0, 16, 12).data;
+    let s = 0; for (let i = 0; i < px.length; i += 4) s += (px[i] + px[i + 1] + px[i + 2]) / 3;
+    nuc_luzVal = s / (16 * 12);
+    return nuc_luzVal;
+  } catch (e) { return 140; }   // canvas contaminado → asumimos con luz (no realza)
+}
+
+/* Devuelve una copia realzada si toca, o null (usar la fuente original).
+ * Usa corrección GAMMA (levanta las sombras) + ganancia, con tabla de consulta.
+ * Es determinista y va en cualquier móvil (no depende de ctx.filter). */
+function nuc_fuenteNoche(fuente) {
+  const modo = estado.cfg.modoNoche || 'auto';   // 'off' | 'auto' | 'on'
+  if (modo === 'off') { estado.video.realceNoche = false; return null; }
+  let gamma, ganancia;
+  if (modo === 'on') {
+    gamma = 2.2; ganancia = 1.15;
+  } else {
+    const luz = nuc_luzMedia(fuente);
+    if (luz >= NUC_NOCHE_UMBRAL) { estado.video.realceNoche = false; return null; }  // hay luz: no gastes
+    const t = Math.max(0, Math.min(1, (NUC_NOCHE_UMBRAL - luz) / NUC_NOCHE_UMBRAL)); // 0..1 oscuridad
+    gamma = 1.6 + t * 1.2;        // 1.60 .. 2.80 (más oscuro → sube más las sombras)
+    ganancia = 1.0 + t * 0.3;     // 1.00 .. 1.30
+  }
+  try {
+    const w = estado.video.w || 640, h = estado.video.h || 480;
+    const cw = Math.min(w, 640), ch = Math.max(1, Math.round(h * cw / w));
+    if (!nuc_cnvNoche) nuc_cnvNoche = document.createElement('canvas');
+    const cnv = nuc_cnvNoche;
+    if (cnv.width !== cw || cnv.height !== ch) { cnv.width = cw; cnv.height = ch; }
+    const ctx = cnv.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(fuente, 0, 0, cw, ch);
+    const img = ctx.getImageData(0, 0, cw, ch);
+    const px = img.data;
+    // Tabla de consulta gamma+ganancia (256 valores; se calcula una vez por frame).
+    const lut = new Uint8ClampedArray(256);
+    const invG = 1 / gamma;
+    for (let i = 0; i < 256; i++) {
+      let v = 255 * Math.pow(i / 255, invG) * ganancia;
+      lut[i] = v < 0 ? 0 : (v > 255 ? 255 : v);
+    }
+    for (let i = 0; i < px.length; i += 4) {
+      px[i] = lut[px[i]]; px[i + 1] = lut[px[i + 1]]; px[i + 2] = lut[px[i + 2]];
+    }
+    ctx.putImageData(img, 0, 0);
+    estado.video.realceNoche = true;
+    return cnv;
+  } catch (e) { estado.video.realceNoche = false; return null; }
+}
+
 /* Detecta sobre un <video>/<img>/<canvas> listo. Devuelve [] si algo falla.
  * Enruta según el motor elegido: SUPERCEREBRO (ONNX-YOLO11) → POTENTE
  * (Transformers.js) → básico (COCO-SSD, siempre de respaldo). */
 async function nuc_detectar(fuente) {
   if (!fuente) return [];
+  // 🌙 Realce nocturno (una vez, para todos los motores).
+  const fx = (typeof nuc_fuenteNoche === 'function' && nuc_fuenteNoche(fuente)) || fuente;
   if (typeof sc_activo === 'function' && sc_activo()) {
-    return sc_detectar(fuente);        // reduce dentro (letterbox 640)
+    return sc_detectar(fx);            // reduce dentro (letterbox 640)
   }
   if (typeof yolo_activo === 'function' && yolo_activo()) {
-    return yolo_detectar(fuente);      // reduce dentro (yoloRes 512-768)
+    return yolo_detectar(fx);          // reduce dentro (yoloRes 512-768)
   }
   if (!estado.modelos.cocoListo) return [];
   try {
-    const prep = nuc_frameAnalisis(fuente);
+    const prep = nuc_frameAnalisis(fx);
     const res = await estado.modelos.coco.detect(prep.fuente, 40, nuc_scoreMin());
     return res.map((d) => ({
       clase: d.class, score: d.score,

@@ -161,10 +161,11 @@ function ui_actualizarMonitor() {
   const msIA = Math.round(v.msInferencia || 0);
   set('vid-mon-ia', msIA ? (msIA + ' ms') : '—', msIA ? clase(msIA, 200, 900) : '');
 
-  // Motor activo (+ si YOLO corre en hilo aparte).
+  // Motor activo (+ si YOLO corre en hilo aparte, + 🌙 si realza de noche).
   let motor = 'Básico';
   if (estado.cfg.motor === 'yolo') motor = (estado.yolo && estado.yolo.workerListo) ? 'Potente ⧉' : 'Potente';
   else if (estado.cfg.motor === 'onnx') motor = 'Supercerebro';
+  if (estado.video.realceNoche) motor += ' 🌙';
   set('vid-mon-motor', motor, '');
 
   // FPS de vídeo real (analizado).

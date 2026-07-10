@@ -128,7 +128,7 @@ const PUBLICAS = [
   "vid_usarDashcam","vid_probarDashcam",
   "det_init","det_pintar",
   "cop_init","cop_alternar","cop_pitar",
-  "nuc_scoreMin","cfg_ir",
+  "nuc_scoreMin","cfg_ir","nuc_fuenteNoche","nuc_luzMedia",
   "sc_init","sc_activo","sc_detectar","sc_activar","sc_benchmark",
   "acc_init","acc_marcarFalsa",
   "mat_init","mat_leer",
