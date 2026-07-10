@@ -132,7 +132,7 @@ const PUBLICAS = [
   "nuc_scoreMin","cfg_ir","nuc_fuenteNoche","nuc_luzMedia",
   "sc_init","sc_activo","sc_detectar","sc_activar","sc_benchmark",
   "acc_init","acc_marcarFalsa",
-  "mat_init","mat_leer",
+  "mat_init","mat_leer","mat_purgar","mat_mostrarLista",
 ];
 for (const fn of PUBLICAS) {
   const def = new RegExp(`(?:function\\s+${fn}\\s*\\(|(?:const|let)\\s+${fn}\\s*=)`);

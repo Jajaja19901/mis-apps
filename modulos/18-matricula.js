@@ -20,7 +20,11 @@
 
 /* --- Constantes ------------------------------------------------------------*/
 const MAT_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
-const MAT_GUARDADAS_MAX = 20;          // últimas lecturas guardadas
+const MAT_GUARDADAS_MAX = 60;          // últimas lecturas guardadas (tope duro)
+const MAT_INTERVALO_MS = 6000;         // tiempo entre lecturas en modo continuo
+const MAT_DEDUPE_MS = 60000;           // no repetir la MISMA matrícula en 1 min
+const MAT_PURGA_MS = 30000;            // cada cuánto se revisa el borrado automático
+const MAT_AREA_MIN_CONTINUO = 0.02;    // el vehículo debe ocupar ≥2% (si no, placa ilegible)
 const MAT_ALTO_OCR = 320;              // alto (px) al que se amplía el recorte
 /* Matrícula española nueva (0000 BBB, sin vocales ni Ñ/Q) y formato viejo. */
 const MAT_RE_NUEVA = /\d{4}\s?-?[BCDFGHJKLMNPRSTVWXYZ]{3}/;
@@ -37,7 +41,8 @@ function mat_toast(msg, nivel) {
  * ==========================================================================*/
 function mat_init() {
   if (estado.mat && estado.mat.inited) return;
-  estado.mat = { inited: true, cargando: null, worker: null, leyendo: false };
+  estado.mat = { inited: true, cargando: null, worker: null, leyendo: false,
+                 ultContinuo: 0, ultPurga: 0 };
 
   const btn = document.getElementById('cop-btnMatricula');
   if (btn) btn.addEventListener('click', function () { mat_leer(true); });
@@ -51,6 +56,40 @@ function mat_init() {
     });
   }
 
+  // Lectura CONTINUA (del vehículo de delante) — interruptor.
+  const chkC = document.getElementById('cop-matContinuo');
+  if (chkC) {
+    chkC.checked = !!estado.cfg.matContinuo;
+    chkC.addEventListener('change', function () {
+      estado.cfg.matContinuo = !!chkC.checked;
+      nuc_guardar('cfg', estado.cfg);
+      mat_toast(estado.cfg.matContinuo
+        ? 'Lectura continua de matrículas activada. Se borran solas a los ' + (estado.cfg.matRetencionMin || 15) + ' min.'
+        : 'Lectura continua desactivada.', 'info');
+    });
+  }
+  // Minutos de retención (borrado automático).
+  const inpR = document.getElementById('cop-matRetencion');
+  if (inpR) {
+    inpR.value = String(estado.cfg.matRetencionMin || 15);
+    inpR.addEventListener('change', function () {
+      const v = nuc_clamp(parseInt(inpR.value, 10) || 15, 1, 240);
+      estado.cfg.matRetencionMin = v; inpR.value = String(v);
+      nuc_guardar('cfg', estado.cfg);
+    });
+  }
+  // Botón "ver matrículas guardadas".
+  const btnL = document.getElementById('cop-btnMatriculas');
+  if (btnL) btnL.addEventListener('click', mat_mostrarLista);
+
+  // Purga al arrancar (borra las que ya caducaron desde la última vez).
+  mat_purgar();
+
+  // Bucle por frame: purga periódica + lectura continua (ambas con throttle).
+  if (typeof bus !== 'undefined' && bus.on) {
+    bus.on('frame', mat_alFrame);
+  }
+
   // Tras un golpe (conduciendo o aparcado), intenta leer la placa ella sola.
   if (typeof bus !== 'undefined' && bus.on) {
     bus.on('alerta', function (d) {
@@ -61,6 +100,79 @@ function mat_init() {
       }
     });
   }
+}
+
+/* Por frame: borra las matrículas caducadas (cada 30 s) y, si la lectura
+ * continua está activa y hay un vehículo cerca, lee su placa (cada 6 s). */
+function mat_alFrame() {
+  const m = estado.mat; if (!m) return;
+  const ahora = Date.now();
+  if (ahora - (m.ultPurga || 0) >= MAT_PURGA_MS) { m.ultPurga = ahora; mat_purgar(); }
+
+  if (!estado.cfg.matContinuo || m.leyendo) return;
+  if (ahora - (m.ultContinuo || 0) < MAT_INTERVALO_MS) return;
+  const veh = mat_vehiculoDelante();
+  if (!veh || !veh.caja) return;
+  const areaFrame = (estado.video.w || 1) * (estado.video.h || 1);
+  if (veh.caja.an * veh.caja.al < areaFrame * MAT_AREA_MIN_CONTINUO) return; // muy lejos
+  m.ultContinuo = ahora;
+  try { mat_leer(false, { continuo: true }); } catch (e) { /* nunca rompe el frame */ }
+}
+
+/* Borra del histórico las matrículas más viejas que la retención configurada. */
+function mat_purgar() {
+  try {
+    const retMs = nuc_clamp(estado.cfg.matRetencionMin || 15, 1, 240) * 60000;
+    const ahora = Date.now();
+    let lista = nuc_cargar('mat_lecturas', []);
+    if (!Array.isArray(lista)) return;
+    const limpia = lista.filter(function (r) { return r && r.ts && (ahora - r.ts) < retMs; });
+    if (limpia.length !== lista.length) nuc_guardar('mat_lecturas', limpia);
+  } catch (e) { /* si falla, no pasa nada */ }
+}
+
+/* Muestra la lista de matrículas leídas recientemente (con su hora). */
+function mat_mostrarLista() {
+  mat_purgar();
+  let lista = nuc_cargar('mat_lecturas', []);
+  if (!Array.isArray(lista)) lista = [];
+  const ret = nuc_clamp(estado.cfg.matRetencionMin || 15, 1, 240);
+  const cont = document.createElement('div');
+  if (!lista.length) {
+    const p = document.createElement('p');
+    p.textContent = 'Aún no hay matrículas guardadas. Se guardan al leer una (manual, continua o tras un golpe) y se borran solas a los ' + ret + ' min.';
+    cont.appendChild(p);
+  } else {
+    const intro = document.createElement('p');
+    intro.className = 'etiqueta';
+    intro.textContent = lista.length + ' matrícula(s) · se borran solas ' + ret + ' min después de leerlas.';
+    cont.appendChild(intro);
+    const ul = document.createElement('ul');
+    ul.style.cssText = 'list-style:none;padding:0;margin:8px 0;';
+    for (let i = lista.length - 1; i >= 0; i--) {
+      const r = lista[i];
+      const li = document.createElement('li');
+      li.style.cssText = 'display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #233140;';
+      const b = document.createElement('b'); b.style.letterSpacing = '1px'; b.textContent = r.matricula || '—';
+      const t = document.createElement('span'); t.className = 'etiqueta';
+      t.textContent = (typeof nuc_fechaHora === 'function') ? nuc_fechaHora(r.ts) : '';
+      li.appendChild(b); li.appendChild(t); ul.appendChild(li);
+    }
+    cont.appendChild(ul);
+  }
+  const legal = document.createElement('p');
+  legal.className = 'etiqueta';
+  legal.style.cssText = 'font-size:.78rem;opacity:.8;';
+  legal.textContent = 'Las matrículas son datos personales: guardado breve (se borran solas) y solo como evidencia de un incidente propio.';
+  cont.appendChild(legal);
+  const botones = [];
+  if (lista.length) {
+    botones.push({ texto: '🗑 Borrar todas ya', clase: 'btn-peligro', fn: function () {
+      nuc_guardar('mat_lecturas', []); mat_toast('Matrículas borradas.', 'info'); return true;
+    } });
+  }
+  botones.push({ texto: 'Cerrar', clase: 'btn-fantasma' });
+  if (typeof ui_modal === 'function') ui_modal('📋 Matrículas guardadas', cont, botones);
 }
 
 /* ============================================================================
@@ -206,8 +318,9 @@ function mat_cargarOCR() {
  * imagen ampliada, para que el humano la lea aunque el OCR falle).
  * manual=false (tras golpe) → sin modal: guarda y avisa solo si hay placa.
  * ==========================================================================*/
-async function mat_leer(manual) {
+async function mat_leer(manual, opts) {
   const m = estado.mat;
+  const continuo = !!(opts && opts.continuo);
   if (!m || m.leyendo) return;
   if (!estado.video || !estado.video.listo) {
     if (manual) mat_toast('Activa primero la cámara o la dashcam para poder leer la matrícula.', 'info');
@@ -215,7 +328,7 @@ async function mat_leer(manual) {
   }
   m.leyendo = true;
   const btn = document.getElementById('cop-btnMatricula');
-  if (btn) { btn.disabled = true; btn.textContent = '📋 Leyendo…'; }
+  if (btn && manual) { btn.disabled = true; btn.textContent = '📋 Leyendo…'; }
   try {
     const recortes = mat_recortes();
     if (!recortes.length) {
@@ -248,33 +361,47 @@ async function mat_leer(manual) {
       sinOCR = true;
     }
 
-    if (matricula) mat_guardarLectura(matricula, !!manual);
+    let esNueva = false;
+    if (matricula) esNueva = mat_guardarLectura(matricula, !!manual);
 
     if (manual) {
       mat_mostrar(recBueno, matricula, crudo, sinOCR);
-    } else if (matricula) {
+    } else if (matricula && continuo && esNueva) {
+      mat_toast('📋 Matrícula registrada: ' + matricula + ' (se borra sola en ' +
+        nuc_clamp(estado.cfg.matRetencionMin || 15, 1, 240) + ' min).', 'info');
+    } else if (matricula && !continuo) {
       mat_toast('📋 Matrícula leída tras el golpe: ' + matricula + ' (guardada en la bitácora).', 'info');
     }
   } catch (e) {
     if (manual) mat_toast('No se pudo leer la matrícula: ' + (e && e.message), 'sospecha');
   } finally {
     m.leyendo = false;
-    if (btn) { btn.disabled = false; btn.textContent = '📋 Leer matrícula'; }
+    if (btn && manual) { btn.disabled = false; btn.textContent = '📋 Leer matrícula'; }
   }
 }
 
-/* Guarda la lectura: en el trayecto en curso (bitácora) y en el histórico. */
+/* Guarda la lectura en el histórico con borrado por tiempo y sin repetir la
+ * misma matrícula en 1 min. Devuelve true si es una matrícula NUEVA. */
 function mat_guardarLectura(matricula, manual) {
   try {
-    if (typeof cop_anotarEvento === 'function') {
-      cop_anotarEvento('matricula', 'Matrícula leída' + (manual ? '' : ' tras el golpe') + ': ' + matricula);
-    }
+    const retMs = nuc_clamp(estado.cfg.matRetencionMin || 15, 1, 240) * 60000;
+    const ahora = Date.now();
     let lista = nuc_cargar('mat_lecturas', []);
     if (!Array.isArray(lista)) lista = [];
-    lista.push({ ts: Date.now(), matricula: matricula });
+    // 1) borra las caducadas
+    lista = lista.filter(function (r) { return r && r.ts && (ahora - r.ts) < retMs; });
+    // 2) ¿la misma matrícula leída hace muy poco? no la dupliques
+    const reciente = lista.some(function (r) { return r.matricula === matricula && (ahora - r.ts) < MAT_DEDUPE_MS; });
+    if (reciente) { nuc_guardar('mat_lecturas', lista); return false; }
+    // 3) nueva
+    if (typeof cop_anotarEvento === 'function') {
+      cop_anotarEvento('matricula', 'Matrícula' + (manual ? '' : ' auto') + ': ' + matricula);
+    }
+    lista.push({ ts: ahora, matricula: matricula });
     while (lista.length > MAT_GUARDADAS_MAX) lista.shift();
     nuc_guardar('mat_lecturas', lista);
-  } catch (e) { /* si no cabe, seguimos */ }
+    return true;
+  } catch (e) { return false; }
 }
 
 /* Modal con la imagen ampliada + el texto leído + copiar. Todo con DOM API

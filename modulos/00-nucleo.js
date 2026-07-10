@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.12',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.13',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -48,6 +48,8 @@ const CFG_DEFECTOS = {
   copFatiga: true,          // aviso de descanso cada 2 h de trayecto
   copSonido: true,          // pitido + vibración con los avisos FRENA/PEATÓN
   matAuto: true,            // leer la matrícula sola tras un golpe (caja negra)
+  matContinuo: false,       // leer matrículas en continuo (del vehículo de delante)
+  matRetencionMin: 15,      // borrar las matrículas guardadas pasados X minutos (RGPD)
   ahorroEnergia: true,      // sin movimiento 3s → baja a 2 fps (vuelve solo al instante)
   monitorRend: false,       // monitor de rendimiento en vivo sobre el vídeo
   modoNoche: 'auto',        // 🌙 realce de imagen oscura antes de detectar: 'off'|'auto'|'on'
