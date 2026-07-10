@@ -117,11 +117,20 @@ function sc_cargarOrt() {
   });
 }
 
-/* URL del modelo (editable en Ajustes; por defecto, onnx-community en HF). */
+/* URL del modelo (editable en Ajustes). Por defecto se descarga de la MISMA web
+ * donde está la app (carpeta modelos/ en GitHub Pages): misma procedencia, sin
+ * CORS y sin depender de Hugging Face (que empezó a devolver 401). Si la app se
+ * abre como archivo suelto (file://) no habrá modelos ahí; entonces se cae al
+ * espejo de Hugging Face por si acaso. El dueño puede sobrescribir la URL. */
 function sc_urlModelo(clave) {
-  const porDefecto = 'https://huggingface.co/onnx-community/yolo11' + clave + '/resolve/main/onnx/model.onnx';
   const k = 'scUrl' + clave.toUpperCase();
-  return (estado.cfg[k] || '').trim() || porDefecto;
+  const propia = (estado.cfg[k] || '').trim();
+  if (propia) return propia;
+  const esArchivo = (typeof location !== 'undefined' && location.protocol === 'file:');
+  if (esArchivo) {
+    return 'https://huggingface.co/onnx-community/yolo11' + clave + '/resolve/main/onnx/model.onnx';
+  }
+  return 'modelos/yolo11' + clave + '.onnx';   // relativo a la web (GitHub Pages)
 }
 
 /* Descarga el .onnx con PROGRESO y lo guarda en Cache API (persistente).

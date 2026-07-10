@@ -1,0 +1,44 @@
+name: Construir el cerebro (modelos ONNX)
+
+# Exporta los modelos YOLO11 (n/s/m) a ONNX con Ultralytics y los deja en
+# docs/modelos/, para que la app los descargue desde TU propia web (GitHub
+# Pages) — misma procedencia, sin CORS y sin depender de Hugging Face.
+# Se lanza a mano desde la pestaña Actions.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  modelos:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar Ultralytics
+        run: pip install "ultralytics>=8.3.0" onnx onnxslim
+
+      - name: Exportar YOLO11 n/s/m a ONNX (entrada fija 640)
+        run: |
+          mkdir -p docs/modelos
+          for m in n s m; do
+            echo "== Exportando yolo11$m =="
+            yolo export model=yolo11$m.pt format=onnx imgsz=640 opset=12 simplify=True dynamic=False
+            mv "yolo11$m.onnx" "docs/modelos/yolo11$m.onnx"
+          done
+          ls -lh docs/modelos/
+
+      - name: Guardar los modelos en la web (docs/modelos)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/modelos/*.onnx
+          git commit -m "Cerebro: modelos YOLO11 (n/s/m) ONNX para GitHub Pages" || echo "sin cambios"
+          git push

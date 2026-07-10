@@ -1706,7 +1706,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.7',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.9',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -2081,7 +2081,7 @@ async function nuc_detectar(fuente) {
   if (!estado.modelos.cocoListo) return [];
   try {
     const prep = nuc_frameAnalisis(fx);
-    const res = await estado.modelos.coco.detect(prep.fuente, 40, nuc_scoreMin());
+    const res = await estado.modelos.coco.detect(prep.fuente, 100, nuc_scoreMin());
     return res.map((d) => ({
       clase: d.class, score: d.score,
       caja: {
@@ -12017,7 +12017,7 @@ const SC_MODELOS = {
   m: { nombre: 'Máx. precisión (YOLO11m)', mb: 77, escala: 5.2 },
 };
 const SC_ENTRADA = 640;          // lado de entrada (letterbox 640, modo PRECISIÓN)
-const SC_MAX_DETS = 50;          // hasta 50 detecciones por frame
+const SC_MAX_DETS = 100;         // hasta 100 detecciones por frame (multitudes)
 const SC_NMS_IOU = 0.5;          // supresión de duplicados
 const SC_CACHE = 'vigia-modelos-onnx';
 
@@ -12098,11 +12098,20 @@ function sc_cargarOrt() {
   });
 }
 
-/* URL del modelo (editable en Ajustes; por defecto, onnx-community en HF). */
+/* URL del modelo (editable en Ajustes). Por defecto se descarga de la MISMA web
+ * donde está la app (carpeta modelos/ en GitHub Pages): misma procedencia, sin
+ * CORS y sin depender de Hugging Face (que empezó a devolver 401). Si la app se
+ * abre como archivo suelto (file://) no habrá modelos ahí; entonces se cae al
+ * espejo de Hugging Face por si acaso. El dueño puede sobrescribir la URL. */
 function sc_urlModelo(clave) {
-  const porDefecto = 'https://huggingface.co/onnx-community/yolo11' + clave + '/resolve/main/onnx/model.onnx';
   const k = 'scUrl' + clave.toUpperCase();
-  return (estado.cfg[k] || '').trim() || porDefecto;
+  const propia = (estado.cfg[k] || '').trim();
+  if (propia) return propia;
+  const esArchivo = (typeof location !== 'undefined' && location.protocol === 'file:');
+  if (esArchivo) {
+    return 'https://huggingface.co/onnx-community/yolo11' + clave + '/resolve/main/onnx/model.onnx';
+  }
+  return 'modelos/yolo11' + clave + '.onnx';   // relativo a la web (GitHub Pages)
 }
 
 /* Descarga el .onnx con PROGRESO y lo guarda en Cache API (persistente).

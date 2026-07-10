@@ -202,5 +202,13 @@ if (errores.length) {
 if (!soloValidar) {
   writeFileSync(SALIDA, html);
   console.log(`\n✓ Escrito ${path.relative(RAIZ, SALIDA)} (${Math.round(html.length / 1024)} KB)`);
+  // Mantener SIEMPRE sincronizada la web publicada (GitHub Pages sirve docs/index.html).
+  try {
+    const docsIndex = path.join(RAIZ, "docs", "index.html");
+    if (existsSync(path.join(RAIZ, "docs"))) {
+      writeFileSync(docsIndex, html);
+      console.log(`✓ Sincronizado docs/index.html (GitHub Pages)`);
+    }
+  } catch (e) { console.log("⚠ No se pudo sincronizar docs/index.html: " + e.message); }
 }
 console.log("RESULTADO ENSAMBLADO: ✅ OK\n");
