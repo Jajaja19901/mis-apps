@@ -399,7 +399,21 @@ function sc_claveEfectiva() {
   if (!s) return 'n';
   if (estado.cfg.copActivo && estado.cfg.copCerebroAuto && !estado.cfg.copForzarGrande
       && s.adaptActual === 'rapido' && s.sesiones.n) return 'n';
-  return s.activo || 'n';
+  let clave = s.activo || 'n';
+  // PRECISIÓN a la medida de ESTE móvil: en copiloto, el modo precisión no usa
+  // un modelo mayor que el que el benchmark del dispositivo aguanta (≥4 FPS).
+  // Sin benchmark hecho o con «forzar grande», no cambia nada.
+  if (estado.cfg.copActivo && !estado.cfg.copForzarGrande) {
+    try {
+      const bench = nuc_cargar('sc_bench', null);
+      const orden = ['n', 's', 'm'];
+      if (bench && bench.recomendado && orden.indexOf(clave) > orden.indexOf(bench.recomendado)) {
+        if (s.sesiones[bench.recomendado]) clave = bench.recomendado;
+        else if (s.sesiones.n) clave = 'n';
+      }
+    } catch (e) { /* sin benchmark: se queda como estaba */ }
+  }
+  return clave;
 }
 
 /* ---------------------------------------------------------------------------
@@ -466,6 +480,20 @@ async function sc_benchmark(alTexto) {
   nuc_guardar('sc_bench', informe);
   if (recomendado && resultados[recomendado]) {
     s.msBase = resultados[recomendado].ms;         // referencia para la térmica
+    // Además de recomendar, APLICA: deja puesto el modelo que este móvil
+    // aguanta (antes solo lo decía y había que cambiarlo a mano).
+    if (s.sesiones[recomendado] && s.activo !== recomendado) {
+      s.activo = recomendado;
+      estado.cfg.scModelo = recomendado;
+      nuc_guardar('cfg', estado.cfg);
+      try {
+        const sel = document.getElementById('cfg-scModelo');
+        if (sel) sel.value = recomendado;
+        bus.emit('cfg:cambio', { clave: 'scModelo' });
+      } catch (e) { /* sin panel montado */ }
+      decir('Aplicado: ' + SC_MODELOS[recomendado].nombre + ' (el que tu móvil mueve con soltura).');
+      sc_toast('Benchmark aplicado: supercerebro en ' + SC_MODELOS[recomendado].nombre + '.', 'info');
+    }
   }
   return informe;
 }
@@ -483,7 +511,10 @@ function sc_vigilar() {
     const base = s.msBase || 0;
     const orden = ['n', 's', 'm'];
     const idx = orden.indexOf(s.activo);
-    const degradado = (base > 0 && s.msMedia > base * 1.7) || (s.msMedia > 900);
+    // En copiloto la latencia manda: por encima de ~500 ms sostenidos ya se
+    // arrastra (a 747 ms el límite viejo de 900 no saltaba y todo iba a 2 fps).
+    const limiteMs = estado.cfg.copActivo ? 500 : 900;
+    const degradado = (base > 0 && s.msMedia > base * 1.7) || (s.msMedia > limiteMs);
     if (degradado && idx > 0 && ahora - s.ultCambioTermica > 60000) {
       const nuevo = orden[idx - 1];
       if (s.sesiones[nuevo]) {
