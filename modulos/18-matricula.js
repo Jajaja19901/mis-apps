@@ -21,7 +21,14 @@
 /* --- Constantes ------------------------------------------------------------*/
 const MAT_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 const MAT_GUARDADAS_MAX = 60;          // últimas lecturas guardadas (tope duro)
-const MAT_INTERVALO_MS = 3500;         // tiempo entre lecturas en modo continuo (converge antes)
+/* FOTO ≠ LECTURA: un coche de frente se ve ~1 segundo. Hacer la FOTO de su
+ * placa cuesta milésimas (se hace al instante, cada 600 ms); LEERLA cuesta
+ * ~1 s de OCR (se hace después, en cola, sin ahogar al detector). Así aunque
+ * el coche ya no esté, sus fotos siguen en memoria y la matrícula sale igual. */
+const MAT_FOTO_MS = 600;               // cada cuánto se fotografía el vehículo visible
+const MAT_COLA_MAX = 12;               // fotos pendientes de leer (se cae la más vieja)
+const MAT_OCR_HUECO_MS = 250;          // respiro entre lecturas de la cola (no ahogar la CPU)
+const MAT_FOTO_CADUCA_MS = 45000;      // una foto sin leer en 45 s ya no aporta (fuera)
 const MAT_DEDUPE_MS = 60000;           // no repetir la MISMA matrícula en 1 min
 const MAT_PURGA_MS = 30000;            // cada cuánto se revisa el borrado automático
 const MAT_AREA_MIN_CONTINUO = 0.02;    // el vehículo debe ocupar ≥2% (si no, placa ilegible)
@@ -139,7 +146,7 @@ function mat_pintarBuscando(ctx, w, h) {
 function mat_init() {
   if (estado.mat && estado.mat.inited) return;
   estado.mat = { inited: true, cargando: null, worker: null, leyendo: false,
-                 ultContinuo: 0, ultPurga: 0, ultima: null, votos: [] };
+                 ultFoto: 0, ultOcr: 0, ultPurga: 0, ultima: null, votos: [], cola: [] };
 
   // Muestra la última matrícula leída ENCIMA del vídeo (orden 66, sobre tracks).
   if (typeof vid_registrarPintor === 'function') {
@@ -226,15 +233,85 @@ function mat_alFrame() {
   // activo (así no gasta CPU ni lee nada cuando la app vigila un local, etc.).
   m.buscando = false;
   if (!estado.cfg.copActivo || !estado.cfg.matContinuo) return;
-  if (m.leyendo) { m.buscando = true; return; }
-  if (ahora - (m.ultContinuo || 0) < MAT_INTERVALO_MS) { m.buscando = true; return; }
-  const veh = mat_vehiculoDelante();
-  if (!veh || !veh.caja) return;                       // no hay coche al que apuntar
-  const areaFrame = (estado.video.w || 1) * (estado.video.h || 1);
-  if (veh.caja.an * veh.caja.al < areaFrame * MAT_AREA_MIN_CONTINUO) return; // muy lejos
-  m.buscando = true;
-  m.ultContinuo = ahora;
-  try { mat_leer(false, { continuo: true }); } catch (e) { /* nunca rompe el frame */ }
+  if (!m.cola) m.cola = [];
+
+  // 1) FOTOS al instante (baratas, milésimas): cada 600 ms si hay vehículo a
+  //    tiro. Un coche de frente visible 1 s deja 2-4 fotos en la cola. Se
+  //    fotografía TAMBIÉN con el OCR ocupado: justo entonces es cuando un
+  //    coche fugaz se perdería.
+  if (ahora - (m.ultFoto || 0) >= MAT_FOTO_MS) {
+    const veh = mat_vehiculoDelante();
+    if (veh && veh.caja) {
+      const areaFrame = (estado.video.w || 1) * (estado.video.h || 1);
+      if (veh.caja.an * veh.caja.al >= areaFrame * MAT_AREA_MIN_CONTINUO) {
+        m.ultFoto = ahora;
+        try { mat_fotografiar(veh, ahora); } catch (e) { /* nunca rompe el frame */ }
+      }
+    }
+  }
+
+  // 2) LECTURA en segundo plano: procesa la cola foto a foto, con respiro.
+  if (m.cola.length || m.leyendo) m.buscando = true;
+  try { mat_procesarCola(); } catch (e) { /* ídem */ }
+}
+
+/* Fotografía la zona de la placa del vehículo (trasera + delantera) y la mete
+ * en la cola de lectura. Capturar es instantáneo: solo recorta y amplía. */
+function mat_fotografiar(veh, ahora) {
+  const m = estado.mat;
+  const c = veh.caja;
+  // Placa TRASERA (coche delante, centro-abajo) y DELANTERA (coche de frente,
+  // más centrada en el paragolpes): dos fotos por disparo.
+  const zonas = [
+    { rx: c.x + c.an * 0.22, ry: c.y + c.al * 0.60, rw: c.an * 0.56, rh: c.al * 0.32, zona: 'placa' },
+    { rx: c.x + c.an * 0.18, ry: c.y + c.al * 0.42, rw: c.an * 0.64, rh: c.al * 0.34, zona: 'frontal' },
+  ];
+  for (let i = 0; i < zonas.length; i++) {
+    const z = zonas[i];
+    const cnv = mat_recorteZona(z.rx, z.ry, z.rw, z.rh);
+    if (!cnv) continue;
+    m.cola.push({ cnv: cnv, ts: ahora, zona: z.zona });
+  }
+  while (m.cola.length > MAT_COLA_MAX) m.cola.shift();   // se cae la más vieja
+}
+
+/* Lee UNA foto de la cola por llamada (la más reciente primero: el coche más
+ * cercano y nítido). El OCR va a su ritmo, con hueco entre lecturas, para no
+ * pelearse con el detector: cada uno come de su plato. */
+async function mat_procesarCola() {
+  const m = estado.mat;
+  if (!m || m.leyendo || !m.cola || !m.cola.length) return;
+  const ahora = Date.now();
+  if (ahora - (m.ultOcr || 0) < MAT_OCR_HUECO_MS) return;
+  m.leyendo = true;
+  try {
+    // Fuera fotos caducadas (coche que pasó hace mucho: ya hay o no hay placa).
+    m.cola = m.cola.filter(function (f) { return ahora - f.ts < MAT_FOTO_CADUCA_MS; });
+    const foto = m.cola.pop();
+    if (!foto) return;
+    const T = await mat_cargarOCR();
+    if (!T) { m.cola.length = 0; return; }              // sin OCR no hay cola que valga
+    if (!m.worker) {
+      m.worker = await T.createWorker('eng');
+      await m.worker.setParameters({
+        tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ- ',
+        tessedit_pageseg_mode: '6',
+      });
+    }
+    const r = await m.worker.recognize(foto.cnv);
+    const texto = String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
+    const cand = mat_candidata(texto);
+    if (cand) {
+      const v = mat_votar(cand);
+      const buena = v.votos >= MAT_VOTOS_CONFIRMAR;     // "la que pillas es la buena"
+      estado.mat.ultima = { matricula: v.plate, votos: v.votos, buena: buena, ts: Date.now() };
+      if (buena && mat_guardarLectura(v.plate, false)) {
+        mat_toast('✅ Matrícula CONFIRMADA (leída ×' + v.votos + '): ' + v.plate + ' — se borra sola en ' +
+          nuc_clamp(estado.cfg.matRetencionMin || 15, 1, 240) + ' min.', 'info');
+      }
+    }
+  } catch (e) { /* una foto fallida no rompe la cola */ }
+  finally { m.ultOcr = Date.now(); m.leyendo = false; }
 }
 
 /* Borra del histórico las matrículas más viejas que la retención configurada. */
@@ -432,13 +509,14 @@ function mat_cargarOCR() {
 }
 
 /* ============================================================================
- * LECTURA. manual=true → siempre enseña el resultado en un modal (con la
- * imagen ampliada, para que el humano la lea aunque el OCR falle).
+ * LECTURA PUNTUAL (botón «Leer ahora» o tras un golpe). La lectura CONTINUA
+ * va por la cola de fotos (mat_fotografiar + mat_procesarCola), no por aquí.
+ * manual=true → siempre enseña el resultado en un modal (con la imagen
+ * ampliada, para que el humano la lea aunque el OCR falle).
  * manual=false (tras golpe) → sin modal: guarda y avisa solo si hay placa.
  * ==========================================================================*/
-async function mat_leer(manual, opts) {
+async function mat_leer(manual) {
   const m = estado.mat;
-  const continuo = !!(opts && opts.continuo);
   if (!m || m.leyendo) return;
   if (!estado.video || !estado.video.listo) {
     if (manual) mat_toast('Activa primero la cámara o la dashcam para poder leer la matrícula.', 'info');
@@ -479,32 +557,26 @@ async function mat_leer(manual, opts) {
       sinOCR = true;
     }
 
-    let esNueva = false, confirmada = matricula, votos = 0, buena = false;
+    let confirmada = matricula, votos = 0;
     if (matricula) {
       // Votación: la matrícula leída IGUAL varias veces gana (corrige el OCR).
+      // Manual/golpe son acciones intencionales → se aceptan a la primera.
       const v = mat_votar(matricula);
       confirmada = v.plate; votos = v.votos;
-      // En continuo NO se da por buena hasta ≥3 lecturas iguales (así "la que
-      // pillas es la buena", no una suelta que puede estar mal). Manual/golpe
-      // son acciones intencionales → se aceptan a la primera.
-      buena = (!continuo) || votos >= MAT_VOTOS_CONFIRMAR;
-      estado.mat.ultima = { matricula: confirmada, votos: votos, buena: buena, ts: Date.now() };
-      if (buena) esNueva = mat_guardarLectura(confirmada, !!manual);
+      estado.mat.ultima = { matricula: confirmada, votos: votos, buena: true, ts: Date.now() };
+      mat_guardarLectura(confirmada, !!manual);
     }
 
     if (manual) {
       mat_mostrar(recBueno, confirmada, crudo, sinOCR);
-    } else if (confirmada && continuo && buena && esNueva) {
-      mat_toast('✅ Matrícula CONFIRMADA (leída ×' + votos + '): ' + confirmada + ' — se borra sola en ' +
-        nuc_clamp(estado.cfg.matRetencionMin || 15, 1, 240) + ' min.', 'info');
-    } else if (confirmada && !continuo) {
+    } else if (confirmada) {
       mat_toast('📋 Matrícula leída tras el golpe: ' + confirmada + ' (guardada).', 'info');
     }
   } catch (e) {
     if (manual) mat_toast('No se pudo leer la matrícula: ' + (e && e.message), 'sospecha');
   } finally {
     m.leyendo = false;
-    if (btn && manual) { btn.disabled = false; btn.textContent = '📋 Leer matrícula'; }
+    if (btn && manual) { btn.disabled = false; btn.textContent = '📋 Leer ahora'; }
   }
 }
 
