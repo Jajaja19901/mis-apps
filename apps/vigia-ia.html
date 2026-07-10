@@ -160,6 +160,20 @@ h1, h2, h3, p { margin: 0; }
 .vid-rec::before { content: ''; width: .5rem; height: .5rem; border-radius: 999px; background: #fff; }
 @keyframes ui-parpadeo { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
 
+/* Monitor de rendimiento (diagnóstico en vivo) */
+.vid-monitor {
+  position: absolute; top: .6rem; left: .6rem; z-index: 4;
+  background: rgba(6, 10, 14, .82); color: #dfe8f0; border: 1px solid rgba(120, 150, 180, .3);
+  border-radius: .5rem; padding: .45rem .55rem; min-width: 8.4rem;
+  font-family: var(--mono); font-size: .68rem; line-height: 1.15; backdrop-filter: blur(2px);
+}
+.vid-mon-fila { display: flex; justify-content: space-between; gap: .8rem; margin: .1rem 0; }
+.vid-mon-fila span { color: #8aa0b4; }
+.vid-mon-fila b { font-weight: 700; }
+.vid-monitor .buena { color: #2ee584; } .vid-monitor .media { color: #ffb224; } .vid-monitor .mala { color: #ff5470; }
+.vid-mon-barra { height: .35rem; border-radius: 999px; background: rgba(120,150,180,.25); margin-top: .35rem; overflow: hidden; }
+.vid-mon-barra i { display: block; height: 100%; width: 0; background: #2ee584; transition: width .3s, background .3s; }
+
 /* ============================== CABECERA ================================= */
 .ui-header {
   display: flex; align-items: center; justify-content: space-between; gap: var(--espacio-2);
@@ -376,6 +390,13 @@ h1, h2, h3, p { margin: 0; }
   <canvas id="vid-canvas"></canvas>
   <canvas id="vid-canvasPriv" class="oculto"></canvas>
   <div id="vid-rec" class="vid-rec oculto">● REC</div>
+  <div id="vid-monitor" class="vid-monitor oculto" aria-live="polite">
+    <div class="vid-mon-fila"><span>Fluidez</span><b id="vid-mon-fluidez">—</b></div>
+    <div class="vid-mon-fila"><span>Análisis IA</span><b id="vid-mon-ia">—</b></div>
+    <div class="vid-mon-fila"><span>Motor</span><b id="vid-mon-motor">—</b></div>
+    <div class="vid-mon-fila"><span>Vídeo</span><b id="vid-mon-fps">—</b></div>
+    <div class="vid-mon-barra"><i id="vid-mon-carga"></i></div>
+  </div>
   <div id="vid-estado">Sin fuente de vídeo — elige cámara o vídeo demo en Ajustes</div>
 </div>
 
@@ -1453,6 +1474,10 @@ h1, h2, h3, p { margin: 0; }
     lo notas, comprueba aquí que estás abriendo el archivo nuevo (el navegador o la PWA a veces
     guardan el viejo en caché).</p>
 
+    <label class="fila"><input type="checkbox" id="cfg-monitorRend" data-cfg="monitorRend">
+      <span>📊 <b>Monitor de rendimiento</b> sobre el vídeo <small class="etiqueta">(fluidez del
+      móvil, milisegundos por análisis y motor activo — para ver si algo traba)</small></span></label>
+
     <div class="campo">
       <label for="cfg-sabotajeModo">Anti-sabotaje según tu cámara</label>
       <select id="cfg-sabotajeModo" data-cfg="sabotajeModo">
@@ -1650,7 +1675,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.1',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.2',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -1688,6 +1713,7 @@ const CFG_DEFECTOS = {
   copSonido: true,          // pitido + vibración con los avisos FRENA/PEATÓN
   matAuto: true,            // leer la matrícula sola tras un golpe (caja negra)
   ahorroEnergia: true,      // sin movimiento 3s → baja a 2 fps (vuelve solo al instante)
+  monitorRend: false,       // monitor de rendimiento en vivo sobre el vídeo
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
   resolucion: '720',        // '480' | '720' | '1080'
@@ -1982,6 +2008,16 @@ function nuc_init() {
     nuc_guardar('migr_sabotaje_v2', true);
     if (estado.cfg.sabotajeModo === 'completo') {
       estado.cfg.sabotajeModo = 'oscuro';
+      if (guardada) nuc_guardar('cfg', estado.cfg);
+    }
+  }
+  // Migración única: los modelos potentes pesados (detr-50 / detalle 768)
+  // ahogaban el móvil entero. Vuelta al ligero; el pesado se puede re-elegir.
+  if (!nuc_cargar('migr_yolo_ligero', false)) {
+    nuc_guardar('migr_yolo_ligero', true);
+    if (estado.cfg.yoloModelo === 'Xenova/detr-resnet-50' || estado.cfg.yoloRes === '768') {
+      estado.cfg.yoloModelo = 'Xenova/yolos-tiny';
+      estado.cfg.yoloRes = '512';
       if (guardada) nuc_guardar('cfg', estado.cfg);
     }
   }
@@ -4608,7 +4644,54 @@ function ui_render() {
 
   ui_actualizarContadores();
   ui_actualizarEstadoHeader();
+  ui_actualizarMonitor();
   if (estado.ui && estado.ui.aforoPublico) ui_actualizarAforoPantalla();
+}
+
+/* Monitor de rendimiento en vivo: fluidez del hilo (tirones), ms por análisis
+ * de IA, motor activo y fps de vídeo. Se enciende en Ajustes → Sistema. */
+function ui_actualizarMonitor() {
+  const mon = document.getElementById('vid-monitor');
+  if (!mon) return;
+  const on = !!(estado.cfg && estado.cfg.monitorRend);
+  mon.classList.toggle('oculto', !on);
+  if (!on) return;
+
+  const v = estado.video || {};
+  const clase = (val, buena, media) => val <= buena ? 'buena' : (val <= media ? 'media' : 'mala');
+  const set = (id, txt, cls) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = txt;
+    el.className = cls || '';
+  };
+
+  // Fluidez: ms por frame de animación. ≤22 fluido, ≤45 aceptable, más = tirones.
+  const msUI = Math.round(v.msFrameUI || 0);
+  const fUI = msUI > 0 ? Math.min(60, Math.round(1000 / msUI)) : 0;
+  set('vid-mon-fluidez', msUI ? (fUI + ' fps' + (msUI > 45 ? ' ⚠' : '')) : '—',
+    msUI ? clase(msUI, 22, 45) : '');
+
+  // Análisis IA: ms de la última inferencia.
+  const msIA = Math.round(v.msInferencia || 0);
+  set('vid-mon-ia', msIA ? (msIA + ' ms') : '—', msIA ? clase(msIA, 200, 900) : '');
+
+  // Motor activo (+ si YOLO corre en hilo aparte).
+  let motor = 'Básico';
+  if (estado.cfg.motor === 'yolo') motor = (estado.yolo && estado.yolo.workerListo) ? 'Potente ⧉' : 'Potente';
+  else if (estado.cfg.motor === 'onnx') motor = 'Supercerebro';
+  set('vid-mon-motor', motor, '');
+
+  // FPS de vídeo real (analizado).
+  set('vid-mon-fps', (v.fpsReal ? v.fpsReal : 0) + ' fps IA', '');
+
+  // Barra de carga: proporción del segundo consumida por un análisis de IA.
+  const barra = document.getElementById('vid-mon-carga');
+  if (barra) {
+    const carga = Math.max(0, Math.min(1, msIA / 1000));
+    barra.style.width = Math.round(carga * 100) + '%';
+    barra.style.background = carga < 0.4 ? '#2ee584' : (carga < 0.75 ? '#ffb224' : '#ff5470');
+  }
 }
 
 /* Actualiza las tarjetas de datos en directo (personas, aforo, entradas...) */
@@ -10003,13 +10086,14 @@ const YOLO_ANCHO_INFER_DEF = 512;   // ancho de análisis por defecto (configura
 const YOLO_INIT_TIMEOUT_MS = 120000; // margen para descargar el modelo la 1ª vez
 const YOLO_INFER_TIMEOUT_MS = 15000; // una inferencia colgada no bloquea la app
 const YOLO_LENTO_MS = 1200;          // mediana por encima → sugerir modelo más ligero
+const YOLO_AHOGO_MS = 2500;          // mediana por encima → AUTO-REBAJA al ligero
 
 function yolo_estado() {
   if (!estado.yolo) {
     estado.yolo = { detector: null, RawImage: null, listo: false, cargando: false,
                     error: '', modelo: '', cnv: null, avisado: false,
                     worker: null, workerListo: false, pendientes: {}, sigId: 1,
-                    tiempos: [], avisoLento: false };
+                    tiempos: [], avisoLento: false, autoRebajado: false };
   }
   return estado.yolo;
 }
@@ -10027,6 +10111,7 @@ function yolo_codigoWorker() {
     '    try {',
     '      const tjs = await import(m.url);',
     '      try { tjs.env.allowLocalModels = false; } catch (e) {}',
+    '      try { tjs.env.backends.onnx.wasm.numThreads = 2; } catch (e) {}',
     '      let opciones = {};',
     '      try { if (self.navigator && self.navigator.gpu) opciones = { device: "webgpu" }; } catch (e) {}',
     '      detector = await tjs.pipeline("object-detection", m.modelo, opciones);',
@@ -10159,6 +10244,7 @@ async function yolo_init() {
     // 2º) HILO PRINCIPAL: funciona, pero puede dar tirones (se avisa).
     const tjs = await import(/* @vite-ignore */ YOLO_TJS_URL);
     try { tjs.env.allowLocalModels = false; } catch (e) {}
+    try { tjs.env.backends.onnx.wasm.numThreads = 2; } catch (e) {}
     let opciones = {};
     try { if (navigator.gpu) opciones = { device: 'webgpu' }; } catch (e) {}
     y.detector = await tjs.pipeline('object-detection', modelo, opciones);
@@ -10201,20 +10287,38 @@ function yolo_mapearCajas(salida, sx, sy) {
   return res;
 }
 
-/* Si el modelo va lento de verdad (mediana >1.2s), se sugiere UNA vez bajar. */
+/* Vigila la velocidad real. Mediana >2.5s → AUTO-REBAJA al modelo ligero (el
+ * pesado estaba ahogando el móvil). Mediana >1.2s → consejo una sola vez. */
 function yolo_vigilarLentitud(ms) {
   const y = estado.yolo;
   y.tiempos.push(ms);
   if (y.tiempos.length > 10) y.tiempos.shift();
-  if (y.avisoLento || y.tiempos.length < 5) return;
+  if (y.tiempos.length < 5) return;
   const orden = y.tiempos.slice().sort((a, b) => a - b);
   const mediana = orden[Math.floor(orden.length / 2)];
+
+  // Ahogo real: cambio automático al ligero (una sola vez por sesión).
+  if (mediana > YOLO_AHOGO_MS && !y.autoRebajado &&
+      (y.modelo !== YOLO_MODELO_DEF || (estado.cfg.yoloRes && estado.cfg.yoloRes !== '512'))) {
+    y.autoRebajado = true;
+    estado.cfg.yoloModelo = YOLO_MODELO_DEF;
+    estado.cfg.yoloRes = '512';
+    nuc_guardar('cfg', estado.cfg);
+    if (typeof ui_toast === 'function') {
+      try { ui_toast('⚠ El modelo potente ahogaba este móvil (~' + Math.round(mediana / 100) / 10 +
+        's por análisis). He cambiado solo al ligero (yolos-tiny · 512) para que no se trabe.', 'sospecha'); } catch (e) {}
+    }
+    yolo_init().catch(function () {});   // recarga con el ligero
+    return;
+  }
+
+  if (y.avisoLento) return;
   if (mediana > YOLO_LENTO_MS) {
     y.avisoLento = true;
     if (typeof ui_toast === 'function') {
       try {
         ui_toast('El modelo potente va lento en este móvil (~' + Math.round(mediana / 100) / 10 +
-          's por análisis). Consejo: en Ajustes → Detección baja a «Rápido (yolos-tiny)» y detalle «Normal (512)».', 'info');
+          's por análisis). Consejo: en Ajustes → Detección baja a «Rápido (yolos-tiny)» y detalle «Normal (512)». Con este ritmo la app espera entre análisis para no calentar el móvil.', 'info');
       } catch (e) {}
     }
   }
@@ -12910,6 +13014,7 @@ let app_ultimaInferencia = 0;   // ts del último frame inferido
 let app_framesInferidos = 0;
 let app_fpsDesde = 0;
 let app_ultimaComposicion = 0;  // throttle del pintado (30 fps / 12 en calma)
+let app_ultimoRaf = 0;          // ts del último frame de animación (mide tirones)
 
 /* FPS objetivo del ciclo: los del dueño, salvo escena en calma con ahorro de
  * energía activo (→ 2 fps). Grabando un evento NUNCA se baja el ritmo. */
@@ -12982,6 +13087,18 @@ function app_ciclo(tsAnim) {
   try {
     const ahora = Date.now();
 
+    // Fluidez del hilo principal: cuánto tarda un frame de animación en llegar.
+    // A 60 fps deberían ser ~16 ms; si el hilo está atascado, se dispara y eso
+    // ES exactamente "se traba". Media rodante suave para el monitor.
+    if (typeof tsAnim === 'number' && app_ultimoRaf) {
+      const dt = tsAnim - app_ultimoRaf;
+      if (dt > 0 && dt < 2000) {
+        estado.video.msFrameUI = estado.video.msFrameUI
+          ? estado.video.msFrameUI * 0.8 + dt * 0.2 : dt;
+      }
+    }
+    app_ultimoRaf = (typeof tsAnim === 'number') ? tsAnim : app_ultimoRaf;
+
     // 0) Medición de movimiento barata (throttle interno de 200 ms)
     if (estado.cfg.ahorroEnergia && typeof vid_medirMovimiento === 'function') {
       vid_medirMovimiento(ahora);
@@ -12997,10 +13114,15 @@ function app_ciclo(tsAnim) {
       vid_componer();
     }
 
-    // 2) Inferencia limitada al fps objetivo (adaptativo), sin re-entrar
+    // 2) Inferencia limitada al fps objetivo (adaptativo), sin re-entrar.
+    //    DESCANSO OBLIGATORIO: si el modelo tarda mucho (YOLO pesado en móvil),
+    //    el siguiente análisis espera 1.5× lo que tardó el anterior. Sin esto,
+    //    los análisis salen pegados, la CPU va al 100% sostenido, el móvil se
+    //    calienta y el teléfono ENTERO se arrastra.
     const intervalo = 1000 / app_fpsObjetivo();
+    const descanso = Math.max(intervalo, (estado.video.msInferencia || 0) * 1.5);
     if (!app_ocupado && nuc_modeloListo() && estado.video.listo &&
-        (ahora - app_ultimaInferencia) >= intervalo) {
+        (ahora - app_ultimaInferencia) >= descanso) {
       app_ocupado = true;
       app_ultimaInferencia = ahora;
       const t0 = performance.now();

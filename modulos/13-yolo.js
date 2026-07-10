@@ -20,13 +20,14 @@ const YOLO_ANCHO_INFER_DEF = 512;   // ancho de análisis por defecto (configura
 const YOLO_INIT_TIMEOUT_MS = 120000; // margen para descargar el modelo la 1ª vez
 const YOLO_INFER_TIMEOUT_MS = 15000; // una inferencia colgada no bloquea la app
 const YOLO_LENTO_MS = 1200;          // mediana por encima → sugerir modelo más ligero
+const YOLO_AHOGO_MS = 2500;          // mediana por encima → AUTO-REBAJA al ligero
 
 function yolo_estado() {
   if (!estado.yolo) {
     estado.yolo = { detector: null, RawImage: null, listo: false, cargando: false,
                     error: '', modelo: '', cnv: null, avisado: false,
                     worker: null, workerListo: false, pendientes: {}, sigId: 1,
-                    tiempos: [], avisoLento: false };
+                    tiempos: [], avisoLento: false, autoRebajado: false };
   }
   return estado.yolo;
 }
@@ -44,6 +45,7 @@ function yolo_codigoWorker() {
     '    try {',
     '      const tjs = await import(m.url);',
     '      try { tjs.env.allowLocalModels = false; } catch (e) {}',
+    '      try { tjs.env.backends.onnx.wasm.numThreads = 2; } catch (e) {}',
     '      let opciones = {};',
     '      try { if (self.navigator && self.navigator.gpu) opciones = { device: "webgpu" }; } catch (e) {}',
     '      detector = await tjs.pipeline("object-detection", m.modelo, opciones);',
@@ -176,6 +178,7 @@ async function yolo_init() {
     // 2º) HILO PRINCIPAL: funciona, pero puede dar tirones (se avisa).
     const tjs = await import(/* @vite-ignore */ YOLO_TJS_URL);
     try { tjs.env.allowLocalModels = false; } catch (e) {}
+    try { tjs.env.backends.onnx.wasm.numThreads = 2; } catch (e) {}
     let opciones = {};
     try { if (navigator.gpu) opciones = { device: 'webgpu' }; } catch (e) {}
     y.detector = await tjs.pipeline('object-detection', modelo, opciones);
@@ -218,20 +221,38 @@ function yolo_mapearCajas(salida, sx, sy) {
   return res;
 }
 
-/* Si el modelo va lento de verdad (mediana >1.2s), se sugiere UNA vez bajar. */
+/* Vigila la velocidad real. Mediana >2.5s → AUTO-REBAJA al modelo ligero (el
+ * pesado estaba ahogando el móvil). Mediana >1.2s → consejo una sola vez. */
 function yolo_vigilarLentitud(ms) {
   const y = estado.yolo;
   y.tiempos.push(ms);
   if (y.tiempos.length > 10) y.tiempos.shift();
-  if (y.avisoLento || y.tiempos.length < 5) return;
+  if (y.tiempos.length < 5) return;
   const orden = y.tiempos.slice().sort((a, b) => a - b);
   const mediana = orden[Math.floor(orden.length / 2)];
+
+  // Ahogo real: cambio automático al ligero (una sola vez por sesión).
+  if (mediana > YOLO_AHOGO_MS && !y.autoRebajado &&
+      (y.modelo !== YOLO_MODELO_DEF || (estado.cfg.yoloRes && estado.cfg.yoloRes !== '512'))) {
+    y.autoRebajado = true;
+    estado.cfg.yoloModelo = YOLO_MODELO_DEF;
+    estado.cfg.yoloRes = '512';
+    nuc_guardar('cfg', estado.cfg);
+    if (typeof ui_toast === 'function') {
+      try { ui_toast('⚠ El modelo potente ahogaba este móvil (~' + Math.round(mediana / 100) / 10 +
+        's por análisis). He cambiado solo al ligero (yolos-tiny · 512) para que no se trabe.', 'sospecha'); } catch (e) {}
+    }
+    yolo_init().catch(function () {});   // recarga con el ligero
+    return;
+  }
+
+  if (y.avisoLento) return;
   if (mediana > YOLO_LENTO_MS) {
     y.avisoLento = true;
     if (typeof ui_toast === 'function') {
       try {
         ui_toast('El modelo potente va lento en este móvil (~' + Math.round(mediana / 100) / 10 +
-          's por análisis). Consejo: en Ajustes → Detección baja a «Rápido (yolos-tiny)» y detalle «Normal (512)».', 'info');
+          's por análisis). Consejo: en Ajustes → Detección baja a «Rápido (yolos-tiny)» y detalle «Normal (512)». Con este ritmo la app espera entre análisis para no calentar el móvil.', 'info');
       } catch (e) {}
     }
   }

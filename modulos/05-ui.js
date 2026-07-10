@@ -129,7 +129,54 @@ function ui_render() {
 
   ui_actualizarContadores();
   ui_actualizarEstadoHeader();
+  ui_actualizarMonitor();
   if (estado.ui && estado.ui.aforoPublico) ui_actualizarAforoPantalla();
+}
+
+/* Monitor de rendimiento en vivo: fluidez del hilo (tirones), ms por análisis
+ * de IA, motor activo y fps de vídeo. Se enciende en Ajustes → Sistema. */
+function ui_actualizarMonitor() {
+  const mon = document.getElementById('vid-monitor');
+  if (!mon) return;
+  const on = !!(estado.cfg && estado.cfg.monitorRend);
+  mon.classList.toggle('oculto', !on);
+  if (!on) return;
+
+  const v = estado.video || {};
+  const clase = (val, buena, media) => val <= buena ? 'buena' : (val <= media ? 'media' : 'mala');
+  const set = (id, txt, cls) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = txt;
+    el.className = cls || '';
+  };
+
+  // Fluidez: ms por frame de animación. ≤22 fluido, ≤45 aceptable, más = tirones.
+  const msUI = Math.round(v.msFrameUI || 0);
+  const fUI = msUI > 0 ? Math.min(60, Math.round(1000 / msUI)) : 0;
+  set('vid-mon-fluidez', msUI ? (fUI + ' fps' + (msUI > 45 ? ' ⚠' : '')) : '—',
+    msUI ? clase(msUI, 22, 45) : '');
+
+  // Análisis IA: ms de la última inferencia.
+  const msIA = Math.round(v.msInferencia || 0);
+  set('vid-mon-ia', msIA ? (msIA + ' ms') : '—', msIA ? clase(msIA, 200, 900) : '');
+
+  // Motor activo (+ si YOLO corre en hilo aparte).
+  let motor = 'Básico';
+  if (estado.cfg.motor === 'yolo') motor = (estado.yolo && estado.yolo.workerListo) ? 'Potente ⧉' : 'Potente';
+  else if (estado.cfg.motor === 'onnx') motor = 'Supercerebro';
+  set('vid-mon-motor', motor, '');
+
+  // FPS de vídeo real (analizado).
+  set('vid-mon-fps', (v.fpsReal ? v.fpsReal : 0) + ' fps IA', '');
+
+  // Barra de carga: proporción del segundo consumida por un análisis de IA.
+  const barra = document.getElementById('vid-mon-carga');
+  if (barra) {
+    const carga = Math.max(0, Math.min(1, msIA / 1000));
+    barra.style.width = Math.round(carga * 100) + '%';
+    barra.style.background = carga < 0.4 ? '#2ee584' : (carga < 0.75 ? '#ffb224' : '#ff5470');
+  }
 }
 
 /* Actualiza las tarjetas de datos en directo (personas, aforo, entradas...) */

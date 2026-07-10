@@ -8,6 +8,7 @@ let app_ultimaInferencia = 0;   // ts del último frame inferido
 let app_framesInferidos = 0;
 let app_fpsDesde = 0;
 let app_ultimaComposicion = 0;  // throttle del pintado (30 fps / 12 en calma)
+let app_ultimoRaf = 0;          // ts del último frame de animación (mide tirones)
 
 /* FPS objetivo del ciclo: los del dueño, salvo escena en calma con ahorro de
  * energía activo (→ 2 fps). Grabando un evento NUNCA se baja el ritmo. */
@@ -80,6 +81,18 @@ function app_ciclo(tsAnim) {
   try {
     const ahora = Date.now();
 
+    // Fluidez del hilo principal: cuánto tarda un frame de animación en llegar.
+    // A 60 fps deberían ser ~16 ms; si el hilo está atascado, se dispara y eso
+    // ES exactamente "se traba". Media rodante suave para el monitor.
+    if (typeof tsAnim === 'number' && app_ultimoRaf) {
+      const dt = tsAnim - app_ultimoRaf;
+      if (dt > 0 && dt < 2000) {
+        estado.video.msFrameUI = estado.video.msFrameUI
+          ? estado.video.msFrameUI * 0.8 + dt * 0.2 : dt;
+      }
+    }
+    app_ultimoRaf = (typeof tsAnim === 'number') ? tsAnim : app_ultimoRaf;
+
     // 0) Medición de movimiento barata (throttle interno de 200 ms)
     if (estado.cfg.ahorroEnergia && typeof vid_medirMovimiento === 'function') {
       vid_medirMovimiento(ahora);
@@ -95,10 +108,15 @@ function app_ciclo(tsAnim) {
       vid_componer();
     }
 
-    // 2) Inferencia limitada al fps objetivo (adaptativo), sin re-entrar
+    // 2) Inferencia limitada al fps objetivo (adaptativo), sin re-entrar.
+    //    DESCANSO OBLIGATORIO: si el modelo tarda mucho (YOLO pesado en móvil),
+    //    el siguiente análisis espera 1.5× lo que tardó el anterior. Sin esto,
+    //    los análisis salen pegados, la CPU va al 100% sostenido, el móvil se
+    //    calienta y el teléfono ENTERO se arrastra.
     const intervalo = 1000 / app_fpsObjetivo();
+    const descanso = Math.max(intervalo, (estado.video.msInferencia || 0) * 1.5);
     if (!app_ocupado && nuc_modeloListo() && estado.video.listo &&
-        (ahora - app_ultimaInferencia) >= intervalo) {
+        (ahora - app_ultimaInferencia) >= descanso) {
       app_ocupado = true;
       app_ultimaInferencia = ahora;
       const t0 = performance.now();

@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.1',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.2',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -49,6 +49,7 @@ const CFG_DEFECTOS = {
   copSonido: true,          // pitido + vibración con los avisos FRENA/PEATÓN
   matAuto: true,            // leer la matrícula sola tras un golpe (caja negra)
   ahorroEnergia: true,      // sin movimiento 3s → baja a 2 fps (vuelve solo al instante)
+  monitorRend: false,       // monitor de rendimiento en vivo sobre el vídeo
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
   resolucion: '720',        // '480' | '720' | '1080'
@@ -343,6 +344,16 @@ function nuc_init() {
     nuc_guardar('migr_sabotaje_v2', true);
     if (estado.cfg.sabotajeModo === 'completo') {
       estado.cfg.sabotajeModo = 'oscuro';
+      if (guardada) nuc_guardar('cfg', estado.cfg);
+    }
+  }
+  // Migración única: los modelos potentes pesados (detr-50 / detalle 768)
+  // ahogaban el móvil entero. Vuelta al ligero; el pesado se puede re-elegir.
+  if (!nuc_cargar('migr_yolo_ligero', false)) {
+    nuc_guardar('migr_yolo_ligero', true);
+    if (estado.cfg.yoloModelo === 'Xenova/detr-resnet-50' || estado.cfg.yoloRes === '768') {
+      estado.cfg.yoloModelo = 'Xenova/yolos-tiny';
+      estado.cfg.yoloRes = '512';
       if (guardada) nuc_guardar('cfg', estado.cfg);
     }
   }
