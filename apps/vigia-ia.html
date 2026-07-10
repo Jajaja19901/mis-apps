@@ -138,9 +138,21 @@ h1, h2, h3, p { margin: 0; }
 .vid-visor video, .vid-visor img#vid-mjpeg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 /* Con fuente activa, el visor adopta la FORMA REAL del vídeo (sin recortar):
    el canvas va en flujo y define la altura; así se ve el fotograma completo. */
-.vid-visor.vid-activo { aspect-ratio: auto; overflow: visible; }
-.vid-visor.vid-activo #vid-canvas { position: relative; display: block; width: 100%; height: auto; z-index: 1; }
-#vid-canvas, #vid-canvasPriv { position: absolute; left: 0; top: 0; width: 100%; height: auto; margin: auto; }
+.vid-visor.vid-activo { aspect-ratio: auto; overflow: visible; justify-content: center; }
+/* El vídeo (aunque sea vertical) se limita en altura para que NUNCA ocupe toda
+   la pantalla: así los botones y paneles de debajo quedan siempre a la vista. */
+.vid-visor.vid-activo #vid-canvas {
+  position: relative; display: block; z-index: 1; margin: 0 auto;
+  width: auto; height: auto; max-width: 100%; max-height: 68vh;
+}
+#vid-canvas, #vid-canvasPriv {
+  position: absolute; left: 0; top: 0; width: 100%; height: auto; margin: auto;
+  touch-action: pan-y;   /* deja hacer scroll vertical tocando el vídeo */
+}
+.vid-visor.vid-activo #vid-canvasPriv {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  width: auto; height: auto; max-width: 100%; max-height: 68vh;
+}
 #vid-canvas { z-index: 1; }
 #vid-canvasPriv { z-index: 2; }
 #vid-estado {
@@ -159,6 +171,16 @@ h1, h2, h3, p { margin: 0; }
 }
 .vid-rec::before { content: ''; width: .5rem; height: .5rem; border-radius: 999px; background: #fff; }
 @keyframes ui-parpadeo { 0%, 100% { opacity: 1; } 50% { opacity: .3; } }
+
+/* Botón flotante para leer la matrícula (sobre el vídeo, esquina inferior derecha) */
+.mat-flotante {
+  position: absolute; right: .6rem; bottom: .6rem; z-index: 5;
+  background: rgba(250, 204, 21, .95); color: #1a1200; border: none;
+  padding: .6rem .9rem; border-radius: 999px; font-weight: 800; font-size: .9rem;
+  box-shadow: 0 3px 12px rgba(0,0,0,.45); cursor: pointer;
+}
+.mat-flotante:active { transform: scale(.95); }
+.mat-flotante[disabled] { opacity: .6; }
 
 /* Monitor de rendimiento (diagnóstico en vivo) */
 .vid-monitor {
@@ -390,6 +412,7 @@ h1, h2, h3, p { margin: 0; }
   <canvas id="vid-canvas"></canvas>
   <canvas id="vid-canvasPriv" class="oculto"></canvas>
   <div id="vid-rec" class="vid-rec oculto">● REC</div>
+  <button type="button" id="mat-flotante" class="mat-flotante oculto" aria-label="Leer matrícula del coche de delante">📋 Matrícula</button>
   <div id="vid-monitor" class="vid-monitor oculto" aria-live="polite">
     <div class="vid-mon-fila"><span>Fluidez</span><b id="vid-mon-fluidez">—</b></div>
     <div class="vid-mon-fila"><span>Análisis IA</span><b id="vid-mon-ia">—</b></div>
@@ -1720,7 +1743,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.15',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.16',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -13135,6 +13158,17 @@ function mat_init() {
 
   const btn = document.getElementById('cop-btnMatricula');
   if (btn) btn.addEventListener('click', function () { mat_leer(true); });
+
+  // Botón FLOTANTE sobre el vídeo (visible en modo copiloto): lo más fácil de ver.
+  const flo = document.getElementById('mat-flotante');
+  if (flo) flo.addEventListener('click', function () { mat_leer(true); });
+  // Mostrar/ocultar el flotante según esté el copiloto activo (throttle en 'frame').
+  if (typeof bus !== 'undefined' && bus.on) {
+    bus.on('frame', function () {
+      const f = document.getElementById('mat-flotante');
+      if (f) f.classList.toggle('oculto', !estado.cfg.copActivo);
+    });
+  }
 
   const chk = document.getElementById('cop-matAuto');
   if (chk) {
