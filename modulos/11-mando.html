@@ -1,0 +1,142 @@
+<!-- ============================================================================
+     11-MANDO — VIGÍA IA · panel del PUESTO DE MANDO REMOTO (SLOT:MANDO).
+     Fragmento sin html/head/body: se inyecta en #ui-secMando. Prefijo mando-.
+     Solo estilos con selectores .mando-*/#mando-*. En modo mando el móvil no
+     analiza nada: solo muestra el vídeo del cerebro y envía órdenes.
+     ========================================================================== -->
+<style>
+  #mando-panel { display:flex; flex-direction:column; gap:14px; }
+
+  #mando-estadoCerebro {
+    position:sticky; top:6px; z-index:5; align-self:flex-start;
+    display:inline-flex; align-items:center; gap:7px;
+    padding:6px 12px; border-radius:999px; font-family:var(--mono);
+    font-size:.8rem; font-weight:700; border:1px solid var(--borde);
+    background:var(--panel2); color:var(--texto2);
+  }
+  #mando-estadoCerebro.mando-cerebro-ok { color:var(--verde); border-color:var(--verde); }
+  #mando-estadoCerebro.mando-cerebro-no { color:var(--rojo); border-color:var(--rojo); }
+
+  .mando-conexion { display:flex; flex-direction:column; gap:10px; }
+  .mando-conexion .campo input { width:100%; }
+  #mando-panelConectado { display:flex; flex-direction:column; gap:14px; }
+
+  .mando-btn-armado {
+    width:100%; padding:20px 14px; border-radius:var(--radio); border:2px solid transparent;
+    font-family:var(--mono); font-weight:700; font-size:clamp(1rem,4.5vw,1.4rem);
+    letter-spacing:.02em; cursor:pointer; color:#051019; transition:filter .15s ease;
+  }
+  .mando-btn-armado:hover { filter:brightness(1.06); }
+  .mando-armado-off { background:var(--verde); border-color:var(--verde); }
+  .mando-armado-on  { background:var(--rojo);  border-color:var(--rojo); color:#250408; }
+
+  .mando-horario { display:flex; flex-direction:column; gap:8px; }
+  .mando-toggle { display:inline-flex; align-items:center; gap:6px; font-size:.85rem; color:var(--texto2); font-weight:600; }
+
+  .mando-mosaico-cab { justify-content:space-between; }
+  .mando-chips { display:flex; flex-wrap:wrap; gap:6px; }
+  .mando-chip { padding:4px 10px; border-radius:999px; border:1px solid var(--borde); background:var(--panel2); color:var(--texto2); font-size:.78rem; font-weight:700; cursor:pointer; }
+  .mando-chip[aria-pressed="true"] { color:var(--azul); border-color:var(--azul); }
+
+  #mando-mosaico { display:grid; gap:8px; grid-template-columns:1fr; }
+  .mando-celda {
+    position:relative; background:#05080c; border:1px solid var(--borde);
+    border-radius:var(--radio); overflow:hidden; aspect-ratio:16/9; min-height:120px;
+  }
+  .mando-media, .mando-media video, .mando-media img {
+    position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#05080c;
+  }
+  .mando-media { display:flex; align-items:center; justify-content:center; }
+  .mando-celda-cargando { color:var(--texto2); font-size:.8rem; font-family:var(--mono); }
+  .mando-nota-foto {
+    position:absolute; top:6px; right:8px; z-index:3; font-size:.68rem; font-weight:700;
+    padding:2px 7px; border-radius:999px; background:rgba(0,0,0,.6); color:var(--ambar);
+  }
+  .mando-celda-cab {
+    position:absolute; top:0; left:0; right:0; z-index:2; display:flex; align-items:center; gap:7px;
+    padding:6px 8px; background:linear-gradient(rgba(0,0,0,.6),rgba(0,0,0,0));
+    color:var(--texto); font-size:.82rem; font-weight:700; pointer-events:none;
+  }
+  .mando-punto { width:9px; height:9px; border-radius:50%; background:var(--texto2); flex:0 0 auto; }
+  .mando-punto.mando-on { background:var(--verde); }
+  .mando-punto.mando-off { background:var(--rojo); }
+  .mando-celda-pie {
+    position:absolute; bottom:0; left:0; right:0; z-index:2; display:flex; flex-wrap:wrap; gap:6px;
+    padding:6px 8px; background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,.6));
+  }
+  .mando-celda-full {
+    position:fixed; inset:0; z-index:60; aspect-ratio:auto; border-radius:0; border:0; margin:0;
+  }
+  .mando-celda-full .mando-media video, .mando-celda-full .mando-media img { object-fit:contain; }
+
+  /* Editor de zonas remoto: modal a pantalla completa con lienzo propio */
+  .mando-zonas-modal { position:fixed; inset:0; z-index:80; background:rgba(5,8,12,.96); display:flex; flex-direction:column; }
+  .mando-zonas-cab { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 12px; border-bottom:1px solid var(--borde); }
+  .mando-zonas-toolbar { display:flex; flex-wrap:wrap; gap:6px; padding:8px 12px; align-items:center; }
+  .mando-zonas-lienzo { flex:1 1 auto; position:relative; display:flex; align-items:center; justify-content:center; min-height:0; padding:8px; }
+  #mando-canvasZonas { max-width:100%; max-height:100%; touch-action:none; background:#05080c; border:1px solid var(--borde); border-radius:6px; }
+  .mando-zonas-pie { display:flex; flex-wrap:wrap; gap:8px; padding:10px 12px; border-top:1px solid var(--borde); }
+  .mando-zonas-ayuda { color:var(--ambar); font-size:.78rem; font-weight:700; }
+
+  @media (max-width:600px) {
+    .mando-btn-armado { padding:16px 12px; }
+  }
+</style>
+
+<div id="mando-panel">
+
+  <div id="mando-estadoCerebro" class="mando-cerebro-no" role="status" aria-live="polite">🧠 Sin conexión</div>
+
+  <!-- CONEXIÓN: visible mientras no hay conexión establecida -->
+  <div id="mando-conexion" class="tarjeta mando-conexion">
+    <h2 class="sec-titulo">Conectar con el cerebro</h2>
+    <p class="etiqueta">Escribe la dirección y el token que te dio el instalador, o pega el código QR (empieza por <code>vigia://</code>).</p>
+    <div class="campo">
+      <label for="mando-url">Dirección del cerebro</label>
+      <input type="url" id="mando-url" inputmode="url" autocomplete="off" placeholder="https://tu-tunel.trycloudflare.com">
+    </div>
+    <div class="campo">
+      <label for="mando-token">Token</label>
+      <input type="text" id="mando-token" autocomplete="off" placeholder="32 caracteres">
+    </div>
+    <div class="fila">
+      <button type="button" id="mando-btnConectar" class="btn btn-primario">Conectar</button>
+      <button type="button" id="mando-btnPegarQR" class="btn btn-fantasma">📋 Pegar código QR</button>
+      <button type="button" id="mando-btnDesconectar" class="btn btn-fantasma oculto">Desconectar</button>
+    </div>
+  </div>
+
+  <!-- PANEL CONECTADO: armado, horario, mosaico y (más abajo) el dashboard remoto -->
+  <div id="mando-panelConectado" class="oculto">
+
+    <button type="button" id="mando-btnArmado" class="mando-btn-armado mando-armado-off">🟢 DESARMADO — tocar para armar</button>
+
+    <div class="tarjeta mando-horario">
+      <span class="etiqueta">Armado automático por franja horaria</span>
+      <div class="fila">
+        <div class="campo">
+          <label for="mando-horaIni">Desde</label>
+          <input type="time" id="mando-horaIni" value="22:00">
+        </div>
+        <div class="campo">
+          <label for="mando-horaFin">Hasta</label>
+          <input type="time" id="mando-horaFin" value="08:00">
+        </div>
+        <label class="mando-toggle"><input type="checkbox" id="mando-horarioOn"> Activar franja</label>
+        <button type="button" id="mando-btnHorario" class="btn btn-mini">Guardar horario</button>
+      </div>
+    </div>
+
+    <div class="mando-mosaico-cab fila">
+      <span class="etiqueta">Cámaras en vivo</span>
+      <button type="button" id="mando-btnRefrescar" class="btn btn-mini btn-fantasma">↻ Actualizar</button>
+    </div>
+    <div id="mando-chips" class="mando-chips oculto" role="group" aria-label="Elegir cámaras del mosaico"></div>
+    <div id="mando-mosaico" class="mando-mosaico" aria-label="Mosaico de cámaras"></div>
+
+    <!-- Aquí el Agente 7 inyecta el dashboard remoto (gráficas, historial, ajustes) -->
+    <!-- SLOT:MANDODASH -->
+
+  </div>
+
+</div>

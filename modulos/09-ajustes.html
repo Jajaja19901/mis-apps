@@ -1,0 +1,534 @@
+<!-- ============================================================================
+     SLOT:AJUSTES — Panel de ajustes y legal (módulo 09-ajustes)
+     Se inyecta dentro de #ui-panelAjustes (el drawer/overlay lo crea 05-ui.html).
+     Todos los controles de configuración llevan data-cfg="clave" (binding declarativo
+     de 09-ajustes.js contra estado.cfg). Secciones plegables con <details>/<summary>.
+   ============================================================================ -->
+<div class="cfg-panel">
+
+  <!-- 0. INICIO RÁPIDO: atajos de un toque a lo más usado -->
+  <div class="tarjeta cfg-sec" id="cfg-secInicio">
+    <p class="etiqueta" style="margin:0 0 8px;">¿Qué quieres hacer? Un toque y te llevo al sitio:</p>
+    <div class="fila" style="flex-wrap:wrap; gap:8px;">
+      <button type="button" class="btn btn-mini" id="cfg-irCamara">📷 Usar la cámara del móvil</button>
+      <button type="button" class="btn btn-mini" id="cfg-irMotor">⚡ Cambiar el motor de IA</button>
+      <button type="button" class="btn btn-mini" id="cfg-irDashcam">📹 Conectar la dashcam</button>
+      <button type="button" class="btn btn-mini" id="cfg-irCopiloto">🚗 Modo coche (copiloto)</button>
+    </div>
+  </div>
+
+  <!-- 1. FUENTE DE VÍDEO -->
+  <details class="tarjeta cfg-sec" id="cfg-secFuente" open>
+    <summary class="sec-titulo">Fuente de vídeo</summary>
+
+    <fieldset class="campo">
+      <legend class="etiqueta">Origen de la imagen</legend>
+      <div class="fila">
+        <label><input type="radio" name="cfg-fuente" id="cfg-fuente-camara" data-cfg="fuente" value="camara"> Cámara del dispositivo</label>
+        <label><input type="radio" name="cfg-fuente" id="cfg-fuente-ip" data-cfg="fuente" value="ip"> Cámara IP</label>
+        <label><input type="radio" name="cfg-fuente" id="cfg-fuente-dashcam" data-cfg="fuente" value="dashcam"> Dashcam / cámara RTSP (vía go2rtc)</label>
+        <label><input type="radio" name="cfg-fuente" id="cfg-fuente-archivo" data-cfg="fuente" value="archivo"> Vídeo de prueba (demo)</label>
+      </div>
+    </fieldset>
+
+    <div id="cfg-grupoCamara">
+      <div class="campo">
+        <label for="cfg-camaraDispositivo">Lente concreta</label>
+        <div class="fila">
+          <select id="cfg-camaraDispositivo" style="flex:1;min-width:0;">
+            <option value="">Automática (por lado)</option>
+          </select>
+          <button type="button" class="btn btn-mini" id="cfg-btnBuscarCamaras">🔄 Buscar</button>
+        </div>
+        <p class="etiqueta">En móviles con varias cámaras traseras, elige la <b>principal</b> (no la gran angular): detecta mejor. Pulsa «Buscar» y prueba cuál va mejor.</p>
+      </div>
+      <div class="fila">
+        <div class="campo">
+          <label for="cfg-camara">Lado (si es automática)</label>
+          <select id="cfg-camara" data-cfg="camara">
+            <option value="user">Frontal</option>
+            <option value="environment">Trasera</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="cfg-resolucion">Resolución</label>
+          <select id="cfg-resolucion" data-cfg="resolucion">
+            <option value="480">480p (más ligero)</option>
+            <option value="720">720p (equilibrado)</option>
+            <option value="1080">1080p (nítido — recomendado)</option>
+            <option value="1440">1440p (máxima calidad, si tu lente la da)</option>
+          </select>
+          <p class="etiqueta">¿Se ve borroso? Pon <b>1080p o 1440p</b>, pulsa «Buscar» y elige la
+          cámara <b>principal</b> (el navegador a veces coge la gran angular, que se ve peor).
+          Al activar, la app pide enfoque y exposición automáticos. Aun así, ninguna web iguala
+          del todo a la app de cámara nativa de Samsung (sin HDR ni su procesado): esto es lo más
+          nítido posible dentro del navegador.</p>
+        </div>
+      </div>
+      <button type="button" class="btn btn-primario" id="cfg-btnActivarCamara">▶ Activar cámara</button>
+    </div>
+
+    <div id="cfg-grupoIP" class="oculto">
+      <div class="campo">
+        <label for="cfg-urlIP">URL de la cámara IP</label>
+        <input type="text" id="cfg-urlIP" data-cfg="urlIP" placeholder="http://192.168.1.50:8080" inputmode="url" autocomplete="off">
+      </div>
+      <button type="button" class="btn btn-primario" id="cfg-btnConectarIP">Conectar</button>
+      <p class="etiqueta">Instala la app gratuita IP Webcam en un móvil viejo, arranca el servidor de vídeo y pega aquí su URL.</p>
+    </div>
+
+    <div id="cfg-grupoDashcam" class="oculto">
+      <div class="campo">
+        <label for="cfg-urlDashcam">URL del stream de go2rtc</label>
+        <input type="text" id="cfg-urlDashcam" data-cfg="urlDashcam" placeholder="http://localhost:1984/api/stream.mjpeg?src=dashcam" inputmode="url" autocomplete="off">
+      </div>
+      <div class="fila">
+        <button type="button" class="btn btn-primario" id="cfg-btnConectarDashcam">Conectar dashcam</button>
+        <button type="button" class="btn" id="cfg-btnProbarDashcam">Probar conexión</button>
+      </div>
+      <p id="cfg-dashcamResultado" class="etiqueta"></p>
+      <button type="button" class="btn btn-mini btn-fantasma" id="cfg-btnGuiaDashcam">📖 Guía: conectar mi dashcam paso a paso</button>
+    </div>
+
+    <div id="cfg-grupoArchivo" class="oculto">
+      <div class="campo">
+        <label for="cfg-archivoDemo">Vídeo de demostración</label>
+        <input type="file" id="cfg-archivoDemo" accept="video/*">
+      </div>
+      <button type="button" class="btn btn-primario" id="cfg-btnCargarDemo">🎬 Cargar vídeo demo</button>
+      <p class="etiqueta">Modo demo: sirve para calibrar los umbrales y enseñar la app a clientes cuando no tienes cámara a mano.</p>
+    </div>
+
+    <button type="button" class="btn btn-peligro" id="cfg-btnDetenerFuente">⏹ Detener fuente</button>
+  </details>
+
+  <!-- 2. DETECCIÓN -->
+  <details class="tarjeta cfg-sec" id="cfg-secDeteccion">
+    <summary class="sec-titulo">Detección</summary>
+
+    <div class="campo" id="cfg-optim">
+      <button type="button" class="btn btn-primario" id="cfg-btnOptimizar" style="width:100%;">⚡ Optimizar para mi móvil</button>
+      <p id="cfg-optimResultado" class="etiqueta">Un toque y dejo la app en los ajustes que menos traban: mido tu móvil y elijo el motor y la calidad que mejor le van. Puedes cambiar todo a mano abajo.</p>
+    </div>
+
+    <div class="campo">
+      <label for="cfg-motor">Motor de detección</label>
+      <select id="cfg-motor" data-cfg="motor">
+        <option value="coco">Básico (ligero, va fluido en cualquier móvil)</option>
+        <option value="yolo">Potente (Transformers.js, detecta más)</option>
+        <option value="onnx">🧠 SUPERCEREBRO (YOLO11 + WebGPU, máxima precisión)</option>
+      </select>
+      <p class="etiqueta">«Potente» carga un modelo YOLO de verdad en el móvil (necesita internet la primera vez y un móvil con cierta potencia). Es lo que hay que usar si «detecta poco». Si tu móvil se atasca, vuelve a «Rápido».</p>
+    </div>
+
+    <div id="cfg-grupoYolo" class="oculto">
+      <p class="etiqueta" id="cfg-yoloEstado"></p>
+      <div class="fila">
+        <div class="campo">
+          <label for="cfg-yoloModelo">Modelo potente</label>
+          <select id="cfg-yoloModelo" data-cfg="yoloModelo">
+            <option value="Xenova/yolos-tiny">Rápido (yolos-tiny)</option>
+            <option value="Xenova/yolos-small">Equilibrado (yolos-small)</option>
+            <option value="Xenova/detr-resnet-50">Máxima precisión (detr-50)</option>
+          </select>
+        </div>
+        <div class="campo">
+          <label for="cfg-yoloRes">Detalle de análisis</label>
+          <select id="cfg-yoloRes" data-cfg="yoloRes">
+            <option value="512">Normal (512)</option>
+            <option value="640">Alto (640) · ve más lejos</option>
+            <option value="768">Máximo (768) · lento</option>
+          </select>
+        </div>
+      </div>
+      <p class="etiqueta">Si tu móvil lo mueve, «Máxima precisión» + «Alto» es lo que menos falla. Si va a tirones, baja a «Rápido» + «Normal» y reduce los FPS.</p>
+    </div>
+
+    <div id="cfg-grupoOnnx" class="oculto">
+      <p class="etiqueta">El SUPERCEREBRO corre YOLO11 de verdad en tu móvil (WebGPU en un S22; si no hay, WASM). Descarga el modelo UNA vez y queda guardado. Backend activo: <b id="cfg-scBackend">—</b></p>
+      <div class="campo">
+        <label for="cfg-scModelo">Modelo del supercerebro</label>
+        <select id="cfg-scModelo">
+          <option value="n">Rápido — YOLO11n (~10 MB, para Copiloto)</option>
+          <option value="s">Equilibrado — YOLO11s (~36 MB)</option>
+          <option value="m">Máxima precisión — YOLO11m (~77 MB, sesiones de vigilancia)</option>
+        </select>
+      </div>
+      <div class="fila">
+        <button type="button" class="btn btn-primario" id="cfg-btnScActivar">⬇ Descargar y activar</button>
+        <button type="button" class="btn" id="cfg-btnScBench">📊 Benchmark (20 inferencias)</button>
+        <button type="button" class="btn btn-mini" id="cfg-btnScTest">🎯 Test de detección</button>
+      </div>
+      <p id="cfg-scProgreso" class="etiqueta"></p>
+      <div id="cfg-scResultados" class="etiqueta"></div>
+      <details class="cfg-sec">
+        <summary class="etiqueta">Avanzado: alojar los modelos en tu web/GitHub (carga más fiable)</summary>
+        <p class="etiqueta">Sube los 3 archivos <b>yolo11n.onnx</b>, <b>yolo11s.onnx</b> y <b>yolo11m.onnx</b>
+        a una carpeta de tu web (Cloudflare Pages, GitHub Pages…) y pega aquí la <b>dirección de esa carpeta</b>.
+        Relleno las 3 URLs solo. Esto <b>acelera la descarga</b> la primera vez y hace que funcione sin depender
+        de Hugging Face. La velocidad de detección la pone tu móvil, no cambia por esto.</p>
+        <div class="campo">
+          <label for="cfg-scBase">Carpeta de tus modelos</label>
+          <div class="fila">
+            <input type="text" id="cfg-scBase" style="flex:1;min-width:0;" placeholder="https://mi-web.pages.dev/modelos/" inputmode="url" autocomplete="off">
+            <button type="button" class="btn btn-mini" id="cfg-btnScBase">Aplicar</button>
+          </div>
+          <p class="etiqueta" id="cfg-scBaseResultado"></p>
+        </div>
+        <div class="campo"><label for="cfg-scUrlN">YOLO11n</label><input type="text" id="cfg-scUrlN" data-cfg="scUrlN" placeholder="(por defecto: onnx-community en Hugging Face)"></div>
+        <div class="campo"><label for="cfg-scUrlS">YOLO11s</label><input type="text" id="cfg-scUrlS" data-cfg="scUrlS" placeholder="(por defecto)"></div>
+        <div class="campo"><label for="cfg-scUrlM">YOLO11m</label><input type="text" id="cfg-scUrlM" data-cfg="scUrlM" placeholder="(por defecto)"></div>
+      </details>
+      <fieldset class="campo">
+        <legend class="etiqueta">Cerebro adaptativo en el Copiloto</legend>
+        <label class="fila"><input type="checkbox" id="cfg-copCerebroAuto" data-cfg="copCerebroAuto"> <span>Cambiar solo según la velocidad (parado: precisión · en marcha: rápido)</span></label>
+        <div class="campo">
+          <label for="cfg-copUmbralVel">Umbral de velocidad (km/h)</label>
+          <input type="number" id="cfg-copUmbralVel" data-cfg="copUmbralVel" min="10" max="90" step="5">
+        </div>
+        <label class="fila"><input type="checkbox" id="cfg-copForzarGrande" data-cfg="copForzarGrande"> <span>Forzar cerebro grande siempre <b>⚠ A alta velocidad los avisos llegarán más tarde. No recomendado en carretera.</b></span></label>
+      </fieldset>
+    </div>
+
+    <div class="campo">
+      <label for="cfg-fps">Fotogramas por segundo de análisis</label>
+      <div class="fila">
+        <input type="range" id="cfg-fps" data-cfg="fps" min="3" max="20" step="1">
+        <output id="cfg-fps-out" class="etiqueta"></output>
+      </div>
+      <p class="etiqueta">Más fotogramas = reacciona antes y pierde menos movimientos. A partir de 10 exige móvil potente y motor rápido; si no llega, el sistema baja solo y te avisa.</p>
+    </div>
+
+    <label class="fila"><input type="checkbox" id="cfg-ahorroEnergia" data-cfg="ahorroEnergia">
+      <span>🌙 <b>Ahorro de energía</b>: si nada se mueve durante 3 s, baja solo a 2 fps y vuelve
+      a tus fps <b>al instante</b> en cuanto algo se mueva. Menos batería y menos calentamiento
+      en vigilancias largas.</span></label>
+
+    <div class="campo">
+      <label for="cfg-scoreMin">Sensibilidad de detección</label>
+      <div class="fila">
+        <input type="range" id="cfg-scoreMin" data-cfg="scoreMin" min="0.2" max="0.8" step="0.05">
+        <output id="cfg-scoreMin-out" class="etiqueta"></output>
+      </div>
+      <p class="etiqueta">Más a la izquierda = detecta más cosas (también más falsos). Si «detecta poco», baja este valor a 0,35.</p>
+    </div>
+
+    <div class="campo">
+      <label for="cfg-modoNoche">🌙 Modo noche (detectar con poca luz)</label>
+      <select id="cfg-modoNoche" data-cfg="modoNoche">
+        <option value="auto">Automático (realza solo si está oscuro) — recomendado</option>
+        <option value="on">Siempre encendido (realza siempre)</option>
+        <option value="off">Apagado</option>
+      </select>
+      <p class="etiqueta">Con poca luz, la IA detecta muy mal. Esto aclara y da contraste a la imagen <b>antes</b> de analizarla, así detecta mucho más de noche. No cambia el vídeo que se ve ni el que se graba (la evidencia va tal cual).</p>
+    </div>
+
+    <label class="fila" style="align-items:flex-start;gap:8px;">
+      <input type="checkbox" id="cfg-modeloPreciso" data-cfg="modeloPreciso">
+      <span>Modo preciso <span class="etiqueta">(ve más objetos y más pequeños; va algo más lento. Se recarga el modelo al activarlo.)</span></span>
+    </label>
+
+    <fieldset class="campo">
+      <legend class="etiqueta">Modo de trabajo</legend>
+      <div class="fila">
+        <label><input type="radio" name="cfg-modo" id="cfg-modo-super" data-cfg="modo" value="super"> Supermercado / comercio</label>
+        <label><input type="radio" name="cfg-modo" id="cfg-modo-carretera" data-cfg="modo" value="carretera"> Carretera / tráfico</label>
+      </div>
+    </fieldset>
+  </details>
+
+  <!-- 3. AFORO Y ZONAS -->
+  <details class="tarjeta cfg-sec" id="cfg-secAforo">
+    <summary class="sec-titulo">Aforo y zonas</summary>
+
+    <div class="fila">
+      <div class="campo">
+        <label for="cfg-aforoMax">Aforo máximo</label>
+        <input type="number" id="cfg-aforoMax" data-cfg="aforoMax" min="1" max="1000" step="1">
+      </div>
+      <div class="campo">
+        <label for="cfg-merodeoSeg">Merodeo (segundos)</label>
+        <input type="number" id="cfg-merodeoSeg" data-cfg="merodeoSeg" min="5" max="600" step="5">
+      </div>
+    </div>
+    <div class="fila">
+      <div class="campo">
+        <label for="cfg-colaN">Personas para considerar cola</label>
+        <input type="number" id="cfg-colaN" data-cfg="colaN" min="2" max="20" step="1">
+      </div>
+      <div class="campo">
+        <label for="cfg-colaSeg">Cola sostenida (segundos)</label>
+        <input type="number" id="cfg-colaSeg" data-cfg="colaSeg" min="10" max="600" step="5">
+      </div>
+    </div>
+    <div class="fila">
+      <div class="campo">
+        <label for="cfg-abandonoSeg">Objeto abandonado (segundos)</label>
+        <input type="number" id="cfg-abandonoSeg" data-cfg="abandonoSeg" min="5" max="600" step="5">
+      </div>
+      <div class="campo">
+        <label for="cfg-abandonoDistRel">Distancia al dueño (fracción del ancho)</label>
+        <div class="fila">
+          <input type="range" id="cfg-abandonoDistRel" data-cfg="abandonoDistRel" min="0.05" max="0.5" step="0.01">
+          <output id="cfg-abandonoDistRel-out" class="etiqueta"></output>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <!-- 4. GESTOS -->
+  <details class="tarjeta cfg-sec" id="cfg-secGestos">
+    <summary class="sec-titulo">Gestos y comportamiento</summary>
+
+    <div class="campo">
+      <label for="cfg-posesMax">Personas analizadas a la vez (gestos/postura)</label>
+      <div class="fila">
+        <input type="range" id="cfg-posesMax" data-cfg="posesMax" min="1" max="6" step="1">
+        <output id="cfg-posesMax-out" class="etiqueta"></output>
+      </div>
+      <p class="etiqueta">Si hay 5 personas y quieres vigilar los gestos de LAS 5, sube esto a 5-6. Cada persona extra cuesta CPU: si va lento, el sistema procesa 1 de cada 2 fotogramas de postura (y te lo compensa). Caídas, carrera, zonas y conteos analizan SIEMPRE a todas, esto solo afecta a los gestos de ocultación.</p>
+    </div>
+
+    <label class="fila" style="align-items:flex-start;gap:8px;">
+      <input type="checkbox" id="cfg-ocultacionUnGesto" data-cfg="ocultacionUnGesto">
+      <span>Avisar al PRIMER gesto claro (coger de estante → mano al bolsillo y quedarse) <span class="etiqueta">Sin esto, hacen falta 2 gestos. Más avisos = también más falsos: sigue siendo «para revisión», nunca una acusación.</span></span>
+    </label>
+
+    <label class="fila" style="align-items:flex-start;gap:8px;">
+      <input type="checkbox" id="cfg-ocultacionSoloEstanteria" data-cfg="ocultacionSoloEstanteria">
+      <span>El «coger» solo cuenta si la mano toca una <b>zona sensible dibujada</b> (tu estantería) <span class="etiqueta">Dibuja «＋ Sensible» sobre las estanterías a vigilar. Meter la mano al bolsillo SIN haber cogido del estante NUNCA avisa — es el diseño: la foto/clip de cada alerta te enseña cuál de las metidas fue la sospechosa.</span></span>
+    </label>
+
+    <div class="campo">
+      <label for="cfg-ocultacionPermanencia">Permanencia de la mano en bolsillo/cintura (segundos)</label>
+      <div class="fila">
+        <input type="range" id="cfg-ocultacionPermanencia" data-cfg="ocultacionPermanencia" min="0.3" max="1.5" step="0.1">
+        <output id="cfg-ocultacionPermanencia-out" class="etiqueta"></output>
+      </div>
+      <p class="etiqueta">Bájalo a 0,3-0,5 para pillar metidas RÁPIDAS al bolsillo (a cambio, algún falso más al ajustarse la ropa).</p>
+    </div>
+
+    <div class="campo">
+      <label for="cfg-ocultacionUmbral">Umbral de gesto de ocultación</label>
+      <div class="fila">
+        <input type="range" id="cfg-ocultacionUmbral" data-cfg="ocultacionUmbral" min="30" max="90" step="5">
+        <output id="cfg-ocultacionUmbral-out" class="etiqueta"></output>
+      </div>
+    </div>
+
+    <div class="campo">
+      <label for="cfg-carreraVel">Umbral de carrera</label>
+      <div class="fila">
+        <input type="range" id="cfg-carreraVel" data-cfg="carreraVel" min="1" max="5" step="0.1">
+        <output id="cfg-carreraVel-out" class="etiqueta"></output>
+      </div>
+    </div>
+
+    <div class="campo">
+      <label for="cfg-caidaSeg">Caída sostenida (segundos)</label>
+      <input type="number" id="cfg-caidaSeg" data-cfg="caidaSeg" min="1" max="30" step="1">
+    </div>
+
+    <label class="fila"><input type="checkbox" id="cfg-debugPose" data-cfg="debugPose"> Ver esqueleto (demo)</label>
+
+    <div class="tarjeta cfg-destacada">
+      <p><strong>Este sistema señala comportamientos para revisión. Nunca acuses a nadie basándote solo en una alerta.</strong></p>
+    </div>
+
+    <p id="cfg-notaGestos" class="etiqueta oculto">El análisis de gestos no está disponible (no cargó el modelo de pose); caída y carrera siguen funcionando.</p>
+  </details>
+
+  <!-- 4b. ACCIONES AVANZADAS -->
+  <details class="tarjeta cfg-sec" id="cfg-secAcciones">
+    <summary class="sec-titulo">Acciones avanzadas (secuencias)</summary>
+    <p class="etiqueta">Señales para revisión humana construidas combinando lo que ya ve el sistema. Activa solo las que apliquen a tu local: menos activas = menos falsos.</p>
+    <label class="fila"><input type="checkbox" id="cfg-accMochila" data-cfg="accMochila"> <span>🎒 Coger del estante → mano en <b>mochila/bolso</b> detectado</span></label>
+    <label class="fila"><input type="checkbox" id="cfg-accSecuenciaSalida" data-cfg="accSecuenciaSalida"> <span>🔗 Ocultación reciente + <b>se dirige a la salida</b> o echa a correr → aviso CRÍTICO "revisar YA"</span></label>
+    <label class="fila"><input type="checkbox" id="cfg-accAgachado" data-cfg="accAgachado"> <span>🧎 Persona <b>agachada</b> junto al estante (actívalo si tus estantes bajos no son de uso normal)</span></label>
+    <label class="fila"><input type="checkbox" id="cfg-accContrasentido" data-cfg="accContrasentido"> <span>🚪 Entrar por la <b>línea de salida</b> (dibuja 2ª línea = salida)</span></label>
+    <label class="fila"><input type="checkbox" id="cfg-accAglomeracion" data-cfg="accAglomeracion"> <span>👥 <b>Grupo con movimiento brusco</b> (posible incidente — siempre "revisar", nunca "pelea")</span></label>
+    <label class="fila"><input type="checkbox" id="cfg-accColarse" data-cfg="accColarse"> <span>🚶🚶 Dos personas <b>entran casi pegadas</b> (colarse; para accesos de uno en uno)</span></label>
+    <p class="etiqueta">💡 En cada alerta del panel verás un botón «👎 falsa»: márcalo cuando el aviso no fuera real. Con suficientes marcas, el sistema te sugiere el ajuste exacto para tu local.</p>
+  </details>
+
+  <!-- 5. FUERA DE HORARIO -->
+  <details class="tarjeta cfg-sec" id="cfg-secHorario">
+    <summary class="sec-titulo">Fuera de horario</summary>
+
+    <label class="fila"><input type="checkbox" id="cfg-fueraHorarioOn" data-cfg="fueraHorarioOn"> Activar vigilancia fuera de horario</label>
+
+    <div class="fila">
+      <div class="campo">
+        <label for="cfg-fueraHorarioIni">Inicio de la franja</label>
+        <input type="time" id="cfg-fueraHorarioIni" data-cfg="fueraHorarioIni">
+      </div>
+      <div class="campo">
+        <label for="cfg-fueraHorarioFin">Fin de la franja</label>
+        <input type="time" id="cfg-fueraHorarioFin" data-cfg="fueraHorarioFin">
+      </div>
+    </div>
+
+    <p class="etiqueta">Cualquier persona detectada en esa franja horaria dispara una alerta crítica y graba automáticamente.</p>
+  </details>
+
+  <!-- 6. RUIDO -->
+  <details class="tarjeta cfg-sec" id="cfg-secRuido">
+    <summary class="sec-titulo">Ruido</summary>
+
+    <label class="fila"><input type="checkbox" id="cfg-ruidoOn" data-cfg="ruidoOn"> Activar detección de ruido</label>
+
+    <div class="campo">
+      <label for="cfg-ruidoNivel">Umbral de nivel de ruido</label>
+      <div class="fila">
+        <input type="range" id="cfg-ruidoNivel" data-cfg="ruidoNivel" min="50" max="100" step="5">
+        <output id="cfg-ruidoNivel-out" class="etiqueta"></output>
+      </div>
+    </div>
+
+    <p class="etiqueta">Solo mide el nivel de ruido; nunca graba audio.</p>
+  </details>
+
+  <!-- 7. PRIVACIDAD EN VIVO -->
+  <details class="tarjeta cfg-sec" id="cfg-secPrivacidad">
+    <summary class="sec-titulo">Privacidad en vivo</summary>
+
+    <label class="fila"><input type="checkbox" id="cfg-privacidad" data-cfg="privacidad"> Pixelar caras en la vista en vivo</label>
+
+    <p class="etiqueta">Pixela las caras solo en la pantalla en vivo. Las grabaciones de evidencia se guardan SIEMPRE íntegras, sin difuminar. En una alerta crítica, esa persona se muestra sin pixelar.</p>
+  </details>
+
+  <!-- 8. ALERTAS -->
+  <details class="tarjeta cfg-sec" id="cfg-secAlertas">
+    <summary class="sec-titulo">Alertas</summary>
+
+    <label class="fila"><input type="checkbox" id="cfg-sonidoOn" data-cfg="sonidoOn"> Sonido de alarma</label>
+
+    <div class="campo">
+      <label for="cfg-alertaCooldownSeg">Tiempo mínimo entre alertas repetidas (segundos)</label>
+      <input type="number" id="cfg-alertaCooldownSeg" data-cfg="alertaCooldownSeg" min="5" max="300" step="5">
+    </div>
+
+    <label class="fila"><input type="checkbox" id="cfg-clipSospecha" data-cfg="clipSospecha"> Grabar clip también en alertas ámbar</label>
+
+    <div class="fila">
+      <button type="button" class="btn btn-mini" id="cfg-btnProbar-info">Probar info</button>
+      <button type="button" class="btn btn-mini" id="cfg-btnProbar-sospecha">Probar ámbar</button>
+      <button type="button" class="btn btn-mini btn-peligro" id="cfg-btnProbar-critico">Probar crítica</button>
+    </div>
+  </details>
+
+  <!-- 9. TELEGRAM -->
+  <details class="tarjeta cfg-sec" id="cfg-secTelegram">
+    <summary class="sec-titulo">Aviso por Telegram</summary>
+
+    <div class="campo">
+      <label for="cfg-telegramToken">Token del bot</label>
+      <input type="text" id="cfg-telegramToken" data-cfg="telegramToken" placeholder="123456789:AA...." autocomplete="off">
+    </div>
+    <div class="campo">
+      <label for="cfg-telegramChat">Chat ID</label>
+      <input type="text" id="cfg-telegramChat" data-cfg="telegramChat" placeholder="123456789" autocomplete="off">
+    </div>
+    <button type="button" class="btn btn-primario" id="cfg-btnTelegramProbar">Probar conexión</button>
+
+    <details class="cfg-sec">
+      <summary>¿Cómo consigo el token y el chat ID?</summary>
+      <ol>
+        <li>Abre Telegram y habla con <strong>@BotFather</strong> → <code>/newbot</code> → te da un TOKEN.</li>
+        <li>Habla con <strong>@userinfobot</strong> para saber tu chat ID (o crea un grupo y añade el bot).</li>
+        <li>Pega ambos aquí y pulsa Probar. Recibirás cada alerta con foto en tu móvil, estés donde estés. 2 minutos y listo.</li>
+      </ol>
+    </details>
+  </details>
+
+  <!-- 10. SISTEMA -->
+  <details class="tarjeta cfg-sec" id="cfg-secSistema">
+    <summary class="sec-titulo">Sistema</summary>
+
+    <p class="etiqueta">Versión de la app: <b id="cfg-version">—</b> · Si pides un arreglo y no
+    lo notas, comprueba aquí que estás abriendo el archivo nuevo (el navegador o la PWA a veces
+    guardan el viejo en caché).</p>
+
+    <label class="fila"><input type="checkbox" id="cfg-monitorRend" data-cfg="monitorRend">
+      <span>📊 <b>Monitor de rendimiento</b> sobre el vídeo <small class="etiqueta">(fluidez del
+      móvil, milisegundos por análisis y motor activo — para ver si algo traba)</small></span></label>
+
+    <div class="campo">
+      <label for="cfg-sabotajeModo">Anti-sabotaje según tu cámara</label>
+      <select id="cfg-sabotajeModo" data-cfg="sabotajeModo">
+        <option value="oscuro">Solo vigilar cámara TAPADA/negra (recomendado)</option>
+        <option value="completo">Cámara FIJA de local — vigilar tapada Y encuadre movido</option>
+        <option value="off">Desactivado</option>
+      </select>
+      <p class="etiqueta">El aviso de «encuadre cambiado» solo tiene sentido con una cámara FIJA
+      atornillada en un local (detecta que alguien la gire). Con el móvil en la mano, en el coche
+      o con cámaras que se mueven es un falso constante, por eso ya no viene activado. En modo
+      coche/carretera queda desactivado siempre, elijas lo que elijas.</p>
+    </div>
+
+    <div class="campo">
+      <label for="cfg-sabotajeSens">Sensibilidad ante sabotaje (cámara tapada/movida)</label>
+      <div class="fila">
+        <input type="range" id="cfg-sabotajeSens" data-cfg="sabotajeSens" min="0" max="100" step="5">
+        <output id="cfg-sabotajeSens-out" class="etiqueta"></output>
+      </div>
+    </div>
+
+    <label class="fila"><input type="checkbox" id="cfg-calor" data-cfg="calor"> Mapa de calor de aforo</label>
+
+    <div class="campo">
+      <label for="cfg-timelapseMin">Minutos entre capturas de time-lapse</label>
+      <input type="number" id="cfg-timelapseMin" data-cfg="timelapseMin" min="1" max="60" step="1">
+    </div>
+
+    <p class="etiqueta">Uso de almacenamiento: <span id="cfg-usoMB">0</span> MB de ~5 MB</p>
+
+    <div class="fila">
+      <button type="button" class="btn btn-fantasma" id="cfg-btnBorrarLog">Borrar log de alertas</button>
+      <button type="button" class="btn btn-fantasma" id="cfg-btnBorrarZonas">Borrar zonas y líneas</button>
+    </div>
+    <div class="fila">
+      <button type="button" class="btn btn-peligro" id="cfg-btnRestaurar">Restaurar valores de fábrica</button>
+      <button type="button" class="btn btn-fantasma" id="cfg-btnCambiarPin">Cambiar PIN</button>
+    </div>
+  </details>
+
+  <!-- 11. LEGAL -->
+  <details class="tarjeta cfg-sec" id="cfg-secLegal">
+    <summary class="sec-titulo">Legal y privacidad</summary>
+
+    <p>Este sistema utiliza cámaras para detectar aforo, comportamientos y vehículos con fines de seguridad. En España, el uso de videovigilancia en un negocio debe cumplir el art. 22 de la Ley Orgánica 3/2018 (LOPDGDD) y la guía de la AEPD:</p>
+    <ul>
+      <li><strong>Cartel informativo obligatorio</strong>: hay que colocar en un lugar visible, antes de entrar en la zona grabada, un cartel que informe de la videovigilancia y de dónde ejercer los derechos (usa el generador de abajo).</li>
+      <li><strong>Prohibido el reconocimiento facial biométrico</strong> en comercios sin consentimiento expreso e informado. <strong>Este sistema NO hace reconocimiento facial ni identifica personas</strong>: solo detecta personas, objetos y comportamientos genéricos, nadie queda identificado por su cara.</li>
+      <li><strong>Conservación máxima de 1 mes</strong>: las grabaciones e imágenes deben borrarse pasado ese plazo, salvo que estén vinculadas a una denuncia, investigación o procedimiento judicial en curso.</li>
+      <li><strong>Registro de actividades de tratamiento</strong>: el titular del negocio debe mantener un registro de este tratamiento de videovigilancia (responsable, finalidad, plazos, medidas de seguridad).</li>
+      <li><strong>Derecho de acceso</strong>: cualquier persona grabada puede solicitar acceder a sus imágenes o pedir su supresión, dirigiéndose al responsable indicado en el cartel.</li>
+    </ul>
+
+    <div class="fila">
+      <div class="campo">
+        <label for="cfg-legalResponsable">Responsable del tratamiento</label>
+        <input type="text" id="cfg-legalResponsable" data-cfg="legalResponsable" placeholder="Nombre o razón social" autocomplete="off">
+      </div>
+      <div class="campo">
+        <label for="cfg-legalContacto">Contacto para ejercer derechos</label>
+        <input type="text" id="cfg-legalContacto" data-cfg="legalContacto" placeholder="email o dirección postal" autocomplete="off">
+      </div>
+    </div>
+
+    <button type="button" class="btn btn-primario" id="cfg-btnCartel">🖨 Generar cartel ZONA VIDEOVIGILADA</button>
+
+    <p>Este software es una herramienta de apoyo; el responsable del tratamiento es el titular del negocio.</p>
+  </details>
+
+  <!-- 12. EXPORTAR -->
+  <details class="tarjeta cfg-sec" id="cfg-secExportar">
+    <summary class="sec-titulo">Exportar</summary>
+    <div class="fila">
+      <button type="button" class="btn btn-primario" id="cfg-btnInforme">📄 Informe del día (HTML)</button>
+      <button type="button" class="btn btn-fantasma" id="cfg-btnCSV">📊 Datos por hora (CSV)</button>
+    </div>
+  </details>
+
+</div>

@@ -1,0 +1,35 @@
+# Plantilla de servicio systemd para el túnel público (Cloudflare) de VIGÍA
+# CEREBRO. OPCIONAL: solo hace falta si quieres que la URL pública se abra
+# sola al arrancar el equipo (sin esto, el cerebro sigue funcionando en tu
+# red local igualmente).
+# NO editar a mano: instalar.sh sustituye __RUTA__ y __USUARIO__ y la copia a
+# /etc/systemd/system/vigia-tunel.service.
+#
+# Aviso honesto: con el túnel rápido y gratuito de Cloudflare (trycloudflare.com)
+# la URL pública CAMBIA cada vez que este servicio se reinicia. Consulta la URL
+# actual con: sudo journalctl -u vigia-tunel -n 20 --no-pager
+# Para una URL que NO cambie nunca, hace falta una cuenta gratuita de
+# Cloudflare y un túnel con nombre (pasos resumidos en README.md).
+
+[Unit]
+Description=VIGIA CEREBRO - tunel publico (Cloudflare) para el panel de mando
+After=network-online.target vigia-cerebro.service
+Wants=network-online.target
+Requires=vigia-cerebro.service
+
+[Service]
+Type=simple
+User=__USUARIO__
+WorkingDirectory=__RUTA__
+ExecStart=__RUTA__/bin/cloudflared tunnel --url http://localhost:8420
+Restart=always
+RestartSec=5
+StandardOutput=append:__RUTA__/datos/tunel.log
+StandardError=append:__RUTA__/datos/tunel.log
+
+# Igual que en vigia-cerebro.service: este log crece solo, revísalo/bórralo
+# de vez en cuando o cambia StandardOutput/StandardError a "journal" y limita
+# su tamaño en /etc/systemd/journald.conf con SystemMaxUse=200M.
+
+[Install]
+WantedBy=multi-user.target

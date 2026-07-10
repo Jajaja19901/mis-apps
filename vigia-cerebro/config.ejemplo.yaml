@@ -1,0 +1,56 @@
+# ============================================================================
+# VIGÍA CEREBRO — configuración de ejemplo.
+# Copia este archivo a config.yaml y rellena lo tuyo (instalar.sh lo hace por ti).
+# config.yaml NUNCA se sube a git: lleva tus contraseñas y tu token.
+# ============================================================================
+
+# Token de acceso: lo genera instalar.sh (32 caracteres hex). La app lo necesita
+# para hablar con el cerebro. Sin token válido, el cerebro no responde NADA.
+token: "PON_AQUI_EL_TOKEN_GENERADO"
+
+puerto_api: 8420
+
+go2rtc:
+  binario: "./bin/go2rtc"      # lo descarga instalar.sh según tu procesador
+  puerto_api: 1984
+  puerto_rtsp: 8554
+
+evidencia:
+  carpeta: "./datos/clips"
+  limite_gb: 5                 # al superarlo se borra lo más viejo automáticamente
+  pre_seg: 10                  # segundos ANTES del evento que guarda el clip
+  post_seg: 20                 # segundos DESPUÉS
+
+telegram:                      # opcional: alertas con foto y clip en tu móvil
+  token: ""                    # de @BotFather
+  chat_id: ""                  # de @userinfobot
+
+armado:
+  global: true
+  horario:
+    activo: false              # true = armado SOLO en la franja (ej. por la noche)
+    inicio: "22:00"
+    fin: "08:00"
+
+deteccion:
+  imgsz: 416                   # tamaño de inferencia YOLO (más alto = más preciso y lento)
+  confianza: 0.35
+  dispositivo: "cpu"
+
+camaras:
+  - id: "cam1"                 # solo letras/números/_ y único
+    nombre: "Entrada"
+    rtsp: "rtsp://usuario:clave@192.168.1.60:554/stream1"   # Tapo: /stream1 · /stream2 (ligero)
+    modo: "comercio"           # comercio | casa | parking
+    prioridad: 3               # 1-3; 3 = alta (más ciclos de análisis y gestos)
+    armada: true
+    ignorar_mascotas: false    # true = perro/gato no despierta a nadie
+    fps_objetivo: 5
+  # - id: "cam2"
+  #   nombre: "Almacén"
+  #   rtsp: "rtsp://usuario:clave@192.168.1.61:554/stream2"
+  #   modo: "comercio"
+  #   prioridad: 1
+  #   armada: true
+  #   ignorar_mascotas: true
+  #   fps_objetivo: 3

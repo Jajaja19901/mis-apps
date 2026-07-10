@@ -1,0 +1,164 @@
+<!-- ============================================================================
+     05-UI — VIGÍA IA · esqueleto completo del body (fragmento, sin html/head/body)
+     Estética de sala de control. Mobile-first, una sola pantalla scrolleable.
+     ========================================================================== -->
+<div id="ui-app">
+
+  <header class="ui-header">
+    <div class="ui-header-marca">
+      <span class="ui-punto" id="ui-estadoPunto" aria-hidden="true"></span>
+      <div class="ui-header-texto">
+        <strong class="ui-header-nombre" id="ui-nombreApp">Vigía IA</strong>
+        <span class="etiqueta" id="ui-estadoTxt">Iniciando…</span>
+      </div>
+    </div>
+    <div class="fila ui-header-acciones">
+      <button type="button" class="btn btn-mini btn-fantasma" id="ui-btnCopiloto">🚗 Copiloto</button>
+      <button type="button" class="btn btn-mini btn-fantasma" id="ui-btnModoMando">🧠 Mando</button>
+      <button type="button" class="btn btn-mini btn-fantasma" id="ui-btnAforo">Aforo</button>
+      <button type="button" class="btn btn-mini btn-fantasma" id="ui-btnAjustes" aria-label="Abrir ajustes">⚙ Ajustes</button>
+    </div>
+  </header>
+
+  <div id="ui-banners" class="ui-banners" aria-live="assertive"></div>
+
+  <main class="ui-main">
+
+    <section id="ui-secVideo" class="ui-sec-video">
+      <!-- SLOT:VIDEO -->
+      <!-- SLOT:ZONAS -->
+      <!-- SLOT:DETALLE -->
+    </section>
+
+    <section id="ui-secCopiloto" class="sec oculto">
+      <!-- SLOT:COPILOTO -->
+    </section>
+
+    <section id="ui-contadores" class="ui-contadores" aria-label="Datos en directo">
+      <div class="tarjeta ui-contador">
+        <span class="etiqueta">En escena</span>
+        <span class="dato-grande" id="ui-datoPersonas">0</span>
+      </div>
+      <div class="tarjeta ui-contador">
+        <span class="etiqueta">Aforo</span>
+        <span class="dato-grande" id="ui-datoAforo">0/50</span>
+      </div>
+      <div class="tarjeta ui-contador">
+        <span class="etiqueta">Entradas hoy</span>
+        <span class="dato-grande" id="ui-datoEntradas">0</span>
+      </div>
+      <div class="tarjeta ui-contador">
+        <span class="etiqueta">Salidas hoy</span>
+        <span class="dato-grande" id="ui-datoSalidas">0</span>
+      </div>
+      <div class="tarjeta ui-contador">
+        <span class="etiqueta">Alertas hoy</span>
+        <span class="dato-grande" id="ui-datoAlertas">0</span>
+      </div>
+      <div class="tarjeta ui-contador ui-solo-carretera oculto" id="ui-cardVehiculos">
+        <span class="etiqueta">Vehículos hoy</span>
+        <span class="dato-grande" id="ui-datoVehiculos">0</span>
+      </div>
+    </section>
+
+    <section class="sec" id="ui-secAlertas">
+      <h2 class="sec-titulo">Alertas recientes</h2>
+      <ul id="ui-feedAlertas" class="ui-feed-alertas">
+        <li class="ui-feed-vacio" id="ui-feedVacio">Sin alertas — todo en orden</li>
+      </ul>
+    </section>
+
+    <section id="ui-secStats" class="sec">
+      <!-- SLOT:STATS -->
+    </section>
+
+    <section id="ui-secCarretera" class="sec oculto">
+      <!-- SLOT:CARRETERA -->
+    </section>
+
+    <section id="ui-secMando" class="sec oculto">
+      <!-- SLOT:MANDO -->
+    </section>
+
+  </main>
+
+  <footer class="ui-footer">
+    <a id="ui-firmaEstudio" class="ui-firma" href="https://incubatunegocio.example" target="_blank" rel="noopener noreferrer">Diseñado por Incuba tu Negocio · por Jaime M. M.</a>
+    <button type="button" class="ui-enlace-legal" id="ui-enlaceLegal">Aviso legal y privacidad</button>
+  </footer>
+
+</div>
+
+<!-- Drawer de ajustes: overlay deslizante desde la derecha -->
+<div id="ui-drawerFondo" class="ui-drawer-fondo oculto"></div>
+<div id="ui-panelAjustes" class="ui-drawer oculto" role="dialog" aria-modal="true" aria-label="Ajustes">
+  <div class="ui-drawer-cabecera">
+    <h2 class="sec-titulo">Ajustes</h2>
+    <button type="button" class="btn btn-mini btn-fantasma" id="ui-btnCerrarAjustes" aria-label="Cerrar ajustes">✕</button>
+  </div>
+  <div class="ui-drawer-cuerpo">
+    <!-- SLOT:AJUSTES -->
+    <!-- SLOT:MANDOAJUSTES -->
+  </div>
+</div>
+
+<!-- Overlay de alerta a pantalla completa (lo rellena el módulo de alertas) -->
+<!-- SLOT:ALERTAS -->
+
+<!-- Pantalla pública de aforo: fondo entero verde/rojo -->
+<div id="ui-aforo" class="ui-aforo oculto" role="dialog" aria-modal="true" aria-label="Pantalla pública de aforo">
+  <div class="ui-aforo-palabra" id="ui-aforoPalabra">PASE</div>
+  <div class="ui-aforo-numero dato-grande" id="ui-aforoNumero">0/50</div>
+  <div class="ui-aforo-reloj" id="ui-aforoReloj">00:00:00</div>
+  <p class="ui-aforo-ayuda">Toca la pantalla para salir</p>
+</div>
+
+<!-- Asistente de bienvenida: 3 pasos -->
+<div id="ui-onboarding" class="ui-onboarding oculto" role="dialog" aria-modal="true" aria-label="Asistente de configuración inicial">
+  <div class="ui-onboarding-caja tarjeta">
+
+    <div class="ui-onboarding-paso" data-paso="1" id="ui-pasoModo">
+      <h2 class="sec-titulo">¿Qué vas a vigilar?</h2>
+      <p class="ui-onboarding-ayuda">Elige el modo — podrás cambiarlo cuando quieras desde Ajustes.</p>
+      <div class="ui-onboarding-tarjetas">
+        <button type="button" class="ui-modo-tarjeta" id="ui-modoSuper" data-modo="super">
+          <span class="ui-modo-icono" aria-hidden="true">🛒</span>
+          <span class="ui-modo-titulo">Supermercado / Comercio</span>
+          <span class="ui-modo-detalle">Aforo, colas, zonas y comportamientos para revisión.</span>
+        </button>
+        <button type="button" class="ui-modo-tarjeta" id="ui-modoCarretera" data-modo="carretera">
+          <span class="ui-modo-icono" aria-hidden="true">🅿</span>
+          <span class="ui-modo-titulo">Carretera / Parking</span>
+          <span class="ui-modo-detalle">Vehículos, plazas libres y velocidad orientativa.</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="ui-onboarding-paso oculto" data-paso="2" id="ui-pasoFuente">
+      <h2 class="sec-titulo">¿Desde dónde vamos a ver?</h2>
+      <p class="ui-onboarding-ayuda">Elige la fuente de vídeo para empezar a vigilar.</p>
+      <div class="fila ui-onboarding-opciones">
+        <button type="button" class="btn btn-primario" id="ui-fuenteCamara">📷 Usar cámara</button>
+        <button type="button" class="btn btn-fantasma" id="ui-fuenteIP">🌐 Cámara IP</button>
+        <button type="button" class="btn btn-fantasma" id="ui-fuenteDemo">🎬 Vídeo de prueba (demo)</button>
+      </div>
+      <button type="button" class="ui-onboarding-saltar" id="ui-fuenteSaltar">Saltar</button>
+    </div>
+
+    <div class="ui-onboarding-paso oculto" data-paso="3" id="ui-pasoZonas">
+      <h2 class="sec-titulo">Marca la línea de entrada</h2>
+      <p class="ui-onboarding-ayuda">Dibuja una línea sobre la puerta o el paso de acceso: así Vigía IA cuenta quién entra y quién sale. Podrás ajustar zonas y líneas cuando quieras, tocando el vídeo.</p>
+      <div class="fila">
+        <button type="button" class="btn btn-primario" id="ui-dibujarLinea">Dibujar línea de entrada</button>
+        <button type="button" class="btn btn-fantasma" id="ui-onboardingTerminar">Terminar</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Contenedor genérico de modales (lo usan otros módulos vía ui_modal) -->
+<div id="ui-modales" class="ui-modales"></div>
+
+<!-- Avisos flotantes -->
+<div id="ui-toasts" class="ui-toasts" aria-live="polite" aria-atomic="false"></div>
