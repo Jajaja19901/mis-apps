@@ -32,7 +32,7 @@ const MAT_FOTO_CADUCA_MS = 45000;      // una foto sin leer en 45 s ya no aporta
 const MAT_DEDUPE_MS = 60000;           // no repetir la MISMA matrícula en 1 min
 const MAT_PURGA_MS = 30000;            // cada cuánto se revisa el borrado automático
 const MAT_AREA_MIN_CONTINUO = 0.02;    // el vehículo debe ocupar ≥2% (si no, placa ilegible)
-const MAT_ALTO_OCR = 320;              // alto (px) al que se amplía el recorte
+const MAT_ALTO_OCR = 480;              // alto (px) al que se amplía el recorte (era 320: muy pequeño)
 
 function mat_toast(msg, nivel) {
   if (typeof ui_toast === 'function') { try { ui_toast(msg, nivel || 'info'); return; } catch (e) {} }
@@ -292,7 +292,7 @@ async function mat_procesarCola() {
       await m.worker.setParameters({
         tessedit_char_whitelist: '0123456789BCDFGHJKLMNPRSTVWXYZ- ',
         tessedit_do_invert: '0',
-        tessedit_pageseg_mode: '6',
+        tessedit_pageseg_mode: '8',  // single line
       });
     }
     const texto = await mat_ocrSobre(foto.cnv);
@@ -310,14 +310,24 @@ async function mat_procesarCola() {
   finally { m.ultOcr = Date.now(); m.leyendo = false; }
 }
 
-/* OCR sobre un recorte: primero busca la BANDA de la placa (imagen pequeña y
- * de una sola línea → modo PSM 7, el más certero para placas); si no hay
- * banda clara, recorte completo en modo bloque (PSM 6). */
+/* OCR sobre un recorte: intenta la banda de la placa (PSM 8, single line),
+ * si no hay banda o falla, usa el recorte completo (PSM 11, sparse text). */
 async function mat_ocrSobre(cnv) {
   const m = estado.mat;
   const banda = mat_bandaPlaca(cnv);
-  try { await m.worker.setParameters({ tessedit_pageseg_mode: banda ? '7' : '6' }); } catch (e) {}
-  const r = await m.worker.recognize(banda || cnv);
+  let r = null;
+  if (banda) {
+    try {
+      await m.worker.setParameters({ tessedit_pageseg_mode: '8' });
+      r = await m.worker.recognize(banda);
+    } catch (e) { /* banda falló, intenta recorte completo */ }
+  }
+  if (!r || !r.data || !r.data.text) {
+    try {
+      await m.worker.setParameters({ tessedit_pageseg_mode: '11' });  // sparse text
+      r = await m.worker.recognize(cnv);
+    } catch (e) { /* fallo total */ }
+  }
   return String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
 }
 
@@ -537,8 +547,8 @@ function mat_bandaPlaca(cnv) {
     }
     let max = 0;
     for (let y = 0; y < h; y++) if (trans[y] > max) max = trans[y];
-    if (max < 10) return null;                       // no hay nada tipo texto
-    const lim = Math.max(9, max * 0.45);
+    if (max < 8) return null;                        // no hay nada tipo texto (era 10, muy estricto)
+    const lim = Math.max(7, max * 0.40);             // era 0.45, ahora más tolerante
     // La banda contigua más ALTA de filas con muchas transiciones.
     let mejorIni = 0, mejorFin = 0, ini = 0, dentro = false;
     for (let y = 0; y <= h; y++) {
@@ -547,8 +557,8 @@ function mat_bandaPlaca(cnv) {
       if (!ok && dentro) { dentro = false; if (y - ini > mejorFin - mejorIni) { mejorIni = ini; mejorFin = y; } }
     }
     const alto = mejorFin - mejorIni;
-    if (alto < 6 || alto > h * 0.8) return null;     // ruido o «todo es banda»
-    const margen = alto * 0.4;
+    if (alto < 5 || alto > h * 0.85) return null;    // ruido o «todo es banda» (fue 6 y 0.8, más flexible)
+    const margen = alto * 0.6;                       // fue 0.4, ahora más contexto para Tesseract
     const y0 = Math.max(0, Math.floor(mejorIni - margen));
     const y1 = Math.min(h, Math.ceil(mejorFin + margen));
     // Banda a ~120 px de alto: tamaño ideal para el OCR (nítido y pequeño).
@@ -564,33 +574,48 @@ function mat_bandaPlaca(cnv) {
 }
 
 /* Saca la matrícula del texto del OCR. Matrícula española nueva = 4 NÚMEROS +
- * 3 LETRAS (consonantes). Nos ANCLAMOS en los 4 números reales e ignoramos todo
- * lo que haya a su izquierda (la banda azul europea con la «E», que el OCR suele
- * leer como D/E/etc — no es parte de la matrícula). Las 3 letras siguientes se
- * corrigen de confusiones típicas (0→D, 8→B, 5→S…). Si no salen 4 números + 3
- * letras limpias, devuelve '' (mejor no dar nada que dar algo mal: con la
- * lectura en continuo y la votación, la correcta acaba saliendo). */
+ * 3 LETRAS (consonantes). Primero intenta encontrar la forma PERFECTA (4+3).
+ * Si falla, es más permiso: acepta 3+2 como fallback (mejor algo razonable que
+ * nada cuando Tesseract falla un carácter). Con lectura en continuo, la votación
+ * converge a la correcta de todas formas. */
 function mat_candidata(crudo) {
-  // O/Q/I no existen en la matrícula española nueva: si el OCR las suelta,
-  // son un 0 o un 1 disfrazados. Corregirlas ANTES de buscar los 4 dígitos
-  // evita que un «54O9» tumbe el ancla foto tras foto (error sistemático).
   const s = String(crudo || '').toUpperCase()
     .replace(/[OQ]/g, '0').replace(/I/g, '1')
-    .replace(/[^A-Z0-9]/g, '');   // fuera espacios y la banda
-  const aLetra = { '0': 'D', '8': 'B', '5': 'S', '2': 'Z', '6': 'G', '7': 'T', '1': 'L', '4': 'A' };
+    .replace(/[^A-Z0-9]/g, '');
+  const aLetra = { '0': 'D', '8': 'B', '5': 'S', '2': 'Z', '6': 'G', '7': 'T', '1': 'L', '4': 'A', '3': 'E', '9': 'g' };
   const esConsonante = function (c) { return c && 'BCDFGHJKLMNPRSTVWXYZ'.indexOf(c) >= 0; };
+
+  // INTENTO 1: 4 DÍGITOS + 3 CONSONANTES perfectas
   for (let i = 0; i + 7 <= s.length; i++) {
-    // 4 NÚMEROS reales seguidos (los dígitos el OCR los lee bien; la banda no cuenta)
     const dig = s.slice(i, i + 4);
     if (!/^[0-9]{4}$/.test(dig)) continue;
-    // 3 LETRAS a la derecha (consonantes; corrige dígito→letra si se coló)
     let let3 = '', vale = true;
     for (let k = 4; k < 7 && vale; k++) {
       let ch = s[i + k];
       if (ch >= '0' && ch <= '9') ch = aLetra[ch] || '';
       if (esConsonante(ch)) let3 += ch; else vale = false;
     }
-    if (vale) return dig + ' ' + let3;
+    if (vale && let3.length === 3) return dig + ' ' + let3;
+  }
+
+  // INTENTO 2 (fallback): 3+ DÍGITOS + 2+ CONSONANTES (más tolerante)
+  for (let i = 0; i < s.length; i++) {
+    let dig = '', letras = '';
+    let j = i;
+    while (j < s.length && s[j] >= '0' && s[j] <= '9') { dig += s[j]; j++; }
+    if (dig.length < 3) continue;  // al menos 3 dígitos
+    while (j < s.length && j - i - dig.length < 3) {  // hasta 3 caracteres siguientes
+      let ch = s[j];
+      if (ch >= '0' && ch <= '9') ch = aLetra[ch] || '';
+      if (esConsonante(ch)) letras += ch;
+      j++;
+    }
+    if (dig.length >= 3 && letras.length >= 2) {
+      // Rellenar con 0 si faltan dígitos, padear letras si faltan
+      dig = (dig + '0000').slice(0, 4);
+      letras = (letras + 'XXX').slice(0, 3);
+      return dig + ' ' + letras;
+    }
   }
   return '';
 }
@@ -646,8 +671,8 @@ async function mat_leer(manual) {
           m.worker = await T.createWorker('eng');
           await m.worker.setParameters({
             tessedit_char_whitelist: '0123456789BCDFGHJKLMNPRSTVWXYZ- ',
-        tessedit_do_invert: '0',
-            tessedit_pageseg_mode: '6',   // bloque uniforme: mejor para placas
+            tessedit_do_invert: '0',
+            tessedit_pageseg_mode: '8',  // single line (línea única)
           });
         }
         // Prueba del recorte más ceñido al más ancho: primero que acierte, gana.
