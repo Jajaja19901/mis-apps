@@ -35,8 +35,14 @@ const COP_COL_CRECE = 1.12;               // el área crece >12% entre inferenci
 const COP_COL_FRAMES = 3;                 // crecimiento sostenido N inferencias
 /* Peatón delante: umbrales propios (una persona es más estrecha que un coche) */
 const COP_PEATON_AREA_MIN = 0.03;         // la persona ocupa ≥3% del encuadre
-const COP_PEATON_CENTRO_REL = 0.25;
+const COP_PEATON_CENTRO_REL = 0.15;       // estrecho: mi trayectoria, no la acera
 const COP_PEATON_FRAMES = 2;              // acercándose 2 inferencias seguidas
+const COP_PEATON_VEL_MIN = 10;            // con GPS y a <10 km/h no se pita (semáforo/atasco)
+/* El historial de crecidas SOBREVIVE a huecos de detección: a 4-6 fps reales
+ * el detector pierde un frame sí y otro no; si un solo hueco borrara el
+ * contador, el requisito de "crecidas seguidas" no se cumpliría nunca. El
+ * tracker mantiene el id vivo; aquí se recuerda cada vehículo/peatón 2 s. */
+const COP_MEMORIA_TRACK_MS = 2000;
 /* STOP / distancia de seguridad / auto-trayecto / fatiga */
 const COP_STOP_AREA_MIN = 0.004;          // la señal ocupa ≥0.4% del encuadre
 const COP_STOP_COOLDOWN_MS = 30000;
@@ -244,6 +250,13 @@ function cop_aplicar(activo) {
 
   if (activo) {
     cop_arrancarSensores();
+    // UN TOQUE = TODO: si no hay vídeo, enciende la fuente configurada aquí
+    // mismo (el conductor no debería tener que pasar por Ajustes).
+    if (!estado.video || !estado.video.listo) cop_encenderVideo();
+    // Arma el audio EN ESTE GESTO del usuario: en Chrome Android el
+    // AudioContext nace 'suspended' y si se crea al saltar la alarma, el
+    // PRIMER pitido (el que importa) puede salir mudo.
+    cop_armarAudio();
     // Consejo una sola vez: con el motor básico los coches lejanos se pierden.
     if (estado.cfg.motor === 'coco' && !nuc_cargar('cop_avisoMotor', false)) {
       nuc_guardar('cop_avisoMotor', true);
@@ -259,6 +272,26 @@ function cop_aplicar(activo) {
   }
 
   cop_render(true);
+}
+
+/* Enciende la fuente de vídeo configurada (cámara por defecto) sin pasar por
+ * Ajustes. Delegado en el módulo de vídeo; nunca rompe la activación. */
+function cop_encenderVideo() {
+  try {
+    if (typeof vid_encenderFuente === 'function') vid_encenderFuente();
+  } catch (e) { /* sin vídeo, el copiloto sigue (GPS y caja negra funcionan) */ }
+}
+
+/* Crea/despierta el AudioContext dentro de un gesto del usuario, para que el
+ * primer pitido de alarma suene SIEMPRE (política de autoplay de Android). */
+function cop_armarAudio() {
+  if (!estado.cfg.copSonido || !estado.cop) return;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    if (!estado.cop._audio) estado.cop._audio = new AC();
+    if (estado.cop._audio.state === 'suspended') estado.cop._audio.resume().catch(function () {});
+  } catch (e) { /* sin audio no pasa nada: vibración y pantalla siguen */ }
 }
 
 /* ============================================================================
@@ -528,7 +561,7 @@ function cop_analizarColision() {
   const areaFrame = w * h;
 
   const tracks = estado.tracks || [];
-  const vistos = {};
+  const ahora = Date.now();
   let alarma = false;
 
   for (let i = 0; i < tracks.length; i++) {
@@ -544,21 +577,22 @@ function cop_analizarColision() {
     const prev = c.veh[t.id];
     let crecidas = 0;
     if (prev && prev.area > 0) {
-      crecidas = (area > prev.area * COP_COL_CRECE) ? (prev.crecidas + 1) : 0;
+      crecidas = (area > prev.area * COP_COL_CRECE) ? (prev.crecidas + 1) : prev.crecidas;
+      if (area < prev.area * 0.95) crecidas = 0;   // se aleja de verdad → reinicia
     }
-    c.veh[t.id] = { area: area, crecidas: crecidas };
-    vistos[t.id] = true;
+    c.veh[t.id] = { area: area, crecidas: crecidas, ts: ahora };
 
     if (grande && centrado && crecidas >= COP_COL_FRAMES) alarma = true;
   }
 
-  // Limpia vehículos que ya no se ven (evita fugas de memoria).
+  // Limpia solo lo que lleva un rato sin verse (un hueco de detección de un
+  // frame NO borra el historial: ver COP_MEMORIA_TRACK_MS).
   for (const id in c.veh) {
-    if (Object.prototype.hasOwnProperty.call(c.veh, id) && !vistos[id]) delete c.veh[id];
+    if (!Object.prototype.hasOwnProperty.call(c.veh, id)) continue;
+    if (!c.veh[id].ts || ahora - c.veh[id].ts > COP_MEMORIA_TRACK_MS) delete c.veh[id];
   }
 
   if (alarma) {
-    const ahora = Date.now();
     c.colisionHasta = ahora + COP_COLISION_MOSTRAR_MS;
     c.colisionTexto = '⚠ FRENA';
     if (ahora - c.ultColision >= COP_COOLDOWN_COLISION_MS) {
@@ -581,7 +615,15 @@ function cop_analizarColision() {
 function cop_analizarPeaton(tracks, w, areaFrame) {
   const c = estado.cop;
   if (!estado.cfg.copPeaton) return;
-  const vistos = {};
+  const ahora = Date.now();
+
+  // Parado o a paso de hombre (GPS reciente y <10 km/h) NO se alarma: en un
+  // semáforo cada peatón que cruza sonaba como emergencia, y cada falsa
+  // alarma empuja a apagar el sonido (y perder también las de verdad).
+  // Sin GPS (permiso denegado) el aviso sigue funcionando como siempre.
+  const gpsReciente = c.ultPos && (ahora - c.ultPos.ts) < 8000;
+  if (gpsReciente && (c.velActual || 0) < COP_PEATON_VEL_MIN) { return; }
+
   let alarma = false;
   for (let i = 0; i < tracks.length; i++) {
     const t = tracks[i];
@@ -592,20 +634,25 @@ function cop_analizarPeaton(tracks, w, areaFrame) {
     const grande = area > areaFrame * COP_PEATON_AREA_MIN;
     const prev = c.peat[t.id];
     let crecidas = 0;
-    if (prev && prev.area > 0) crecidas = (area > prev.area * COP_COL_CRECE) ? (prev.crecidas + 1) : 0;
-    c.peat[t.id] = { area: area, crecidas: crecidas };
-    vistos[t.id] = true;
+    if (prev && prev.area > 0) {
+      crecidas = (area > prev.area * COP_COL_CRECE) ? (prev.crecidas + 1) : prev.crecidas;
+      if (area < prev.area * 0.95) crecidas = 0;   // se aleja → reinicia
+    }
+    c.peat[t.id] = { area: area, crecidas: crecidas, ts: ahora };
     if (grande && centrado && crecidas >= COP_PEATON_FRAMES) alarma = true;
   }
+  // Memoria de 2 s: un hueco de detección no borra el historial (ver arriba).
   for (const id in c.peat) {
-    if (Object.prototype.hasOwnProperty.call(c.peat, id) && !vistos[id]) delete c.peat[id];
+    if (!Object.prototype.hasOwnProperty.call(c.peat, id)) continue;
+    if (!c.peat[id].ts || ahora - c.peat[id].ts > COP_MEMORIA_TRACK_MS) delete c.peat[id];
   }
   if (alarma) {
-    const ahora = Date.now();
     c.colisionHasta = ahora + COP_COLISION_MOSTRAR_MS;
     c.colisionTexto = '⚠ PEATÓN';
-    if (ahora - c.ultColision >= COP_COOLDOWN_COLISION_MS) {
-      c.ultColision = ahora;
+    // Cooldown PROPIO: tras un «⚠ FRENA» de coche, un peatón que cruza es la
+    // secuencia más peligrosa — no puede quedarse mudo por el cooldown ajeno.
+    if (ahora - (c.ultPeaton || 0) >= COP_COOLDOWN_COLISION_MS) {
+      c.ultPeaton = ahora;
       cop_pitar();
       const texto = 'PEATÓN delante acercándose — frena';
       if (typeof alerta_disparar === 'function') {

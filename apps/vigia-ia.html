@@ -202,6 +202,18 @@ h1, h2, h3, p { margin: 0; }
 .vid-visor.vid-grande.vid-activo #vid-canvas,
 .vid-visor.vid-grande.vid-activo #vid-canvasPriv { max-height: 94vh; }
 
+/* Botón grande «📷 Encender cámara» dentro del visor SIN SEÑAL: un toque y a
+   grabar, sin pasar por Ajustes. (#vid-estado tiene pointer-events none; este
+   botón es un hermano y sí recibe el toque.) */
+.vid-btn-camara {
+  position: absolute; left: 50%; bottom: 18%; transform: translateX(-50%); z-index: 5;
+  background: var(--verde, #2ee584); color: #06280f; border: none;
+  padding: .85rem 1.4rem; border-radius: 999px; font-weight: 800; font-size: 1rem;
+  box-shadow: 0 4px 16px rgba(0,0,0,.5); cursor: pointer;
+}
+.vid-btn-camara:active { transform: translateX(-50%) scale(.96); }
+.vid-btn-camara[disabled] { opacity: .7; }
+
 /* Monitor de rendimiento (diagnóstico en vivo) */
 .vid-monitor {
   position: absolute; top: .6rem; left: .6rem; z-index: 4;
@@ -441,7 +453,8 @@ h1, h2, h3, p { margin: 0; }
     <div class="vid-mon-fila"><span>Vídeo</span><b id="vid-mon-fps">—</b></div>
     <div class="vid-mon-barra"><i id="vid-mon-carga"></i></div>
   </div>
-  <div id="vid-estado">Sin fuente de vídeo — elige cámara o vídeo demo en Ajustes</div>
+  <div id="vid-estado">Sin fuente de vídeo — pulsa el botón o elige otra fuente en Ajustes</div>
+  <button type="button" id="vid-btnCamara" class="vid-btn-camara" aria-label="Encender la cámara">📷 Encender cámara</button>
 </div>
 
       
@@ -1768,7 +1781,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.23',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.24',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -3782,6 +3795,17 @@ function vid_init() {
   vid_el.estado     = document.getElementById('vid-estado');
   vid_el.expandir   = document.getElementById('vid-expandir');
 
+  // 📷 Encender cámara con un toque desde el propio visor (sin ir a Ajustes).
+  const btnCam = document.getElementById('vid-btnCamara');
+  if (btnCam) {
+    btnCam.addEventListener('click', function () {
+      btnCam.disabled = true; btnCam.textContent = '📷 Encendiendo…';
+      Promise.resolve(vid_encenderFuente()).finally(function () {
+        setTimeout(function () { btnCam.disabled = false; btnCam.textContent = '📷 Encender cámara'; }, 1500);
+      });
+    });
+  }
+
   // ⛶ Pantalla completa: el vídeo va capado a 68vh para que el scroll funcione;
   // este botón lo pone a tamaño completo (y vuelta) sin perder nitidez.
   if (vid_el.expandir) {
@@ -3838,6 +3862,19 @@ function vid_init() {
     estado.vid.sabRecalibHasta = 0;
     vid_reiniciarBufferGrabacion();
   });
+}
+
+/* Enciende la fuente de vídeo que esté configurada (cámara por defecto), sin
+ * pasar por Ajustes. La usan el botón «📷 Encender cámara» del visor y el
+ * arranque de un toque del copiloto. Nunca lanza: los errores ya los avisa
+ * cada fuente con su propio mensaje. */
+function vid_encenderFuente() {
+  try {
+    const f = estado.cfg.fuente || 'camara';
+    if (f === 'dashcam') return vid_usarDashcam(estado.cfg.urlDashcam).catch(function () {});
+    if (f === 'ip' && estado.cfg.urlIP) return vid_usarIP(estado.cfg.urlIP).catch(function () {});
+    return vid_usarCamara().catch(function () {});
+  } catch (e) { /* nada: el visor sigue mostrando SIN SEÑAL con su botón */ }
 }
 
 /* Alterna pantalla completa del visor. Si el navegador no la permite (iOS
@@ -4326,6 +4363,8 @@ function vid_detener() {
     if (vid_el.canvasPriv) vid_el.canvasPriv.classList.add('oculto');
     if (vid_el.rec) vid_el.rec.classList.add('oculto');
     if (vid_el.expandir) vid_el.expandir.classList.add('oculto');
+    const vbc = document.getElementById('vid-btnCamara');
+    if (vbc) vbc.classList.remove('oculto');
     vid_mostrarEstado();
   } catch (e) {
     console.warn('[vid] al detener:', e && e.message);
@@ -4435,6 +4474,8 @@ function vid_componer() {
   // El visor adopta la forma real del vídeo (evita recortar arriba/abajo).
   if (vid_el.visor) vid_el.visor.classList.add('vid-activo');
   if (vid_el.expandir) vid_el.expandir.classList.remove('oculto');
+  const vbc = document.getElementById('vid-btnCamara');
+  if (vbc && !vbc.classList.contains('oculto')) vbc.classList.add('oculto');
 
   const el = v.fuenteEl;
   try {
@@ -4539,6 +4580,8 @@ function vid_sinSenal(ctx, cnv) {
     if (vid_el.canvasPriv) vid_el.canvasPriv.classList.add('oculto');
     if (vid_el.rec) vid_el.rec.classList.add('oculto');
     if (vid_el.expandir) vid_el.expandir.classList.add('oculto');
+    const vbc = document.getElementById('vid-btnCamara');
+    if (vbc) vbc.classList.remove('oculto');
   } catch (e) { /* ignorar */ }
 }
 
@@ -8469,7 +8512,19 @@ function pwa_generarIcono(tamaño) {
   }
 }
 
-/* ---- Wake Lock: mantener pantalla encendida ---------------------------------*/
+/* ---- Wake Lock: mantener pantalla encendida ---------------------------------
+ * OJO con el ciclo de vida: el navegador SUELTA el lock solo (al cambiar de
+ * app, al apagarse la pantalla…) sin avisar más que por el evento 'release'.
+ * Si no se escucha ese evento, el sentinel viejo se queda en la variable, la
+ * re-adquisición cree que "ya hay lock" y NO vuelve a pedirlo: la pantalla se
+ * apaga a mitad de trayecto y la dashcam muere en silencio. Por eso:
+ *   1) cada lock lleva su listener de 'release' que deja la variable a null;
+ *   2) al volver la página a visible se re-pide si no hay lock VIVO;
+ *   3) pwa_wlQuerido recuerda si el dueño lo quiere activo (para no re-pedir
+ *      uno que se soltó adrede con pwa_wakeLock(false)). */
+let pwa_wlQuerido = false;
+let pwa_wlVizRegistrado = false;
+
 async function pwa_wakeLock(on) {
   try {
     if (!navigator.wakeLock) {
@@ -8486,26 +8541,18 @@ async function pwa_wakeLock(on) {
       return;
     }
 
+    pwa_wlQuerido = !!on;
     if (on) {
-      try {
-        estado.pwa.wakeLock = await navigator.wakeLock.request('screen');
-        /* Re-adquirir si vuelve a ser visible */
-        const manejadorVisibilidad = () => {
+      await pwa_wlPedir();
+      if (!pwa_wlVizRegistrado) {
+        pwa_wlVizRegistrado = true;
+        document.addEventListener('visibilitychange', () => {
           try {
-            if (document.visibilityState === 'visible' && estado.pwa.wakeLock === null) {
-              navigator.wakeLock.request('screen').then((lock) => {
-                estado.pwa.wakeLock = lock;
-              }).catch(() => {});
+            if (document.visibilityState === 'visible' && pwa_wlQuerido && !estado.pwa.wakeLock) {
+              pwa_wlPedir();
             }
-          } catch (e) {}
-        };
-        if (!document.getElementById('pwa_vizListenerRegistrado')) {
-          document.addEventListener('visibilitychange', manejadorVisibilidad);
-          document.id = 'pwa_vizListenerRegistrado';
-        }
-      } catch (e) {
-        console.warn('[pwa] error pidiendo wake lock:', e && e.message);
-        estado.pwa.wakeLock = null;
+          } catch (e) { /* nunca rompe */ }
+        });
       }
     } else {
       if (estado.pwa.wakeLock) {
@@ -8519,6 +8566,22 @@ async function pwa_wakeLock(on) {
     }
   } catch (e) {
     console.warn('[pwa] error en pwa_wakeLock:', e && e.message);
+  }
+}
+
+/* Pide el lock y le engancha el listener de 'release' (ver nota de arriba). */
+async function pwa_wlPedir() {
+  try {
+    const lock = await navigator.wakeLock.request('screen');
+    estado.pwa.wakeLock = lock;
+    lock.addEventListener('release', () => {
+      if (estado.pwa.wakeLock === lock) estado.pwa.wakeLock = null;
+    });
+    return true;
+  } catch (e) {
+    console.warn('[pwa] error pidiendo wake lock:', e && e.message);
+    estado.pwa.wakeLock = null;
+    return false;
   }
 }
 
@@ -11170,8 +11233,14 @@ const COP_COL_CRECE = 1.12;               // el área crece >12% entre inferenci
 const COP_COL_FRAMES = 3;                 // crecimiento sostenido N inferencias
 /* Peatón delante: umbrales propios (una persona es más estrecha que un coche) */
 const COP_PEATON_AREA_MIN = 0.03;         // la persona ocupa ≥3% del encuadre
-const COP_PEATON_CENTRO_REL = 0.25;
+const COP_PEATON_CENTRO_REL = 0.15;       // estrecho: mi trayectoria, no la acera
 const COP_PEATON_FRAMES = 2;              // acercándose 2 inferencias seguidas
+const COP_PEATON_VEL_MIN = 10;            // con GPS y a <10 km/h no se pita (semáforo/atasco)
+/* El historial de crecidas SOBREVIVE a huecos de detección: a 4-6 fps reales
+ * el detector pierde un frame sí y otro no; si un solo hueco borrara el
+ * contador, el requisito de "crecidas seguidas" no se cumpliría nunca. El
+ * tracker mantiene el id vivo; aquí se recuerda cada vehículo/peatón 2 s. */
+const COP_MEMORIA_TRACK_MS = 2000;
 /* STOP / distancia de seguridad / auto-trayecto / fatiga */
 const COP_STOP_AREA_MIN = 0.004;          // la señal ocupa ≥0.4% del encuadre
 const COP_STOP_COOLDOWN_MS = 30000;
@@ -11379,6 +11448,13 @@ function cop_aplicar(activo) {
 
   if (activo) {
     cop_arrancarSensores();
+    // UN TOQUE = TODO: si no hay vídeo, enciende la fuente configurada aquí
+    // mismo (el conductor no debería tener que pasar por Ajustes).
+    if (!estado.video || !estado.video.listo) cop_encenderVideo();
+    // Arma el audio EN ESTE GESTO del usuario: en Chrome Android el
+    // AudioContext nace 'suspended' y si se crea al saltar la alarma, el
+    // PRIMER pitido (el que importa) puede salir mudo.
+    cop_armarAudio();
     // Consejo una sola vez: con el motor básico los coches lejanos se pierden.
     if (estado.cfg.motor === 'coco' && !nuc_cargar('cop_avisoMotor', false)) {
       nuc_guardar('cop_avisoMotor', true);
@@ -11394,6 +11470,26 @@ function cop_aplicar(activo) {
   }
 
   cop_render(true);
+}
+
+/* Enciende la fuente de vídeo configurada (cámara por defecto) sin pasar por
+ * Ajustes. Delegado en el módulo de vídeo; nunca rompe la activación. */
+function cop_encenderVideo() {
+  try {
+    if (typeof vid_encenderFuente === 'function') vid_encenderFuente();
+  } catch (e) { /* sin vídeo, el copiloto sigue (GPS y caja negra funcionan) */ }
+}
+
+/* Crea/despierta el AudioContext dentro de un gesto del usuario, para que el
+ * primer pitido de alarma suene SIEMPRE (política de autoplay de Android). */
+function cop_armarAudio() {
+  if (!estado.cfg.copSonido || !estado.cop) return;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    if (!estado.cop._audio) estado.cop._audio = new AC();
+    if (estado.cop._audio.state === 'suspended') estado.cop._audio.resume().catch(function () {});
+  } catch (e) { /* sin audio no pasa nada: vibración y pantalla siguen */ }
 }
 
 /* ============================================================================
@@ -11663,7 +11759,7 @@ function cop_analizarColision() {
   const areaFrame = w * h;
 
   const tracks = estado.tracks || [];
-  const vistos = {};
+  const ahora = Date.now();
   let alarma = false;
 
   for (let i = 0; i < tracks.length; i++) {
@@ -11679,21 +11775,22 @@ function cop_analizarColision() {
     const prev = c.veh[t.id];
     let crecidas = 0;
     if (prev && prev.area > 0) {
-      crecidas = (area > prev.area * COP_COL_CRECE) ? (prev.crecidas + 1) : 0;
+      crecidas = (area > prev.area * COP_COL_CRECE) ? (prev.crecidas + 1) : prev.crecidas;
+      if (area < prev.area * 0.95) crecidas = 0;   // se aleja de verdad → reinicia
     }
-    c.veh[t.id] = { area: area, crecidas: crecidas };
-    vistos[t.id] = true;
+    c.veh[t.id] = { area: area, crecidas: crecidas, ts: ahora };
 
     if (grande && centrado && crecidas >= COP_COL_FRAMES) alarma = true;
   }
 
-  // Limpia vehículos que ya no se ven (evita fugas de memoria).
+  // Limpia solo lo que lleva un rato sin verse (un hueco de detección de un
+  // frame NO borra el historial: ver COP_MEMORIA_TRACK_MS).
   for (const id in c.veh) {
-    if (Object.prototype.hasOwnProperty.call(c.veh, id) && !vistos[id]) delete c.veh[id];
+    if (!Object.prototype.hasOwnProperty.call(c.veh, id)) continue;
+    if (!c.veh[id].ts || ahora - c.veh[id].ts > COP_MEMORIA_TRACK_MS) delete c.veh[id];
   }
 
   if (alarma) {
-    const ahora = Date.now();
     c.colisionHasta = ahora + COP_COLISION_MOSTRAR_MS;
     c.colisionTexto = '⚠ FRENA';
     if (ahora - c.ultColision >= COP_COOLDOWN_COLISION_MS) {
@@ -11716,7 +11813,15 @@ function cop_analizarColision() {
 function cop_analizarPeaton(tracks, w, areaFrame) {
   const c = estado.cop;
   if (!estado.cfg.copPeaton) return;
-  const vistos = {};
+  const ahora = Date.now();
+
+  // Parado o a paso de hombre (GPS reciente y <10 km/h) NO se alarma: en un
+  // semáforo cada peatón que cruza sonaba como emergencia, y cada falsa
+  // alarma empuja a apagar el sonido (y perder también las de verdad).
+  // Sin GPS (permiso denegado) el aviso sigue funcionando como siempre.
+  const gpsReciente = c.ultPos && (ahora - c.ultPos.ts) < 8000;
+  if (gpsReciente && (c.velActual || 0) < COP_PEATON_VEL_MIN) { return; }
+
   let alarma = false;
   for (let i = 0; i < tracks.length; i++) {
     const t = tracks[i];
@@ -11727,20 +11832,25 @@ function cop_analizarPeaton(tracks, w, areaFrame) {
     const grande = area > areaFrame * COP_PEATON_AREA_MIN;
     const prev = c.peat[t.id];
     let crecidas = 0;
-    if (prev && prev.area > 0) crecidas = (area > prev.area * COP_COL_CRECE) ? (prev.crecidas + 1) : 0;
-    c.peat[t.id] = { area: area, crecidas: crecidas };
-    vistos[t.id] = true;
+    if (prev && prev.area > 0) {
+      crecidas = (area > prev.area * COP_COL_CRECE) ? (prev.crecidas + 1) : prev.crecidas;
+      if (area < prev.area * 0.95) crecidas = 0;   // se aleja → reinicia
+    }
+    c.peat[t.id] = { area: area, crecidas: crecidas, ts: ahora };
     if (grande && centrado && crecidas >= COP_PEATON_FRAMES) alarma = true;
   }
+  // Memoria de 2 s: un hueco de detección no borra el historial (ver arriba).
   for (const id in c.peat) {
-    if (Object.prototype.hasOwnProperty.call(c.peat, id) && !vistos[id]) delete c.peat[id];
+    if (!Object.prototype.hasOwnProperty.call(c.peat, id)) continue;
+    if (!c.peat[id].ts || ahora - c.peat[id].ts > COP_MEMORIA_TRACK_MS) delete c.peat[id];
   }
   if (alarma) {
-    const ahora = Date.now();
     c.colisionHasta = ahora + COP_COLISION_MOSTRAR_MS;
     c.colisionTexto = '⚠ PEATÓN';
-    if (ahora - c.ultColision >= COP_COOLDOWN_COLISION_MS) {
-      c.ultColision = ahora;
+    // Cooldown PROPIO: tras un «⚠ FRENA» de coche, un peatón que cruza es la
+    // secuencia más peligrosa — no puede quedarse mudo por el cooldown ajeno.
+    if (ahora - (c.ultPeaton || 0) >= COP_COOLDOWN_COLISION_MS) {
+      c.ultPeaton = ahora;
       cop_pitar();
       const texto = 'PEATÓN delante acercándose — frena';
       if (typeof alerta_disparar === 'function') {
@@ -12456,7 +12566,17 @@ function sc_letterbox(w, h, lado) {
   return { k: k, dx: Math.floor((lado - nw) / 2), dy: Math.floor((lado - nh) / 2), nw: nw, nh: nh, lado: lado };
 }
 
-/* Frame → tensor float32 [1,3,lado,lado] RGB/255 con letterbox gris. */
+/* Tabla i/255 precalculada: evita 1.2 millones de divisiones por inferencia. */
+const SC_LUT255 = (function () {
+  const t = new Float32Array(256);
+  for (let i = 0; i < 256; i++) t[i] = i / 255;
+  return t;
+})();
+
+/* Frame → tensor float32 [1,3,lado,lado] RGB/255 con letterbox gris.
+ * El Float32Array se REUTILIZA entre inferencias (app_ocupado las serializa):
+ * crear 4.9 MB de tensor nuevo por frame a 5-8 inf/s eran 25-40 MB/s de
+ * basura → pausas del recolector = microtirones. */
 function sc_preprocesar(fuente, w, h) {
   const s = sc_estado();
   const lado = SC_ENTRADA;
@@ -12470,11 +12590,12 @@ function sc_preprocesar(fuente, w, h) {
   ctx.drawImage(fuente, 0, 0, w, h, lb.dx, lb.dy, lb.nw, lb.nh);
   const img = ctx.getImageData(0, 0, lado, lado).data;
   const n = lado * lado;
-  const datos = new Float32Array(3 * n);
+  if (!s.tensorDatos || s.tensorDatos.length !== 3 * n) s.tensorDatos = new Float32Array(3 * n);
+  const datos = s.tensorDatos;
   for (let i = 0; i < n; i++) {                    // HWC uint8 → CHW float
-    datos[i] = img[i * 4] / 255;                   // R
-    datos[n + i] = img[i * 4 + 1] / 255;           // G
-    datos[2 * n + i] = img[i * 4 + 2] / 255;       // B
+    datos[i] = SC_LUT255[img[i * 4]];              // R
+    datos[n + i] = SC_LUT255[img[i * 4 + 1]];      // G
+    datos[2 * n + i] = SC_LUT255[img[i * 4 + 2]];  // B
   }
   return { datos: datos, lb: lb };
 }
@@ -13217,9 +13338,6 @@ const MAT_DEDUPE_MS = 60000;           // no repetir la MISMA matrícula en 1 mi
 const MAT_PURGA_MS = 30000;            // cada cuánto se revisa el borrado automático
 const MAT_AREA_MIN_CONTINUO = 0.02;    // el vehículo debe ocupar ≥2% (si no, placa ilegible)
 const MAT_ALTO_OCR = 320;              // alto (px) al que se amplía el recorte
-/* Matrícula española nueva (0000 BBB, sin vocales ni Ñ/Q) y formato viejo. */
-const MAT_RE_NUEVA = /\d{4}\s?-?[BCDFGHJKLMNPRSTVWXYZ]{3}/;
-const MAT_RE_VIEJA = /[A-Z]{1,2}\s?-?\d{4}\s?-?[A-Z]{1,2}/;
 
 function mat_toast(msg, nivel) {
   if (typeof ui_toast === 'function') { try { ui_toast(msg, nivel || 'info'); return; } catch (e) {} }
@@ -13267,7 +13385,7 @@ function mat_pintar(ctx) {
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    // Confirmada (≥3 lecturas iguales) → verde con ✓. Mientras comprueba → ámbar.
+    // Confirmada (≥2 lecturas iguales) → verde con ✓. Mientras comprueba → ámbar.
     const conf = !!u.buena;
     const txt = (conf ? '✅ ' : '📋 ') + u.matricula + (u.votos > 1 ? '  ×' + u.votos : '') +
                 (conf ? '' : ' …');
@@ -13477,7 +13595,8 @@ async function mat_procesarCola() {
     if (!m.worker) {
       m.worker = await T.createWorker('eng');
       await m.worker.setParameters({
-        tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ- ',
+        tessedit_char_whitelist: '0123456789BCDFGHJKLMNPRSTVWXYZ- ',
+        tessedit_do_invert: '0',
         tessedit_pageseg_mode: '6',
       });
     }
@@ -13596,25 +13715,38 @@ function mat_recorteZona(rx, ry, rw, rh) {
   rx = Math.max(0, Math.min(w - 8, rx)); ry = Math.max(0, Math.min(h - 8, ry));
   rw = Math.max(8, Math.min(w - rx, rw)); rh = Math.max(8, Math.min(h - ry, rh));
   try {
-    const escala = Math.max(1.5, Math.min(8, MAT_ALTO_OCR / rh));
+    // NO inflar: un coche cercano ya trae la placa a buen tamaño; ampliarlo
+    // ×1.5 creaba lienzos de ~1 Mpx que se recorren píxel a píxel en el hilo
+    // principal cada 600 ms (el tirón rítmico del copiloto). Se reduce si es
+    // gigante, se amplía solo si es pequeño, y el ancho va capado.
+    let escala = Math.max(0.4, Math.min(8, MAT_ALTO_OCR / rh));
+    if (rw * escala > 960) escala = 960 / rw;
     const cnv = document.createElement('canvas');
-    cnv.width = Math.round(rw * escala); cnv.height = Math.round(rh * escala);
+    cnv.width = Math.max(24, Math.round(rw * escala));
+    cnv.height = Math.max(16, Math.round(rh * escala));
     const ctx = cnv.getContext('2d', { willReadFrequently: true });
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(fuente, rx, ry, rw, rh, 0, 0, cnv.width, cnv.height);
 
-    // Escala de grises + estirado de contraste: ayuda mucho al OCR nocturno.
+    // Escala de grises + estirado de contraste por PERCENTILES 2-98%: el
+    // min/max absoluto lo anulaba un solo píxel especular de un faro (min≈0,
+    // max≈255 → estirado nulo). Con percentiles, los reflejos no mandan.
     const img = ctx.getImageData(0, 0, cnv.width, cnv.height);
     const px = img.data;
-    let min = 255, max = 0;
+    const hist = new Uint32Array(256);
     for (let i = 0; i < px.length; i += 4) {
-      const g = 0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2];
-      if (g < min) min = g; if (g > max) max = g;
-      px[i] = px[i + 1] = px[i + 2] = g;
+      const g = (0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2]) | 0;
+      px[i] = g;                                   // guarda el gris en R
+      hist[g]++;
     }
-    const rango = Math.max(1, max - min);
+    const total = px.length / 4;
+    let acum = 0, p2 = 0, p98 = 255;
+    for (let v = 0; v < 256; v++) { acum += hist[v]; if (acum >= total * 0.02) { p2 = v; break; } }
+    acum = 0;
+    for (let v = 255; v >= 0; v--) { acum += hist[v]; if (acum >= total * 0.02) { p98 = v; break; } }
+    const rango = Math.max(1, p98 - p2);
     for (let i = 0; i < px.length; i += 4) {
-      const v = Math.max(0, Math.min(255, ((px[i] - min) / rango) * 255));
+      const v = Math.max(0, Math.min(255, ((px[i] - p2) / rango) * 255));
       px[i] = px[i + 1] = px[i + 2] = v;
     }
     ctx.putImageData(img, 0, 0);
@@ -13665,21 +13797,48 @@ function mat_recorte() {
  * del coche entero dispara el acierto y baja el tiempo (imagen mucho menor).
  * Si no encuentra banda clara devuelve null y se usa el recorte completo.
  * ==========================================================================*/
+/* Umbral de Otsu sobre un histograma de 256 niveles: separa "claro" y
+ * "oscuro" DONDE DE VERDAD se separan en ESTA imagen. Un umbral fijo (140)
+ * fallaba de noche: caracteres y fondo caían al mismo lado → cero
+ * transiciones → banda nunca encontrada. PURA (testeable). */
+function mat_otsu(hist, total) {
+  let suma = 0;
+  for (let i = 0; i < 256; i++) suma += i * hist[i];
+  let sumaB = 0, pesoB = 0, mejorVar = 0, umbral = 127;
+  for (let i = 0; i < 256; i++) {
+    pesoB += hist[i];
+    if (!pesoB) continue;
+    const pesoF = total - pesoB;
+    if (!pesoF) break;
+    sumaB += i * hist[i];
+    const mB = sumaB / pesoB, mF = (suma - sumaB) / pesoF;
+    const v = pesoB * pesoF * (mB - mF) * (mB - mF);
+    if (v > mejorVar) { mejorVar = v; umbral = i; }
+  }
+  return umbral;
+}
+
 function mat_bandaPlaca(cnv) {
   try {
     if (!cnv || cnv.width < 24 || cnv.height < 16) return null;
     const w = cnv.width, h = cnv.height;
     const ctx = cnv.getContext('2d', { willReadFrequently: true });
     const px = ctx.getImageData(0, 0, w, h).data;   // ya viene en gris (r=g=b)
-    // Transiciones claro↔oscuro por fila (umbral 140 sobre contraste estirado).
+    // Umbral de Otsu de ESTA imagen + banda muerta ±10 (histéresis): el ruido
+    // que baila alrededor del umbral no cuenta como transición.
+    const hist = new Uint32Array(256);
+    for (let i = 0; i < px.length; i += 4) hist[px[i]]++;
+    const umbral = mat_otsu(hist, px.length / 4);
+    const subida = Math.min(255, umbral + 10), bajada = Math.max(0, umbral - 10);
     const trans = new Array(h);
     for (let y = 0; y < h; y++) {
-      let c = 0, prev = px[y * w * 4] > 140;
+      let c = 0, claro = px[y * w * 4] > umbral;
       for (let x = 1; x < w; x++) {
-        const v = px[(y * w + x) * 4] > 140;
-        if (v !== prev) { c++; prev = v; }
+        const v = px[(y * w + x) * 4];
+        if (claro && v < bajada) { claro = false; c++; }
+        else if (!claro && v > subida) { claro = true; c++; }
       }
-      trans[y] = c;
+      trans[y] = Math.min(c, 60);   // tope: una fila de puro ruido no manda
     }
     let max = 0;
     for (let y = 0; y < h; y++) if (trans[y] > max) max = trans[y];
@@ -13717,7 +13876,12 @@ function mat_bandaPlaca(cnv) {
  * letras limpias, devuelve '' (mejor no dar nada que dar algo mal: con la
  * lectura en continuo y la votación, la correcta acaba saliendo). */
 function mat_candidata(crudo) {
-  const s = String(crudo || '').toUpperCase().replace(/[^A-Z0-9]/g, '');   // fuera espacios y la banda
+  // O/Q/I no existen en la matrícula española nueva: si el OCR las suelta,
+  // son un 0 o un 1 disfrazados. Corregirlas ANTES de buscar los 4 dígitos
+  // evita que un «54O9» tumbe el ancla foto tras foto (error sistemático).
+  const s = String(crudo || '').toUpperCase()
+    .replace(/[OQ]/g, '0').replace(/I/g, '1')
+    .replace(/[^A-Z0-9]/g, '');   // fuera espacios y la banda
   const aLetra = { '0': 'D', '8': 'B', '5': 'S', '2': 'Z', '6': 'G', '7': 'T', '1': 'L', '4': 'A' };
   const esConsonante = function (c) { return c && 'BCDFGHJKLMNPRSTVWXYZ'.indexOf(c) >= 0; };
   for (let i = 0; i + 7 <= s.length; i++) {
@@ -13786,7 +13950,8 @@ async function mat_leer(manual) {
         if (!m.worker) {
           m.worker = await T.createWorker('eng');
           await m.worker.setParameters({
-            tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ- ',
+            tessedit_char_whitelist: '0123456789BCDFGHJKLMNPRSTVWXYZ- ',
+        tessedit_do_invert: '0',
             tessedit_pageseg_mode: '6',   // bloque uniforme: mejor para placas
           });
         }
@@ -14029,8 +14194,12 @@ function app_ciclo(tsAnim) {
     //    el siguiente análisis espera 1.5× lo que tardó el anterior. Sin esto,
     //    los análisis salen pegados, la CPU va al 100% sostenido, el móvil se
     //    calienta y el teléfono ENTERO se arrastra.
+    //    Con WebGPU el 1.5× castiga de más: msInferencia es tiempo de RELOJ y
+    //    la mayor parte es espera asíncrona de la GPU, no hilo principal →
+    //    factor 1.1 (la red térmica de sc_vigilar sigue vigilando por detrás).
+    const enGpu = estado.cfg.motor === 'onnx' && estado.sc && estado.sc.backend === 'webgpu';
     const intervalo = 1000 / app_fpsObjetivo();
-    const descanso = Math.max(intervalo, (estado.video.msInferencia || 0) * 1.5);
+    const descanso = Math.max(intervalo, (estado.video.msInferencia || 0) * (enGpu ? 1.1 : 1.5));
     if (!app_ocupado && nuc_modeloListo() && estado.video.listo &&
         (ahora - app_ultimaInferencia) >= descanso) {
       app_ocupado = true;

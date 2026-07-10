@@ -36,6 +36,17 @@ function vid_init() {
   vid_el.estado     = document.getElementById('vid-estado');
   vid_el.expandir   = document.getElementById('vid-expandir');
 
+  // 📷 Encender cámara con un toque desde el propio visor (sin ir a Ajustes).
+  const btnCam = document.getElementById('vid-btnCamara');
+  if (btnCam) {
+    btnCam.addEventListener('click', function () {
+      btnCam.disabled = true; btnCam.textContent = '📷 Encendiendo…';
+      Promise.resolve(vid_encenderFuente()).finally(function () {
+        setTimeout(function () { btnCam.disabled = false; btnCam.textContent = '📷 Encender cámara'; }, 1500);
+      });
+    });
+  }
+
   // ⛶ Pantalla completa: el vídeo va capado a 68vh para que el scroll funcione;
   // este botón lo pone a tamaño completo (y vuelta) sin perder nitidez.
   if (vid_el.expandir) {
@@ -92,6 +103,19 @@ function vid_init() {
     estado.vid.sabRecalibHasta = 0;
     vid_reiniciarBufferGrabacion();
   });
+}
+
+/* Enciende la fuente de vídeo que esté configurada (cámara por defecto), sin
+ * pasar por Ajustes. La usan el botón «📷 Encender cámara» del visor y el
+ * arranque de un toque del copiloto. Nunca lanza: los errores ya los avisa
+ * cada fuente con su propio mensaje. */
+function vid_encenderFuente() {
+  try {
+    const f = estado.cfg.fuente || 'camara';
+    if (f === 'dashcam') return vid_usarDashcam(estado.cfg.urlDashcam).catch(function () {});
+    if (f === 'ip' && estado.cfg.urlIP) return vid_usarIP(estado.cfg.urlIP).catch(function () {});
+    return vid_usarCamara().catch(function () {});
+  } catch (e) { /* nada: el visor sigue mostrando SIN SEÑAL con su botón */ }
 }
 
 /* Alterna pantalla completa del visor. Si el navegador no la permite (iOS
@@ -580,6 +604,8 @@ function vid_detener() {
     if (vid_el.canvasPriv) vid_el.canvasPriv.classList.add('oculto');
     if (vid_el.rec) vid_el.rec.classList.add('oculto');
     if (vid_el.expandir) vid_el.expandir.classList.add('oculto');
+    const vbc = document.getElementById('vid-btnCamara');
+    if (vbc) vbc.classList.remove('oculto');
     vid_mostrarEstado();
   } catch (e) {
     console.warn('[vid] al detener:', e && e.message);
@@ -689,6 +715,8 @@ function vid_componer() {
   // El visor adopta la forma real del vídeo (evita recortar arriba/abajo).
   if (vid_el.visor) vid_el.visor.classList.add('vid-activo');
   if (vid_el.expandir) vid_el.expandir.classList.remove('oculto');
+  const vbc = document.getElementById('vid-btnCamara');
+  if (vbc && !vbc.classList.contains('oculto')) vbc.classList.add('oculto');
 
   const el = v.fuenteEl;
   try {
@@ -793,6 +821,8 @@ function vid_sinSenal(ctx, cnv) {
     if (vid_el.canvasPriv) vid_el.canvasPriv.classList.add('oculto');
     if (vid_el.rec) vid_el.rec.classList.add('oculto');
     if (vid_el.expandir) vid_el.expandir.classList.add('oculto');
+    const vbc = document.getElementById('vid-btnCamara');
+    if (vbc) vbc.classList.remove('oculto');
   } catch (e) { /* ignorar */ }
 }
 

@@ -259,7 +259,17 @@ function sc_letterbox(w, h, lado) {
   return { k: k, dx: Math.floor((lado - nw) / 2), dy: Math.floor((lado - nh) / 2), nw: nw, nh: nh, lado: lado };
 }
 
-/* Frame → tensor float32 [1,3,lado,lado] RGB/255 con letterbox gris. */
+/* Tabla i/255 precalculada: evita 1.2 millones de divisiones por inferencia. */
+const SC_LUT255 = (function () {
+  const t = new Float32Array(256);
+  for (let i = 0; i < 256; i++) t[i] = i / 255;
+  return t;
+})();
+
+/* Frame → tensor float32 [1,3,lado,lado] RGB/255 con letterbox gris.
+ * El Float32Array se REUTILIZA entre inferencias (app_ocupado las serializa):
+ * crear 4.9 MB de tensor nuevo por frame a 5-8 inf/s eran 25-40 MB/s de
+ * basura → pausas del recolector = microtirones. */
 function sc_preprocesar(fuente, w, h) {
   const s = sc_estado();
   const lado = SC_ENTRADA;
@@ -273,11 +283,12 @@ function sc_preprocesar(fuente, w, h) {
   ctx.drawImage(fuente, 0, 0, w, h, lb.dx, lb.dy, lb.nw, lb.nh);
   const img = ctx.getImageData(0, 0, lado, lado).data;
   const n = lado * lado;
-  const datos = new Float32Array(3 * n);
+  if (!s.tensorDatos || s.tensorDatos.length !== 3 * n) s.tensorDatos = new Float32Array(3 * n);
+  const datos = s.tensorDatos;
   for (let i = 0; i < n; i++) {                    // HWC uint8 → CHW float
-    datos[i] = img[i * 4] / 255;                   // R
-    datos[n + i] = img[i * 4 + 1] / 255;           // G
-    datos[2 * n + i] = img[i * 4 + 2] / 255;       // B
+    datos[i] = SC_LUT255[img[i * 4]];              // R
+    datos[n + i] = SC_LUT255[img[i * 4 + 1]];      // G
+    datos[2 * n + i] = SC_LUT255[img[i * 4 + 2]];  // B
   }
   return { datos: datos, lb: lb };
 }

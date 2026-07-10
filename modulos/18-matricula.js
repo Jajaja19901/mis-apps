@@ -33,9 +33,6 @@ const MAT_DEDUPE_MS = 60000;           // no repetir la MISMA matrícula en 1 mi
 const MAT_PURGA_MS = 30000;            // cada cuánto se revisa el borrado automático
 const MAT_AREA_MIN_CONTINUO = 0.02;    // el vehículo debe ocupar ≥2% (si no, placa ilegible)
 const MAT_ALTO_OCR = 320;              // alto (px) al que se amplía el recorte
-/* Matrícula española nueva (0000 BBB, sin vocales ni Ñ/Q) y formato viejo. */
-const MAT_RE_NUEVA = /\d{4}\s?-?[BCDFGHJKLMNPRSTVWXYZ]{3}/;
-const MAT_RE_VIEJA = /[A-Z]{1,2}\s?-?\d{4}\s?-?[A-Z]{1,2}/;
 
 function mat_toast(msg, nivel) {
   if (typeof ui_toast === 'function') { try { ui_toast(msg, nivel || 'info'); return; } catch (e) {} }
@@ -83,7 +80,7 @@ function mat_pintar(ctx) {
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    // Confirmada (≥3 lecturas iguales) → verde con ✓. Mientras comprueba → ámbar.
+    // Confirmada (≥2 lecturas iguales) → verde con ✓. Mientras comprueba → ámbar.
     const conf = !!u.buena;
     const txt = (conf ? '✅ ' : '📋 ') + u.matricula + (u.votos > 1 ? '  ×' + u.votos : '') +
                 (conf ? '' : ' …');
@@ -293,7 +290,8 @@ async function mat_procesarCola() {
     if (!m.worker) {
       m.worker = await T.createWorker('eng');
       await m.worker.setParameters({
-        tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ- ',
+        tessedit_char_whitelist: '0123456789BCDFGHJKLMNPRSTVWXYZ- ',
+        tessedit_do_invert: '0',
         tessedit_pageseg_mode: '6',
       });
     }
@@ -412,25 +410,38 @@ function mat_recorteZona(rx, ry, rw, rh) {
   rx = Math.max(0, Math.min(w - 8, rx)); ry = Math.max(0, Math.min(h - 8, ry));
   rw = Math.max(8, Math.min(w - rx, rw)); rh = Math.max(8, Math.min(h - ry, rh));
   try {
-    const escala = Math.max(1.5, Math.min(8, MAT_ALTO_OCR / rh));
+    // NO inflar: un coche cercano ya trae la placa a buen tamaño; ampliarlo
+    // ×1.5 creaba lienzos de ~1 Mpx que se recorren píxel a píxel en el hilo
+    // principal cada 600 ms (el tirón rítmico del copiloto). Se reduce si es
+    // gigante, se amplía solo si es pequeño, y el ancho va capado.
+    let escala = Math.max(0.4, Math.min(8, MAT_ALTO_OCR / rh));
+    if (rw * escala > 960) escala = 960 / rw;
     const cnv = document.createElement('canvas');
-    cnv.width = Math.round(rw * escala); cnv.height = Math.round(rh * escala);
+    cnv.width = Math.max(24, Math.round(rw * escala));
+    cnv.height = Math.max(16, Math.round(rh * escala));
     const ctx = cnv.getContext('2d', { willReadFrequently: true });
     ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(fuente, rx, ry, rw, rh, 0, 0, cnv.width, cnv.height);
 
-    // Escala de grises + estirado de contraste: ayuda mucho al OCR nocturno.
+    // Escala de grises + estirado de contraste por PERCENTILES 2-98%: el
+    // min/max absoluto lo anulaba un solo píxel especular de un faro (min≈0,
+    // max≈255 → estirado nulo). Con percentiles, los reflejos no mandan.
     const img = ctx.getImageData(0, 0, cnv.width, cnv.height);
     const px = img.data;
-    let min = 255, max = 0;
+    const hist = new Uint32Array(256);
     for (let i = 0; i < px.length; i += 4) {
-      const g = 0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2];
-      if (g < min) min = g; if (g > max) max = g;
-      px[i] = px[i + 1] = px[i + 2] = g;
+      const g = (0.3 * px[i] + 0.59 * px[i + 1] + 0.11 * px[i + 2]) | 0;
+      px[i] = g;                                   // guarda el gris en R
+      hist[g]++;
     }
-    const rango = Math.max(1, max - min);
+    const total = px.length / 4;
+    let acum = 0, p2 = 0, p98 = 255;
+    for (let v = 0; v < 256; v++) { acum += hist[v]; if (acum >= total * 0.02) { p2 = v; break; } }
+    acum = 0;
+    for (let v = 255; v >= 0; v--) { acum += hist[v]; if (acum >= total * 0.02) { p98 = v; break; } }
+    const rango = Math.max(1, p98 - p2);
     for (let i = 0; i < px.length; i += 4) {
-      const v = Math.max(0, Math.min(255, ((px[i] - min) / rango) * 255));
+      const v = Math.max(0, Math.min(255, ((px[i] - p2) / rango) * 255));
       px[i] = px[i + 1] = px[i + 2] = v;
     }
     ctx.putImageData(img, 0, 0);
@@ -481,21 +492,48 @@ function mat_recorte() {
  * del coche entero dispara el acierto y baja el tiempo (imagen mucho menor).
  * Si no encuentra banda clara devuelve null y se usa el recorte completo.
  * ==========================================================================*/
+/* Umbral de Otsu sobre un histograma de 256 niveles: separa "claro" y
+ * "oscuro" DONDE DE VERDAD se separan en ESTA imagen. Un umbral fijo (140)
+ * fallaba de noche: caracteres y fondo caían al mismo lado → cero
+ * transiciones → banda nunca encontrada. PURA (testeable). */
+function mat_otsu(hist, total) {
+  let suma = 0;
+  for (let i = 0; i < 256; i++) suma += i * hist[i];
+  let sumaB = 0, pesoB = 0, mejorVar = 0, umbral = 127;
+  for (let i = 0; i < 256; i++) {
+    pesoB += hist[i];
+    if (!pesoB) continue;
+    const pesoF = total - pesoB;
+    if (!pesoF) break;
+    sumaB += i * hist[i];
+    const mB = sumaB / pesoB, mF = (suma - sumaB) / pesoF;
+    const v = pesoB * pesoF * (mB - mF) * (mB - mF);
+    if (v > mejorVar) { mejorVar = v; umbral = i; }
+  }
+  return umbral;
+}
+
 function mat_bandaPlaca(cnv) {
   try {
     if (!cnv || cnv.width < 24 || cnv.height < 16) return null;
     const w = cnv.width, h = cnv.height;
     const ctx = cnv.getContext('2d', { willReadFrequently: true });
     const px = ctx.getImageData(0, 0, w, h).data;   // ya viene en gris (r=g=b)
-    // Transiciones claro↔oscuro por fila (umbral 140 sobre contraste estirado).
+    // Umbral de Otsu de ESTA imagen + banda muerta ±10 (histéresis): el ruido
+    // que baila alrededor del umbral no cuenta como transición.
+    const hist = new Uint32Array(256);
+    for (let i = 0; i < px.length; i += 4) hist[px[i]]++;
+    const umbral = mat_otsu(hist, px.length / 4);
+    const subida = Math.min(255, umbral + 10), bajada = Math.max(0, umbral - 10);
     const trans = new Array(h);
     for (let y = 0; y < h; y++) {
-      let c = 0, prev = px[y * w * 4] > 140;
+      let c = 0, claro = px[y * w * 4] > umbral;
       for (let x = 1; x < w; x++) {
-        const v = px[(y * w + x) * 4] > 140;
-        if (v !== prev) { c++; prev = v; }
+        const v = px[(y * w + x) * 4];
+        if (claro && v < bajada) { claro = false; c++; }
+        else if (!claro && v > subida) { claro = true; c++; }
       }
-      trans[y] = c;
+      trans[y] = Math.min(c, 60);   // tope: una fila de puro ruido no manda
     }
     let max = 0;
     for (let y = 0; y < h; y++) if (trans[y] > max) max = trans[y];
@@ -533,7 +571,12 @@ function mat_bandaPlaca(cnv) {
  * letras limpias, devuelve '' (mejor no dar nada que dar algo mal: con la
  * lectura en continuo y la votación, la correcta acaba saliendo). */
 function mat_candidata(crudo) {
-  const s = String(crudo || '').toUpperCase().replace(/[^A-Z0-9]/g, '');   // fuera espacios y la banda
+  // O/Q/I no existen en la matrícula española nueva: si el OCR las suelta,
+  // son un 0 o un 1 disfrazados. Corregirlas ANTES de buscar los 4 dígitos
+  // evita que un «54O9» tumbe el ancla foto tras foto (error sistemático).
+  const s = String(crudo || '').toUpperCase()
+    .replace(/[OQ]/g, '0').replace(/I/g, '1')
+    .replace(/[^A-Z0-9]/g, '');   // fuera espacios y la banda
   const aLetra = { '0': 'D', '8': 'B', '5': 'S', '2': 'Z', '6': 'G', '7': 'T', '1': 'L', '4': 'A' };
   const esConsonante = function (c) { return c && 'BCDFGHJKLMNPRSTVWXYZ'.indexOf(c) >= 0; };
   for (let i = 0; i + 7 <= s.length; i++) {
@@ -602,7 +645,8 @@ async function mat_leer(manual) {
         if (!m.worker) {
           m.worker = await T.createWorker('eng');
           await m.worker.setParameters({
-            tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ- ',
+            tessedit_char_whitelist: '0123456789BCDFGHJKLMNPRSTVWXYZ- ',
+        tessedit_do_invert: '0',
             tessedit_pageseg_mode: '6',   // bloque uniforme: mejor para placas
           });
         }
