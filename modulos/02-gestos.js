@@ -136,7 +136,11 @@ function gesto_procesar(fuente, ts) {
   const tracks = estado.tracks || [];
   gesto_decaer(t);                         // el decaimiento corre siempre
   if (!tracks.length) { g.poses = []; return; }
-  if (g.poseListo && g.landmarker && fuente && estado.video.w > 0 && estado.video.h > 0) {
+  // En el coche (copiloto activo) el modelo de POSTURA no aporta (ocultación/
+  // gestos son de tienda) y es de lo más caro del frame: se salta. Caída y
+  // carrera (baratos, por tracks) se mantienen — sirven también aparcado.
+  if (g.poseListo && g.landmarker && fuente && !estado.cfg.copActivo &&
+      estado.video.w > 0 && estado.video.h > 0) {
     gesto_analizarPose(fuente, t, tracks);
   }
   gesto_detectarCaida(tracks, t);          // caída y carrera van SIEMPRE (con o sin pose)

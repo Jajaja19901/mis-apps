@@ -282,7 +282,11 @@ async function mat_procesarCola() {
   const m = estado.mat;
   if (!m || m.leyendo || !m.cola || !m.cola.length) return;
   const ahora = Date.now();
-  if (ahora - (m.ultOcr || 0) < MAT_OCR_HUECO_MS) return;
+  // Respiro ADAPTATIVO: si el detector va justo (inferencia lenta), el lector
+  // cede el paso y espera más entre fotos. Las fotos no caducan (45 s de
+  // margen), así que no se pierde nada: solo se lee más despacio.
+  const hueco = Math.max(MAT_OCR_HUECO_MS, (estado.video.msInferencia || 0) * 1.5);
+  if (ahora - (m.ultOcr || 0) < hueco) return;
   m.leyendo = true;
   try {
     // Fuera fotos caducadas (coche que pasó hace mucho: ya hay o no hay placa).

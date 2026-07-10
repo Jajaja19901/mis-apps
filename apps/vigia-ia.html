@@ -1747,7 +1747,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.21',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.22',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -2719,7 +2719,11 @@ function gesto_procesar(fuente, ts) {
   const tracks = estado.tracks || [];
   gesto_decaer(t);                         // el decaimiento corre siempre
   if (!tracks.length) { g.poses = []; return; }
-  if (g.poseListo && g.landmarker && fuente && estado.video.w > 0 && estado.video.h > 0) {
+  // En el coche (copiloto activo) el modelo de POSTURA no aporta (ocultación/
+  // gestos son de tienda) y es de lo más caro del frame: se salta. Caída y
+  // carrera (baratos, por tracks) se mantienen — sirven también aparcado.
+  if (g.poseListo && g.landmarker && fuente && !estado.cfg.copActivo &&
+      estado.video.w > 0 && estado.video.h > 0) {
     gesto_analizarPose(fuente, t, tracks);
   }
   gesto_detectarCaida(tracks, t);          // caída y carrera van SIEMPRE (con o sin pose)
@@ -12653,11 +12657,16 @@ function sc_vigilar() {
     // arrastra (a 747 ms el límite viejo de 900 no saltaba y todo iba a 2 fps).
     const limiteMs = estado.cfg.copActivo ? 500 : 900;
     const degradado = (base > 0 && s.msMedia > base * 1.7) || (s.msMedia > limiteMs);
-    if (degradado && idx > 0 && ahora - s.ultCambioTermica > 60000) {
-      const nuevo = orden[idx - 1];
-      if (s.sesiones[nuevo]) {
+    if (degradado && idx > 0 && ahora - s.ultCambioTermica > 20000) {
+      // Baja al modelo CARGADO más cercano por debajo. (Antes exigía justo el
+      // inmediato: con 'm' activo y 's' sin descargar no podía bajar y el
+      // móvil se quedaba clavado a 2 fps para siempre.)
+      for (let j = idx - 1; j >= 0; j--) {
+        const nuevo = orden[j];
+        if (!s.sesiones[nuevo]) continue;
         s.activo = nuevo; s.termicaBajadas++; s.ultCambioTermica = ahora; s.msMedia = 0;
         sc_toast('El móvil va justo (¿calor?): supercerebro baja a ' + SC_MODELOS[nuevo].nombre + '.', 'info');
+        break;
       }
     } else if (!degradado && s.termicaBajadas > 0 && idx < orden.indexOf(estado.cfg.scModelo || 'n')
                && ahora - s.ultCambioTermica > 120000) {
@@ -13402,7 +13411,11 @@ async function mat_procesarCola() {
   const m = estado.mat;
   if (!m || m.leyendo || !m.cola || !m.cola.length) return;
   const ahora = Date.now();
-  if (ahora - (m.ultOcr || 0) < MAT_OCR_HUECO_MS) return;
+  // Respiro ADAPTATIVO: si el detector va justo (inferencia lenta), el lector
+  // cede el paso y espera más entre fotos. Las fotos no caducan (45 s de
+  // margen), así que no se pierde nada: solo se lee más despacio.
+  const hueco = Math.max(MAT_OCR_HUECO_MS, (estado.video.msInferencia || 0) * 1.5);
+  if (ahora - (m.ultOcr || 0) < hueco) return;
   m.leyendo = true;
   try {
     // Fuera fotos caducadas (coche que pasó hace mucho: ya hay o no hay placa).
@@ -13888,7 +13901,11 @@ function app_ciclo(tsAnim) {
 
     // 1) Componer a 30 fps (12 en calma): el ojo no nota más y la GPU sí.
     //    Grabando un evento se mantienen los 30 fps para la evidencia.
-    const compCada = (estado.cfg.ahorroEnergia && estado.video.enCalma && !estado.video.grabando) ? 83 : 33;
+    //    Con el hilo atascado (frames de UI a >45 ms) baja a ~20 fps de pintado
+    //    y le regala ese tiempo al detector; se recupera solo al despejarse.
+    let compCada = 33;
+    if (estado.cfg.ahorroEnergia && estado.video.enCalma && !estado.video.grabando) compCada = 83;
+    else if (!estado.video.grabando && (estado.video.msFrameUI || 0) > 45) compCada = 50;
     if (ahora - app_ultimaComposicion >= compCada) {
       app_ultimaComposicion = ahora;
       vid_componer();
