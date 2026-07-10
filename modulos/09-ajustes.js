@@ -789,6 +789,26 @@ function cfg_conectarBotones() {
   if (selSc) selSc.value = estado.cfg.scModelo || 'n';
   const progSc = $('cfg-scProgreso');
   const resSc = $('cfg-scResultados');
+
+  // Alojar los modelos en tu web: una carpeta base rellena las 3 URLs.
+  const btnScBase = $('cfg-btnScBase');
+  if (btnScBase) btnScBase.addEventListener('click', function () {
+    const campoBase = $('cfg-scBase');
+    const out = $('cfg-scBaseResultado');
+    let base = (campoBase && campoBase.value || '').trim();
+    if (!base) {
+      if (out) out.textContent = 'Pega la dirección de la carpeta donde subiste los 3 archivos .onnx.';
+      return;
+    }
+    if (base.charAt(base.length - 1) !== '/') base += '/';
+    estado.cfg.scUrlN = base + 'yolo11n.onnx';
+    estado.cfg.scUrlS = base + 'yolo11s.onnx';
+    estado.cfg.scUrlM = base + 'yolo11m.onnx';
+    nuc_guardar('cfg', estado.cfg);
+    if (typeof cfg_resincronizarTodos === 'function') { try { cfg_resincronizarTodos(); } catch (e) {} }
+    if (out) out.textContent = '✅ Hecho. Ahora pulsa «⬇ Descargar y activar»: se bajarán de tu web. (Borra los 3 campos de abajo para volver a Hugging Face.)';
+  });
+
   const btnScActivar = $('cfg-btnScActivar');
   if (btnScActivar) btnScActivar.addEventListener('click', function () {
     if (typeof sc_activar !== 'function') { cfg_avisar('El supercerebro no está disponible.', 'sospecha'); return; }

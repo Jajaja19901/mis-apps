@@ -1214,7 +1214,19 @@ h1, h2, h3, p { margin: 0; }
       <p id="cfg-scProgreso" class="etiqueta"></p>
       <div id="cfg-scResultados" class="etiqueta"></div>
       <details class="cfg-sec">
-        <summary class="etiqueta">Avanzado: URLs de los modelos (.onnx)</summary>
+        <summary class="etiqueta">Avanzado: alojar los modelos en tu web/GitHub (carga más fiable)</summary>
+        <p class="etiqueta">Sube los 3 archivos <b>yolo11n.onnx</b>, <b>yolo11s.onnx</b> y <b>yolo11m.onnx</b>
+        a una carpeta de tu web (Cloudflare Pages, GitHub Pages…) y pega aquí la <b>dirección de esa carpeta</b>.
+        Relleno las 3 URLs solo. Esto <b>acelera la descarga</b> la primera vez y hace que funcione sin depender
+        de Hugging Face. La velocidad de detección la pone tu móvil, no cambia por esto.</p>
+        <div class="campo">
+          <label for="cfg-scBase">Carpeta de tus modelos</label>
+          <div class="fila">
+            <input type="text" id="cfg-scBase" style="flex:1;min-width:0;" placeholder="https://mi-web.pages.dev/modelos/" inputmode="url" autocomplete="off">
+            <button type="button" class="btn btn-mini" id="cfg-btnScBase">Aplicar</button>
+          </div>
+          <p class="etiqueta" id="cfg-scBaseResultado"></p>
+        </div>
         <div class="campo"><label for="cfg-scUrlN">YOLO11n</label><input type="text" id="cfg-scUrlN" data-cfg="scUrlN" placeholder="(por defecto: onnx-community en Hugging Face)"></div>
         <div class="campo"><label for="cfg-scUrlS">YOLO11s</label><input type="text" id="cfg-scUrlS" data-cfg="scUrlS" placeholder="(por defecto)"></div>
         <div class="campo"><label for="cfg-scUrlM">YOLO11m</label><input type="text" id="cfg-scUrlM" data-cfg="scUrlM" placeholder="(por defecto)"></div>
@@ -1680,7 +1692,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.3',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.4',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -7620,6 +7632,26 @@ function cfg_conectarBotones() {
   if (selSc) selSc.value = estado.cfg.scModelo || 'n';
   const progSc = $('cfg-scProgreso');
   const resSc = $('cfg-scResultados');
+
+  // Alojar los modelos en tu web: una carpeta base rellena las 3 URLs.
+  const btnScBase = $('cfg-btnScBase');
+  if (btnScBase) btnScBase.addEventListener('click', function () {
+    const campoBase = $('cfg-scBase');
+    const out = $('cfg-scBaseResultado');
+    let base = (campoBase && campoBase.value || '').trim();
+    if (!base) {
+      if (out) out.textContent = 'Pega la dirección de la carpeta donde subiste los 3 archivos .onnx.';
+      return;
+    }
+    if (base.charAt(base.length - 1) !== '/') base += '/';
+    estado.cfg.scUrlN = base + 'yolo11n.onnx';
+    estado.cfg.scUrlS = base + 'yolo11s.onnx';
+    estado.cfg.scUrlM = base + 'yolo11m.onnx';
+    nuc_guardar('cfg', estado.cfg);
+    if (typeof cfg_resincronizarTodos === 'function') { try { cfg_resincronizarTodos(); } catch (e) {} }
+    if (out) out.textContent = '✅ Hecho. Ahora pulsa «⬇ Descargar y activar»: se bajarán de tu web. (Borra los 3 campos de abajo para volver a Hugging Face.)';
+  });
+
   const btnScActivar = $('cfg-btnScActivar');
   if (btnScActivar) btnScActivar.addEventListener('click', function () {
     if (typeof sc_activar !== 'function') { cfg_avisar('El supercerebro no está disponible.', 'sospecha'); return; }
