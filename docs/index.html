@@ -1720,7 +1720,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.14',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.15',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -13082,6 +13082,43 @@ function mat_toast(msg, nivel) {
   console.warn('[matricula] ' + msg);
 }
 
+/* Pinta la última matrícula leída ENCIMA del vídeo (abajo-centro), unos
+ * segundos, para que se vea al instante sin buscar botones ni listas. */
+const MAT_MOSTRAR_MS = 6000;
+function mat_pintar(ctx) {
+  if (!ctx || !estado.mat || !estado.mat.ultima) return;
+  if (!estado.video || !estado.video.listo) return;
+  const u = estado.mat.ultima;
+  if (!u.matricula || Date.now() - u.ts > MAT_MOSTRAR_MS) return;
+  const w = estado.video.w || 0, h = estado.video.h || 0;
+  if (w <= 0 || h <= 0) return;
+  try {
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const txt = '📋 ' + u.matricula;
+    ctx.font = "bold " + Math.round(h * 0.045) + "px 'SFMono-Regular',ui-monospace,Consolas,monospace";
+    const anchoTxt = ctx.measureText(txt).width;
+    const pad = h * 0.02;
+    const bw = anchoTxt + pad * 2, bh = h * 0.075;
+    const bx = w / 2 - bw / 2, by = h - bh - h * 0.03;
+    ctx.fillStyle = 'rgba(10,14,20,.82)';
+    ctx.beginPath();
+    const r = bh * 0.28;
+    ctx.moveTo(bx + r, by);
+    ctx.arcTo(bx + bw, by, bx + bw, by + bh, r);
+    ctx.arcTo(bx + bw, by + bh, bx, by + bh, r);
+    ctx.arcTo(bx, by + bh, bx, by, r);
+    ctx.arcTo(bx, by, bx + bw, by, r);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#facc15'; ctx.lineWidth = Math.max(2, h * 0.004); ctx.stroke();
+    ctx.fillStyle = '#fde68a';
+    ctx.fillText(txt, w / 2, by + bh / 2 + 1);
+    ctx.restore();
+  } catch (e) { /* un fallo de pintado no rompe el compuesto */ }
+}
+
 /* ============================================================================
  * ARRANQUE (idempotente): botón, interruptor de auto-lectura y enganche al
  * evento de golpe de la caja negra.
@@ -13089,7 +13126,12 @@ function mat_toast(msg, nivel) {
 function mat_init() {
   if (estado.mat && estado.mat.inited) return;
   estado.mat = { inited: true, cargando: null, worker: null, leyendo: false,
-                 ultContinuo: 0, ultPurga: 0 };
+                 ultContinuo: 0, ultPurga: 0, ultima: null };
+
+  // Muestra la última matrícula leída ENCIMA del vídeo (orden 66, sobre tracks).
+  if (typeof vid_registrarPintor === 'function') {
+    try { vid_registrarPintor('matricula', mat_pintar, 66); } catch (e) {}
+  }
 
   const btn = document.getElementById('cop-btnMatricula');
   if (btn) btn.addEventListener('click', function () { mat_leer(true); });
@@ -13409,7 +13451,10 @@ async function mat_leer(manual, opts) {
     }
 
     let esNueva = false;
-    if (matricula) esNueva = mat_guardarLectura(matricula, !!manual);
+    if (matricula) {
+      esNueva = mat_guardarLectura(matricula, !!manual);
+      estado.mat.ultima = { matricula: matricula, ts: Date.now() };   // para pintarla en el vídeo
+    }
 
     if (manual) {
       mat_mostrar(recBueno, matricula, crudo, sinOCR);
