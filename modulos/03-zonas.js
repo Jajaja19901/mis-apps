@@ -6,14 +6,14 @@
  * ==========================================================================*/
 
 /* --- Constantes --------------------------------------------------------------*/
-const ZONA_TIPOS = ['prohibida', 'sensible', 'caja', 'plaza', 'detencion'];
+const ZONA_TIPOS = ['prohibida', 'sensible', 'caja', 'plaza', 'detencion', 'analisis'];
 const ZONA_COLORES = {
   prohibida: '#ff4155', sensible: '#ffb224', caja: '#3fa9ff',
-  detencion: '#ffb224', plaza: '#2ee584',
+  detencion: '#ffb224', plaza: '#2ee584', analisis: '#8b5cf6',
 };
 const ZONA_ETIQUETAS = {
   prohibida: 'Zona prohibida', sensible: 'Zona sensible', caja: 'Caja',
-  plaza: 'Plaza', detencion: 'Zona detención',
+  plaza: 'Plaza', detencion: 'Zona detención', analisis: 'Zona de análisis',
 };
 const ZONA_FUENTE_MONO = "11px 'SFMono-Regular',ui-monospace,'Cascadia Mono',Consolas,monospace";
 const ZONA_PLAZA_MS = 2000;          // anti-parpadeo de plazas (ocupar/liberar)
@@ -70,6 +70,7 @@ function zona_conectarToolbar() {
   zona_boton('zona-caja', function () { zona_iniciarDibujo('caja'); });
   zona_boton('zona-plaza', function () { zona_iniciarDibujo('plaza'); });
   zona_boton('zona-detencion', function () { zona_iniciarDibujo('detencion'); });
+  zona_boton('zona-analisis', function () { zona_iniciarDibujo('analisis'); });
   zona_boton('zona-linea', function () { zona_iniciarLinea(); });
   zona_boton('zona-cerrar', function () { zona_terminarDibujo(); });
   zona_boton('zona-cancelar', function () { zona_cancelarDibujo(); });
@@ -286,6 +287,30 @@ function zona_hayBolsaCon(persona, bolsas, w) {
   return false;
 }
 
+/* 🎯 MÁSCARA DE ANÁLISIS: si el dueño dibujó una o más «zonas de análisis»,
+ * la IA solo tiene en cuenta lo que cae DENTRO de ellas. Menos falsos (ignora
+ * la calle por la ventana, el reflejo, el cartel…), más rápido y menos batería.
+ * Sin ninguna zona de análisis dibujada, no filtra nada (devuelve igual). */
+function zona_hayMascara() {
+  return (estado.zonas || []).some(function (z) { return z && z.tipo === 'analisis' && z.puntos && z.puntos.length >= 3; });
+}
+function zona_filtrarPorMascara(dets) {
+  if (!Array.isArray(dets) || !dets.length) return dets || [];
+  const zonas = (estado.zonas || []).filter(function (z) { return z && z.tipo === 'analisis' && z.puntos && z.puntos.length >= 3; });
+  if (!zonas.length) return dets;   // sin máscara: no se filtra nada
+  const w = estado.video.w || 640, h = estado.video.h || 480;
+  const polis = zonas.map(function (z) { return z.puntos.map(function (p) { return { x: p.x * w, y: p.y * h }; }); });
+  return dets.filter(function (d) {
+    const c = d && d.caja; if (!c) return true;
+    // Punto de referencia: pie de la caja (como en la evaluación de personas).
+    const px = c.x + c.an / 2, py = c.y + c.al * 0.92;
+    for (let i = 0; i < polis.length; i++) {
+      if (zona_puntoEnPoligono(px, py, polis[i])) return true;
+    }
+    return false;
+  });
+}
+
 /* --- Evaluación por frame (el corazón) -------------------------------------*/
 function zona_evaluar(tracks, ts) {
   if (!estado.zona) return;
@@ -302,10 +327,14 @@ function zona_evaluar(tracks, ts) {
   const bolsas = tracks.filter(function (t) { return t && NUC_BOLSAS.indexOf(t.clase) >= 0; });
   const vehiculos = tracks.filter(function (t) { return t && NUC_VEHICULOS.indexOf(t.clase) >= 0; });
 
-  // polígonos de zona en px del espacio de frame
-  const zonasPx = estado.zonas.map(function (zona) {
-    return { ref: zona, puntos: zona.puntos.map(function (p) { return { x: p.x * w, y: p.y * h }; }) };
-  });
+  // polígonos de zona en px del espacio de frame. Las de 'analisis' son solo
+  // una máscara para la IA (ya filtró las detecciones): NO generan presencia,
+  // merodeo, cola ni ninguna alerta, así que se excluyen de la evaluación.
+  const zonasPx = estado.zonas
+    .filter(function (zona) { return zona && zona.tipo !== 'analisis'; })
+    .map(function (zona) {
+      return { ref: zona, puntos: zona.puntos.map(function (p) { return { x: p.x * w, y: p.y * h }; }) };
+    });
 
   // ENTRADA / SALIDA + MERODEO (por punto de pie de cada persona)
   personas.forEach(function (t) {

@@ -122,6 +122,9 @@ function app_ciclo(tsAnim) {
       const t0 = performance.now();
       nuc_detectar(vid_fuente()).then((dets) => {
         try {
+          // 🎯 Máscara de análisis: si hay zona(s) de análisis, se ignora todo
+          // lo de fuera (menos falsos y más rápido). Sin máscara, no cambia nada.
+          if (typeof zona_filtrarPorMascara === 'function') dets = zona_filtrarPorMascara(dets);
           estado.detecciones = dets;
           trk_actualizar(dets, ahora);
           zona_evaluar(estado.tracks, ahora);

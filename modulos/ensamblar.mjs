@@ -111,6 +111,7 @@ const PUBLICAS = [
   "gesto_init","gesto_procesar","gesto_pintar","gesto_puntuacion",
   "zona_init","zona_iniciarDibujo","zona_iniciarLinea","zona_terminarDibujo","zona_cancelarDibujo",
   "zona_borrar","zona_borrarTodo","zona_evaluar","zona_pintar","zona_puntoEnPoligono","zona_plazas",
+  "zona_filtrarPorMascara","zona_hayMascara",
   "vid_init","vid_usarCamara","vid_listarCamaras","vid_usarIP","vid_usarArchivo","vid_detener","vid_fuente",
   "vid_dimensiones","vid_registrarPintor","vid_componer","vid_capturaJPEG","vid_grabarEvento","vid_vigilarSabotaje",
   "vid_medirMovimiento",
