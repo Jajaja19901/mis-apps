@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.19',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.20',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -49,7 +49,7 @@ const CFG_DEFECTOS = {
   copVelOtros: false,       // estimar y mostrar la velocidad del coche de delante (orientativa)
   copSonido: true,          // pitido + vibración con los avisos FRENA/PEATÓN
   matAuto: true,            // leer la matrícula sola tras un golpe (caja negra)
-  matContinuo: false,       // leer matrículas en continuo (del vehículo de delante)
+  matContinuo: true,        // leer matrículas SOLA en continuo (del vehículo de delante) mientras el copiloto está activo
   matRetencionMin: 15,      // borrar las matrículas guardadas pasados X minutos (RGPD)
   ahorroEnergia: true,      // sin movimiento 3s → baja a 2 fps (vuelve solo al instante)
   monitorRend: false,       // monitor de rendimiento en vivo sobre el vídeo
@@ -426,6 +426,16 @@ function nuc_init() {
     if (estado.cfg.yoloModelo === 'Xenova/detr-resnet-50' || estado.cfg.yoloRes === '768') {
       estado.cfg.yoloModelo = 'Xenova/yolos-tiny';
       estado.cfg.yoloRes = '512';
+      if (guardada) nuc_guardar('cfg', estado.cfg);
+    }
+  }
+  // Migración única: la lectura de matrículas pasa a ser AUTOMÁTICA (el usuario
+  // no debería tener que pulsar un botón). Se activa en continuo también en las
+  // configuraciones ya guardadas. Se puede apagar a mano en el panel Copiloto.
+  if (!nuc_cargar('migr_mat_continuo', false)) {
+    nuc_guardar('migr_mat_continuo', true);
+    if (estado.cfg.matContinuo !== true) {
+      estado.cfg.matContinuo = true;
       if (guardada) nuc_guardar('cfg', estado.cfg);
     }
   }

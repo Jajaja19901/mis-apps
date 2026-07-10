@@ -21,7 +21,7 @@
 /* --- Constantes ------------------------------------------------------------*/
 const MAT_CDN = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
 const MAT_GUARDADAS_MAX = 60;          // últimas lecturas guardadas (tope duro)
-const MAT_INTERVALO_MS = 6000;         // tiempo entre lecturas en modo continuo
+const MAT_INTERVALO_MS = 3500;         // tiempo entre lecturas en modo continuo (converge antes)
 const MAT_DEDUPE_MS = 60000;           // no repetir la MISMA matrícula en 1 min
 const MAT_PURGA_MS = 30000;            // cada cuánto se revisa el borrado automático
 const MAT_AREA_MIN_CONTINUO = 0.02;    // el vehículo debe ocupar ≥2% (si no, placa ilegible)
@@ -61,12 +61,15 @@ function mat_votar(m) {
  * segundos, para que se vea al instante sin buscar botones ni listas. */
 const MAT_MOSTRAR_MS = 6000;
 function mat_pintar(ctx) {
-  if (!ctx || !estado.mat || !estado.mat.ultima) return;
+  if (!ctx || !estado.mat) return;
   if (!estado.video || !estado.video.listo) return;
-  const u = estado.mat.ultima;
-  if (!u.matricula || Date.now() - u.ts > MAT_MOSTRAR_MS) return;
   const w = estado.video.w || 0, h = estado.video.h || 0;
   if (w <= 0 || h <= 0) return;
+  const u = estado.mat.ultima;
+  const hayReciente = u && u.matricula && Date.now() - u.ts <= MAT_MOSTRAR_MS;
+  // Sin lectura reciente: si está leyendo sola, avisa con un chip discreto para
+  // que se VEA que la app está buscando la matrícula (no está parada).
+  if (!hayReciente) { mat_pintarBuscando(ctx, w, h); return; }
   try {
     ctx.save();
     ctx.textAlign = 'center';
@@ -95,6 +98,38 @@ function mat_pintar(ctx) {
     ctx.fillText(txt, w / 2, by + bh / 2 + 1);
     ctx.restore();
   } catch (e) { /* un fallo de pintado no rompe el compuesto */ }
+}
+
+/* Chip discreto «leyendo matrícula…» cuando la lectura automática está en marcha
+ * y aún no hay una matrícula. Da señal de vida: el usuario ve que la app SÍ está
+ * buscando sola (sin tener que pulsar nada). */
+function mat_pintarBuscando(ctx, w, h) {
+  if (!estado.mat || !estado.mat.buscando) return;
+  if (!estado.cfg.copActivo || !estado.cfg.matContinuo) return;
+  try {
+    ctx.save();
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const txt = '🔎 Leyendo matrícula…';
+    ctx.font = "600 " + Math.round(h * 0.028) + "px system-ui,-apple-system,'Segoe UI',sans-serif";
+    const anchoTxt = ctx.measureText(txt).width;
+    const pad = h * 0.014;
+    const bw = anchoTxt + pad * 2, bh = h * 0.05;
+    const bx = w * 0.02, by = h - bh - h * 0.02;
+    ctx.fillStyle = 'rgba(10,14,20,.7)';
+    ctx.beginPath();
+    const r = bh * 0.3;
+    ctx.moveTo(bx + r, by);
+    ctx.arcTo(bx + bw, by, bx + bw, by + bh, r);
+    ctx.arcTo(bx + bw, by + bh, bx, by + bh, r);
+    ctx.arcTo(bx, by + bh, bx, by, r);
+    ctx.arcTo(bx, by, bx + bw, by, r);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = '#fde68a';
+    ctx.fillText(txt, bx + pad, by + bh / 2 + 1);
+    ctx.restore();
+  } catch (e) { /* nunca rompe el compuesto */ }
 }
 
 /* ============================================================================
@@ -187,12 +222,17 @@ function mat_alFrame() {
   const ahora = Date.now();
   if (ahora - (m.ultPurga || 0) >= MAT_PURGA_MS) { m.ultPurga = ahora; mat_purgar(); }
 
-  if (!estado.cfg.matContinuo || m.leyendo) return;
-  if (ahora - (m.ultContinuo || 0) < MAT_INTERVALO_MS) return;
+  // La lectura automática solo tiene sentido conduciendo: exige el copiloto
+  // activo (así no gasta CPU ni lee nada cuando la app vigila un local, etc.).
+  m.buscando = false;
+  if (!estado.cfg.copActivo || !estado.cfg.matContinuo) return;
+  if (m.leyendo) { m.buscando = true; return; }
+  if (ahora - (m.ultContinuo || 0) < MAT_INTERVALO_MS) { m.buscando = true; return; }
   const veh = mat_vehiculoDelante();
-  if (!veh || !veh.caja) return;
+  if (!veh || !veh.caja) return;                       // no hay coche al que apuntar
   const areaFrame = (estado.video.w || 1) * (estado.video.h || 1);
   if (veh.caja.an * veh.caja.al < areaFrame * MAT_AREA_MIN_CONTINUO) return; // muy lejos
+  m.buscando = true;
   m.ultContinuo = ahora;
   try { mat_leer(false, { continuo: true }); } catch (e) { /* nunca rompe el frame */ }
 }
