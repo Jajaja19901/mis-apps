@@ -266,7 +266,7 @@ function mat_vehiculoDelante() {
     if (!t || !t.caja) continue;
     if (t.clase !== 'car' && t.clase !== 'truck' && t.clase !== 'bus' && t.clase !== 'motorcycle') continue;
     const cx = t.caja.x + t.caja.an / 2;
-    if (Math.abs(cx - w / 2) > w * 0.35) continue;   // solo el carril propio
+    if (Math.abs(cx - w / 2) > w * 0.45) continue;   // amplio: carril propio + coche de frente / parado al que apuntas
     const area = t.caja.an * t.caja.al;
     if (area > mejorArea) { mejorArea = area; mejor = t; }
   }
@@ -338,31 +338,27 @@ function mat_recorte() {
   return lista.length ? lista[lista.length - 1] : null;
 }
 
-/* Saca una matrícula del texto del OCR, tolerando confusiones típicas
- * (O↔0, I↔1, S↔5, B↔8, Z↔2…). Devuelve '' si no hay nada creíble. */
+/* Saca la matrícula del texto del OCR. Matrícula española nueva = 4 NÚMEROS +
+ * 3 LETRAS (consonantes). Nos ANCLAMOS en los 4 números reales e ignoramos todo
+ * lo que haya a su izquierda (la banda azul europea con la «E», que el OCR suele
+ * leer como D/E/etc — no es parte de la matrícula). Las 3 letras siguientes se
+ * corrigen de confusiones típicas (0→D, 8→B, 5→S…). Si no salen 4 números + 3
+ * letras limpias, devuelve '' (mejor no dar nada que dar algo mal: con la
+ * lectura en continuo y la votación, la correcta acaba saliendo). */
 function mat_candidata(crudo) {
-  const limpio = String(crudo || '').toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
-  const n = limpio.match(MAT_RE_NUEVA);
-  const v = limpio.match(MAT_RE_VIEJA);
-  const directa = ((n && n[0]) || (v && v[0]) || '').replace(/-/g, ' ').replace(/\s+/g, ' ').trim();
-  if (directa) return directa;
-  // Rescate: ventana de 7 caracteres corrigiendo confusiones del OCR
-  const compacto = limpio.replace(/ /g, '');
-  const aDigito = { O: '0', Q: '0', D: '0', I: '1', L: '1', S: '5', B: '8', Z: '2', G: '6', T: '7' };
-  const aLetra = { 0: 'D', 8: 'B', 5: 'S', 2: 'Z', 6: 'G', 7: 'T', 1: 'L' };
-  for (let i = 0; i + 7 <= compacto.length; i++) {
-    let dig = '', let3 = '', vale = true;
-    for (let k = 0; k < 4 && vale; k++) {
-      const ch = compacto[i + k];
-      if (ch >= '0' && ch <= '9') dig += ch;
-      else if (aDigito[ch]) dig += aDigito[ch];
-      else vale = false;
-    }
+  const s = String(crudo || '').toUpperCase().replace(/[^A-Z0-9]/g, '');   // fuera espacios y la banda
+  const aLetra = { '0': 'D', '8': 'B', '5': 'S', '2': 'Z', '6': 'G', '7': 'T', '1': 'L', '4': 'A' };
+  const esConsonante = function (c) { return c && 'BCDFGHJKLMNPRSTVWXYZ'.indexOf(c) >= 0; };
+  for (let i = 0; i + 7 <= s.length; i++) {
+    // 4 NÚMEROS reales seguidos (los dígitos el OCR los lee bien; la banda no cuenta)
+    const dig = s.slice(i, i + 4);
+    if (!/^[0-9]{4}$/.test(dig)) continue;
+    // 3 LETRAS a la derecha (consonantes; corrige dígito→letra si se coló)
+    let let3 = '', vale = true;
     for (let k = 4; k < 7 && vale; k++) {
-      let ch = compacto[i + k];
+      let ch = s[i + k];
       if (ch >= '0' && ch <= '9') ch = aLetra[ch] || '';
-      if (ch && 'BCDFGHJKLMNPRSTVWXYZ'.indexOf(ch) >= 0) let3 += ch;
-      else vale = false;
+      if (esConsonante(ch)) let3 += ch; else vale = false;
     }
     if (vale) return dig + ' ' + let3;
   }
