@@ -35,6 +35,27 @@ function mat_toast(msg, nivel) {
   console.warn('[matricula] ' + msg);
 }
 
+/* VOTACIÓN: el OCR falla en lecturas sueltas (lee «D 9915 JU» en vez de
+ * «9915 JMN»). Si se lee la MISMA matrícula muchas veces, la correcta gana por
+ * mayoría. Guarda cada lectura en una ventana de 40 s y devuelve la más votada
+ * y cuántas veces. Así, leyendo en continuo, converge a la matrícula real. */
+const MAT_VOTOS_MS = 40000;
+function mat_votar(m) {
+  const M = estado.mat;
+  const ahora = Date.now();
+  if (!M.votos) M.votos = [];
+  M.votos.push({ m: m, ts: ahora });
+  M.votos = M.votos.filter(function (v) { return ahora - v.ts < MAT_VOTOS_MS; });
+  const cuenta = {};
+  let mejor = m, mejorN = 0;
+  for (let i = 0; i < M.votos.length; i++) {
+    const k = M.votos[i].m;
+    cuenta[k] = (cuenta[k] || 0) + 1;
+    if (cuenta[k] > mejorN) { mejorN = cuenta[k]; mejor = k; }
+  }
+  return { plate: mejor, votos: mejorN, total: M.votos.length };
+}
+
 /* Pinta la última matrícula leída ENCIMA del vídeo (abajo-centro), unos
  * segundos, para que se vea al instante sin buscar botones ni listas. */
 const MAT_MOSTRAR_MS = 6000;
@@ -49,7 +70,7 @@ function mat_pintar(ctx) {
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const txt = '📋 ' + u.matricula;
+    const txt = '📋 ' + u.matricula + (u.votos > 1 ? '  ×' + u.votos : '');
     ctx.font = "bold " + Math.round(h * 0.045) + "px 'SFMono-Regular',ui-monospace,Consolas,monospace";
     const anchoTxt = ctx.measureText(txt).width;
     const pad = h * 0.02;
@@ -79,7 +100,7 @@ function mat_pintar(ctx) {
 function mat_init() {
   if (estado.mat && estado.mat.inited) return;
   estado.mat = { inited: true, cargando: null, worker: null, leyendo: false,
-                 ultContinuo: 0, ultPurga: 0, ultima: null };
+                 ultContinuo: 0, ultPurga: 0, ultima: null, votos: [] };
 
   // Muestra la última matrícula leída ENCIMA del vídeo (orden 66, sobre tracks).
   if (typeof vid_registrarPintor === 'function') {
@@ -414,19 +435,22 @@ async function mat_leer(manual, opts) {
       sinOCR = true;
     }
 
-    let esNueva = false;
+    let esNueva = false, confirmada = matricula, votos = 0;
     if (matricula) {
-      esNueva = mat_guardarLectura(matricula, !!manual);
-      estado.mat.ultima = { matricula: matricula, ts: Date.now() };   // para pintarla en el vídeo
+      // Votación: la matrícula más leída gana (corrige fallos sueltos del OCR).
+      const v = mat_votar(matricula);
+      confirmada = v.plate; votos = v.votos;
+      esNueva = mat_guardarLectura(confirmada, !!manual);
+      estado.mat.ultima = { matricula: confirmada, votos: votos, ts: Date.now() };
     }
 
     if (manual) {
-      mat_mostrar(recBueno, matricula, crudo, sinOCR);
-    } else if (matricula && continuo && esNueva) {
-      mat_toast('📋 Matrícula registrada: ' + matricula + ' (se borra sola en ' +
-        nuc_clamp(estado.cfg.matRetencionMin || 15, 1, 240) + ' min).', 'info');
-    } else if (matricula && !continuo) {
-      mat_toast('📋 Matrícula leída tras el golpe: ' + matricula + ' (guardada en la bitácora).', 'info');
+      mat_mostrar(recBueno, confirmada, crudo, sinOCR);
+    } else if (confirmada && continuo && votos >= 2 && esNueva) {
+      mat_toast('📋 Matrícula confirmada (×' + votos + '): ' + confirmada + ' — se borra sola en ' +
+        nuc_clamp(estado.cfg.matRetencionMin || 15, 1, 240) + ' min.', 'info');
+    } else if (confirmada && !continuo) {
+      mat_toast('📋 Matrícula leída tras el golpe: ' + confirmada + ' (guardada en la bitácora).', 'info');
     }
   } catch (e) {
     if (manual) mat_toast('No se pudo leer la matrícula: ' + (e && e.message), 'sospecha');
