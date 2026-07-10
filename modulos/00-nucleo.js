@@ -172,6 +172,36 @@ function nuc_usoAlmacenMB() {
   } catch (e) { return 0; }
 }
 
+/* --- Auto-actualización: detecta si hay nueva versión y recarga --------*/
+function nuc_detectorVersiones() {
+  try {
+    const verAnterior = nuc_cargar('version_cargada', '');
+    const verActual = CONFIG.VERSION || '?';
+    if (verAnterior && verAnterior !== verActual) {
+      console.info('[versión] detectada actualización: ' + verAnterior + ' → ' + verActual);
+      // Empieza a escuchar cambios (Si el SW entrega la nueva versión, la recargaremos)
+      nuc_establecerAutoActualización();
+    }
+    nuc_guardar('version_cargada', verActual);
+  } catch (e) { /* sin drama: si falla, no se actualiza */ }
+}
+function nuc_establecerAutoActualización() {
+  if (!navigator.serviceWorker || !navigator.serviceWorker.controller) return;
+  let controladorNuevo = null;
+  navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (controladorNuevo) {
+      console.info('[actualización] nueva versión cargada, recargando...');
+      window.location.reload(true);  // hard reload (ctrl+f5)
+    }
+  });
+  navigator.serviceWorker.addEventListener('message', function (e) {
+    if (e.data && e.data.tipo === 'sw-activado-nuevo') {
+      controladorNuevo = true;
+      window.location.reload(true);
+    }
+  });
+}
+
 /* --- Geometría y varios -----------------------------------------------------*/
 function nuc_clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
 function nuc_dist(x1, y1, x2, y2) { const dx = x2 - x1, dy = y2 - y1; return Math.sqrt(dx * dx + dy * dy); }
@@ -441,4 +471,6 @@ function nuc_init() {
   }
   estado.zonas = nuc_cargar('zonas', []);
   estado.lineas = nuc_cargar('lineas', []);
+  // Detecta si hay nueva versión y se actualiza sola
+  nuc_detectorVersiones();
 }
