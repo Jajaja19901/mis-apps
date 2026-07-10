@@ -20,7 +20,7 @@ const VID_EVENTO_MAX_TROZOS = 90;     // tope duro del buffer durante un evento 
 /* --- Referencias al DOM (cacheadas en vid_init) ---------------------------*/
 const vid_el = {
   visor: null, video: null, mjpeg: null, canvas: null, canvasPriv: null,
-  rec: null, estado: null,
+  rec: null, estado: null, expandir: null,
 };
 
 /* --- Arranque -------------------------------------------------------------*/
@@ -34,6 +34,18 @@ function vid_init() {
   vid_el.canvasPriv = document.getElementById('vid-canvasPriv');
   vid_el.rec        = document.getElementById('vid-rec');
   vid_el.estado     = document.getElementById('vid-estado');
+  vid_el.expandir   = document.getElementById('vid-expandir');
+
+  // ⛶ Pantalla completa: el vídeo va capado a 68vh para que el scroll funcione;
+  // este botón lo pone a tamaño completo (y vuelta) sin perder nitidez.
+  if (vid_el.expandir) {
+    vid_el.expandir.addEventListener('click', vid_alternarPantallaCompleta);
+    document.addEventListener('fullscreenchange', function () {
+      const dentro = document.fullscreenElement === vid_el.visor;
+      vid_el.expandir.textContent = dentro ? '🗗' : '⛶';
+      vid_el.expandir.setAttribute('aria-label', dentro ? 'Salir de pantalla completa' : 'Ver el vídeo a pantalla completa');
+    });
+  }
 
   /* Estado interno del módulo (único sitio mutable, contrato §0.2) */
   estado.vid = {
@@ -80,6 +92,25 @@ function vid_init() {
     estado.vid.sabRecalibHasta = 0;
     vid_reiniciarBufferGrabacion();
   });
+}
+
+/* Alterna pantalla completa del visor. Si el navegador no la permite (iOS
+ * antiguos, webviews capadas), alterna el modo GRANDE (94vh) como respaldo. */
+function vid_alternarPantallaCompleta() {
+  const visor = vid_el.visor; if (!visor) return;
+  try {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(function () {});
+      return;
+    }
+    if (visor.requestFullscreen) {
+      visor.requestFullscreen().catch(function () { visor.classList.toggle('vid-grande'); });
+    } else {
+      visor.classList.toggle('vid-grande');
+    }
+  } catch (e) {
+    try { visor.classList.toggle('vid-grande'); } catch (e2) {}
+  }
 }
 
 /* ==========================================================================
@@ -548,6 +579,7 @@ function vid_detener() {
 
     if (vid_el.canvasPriv) vid_el.canvasPriv.classList.add('oculto');
     if (vid_el.rec) vid_el.rec.classList.add('oculto');
+    if (vid_el.expandir) vid_el.expandir.classList.add('oculto');
     vid_mostrarEstado();
   } catch (e) {
     console.warn('[vid] al detener:', e && e.message);
@@ -656,6 +688,7 @@ function vid_componer() {
   if (cnv.width !== dims.w || cnv.height !== dims.h) { cnv.width = dims.w; cnv.height = dims.h; }
   // El visor adopta la forma real del vídeo (evita recortar arriba/abajo).
   if (vid_el.visor) vid_el.visor.classList.add('vid-activo');
+  if (vid_el.expandir) vid_el.expandir.classList.remove('oculto');
 
   const el = v.fuenteEl;
   try {
@@ -759,6 +792,7 @@ function vid_sinSenal(ctx, cnv) {
     ctx.textAlign = 'left';
     if (vid_el.canvasPriv) vid_el.canvasPriv.classList.add('oculto');
     if (vid_el.rec) vid_el.rec.classList.add('oculto');
+    if (vid_el.expandir) vid_el.expandir.classList.add('oculto');
   } catch (e) { /* ignorar */ }
 }
 

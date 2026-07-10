@@ -47,7 +47,9 @@ function mat_toast(msg, nivel) {
  * mayoría. Guarda cada lectura en una ventana de 40 s y devuelve la más votada
  * y cuántas veces. Así, leyendo en continuo, converge a la matrícula real. */
 const MAT_VOTOS_MS = 40000;
-const MAT_VOTOS_CONFIRMAR = 3;   // en continuo: solo se da por BUENA con ≥3 lecturas iguales
+const MAT_VOTOS_CONFIRMAR = 2;   // en continuo: BUENA con ≥2 lecturas IGUALES (que un error
+                                 // de OCR se repita idéntico en 7 caracteres es rarísimo;
+                                 // con 3 tardaba la vida en confirmar)
 function mat_votar(m) {
   const M = estado.mat;
   const ahora = Date.now();
@@ -260,18 +262,11 @@ function mat_alFrame() {
 function mat_fotografiar(veh, ahora) {
   const m = estado.mat;
   const c = veh.caja;
-  // Placa TRASERA (coche delante, centro-abajo) y DELANTERA (coche de frente,
-  // más centrada en el paragolpes): dos fotos por disparo.
-  const zonas = [
-    { rx: c.x + c.an * 0.22, ry: c.y + c.al * 0.60, rw: c.an * 0.56, rh: c.al * 0.32, zona: 'placa' },
-    { rx: c.x + c.an * 0.18, ry: c.y + c.al * 0.42, rw: c.an * 0.64, rh: c.al * 0.34, zona: 'frontal' },
-  ];
-  for (let i = 0; i < zonas.length; i++) {
-    const z = zonas[i];
-    const cnv = mat_recorteZona(z.rx, z.ry, z.rw, z.rh);
-    if (!cnv) continue;
-    m.cola.push({ cnv: cnv, ts: ahora, zona: z.zona });
-  }
+  // UNA foto que cubre la placa trasera Y la delantera (mitad baja ancha del
+  // vehículo): el buscador de banda (mat_bandaPlaca) localiza la placa dentro,
+  // así que no hacen falta dos fotos por disparo — el OCR trabaja la mitad.
+  const cnv = mat_recorteZona(c.x + c.an * 0.15, c.y + c.al * 0.40, c.an * 0.70, c.al * 0.55);
+  if (cnv) m.cola.push({ cnv: cnv, ts: ahora, zona: 'vehiculo' });
   while (m.cola.length > MAT_COLA_MAX) m.cola.shift();   // se cae la más vieja
 }
 
@@ -302,8 +297,7 @@ async function mat_procesarCola() {
         tessedit_pageseg_mode: '6',
       });
     }
-    const r = await m.worker.recognize(foto.cnv);
-    const texto = String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
+    const texto = await mat_ocrSobre(foto.cnv);
     const cand = mat_candidata(texto);
     if (cand) {
       const v = mat_votar(cand);
@@ -316,6 +310,17 @@ async function mat_procesarCola() {
     }
   } catch (e) { /* una foto fallida no rompe la cola */ }
   finally { m.ultOcr = Date.now(); m.leyendo = false; }
+}
+
+/* OCR sobre un recorte: primero busca la BANDA de la placa (imagen pequeña y
+ * de una sola línea → modo PSM 7, el más certero para placas); si no hay
+ * banda clara, recorte completo en modo bloque (PSM 6). */
+async function mat_ocrSobre(cnv) {
+  const m = estado.mat;
+  const banda = mat_bandaPlaca(cnv);
+  try { await m.worker.setParameters({ tessedit_pageseg_mode: banda ? '7' : '6' }); } catch (e) {}
+  const r = await m.worker.recognize(banda || cnv);
+  return String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
 }
 
 /* Borra del histórico las matrículas más viejas que la retención configurada. */
@@ -467,6 +472,59 @@ function mat_recorte() {
   return lista.length ? lista[lista.length - 1] : null;
 }
 
+/* ============================================================================
+ * BUSCADOR DE PLACA: dentro del recorte (gris, contraste estirado), localiza
+ * la BANDA HORIZONTAL donde está la matrícula. Una placa son caracteres
+ * oscuros sobre fondo claro → sus filas tienen MUCHOS cambios claro↔oscuro
+ * seguidos (≥10 transiciones: 7 caracteres × 2 bordes). El parachoques, el
+ * asfalto o la carrocería no. Recortar SOLO esa banda y dársela al OCR en vez
+ * del coche entero dispara el acierto y baja el tiempo (imagen mucho menor).
+ * Si no encuentra banda clara devuelve null y se usa el recorte completo.
+ * ==========================================================================*/
+function mat_bandaPlaca(cnv) {
+  try {
+    if (!cnv || cnv.width < 24 || cnv.height < 16) return null;
+    const w = cnv.width, h = cnv.height;
+    const ctx = cnv.getContext('2d', { willReadFrequently: true });
+    const px = ctx.getImageData(0, 0, w, h).data;   // ya viene en gris (r=g=b)
+    // Transiciones claro↔oscuro por fila (umbral 140 sobre contraste estirado).
+    const trans = new Array(h);
+    for (let y = 0; y < h; y++) {
+      let c = 0, prev = px[y * w * 4] > 140;
+      for (let x = 1; x < w; x++) {
+        const v = px[(y * w + x) * 4] > 140;
+        if (v !== prev) { c++; prev = v; }
+      }
+      trans[y] = c;
+    }
+    let max = 0;
+    for (let y = 0; y < h; y++) if (trans[y] > max) max = trans[y];
+    if (max < 10) return null;                       // no hay nada tipo texto
+    const lim = Math.max(9, max * 0.45);
+    // La banda contigua más ALTA de filas con muchas transiciones.
+    let mejorIni = 0, mejorFin = 0, ini = 0, dentro = false;
+    for (let y = 0; y <= h; y++) {
+      const ok = y < h && trans[y] >= lim;
+      if (ok && !dentro) { dentro = true; ini = y; }
+      if (!ok && dentro) { dentro = false; if (y - ini > mejorFin - mejorIni) { mejorIni = ini; mejorFin = y; } }
+    }
+    const alto = mejorFin - mejorIni;
+    if (alto < 6 || alto > h * 0.8) return null;     // ruido o «todo es banda»
+    const margen = alto * 0.4;
+    const y0 = Math.max(0, Math.floor(mejorIni - margen));
+    const y1 = Math.min(h, Math.ceil(mejorFin + margen));
+    // Banda a ~120 px de alto: tamaño ideal para el OCR (nítido y pequeño).
+    const esc = Math.max(0.5, Math.min(4, 120 / (y1 - y0)));
+    const out = document.createElement('canvas');
+    out.width = Math.max(24, Math.round(w * esc));
+    out.height = Math.max(16, Math.round((y1 - y0) * esc));
+    const octx = out.getContext('2d');
+    octx.imageSmoothingEnabled = true; octx.imageSmoothingQuality = 'high';
+    octx.drawImage(cnv, 0, y0, w, y1 - y0, 0, 0, out.width, out.height);
+    return out;
+  } catch (e) { return null; }
+}
+
 /* Saca la matrícula del texto del OCR. Matrícula española nueva = 4 NÚMEROS +
  * 3 LETRAS (consonantes). Nos ANCLAMOS en los 4 números reales e ignoramos todo
  * lo que haya a su izquierda (la banda azul europea con la «E», que el OCR suele
@@ -549,9 +607,9 @@ async function mat_leer(manual) {
           });
         }
         // Prueba del recorte más ceñido al más ancho: primero que acierte, gana.
+        // (mat_ocrSobre localiza la banda de la placa dentro de cada recorte.)
         for (let i = 0; i < recortes.length && !matricula; i++) {
-          const r = await m.worker.recognize(recortes[i].cnv);
-          const texto = String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
+          const texto = await mat_ocrSobre(recortes[i].cnv);
           if (!crudo) crudo = texto;
           const cand = mat_candidata(texto);
           if (cand) { matricula = cand; recBueno = recortes[i]; crudo = texto; }
