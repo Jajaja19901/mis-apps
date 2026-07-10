@@ -89,6 +89,17 @@ function mat_init() {
   const btn = document.getElementById('cop-btnMatricula');
   if (btn) btn.addEventListener('click', function () { mat_leer(true); });
 
+  // Botón FLOTANTE sobre el vídeo (visible en modo copiloto): lo más fácil de ver.
+  const flo = document.getElementById('mat-flotante');
+  if (flo) flo.addEventListener('click', function () { mat_leer(true); });
+  // Mostrar/ocultar el flotante según esté el copiloto activo (throttle en 'frame').
+  if (typeof bus !== 'undefined' && bus.on) {
+    bus.on('frame', function () {
+      const f = document.getElementById('mat-flotante');
+      if (f) f.classList.toggle('oculto', !estado.cfg.copActivo);
+    });
+  }
+
   const chk = document.getElementById('cop-matAuto');
   if (chk) {
     chk.checked = !!estado.cfg.matAuto;
