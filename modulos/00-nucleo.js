@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.13',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.14',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -46,6 +46,7 @@ const CFG_DEFECTOS = {
   copDistSeg: false,        // aviso de distancia de seguridad (muy pegado sostenido, >30 km/h)
   copAutoTrayecto: true,    // iniciar trayecto solo al pasar de 15 km/h
   copFatiga: true,          // aviso de descanso cada 2 h de trayecto
+  copVelOtros: false,       // estimar y mostrar la velocidad del coche de delante (orientativa)
   copSonido: true,          // pitido + vibración con los avisos FRENA/PEATÓN
   matAuto: true,            // leer la matrícula sola tras un golpe (caja negra)
   matContinuo: false,       // leer matrículas en continuo (del vehículo de delante)

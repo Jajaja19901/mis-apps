@@ -50,6 +50,13 @@ const COP_FATIGA_REPETIR_MS = 30 * 60000; // …y recordatorio cada 30 min
 const COP_RUTA_MIN_M = 20;                // punto de ruta cada ≥20 m (GPX)
 const COP_RUTA_MAX_PTS = 4000;            // tope en memoria
 const COP_RUTA_GUARDAR_PTS = 600;         // puntos guardados por trayecto (simplificado)
+/* Estimación de la velocidad del coche de delante (ORIENTATIVA, no radar) */
+const COP_VEL_ANCHO_COCHE_M = 1.8;        // ancho típico de un coche (m) para estimar distancia
+const COP_VEL_FOV_FACTOR = 0.87;          // focal en px ≈ factor·anchoFrame (FOV ~65° del móvil)
+const COP_VEL_ANCHO_MIN_REL = 0.06;       // el coche debe ocupar ≥6% de ancho (si no, muy lejos → poco fiable)
+const COP_VEL_VENTANA_MS = 1200;          // ventana para medir el cambio de distancia
+const COP_VEL_MIN_SPAN_MS = 500;          // mínimo de tiempo medido para dar un número
+const COP_VEL_VIGENCIA_MS = 1500;         // el número se muestra si es más nuevo que esto
 
 /* ============================================================================
  * ARRANQUE (idempotente): crea estado, cablea botón y controles, registra el
@@ -75,6 +82,8 @@ function cop_init() {
     ultStop: 0, ultDistSeg: 0, ultFatiga: 0,
     // Colisión frontal / peatón / distancia
     colisionHasta: 0, colisionTexto: '⚠ FRENA', veh: {}, peat: {}, distDesde: 0,
+    // Velocidad estimada del coche de delante
+    velDelante: null, velHist: null,
     // Bitácora
     viaje: null,
     // Render
@@ -97,6 +106,8 @@ function cop_init() {
   // Análisis de colisión frontal: una vez por inferencia (evento 'frame').
   if (typeof bus !== 'undefined' && bus.on) {
     bus.on('frame', cop_analizarColision);
+    // Velocidad estimada del coche de delante (independiente del aviso de colisión).
+    bus.on('frame', function () { try { cop_estimarVelDelante(); } catch (e) {} });
   }
 
   estado.cop.inited = true;
@@ -142,6 +153,7 @@ function cop_cablearControles() {
   cop_chk('cop-autoTrayecto', 'copAutoTrayecto');
   cop_chk('cop-fatiga', 'copFatiga');
   cop_chk('cop-sonido', 'copSonido');
+  cop_chk('cop-velOtros', 'copVelOtros');
   const bGpx = document.getElementById('cop-btnGpx');
   if (bGpx) bGpx.addEventListener('click', cop_exportarGPX);
 
@@ -171,7 +183,7 @@ function cop_sincronizarControles() {
   if (parking) parking.checked = !!estado.cfg.copParkingOn;
   const pares = [['cop-peaton', 'copPeaton'], ['cop-stop', 'copStopAviso'], ['cop-distSeg', 'copDistSeg'],
                  ['cop-autoTrayecto', 'copAutoTrayecto'], ['cop-fatiga', 'copFatiga'],
-                 ['cop-sonido', 'copSonido']];
+                 ['cop-sonido', 'copSonido'], ['cop-velOtros', 'copVelOtros']];
   for (let i = 0; i < pares.length; i++) {
     const el = document.getElementById(pares[i][0]);
     if (el) el.checked = !!estado.cfg[pares[i][1]];
@@ -599,6 +611,59 @@ function cop_analizarPeaton(tracks, w, areaFrame) {
   }
 }
 
+/* 🚗💨 Velocidad ESTIMADA del coche de delante (orientativa, NO radar).
+ * Método honesto: se estima la distancia por el ancho aparente del coche
+ * (ancho real ~1.8 m + FOV del móvil), se mide cómo cambia esa distancia en
+ * ~1 s (velocidad de acercamiento) y se combina con TU velocidad GPS:
+ *     velocidad_del_otro ≈ tu_velocidad − velocidad_de_acercamiento
+ * La distancia estimada tiene bastante error (±30-40%), así que el número es
+ * ORIENTATIVO. Lo válido de verdad para denunciar es tu vídeo con hora + tu GPS.
+ * Guarda el resultado en estado.cop.velDelante = { kmh, ts, dist }. */
+function cop_estimarVelDelante() {
+  const c = estado.cop;
+  if (!c || !estado.cfg.copActivo || !estado.cfg.copVelOtros) { if (c) c.velDelante = null; return; }
+  if (!estado.video || !estado.video.listo) { c.velDelante = null; return; }
+  const w = estado.video.w || 0, h = estado.video.h || 0;
+  if (w <= 0) { c.velDelante = null; return; }
+  const ahora = Date.now();
+
+  // Coche de delante = vehículo centrado más grande.
+  const tracks = estado.tracks || [];
+  let mejor = null, mejorArea = 0;
+  for (let i = 0; i < tracks.length; i++) {
+    const t = tracks[i];
+    if (!t || !t.caja) continue;
+    if (t.clase !== 'car' && t.clase !== 'truck' && t.clase !== 'bus') continue;
+    const cx = (t.cx != null) ? t.cx : (t.caja.x + t.caja.an / 2);
+    if (Math.abs(cx - w / 2) > w * COP_COL_CENTRO_REL) continue;   // solo el de mi carril
+    const area = t.caja.an * t.caja.al;
+    if (area > mejorArea) { mejorArea = area; mejor = t; }
+  }
+  if (!mejor || mejor.caja.an < w * COP_VEL_ANCHO_MIN_REL) {        // ninguno, o muy lejos
+    c.velDelante = null; c.velHist = null; return;
+  }
+
+  // Distancia estimada (m) por el ancho aparente. focalPx ≈ FOV_FACTOR·anchoFrame.
+  const focalPx = COP_VEL_FOV_FACTOR * w;
+  const dist = (COP_VEL_ANCHO_COCHE_M * focalPx) / mejor.caja.an;
+
+  // Historial de distancia del MISMO coche (si cambia de id, se reinicia).
+  if (!c.velHist || c.velHist.id !== mejor.id) c.velHist = { id: mejor.id, pts: [] };
+  const pts = c.velHist.pts;
+  pts.push({ d: dist, ts: ahora });
+  while (pts.length > 1 && ahora - pts[0].ts > COP_VEL_VENTANA_MS) pts.shift();
+
+  const span = ahora - pts[0].ts;
+  if (pts.length < 2 || span < COP_VEL_MIN_SPAN_MS) { return; }     // aún midiendo
+
+  // Velocidad de acercamiento (m/s): + = se acerca, − = se aleja.
+  const acercM_s = (pts[0].d - dist) / (span / 1000);
+  const tuKmh = c.velActual || 0;
+  const otroKmh = nuc_clamp(tuKmh - acercM_s * 3.6, 0, COP_VEL_MAX_KMH);
+  c.velDelante = { kmh: otroKmh, ts: ahora, dist: dist,
+                   rel: acercM_s > 0.5 ? 'acerca' : (acercM_s < -0.5 ? 'aleja' : 'igual') };
+}
+
 /* 🛑 Señal de STOP delante (el detector ya reconoce 'stop sign'). */
 function cop_analizarStop(tracks, areaFrame) {
   const c = estado.cop;
@@ -711,6 +776,24 @@ function cop_pintarHUD(ctx) {
       ctx.fillRect(w / 2 - aw / 2, 36, aw, 22);
       ctx.fillStyle = '#ff4155';
       ctx.fillText(t, w / 2, 52);
+    }
+
+    // --- Velocidad ESTIMADA del coche de delante (centro superior, bajo hora) --
+    const vd = estado.cop.velDelante;
+    if (estado.cfg.copVelOtros && vd && Date.now() - vd.ts < COP_VEL_VIGENCIA_MS) {
+      ctx.textAlign = 'center';
+      const flecha = vd.rel === 'acerca' ? '↓' : (vd.rel === 'aleja' ? '↑' : '·');
+      const txt = 'Coche delante ~' + Math.round(vd.kmh) + ' km/h ' + flecha;
+      ctx.font = "bold 15px 'SFMono-Regular',ui-monospace,Consolas,monospace";
+      const aw = ctx.measureText(txt).width + 18;
+      const yTop = estado.video.grabando ? 62 : 36;
+      ctx.fillStyle = 'rgba(0,0,0,.55)';
+      cop_rectRedondo(ctx, w / 2 - aw / 2, yTop, aw, 24, 8); ctx.fill();
+      ctx.fillStyle = '#7dd3fc';
+      ctx.fillText(txt, w / 2, yTop + 17);
+      ctx.fillStyle = '#7d8fa0';
+      ctx.font = "10px 'SFMono-Regular',ui-monospace,Consolas,monospace";
+      ctx.fillText('estimado · no válido como radar', w / 2, yTop + 36);
     }
 
     // --- Aviso de colisión frontal ("⚠ FRENA") ---------------------------
