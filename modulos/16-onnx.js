@@ -190,17 +190,22 @@ async function sc_cargarModelo(clave, alProgreso) {
     const buf = await sc_descargarModelo(clave, alProgreso);
     if (!buf) return null;
     let sesion = null;
-    // Primero WebGPU (S22 ✓); si no, WASM con aviso de backend.
+    // Primero WebGPU (S22 ✓); si no, WASM con aviso de backend. Guardamos los
+    // errores reales de cada intento para diagnóstico (antes se ocultaban).
+    let errGpu = '', errWasm = '';
     try {
       sesion = await ort.InferenceSession.create(buf, { executionProviders: ['webgpu'] });
       s.backend = 'webgpu';
     } catch (e1) {
+      errGpu = (e1 && e1.message) || String(e1);
       try {
         sesion = await ort.InferenceSession.create(buf, { executionProviders: ['wasm'] });
         s.backend = 'wasm';
         sc_toast('WebGPU no disponible: el supercerebro usa WASM (más lento).', 'info');
       } catch (e2) {
-        throw e2;
+        errWasm = (e2 && e2.message) || String(e2);
+        const detalle = ('GPU: ' + errGpu + ' · WASM: ' + errWasm).slice(0, 240);
+        throw new Error(detalle);
       }
     }
     s.sesiones[clave] = sesion;
@@ -208,7 +213,7 @@ async function sc_cargarModelo(clave, alProgreso) {
     return sesion;
   } catch (e) {
     console.warn('[supercerebro] no se pudo crear la sesión ' + clave + ':', e && e.message);
-    sc_fallo('El modelo ' + clave.toUpperCase() + ' no se pudo cargar en este dispositivo.');
+    sc_fallo('El modelo ' + clave.toUpperCase() + ' no se pudo cargar. Detalle → ' + ((e && e.message) || '?'));
     return null;
   } finally {
     s.cargando[clave] = false;
