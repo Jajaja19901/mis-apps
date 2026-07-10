@@ -35,6 +35,52 @@ function cfg_intentar(fn, valorDefecto) {
   } catch (e) { return valorDefecto; }
 }
 
+/* ⚡ Optimizar para mi móvil: mide la potencia del dispositivo (núcleos, RAM,
+ * WebGPU) y deja un preset que NO traba. No descarga nada: elige entre lo que
+ * el móvil aguanta. Devuelve el texto del resultado (para el test). */
+function cfg_optimizar() {
+  const nucleos = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4;
+  const ram = (typeof navigator !== 'undefined' && navigator.deviceMemory) || 3;
+  let webgpu = false;
+  try { webgpu = !!(navigator.gpu); } catch (e) {}
+
+  // Ajustes que siempre ayudan, en cualquier móvil.
+  estado.cfg.ahorroEnergia = true;
+  estado.cfg.monitorRend = true;
+
+  // Puntuación simple de gama del móvil.
+  let gama = 'media';
+  if (nucleos <= 4 || ram <= 2) gama = 'baja';
+  else if (nucleos >= 8 && ram >= 6) gama = 'alta';
+
+  let motor, detalle;
+  if (gama === 'baja') {
+    estado.cfg.motor = 'coco'; estado.cfg.fps = 5;
+    motor = 'Básico'; detalle = 'móvil ajustado: uso el motor Básico (el más ligero) a 5 fps.';
+  } else if (gama === 'alta') {
+    estado.cfg.motor = 'yolo'; estado.cfg.yoloModelo = 'Xenova/yolos-tiny'; estado.cfg.yoloRes = '640'; estado.cfg.fps = 8;
+    motor = 'Potente'; detalle = 'móvil potente: motor Potente (yolos-tiny · 640) a 8 fps' +
+      (webgpu ? '. Tu móvil tiene WebGPU: para MÁXIMA calidad prueba el 🧠 Supercerebro (descárgalo abajo).' : '.');
+  } else {
+    estado.cfg.motor = 'yolo'; estado.cfg.yoloModelo = 'Xenova/yolos-tiny'; estado.cfg.yoloRes = '512'; estado.cfg.fps = 6;
+    motor = 'Potente'; detalle = 'motor Potente ligero (yolos-tiny · 512) a 6 fps, que no traba.';
+  }
+
+  nuc_guardar('cfg', estado.cfg);
+  bus.emit('cfg:cambio', { clave: 'optimizar' });
+
+  // Refresca los controles visibles y (re)carga el motor elegido.
+  if (typeof cfg_resincronizarTodos === 'function') { try { cfg_resincronizarTodos(); } catch (e) {} }
+  if (estado.cfg.motor === 'yolo' && typeof yolo_init === 'function') { yolo_init().catch(function () {}); }
+
+  const txt = '✅ Optimizado (' + nucleos + ' núcleos, ~' + ram + ' GB' + (webgpu ? ', WebGPU' : '') +
+    '): ' + detalle + ' Activé también el ahorro de energía y el monitor para que veas la fluidez.';
+  const out = document.getElementById('cfg-optimResultado');
+  if (out) out.textContent = txt;
+  if (typeof ui_toast === 'function') { try { ui_toast('Optimizado para tu móvil (' + motor + ').', 'info'); } catch (e) {} }
+  return txt;
+}
+
 /* Navega a un acordeón y lo abre. */
 function cfg_ir(idAcordeon) {
   const el = document.getElementById(idAcordeon);
@@ -658,6 +704,7 @@ function cfg_conectarBotones() {
   cfg_atajo('cfg-irCamara', function () { cfg_marcarFuente('cfg-fuente-camara'); });
   cfg_atajo('cfg-irDashcam', function () { cfg_marcarFuente('cfg-fuente-dashcam'); });
   cfg_atajo('cfg-irMotor', function () { cfg_ir('cfg-secDeteccion'); });
+  cfg_atajo('cfg-btnOptimizar', function () { cfg_optimizar(); });
   cfg_atajo('cfg-irCopiloto', function () {
     if (typeof ui_cerrarAjustes === 'function') { try { ui_cerrarAjustes(); } catch (e) {} }
     if (typeof cop_alternar === 'function') { try { cop_alternar(true); } catch (e) {} }
