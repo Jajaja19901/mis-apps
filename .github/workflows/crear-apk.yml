@@ -1,0 +1,61 @@
+name: Construir APK de VIGÍA IA
+
+# Fabrica el APK descargable de VIGÍA IA (envoltorio WebView que carga la app
+# publicada en GitHub Pages). Se lanza a mano (workflow_dispatch) o al cambiar
+# el proyecto Android. El APK queda publicado en la release "vigia-apk".
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'android-apk/**'
+      - '.github/workflows/crear-apk.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  construir:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Preparar el SDK de Android
+        uses: android-actions/setup-android@v3
+
+      - name: Preparar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Compilar el APK (debug, firmado con clave de depuración)
+        working-directory: android-apk
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Renombrar el APK
+        run: cp android-apk/app/build/outputs/apk/debug/app-debug.apk vigia-ia.apk
+
+      - name: Publicar el APK en la release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: vigia-apk
+          name: "VIGÍA IA — APK para instalar"
+          prerelease: true
+          files: vigia-ia.apk
+          body: |
+            APK de VIGÍA IA listo para instalar en el móvil.
+
+            1) Descarga **vigia-ia.apk** desde aquí.
+            2) Ábrelo en el teléfono. Si Android avisa, permite "instalar apps
+               de origen desconocido" para este navegador/archivos.
+            3) Se instala como una app normal, con su icono.
+
+            La app carga desde la web, así que cualquier mejora llega sola sin
+            reinstalar. Necesita conexión la primera vez (descarga el cerebro IA).
