@@ -220,6 +220,19 @@ async function sc_cargarModelo(clave, alProgreso) {
   }
 }
 
+/* Refresca el indicador de backend (WebGPU/WASM) en Ajustes y avisa a la UI.
+ * Nunca lanza: si el nodo o el bus no están, no pasa nada. */
+function sc_avisarBackend() {
+  const s = sc_estado();
+  try {
+    const el = document.getElementById('cfg-scBackend');
+    if (el) el.textContent = (s.backend || '—').toUpperCase();
+  } catch (e) { /* sin panel de ajustes montado */ }
+  try {
+    if (typeof bus !== 'undefined' && bus.emit) bus.emit('cfg:cambio', { clave: 'scBackend' });
+  } catch (e) { /* el bus siempre existe, pero por si acaso */ }
+}
+
 /* Activa un modelo como el de trabajo (descargando si hace falta). */
 async function sc_activar(clave, alProgreso) {
   const s = sc_estado();
