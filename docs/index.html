@@ -571,14 +571,15 @@ h1, h2, h3, p { margin: 0; }
 
   <!-- Matrícula del vehículo de delante -->
   <div class="tarjeta">
-    <div class="etiqueta">Matrícula del vehículo de delante</div>
-    <p class="cop-nota" style="margin:2px 0 8px">✅ <b>Automática:</b> con el copiloto activo, la app
-    <b>fotografía al instante</b> la placa de cada coche a tiro (aunque se vea solo 1 segundo, como uno
-    de frente) y va leyendo las fotos en segundo plano (verás <b>«🔎 Leyendo matrícula…»</b> sobre el
-    vídeo). No hace falta pulsar nada. El botón de abajo es solo para forzar una lectura al momento.</p>
+    <div class="etiqueta">Fotos y matrículas (automático)</div>
+    <p class="cop-nota" style="margin:2px 0 8px">✅ <b>Automático:</b> con el copiloto activo, la app
+    <b>fotografía SOLA a TODOS los vehículos</b> que ve (capturar cuesta milésimas: delante, de frente,
+    aparcados…). Cada foto queda en la <b>galería</b> y el lector va anotando la matrícula en segundo
+    plano, sin prisa. Si el lector falla, la foto sigue ahí: <b>la placa se lee a ojo</b>. No hace
+    falta pulsar nada.</p>
     <div class="fila cop-botonera">
-      <button type="button" class="btn btn-primario btn-mini" id="cop-btnMatricula">📋 Leer ahora</button>
-      <button type="button" class="btn btn-mini" id="cop-btnMatriculas">🗂 Ver guardadas</button>
+      <button type="button" class="btn btn-primario btn-mini" id="cop-btnMatriculas">📸 Ver fotos y matrículas</button>
+      <button type="button" class="btn btn-mini" id="cop-btnMatricula">📋 Leer ahora</button>
     </div>
     <label class="fila cop-linea">
       <input type="checkbox" id="cop-matContinuo">
@@ -1781,7 +1782,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.24',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.28',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -13330,14 +13331,22 @@ const MAT_GUARDADAS_MAX = 60;          // últimas lecturas guardadas (tope duro
  * placa cuesta milésimas (se hace al instante, cada 600 ms); LEERLA cuesta
  * ~1 s de OCR (se hace después, en cola, sin ahogar al detector). Así aunque
  * el coche ya no esté, sus fotos siguen en memoria y la matrícula sale igual. */
-const MAT_FOTO_MS = 600;               // cada cuánto se fotografía el vehículo visible
-const MAT_COLA_MAX = 12;               // fotos pendientes de leer (se cae la más vieja)
+const MAT_FOTO_MS = 500;               // cada cuánto se barren los vehículos visibles
+const MAT_COLA_MAX = 16;               // fotos pendientes de leer (se cae la más vieja)
 const MAT_OCR_HUECO_MS = 250;          // respiro entre lecturas de la cola (no ahogar la CPU)
 const MAT_FOTO_CADUCA_MS = 45000;      // una foto sin leer en 45 s ya no aporta (fuera)
 const MAT_DEDUPE_MS = 60000;           // no repetir la MISMA matrícula en 1 min
 const MAT_PURGA_MS = 30000;            // cada cuánto se revisa el borrado automático
-const MAT_AREA_MIN_CONTINUO = 0.02;    // el vehículo debe ocupar ≥2% (si no, placa ilegible)
-const MAT_ALTO_OCR = 320;              // alto (px) al que se amplía el recorte
+const MAT_AREA_MIN_CONTINUO = 0.015;   // el vehículo debe ocupar ≥1.5% (si no, placa ilegible)
+const MAT_ALTO_OCR = 480;              // alto (px) al que se amplía el recorte (era 320: muy pequeño)
+/* GALERÍA DE FOTOS: la app fotografía SOLA a TODOS los vehículos que ve
+ * (capturar cuesta milésimas). La foto queda guardada aunque el OCR falle:
+ * la matrícula siempre se puede leer a ojo en la galería. El OCR trabaja en
+ * segundo plano, sin prisa, y va anotando la placa en cada foto que lee. */
+const MAT_FOTOS_MAX = 40;              // tope de fotos guardadas (las viejas se caen)
+const MAT_FOTO_TRACK_MS = 2000;        // no re-fotografiar el MISMO coche antes de 2 s
+const MAT_FOTO_ANCHO_JPG = 480;        // ancho máx del JPEG guardado (peso contenido)
+const MAT_FOTOS_GUARDAR_MS = 3000;     // persistir la galería como mucho cada 3 s
 
 function mat_toast(msg, nivel) {
   if (typeof ui_toast === 'function') { try { ui_toast(msg, nivel || 'info'); return; } catch (e) {} }
@@ -13450,7 +13459,8 @@ function mat_pintarBuscando(ctx, w, h) {
 function mat_init() {
   if (estado.mat && estado.mat.inited) return;
   estado.mat = { inited: true, cargando: null, worker: null, leyendo: false,
-                 ultFoto: 0, ultOcr: 0, ultPurga: 0, ultima: null, votos: [], cola: [] };
+                 ultFoto: 0, ultOcr: 0, ultPurga: 0, ultima: null, votos: [], cola: [],
+                 trackFotos: {}, fotos: null, fotosSucias: false, ultGuardaFotos: 0 };
 
   // Muestra la última matrícula leída ENCIMA del vídeo (orden 66, sobre tracks).
   if (typeof vid_registrarPintor === 'function') {
@@ -13539,28 +13549,53 @@ function mat_alFrame() {
   if (!estado.cfg.copActivo || !estado.cfg.matContinuo) return;
   if (!m.cola) m.cola = [];
 
-  // 1) FOTOS al instante (baratas, milésimas): cada 600 ms si hay vehículo a
-  //    tiro. Un coche de frente visible 1 s deja 2-4 fotos en la cola. Se
-  //    fotografía TAMBIÉN con el OCR ocupado: justo entonces es cuando un
-  //    coche fugaz se perdería.
+  // 1) FOTOS al instante (baratas, milésimas): cada 500 ms se barren TODOS los
+  //    vehículos visibles y se fotografía a cada uno (máx. 1 foto/2 s por coche).
+  //    Se fotografía TAMBIÉN con el OCR ocupado: justo entonces es cuando un
+  //    coche fugaz se perdería. La foto SIEMPRE queda en la galería.
   if (ahora - (m.ultFoto || 0) >= MAT_FOTO_MS) {
-    const veh = mat_vehiculoDelante();
-    if (veh && veh.caja) {
-      const areaFrame = (estado.video.w || 1) * (estado.video.h || 1);
-      if (veh.caja.an * veh.caja.al >= areaFrame * MAT_AREA_MIN_CONTINUO) {
-        m.ultFoto = ahora;
-        try { mat_fotografiar(veh, ahora); } catch (e) { /* nunca rompe el frame */ }
-      }
-    }
+    m.ultFoto = ahora;
+    try { mat_capturarTodas(ahora); } catch (e) { /* nunca rompe el frame */ }
   }
 
   // 2) LECTURA en segundo plano: procesa la cola foto a foto, con respiro.
   if (m.cola.length || m.leyendo) m.buscando = true;
   try { mat_procesarCola(); } catch (e) { /* ídem */ }
+
+  // 3) Persistencia de la galería (throttle: como mucho cada 3 s).
+  if (m.fotosSucias && ahora - (m.ultGuardaFotos || 0) >= MAT_FOTOS_GUARDAR_MS) {
+    mat_fotosGuardar(ahora);
+  }
 }
 
-/* Fotografía la zona de la placa del vehículo (trasera + delantera) y la mete
- * en la cola de lectura. Capturar es instantáneo: solo recorta y amplía. */
+/* Barre TODOS los vehículos en pantalla y fotografía a cada uno que ocupe
+ * tamaño suficiente y no haya sido fotografiado hace <2 s. Así ningún coche
+ * pasa sin foto: delante, en el otro carril, aparcado… todos. */
+function mat_capturarTodas(ahora) {
+  const m = estado.mat;
+  const w = estado.video.w || 0, h = estado.video.h || 0;
+  if (!w || !h) return;
+  const areaFrame = w * h;
+  const tracks = estado.tracks || [];
+  for (let i = 0; i < tracks.length; i++) {
+    const t = tracks[i];
+    if (!t || !t.caja) continue;
+    if (t.clase !== 'car' && t.clase !== 'truck' && t.clase !== 'bus' && t.clase !== 'motorcycle') continue;
+    if (t.caja.an * t.caja.al < areaFrame * MAT_AREA_MIN_CONTINUO) continue;   // muy lejos: placa ilegible
+    const ya = m.trackFotos[t.id] || 0;
+    if (ahora - ya < MAT_FOTO_TRACK_MS) continue;                              // ya tiene foto reciente
+    m.trackFotos[t.id] = ahora;
+    try { mat_fotografiar(t, ahora); } catch (e) { /* un coche fallido no para el barrido */ }
+  }
+  // Limpieza del mapa de throttle (tracks que ya no existen).
+  for (const id in m.trackFotos) {
+    if (ahora - m.trackFotos[id] > 30000) delete m.trackFotos[id];
+  }
+}
+
+/* Fotografía la zona de la placa del vehículo (trasera + delantera), GUARDA la
+ * foto en la galería (queda aunque el OCR falle) y la mete en la cola de
+ * lectura. Capturar es instantáneo: solo recorta y amplía. */
 function mat_fotografiar(veh, ahora) {
   const m = estado.mat;
   const c = veh.caja;
@@ -13568,8 +13603,93 @@ function mat_fotografiar(veh, ahora) {
   // vehículo): el buscador de banda (mat_bandaPlaca) localiza la placa dentro,
   // así que no hacen falta dos fotos por disparo — el OCR trabaja la mitad.
   const cnv = mat_recorteZona(c.x + c.an * 0.15, c.y + c.al * 0.40, c.an * 0.70, c.al * 0.55);
-  if (cnv) m.cola.push({ cnv: cnv, ts: ahora, zona: 'vehiculo' });
+  if (!cnv) return;
+  const fotoId = mat_fotoGuardar(cnv, ahora, veh);       // a la galería SIEMPRE
+  m.cola.push({ cnv: cnv, ts: ahora, zona: 'vehiculo', fotoId: fotoId });
   while (m.cola.length > MAT_COLA_MAX) m.cola.shift();   // se cae la más vieja
+}
+
+/* ============================================================================
+ * GALERÍA DE FOTOS (mat_fotos en localStorage): cada vehículo visto deja su
+ * foto de la zona de la placa. El OCR de fondo va anotando la matrícula en la
+ * foto cuando la lee; si no la lee, la foto sigue ahí para leerla a ojo.
+ * RGPD: mismo borrado automático por tiempo que las matrículas.
+ * ==========================================================================*/
+function mat_fotosLista() {
+  const m = estado.mat;
+  if (!m.fotos) {
+    const l = nuc_cargar('mat_fotos', []);
+    m.fotos = Array.isArray(l) ? l : [];
+  }
+  return m.fotos;
+}
+
+/* Guarda el recorte como JPEG pequeño en la galería. Devuelve el id. */
+function mat_fotoGuardar(cnv, ahora, veh) {
+  try {
+    const m = estado.mat;
+    // Reducir a ≤480 px de ancho: peso ~15-30 KB por foto (40 fotos ≈ 1 MB).
+    let esc = Math.min(1, MAT_FOTO_ANCHO_JPG / (cnv.width || 1));
+    const mini = document.createElement('canvas');
+    mini.width = Math.max(24, Math.round(cnv.width * esc));
+    mini.height = Math.max(16, Math.round(cnv.height * esc));
+    mini.getContext('2d').drawImage(cnv, 0, 0, mini.width, mini.height);
+    const jpg = mini.toDataURL('image/jpeg', 0.6);
+    const id = (typeof nuc_uid === 'function') ? nuc_uid('f') : ('f' + ahora + Math.floor(Math.random() * 1e6));
+    const lista = mat_fotosLista();
+    lista.push({ id: id, ts: ahora, img: jpg, matricula: '', buena: false,
+                 clase: (veh && veh.clase) || 'car' });
+    while (lista.length > MAT_FOTOS_MAX) lista.shift();
+    m.fotosSucias = true;
+    return id;
+  } catch (e) { return null; }
+}
+
+/* Anota la matrícula leída por el OCR en su foto de la galería. */
+function mat_fotoAnotar(fotoId, matricula, buena) {
+  if (!fotoId || !matricula) return;
+  try {
+    const lista = mat_fotosLista();
+    for (let i = lista.length - 1; i >= 0; i--) {
+      if (lista[i].id === fotoId) {
+        lista[i].matricula = matricula;
+        lista[i].buena = !!buena || lista[i].buena;
+        estado.mat.fotosSucias = true;
+        return;
+      }
+    }
+  } catch (e) { /* sin drama */ }
+}
+
+/* Persiste la galería (throttled). Si localStorage se queda sin sitio, tira
+ * las fotos más viejas y reintenta: las nuevas siempre caben. */
+function mat_fotosGuardar(ahora) {
+  const m = estado.mat;
+  m.ultGuardaFotos = ahora || Date.now();
+  m.fotosSucias = false;
+  let lista = mat_fotosLista();
+  for (let intento = 0; intento < 4; intento++) {
+    try { localStorage.setItem('vigia_mat_fotos', JSON.stringify(lista)); return; }
+    catch (e) {
+      if (lista.length <= 4) break;                      // no hay más que tirar
+      lista.splice(0, Math.ceil(lista.length / 3));      // fuera el tercio más viejo
+      m.fotos = lista;
+    }
+  }
+}
+
+/* Borra de la galería las fotos más viejas que la retención configurada. */
+function mat_fotosPurgar() {
+  try {
+    const retMs = nuc_clamp(estado.cfg.matRetencionMin || 15, 1, 240) * 60000;
+    const ahora = Date.now();
+    const lista = mat_fotosLista();
+    const limpia = lista.filter(function (f) { return f && f.ts && (ahora - f.ts) < retMs; });
+    if (limpia.length !== lista.length) {
+      estado.mat.fotos = limpia;
+      estado.mat.fotosSucias = true;
+    }
+  } catch (e) { /* si falla, no pasa nada */ }
 }
 
 /* Lee UNA foto de la cola por llamada (la más reciente primero: el coche más
@@ -13597,7 +13717,10 @@ async function mat_procesarCola() {
       await m.worker.setParameters({
         tessedit_char_whitelist: '0123456789BCDFGHJKLMNPRSTVWXYZ- ',
         tessedit_do_invert: '0',
-        tessedit_pageseg_mode: '6',
+        tessedit_pageseg_mode: '8',
+        tessedit_write_output_file: '0',
+        tessedit_create_pdf: '0',
+        tessedit_create_hocr: '0',
       });
     }
     const texto = await mat_ocrSobre(foto.cnv);
@@ -13606,6 +13729,7 @@ async function mat_procesarCola() {
       const v = mat_votar(cand);
       const buena = v.votos >= MAT_VOTOS_CONFIRMAR;     // "la que pillas es la buena"
       estado.mat.ultima = { matricula: v.plate, votos: v.votos, buena: buena, ts: Date.now() };
+      mat_fotoAnotar(foto.fotoId, cand, buena);         // anota la placa en SU foto
       if (buena && mat_guardarLectura(v.plate, false)) {
         mat_toast('✅ Matrícula CONFIRMADA (leída ×' + v.votos + '): ' + v.plate + ' — se borra sola en ' +
           nuc_clamp(estado.cfg.matRetencionMin || 15, 1, 240) + ' min.', 'info');
@@ -13615,15 +13739,29 @@ async function mat_procesarCola() {
   finally { m.ultOcr = Date.now(); m.leyendo = false; }
 }
 
-/* OCR sobre un recorte: primero busca la BANDA de la placa (imagen pequeña y
- * de una sola línea → modo PSM 7, el más certero para placas); si no hay
- * banda clara, recorte completo en modo bloque (PSM 6). */
+/* OCR rápido sobre recorte: banda (PSM 8, single line) si existe, si no
+ * recorte completo (PSM 11, sparse text). SIN sharpening (muy lento).
+ * Objetivo: acertar EN 2 SEGUNDOS. */
 async function mat_ocrSobre(cnv) {
   const m = estado.mat;
   const banda = mat_bandaPlaca(cnv);
-  try { await m.worker.setParameters({ tessedit_pageseg_mode: banda ? '7' : '6' }); } catch (e) {}
-  const r = await m.worker.recognize(banda || cnv);
-  return String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
+
+  // ESTRATEGIA 1 (rápida): banda de placa, PSM 8 (single line)
+  if (banda) {
+    try {
+      await m.worker.setParameters({ tessedit_pageseg_mode: '8' });
+      const r = await m.worker.recognize(banda);
+      const texto = String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
+      if (mat_candidata(texto)) return texto;
+    } catch (e) { /* fallback */ }
+  }
+
+  // FALLBACK: recorte completo, PSM 11 (sparse text)
+  try {
+    await m.worker.setParameters({ tessedit_pageseg_mode: '11' });
+    const r = await m.worker.recognize(cnv);
+    return String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
+  } catch (e) { return ''; }
 }
 
 /* Borra del histórico las matrículas más viejas que la retención configurada. */
@@ -13632,32 +13770,68 @@ function mat_purgar() {
     const retMs = nuc_clamp(estado.cfg.matRetencionMin || 15, 1, 240) * 60000;
     const ahora = Date.now();
     let lista = nuc_cargar('mat_lecturas', []);
-    if (!Array.isArray(lista)) return;
-    const limpia = lista.filter(function (r) { return r && r.ts && (ahora - r.ts) < retMs; });
-    if (limpia.length !== lista.length) nuc_guardar('mat_lecturas', limpia);
+    if (Array.isArray(lista)) {
+      const limpia = lista.filter(function (r) { return r && r.ts && (ahora - r.ts) < retMs; });
+      if (limpia.length !== lista.length) nuc_guardar('mat_lecturas', limpia);
+    }
+    mat_fotosPurgar();   // la galería de fotos sigue la misma retención (RGPD)
   } catch (e) { /* si falla, no pasa nada */ }
 }
 
-/* Muestra la lista de matrículas leídas recientemente (con su hora). */
+/* Muestra la GALERÍA: cada vehículo visto con su FOTO de la placa y, si el OCR
+ * la leyó, la matrícula anotada (✅ confirmada / 📋 provisional). La foto está
+ * SIEMPRE aunque el OCR fallara: se lee a ojo. Debajo, las matrículas sueltas. */
 function mat_mostrarLista() {
   mat_purgar();
-  let lista = nuc_cargar('mat_lecturas', []);
-  if (!Array.isArray(lista)) lista = [];
+  const fotos = mat_fotosLista().slice();
+  let lecturas = nuc_cargar('mat_lecturas', []);
+  if (!Array.isArray(lecturas)) lecturas = [];
   const ret = nuc_clamp(estado.cfg.matRetencionMin || 15, 1, 240);
   const cont = document.createElement('div');
-  if (!lista.length) {
+
+  if (!fotos.length && !lecturas.length) {
     const p = document.createElement('p');
-    p.textContent = 'Aún no hay matrículas guardadas. Se guardan al leer una (manual, continua o tras un golpe) y se borran solas a los ' + ret + ' min.';
+    p.textContent = 'Aún no hay fotos ni matrículas. Con el copiloto activo, la app fotografía SOLA a cada vehículo que ve y lee su placa en segundo plano. Todo se borra solo a los ' + ret + ' min.';
     cont.appendChild(p);
-  } else {
+  }
+
+  if (fotos.length) {
     const intro = document.createElement('p');
     intro.className = 'etiqueta';
-    intro.textContent = lista.length + ' matrícula(s) · se borran solas ' + ret + ' min después de leerlas.';
+    intro.textContent = '📸 ' + fotos.length + ' foto(s) automáticas · se borran solas a los ' + ret + ' min.';
     cont.appendChild(intro);
+    for (let i = fotos.length - 1; i >= 0; i--) {
+      const f = fotos[i];
+      const caja = document.createElement('div');
+      caja.style.cssText = 'margin:0 0 12px;padding:8px;border:1px solid #233140;border-radius:10px;background:rgba(255,255,255,.02);';
+      const img = document.createElement('img');
+      img.src = f.img; img.alt = 'Foto de la matrícula';
+      img.loading = 'lazy';
+      img.style.cssText = 'width:100%;border-radius:6px;display:block;';
+      caja.appendChild(img);
+      const fila = document.createElement('div');
+      fila.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:6px;';
+      const b = document.createElement('b');
+      b.style.cssText = 'letter-spacing:2px;font-size:1.05rem;';
+      b.textContent = f.matricula ? ((f.buena ? '✅ ' : '📋 ') + f.matricula) : '👁 léela en la foto';
+      if (!f.matricula) b.style.opacity = '.6';
+      const t = document.createElement('span'); t.className = 'etiqueta';
+      t.textContent = (typeof nuc_fechaHora === 'function') ? nuc_fechaHora(f.ts) : '';
+      fila.appendChild(b); fila.appendChild(t);
+      caja.appendChild(fila);
+      cont.appendChild(caja);
+    }
+  }
+
+  if (lecturas.length) {
+    const intro2 = document.createElement('p');
+    intro2.className = 'etiqueta';
+    intro2.textContent = '📋 Matrículas confirmadas por el lector:';
+    cont.appendChild(intro2);
     const ul = document.createElement('ul');
     ul.style.cssText = 'list-style:none;padding:0;margin:8px 0;';
-    for (let i = lista.length - 1; i >= 0; i--) {
-      const r = lista[i];
+    for (let i = lecturas.length - 1; i >= 0; i--) {
+      const r = lecturas[i];
       const li = document.createElement('li');
       li.style.cssText = 'display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid #233140;';
       const b = document.createElement('b'); b.style.letterSpacing = '1px'; b.textContent = r.matricula || '—';
@@ -13667,19 +13841,23 @@ function mat_mostrarLista() {
     }
     cont.appendChild(ul);
   }
+
   const legal = document.createElement('p');
   legal.className = 'etiqueta';
   legal.style.cssText = 'font-size:.78rem;opacity:.8;';
-  legal.textContent = 'Las matrículas son datos personales: guardado breve (se borran solas) y solo como evidencia de un incidente propio.';
+  legal.textContent = 'Las matrículas y sus fotos son datos personales: guardado breve (se borran solas) y solo como evidencia de un incidente propio.';
   cont.appendChild(legal);
   const botones = [];
-  if (lista.length) {
-    botones.push({ texto: '🗑 Borrar todas ya', clase: 'btn-peligro', fn: function () {
-      nuc_guardar('mat_lecturas', []); mat_toast('Matrículas borradas.', 'info'); return true;
+  if (fotos.length || lecturas.length) {
+    botones.push({ texto: '🗑 Borrar todo ya', clase: 'btn-peligro', fn: function () {
+      nuc_guardar('mat_lecturas', []);
+      estado.mat.fotos = [];
+      mat_fotosGuardar(Date.now());
+      mat_toast('Fotos y matrículas borradas.', 'info'); return true;
     } });
   }
   botones.push({ texto: 'Cerrar', clase: 'btn-fantasma' });
-  if (typeof ui_modal === 'function') ui_modal('📋 Matrículas guardadas', cont, botones);
+  if (typeof ui_modal === 'function') ui_modal('📸 Fotos y matrículas', cont, botones);
 }
 
 /* ============================================================================
@@ -13842,8 +14020,8 @@ function mat_bandaPlaca(cnv) {
     }
     let max = 0;
     for (let y = 0; y < h; y++) if (trans[y] > max) max = trans[y];
-    if (max < 10) return null;                       // no hay nada tipo texto
-    const lim = Math.max(9, max * 0.45);
+    if (max < 6) return null;                        // no hay nada tipo texto (agresivo: detecta bandas débiles)
+    const lim = Math.max(5, max * 0.35);             // tolerante: acepta filas con pocas transiciones
     // La banda contigua más ALTA de filas con muchas transiciones.
     let mejorIni = 0, mejorFin = 0, ini = 0, dentro = false;
     for (let y = 0; y <= h; y++) {
@@ -13852,8 +14030,8 @@ function mat_bandaPlaca(cnv) {
       if (!ok && dentro) { dentro = false; if (y - ini > mejorFin - mejorIni) { mejorIni = ini; mejorFin = y; } }
     }
     const alto = mejorFin - mejorIni;
-    if (alto < 6 || alto > h * 0.8) return null;     // ruido o «todo es banda»
-    const margen = alto * 0.4;
+    if (alto < 4 || alto > h * 0.90) return null;    // muy flexible: detecta bandas incluso borrosas
+    const margen = alto * 0.8;                       // margen generoso: contexto extra para PSM 8
     const y0 = Math.max(0, Math.floor(mejorIni - margen));
     const y1 = Math.min(h, Math.ceil(mejorFin + margen));
     // Banda a ~120 px de alto: tamaño ideal para el OCR (nítido y pequeño).
@@ -13869,33 +14047,48 @@ function mat_bandaPlaca(cnv) {
 }
 
 /* Saca la matrícula del texto del OCR. Matrícula española nueva = 4 NÚMEROS +
- * 3 LETRAS (consonantes). Nos ANCLAMOS en los 4 números reales e ignoramos todo
- * lo que haya a su izquierda (la banda azul europea con la «E», que el OCR suele
- * leer como D/E/etc — no es parte de la matrícula). Las 3 letras siguientes se
- * corrigen de confusiones típicas (0→D, 8→B, 5→S…). Si no salen 4 números + 3
- * letras limpias, devuelve '' (mejor no dar nada que dar algo mal: con la
- * lectura en continuo y la votación, la correcta acaba saliendo). */
+ * 3 LETRAS (consonantes). Primero intenta encontrar la forma PERFECTA (4+3).
+ * Si falla, es más permiso: acepta 3+2 como fallback (mejor algo razonable que
+ * nada cuando Tesseract falla un carácter). Con lectura en continuo, la votación
+ * converge a la correcta de todas formas. */
 function mat_candidata(crudo) {
-  // O/Q/I no existen en la matrícula española nueva: si el OCR las suelta,
-  // son un 0 o un 1 disfrazados. Corregirlas ANTES de buscar los 4 dígitos
-  // evita que un «54O9» tumbe el ancla foto tras foto (error sistemático).
   const s = String(crudo || '').toUpperCase()
     .replace(/[OQ]/g, '0').replace(/I/g, '1')
-    .replace(/[^A-Z0-9]/g, '');   // fuera espacios y la banda
-  const aLetra = { '0': 'D', '8': 'B', '5': 'S', '2': 'Z', '6': 'G', '7': 'T', '1': 'L', '4': 'A' };
+    .replace(/[^A-Z0-9]/g, '');
+  const aLetra = { '0': 'D', '8': 'B', '5': 'S', '2': 'Z', '6': 'G', '7': 'T', '1': 'L', '4': 'A', '3': 'E', '9': 'g' };
   const esConsonante = function (c) { return c && 'BCDFGHJKLMNPRSTVWXYZ'.indexOf(c) >= 0; };
+
+  // INTENTO 1: 4 DÍGITOS + 3 CONSONANTES perfectas
   for (let i = 0; i + 7 <= s.length; i++) {
-    // 4 NÚMEROS reales seguidos (los dígitos el OCR los lee bien; la banda no cuenta)
     const dig = s.slice(i, i + 4);
     if (!/^[0-9]{4}$/.test(dig)) continue;
-    // 3 LETRAS a la derecha (consonantes; corrige dígito→letra si se coló)
     let let3 = '', vale = true;
     for (let k = 4; k < 7 && vale; k++) {
       let ch = s[i + k];
       if (ch >= '0' && ch <= '9') ch = aLetra[ch] || '';
       if (esConsonante(ch)) let3 += ch; else vale = false;
     }
-    if (vale) return dig + ' ' + let3;
+    if (vale && let3.length === 3) return dig + ' ' + let3;
+  }
+
+  // INTENTO 2 (fallback): 3+ DÍGITOS + 2+ CONSONANTES (más tolerante)
+  for (let i = 0; i < s.length; i++) {
+    let dig = '', letras = '';
+    let j = i;
+    while (j < s.length && s[j] >= '0' && s[j] <= '9') { dig += s[j]; j++; }
+    if (dig.length < 3) continue;  // al menos 3 dígitos
+    while (j < s.length && j - i - dig.length < 3) {  // hasta 3 caracteres siguientes
+      let ch = s[j];
+      if (ch >= '0' && ch <= '9') ch = aLetra[ch] || '';
+      if (esConsonante(ch)) letras += ch;
+      j++;
+    }
+    if (dig.length >= 3 && letras.length >= 2) {
+      // Rellenar con 0 si faltan dígitos, padear letras si faltan
+      dig = (dig + '0000').slice(0, 4);
+      letras = (letras + 'XXX').slice(0, 3);
+      return dig + ' ' + letras;
+    }
   }
   return '';
 }
@@ -13951,8 +14144,11 @@ async function mat_leer(manual) {
           m.worker = await T.createWorker('eng');
           await m.worker.setParameters({
             tessedit_char_whitelist: '0123456789BCDFGHJKLMNPRSTVWXYZ- ',
-        tessedit_do_invert: '0',
-            tessedit_pageseg_mode: '6',   // bloque uniforme: mejor para placas
+            tessedit_do_invert: '0',
+            tessedit_pageseg_mode: '8',
+            tessedit_write_output_file: '0',
+            tessedit_create_pdf: '0',
+            tessedit_create_hocr: '0',
           });
         }
         // Prueba del recorte más ceñido al más ancho: primero que acierte, gana.
