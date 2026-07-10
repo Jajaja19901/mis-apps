@@ -40,6 +40,7 @@ function mat_toast(msg, nivel) {
  * mayoría. Guarda cada lectura en una ventana de 40 s y devuelve la más votada
  * y cuántas veces. Así, leyendo en continuo, converge a la matrícula real. */
 const MAT_VOTOS_MS = 40000;
+const MAT_VOTOS_CONFIRMAR = 3;   // en continuo: solo se da por BUENA con ≥3 lecturas iguales
 function mat_votar(m) {
   const M = estado.mat;
   const ahora = Date.now();
@@ -70,7 +71,10 @@ function mat_pintar(ctx) {
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const txt = '📋 ' + u.matricula + (u.votos > 1 ? '  ×' + u.votos : '');
+    // Confirmada (≥3 lecturas iguales) → verde con ✓. Mientras comprueba → ámbar.
+    const conf = !!u.buena;
+    const txt = (conf ? '✅ ' : '📋 ') + u.matricula + (u.votos > 1 ? '  ×' + u.votos : '') +
+                (conf ? '' : ' …');
     ctx.font = "bold " + Math.round(h * 0.045) + "px 'SFMono-Regular',ui-monospace,Consolas,monospace";
     const anchoTxt = ctx.measureText(txt).width;
     const pad = h * 0.02;
@@ -86,8 +90,8 @@ function mat_pintar(ctx) {
     ctx.arcTo(bx, by, bx + bw, by, r);
     ctx.closePath();
     ctx.fill();
-    ctx.strokeStyle = '#facc15'; ctx.lineWidth = Math.max(2, h * 0.004); ctx.stroke();
-    ctx.fillStyle = '#fde68a';
+    ctx.strokeStyle = conf ? '#2ee584' : '#facc15'; ctx.lineWidth = Math.max(2, h * 0.004); ctx.stroke();
+    ctx.fillStyle = conf ? '#8affc4' : '#fde68a';
     ctx.fillText(txt, w / 2, by + bh / 2 + 1);
     ctx.restore();
   } catch (e) { /* un fallo de pintado no rompe el compuesto */ }
@@ -431,22 +435,26 @@ async function mat_leer(manual, opts) {
       sinOCR = true;
     }
 
-    let esNueva = false, confirmada = matricula, votos = 0;
+    let esNueva = false, confirmada = matricula, votos = 0, buena = false;
     if (matricula) {
-      // Votación: la matrícula más leída gana (corrige fallos sueltos del OCR).
+      // Votación: la matrícula leída IGUAL varias veces gana (corrige el OCR).
       const v = mat_votar(matricula);
       confirmada = v.plate; votos = v.votos;
-      esNueva = mat_guardarLectura(confirmada, !!manual);
-      estado.mat.ultima = { matricula: confirmada, votos: votos, ts: Date.now() };
+      // En continuo NO se da por buena hasta ≥3 lecturas iguales (así "la que
+      // pillas es la buena", no una suelta que puede estar mal). Manual/golpe
+      // son acciones intencionales → se aceptan a la primera.
+      buena = (!continuo) || votos >= MAT_VOTOS_CONFIRMAR;
+      estado.mat.ultima = { matricula: confirmada, votos: votos, buena: buena, ts: Date.now() };
+      if (buena) esNueva = mat_guardarLectura(confirmada, !!manual);
     }
 
     if (manual) {
       mat_mostrar(recBueno, confirmada, crudo, sinOCR);
-    } else if (confirmada && continuo && votos >= 2 && esNueva) {
-      mat_toast('📋 Matrícula confirmada (×' + votos + '): ' + confirmada + ' — se borra sola en ' +
+    } else if (confirmada && continuo && buena && esNueva) {
+      mat_toast('✅ Matrícula CONFIRMADA (leída ×' + votos + '): ' + confirmada + ' — se borra sola en ' +
         nuc_clamp(estado.cfg.matRetencionMin || 15, 1, 240) + ' min.', 'info');
     } else if (confirmada && !continuo) {
-      mat_toast('📋 Matrícula leída tras el golpe: ' + confirmada + ' (guardada en la bitácora).', 'info');
+      mat_toast('📋 Matrícula leída tras el golpe: ' + confirmada + ' (guardada).', 'info');
     }
   } catch (e) {
     if (manual) mat_toast('No se pudo leer la matrícula: ' + (e && e.message), 'sospecha');
