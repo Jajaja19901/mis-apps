@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WiFi Security Analyzer - Análisis de Seguridad Wi-Fi</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #3b82f6;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1f2937;
+            --light: #f3f4f6;
+            --bg: #ffffff;
+            --text: #111827;
+            --border: #e5e7eb;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #111827;
+                --text: #f3f4f6;
+                --border: #374151;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: var(--text);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--bg);
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .nav {
+            display: flex;
+            gap: 10px;
+            padding: 20px;
+            background: var(--light);
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .nav button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            background: white;
+            color: var(--primary);
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            border: 2px solid var(--primary);
+        }
+
+        .nav button:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .nav button.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .content {
+            padding: 30px;
+            min-height: 500px;
+        }
+
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            font-size: 1em;
+            background: var(--bg);
+            color: var(--text);
+            transition: border-color 0.3s;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: var(--light);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .card.success {
+            border-left-color: var(--success);
+        }
+
+        .card.warning {
+            border-left-color: var(--warning);
+        }
+
+        .card.danger {
+            border-left-color: var(--danger);
+        }
+
+        .card h3 {
+            margin-bottom: 10px;
+            color: var(--text);
+        }
+
+        .card p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .password-strength {
+            margin-top: 10px;
+        }
+
+        .strength-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .strength-fill {
+            height: 100%;
+            width: 0%;
+            transition: all 0.3s;
+            background: linear-gradient(90deg, var(--danger), var(--warning), var(--success));
+        }
+
+        .strength-score {
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .vulnerability {
+            background: white;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 6px;
+            border-left: 4px solid;
+        }
+
+        .vulnerability.critical {
+            border-left-color: var(--danger);
+            background: rgba(239, 68, 68, 0.05);
+        }
+
+        .vulnerability.high {
+            border-left-color: #f97316;
+            background: rgba(249, 115, 22, 0.05);
+        }
+
+        .vulnerability.medium {
+            border-left-color: var(--warning);
+            background: rgba(245, 158, 11, 0.05);
+        }
+
+        .vulnerability h4 {
+            margin-bottom: 8px;
+        }
+
+        .vulnerability p {
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+
+        .vulnerability ul {
+            margin-left: 20px;
+            font-size: 0.85em;
+        }
+
+        .report {
+            background: var(--light);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+
+        .device-list {
+            margin: 20px 0;
+        }
+
+        .device {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 4px solid var(--success);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .device.suspicious {
+            border-left-color: var(--danger);
+        }
+
+        .device-info h4 {
+            margin-bottom: 5px;
+        }
+
+        .device-info p {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .badge.success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+
+        .badge.danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+        }
+
+        .badge.warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning);
+        }
+
+        .network-list {
+            margin: 20px 0;
+        }
+
+        .network {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border: 2px solid var(--border);
+        }
+
+        .network:hover {
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        }
+
+        .network-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .network-name {
+            font-weight: 600;
+            font-size: 1.1em;
+        }
+
+        .signal-bar {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(180deg, var(--success) 0%, var(--warning) 50%, var(--danger) 100%);
+            border-radius: 3px;
+        }
+
+        .network-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            font-size: 0.9em;
+        }
+
+        .detail {
+            color: #666;
+        }
+
+        .detail strong {
+            color: var(--text);
+        }
+
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .loader {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--border);
+            border-radius: 50%;
+            border-top-color: var(--primary);
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+        }
+
+        .alert.info {
+            background: rgba(59, 130, 246, 0.1);
+            border-left: 4px solid var(--primary);
+            color: #1e40af;
+        }
+
+        .alert.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 4px solid var(--warning);
+            color: #92400e;
+        }
+
+        .alert.danger {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 4px solid var(--danger);
+            color: #7f1d1d;
+        }
+
+        .alert.success {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 4px solid var(--success);
+            color: #065f46;
+        }
+
+        .footer {
+            background: var(--light);
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid var(--border);
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .score-display {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: var(--primary);
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .strength-legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .legend-item {
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9em;
+        }
+
+        .legend-item.very-weak { background: rgba(239, 68, 68, 0.1); }
+        .legend-item.weak { background: rgba(249, 115, 22, 0.1); }
+        .legend-item.moderate { background: rgba(245, 158, 11, 0.1); }
+        .legend-item.strong { background: rgba(16, 185, 129, 0.1); }
+        .legend-item.very-strong { background: rgba(34, 197, 94, 0.1); }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .nav {
+                flex-direction: column;
+            }
+
+            .nav button {
+                width: 100%;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .network-details {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 WiFi Security Analyzer</h1>
+            <p>Herramienta interactiva de análisis de seguridad para redes Wi-Fi</p>
+        </div>
+
+        <div class="nav">
+            <button onclick="showSection('scan')" class="nav-btn active">📡 Escanear</button>
+            <button onclick="showSection('analyze')" class="nav-btn">🔍 Analizar</button>
+            <button onclick="showSection('password')" class="nav-btn">🔐 Contraseña</button>
+            <button onclick="showSection('devices')" class="nav-btn">📱 Dispositivos</button>
+            <button onclick="showSection('report')" class="nav-btn">📊 Reporte</button>
+        </div>
+
+        <div class="content">
+            <!-- SECCIÓN: ESCANEAR REDES -->
+            <div id="scan" class="section active">
+                <h2>📡 Escanear Redes Wi-Fi</h2>
+                <p style="color: #666; margin-bottom: 20px;">Encuentra todas las redes inalámbricas disponibles en tu área</p>
+
+                <button onclick="scanNetworks()" class="btn btn-primary">
+                    <span id="scan-btn-text">Iniciar Escaneo</span>
+                </button>
+
+                <div id="scan-results" style="margin-top: 30px;"></div>
+            </div>
+
+            <!-- SECCIÓN: ANALIZAR VULNERABILIDADES -->
+            <div id="analyze" class="section">
+                <h2>🔍 Analizar Red</h2>
+                <p style="color: #666; margin-bottom: 20px;">Analiza vulnerabilidades de una red específica</p>
+
+                <div class="form-group">
+                    <label>Nombre de la Red (SSID)</label>
+                    <input type="text" id="analyze-ssid" placeholder="Ej: Mi Red Principal">
+                </div>
+
+                <div class="form-group">
+                    <label>Contraseña Wi-Fi (opcional)</label>
+                    <input type="password" id="analyze-password" placeholder="Ingresa la contraseña">
+                </div>
+
+                <button onclick="analyzeNetwork()" class="btn btn-primary">Analizar Vulnerabilidades</button>
+
+                <div id="analyze-results" style="margin-top: 30px;"></div>
+            </div>
+
+            <!-- SECCIÓN: EVALUADOR DE CONTRASEÑA -->
+            <div id="password" class="section">
+                <h2>🔐 Evaluador de Contraseña</h2>
+                <p style="color: #666; margin-bottom: 20px;">Evalúa la fortaleza de tu contraseña Wi-Fi</p>
+
+                <div class="form-group">
+                    <label>Contraseña a Evaluar</label>
+                    <input type="text" id="password-input" placeholder="Ingresa una contraseña" onkeyup="analyzePassword()">
+                </div>
+
+                <div class="alert info" style="display: none;">
+                    💡 Una buena contraseña Wi-Fi debe tener:
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>Mínimo 16 caracteres (recomendado)</li>
+                        <li>Mayúsculas, minúsculas, números y símbolos</li>
+                        <li>Evitar palabras del diccionario</li>
+                    </ul>
+                </div>
+
+                <div id="password-analysis" style="margin-top: 30px;"></div>
+
+                <button onclick="generatePassword()" class="btn btn-success" style="margin-top: 20px;">
+                    ⚡ Generar Contraseña Fuerte
+                </button>
+
+                <div id="generated-password" style="margin-top: 20px;"></div>
+
+                <div class="strength-legend" style="margin-top: 30px;">
+                    <div class="legend-item very-weak">🔴 0-20: Muy Débil</div>
+                    <div class="legend-item weak">🟠 21-40: Débil</div>
+                    <div class="legend-item moderate">🟡 41-60: Moderada</div>
+                    <div class="legend-item strong">🟢 61-80: Fuerte</div>
+                    <div class="legend-item very-strong">🟢 81-100: Muy Fuerte</div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN: DISPOSITIVOS -->
+            <div id="devices" class="section">
+                <h2>📱 Dispositivos Conectados</h2>
+                <p style="color: #666; margin-bottom: 20px;">Detecta y analiza dispositivos conectados a tu red</p>
+
+                <button onclick="scanDevices()" class="btn btn-primary">Escanear Dispositivos</button>
+
+                <div id="devices-results" style="margin-top: 30px;"></div>
+            </div>
+
+            <!-- SECCIÓN: REPORTE -->
+            <div id="report" class="section">
+                <h2>📊 Reporte Completo</h2>
+                <p style="color: #666; margin-bottom: 20px;">Genera un análisis completo de seguridad</p>
+
+                <div class="form-group">
+                    <label>Nombre de la Red (SSID)</label>
+                    <input type="text" id="report-ssid" placeholder="Ej: Mi Red Principal">
+                </div>
+
+                <div class="form-group">
+                    <label>Contraseña Wi-Fi</label>
+                    <input type="password" id="report-password" placeholder="Ingresa la contraseña">
+                </div>
+
+                <button onclick="generateReport()" class="btn btn-primary">Generar Reporte</button>
+
+                <div class="export-buttons" style="margin-top: 20px; display: none;" id="export-buttons">
+                    <button onclick="exportJSON()" class="btn btn-success">📥 Descargar JSON</button>
+                    <button onclick="exportCSV()" class="btn btn-success">📥 Descargar CSV</button>
+                </div>
+
+                <div id="report-results" style="margin-top: 30px;"></div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>🔒 WiFi Security Analyzer v1.0.0 - Mejora la seguridad de tu red Wi-Fi</p>
+            <p style="margin-top: 10px; font-size: 0.85em; color: #999;">
+                Esta herramienta está diseñada para auditar tu propia red. Úsala responsablemente.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // CONFIGURACIÓN
+        const CONFIG = {
+            MIN_PASSWORD_LENGTH: 12,
+            RECOMMENDED_PASSWORD_LENGTH: 16,
+            networks: [
+                { ssid: 'Mi Red Principal', security: 'WPA2', signal: -55, channel: 6, frequency: '2.4GHz', wps: true },
+                { ssid: 'Red Vecino', security: 'WEP', signal: -72, channel: 11, frequency: '2.4GHz' },
+                { ssid: 'Red Pública', security: 'Open', signal: -85, channel: 1, frequency: '2.4GHz' },
+                { ssid: 'Red 5GHz', security: 'WPA3', signal: -65, channel: 36, frequency: '5GHz' }
+            ],
+            devices: [
+                { ip: '192.168.1.2', mac: '00:1A:2B:3C:4D:5E', type: 'iPhone', hostname: 'iphone-usuario', suspicious: false },
+                { ip: '192.168.1.3', mac: '00:50:F2:AB:CD:EF', type: 'Laptop Windows', hostname: 'laptop-casa', suspicious: false },
+                { ip: '192.168.1.4', mac: 'AA:BB:CC:DD:EE:FF', type: 'Desconocido', hostname: 'unknown', suspicious: true }
+            ]
+        };
+
+        // FUNCIONES NAVEGACIÓN
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+
+            document.querySelectorAll('.nav-btn').forEach(el => el.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // ANÁLISIS DE CONTRASEÑA
+        function analyzePassword() {
+            const password = document.getElementById('password-input').value;
+            if (!password) {
+                document.getElementById('password-analysis').innerHTML = '';
+                return;
+            }
+
+            const analysis = calculatePasswordStrength(password);
+            const html = `
+                <div class="card">
+                    <h3>Análisis de Contraseña</h3>
+                    <div class="score-display">${analysis.score}/100</div>
+
+                    <div class="password-strength">
+                        <p><strong>Fortaleza: ${analysis.strengthText}</strong></p>
+                        <div class="strength-bar">
+                            <div class="strength-fill" style="width: ${analysis.score}%; background: ${analysis.color};"></div>
+                        </div>
+                    </div>
+
+                    <div class="grid" style="margin-top: 20px;">
+                        <div>
+                            <strong>Longitud:</strong> ${password.length} caracteres
+                        </div>
+                        <div>
+                            <strong>Entropía:</strong> ${analysis.entropy.toFixed(2)} bits
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px;">
+                        <strong>Características:</strong>
+                        <ul style="margin-left: 20px; margin-top: 10px;">
+                            <li>✓ Minúsculas: ${/[a-z]/.test(password) ? 'Sí' : 'No'}</li>
+                            <li>✓ Mayúsculas: ${/[A-Z]/.test(password) ? 'Sí' : 'No'}</li>
+                            <li>✓ Números: ${/\d/.test(password) ? 'Sí' : 'No'}</li>
+                            <li>✓ Símbolos: ${/[!@#$%^&*()_\-+=\[\]{};:'",.<>?/\\|`~]/.test(password) ? 'Sí' : 'No'}</li>
+                        </ul>
+                    </div>
+
+                    ${analysis.suggestions.length > 0 ? `
+                        <div style="margin-top: 20px; padding: 15px; background: #fef3c7; border-radius: 6px;">
+                            <strong>Sugerencias de mejora:</strong>
+                            <ul style="margin-left: 20px; margin-top: 10px;">
+                                ${analysis.suggestions.map(s => `<li>${s}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : `<div class="alert success" style="margin-top: 20px;">✅ Contraseña fuerte - No hay sugerencias</div>`}
+                </div>
+            `;
+
+            document.getElementById('password-analysis').innerHTML = html;
+        }
+
+        function calculatePasswordStrength(password) {
+            let score = 0;
+            const length = password.length;
+
+            // Puntuación por longitud
+            if (length < 6) score += 0;
+            else if (length < 8) score += 10;
+            else if (length < 12) score += 20;
+            else if (length < 16) score += 25;
+            else score += 30;
+
+            // Puntuación por complejidad
+            if (/[a-z]/.test(password)) score += 10;
+            if (/[A-Z]/.test(password)) score += 15;
+            if (/\d/.test(password)) score += 15;
+            if (/[!@#$%^&*()_\-+=\[\]{};:'",.<>?/\\|`~]/.test(password)) score += 20;
+
+            // Bonificación por muy larga
+            if (length >= 20) score += 10;
+
+            score = Math.min(100, score);
+
+            let strengthText, color;
+            if (score < 20) {
+                strengthText = '🔴 Muy Débil';
+                color = '#ef4444';
+            } else if (score < 40) {
+                strengthText = '🟠 Débil';
+                color = '#f97316';
+            } else if (score < 60) {
+                strengthText = '🟡 Moderada';
+                color = '#f59e0b';
+            } else if (score < 80) {
+                strengthText = '🟢 Fuerte';
+                color = '#10b981';
+            } else {
+                strengthText = '🟢 Muy Fuerte';
+                color = '#22c55e';
+            }
+
+            // Sugerencias
+            const suggestions = [];
+            if (length < CONFIG.MIN_PASSWORD_LENGTH) {
+                suggestions.push(`Aumenta a mínimo ${CONFIG.MIN_PASSWORD_LENGTH} caracteres`);
+            }
+            if (length < CONFIG.RECOMMENDED_PASSWORD_LENGTH) {
+                suggestions.push(`Se recomienda ${CONFIG.RECOMMENDED_PASSWORD_LENGTH}+ caracteres`);
+            }
+            if (!/[a-z]/.test(password)) suggestions.push('Añade minúsculas (a-z)');
+            if (!/[A-Z]/.test(password)) suggestions.push('Añade mayúsculas (A-Z)');
+            if (!/\d/.test(password)) suggestions.push('Añade números (0-9)');
+            if (!/[!@#$%^&*()_\-+=\[\]{};:'",.<>?/\\|`~]/.test(password)) {
+                suggestions.push('Añade símbolos especiales');
+            }
+
+            // Entropía
+            let charsetSize = 0;
+            if (/[a-z]/.test(password)) charsetSize += 26;
+            if (/[A-Z]/.test(password)) charsetSize += 26;
+            if (/\d/.test(password)) charsetSize += 10;
+            if (/[!@#$%^&*()_\-+=\[\]{};:'",.<>?/\\|`~]/.test(password)) charsetSize += 32;
+
+            const entropy = charsetSize > 0 ? length * Math.log2(charsetSize) : 0;
+
+            return {
+                score: Math.round(score),
+                strengthText,
+                color,
+                suggestions,
+                entropy
+            };
+        }
+
+        function generatePassword() {
+            const chars = {
+                lower: 'abcdefghijklmnopqrstuvwxyz',
+                upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+                numbers: '0123456789',
+                symbols: '!@#$%^&*()_-+=[]{}:;<>?,./'
+            };
+
+            const allChars = chars.lower + chars.upper + chars.numbers + chars.symbols;
+            let password = '';
+            password += chars.lower[Math.floor(Math.random() * chars.lower.length)];
+            password += chars.upper[Math.floor(Math.random() * chars.upper.length)];
+            password += chars.numbers[Math.floor(Math.random() * chars.numbers.length)];
+            password += chars.symbols[Math.floor(Math.random() * chars.symbols.length)];
+
+            for (let i = 0; i < 12; i++) {
+                password += allChars[Math.floor(Math.random() * allChars.length)];
+            }
+
+            password = password.split('').sort(() => Math.random() - 0.5).join('');
+
+            const analysis = calculatePasswordStrength(password);
+            const html = `
+                <div class="alert success">
+                    <strong>✅ Contraseña Generada:</strong>
+                    <div style="font-family: monospace; font-size: 1.1em; margin-top: 10px; word-break: break-all;">
+                        ${password}
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <strong>Fortaleza:</strong> ${analysis.strengthText} (${analysis.score}/100)
+                    </div>
+                    <button onclick="navigator.clipboard.writeText('${password}'); alert('¡Copiado!');" class="btn btn-primary" style="margin-top: 10px;">
+                        📋 Copiar Contraseña
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('generated-password').innerHTML = html;
+        }
+
+        // ESCANEO DE REDES
+        function scanNetworks() {
+            const btn = document.getElementById('scan-btn-text');
+            btn.textContent = 'Escaneando...';
+
+            setTimeout(() => {
+                btn.textContent = 'Iniciar Escaneo';
+
+                let html = `<div class="alert info">✅ Se encontraron ${CONFIG.networks.length} red(es)</div>`;
+                html += '<div class="network-list">';
+
+                CONFIG.networks.forEach(network => {
+                    const securityIcon = network.security === 'WEP' || network.security === 'Open' ? '🔴' :
+                                       network.security === 'WPA' ? '🟠' :
+                                       network.security === 'WPA3' ? '🟢' : '🟡';
+
+                    const signalIcon = network.signal >= -50 ? '🟢' :
+                                     network.signal >= -70 ? '🟡' : '🔴';
+
+                    html += `
+                        <div class="network">
+                            <div class="network-header">
+                                <span class="network-name">${network.ssid}</span>
+                                <span>${securityIcon} ${network.security}</span>
+                            </div>
+                            <div class="network-details">
+                                <div class="detail">${signalIcon} Señal: <strong>${network.signal} dBm</strong></div>
+                                <div class="detail">📡 Canal: <strong>${network.channel}</strong></div>
+                                <div class="detail">📊 Frecuencia: <strong>${network.frequency}</strong></div>
+                                <div class="detail">${network.wps ? '⚠️ WPS Activo' : '✅ WPS Inactivo'}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                html += '</div>';
+                document.getElementById('scan-results').innerHTML = html;
+            }, 2000);
+        }
+
+        // ANÁLISIS DE RED
+        function analyzeNetwork() {
+            const ssid = document.getElementById('analyze-ssid').value;
+            const password = document.getElementById('analyze-password').value;
+
+            if (!ssid) {
+                alert('Por favor ingresa el nombre de la red (SSID)');
+                return;
+            }
+
+            const network = CONFIG.networks.find(n => n.ssid === ssid) || { ssid, security: 'Unknown' };
+            const analysis = analyzeNetworkVulnerabilities(network, password);
+
+            let html = `
+                <div class="card">
+                    <h3>📡 Información de la Red</h3>
+                    <p><strong>SSID:</strong> ${network.ssid}</p>
+                    <p><strong>Seguridad:</strong> ${network.security}</p>
+                    ${network.signal ? `<p><strong>Señal:</strong> ${network.signal} dBm</p>` : ''}
+                    ${network.channel ? `<p><strong>Canal:</strong> ${network.channel} (${network.frequency})</p>` : ''}
+                </div>
+            `;
+
+            if (analysis.vulnerabilities.length > 0) {
+                html += '<h3 style="margin-top: 30px; color: #ef4444;">🔍 Vulnerabilidades Detectadas</h3>';
+                analysis.vulnerabilities.forEach(vuln => {
+                    html += `
+                        <div class="vulnerability ${vuln.severity}">
+                            <h4>${vuln.title}</h4>
+                            <p>${vuln.description}</p>
+                            <p><strong>Impacto:</strong> ${vuln.impact}</p>
+                            <p><strong>Solución:</strong></p>
+                            <ul>
+                                ${vuln.recommendations.slice(0, 3).map(r => `<li>${r}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                });
+            } else {
+                html += '<div class="alert success" style="margin-top: 20px;">✅ No se detectaron vulnerabilidades</div>';
+            }
+
+            if (password) {
+                const pwdAnalysis = calculatePasswordStrength(password);
+                html += `
+                    <div class="card" style="margin-top: 30px;">
+                        <h3>🔐 Análisis de Contraseña</h3>
+                        <div class="score-display" style="color: ${pwdAnalysis.color};">${pwdAnalysis.score}/100</div>
+                        <p><strong>Fortaleza: ${pwdAnalysis.strengthText}</strong></p>
+                        <p><strong>Longitud: ${password.length} caracteres</strong></p>
+                        <p><strong>Entropía: ${pwdAnalysis.entropy.toFixed(2)} bits</strong></p>
+                    </div>
+                `;
+            }
+
+            document.getElementById('analyze-results').innerHTML = html;
+        }
+
+        function analyzeNetworkVulnerabilities(network, password) {
+            const vulnerabilities = [];
+
+            // Análisis de cifrado
+            if (network.security === 'WEP') {
+                vulnerabilities.push({
+                    severity: 'critical',
+                    title: '🔴 Cifrado WEP (Obsoleto)',
+                    description: 'WEP es un cifrado completamente quebrado y obsoleto. Puede ser comprometido en minutos.',
+                    impact: 'Acceso no autorizado a la red y datos interceptados',
+                    recommendations: [
+                        '1. Accede a 192.168.1.1',
+                        '2. Busca "Seguridad" o "Wireless Security"',
+                        '3. Cambia a WPA2 o WPA3'
+                    ]
+                });
+            } else if (network.security === 'Open') {
+                vulnerabilities.push({
+                    severity: 'critical',
+                    title: '🔴 Red Sin Cifrado',
+                    description: 'La red está completamente abierta sin protección.',
+                    impact: 'Acceso completo a la red y exposición de datos',
+                    recommendations: [
+                        '1. Accede a 192.168.1.1',
+                        '2. Activa cifrado WPA2 o WPA3',
+                        '3. Establece una contraseña fuerte'
+                    ]
+                });
+            }
+
+            // Análisis de WPS
+            if (network.wps) {
+                vulnerabilities.push({
+                    severity: 'high',
+                    title: '🟠 WPS Activado',
+                    description: 'WPS es vulnerable a ataques de fuerza bruta.',
+                    impact: 'Posible compromiso de la red',
+                    recommendations: [
+                        '1. Accede a 192.168.1.1',
+                        '2. Busca "WPS" en configuración',
+                        '3. Desactívalo completamente'
+                    ]
+                });
+            }
+
+            // Análisis de contraseña
+            if (password) {
+                const pwdAnalysis = calculatePasswordStrength(password);
+                if (pwdAnalysis.score < 60) {
+                    vulnerabilities.push({
+                        severity: 'high',
+                        title: `🟠 Contraseña Débil (${pwdAnalysis.score}/100)`,
+                        description: `La contraseña tiene una puntuación de ${pwdAnalysis.score}/100 en complejidad.`,
+                        impact: 'Vulnerable a ataques de diccionario o fuerza bruta',
+                        recommendations: [
+                            '1. Genera una contraseña fuerte',
+                            '2. Accede a configuración del router',
+                            '3. Cambia la contraseña Wi-Fi'
+                        ]
+                    });
+                }
+            }
+
+            return { vulnerabilities };
+        }
+
+        // DETECTAR DISPOSITIVOS
+        function scanDevices() {
+            const btn = event.target;
+            btn.textContent = 'Escaneando...';
+            btn.disabled = true;
+
+            setTimeout(() => {
+                btn.textContent = 'Escanear Dispositivos';
+                btn.disabled = false;
+
+                let html = `<div class="alert info">✅ Se encontraron ${CONFIG.devices.length} dispositivo(s)</div>`;
+                html += '<div class="device-list">';
+
+                const suspicious = CONFIG.devices.filter(d => d.suspicious);
+                const trusted = CONFIG.devices.filter(d => !d.suspicious);
+
+                if (suspicious.length > 0) {
+                    html += '<h3 style="color: #ef4444; margin-top: 20px;">⚠️ DISPOSITIVOS SOSPECHOSOS</h3>';
+                    suspicious.forEach(device => {
+                        html += `
+                            <div class="device suspicious">
+                                <div class="device-info">
+                                    <h4>${device.ip}</h4>
+                                    <p>MAC: ${device.mac}</p>
+                                    <p>Tipo: ${device.type}</p>
+                                </div>
+                                <span class="badge danger">Sospechoso</span>
+                            </div>
+                        `;
+                    });
+                }
+
+                if (trusted.length > 0) {
+                    html += '<h3 style="color: #10b981; margin-top: 20px;">✅ DISPOSITIVOS CONFIABLES</h3>';
+                    trusted.forEach(device => {
+                        html += `
+                            <div class="device">
+                                <div class="device-info">
+                                    <h4>${device.ip}</h4>
+                                    <p>MAC: ${device.mac}</p>
+                                    <p>Tipo: ${device.type}</p>
+                                </div>
+                                <span class="badge success">Confiable</span>
+                            </div>
+                        `;
+                    });
+                }
+
+                html += '</div>';
+                document.getElementById('devices-results').innerHTML = html;
+            }, 2000);
+        }
+
+        // GENERAR REPORTE
+        function generateReport() {
+            const ssid = document.getElementById('report-ssid').value;
+            const password = document.getElementById('report-password').value;
+
+            if (!ssid) {
+                alert('Por favor ingresa el nombre de la red (SSID)');
+                return;
+            }
+
+            const network = CONFIG.networks.find(n => n.ssid === ssid) || { ssid, security: 'Unknown' };
+            const analysis = analyzeNetworkVulnerabilities(network, password);
+            const pwdAnalysis = password ? calculatePasswordStrength(password) : null;
+
+            let report = `
+╔════════════════════════════════════════════════════════════════╗
+║           ANÁLISIS DE SEGURIDAD RED WI-FI                      ║
+║                                                                ║
+║  Fecha: ${new Date().toLocaleString('es-ES')}
+╚════════════════════════════════════════════════════════════════╝
+
+📡 INFORMACIÓN DE LA RED
+────────────────────────────────────────────────────────────────
+SSID:                ${network.ssid}
+Tipo de Cifrado:     ${network.security}
+${network.channel ? `Canal:               ${network.channel}\nFrecuencia:          ${network.frequency}` : ''}
+
+🔍 VULNERABILIDADES DETECTADAS
+────────────────────────────────────────────────────────────────
+${analysis.vulnerabilities.length > 0 ? analysis.vulnerabilities.map(v => `
+${v.severity === 'critical' ? '🔴' : '🟠'} ${v.title}
+   ${v.description}
+   Impacto: ${v.impact}
+`).join('') : '✅ No se detectaron vulnerabilidades'}
+
+${pwdAnalysis ? `
+🔐 ANÁLISIS DE CONTRASEÑA
+────────────────────────────────────────────────────────────────
+Fortaleza:           ${pwdAnalysis.strengthText}
+Puntuación:          ${pwdAnalysis.score}/100
+Longitud:            ${password.length} caracteres
+Entropía:            ${pwdAnalysis.entropy.toFixed(2)} bits
+` : ''}
+
+📊 RESUMEN
+────────────────────────────────────────────────────────────────
+Total de Vulnerabilidades: ${analysis.vulnerabilities.length}
+Riesgo General: ${analysis.vulnerabilities.length === 0 ? '🟢 BAJO' : '🔴 ALTO'}
+
+╔════════════════════════════════════════════════════════════════╗
+║  Recuerda: La seguridad Wi-Fi es un proceso continuo.          ║
+║  Realiza análisis periódicamente.                              ║
+╚════════════════════════════════════════════════════════════════╝
+            `;
+
+            const html = `
+                <div class="report">${report}</div>
+                <div class="alert success" style="margin-top: 20px;">
+                    ✅ Reporte generado exitosamente
+                </div>
+            `;
+
+            document.getElementById('report-results').innerHTML = html;
+            document.getElementById('export-buttons').style.display = 'flex';
+
+            // Guardar datos para exportar
+            window.reportData = {
+                network,
+                analysis,
+                password: password ? password.length : 0,
+                pwdAnalysis,
+                report
+            };
+        }
+
+        function exportJSON() {
+            const data = {
+                timestamp: new Date().toISOString(),
+                network: window.reportData.network,
+                vulnerabilities: window.reportData.analysis.vulnerabilities,
+                passwordAnalysis: window.reportData.pwdAnalysis,
+                summary: {
+                    totalVulnerabilities: window.reportData.analysis.vulnerabilities.length,
+                    totalDevices: CONFIG.devices.length,
+                    overallRisk: window.reportData.analysis.vulnerabilities.length === 0 ? 'LOW' : 'HIGH'
+                }
+            };
+
+            const json = JSON.stringify(data, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `wifi-security-report-${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function exportCSV() {
+            let csv = 'IP,MAC,Type,Suspicious\n';
+            CONFIG.devices.forEach(device => {
+                csv += `${device.ip},${device.mac},${device.type},${device.suspicious ? 'Yes' : 'No'}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `wifi-devices-${Date.now()}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Inicializar
+        window.addEventListener('load', () => {
+            console.log('WiFi Security Analyzer cargado correctamente');
+        });
+    </script>
+</body>
+</html>
