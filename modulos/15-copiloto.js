@@ -118,8 +118,10 @@ function cop_init() {
 
   estado.cop.inited = true;
 
-  // Restaura el estado activo si el dueño lo dejó encendido (arranca sensores).
-  if (estado.cfg && estado.cfg.copActivo) cop_aplicar(true);
+  // Restaura el estado activo si el dueño lo dejó encendido (arranca sensores),
+  // pero SIN encender la cámara ni el audio: eso solo con un toque del usuario.
+  // (Si no, la cámara se enciende SOLA al abrir la app — susto y batería.)
+  if (estado.cfg && estado.cfg.copActivo) cop_aplicar(true, true);
 }
 
 /* Enlaza los controles del panel con guarda-clause en cada uno. */
@@ -235,8 +237,10 @@ function cop_alternar(forzar) {
   cop_aplicar(destino);
 }
 
-/* Aplica el estado activo/inactivo: sección, botón, persistencia y sensores. */
-function cop_aplicar(activo) {
+/* Aplica el estado activo/inactivo: sección, botón, persistencia y sensores.
+ * restaurando=true → viene del arranque (no es un gesto del usuario): NO se
+ * enciende la cámara ni el audio; solo el panel y los sensores pasivos. */
+function cop_aplicar(activo, restaurando) {
   estado.cfg.copActivo = !!activo;
   nuc_guardar('cfg', estado.cfg);
 
@@ -251,12 +255,16 @@ function cop_aplicar(activo) {
   if (activo) {
     cop_arrancarSensores();
     // UN TOQUE = TODO: si no hay vídeo, enciende la fuente configurada aquí
-    // mismo (el conductor no debería tener que pasar por Ajustes).
-    if (!estado.video || !estado.video.listo) cop_encenderVideo();
-    // Arma el audio EN ESTE GESTO del usuario: en Chrome Android el
-    // AudioContext nace 'suspended' y si se crea al saltar la alarma, el
-    // PRIMER pitido (el que importa) puede salir mudo.
-    cop_armarAudio();
+    // mismo (el conductor no debería tener que pasar por Ajustes). SOLO con
+    // gesto del usuario: al restaurar en el arranque, la cámara NO se toca
+    // (que no se encienda sola al abrir la app).
+    if (!restaurando) {
+      if (!estado.video || !estado.video.listo) cop_encenderVideo();
+      // Arma el audio EN ESTE GESTO del usuario: en Chrome Android el
+      // AudioContext nace 'suspended' y si se crea al saltar la alarma, el
+      // PRIMER pitido (el que importa) puede salir mudo.
+      cop_armarAudio();
+    }
     // Consejo una sola vez: con el motor básico los coches lejanos se pierden.
     if (estado.cfg.motor === 'coco' && !nuc_cargar('cop_avisoMotor', false)) {
       nuc_guardar('cop_avisoMotor', true);
