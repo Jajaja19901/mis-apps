@@ -102,7 +102,11 @@ function app_ciclo(tsAnim) {
 
     // 1) Componer a 30 fps (12 en calma): el ojo no nota más y la GPU sí.
     //    Grabando un evento se mantienen los 30 fps para la evidencia.
-    const compCada = (estado.cfg.ahorroEnergia && estado.video.enCalma && !estado.video.grabando) ? 83 : 33;
+    //    Con el hilo atascado (frames de UI a >45 ms) baja a ~20 fps de pintado
+    //    y le regala ese tiempo al detector; se recupera solo al despejarse.
+    let compCada = 33;
+    if (estado.cfg.ahorroEnergia && estado.video.enCalma && !estado.video.grabando) compCada = 83;
+    else if (!estado.video.grabando && (estado.video.msFrameUI || 0) > 45) compCada = 50;
     if (ahora - app_ultimaComposicion >= compCada) {
       app_ultimaComposicion = ahora;
       vid_componer();

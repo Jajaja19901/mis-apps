@@ -515,11 +515,16 @@ function sc_vigilar() {
     // arrastra (a 747 ms el límite viejo de 900 no saltaba y todo iba a 2 fps).
     const limiteMs = estado.cfg.copActivo ? 500 : 900;
     const degradado = (base > 0 && s.msMedia > base * 1.7) || (s.msMedia > limiteMs);
-    if (degradado && idx > 0 && ahora - s.ultCambioTermica > 60000) {
-      const nuevo = orden[idx - 1];
-      if (s.sesiones[nuevo]) {
+    if (degradado && idx > 0 && ahora - s.ultCambioTermica > 20000) {
+      // Baja al modelo CARGADO más cercano por debajo. (Antes exigía justo el
+      // inmediato: con 'm' activo y 's' sin descargar no podía bajar y el
+      // móvil se quedaba clavado a 2 fps para siempre.)
+      for (let j = idx - 1; j >= 0; j--) {
+        const nuevo = orden[j];
+        if (!s.sesiones[nuevo]) continue;
         s.activo = nuevo; s.termicaBajadas++; s.ultCambioTermica = ahora; s.msMedia = 0;
         sc_toast('El móvil va justo (¿calor?): supercerebro baja a ' + SC_MODELOS[nuevo].nombre + '.', 'info');
+        break;
       }
     } else if (!degradado && s.termicaBajadas > 0 && idx < orden.indexOf(estado.cfg.scModelo || 'n')
                && ahora - s.ultCambioTermica > 120000) {
