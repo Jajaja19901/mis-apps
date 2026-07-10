@@ -114,7 +114,7 @@ const PUBLICAS = [
   "zona_filtrarPorMascara","zona_hayMascara",
   "vid_init","vid_usarCamara","vid_listarCamaras","vid_usarIP","vid_usarArchivo","vid_detener","vid_fuente",
   "vid_dimensiones","vid_registrarPintor","vid_componer","vid_capturaJPEG","vid_grabarEvento","vid_vigilarSabotaje",
-  "vid_medirMovimiento",
+  "vid_medirMovimiento","vid_afinarLente",
   "ui_init","ui_render","ui_toast","ui_error","ui_onboarding","ui_aforoPublico","ui_abrirAjustes","ui_cerrarAjustes","ui_modal","ui_confirmar",
   "alerta_init","alerta_disparar","alerta_silenciar","alerta_probar","alerta_log","alerta_borrarLog",
   "alerta_ruidoInit","alerta_ruidoParar","alerta_telegramProbar",

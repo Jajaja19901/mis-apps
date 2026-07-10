@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.6',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.7',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -53,7 +53,7 @@ const CFG_DEFECTOS = {
   modoNoche: 'auto',        // 🌙 realce de imagen oscura antes de detectar: 'off'|'auto'|'on'
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
-  resolucion: '720',        // '480' | '720' | '1080'
+  resolucion: '1080',       // '480' | '720' | '1080' | '1440' (nitidez; por defecto 1080p)
   modeloPreciso: false,     // true = modelo más certero (ve más, va algo más lento)
   urlIP: '',
   aforoMax: 50,

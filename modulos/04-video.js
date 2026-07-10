@@ -100,46 +100,87 @@ async function vid_usarCamara() {
     vid_detener(); // detiene la fuente anterior
     const res = estado.cfg.resolucion === '480' ? { w: 640, h: 480 }
       : estado.cfg.resolucion === '1080' ? { w: 1920, h: 1080 }
+      : estado.cfg.resolucion === '1440' ? { w: 2560, h: 1440 }
       : { w: 1280, h: 720 };
+    // Pedimos la MEJOR calidad que dé la lente:
+    //  · ideal = lo que queremos; min = no aceptes algo cutre por debajo.
+    //  · resizeMode 'none' = que el navegador NO reduzca la imagen (clave para
+    //    que se vea nítida; por defecto muchos navegadores la encogen).
+    //  · frameRate ideal 30 para un visor fluido.
+    const minW = res.w >= 1920 ? 1280 : (res.w >= 1280 ? 960 : 480);
+    const vconstr = {
+      width: { ideal: res.w, min: minW },
+      height: { ideal: res.h },
+      frameRate: { ideal: 30 },
+      resizeMode: 'none',
+    };
     // Si el dueño eligió una LENTE concreta (deviceId), la pedimos exacta —
     // así se evita que el navegador coja la gran angular (mala para detectar).
     // Si no, caemos al lado (frontal/trasera) genérico.
-    const vconstr = {
-      width: { ideal: res.w }, height: { ideal: res.h },
-      frameRate: { ideal: 30 },   // fluidez del visor (la IA va por su cuenta)
-    };
     if (estado.cfg.camaraId) vconstr.deviceId = { exact: estado.cfg.camaraId };
-    else vconstr.facingMode = estado.cfg.camara;
+    else vconstr.facingMode = { ideal: estado.cfg.camara };
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: vconstr, audio: false });
     } catch (e1) {
-      // La lente exacta pudo dejar de existir (otro móvil): reintenta por lado.
-      if (estado.cfg.camaraId) {
-        delete vconstr.deviceId;
-        vconstr.facingMode = estado.cfg.camara;
-        stream = await navigator.mediaDevices.getUserMedia({ video: vconstr, audio: false });
-      } else { throw e1; }
+      // Reintento tolerante: sin min ni resizeMode (algún navegador los rechaza).
+      const suave = { width: { ideal: res.w }, height: { ideal: res.h }, frameRate: { ideal: 30 } };
+      if (estado.cfg.camaraId) suave.deviceId = { exact: estado.cfg.camaraId };
+      else suave.facingMode = estado.cfg.camara;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: suave, audio: false });
+      } catch (e2) {
+        if (estado.cfg.camaraId) {           // la lente exacta ya no existe: por lado
+          delete suave.deviceId; suave.facingMode = estado.cfg.camara;
+          stream = await navigator.mediaDevices.getUserMedia({ video: suave, audio: false });
+        } else { throw e2; }
+      }
     }
     v.stream = stream;
     const video = vid_el.video;
     if (!video) { stream.getTracks().forEach((t) => { try { t.stop(); } catch (e) {} }); return false; }
+    // Enfoque y exposición CONTINUOS si la lente los soporta (mucho más nítido
+    // que el enfoque fijo por defecto). Nunca rompe: si no se puede, se ignora.
+    vid_afinarLente(stream);
     video.srcObject = stream;
     video.muted = true; video.playsInline = true;
     await video.play().catch(() => {});
     await vid_esperarMetadatos(video);
 
     v.tipoFuente = 'camara'; v.fuenteEl = video;
-    const dims = vid_dimensiones(); // espacio de frame (nativo con tope 1280)
+    const dims = vid_dimensiones(); // espacio de frame (nativo con tope 1920)
     estado.video.tipo = 'camara'; estado.video.listo = true;
     estado.video.w = dims.w; estado.video.h = dims.h; estado.video.grabando = false;
     vid_ocultarEstado();
+    // Aviso honesto si la lente entregó poca resolución pese a pedir más.
+    const real = (video.videoWidth || 0);
+    if (real && real < 1000 && (estado.cfg.resolucion === '1080' || estado.cfg.resolucion === '1440')) {
+      if (typeof ui_toast === 'function') {
+        try { ui_toast('Tu cámara entregó solo ' + real + 'px de ancho. Prueba «Buscar» y elige la lente principal, o baja a 720p.', 'sospecha'); } catch (e) {}
+      }
+    }
     bus.emit('video:listo', { tipo: 'camara', w: dims.w, h: dims.h });
     return true;
   } catch (e) {
     bus.emit('video:error', { msg: vid_mensajeCamara(e) });
     return false;
   }
+}
+
+/* Enfoque / exposición / balance de blancos CONTINUOS si la lente los soporta.
+ * Por defecto muchas cámaras web arrancan con enfoque fijo y se ven borrosas;
+ * esto las pone a enfocar solas, como la app de cámara nativa. Nunca rompe. */
+function vid_afinarLente(stream) {
+  try {
+    const track = stream.getVideoTracks && stream.getVideoTracks()[0];
+    if (!track || !track.getCapabilities || !track.applyConstraints) return;
+    const cap = track.getCapabilities();
+    const adv = [];
+    if (cap.focusMode && cap.focusMode.indexOf('continuous') >= 0) adv.push({ focusMode: 'continuous' });
+    if (cap.exposureMode && cap.exposureMode.indexOf('continuous') >= 0) adv.push({ exposureMode: 'continuous' });
+    if (cap.whiteBalanceMode && cap.whiteBalanceMode.indexOf('continuous') >= 0) adv.push({ whiteBalanceMode: 'continuous' });
+    if (adv.length) track.applyConstraints({ advanced: adv }).catch(function () {});
+  } catch (e) { /* la lente no deja afinar: se queda como estaba */ }
 }
 
 /* Lista las cámaras REALES del dispositivo (para elegir la lente buena).
