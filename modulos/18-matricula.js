@@ -396,7 +396,9 @@ async function mat_procesarCola() {
   // Respiro ADAPTATIVO: si el detector va justo (inferencia lenta), el lector
   // cede el paso y espera más entre fotos. Las fotos no caducan (45 s de
   // margen), así que no se pierde nada: solo se lee más despacio.
-  const hueco = Math.max(MAT_OCR_HUECO_MS, (estado.video.msInferencia || 0) * 1.5);
+  // PERO: si el OCR no está listo aún, acelera la cola (no esperes a que Tesseract
+  // se inicialice): las fotos siguen llegando y se leen todas cuando esté listo.
+  const hueco = m.worker ? Math.max(MAT_OCR_HUECO_MS, (estado.video.msInferencia || 0) * 1.5) : 100;
   if (ahora - (m.ultOcr || 0) < hueco) return;
   m.leyendo = true;
   try {
@@ -803,6 +805,29 @@ function mat_cargarOCR() {
     } catch (e) { resolver(null); }
   });
   return m.cargando;
+}
+
+/* PRE-INICIA Tesseract.js y su worker ANTES de que lleguen fotos de la cola.
+ * Sin esto, la primera foto espera 2-3 s a que Tesseract se descargue e
+ * inicialice el worker: un retraso inaceptable en conducción. Con esto,
+ * cuando llega la primera foto el OCR está LISTO. */
+async function mat_iniciarOCR() {
+  if (!estado.mat) return;
+  if (estado.mat.worker) return;                        // ya está listo
+  try {
+    const T = await mat_cargarOCR();
+    if (!T || !T.createWorker) return;                  // sin Tesseract no hay nada que hacer
+    const m = estado.mat;
+    m.worker = await T.createWorker('eng');
+    await m.worker.setParameters({
+      tessedit_char_whitelist: '0123456789BCDFGHJKLMNPRSTVWXYZ- ',
+      tessedit_do_invert: '0',
+      tessedit_pageseg_mode: '8',
+      tessedit_write_output_file: '0',
+      tessedit_create_pdf: '0',
+      tessedit_create_hocr: '0',
+    });
+  } catch (e) { /* sin OCR, la lectura se hace a mano o no se hace */ }
 }
 
 /* ============================================================================
