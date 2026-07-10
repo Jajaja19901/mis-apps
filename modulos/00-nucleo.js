@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.7',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.8',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -386,7 +386,7 @@ async function nuc_detectar(fuente) {
   if (!estado.modelos.cocoListo) return [];
   try {
     const prep = nuc_frameAnalisis(fx);
-    const res = await estado.modelos.coco.detect(prep.fuente, 40, nuc_scoreMin());
+    const res = await estado.modelos.coco.detect(prep.fuente, 100, nuc_scoreMin());
     return res.map((d) => ({
       clase: d.class, score: d.score,
       caja: {

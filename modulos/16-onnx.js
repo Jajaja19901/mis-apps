@@ -36,7 +36,7 @@ const SC_MODELOS = {
   m: { nombre: 'Máx. precisión (YOLO11m)', mb: 77, escala: 5.2 },
 };
 const SC_ENTRADA = 640;          // lado de entrada (letterbox 640, modo PRECISIÓN)
-const SC_MAX_DETS = 50;          // hasta 50 detecciones por frame
+const SC_MAX_DETS = 100;         // hasta 100 detecciones por frame (multitudes)
 const SC_NMS_IOU = 0.5;          // supresión de duplicados
 const SC_CACHE = 'vigia-modelos-onnx';
 
