@@ -313,105 +313,24 @@ async function mat_procesarCola() {
   finally { m.ultOcr = Date.now(); m.leyendo = false; }
 }
 
-/* Sharpening (enfoque) para aumentar contraste de caracteres de placa.
- * Evita que Tesseract confunda caracteres borrosos (p.ej. O/0, I/1). */
-function mat_sharpen(cnv) {
-  try {
-    const w = cnv.width, h = cnv.height;
-    const ctx = cnv.getContext('2d', { willReadFrequently: true });
-    const img = ctx.getImageData(0, 0, w, h);
-    const px = img.data, out = new Uint8ClampedArray(px.length);
-    // Kernel de sharpening simple (5x5): aumenta diferencias locales
-    const kernel = [
-      -1, -1, -1,
-      -1, 13, -1,
-      -1, -1, -1
-    ];
-    const factor = 5;
-    for (let y = 1; y < h - 1; y++) {
-      for (let x = 1; x < w - 1; x++) {
-        let sum = 0;
-        for (let ky = -1; ky <= 1; ky++) {
-          for (let kx = -1; kx <= 1; kx++) {
-            const idx = ((y + ky) * w + (x + kx)) * 4;
-            sum += px[idx] * kernel[(ky + 1) * 3 + (kx + 1)];
-          }
-        }
-        const idx = (y * w + x) * 4;
-        out[idx] = Math.max(0, Math.min(255, sum / factor));
-      }
-    }
-    // Copiar bordes sin procesar
-    for (let y = 0; y < h; y++) {
-      out[y * w * 4] = px[y * w * 4];
-      out[(y * w + w - 1) * 4] = px[(y * w + w - 1) * 4];
-    }
-    for (let x = 0; x < w; x++) {
-      out[x * 4] = px[x * 4];
-      out[((h - 1) * w + x) * 4] = px[((h - 1) * w + x) * 4];
-    }
-    for (let i = 0; i < px.length; i += 4) {
-      px[i] = px[i + 1] = px[i + 2] = out[i];
-    }
-    ctx.putImageData(img, 0, 0);
-  } catch (e) { /* sharpening es "best effort" */ }
-}
-
-/* OCR sobre un recorte con reintentos inteligentes: banda (PSM 8) → full (PSM 11)
- * → sharpening + PSM 6. Si alguno no da un candidata válida, sigue probando. */
+/* OCR rápido sobre recorte: banda (PSM 8, single line) si existe, si no
+ * recorte completo (PSM 11, sparse text). SIN sharpening (muy lento).
+ * Objetivo: acertar EN 2 SEGUNDOS. */
 async function mat_ocrSobre(cnv) {
   const m = estado.mat;
-  const bandaOrig = mat_bandaPlaca(cnv);
+  const banda = mat_bandaPlaca(cnv);
 
-  // ESTRATEGIA 1: banda de placa, PSM 8 (single line)
-  if (bandaOrig) {
+  // ESTRATEGIA 1 (rápida): banda de placa, PSM 8 (single line)
+  if (banda) {
     try {
       await m.worker.setParameters({ tessedit_pageseg_mode: '8' });
-      const r = await m.worker.recognize(bandaOrig);
+      const r = await m.worker.recognize(banda);
       const texto = String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
-      if (mat_candidata(texto)) return texto;  // ✓ válida, fin
-    } catch (e) { /* continúa */ }
+      if (mat_candidata(texto)) return texto;
+    } catch (e) { /* fallback */ }
   }
 
-  // ESTRATEGIA 2: recorte completo, PSM 11 (sparse text)
-  try {
-    await m.worker.setParameters({ tessedit_pageseg_mode: '11' });
-    const r = await m.worker.recognize(cnv);
-    const texto = String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
-    if (mat_candidata(texto)) return texto;  // ✓ válida, fin
-  } catch (e) { /* continúa */ }
-
-  // ESTRATEGIA 3: sharpening + banda, PSM 6 (block)
-  if (bandaOrig) {
-    try {
-      const cnvSharp = document.createElement('canvas');
-      cnvSharp.width = bandaOrig.width;
-      cnvSharp.height = bandaOrig.height;
-      const ctxSharp = cnvSharp.getContext('2d');
-      ctxSharp.drawImage(bandaOrig, 0, 0);
-      mat_sharpen(cnvSharp);
-      await m.worker.setParameters({ tessedit_pageseg_mode: '6' });
-      const r = await m.worker.recognize(cnvSharp);
-      const texto = String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
-      if (mat_candidata(texto)) return texto;  // ✓ válida, fin
-    } catch (e) { /* continúa */ }
-  }
-
-  // ESTRATEGIA 4: recorte completo con sharpening, PSM 6
-  try {
-    const cnvSharp = document.createElement('canvas');
-    cnvSharp.width = cnv.width;
-    cnvSharp.height = cnv.height;
-    const ctxSharp = cnvSharp.getContext('2d');
-    ctxSharp.drawImage(cnv, 0, 0);
-    mat_sharpen(cnvSharp);
-    await m.worker.setParameters({ tessedit_pageseg_mode: '6' });
-    const r = await m.worker.recognize(cnvSharp);
-    const texto = String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
-    if (mat_candidata(texto)) return texto;  // ✓ válida, fin
-  } catch (e) { /* continúa */ }
-
-  // Si nada funciona, devuelve lo mejor que se encontró (mejor algo que nada)
+  // FALLBACK: recorte completo, PSM 11 (sparse text)
   try {
     await m.worker.setParameters({ tessedit_pageseg_mode: '11' });
     const r = await m.worker.recognize(cnv);
@@ -635,8 +554,8 @@ function mat_bandaPlaca(cnv) {
     }
     let max = 0;
     for (let y = 0; y < h; y++) if (trans[y] > max) max = trans[y];
-    if (max < 8) return null;                        // no hay nada tipo texto (era 10, muy estricto)
-    const lim = Math.max(7, max * 0.40);             // era 0.45, ahora más tolerante
+    if (max < 6) return null;                        // no hay nada tipo texto (agresivo: detecta bandas débiles)
+    const lim = Math.max(5, max * 0.35);             // tolerante: acepta filas con pocas transiciones
     // La banda contigua más ALTA de filas con muchas transiciones.
     let mejorIni = 0, mejorFin = 0, ini = 0, dentro = false;
     for (let y = 0; y <= h; y++) {
@@ -645,8 +564,8 @@ function mat_bandaPlaca(cnv) {
       if (!ok && dentro) { dentro = false; if (y - ini > mejorFin - mejorIni) { mejorIni = ini; mejorFin = y; } }
     }
     const alto = mejorFin - mejorIni;
-    if (alto < 5 || alto > h * 0.85) return null;    // ruido o «todo es banda» (fue 6 y 0.8, más flexible)
-    const margen = alto * 0.6;                       // fue 0.4, ahora más contexto para Tesseract
+    if (alto < 4 || alto > h * 0.90) return null;    // muy flexible: detecta bandas incluso borrosas
+    const margen = alto * 0.8;                       // margen generoso: contexto extra para PSM 8
     const y0 = Math.max(0, Math.floor(mejorIni - margen));
     const y1 = Math.min(h, Math.ceil(mejorFin + margen));
     // Banda a ~120 px de alto: tamaño ideal para el OCR (nítido y pequeño).
