@@ -362,10 +362,14 @@ function mat_recortes() {
   const lista = [];
   if (mejor) {
     const c = mejor.caja;
-    // 1) Ceñido a la zona típica de la placa (centro-abajo del vehículo)
+    // 1) Ceñido a la zona típica de la placa TRASERA (centro-abajo del vehículo)
     const ce = mat_recorteZona(c.x + c.an * 0.22, c.y + c.al * 0.60, c.an * 0.56, c.al * 0.32);
     if (ce) lista.push({ cnv: ce, conVehiculo: true, zona: 'placa' });
-    // 2) Mitad inferior completa (por si la placa no está centrada)
+    // 2) Placa DELANTERA del coche que viene de frente: suele quedar más CENTRADA
+    //    (en el paragolpes, hacia la mitad-baja), no abajo del todo. Banda central.
+    const fr = mat_recorteZona(c.x + c.an * 0.18, c.y + c.al * 0.42, c.an * 0.64, c.al * 0.34);
+    if (fr) lista.push({ cnv: fr, conVehiculo: true, zona: 'frontal' });
+    // 3) Mitad inferior completa (por si la placa no está centrada)
     const an = mat_recorteZona(c.x + c.an * 0.10, c.y + c.al * 0.50, c.an * 0.80, c.al * 0.50);
     if (an) lista.push({ cnv: an, conVehiculo: true, zona: 'coche' });
   } else {
