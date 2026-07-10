@@ -292,7 +292,10 @@ async function mat_procesarCola() {
       await m.worker.setParameters({
         tessedit_char_whitelist: '0123456789BCDFGHJKLMNPRSTVWXYZ- ',
         tessedit_do_invert: '0',
-        tessedit_pageseg_mode: '8',  // single line
+        tessedit_pageseg_mode: '8',
+        tessedit_write_output_file: '0',
+        tessedit_create_pdf: '0',
+        tessedit_create_hocr: '0',
       });
     }
     const texto = await mat_ocrSobre(foto.cnv);
@@ -310,25 +313,110 @@ async function mat_procesarCola() {
   finally { m.ultOcr = Date.now(); m.leyendo = false; }
 }
 
-/* OCR sobre un recorte: intenta la banda de la placa (PSM 8, single line),
- * si no hay banda o falla, usa el recorte completo (PSM 11, sparse text). */
+/* Sharpening (enfoque) para aumentar contraste de caracteres de placa.
+ * Evita que Tesseract confunda caracteres borrosos (p.ej. O/0, I/1). */
+function mat_sharpen(cnv) {
+  try {
+    const w = cnv.width, h = cnv.height;
+    const ctx = cnv.getContext('2d', { willReadFrequently: true });
+    const img = ctx.getImageData(0, 0, w, h);
+    const px = img.data, out = new Uint8ClampedArray(px.length);
+    // Kernel de sharpening simple (5x5): aumenta diferencias locales
+    const kernel = [
+      -1, -1, -1,
+      -1, 13, -1,
+      -1, -1, -1
+    ];
+    const factor = 5;
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        let sum = 0;
+        for (let ky = -1; ky <= 1; ky++) {
+          for (let kx = -1; kx <= 1; kx++) {
+            const idx = ((y + ky) * w + (x + kx)) * 4;
+            sum += px[idx] * kernel[(ky + 1) * 3 + (kx + 1)];
+          }
+        }
+        const idx = (y * w + x) * 4;
+        out[idx] = Math.max(0, Math.min(255, sum / factor));
+      }
+    }
+    // Copiar bordes sin procesar
+    for (let y = 0; y < h; y++) {
+      out[y * w * 4] = px[y * w * 4];
+      out[(y * w + w - 1) * 4] = px[(y * w + w - 1) * 4];
+    }
+    for (let x = 0; x < w; x++) {
+      out[x * 4] = px[x * 4];
+      out[((h - 1) * w + x) * 4] = px[((h - 1) * w + x) * 4];
+    }
+    for (let i = 0; i < px.length; i += 4) {
+      px[i] = px[i + 1] = px[i + 2] = out[i];
+    }
+    ctx.putImageData(img, 0, 0);
+  } catch (e) { /* sharpening es "best effort" */ }
+}
+
+/* OCR sobre un recorte con reintentos inteligentes: banda (PSM 8) → full (PSM 11)
+ * → sharpening + PSM 6. Si alguno no da un candidata válida, sigue probando. */
 async function mat_ocrSobre(cnv) {
   const m = estado.mat;
-  const banda = mat_bandaPlaca(cnv);
-  let r = null;
-  if (banda) {
+  const bandaOrig = mat_bandaPlaca(cnv);
+
+  // ESTRATEGIA 1: banda de placa, PSM 8 (single line)
+  if (bandaOrig) {
     try {
       await m.worker.setParameters({ tessedit_pageseg_mode: '8' });
-      r = await m.worker.recognize(banda);
-    } catch (e) { /* banda falló, intenta recorte completo */ }
+      const r = await m.worker.recognize(bandaOrig);
+      const texto = String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
+      if (mat_candidata(texto)) return texto;  // ✓ válida, fin
+    } catch (e) { /* continúa */ }
   }
-  if (!r || !r.data || !r.data.text) {
+
+  // ESTRATEGIA 2: recorte completo, PSM 11 (sparse text)
+  try {
+    await m.worker.setParameters({ tessedit_pageseg_mode: '11' });
+    const r = await m.worker.recognize(cnv);
+    const texto = String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
+    if (mat_candidata(texto)) return texto;  // ✓ válida, fin
+  } catch (e) { /* continúa */ }
+
+  // ESTRATEGIA 3: sharpening + banda, PSM 6 (block)
+  if (bandaOrig) {
     try {
-      await m.worker.setParameters({ tessedit_pageseg_mode: '11' });  // sparse text
-      r = await m.worker.recognize(cnv);
-    } catch (e) { /* fallo total */ }
+      const cnvSharp = document.createElement('canvas');
+      cnvSharp.width = bandaOrig.width;
+      cnvSharp.height = bandaOrig.height;
+      const ctxSharp = cnvSharp.getContext('2d');
+      ctxSharp.drawImage(bandaOrig, 0, 0);
+      mat_sharpen(cnvSharp);
+      await m.worker.setParameters({ tessedit_pageseg_mode: '6' });
+      const r = await m.worker.recognize(cnvSharp);
+      const texto = String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
+      if (mat_candidata(texto)) return texto;  // ✓ válida, fin
+    } catch (e) { /* continúa */ }
   }
-  return String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
+
+  // ESTRATEGIA 4: recorte completo con sharpening, PSM 6
+  try {
+    const cnvSharp = document.createElement('canvas');
+    cnvSharp.width = cnv.width;
+    cnvSharp.height = cnv.height;
+    const ctxSharp = cnvSharp.getContext('2d');
+    ctxSharp.drawImage(cnv, 0, 0);
+    mat_sharpen(cnvSharp);
+    await m.worker.setParameters({ tessedit_pageseg_mode: '6' });
+    const r = await m.worker.recognize(cnvSharp);
+    const texto = String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
+    if (mat_candidata(texto)) return texto;  // ✓ válida, fin
+  } catch (e) { /* continúa */ }
+
+  // Si nada funciona, devuelve lo mejor que se encontró (mejor algo que nada)
+  try {
+    await m.worker.setParameters({ tessedit_pageseg_mode: '11' });
+    const r = await m.worker.recognize(cnv);
+    return String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
+  } catch (e) { return ''; }
 }
 
 /* Borra del histórico las matrículas más viejas que la retención configurada. */
@@ -672,7 +760,10 @@ async function mat_leer(manual) {
           await m.worker.setParameters({
             tessedit_char_whitelist: '0123456789BCDFGHJKLMNPRSTVWXYZ- ',
             tessedit_do_invert: '0',
-            tessedit_pageseg_mode: '8',  // single line (línea única)
+            tessedit_pageseg_mode: '8',
+            tessedit_write_output_file: '0',
+            tessedit_create_pdf: '0',
+            tessedit_create_hocr: '0',
           });
         }
         // Prueba del recorte más ceñido al más ancho: primero que acierte, gana.
