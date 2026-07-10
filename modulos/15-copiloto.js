@@ -249,6 +249,11 @@ function cop_aplicar(activo) {
       nuc_guardar('cop_avisoMotor', true);
       cop_toast('Consejo: para detectar mejor los coches, cambia el motor a «Potente» en Ajustes → Detección.', 'info');
     }
+    // Aviso una sola vez: la lectura de matrículas es automática (no hay que pulsar).
+    if (estado.cfg.matContinuo && !nuc_cargar('cop_avisoMatricula', false)) {
+      nuc_guardar('cop_avisoMatricula', true);
+      cop_toast('La matrícula se lee SOLA: apunta la cámara al coche de delante y la irá leyendo (verás «🔎 Leyendo matrícula…»).', 'info');
+    }
   } else {
     cop_pararSensores();
   }
