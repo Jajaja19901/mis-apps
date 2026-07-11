@@ -7,7 +7,7 @@
  *    versión si hay internet, y la app sigue abriendo sin conexión.
  *  · Modelos y librerías de IA (CDNs): caché primero → se descargan UNA vez.
  * ==========================================================================*/
-const VERSION = 'vigia-3-59';
+const VERSION = 'vigia-3-60';
 const CACHE_APP = VERSION + '-app';
 const CACHE_IA = VERSION + '-ia';
 
@@ -23,6 +23,11 @@ const HOSTS_IA = [
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE_APP).then((c) => c.addAll(['./']).catch(() => {})));
   self.skipWaiting();
+});
+
+/* El cliente puede pedir que un SW en espera tome el mando ya (auto-actualización). */
+self.addEventListener('message', (e) => {
+  if (e && e.data && e.data.tipo === 'skip-waiting') self.skipWaiting();
 });
 
 self.addEventListener('activate', (e) => {

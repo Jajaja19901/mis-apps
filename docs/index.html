@@ -2134,7 +2134,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.59',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.60',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -9068,11 +9068,13 @@ function pwa_init() {
       // PRIMERO el sw.js REAL (si el dueño subió los archivos de despliegue:
       // sw.js + manifest.webmanifest + iconos → PWA completa e instalable);
       // si no existe o falla, probamos el SW embebido en blob (mejor esfuerzo).
-      navigator.serviceWorker.register('sw.js').then(() => {
+      navigator.serviceWorker.register('sw.js').then((reg) => {
         estado.pwa.swEstado = 'activo (sw.js)';
+        pwa_vigilarActualizacion(reg);
       }).catch(() => {
-        navigator.serviceWorker.register(swUrl).then(() => {
+        navigator.serviceWorker.register(swUrl).then((reg) => {
           estado.pwa.swEstado = 'activo';
+          pwa_vigilarActualizacion(reg);
         }).catch((err) => {
           console.warn('[pwa] SW register rechazado:', err && err.message);
           estado.pwa.swEstado = 'no disponible en este navegador (los modelos usarán la caché normal)';
@@ -9330,6 +9332,39 @@ async function pwa_wlPedir() {
     estado.pwa.wakeLock = null;
     return false;
   }
+}
+
+/* ============================================================================
+ * AUTO-ACTUALIZACIÓN BLINDADA — para que el móvil no se quede CONGELADO en una
+ * versión vieja. El Service Worker antiguo sigue mandando hasta que uno nuevo
+ * toma el control; aquí lo forzamos: comprueba si hay versión nueva (al abrir y
+ * al volver a la app), empuja al SW en espera a tomar el mando, y cuando el
+ * nuevo controla la página, recarga UNA vez para servir ya lo fresco.
+ * ==========================================================================*/
+let pwa_actWired = false, pwa_recargando = false;
+function pwa_vigilarActualizacion(reg) {
+  if (!reg || pwa_actWired) return;
+  pwa_actWired = true;
+  try {
+    reg.update().catch(function () {});
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) { try { reg.update(); } catch (e) {} }
+    });
+    const empujar = function () {
+      if (reg.waiting) { try { reg.waiting.postMessage({ tipo: 'skip-waiting' }); } catch (e) {} }
+    };
+    reg.addEventListener('updatefound', function () {
+      const nuevo = reg.installing;
+      if (nuevo) nuevo.addEventListener('statechange', function () { if (nuevo.state === 'installed') empujar(); });
+    });
+    empujar();
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (pwa_recargando) return; pwa_recargando = true;
+        window.location.reload();
+      });
+    }
+  } catch (e) { /* si el navegador no lo permite, no rompe nada */ }
 }
 
 
