@@ -194,6 +194,21 @@ h1, h2, h3, p { margin: 0; }
   box-shadow: 0 3px 12px rgba(0,0,0,.45);
 }
 .vid-expandir:active { transform: scale(.95); }
+
+/* Botón «▼ Reducir / ▲ Agrandar»: pliega la cámara para dejar sitio al menú. */
+.vid-plegar {
+  position: absolute; right: .6rem; bottom: .6rem; z-index: 5;
+  background: rgba(6, 10, 14, .78); color: #dfe8f0;
+  border: 1px solid rgba(0, 234, 255, .35);
+  height: 2.6rem; padding: 0 .7rem; border-radius: .7rem;
+  font-size: .8rem; font-weight: 700; line-height: 1; cursor: pointer;
+  box-shadow: 0 3px 12px rgba(0,0,0,.45);
+}
+.vid-plegar:active { transform: scale(.95); }
+/* Cámara compacta: el vídeo se limita a ~34vh y el menú de abajo respira. */
+.vid-visor.vid-compacto.vid-activo #vid-canvas,
+.vid-visor.vid-compacto.vid-activo #vid-canvasPriv { max-height: 34vh; }
+
 /* En pantalla completa: fondo negro, vídeo al máximo que quepa. */
 .vid-visor:fullscreen { background: #000; align-items: center; justify-content: center; border-radius: 0; }
 .vid-visor:fullscreen #vid-canvas,
@@ -599,6 +614,7 @@ summary.sec-titulo::before { display: inline-block; }
   <div id="vid-rec" class="vid-rec oculto">● REC</div>
   <button type="button" id="mat-flotante" class="mat-flotante oculto" aria-label="Leer matrícula del coche de delante">📋 Matrícula</button>
   <button type="button" id="vid-expandir" class="vid-expandir oculto" aria-label="Ver el vídeo a pantalla completa">⛶</button>
+  <button type="button" id="vid-plegar" class="vid-plegar oculto" aria-label="Reducir la cámara para ver el menú">▼ Reducir</button>
   <div id="vid-monitor" class="vid-monitor oculto" aria-live="polite">
     <div class="vid-mon-fila"><span>Fluidez</span><b id="vid-mon-fluidez">—</b></div>
     <div class="vid-mon-fila"><span>Análisis IA</span><b id="vid-mon-ia">—</b></div>
@@ -2084,7 +2100,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.42',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.43',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -4196,6 +4212,22 @@ function vid_init() {
   vid_el.rec        = document.getElementById('vid-rec');
   vid_el.estado     = document.getElementById('vid-estado');
   vid_el.expandir   = document.getElementById('vid-expandir');
+  vid_el.plegar     = document.getElementById('vid-plegar');
+
+  // ▼ Reducir / ▲ Agrandar: pliega la cámara a un tamaño compacto para dejar
+  //   sitio al menú de abajo. Recuerda la preferencia del dueño.
+  if (vid_el.plegar) {
+    const compactoGuardado = nuc_cargar('vid_compacto', false);
+    if (compactoGuardado && vid_el.visor) vid_el.visor.classList.add('vid-compacto');
+    vid_el.plegar.textContent = compactoGuardado ? '▲ Agrandar' : '▼ Reducir';
+    vid_el.plegar.addEventListener('click', function () {
+      if (!vid_el.visor) return;
+      const compacto = vid_el.visor.classList.toggle('vid-compacto');
+      vid_el.plegar.textContent = compacto ? '▲ Agrandar' : '▼ Reducir';
+      vid_el.plegar.setAttribute('aria-label', compacto ? 'Agrandar la cámara' : 'Reducir la cámara para ver el menú');
+      nuc_guardar('vid_compacto', compacto);
+    });
+  }
 
   // 📷 Encender cámara con un toque desde el propio visor (sin ir a Ajustes).
   const btnCam = document.getElementById('vid-btnCamara');
@@ -4765,6 +4797,7 @@ function vid_detener() {
     if (vid_el.canvasPriv) vid_el.canvasPriv.classList.add('oculto');
     if (vid_el.rec) vid_el.rec.classList.add('oculto');
     if (vid_el.expandir) vid_el.expandir.classList.add('oculto');
+    if (vid_el.plegar) vid_el.plegar.classList.add('oculto');
     const vbc = document.getElementById('vid-btnCamara');
     if (vbc) vbc.classList.remove('oculto');
     vid_mostrarEstado();
@@ -4876,6 +4909,7 @@ function vid_componer() {
   // El visor adopta la forma real del vídeo (evita recortar arriba/abajo).
   if (vid_el.visor) vid_el.visor.classList.add('vid-activo');
   if (vid_el.expandir) vid_el.expandir.classList.remove('oculto');
+  if (vid_el.plegar) vid_el.plegar.classList.remove('oculto');
   const vbc = document.getElementById('vid-btnCamara');
   if (vbc && !vbc.classList.contains('oculto')) vbc.classList.add('oculto');
 
@@ -4984,6 +5018,7 @@ function vid_sinSenal(ctx, cnv) {
     if (vid_el.canvasPriv) vid_el.canvasPriv.classList.add('oculto');
     if (vid_el.rec) vid_el.rec.classList.add('oculto');
     if (vid_el.expandir) vid_el.expandir.classList.add('oculto');
+    if (vid_el.plegar) vid_el.plegar.classList.add('oculto');
     const vbc = document.getElementById('vid-btnCamara');
     if (vbc) vbc.classList.remove('oculto');
   } catch (e) { /* ignorar */ }

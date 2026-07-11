@@ -35,6 +35,22 @@ function vid_init() {
   vid_el.rec        = document.getElementById('vid-rec');
   vid_el.estado     = document.getElementById('vid-estado');
   vid_el.expandir   = document.getElementById('vid-expandir');
+  vid_el.plegar     = document.getElementById('vid-plegar');
+
+  // ▼ Reducir / ▲ Agrandar: pliega la cámara a un tamaño compacto para dejar
+  //   sitio al menú de abajo. Recuerda la preferencia del dueño.
+  if (vid_el.plegar) {
+    const compactoGuardado = nuc_cargar('vid_compacto', false);
+    if (compactoGuardado && vid_el.visor) vid_el.visor.classList.add('vid-compacto');
+    vid_el.plegar.textContent = compactoGuardado ? '▲ Agrandar' : '▼ Reducir';
+    vid_el.plegar.addEventListener('click', function () {
+      if (!vid_el.visor) return;
+      const compacto = vid_el.visor.classList.toggle('vid-compacto');
+      vid_el.plegar.textContent = compacto ? '▲ Agrandar' : '▼ Reducir';
+      vid_el.plegar.setAttribute('aria-label', compacto ? 'Agrandar la cámara' : 'Reducir la cámara para ver el menú');
+      nuc_guardar('vid_compacto', compacto);
+    });
+  }
 
   // 📷 Encender cámara con un toque desde el propio visor (sin ir a Ajustes).
   const btnCam = document.getElementById('vid-btnCamara');
@@ -604,6 +620,7 @@ function vid_detener() {
     if (vid_el.canvasPriv) vid_el.canvasPriv.classList.add('oculto');
     if (vid_el.rec) vid_el.rec.classList.add('oculto');
     if (vid_el.expandir) vid_el.expandir.classList.add('oculto');
+    if (vid_el.plegar) vid_el.plegar.classList.add('oculto');
     const vbc = document.getElementById('vid-btnCamara');
     if (vbc) vbc.classList.remove('oculto');
     vid_mostrarEstado();
@@ -715,6 +732,7 @@ function vid_componer() {
   // El visor adopta la forma real del vídeo (evita recortar arriba/abajo).
   if (vid_el.visor) vid_el.visor.classList.add('vid-activo');
   if (vid_el.expandir) vid_el.expandir.classList.remove('oculto');
+  if (vid_el.plegar) vid_el.plegar.classList.remove('oculto');
   const vbc = document.getElementById('vid-btnCamara');
   if (vbc && !vbc.classList.contains('oculto')) vbc.classList.add('oculto');
 
@@ -823,6 +841,7 @@ function vid_sinSenal(ctx, cnv) {
     if (vid_el.canvasPriv) vid_el.canvasPriv.classList.add('oculto');
     if (vid_el.rec) vid_el.rec.classList.add('oculto');
     if (vid_el.expandir) vid_el.expandir.classList.add('oculto');
+    if (vid_el.plegar) vid_el.plegar.classList.add('oculto');
     const vbc = document.getElementById('vid-btnCamara');
     if (vbc) vbc.classList.remove('oculto');
   } catch (e) { /* ignorar */ }
