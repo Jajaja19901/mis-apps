@@ -422,7 +422,7 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
           const puntos_ciclo = estado.cfg.ocultacionUnGesto
             ? Math.max(GESTO_PTS_CICLO, estado.cfg.ocultacionUmbral || 60)
             : GESTO_PTS_CICLO;
-          gesto_sumarSospecha(id, puntos_ciclo, ts);   // ciclo alcanzar→esconder completo
+          gesto_sumarSospecha(id, puntos_ciclo, ts, true);   // ciclo alcanzar→esconder COMPLETO
         }
         if (dwell >= GESTO_DWELL_LARGO_MS && !m.bonus) {
           m.bonus = true;
@@ -462,19 +462,30 @@ function gesto_objetoEnMano(id, muneca, anchoHombros, ts) {
   } catch (e) { /* nombrar el objeto es un extra: nunca rompe el gesto */ }
 }
 
-function gesto_sumarSospecha(id, delta, ts) {
+/* cicloCompleto=true cuando la suma viene de un ciclo coger→bolsillo ENTERO.
+ * REGLA CLAVE: el anti-spam de 30 s NO se traga los ciclos repetidos — repetir
+ * el gesto es MÁS sospechoso, no menos. Un ciclo completo dentro del silencio
+ * ESCALA (repetida:true → alerta crítica que se salta los cooldowns). Antes,
+ * la 3ª metida de mano —la del robo real— moría silenciada por el anti-spam. */
+function gesto_sumarSospecha(id, delta, ts, cicloCompleto) {
   const g = estado.gesto;
   const nueva = nuc_clamp((g.puntuaciones[id] || 0) + delta, 0, 100);
   g.puntuaciones[id] = nueva;
   if (nueva >= estado.cfg.ocultacionUmbral) {
     const ult = g.ocultacionUltima[id] || 0;
-    if (ts - ult >= GESTO_COOLDOWN_OCULT_MS) {
+    const enSilencio = ts - ult < GESTO_COOLDOWN_OCULT_MS;
+    // Respiro mínimo de 6 s entre avisos del mismo track (un ciclo real tarda más).
+    if (ts - ult < 6000) return;
+    if (!enSilencio || cicloCompleto) {
       g.ocultacionUltima[id] = ts;
       // Si hace poco se vio un objeto conocido en esa mano, se nombra en el aviso.
       let objeto = null;
       const om = g.objetoEnMano && g.objetoEnMano[id];
       if (om && ts - om.ts <= GESTO_OBJETO_CADUCA_MS) objeto = om.clase;
-      bus.emit('gesto:ocultacion', { trackId: id, puntuacion: Math.round(nueva), objeto: objeto });
+      bus.emit('gesto:ocultacion', {
+        trackId: id, puntuacion: Math.round(nueva), objeto: objeto,
+        repetida: enSilencio && !!cicloCompleto,
+      });
     }
   }
 }

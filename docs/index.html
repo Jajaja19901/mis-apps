@@ -2131,7 +2131,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.55',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.56',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -3493,7 +3493,7 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
           const puntos_ciclo = estado.cfg.ocultacionUnGesto
             ? Math.max(GESTO_PTS_CICLO, estado.cfg.ocultacionUmbral || 60)
             : GESTO_PTS_CICLO;
-          gesto_sumarSospecha(id, puntos_ciclo, ts);   // ciclo alcanzar→esconder completo
+          gesto_sumarSospecha(id, puntos_ciclo, ts, true);   // ciclo alcanzar→esconder COMPLETO
         }
         if (dwell >= GESTO_DWELL_LARGO_MS && !m.bonus) {
           m.bonus = true;
@@ -3533,19 +3533,30 @@ function gesto_objetoEnMano(id, muneca, anchoHombros, ts) {
   } catch (e) { /* nombrar el objeto es un extra: nunca rompe el gesto */ }
 }
 
-function gesto_sumarSospecha(id, delta, ts) {
+/* cicloCompleto=true cuando la suma viene de un ciclo coger→bolsillo ENTERO.
+ * REGLA CLAVE: el anti-spam de 30 s NO se traga los ciclos repetidos — repetir
+ * el gesto es MÁS sospechoso, no menos. Un ciclo completo dentro del silencio
+ * ESCALA (repetida:true → alerta crítica que se salta los cooldowns). Antes,
+ * la 3ª metida de mano —la del robo real— moría silenciada por el anti-spam. */
+function gesto_sumarSospecha(id, delta, ts, cicloCompleto) {
   const g = estado.gesto;
   const nueva = nuc_clamp((g.puntuaciones[id] || 0) + delta, 0, 100);
   g.puntuaciones[id] = nueva;
   if (nueva >= estado.cfg.ocultacionUmbral) {
     const ult = g.ocultacionUltima[id] || 0;
-    if (ts - ult >= GESTO_COOLDOWN_OCULT_MS) {
+    const enSilencio = ts - ult < GESTO_COOLDOWN_OCULT_MS;
+    // Respiro mínimo de 6 s entre avisos del mismo track (un ciclo real tarda más).
+    if (ts - ult < 6000) return;
+    if (!enSilencio || cicloCompleto) {
       g.ocultacionUltima[id] = ts;
       // Si hace poco se vio un objeto conocido en esa mano, se nombra en el aviso.
       let objeto = null;
       const om = g.objetoEnMano && g.objetoEnMano[id];
       if (om && ts - om.ts <= GESTO_OBJETO_CADUCA_MS) objeto = om.clase;
-      bus.emit('gesto:ocultacion', { trackId: id, puntuacion: Math.round(nueva), objeto: objeto });
+      bus.emit('gesto:ocultacion', {
+        trackId: id, puntuacion: Math.round(nueva), objeto: objeto,
+        repetida: enSilencio && !!cicloCompleto,
+      });
     }
   }
 }
@@ -6222,9 +6233,17 @@ function alerta_init() {
 
   // gesto:ocultacion → sospecha (JAMÁS "robo"/"ladrón"). Si se vio QUÉ objeto
   // tenía en la mano al coger, se nombra («posible botella») para la revisión.
+  // REPETIDA (otro ciclo completo dentro del silencio anti-spam) → CRÍTICA y
+  // saltándose el cooldown: repetir el gesto es más sospechoso, no menos.
   bus.on('gesto:ocultacion', (d) => {
     if (!d) return;
     const que = d.objeto ? ' (posible ' + nuc_claseES(d.objeto) + ' en la mano)' : '';
+    if (d.repetida) {
+      alerta_disparar('ocultacion_repetida', 'critico',
+        'Gesto de ocultación REPETIDO' + que + ' — revisar ya. Nunca acuses a nadie basándote solo en esta alerta.',
+        { trackId: d.trackId }, true);
+      return;
+    }
     alerta_disparar('ocultacion', 'sospecha', 'Gesto de ocultación' + que + ' — revisar. Nunca acuses a nadie basándote solo en esta alerta.', { trackId: d.trackId });
   });
 

@@ -90,9 +90,17 @@ function alerta_init() {
 
   // gesto:ocultacion → sospecha (JAMÁS "robo"/"ladrón"). Si se vio QUÉ objeto
   // tenía en la mano al coger, se nombra («posible botella») para la revisión.
+  // REPETIDA (otro ciclo completo dentro del silencio anti-spam) → CRÍTICA y
+  // saltándose el cooldown: repetir el gesto es más sospechoso, no menos.
   bus.on('gesto:ocultacion', (d) => {
     if (!d) return;
     const que = d.objeto ? ' (posible ' + nuc_claseES(d.objeto) + ' en la mano)' : '';
+    if (d.repetida) {
+      alerta_disparar('ocultacion_repetida', 'critico',
+        'Gesto de ocultación REPETIDO' + que + ' — revisar ya. Nunca acuses a nadie basándote solo en esta alerta.',
+        { trackId: d.trackId }, true);
+      return;
+    }
     alerta_disparar('ocultacion', 'sospecha', 'Gesto de ocultación' + que + ' — revisar. Nunca acuses a nadie basándote solo en esta alerta.', { trackId: d.trackId });
   });
 
