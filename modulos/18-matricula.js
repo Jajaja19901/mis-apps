@@ -293,10 +293,12 @@ function mat_capturarTodas(ahora) {
 function mat_fotografiar(veh, ahora) {
   const m = estado.mat;
   const c = veh.caja;
-  // UNA foto que cubre la placa trasera Y la delantera (mitad baja ancha del
-  // vehículo): el buscador de banda (mat_bandaPlaca) localiza la placa dentro,
-  // así que no hacen falta dos fotos por disparo — el OCR trabaja la mitad.
-  const cnv = mat_recorteZona(c.x + c.an * 0.15, c.y + c.al * 0.40, c.an * 0.70, c.al * 0.55);
+  // Zona amplia que cubre TANTO placa trasera (abajo) como delantera (centro-bajo):
+  // coche de frente → placa en parachoques (45-75% desde arriba)
+  // coche de perfil → placa trasera (60-85% desde arriba)
+  // Solución: capturar toda la mitad baja (35-100% altura) para no perder nada.
+  // El buscador de banda (mat_bandaPlaca) localiza la placa real dentro.
+  const cnv = mat_recorteZona(c.x + c.an * 0.10, c.y + c.al * 0.35, c.an * 0.80, c.al * 0.70);
   if (!cnv) return;
   const fotoId = mat_fotoGuardar(cnv, ahora, veh);       // a la galería SIEMPRE
   m.cola.push({ cnv: cnv, ts: ahora, zona: 'vehiculo', fotoId: fotoId });
@@ -396,7 +398,9 @@ async function mat_procesarCola() {
   // Respiro ADAPTATIVO: si el detector va justo (inferencia lenta), el lector
   // cede el paso y espera más entre fotos. Las fotos no caducan (45 s de
   // margen), así que no se pierde nada: solo se lee más despacio.
-  const hueco = Math.max(MAT_OCR_HUECO_MS, (estado.video.msInferencia || 0) * 1.5);
+  // PERO: si el OCR no está listo aún, acelera la cola (no esperes a que Tesseract
+  // se inicialice): las fotos siguen llegando y se leen todas cuando esté listo.
+  const hueco = m.worker ? Math.max(MAT_OCR_HUECO_MS, (estado.video.msInferencia || 0) * 1.5) : 100;
   if (ahora - (m.ultOcr || 0) < hueco) return;
   m.leyendo = true;
   try {
@@ -433,14 +437,13 @@ async function mat_procesarCola() {
   finally { m.ultOcr = Date.now(); m.leyendo = false; }
 }
 
-/* OCR rápido sobre recorte: banda (PSM 8, single line) si existe, si no
- * recorte completo (PSM 11, sparse text). SIN sharpening (muy lento).
- * Objetivo: acertar EN 2 SEGUNDOS. */
+/* OCR robusto: intenta varias estrategias hasta conseguir una matrícula válida.
+ * Banda (PSM 8) → recorte completo (PSM 11) → raw line (PSM 13). */
 async function mat_ocrSobre(cnv) {
   const m = estado.mat;
   const banda = mat_bandaPlaca(cnv);
 
-  // ESTRATEGIA 1 (rápida): banda de placa, PSM 8 (single line)
+  // ESTRATEGIA 1: banda de placa detectada, PSM 8 (single line, el más preciso)
   if (banda) {
     try {
       await m.worker.setParameters({ tessedit_pageseg_mode: '8' });
@@ -450,7 +453,23 @@ async function mat_ocrSobre(cnv) {
     } catch (e) { /* fallback */ }
   }
 
-  // FALLBACK: recorte completo, PSM 11 (sparse text)
+  // ESTRATEGIA 2: recorte completo, PSM 11 (sparse text para cuando falla la banda)
+  try {
+    await m.worker.setParameters({ tessedit_pageseg_mode: '11' });
+    const r = await m.worker.recognize(cnv);
+    const texto = String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
+    if (mat_candidata(texto)) return texto;
+  } catch (e) { /* fallback */ }
+
+  // ESTRATEGIA 3: PSM 13 (raw line, a veces funciona en fotos de noche)
+  try {
+    await m.worker.setParameters({ tessedit_pageseg_mode: '13' });
+    const r = await m.worker.recognize(cnv);
+    const texto = String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
+    if (mat_candidata(texto)) return texto;
+  } catch (e) { /* fallback */ }
+
+  // FALLBACK: si nada funcionó, devolver lo que sea (mejor algo que nada)
   try {
     await m.worker.setParameters({ tessedit_pageseg_mode: '11' });
     const r = await m.worker.recognize(cnv);
@@ -714,8 +733,8 @@ function mat_bandaPlaca(cnv) {
     }
     let max = 0;
     for (let y = 0; y < h; y++) if (trans[y] > max) max = trans[y];
-    if (max < 6) return null;                        // no hay nada tipo texto (agresivo: detecta bandas débiles)
-    const lim = Math.max(5, max * 0.35);             // tolerante: acepta filas con pocas transiciones
+    if (max < 4) return null;                        // muy permisivo: detecta incluso fotos de noche (menos agresivo)
+    const lim = Math.max(3, max * 0.25);             // muy tolerante: acepta filas débiles (fotos oscuras)
     // La banda contigua más ALTA de filas con muchas transiciones.
     let mejorIni = 0, mejorFin = 0, ini = 0, dentro = false;
     for (let y = 0; y <= h; y++) {
@@ -803,6 +822,29 @@ function mat_cargarOCR() {
     } catch (e) { resolver(null); }
   });
   return m.cargando;
+}
+
+/* PRE-INICIA Tesseract.js y su worker ANTES de que lleguen fotos de la cola.
+ * Sin esto, la primera foto espera 2-3 s a que Tesseract se descargue e
+ * inicialice el worker: un retraso inaceptable en conducción. Con esto,
+ * cuando llega la primera foto el OCR está LISTO. */
+async function mat_iniciarOCR() {
+  if (!estado.mat) return;
+  if (estado.mat.worker) return;                        // ya está listo
+  try {
+    const T = await mat_cargarOCR();
+    if (!T || !T.createWorker) return;                  // sin Tesseract no hay nada que hacer
+    const m = estado.mat;
+    m.worker = await T.createWorker('eng');
+    await m.worker.setParameters({
+      tessedit_char_whitelist: '0123456789BCDFGHJKLMNPRSTVWXYZ- ',
+      tessedit_do_invert: '0',
+      tessedit_pageseg_mode: '8',
+      tessedit_write_output_file: '0',
+      tessedit_create_pdf: '0',
+      tessedit_create_hocr: '0',
+    });
+  } catch (e) { /* sin OCR, la lectura se hace a mano o no se hace */ }
 }
 
 /* ============================================================================

@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.30',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.35',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -170,6 +170,68 @@ function nuc_usoAlmacenMB() {
     }
     return Math.round((n * 2 / 1048576) * 100) / 100; // UTF-16 ≈ 2 bytes/carácter
   } catch (e) { return 0; }
+}
+
+/* --- Auto-actualización: fetch INMEDIATO al abrir (no espera 5 min) --------*/
+function nuc_detectorVersiones() {
+  try {
+    const verLocal = nuc_cargar('version_cargada', '');
+    const verActual = CONFIG.VERSION || '?';
+
+    // Guarda la versión actual
+    if (verLocal !== verActual) {
+      console.info('[versión] local: ' + verLocal + ' → actual: ' + verActual);
+      nuc_guardar('version_cargada', verActual);
+    }
+
+    // Fetch INMEDIATO al abrir (no esperar 5 minutos)
+    nuc_checkVersionRemota(true);  // true = fetch AHORA
+  } catch (e) { console.warn('[versión] error:', e && e.message); }
+}
+
+function nuc_checkVersionRemota(fetchAhora) {
+  try {
+    const ahora = Date.now();
+    const ultCheck = nuc_cargar('version_check_ts', 0);
+
+    // Fetch INMEDIATO si es la primera carga, después cada 5 minutos
+    const debeChequear = fetchAhora || (ahora - ultCheck > 300000);
+    if (!debeChequear) return;
+
+    nuc_guardar('version_check_ts', ahora);
+    const urlActual = window.location.href.split('#')[0].split('?')[0];
+
+    // Headers agresivos anti-caché
+    const opcionesFetch = {
+      cache: 'no-store',
+      method: 'GET',
+      headers: {
+        'pragma': 'no-cache',
+        'cache-control': 'no-cache, no-store, must-revalidate',
+      }
+    };
+
+    fetch(urlActual + '?_nocache=' + ahora, opcionesFetch)
+      .then(resp => {
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        return resp.text();
+      })
+      .then(html => {
+        if (!html || html.length < 100) return;  // contenido muy pequeño: timeout/error
+        const m = html.match(/VERSION:\s*['"]([^'"]+)['"]/);
+        const verRemota = m ? m[1] : null;
+        if (verRemota && verRemota !== CONFIG.VERSION) {
+          console.warn('[versión] remota: ' + verRemota + ' · local: ' + CONFIG.VERSION + ' → RECARGANDO');
+          // Recarga YA (no espera 500ms)
+          window.location.reload(true);
+        } else if (verRemota) {
+          console.info('[versión] está al día: ' + verRemota);
+        }
+      })
+      .catch(e => {
+        console.debug('[versión] check falló (sin internet/timeout):', e && e.message);
+      });
+  } catch (e) { /* error fatal: no rompe */ }
 }
 
 /* --- Geometría y varios -----------------------------------------------------*/
@@ -441,4 +503,6 @@ function nuc_init() {
   }
   estado.zonas = nuc_cargar('zonas', []);
   estado.lineas = nuc_cargar('lineas', []);
+  // Detecta si hay nueva versión y se actualiza sola
+  nuc_detectorVersiones();
 }

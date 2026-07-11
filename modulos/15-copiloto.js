@@ -265,6 +265,11 @@ function cop_aplicar(activo, restaurando) {
       // PRIMER pitido (el que importa) puede salir mudo.
       cop_armarAudio();
     }
+    // Pre-inicializa Tesseract.js en paralelo si la lectura continua está activa:
+    // así, cuando llegue la primera foto, el OCR ya está listo (no hay 2-3 s de espera).
+    if (estado.cfg.matContinuo && typeof mat_iniciarOCR === 'function') {
+      try { mat_iniciarOCR().catch(function () {}); } catch (e) {}
+    }
     // Consejo una sola vez: con el motor básico los coches lejanos se pierden.
     if (estado.cfg.motor === 'coco' && !nuc_cargar('cop_avisoMotor', false)) {
       nuc_guardar('cop_avisoMotor', true);

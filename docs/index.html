@@ -1943,6 +1943,68 @@ function nuc_usoAlmacenMB() {
   } catch (e) { return 0; }
 }
 
+/* --- Auto-actualización: fetch INMEDIATO al abrir (no espera 5 min) --------*/
+function nuc_detectorVersiones() {
+  try {
+    const verLocal = nuc_cargar('version_cargada', '');
+    const verActual = CONFIG.VERSION || '?';
+
+    // Guarda la versión actual
+    if (verLocal !== verActual) {
+      console.info('[versión] local: ' + verLocal + ' → actual: ' + verActual);
+      nuc_guardar('version_cargada', verActual);
+    }
+
+    // Fetch INMEDIATO al abrir (no esperar 5 minutos)
+    nuc_checkVersionRemota(true);  // true = fetch AHORA
+  } catch (e) { console.warn('[versión] error:', e && e.message); }
+}
+
+function nuc_checkVersionRemota(fetchAhora) {
+  try {
+    const ahora = Date.now();
+    const ultCheck = nuc_cargar('version_check_ts', 0);
+
+    // Fetch INMEDIATO si es la primera carga, después cada 5 minutos
+    const debeChequear = fetchAhora || (ahora - ultCheck > 300000);
+    if (!debeChequear) return;
+
+    nuc_guardar('version_check_ts', ahora);
+    const urlActual = window.location.href.split('#')[0].split('?')[0];
+
+    // Headers agresivos anti-caché
+    const opcionesFetch = {
+      cache: 'no-store',
+      method: 'GET',
+      headers: {
+        'pragma': 'no-cache',
+        'cache-control': 'no-cache, no-store, must-revalidate',
+      }
+    };
+
+    fetch(urlActual + '?_nocache=' + ahora, opcionesFetch)
+      .then(resp => {
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        return resp.text();
+      })
+      .then(html => {
+        if (!html || html.length < 100) return;  // contenido muy pequeño: timeout/error
+        const m = html.match(/VERSION:\s*['"]([^'"]+)['"]/);
+        const verRemota = m ? m[1] : null;
+        if (verRemota && verRemota !== CONFIG.VERSION) {
+          console.warn('[versión] remota: ' + verRemota + ' · local: ' + CONFIG.VERSION + ' → RECARGANDO');
+          // Recarga YA (no espera 500ms)
+          window.location.reload(true);
+        } else if (verRemota) {
+          console.info('[versión] está al día: ' + verRemota);
+        }
+      })
+      .catch(e => {
+        console.debug('[versión] check falló (sin internet/timeout):', e && e.message);
+      });
+  } catch (e) { /* error fatal: no rompe */ }
+}
+
 /* --- Geometría y varios -----------------------------------------------------*/
 function nuc_clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
 function nuc_dist(x1, y1, x2, y2) { const dx = x2 - x1, dy = y2 - y1; return Math.sqrt(dx * dx + dy * dy); }
@@ -2212,6 +2274,8 @@ function nuc_init() {
   }
   estado.zonas = nuc_cargar('zonas', []);
   estado.lineas = nuc_cargar('lineas', []);
+  // Detecta si hay nueva versión y se actualiza sola
+  nuc_detectorVersiones();
 }
 
 
@@ -11464,6 +11528,11 @@ function cop_aplicar(activo, restaurando) {
       // PRIMER pitido (el que importa) puede salir mudo.
       cop_armarAudio();
     }
+    // Pre-inicializa Tesseract.js en paralelo si la lectura continua está activa:
+    // así, cuando llegue la primera foto, el OCR ya está listo (no hay 2-3 s de espera).
+    if (estado.cfg.matContinuo && typeof mat_iniciarOCR === 'function') {
+      try { mat_iniciarOCR().catch(function () {}); } catch (e) {}
+    }
     // Consejo una sola vez: con el motor básico los coches lejanos se pierden.
     if (estado.cfg.motor === 'coco' && !nuc_cargar('cop_avisoMotor', false)) {
       nuc_guardar('cop_avisoMotor', true);
@@ -12433,20 +12502,15 @@ function sc_cargarOrt() {
   });
 }
 
-/* URL del modelo (editable en Ajustes). Por defecto se descarga de la MISMA web
- * donde está la app (carpeta modelos/ en GitHub Pages): misma procedencia, sin
- * CORS y sin depender de Hugging Face (que empezó a devolver 401). Si la app se
- * abre como archivo suelto (file://) no habrá modelos ahí; entonces se cae al
- * espejo de Hugging Face por si acaso. El dueño puede sobrescribir la URL. */
+/* URL del modelo (editable en Ajustes). Por defecto: jsDelivr (rápido, con CORS) →
+ * Hugging Face (fallback) → carpeta local. El dueño puede sobrescribir la URL. */
 function sc_urlModelo(clave) {
   const k = 'scUrl' + clave.toUpperCase();
   const propia = (estado.cfg[k] || '').trim();
   if (propia) return propia;
-  const esArchivo = (typeof location !== 'undefined' && location.protocol === 'file:');
-  if (esArchivo) {
-    return 'https://huggingface.co/onnx-community/yolo11' + clave + '/resolve/main/onnx/model.onnx';
-  }
-  return 'modelos/yolo11' + clave + '.onnx';   // relativo a la web (GitHub Pages)
+  // jsDelivr es rápido, tiene CORS habilitado y no se cae como Hugging Face.
+  // El espejo jsDelivr de Hugging Face es: https://cdn.jsdelivr.net/gh/onnx-community/yolo11<clave>
+  return 'https://cdn.jsdelivr.net/gh/onnx-community/yolo11' + clave + '@main/onnx/model.onnx';
 }
 
 /* Descarga el .onnx con PROGRESO y lo guarda en Cache API (persistente).
@@ -13655,10 +13719,12 @@ function mat_capturarTodas(ahora) {
 function mat_fotografiar(veh, ahora) {
   const m = estado.mat;
   const c = veh.caja;
-  // UNA foto que cubre la placa trasera Y la delantera (mitad baja ancha del
-  // vehículo): el buscador de banda (mat_bandaPlaca) localiza la placa dentro,
-  // así que no hacen falta dos fotos por disparo — el OCR trabaja la mitad.
-  const cnv = mat_recorteZona(c.x + c.an * 0.15, c.y + c.al * 0.40, c.an * 0.70, c.al * 0.55);
+  // Zona amplia que cubre TANTO placa trasera (abajo) como delantera (centro-bajo):
+  // coche de frente → placa en parachoques (45-75% desde arriba)
+  // coche de perfil → placa trasera (60-85% desde arriba)
+  // Solución: capturar toda la mitad baja (35-100% altura) para no perder nada.
+  // El buscador de banda (mat_bandaPlaca) localiza la placa real dentro.
+  const cnv = mat_recorteZona(c.x + c.an * 0.10, c.y + c.al * 0.35, c.an * 0.80, c.al * 0.70);
   if (!cnv) return;
   const fotoId = mat_fotoGuardar(cnv, ahora, veh);       // a la galería SIEMPRE
   m.cola.push({ cnv: cnv, ts: ahora, zona: 'vehiculo', fotoId: fotoId });
@@ -13758,7 +13824,9 @@ async function mat_procesarCola() {
   // Respiro ADAPTATIVO: si el detector va justo (inferencia lenta), el lector
   // cede el paso y espera más entre fotos. Las fotos no caducan (45 s de
   // margen), así que no se pierde nada: solo se lee más despacio.
-  const hueco = Math.max(MAT_OCR_HUECO_MS, (estado.video.msInferencia || 0) * 1.5);
+  // PERO: si el OCR no está listo aún, acelera la cola (no esperes a que Tesseract
+  // se inicialice): las fotos siguen llegando y se leen todas cuando esté listo.
+  const hueco = m.worker ? Math.max(MAT_OCR_HUECO_MS, (estado.video.msInferencia || 0) * 1.5) : 100;
   if (ahora - (m.ultOcr || 0) < hueco) return;
   m.leyendo = true;
   try {
@@ -13795,14 +13863,13 @@ async function mat_procesarCola() {
   finally { m.ultOcr = Date.now(); m.leyendo = false; }
 }
 
-/* OCR rápido sobre recorte: banda (PSM 8, single line) si existe, si no
- * recorte completo (PSM 11, sparse text). SIN sharpening (muy lento).
- * Objetivo: acertar EN 2 SEGUNDOS. */
+/* OCR robusto: intenta varias estrategias hasta conseguir una matrícula válida.
+ * Banda (PSM 8) → recorte completo (PSM 11) → raw line (PSM 13). */
 async function mat_ocrSobre(cnv) {
   const m = estado.mat;
   const banda = mat_bandaPlaca(cnv);
 
-  // ESTRATEGIA 1 (rápida): banda de placa, PSM 8 (single line)
+  // ESTRATEGIA 1: banda de placa detectada, PSM 8 (single line, el más preciso)
   if (banda) {
     try {
       await m.worker.setParameters({ tessedit_pageseg_mode: '8' });
@@ -13812,7 +13879,23 @@ async function mat_ocrSobre(cnv) {
     } catch (e) { /* fallback */ }
   }
 
-  // FALLBACK: recorte completo, PSM 11 (sparse text)
+  // ESTRATEGIA 2: recorte completo, PSM 11 (sparse text para cuando falla la banda)
+  try {
+    await m.worker.setParameters({ tessedit_pageseg_mode: '11' });
+    const r = await m.worker.recognize(cnv);
+    const texto = String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
+    if (mat_candidata(texto)) return texto;
+  } catch (e) { /* fallback */ }
+
+  // ESTRATEGIA 3: PSM 13 (raw line, a veces funciona en fotos de noche)
+  try {
+    await m.worker.setParameters({ tessedit_pageseg_mode: '13' });
+    const r = await m.worker.recognize(cnv);
+    const texto = String((r && r.data && r.data.text) || '').toUpperCase().replace(/\s+/g, ' ').trim();
+    if (mat_candidata(texto)) return texto;
+  } catch (e) { /* fallback */ }
+
+  // FALLBACK: si nada funcionó, devolver lo que sea (mejor algo que nada)
   try {
     await m.worker.setParameters({ tessedit_pageseg_mode: '11' });
     const r = await m.worker.recognize(cnv);
@@ -14076,8 +14159,8 @@ function mat_bandaPlaca(cnv) {
     }
     let max = 0;
     for (let y = 0; y < h; y++) if (trans[y] > max) max = trans[y];
-    if (max < 6) return null;                        // no hay nada tipo texto (agresivo: detecta bandas débiles)
-    const lim = Math.max(5, max * 0.35);             // tolerante: acepta filas con pocas transiciones
+    if (max < 4) return null;                        // muy permisivo: detecta incluso fotos de noche (menos agresivo)
+    const lim = Math.max(3, max * 0.25);             // muy tolerante: acepta filas débiles (fotos oscuras)
     // La banda contigua más ALTA de filas con muchas transiciones.
     let mejorIni = 0, mejorFin = 0, ini = 0, dentro = false;
     for (let y = 0; y <= h; y++) {
@@ -14165,6 +14248,29 @@ function mat_cargarOCR() {
     } catch (e) { resolver(null); }
   });
   return m.cargando;
+}
+
+/* PRE-INICIA Tesseract.js y su worker ANTES de que lleguen fotos de la cola.
+ * Sin esto, la primera foto espera 2-3 s a que Tesseract se descargue e
+ * inicialice el worker: un retraso inaceptable en conducción. Con esto,
+ * cuando llega la primera foto el OCR está LISTO. */
+async function mat_iniciarOCR() {
+  if (!estado.mat) return;
+  if (estado.mat.worker) return;                        // ya está listo
+  try {
+    const T = await mat_cargarOCR();
+    if (!T || !T.createWorker) return;                  // sin Tesseract no hay nada que hacer
+    const m = estado.mat;
+    m.worker = await T.createWorker('eng');
+    await m.worker.setParameters({
+      tessedit_char_whitelist: '0123456789BCDFGHJKLMNPRSTVWXYZ- ',
+      tessedit_do_invert: '0',
+      tessedit_pageseg_mode: '8',
+      tessedit_write_output_file: '0',
+      tessedit_create_pdf: '0',
+      tessedit_create_hocr: '0',
+    });
+  } catch (e) { /* sin OCR, la lectura se hace a mano o no se hace */ }
 }
 
 /* ============================================================================
