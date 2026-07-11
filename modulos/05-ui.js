@@ -259,12 +259,15 @@ function ui_actualizarAforoPantalla() {
   }
 }
 
-/* Muestra/oculta la sección de carretera y la tarjeta de vehículos según el modo */
+/* Muestra/oculta la sección de carretera y la tarjeta de vehículos según el modo.
+ * Respeta el selector de vistas (módulo 21): fuera de la vista carretera, el
+ * panel de carretera no se re-muestra aunque cfg.modo sea 'carretera'. */
 function ui_aplicarModo() {
   const refs = estado.uiRefs;
   if (!refs) return;
   const esCarretera = !!(estado.cfg && estado.cfg.modo === 'carretera');
-  if (refs.secCarretera) refs.secCarretera.classList.toggle('oculto', !esCarretera);
+  const enVistaCarretera = (typeof modos_vista !== 'function') || modos_vista() === 'carretera';
+  if (refs.secCarretera) refs.secCarretera.classList.toggle('oculto', !(esCarretera && enVistaCarretera));
   if (refs.cardVehiculos) refs.cardVehiculos.classList.toggle('oculto', !esCarretera);
 }
 

@@ -422,14 +422,33 @@ h1, h2, h3, p { margin: 0; }
       </div>
     </div>
     <div class="fila ui-header-acciones">
-      <button type="button" class="btn btn-mini btn-fantasma" id="ui-btnCopiloto">🚗 Copiloto</button>
-      <button type="button" class="btn btn-mini btn-fantasma" id="ui-btnCasa">🏠 Casa</button>
-      <button type="button" class="btn btn-mini btn-fantasma" id="ui-btnCentinela">👁 Centinela</button>
-      <button type="button" class="btn btn-mini btn-fantasma" id="ui-btnModoMando">🧠 Mando</button>
       <button type="button" class="btn btn-mini btn-fantasma" id="ui-btnAforo">Aforo</button>
       <button type="button" class="btn btn-mini btn-fantasma" id="ui-btnAjustes" aria-label="Abrir ajustes">⚙ Ajustes</button>
     </div>
   </header>
+
+  <!-- SELECTOR DE MODOS: cada modo enseña SOLO sus paneles (módulo 21) -->
+  <style>
+    .modos-barra { display: flex; gap: 8px; padding: 8px 12px; overflow-x: auto;
+      background: var(--panel); border-bottom: 1px solid var(--borde);
+      scrollbar-width: none; -webkit-overflow-scrolling: touch; position: sticky; top: 0; z-index: 700; }
+    .modos-barra::-webkit-scrollbar { display: none; }
+    .modos-chip { flex: 0 0 auto; display: inline-flex; align-items: center; gap: .4em;
+      min-height: 44px; padding: .4rem .9rem; border-radius: 999px;
+      background: var(--panel2); color: var(--texto2); border: 1px solid var(--borde);
+      font-weight: 700; font-size: .88rem; cursor: pointer; white-space: nowrap;
+      transition: background .18s ease, color .18s ease, border-color .18s ease; }
+    .modos-chip.activo { background: var(--azul); border-color: var(--azul); color: #051019; }
+    .modos-chip:active { transform: scale(.97); }
+  </style>
+  <nav id="modos-barra" class="modos-barra" aria-label="Modo de uso">
+    <button type="button" class="modos-chip" id="modos-chipComercio" data-vista="comercio">🛒 Comercio</button>
+    <button type="button" class="modos-chip" id="modos-chipCarretera" data-vista="carretera">🅿 Parking</button>
+    <button type="button" class="modos-chip" id="modos-chipCopiloto" data-vista="copiloto">🚗 Copiloto</button>
+    <button type="button" class="modos-chip" id="modos-chipCasa" data-vista="casa">🏠 Casa</button>
+    <button type="button" class="modos-chip" id="modos-chipCentinela" data-vista="centinela">👁 Centinela</button>
+    <button type="button" class="modos-chip" id="modos-chipMando" data-vista="mando">🧠 Mando</button>
+  </nav>
 
   <div id="ui-banners" class="ui-banners" aria-live="assertive"></div>
 
@@ -504,6 +523,9 @@ h1, h2, h3, p { margin: 0; }
 <!-- SLOT:COPILOTO — panel del MODO COPILOTO / COCHE (dashcam) (cop_) -->
 <div id="cop-panel">
   <h2 class="sec-titulo">🚗 Modo copiloto / coche</h2>
+
+  <!-- Activación: antes vivía en el header; ahora dentro de su propio modo. -->
+  <button type="button" class="btn btn-primario" id="cop-btnActivar" style="min-height:52px;width:100%;margin-bottom:10px">▶ Activar copiloto</button>
 
   <!-- Lecturas en vivo -->
   <div class="fila" style="flex-wrap:wrap;">
@@ -644,7 +666,7 @@ h1, h2, h3, p { margin: 0; }
 
     </section>
 
-    <section id="ui-secCasa">
+    <section id="ui-secCasa" class="oculto">
       
 <!-- SLOT:CASA (inyectado desde 19-casa.html) -->
 <!-- 19-CASA — Panel del MODO CASA PREMIUM (capa sobre el modo super). -->
@@ -667,8 +689,11 @@ h1, h2, h3, p { margin: 0; }
   @keyframes casa-flash { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
 </style>
 
-<section id="casa-panel" class="sec oculto" aria-label="Modo Casa">
+<section id="casa-panel" class="sec" aria-label="Modo Casa">
   <h2 class="sec-titulo">🏠 Modo Casa</h2>
+
+  <!-- Activación de la capa de vigilancia de casa (timbre, roles, paquetería…) -->
+  <button type="button" class="btn btn-primario" id="casa-btnActivar" style="min-height:52px;width:100%">▶ Activar vigilancia de casa</button>
 
   <!-- 1) Estados de alarma -->
   <div class="tarjeta">
@@ -727,7 +752,7 @@ h1, h2, h3, p { margin: 0; }
 
     </section>
 
-    <section id="ui-secCentinela">
+    <section id="ui-secCentinela" class="oculto">
       
 <!-- SLOT:CENTINELA (inyectado desde 20-centinela.html) -->
 <!-- 20-CENTINELA — Panel del DMS del conductor (carga perezosa). -->
@@ -743,7 +768,7 @@ h1, h2, h3, p { margin: 0; }
   @keyframes dms-pulso { 0%,49% { background: rgba(255,20,40,.72); } 50%,100% { background: rgba(120,0,10,.55); } }
 </style>
 
-<section id="centinela-panel" class="sec oculto" aria-label="Centinela del conductor">
+<section id="centinela-panel" class="sec" aria-label="Centinela del conductor">
   <h2 class="sec-titulo">👁 Centinela — vigilancia del conductor</h2>
 
   <div class="tarjeta">
@@ -1916,7 +1941,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.37',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.38',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -5334,12 +5359,15 @@ function ui_actualizarAforoPantalla() {
   }
 }
 
-/* Muestra/oculta la sección de carretera y la tarjeta de vehículos según el modo */
+/* Muestra/oculta la sección de carretera y la tarjeta de vehículos según el modo.
+ * Respeta el selector de vistas (módulo 21): fuera de la vista carretera, el
+ * panel de carretera no se re-muestra aunque cfg.modo sea 'carretera'. */
 function ui_aplicarModo() {
   const refs = estado.uiRefs;
   if (!refs) return;
   const esCarretera = !!(estado.cfg && estado.cfg.modo === 'carretera');
-  if (refs.secCarretera) refs.secCarretera.classList.toggle('oculto', !esCarretera);
+  const enVistaCarretera = (typeof modos_vista !== 'function') || modos_vista() === 'carretera';
+  if (refs.secCarretera) refs.secCarretera.classList.toggle('oculto', !(esCarretera && enVistaCarretera));
   if (refs.cardVehiculos) refs.cardVehiculos.classList.toggle('oculto', !esCarretera);
 }
 
@@ -14685,8 +14713,8 @@ function casa_init() {
   if (marca) estado.casa.inactivoDesde = marca;
   nuc_borrar('casa_vigilando_desde');
 
-  // Botón del header (solo si el nodo existe).
-  const btn = document.getElementById('ui-btnCasa');
+  // Botón grande de activación dentro del panel (la vista la elige el selector de modos).
+  const btn = document.getElementById('casa-btnActivar');
   if (btn) btn.addEventListener('click', function () { casa_alternar(); });
 
   casa_cablearControles();
@@ -14733,12 +14761,15 @@ function casa_alternar(forzar) {
   if (typeof bus !== 'undefined') bus.emit('cfg:cambio', { clave: 'casaActivo' });
 }
 
-/* Enciende/apaga lo que consume recursos según el estado de la capa. */
+/* Enciende/apaga lo que consume recursos según el estado de la capa.
+ * (La visibilidad del panel la gobierna el selector de modos, no esto.) */
 function casa_aplicar(activo) {
-  const panel = document.getElementById('casa-panel');
-  if (panel) panel.classList.toggle('oculto', !activo);
-  const btn = document.getElementById('ui-btnCasa');
-  if (btn) btn.classList.toggle('activo', !!activo);
+  const btn = document.getElementById('casa-btnActivar');
+  if (btn) {
+    btn.textContent = activo ? '⏹ Desactivar vigilancia de casa' : '▶ Activar vigilancia de casa';
+    btn.classList.toggle('btn-primario', !activo);
+    btn.classList.toggle('btn-peligro', !!activo);
+  }
 
   if (activo) {
     // Marca de "estoy vigilando" para detectar cierres inesparados la próxima vez.
@@ -15338,8 +15369,14 @@ function casa_sincronizarControles() {
     const el = document.getElementById(par[0]);
     if (el) el.checked = !!estado.cfg[par[1]];
   });
-  const panel = document.getElementById('casa-panel');
-  if (panel) panel.classList.toggle('oculto', !estado.cfg.casaActivo);
+  // Texto del botón de activación acorde al estado actual (sin efectos laterales).
+  const btnAct = document.getElementById('casa-btnActivar');
+  if (btnAct) {
+    const on = !!estado.cfg.casaActivo;
+    btnAct.textContent = on ? '⏹ Desactivar vigilancia de casa' : '▶ Activar vigilancia de casa';
+    btnAct.classList.toggle('btn-primario', !on);
+    btnAct.classList.toggle('btn-peligro', on);
+  }
 }
 
 /* Modal para asignar un rol de casa a cada zona dibujada. */
@@ -15528,14 +15565,9 @@ function dms_toast(msg, nivel) {
 
 function dms_activo() { return !!(estado.dms && estado.dms.activo); }
 
-/* Muestra/oculta el panel del Centinela (barato: no toca ni modelo ni cámara). */
-function dms_panelAlternar(forzar) {
-  const panel = document.getElementById('centinela-panel');
-  if (!panel) return;
-  const mostrar = (typeof forzar === 'boolean') ? forzar : panel.classList.contains('oculto');
-  panel.classList.toggle('oculto', !mostrar);
-  const hb = document.getElementById('ui-btnCentinela');
-  if (hb) hb.classList.toggle('activo', mostrar || dms_activo());
+/* Lleva a la vista del Centinela (la visibilidad la gobierna el selector de modos). */
+function dms_panelAlternar() {
+  if (typeof modos_ir === 'function') modos_ir('centinela');
   dms_sincronizarControles();
 }
 
@@ -15985,6 +16017,155 @@ function dms_render() {
 }
 
 
+/* ===== 21-modos.js ===== */
+/* ============================================================================
+ * 21-MODOS — VIGÍA IA · selector de modos de uso (la barra de chips).
+ * Prefijo: modos_ / MODOS_. Estado interno en estado.modos.
+ *
+ * PROBLEMA QUE RESUELVE: la app tiene 6 usos distintos (comercio, parking,
+ * copiloto, casa, centinela, mando) y hasta ahora TODOS los paneles se
+ * apilaban juntos en la misma pantalla: imposible de manejar. Esta barra
+ * separa los modos: al elegir uno se enseñan SOLO sus paneles y se ocultan
+ * los demás. No se pierde ninguna opción: todas siguen ahí, cada una en su
+ * modo, y los ajustes generales siguen en ⚙ Ajustes.
+ *
+ * QUÉ NO HACE: no activa ni desactiva funciones por sí solo (cambiar de vista
+ * no enciende cámaras ni sensores). Activar el copiloto, la casa o el
+ * centinela se hace con el botón grande DENTRO de su panel. Las únicas
+ * excepciones son cfg.modo (super/carretera, que es solo el perfil de
+ * análisis) y el modo mando (que ya gestionaba su propia entrada/salida).
+ *
+ * SEGURIDAD: todo con guarda-clauses; funciona sin vídeo, sin modelos y en
+ * headless. Un módulo ausente (typeof === 'undefined') no rompe nada.
+ * ==========================================================================*/
+
+/* Definición de cada vista: qué secciones enseña y qué perfil de análisis usa.
+ * 'modo' (super/carretera) solo se toca en las vistas que lo necesitan. */
+const MODOS_DEF = {
+  comercio:  { modo: 'super',     secs: ['ui-secVideo', 'ui-contadores', 'ui-secAlertas', 'ui-secStats'] },
+  carretera: { modo: 'carretera', secs: ['ui-secVideo', 'ui-contadores', 'ui-secAlertas', 'ui-secStats', 'ui-secCarretera'] },
+  copiloto:  {                    secs: ['ui-secVideo', 'ui-secCopiloto'] },
+  casa:      { modo: 'super',     secs: ['ui-secVideo', 'ui-secCasa', 'ui-secAlertas'] },
+  centinela: {                    secs: ['ui-secVideo', 'ui-secCentinela'] },
+  mando:     {                    secs: ['ui-secMando'] },
+};
+const MODOS_VISTAS = Object.keys(MODOS_DEF);
+/* Todas las secciones que este módulo gobierna (unión de las de arriba). */
+const MODOS_SECS = ['ui-secVideo', 'ui-contadores', 'ui-secAlertas', 'ui-secStats',
+  'ui-secCarretera', 'ui-secCopiloto', 'ui-secCasa', 'ui-secCentinela', 'ui-secMando'];
+
+function modos_init() {
+  if (estado.modos && estado.modos.inited) return;
+  estado.modos = { inited: false, vista: 'comercio', seteando: false };
+
+  // Chips de la barra.
+  MODOS_VISTAS.forEach(function (v) {
+    const chip = document.querySelector('.modos-chip[data-vista="' + v + '"]');
+    if (chip) chip.addEventListener('click', function () { modos_ir(v); });
+  });
+
+  // Botón de activación del copiloto DENTRO de su panel (antes era el del header).
+  const btnCop = document.getElementById('cop-btnActivar');
+  if (btnCop) btnCop.addEventListener('click', function () {
+    if (typeof cop_alternar === 'function') cop_alternar();
+    modos_aplicar();   // cop_aplicar toca la visibilidad de su sección: re-imponer la vista
+    modos_sincronizarBotones();
+  });
+
+  // Si el dueño cambia el modo desde Ajustes u onboarding, la vista acompaña
+  // (solo entre comercio↔carretera; las demás vistas fijan su modo a propósito).
+  if (typeof bus !== 'undefined' && bus.on) {
+    bus.on('cfg:cambio', function (d) {
+      if (!d || d.clave !== 'modo' || estado.modos.seteando) return;
+      const v = estado.modos.vista;
+      if (v !== 'comercio' && v !== 'carretera') return;
+      const objetivo = estado.cfg.modo === 'carretera' ? 'carretera' : 'comercio';
+      if (v !== objetivo) modos_ir(objetivo);
+    });
+  }
+
+  // Vista inicial: la guardada; si no, se deduce de lo que estaba activo.
+  let inicial = nuc_cargar('modos_vista', null);
+  if (MODOS_VISTAS.indexOf(inicial) < 0) {
+    if (estado.mando && estado.mando.activo) inicial = 'mando';
+    else if (estado.cfg.copActivo) inicial = 'copiloto';
+    else if (estado.cfg.casaActivo) inicial = 'casa';
+    else inicial = (estado.cfg.modo === 'carretera') ? 'carretera' : 'comercio';
+  }
+  estado.modos.vista = inicial;
+  estado.modos.inited = true;
+  modos_aplicar();
+}
+
+function modos_vista() { return estado.modos ? estado.modos.vista : 'comercio'; }
+
+/* Cambia de vista y aplica. */
+function modos_ir(vista) {
+  if (MODOS_VISTAS.indexOf(vista) < 0 || !estado.modos) return;
+  const anterior = estado.modos.vista;
+  estado.modos.vista = vista;
+  nuc_guardar('modos_vista', vista);
+
+  // El modo mando gestiona su propia entrada/salida (conexión remota).
+  if (typeof mando_alternar === 'function') {
+    try {
+      if (vista === 'mando' && (!estado.mando || !estado.mando.activo)) mando_alternar(true);
+      if (vista !== 'mando' && anterior === 'mando' && estado.mando && estado.mando.activo) mando_alternar(false);
+    } catch (e) {}
+  }
+  modos_aplicar();
+}
+
+/* Impone la vista actual: secciones, chips, perfil de análisis y botón Aforo. */
+function modos_aplicar() {
+  if (!estado.modos) return;
+  const vista = estado.modos.vista;
+  const def = MODOS_DEF[vista] || MODOS_DEF.comercio;
+
+  // 1) Secciones: solo las de la vista.
+  MODOS_SECS.forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('oculto', def.secs.indexOf(id) < 0);
+  });
+
+  // 2) Chips: marcar el activo.
+  MODOS_VISTAS.forEach(function (v) {
+    const chip = document.querySelector('.modos-chip[data-vista="' + v + '"]');
+    if (chip) {
+      chip.classList.toggle('activo', v === vista);
+      chip.setAttribute('aria-pressed', v === vista ? 'true' : 'false');
+    }
+  });
+
+  // 3) Perfil de análisis (super/carretera) si la vista lo fija.
+  if (def.modo && estado.cfg.modo !== def.modo) {
+    estado.modos.seteando = true;
+    estado.cfg.modo = def.modo;
+    nuc_guardar('cfg', estado.cfg);
+    if (typeof bus !== 'undefined') bus.emit('cfg:cambio', { clave: 'modo' });
+    estado.modos.seteando = false;
+  }
+
+  // 4) El botón Aforo solo tiene sentido en comercio/parking.
+  const aforo = document.getElementById('ui-btnAforo');
+  if (aforo) aforo.classList.toggle('oculto', vista !== 'comercio' && vista !== 'carretera');
+
+  modos_sincronizarBotones();
+  if (typeof bus !== 'undefined') bus.emit('modos:vista', { vista: vista });
+}
+
+/* Textos de los botones de activación internos (copiloto). */
+function modos_sincronizarBotones() {
+  const btnCop = document.getElementById('cop-btnActivar');
+  if (btnCop) {
+    const on = !!estado.cfg.copActivo;
+    btnCop.textContent = on ? '⏹ Desactivar copiloto' : '▶ Activar copiloto';
+    btnCop.classList.toggle('btn-primario', !on);
+    btnCop.classList.toggle('btn-peligro', on);
+  }
+}
+
+
 /* ===== 99-app.js ===== */
 /* ============================================================================
  * 99-APP — arranque y bucle principal (integrador, Fase 2).
@@ -16031,6 +16212,7 @@ async function app_init() {
     if (typeof mat_init === 'function') mat_init();   // matrícula (evidencia)
     if (typeof casa_init === 'function') casa_init(); // modo casa (capa sobre super)
     if (typeof dms_init === 'function') dms_init();   // centinela del conductor (perezoso)
+    if (typeof modos_init === 'function') modos_init(); // selector de modos (el ÚLTIMO: impone la vista)
     // Supercerebro (ONNX-YOLO11): init siempre; si era el motor elegido,
     // reactiva el modelo guardado (desde la caché, sin re-descargar).
     if (typeof sc_init === 'function') {
@@ -16259,9 +16441,10 @@ if (document.readyState === 'loading') {
       { "click": "#ui-modoSuper" },
       { "click": "#ui-fuenteSaltar" },
       { "click": "#ui-onboardingTerminar" },
-      { "click": "#ui-btnCasa" },
+      { "click": "#modos-chipCasa" },
       { "wait": 250 },
       { "expectVisible": "#casa-panel" },
+      { "expectVisible": "#casa-btnActivar" },
       { "expect": "sustituye la supervisión de menores" },
       { "click": "#casa-btnRoles" },
       { "wait": 250 },
@@ -16274,11 +16457,29 @@ if (document.readyState === 'loading') {
       { "click": "#ui-modoSuper" },
       { "click": "#ui-fuenteSaltar" },
       { "click": "#ui-onboardingTerminar" },
-      { "click": "#ui-btnCentinela" },
+      { "click": "#modos-chipCentinela" },
       { "wait": 250 },
       { "expectVisible": "#centinela-panel" },
       { "expect": "el conductor es siempre el responsable" },
       { "expectVisible": "#centinela-btnActivar" }
+    ]
+  },
+  {
+    "name": "Selector de modos: cada vista enseña SOLO sus paneles",
+    "steps": [
+      { "click": "#ui-modoSuper" },
+      { "click": "#ui-fuenteSaltar" },
+      { "click": "#ui-onboardingTerminar" },
+      { "wait": 250 },
+      { "expectVisible": "#ui-contadores" },
+      { "click": "#modos-chipCopiloto" },
+      { "wait": 250 },
+      { "expectVisible": "#cop-panel" },
+      { "expectGone": "#ui-contadores" },
+      { "click": "#modos-chipComercio" },
+      { "wait": 250 },
+      { "expectVisible": "#ui-contadores" },
+      { "expectGone": "#cop-panel" }
     ]
   }
 ]

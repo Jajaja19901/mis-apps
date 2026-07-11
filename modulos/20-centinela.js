@@ -100,14 +100,9 @@ function dms_toast(msg, nivel) {
 
 function dms_activo() { return !!(estado.dms && estado.dms.activo); }
 
-/* Muestra/oculta el panel del Centinela (barato: no toca ni modelo ni cámara). */
-function dms_panelAlternar(forzar) {
-  const panel = document.getElementById('centinela-panel');
-  if (!panel) return;
-  const mostrar = (typeof forzar === 'boolean') ? forzar : panel.classList.contains('oculto');
-  panel.classList.toggle('oculto', !mostrar);
-  const hb = document.getElementById('ui-btnCentinela');
-  if (hb) hb.classList.toggle('activo', mostrar || dms_activo());
+/* Lleva a la vista del Centinela (la visibilidad la gobierna el selector de modos). */
+function dms_panelAlternar() {
+  if (typeof modos_ir === 'function') modos_ir('centinela');
   dms_sincronizarControles();
 }
 

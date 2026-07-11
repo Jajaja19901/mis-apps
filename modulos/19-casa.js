@@ -81,8 +81,8 @@ function casa_init() {
   if (marca) estado.casa.inactivoDesde = marca;
   nuc_borrar('casa_vigilando_desde');
 
-  // Botón del header (solo si el nodo existe).
-  const btn = document.getElementById('ui-btnCasa');
+  // Botón grande de activación dentro del panel (la vista la elige el selector de modos).
+  const btn = document.getElementById('casa-btnActivar');
   if (btn) btn.addEventListener('click', function () { casa_alternar(); });
 
   casa_cablearControles();
@@ -129,12 +129,15 @@ function casa_alternar(forzar) {
   if (typeof bus !== 'undefined') bus.emit('cfg:cambio', { clave: 'casaActivo' });
 }
 
-/* Enciende/apaga lo que consume recursos según el estado de la capa. */
+/* Enciende/apaga lo que consume recursos según el estado de la capa.
+ * (La visibilidad del panel la gobierna el selector de modos, no esto.) */
 function casa_aplicar(activo) {
-  const panel = document.getElementById('casa-panel');
-  if (panel) panel.classList.toggle('oculto', !activo);
-  const btn = document.getElementById('ui-btnCasa');
-  if (btn) btn.classList.toggle('activo', !!activo);
+  const btn = document.getElementById('casa-btnActivar');
+  if (btn) {
+    btn.textContent = activo ? '⏹ Desactivar vigilancia de casa' : '▶ Activar vigilancia de casa';
+    btn.classList.toggle('btn-primario', !activo);
+    btn.classList.toggle('btn-peligro', !!activo);
+  }
 
   if (activo) {
     // Marca de "estoy vigilando" para detectar cierres inesparados la próxima vez.
@@ -734,8 +737,14 @@ function casa_sincronizarControles() {
     const el = document.getElementById(par[0]);
     if (el) el.checked = !!estado.cfg[par[1]];
   });
-  const panel = document.getElementById('casa-panel');
-  if (panel) panel.classList.toggle('oculto', !estado.cfg.casaActivo);
+  // Texto del botón de activación acorde al estado actual (sin efectos laterales).
+  const btnAct = document.getElementById('casa-btnActivar');
+  if (btnAct) {
+    const on = !!estado.cfg.casaActivo;
+    btnAct.textContent = on ? '⏹ Desactivar vigilancia de casa' : '▶ Activar vigilancia de casa';
+    btnAct.classList.toggle('btn-primario', !on);
+    btnAct.classList.toggle('btn-peligro', on);
+  }
 }
 
 /* Modal para asignar un rol de casa a cada zona dibujada. */
