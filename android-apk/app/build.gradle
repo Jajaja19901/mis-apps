@@ -10,16 +10,32 @@ android {
     applicationId "com.incuba.vigia"
     minSdk 24
     targetSdk 34
-    versionCode 1
-    versionName "3.8"
+    versionCode 2
+    versionName "3.53"
+  }
+
+  // FIRMA FIJA: sin esto, cada build del robot se firmaba con una llave
+  // distinta y Android RECHAZABA instalar la actualización encima de la
+  // anterior (o fallaba en silencio). Con la misma llave siempre, las
+  // versiones nuevas se instalan sobre la vieja sin desinstalar nada.
+  // (App personal de instalación directa; la llave vive junto al proyecto.)
+  signingConfigs {
+    firmaVigia {
+      storeFile file('../firma.keystore')
+      storePassword 'vigia-ia-2026'
+      keyAlias 'vigia'
+      keyPassword 'vigia-ia-2026'
+    }
   }
 
   buildTypes {
     debug {
       minifyEnabled false
+      signingConfig signingConfigs.firmaVigia
     }
     release {
       minifyEnabled false
+      signingConfig signingConfigs.firmaVigia
     }
   }
 
