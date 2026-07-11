@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.43',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.44',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -118,6 +118,7 @@ const CFG_DEFECTOS = {
   casaResumenHora: '21:00',     // hora del resumen diario de vacaciones
   casaPiscinaSeg: 10,           // persona sola en zona piscina → alerta crítica
   casaMerodeoPuertaSeg: 30,     // en puerta sin entrar → sospecha de merodeo
+  peligroAviso: true,           // ⚠️ avisar de posible objeto peligroso (cuchillo/palo). NO detecta armas de fuego
   // 👁 CENTINELA — DMS del conductor (módulo 20, carga perezosa)
   centinelaActivo: false,       // el modelo facial NO se carga hasta activarlo
   dmsFps: 3,                    // análisis por segundo (2-4; párpados no piden más)
@@ -166,11 +167,15 @@ const NUC_PERSONA  = ['person'];
 const NUC_VEHICULOS = ['car', 'truck', 'bus', 'motorcycle', 'bicycle'];
 const NUC_BOLSAS   = ['backpack', 'handbag', 'suitcase'];
 const NUC_ANIMALES = ['dog', 'cat', 'bird'];
+/* Objetos peligrosos que el modelo general SÍ conoce (COCO). NO incluye armas
+ * de fuego: el modelo general no las detecta. El aviso es orientativo. */
+const NUC_PELIGRO  = ['knife', 'baseball bat'];
 const NUC_CLASES_ES = {
   person: 'persona', car: 'coche', truck: 'camión', bus: 'bus', motorcycle: 'moto',
   bicycle: 'bici', backpack: 'mochila', handbag: 'bolso', suitcase: 'maleta',
   dog: 'perro', cat: 'gato', bird: 'pájaro', umbrella: 'paraguas', 'cell phone': 'móvil',
   bottle: 'botella', chair: 'silla', 'potted plant': 'planta', tv: 'pantalla',
+  knife: 'cuchillo', 'baseball bat': 'palo/bate', scissors: 'tijeras',
 };
 function nuc_claseES(clase) { return NUC_CLASES_ES[clase] || clase; }
 

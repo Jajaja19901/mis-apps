@@ -1730,6 +1730,11 @@ summary.sec-titulo::before { display: inline-block; }
   <details class="tarjeta cfg-sec" id="cfg-secGestos">
     <summary class="sec-titulo">Gestos y comportamiento</summary>
 
+    <label class="fila" style="align-items:flex-start;gap:8px;">
+      <input type="checkbox" id="cfg-peligroAviso" data-cfg="peligroAviso">
+      <span>⚠️ Avisar de <b>posible objeto peligroso</b> (cuchillo, palo/bate) <span class="etiqueta">Orientativo y con falsos avisos. NO detecta armas de fuego (el modelo general no las conoce). Solo para revisión humana; nunca acuses a nadie por esta alerta.</span></span>
+    </label>
+
     <div class="campo">
       <label for="cfg-posesMax">Personas analizadas a la vez (gestos/postura)</label>
       <div class="fila">
@@ -2100,7 +2105,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.43',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.44',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -2207,6 +2212,7 @@ const CFG_DEFECTOS = {
   casaResumenHora: '21:00',     // hora del resumen diario de vacaciones
   casaPiscinaSeg: 10,           // persona sola en zona piscina → alerta crítica
   casaMerodeoPuertaSeg: 30,     // en puerta sin entrar → sospecha de merodeo
+  peligroAviso: true,           // ⚠️ avisar de posible objeto peligroso (cuchillo/palo). NO detecta armas de fuego
   // 👁 CENTINELA — DMS del conductor (módulo 20, carga perezosa)
   centinelaActivo: false,       // el modelo facial NO se carga hasta activarlo
   dmsFps: 3,                    // análisis por segundo (2-4; párpados no piden más)
@@ -2255,11 +2261,15 @@ const NUC_PERSONA  = ['person'];
 const NUC_VEHICULOS = ['car', 'truck', 'bus', 'motorcycle', 'bicycle'];
 const NUC_BOLSAS   = ['backpack', 'handbag', 'suitcase'];
 const NUC_ANIMALES = ['dog', 'cat', 'bird'];
+/* Objetos peligrosos que el modelo general SÍ conoce (COCO). NO incluye armas
+ * de fuego: el modelo general no las detecta. El aviso es orientativo. */
+const NUC_PELIGRO  = ['knife', 'baseball bat'];
 const NUC_CLASES_ES = {
   person: 'persona', car: 'coche', truck: 'camión', bus: 'bus', motorcycle: 'moto',
   bicycle: 'bici', backpack: 'mochila', handbag: 'bolso', suitcase: 'maleta',
   dog: 'perro', cat: 'gato', bird: 'pájaro', umbrella: 'paraguas', 'cell phone': 'móvil',
   bottle: 'botella', chair: 'silla', 'potted plant': 'planta', tv: 'pantalla',
+  knife: 'cuchillo', 'baseball bat': 'palo/bate', scissors: 'tijeras',
 };
 function nuc_claseES(clase) { return NUC_CLASES_ES[clase] || clase; }
 
@@ -16373,6 +16383,75 @@ function modos_sincronizarBotones() {
 }
 
 
+/* ===== 23-peligro.js ===== */
+/* ============================================================================
+ * 23-PELIGRO — VIGÍA IA · aviso de POSIBLE objeto peligroso (cuchillo, palo/bate)
+ * con el modelo general que ya lleva la app. Prefijo: pel_. Estado en estado.pel.
+ *
+ * HONESTIDAD (obligatoria):
+ *  · El modelo general NO detecta armas de fuego (pistolas): no están en lo que
+ *    aprendió. Solo reconoce objetos como «cuchillo» y «bate/palo».
+ *  · Da falsos positivos (confunde objetos alargados). Por eso el aviso dice
+ *    «posible objeto peligroso — revisar», NUNCA «arma» ni acusa a nadie.
+ *  · Es una capa extra para revisión humana, no un detector de armas certificado.
+ *
+ * SEGURIDAD: seguro sin vídeo ni modelos (guarda-clauses). Solo lee las
+ * detecciones del frame; no toca la cámara ni graba por su cuenta (la grabación
+ * la decide el módulo de alertas al dispararse la alerta).
+ * ==========================================================================*/
+
+const PEL_COOLDOWN_MS = 20000;   // no repetir el mismo tipo de objeto en 20 s
+const PEL_SCORE_MIN = 0.5;       // confianza mínima (alta, para menos falsos)
+const PEL_CERCA_REL = 0.35;      // objeto a <35% del ancho junto a una persona = más peligroso
+
+function pel_init() {
+  if (estado.pel && estado.pel.inited) return;
+  estado.pel = { inited: false, ult: {} };
+  if (typeof bus !== 'undefined' && bus.on) bus.on('frame', pel_vigilar);
+  estado.pel.inited = true;
+}
+
+/* Revisa las detecciones del último frame en busca de objetos peligrosos. */
+function pel_vigilar() {
+  try {
+    if (!estado.pel || !estado.cfg.peligroAviso) return;
+    // Solo en vigilancia de escena (comercio/casa usan el perfil «super»);
+    // en carretera/copiloto no tiene sentido (y evita falsos con el tráfico).
+    if (estado.cfg.modo !== 'super') return;
+    const dets = estado.detecciones || [];
+    if (!dets.length) return;
+    const w = estado.video.w || 640;
+    const personas = dets.filter(function (d) { return d && d.caja && NUC_PERSONA.indexOf(d.clase) >= 0; });
+    const ahora = Date.now();
+
+    for (let i = 0; i < dets.length; i++) {
+      const d = dets[i];
+      if (!d || !d.caja || NUC_PELIGRO.indexOf(d.clase) < 0) continue;
+      if ((d.score || 0) < PEL_SCORE_MIN) continue;
+      if (estado.pel.ult[d.clase] && ahora - estado.pel.ult[d.clase] < PEL_COOLDOWN_MS) continue;
+      estado.pel.ult[d.clase] = ahora;
+
+      // ¿Está junto a una persona? (empuñado → más grave que un objeto suelto).
+      const cx = d.caja.x + d.caja.an / 2, cy = d.caja.y + d.caja.al / 2;
+      let cerca = false;
+      for (let j = 0; j < personas.length; j++) {
+        const p = personas[j].caja;
+        const px = p.x + p.an / 2, py = p.y + p.al / 2;
+        if (nuc_dist(cx, cy, px, py) < PEL_CERCA_REL * w) { cerca = true; break; }
+      }
+      const nombre = (typeof nuc_claseES === 'function') ? nuc_claseES(d.clase) : d.clase;
+      const nivel = cerca ? 'critico' : 'sospecha';
+      const texto = '⚠️ Posible objeto peligroso (' + nombre + ')' +
+        (cerca ? ' junto a una persona' : '') +
+        ' — revisar. Es orientativo: no acuses a nadie solo por esta alerta.';
+      if (typeof alerta_disparar === 'function') {
+        try { alerta_disparar('peligro', nivel, texto, {}); } catch (e) {}
+      }
+    }
+  } catch (e) { console.warn('[peligro] ' + (e && e.message)); }
+}
+
+
 /* ===== 99-app.js ===== */
 /* ============================================================================
  * 99-APP — arranque y bucle principal (integrador, Fase 2).
@@ -16419,6 +16498,7 @@ async function app_init() {
     if (typeof mat_init === 'function') mat_init();   // matrícula (evidencia)
     if (typeof casa_init === 'function') casa_init(); // modo casa (capa sobre super)
     if (typeof dms_init === 'function') dms_init();   // centinela del conductor (perezoso)
+    if (typeof pel_init === 'function') pel_init();   // aviso de objeto peligroso (cuchillo/palo)
     if (typeof modos_init === 'function') modos_init(); // selector de modos (el ÚLTIMO: impone la vista)
     // Supercerebro (ONNX-YOLO11): init siempre; si era el motor elegido,
     // reactiva el modelo guardado (desde la caché, sin re-descargar).
