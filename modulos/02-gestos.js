@@ -52,6 +52,14 @@ const GESTO_MANOS_URL = 'https://storage.googleapis.com/mediapipe-models/hand_la
  * consulta en el instante decisivo del gesto, sobre el recorte ya hecho. */
 const GESTO_MANO_RADIO = 1.2;        // radio de emparejamiento mano↔muñeca (×anchoHombros)
 const GESTO_MANO_ABIERTA = 1.45;     // apertura media (punta/nudillo) ≥ esto = mano abierta
+/* QUÉ objeto coge: clases del detector que caben en una mano. Si al alcanzar
+ * el estante hay uno junto a la muñeca, se memoriza y el aviso lo nombra
+ * («posible botella»). Honesto: el modelo solo conoce 80 clases — muchos
+ * productos pequeños no los sabrá nombrar (el gesto se avisa igual). */
+const GESTO_OBJETOS_MANO = ['bottle', 'cup', 'wine glass', 'cell phone', 'book', 'remote',
+  'scissors', 'banana', 'apple', 'orange', 'sandwich', 'donut', 'mouse', 'toothbrush'];
+const GESTO_OBJETO_RADIO = 1.0;      // objeto a <1×anchoHombros de la muñeca = «en la mano»
+const GESTO_OBJETO_CADUCA_MS = 8000; // el objeto memorizado caduca a los 8 s
 
 /* --- Estado interno del módulo (vive en estado.gesto) ----------------------*/
 function gesto_estado() {
@@ -349,6 +357,8 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
   for (let k = 0; k < munecas.length; k++) {
     const muneca = munecas[k];
     if (!gesto_visible(muneca)) continue;
+    // 📦 ¿Hay un objeto conocido EN esa mano? Se memoriza para nombrarlo en el aviso.
+    gesto_objetoEnMano(id, muneca, anchoHombros, ts);
     const dT = nuc_dist(muneca.x, muneca.y, torsoC.x, torsoC.y);
     if (dT > GESTO_EXT_ALCANCE * anchoHombros) extendida = true;
     let dCadera = Infinity;
@@ -430,6 +440,28 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
 }
 
 /* Suma sospecha (clamp 0..100) y, al cruzar el umbral, emite con cooldown. */
+/* Memoriza el objeto conocido más cercano a la muñeca (si cabe en una mano). */
+function gesto_objetoEnMano(id, muneca, anchoHombros, ts) {
+  try {
+    const g = estado.gesto;
+    if (!g.objetoEnMano) g.objetoEnMano = {};
+    const dets = estado.detecciones || [];
+    if (!dets.length) return;
+    const radio = GESTO_OBJETO_RADIO * anchoHombros;
+    const areaFrame = (estado.video.w || 640) * (estado.video.h || 480);
+    let mejor = null, mejorD = Infinity;
+    for (let i = 0; i < dets.length; i++) {
+      const d = dets[i];
+      if (!d || !d.caja || GESTO_OBJETOS_MANO.indexOf(d.clase) < 0) continue;
+      if (d.caja.an * d.caja.al > areaFrame * 0.06) continue;   // demasiado grande para una mano
+      const cx = d.caja.x + d.caja.an / 2, cy = d.caja.y + d.caja.al / 2;
+      const dist = nuc_dist(cx, cy, muneca.x, muneca.y);
+      if (dist < radio && dist < mejorD) { mejorD = dist; mejor = d.clase; }
+    }
+    if (mejor) g.objetoEnMano[id] = { clase: mejor, ts: ts };
+  } catch (e) { /* nombrar el objeto es un extra: nunca rompe el gesto */ }
+}
+
 function gesto_sumarSospecha(id, delta, ts) {
   const g = estado.gesto;
   const nueva = nuc_clamp((g.puntuaciones[id] || 0) + delta, 0, 100);
@@ -438,7 +470,11 @@ function gesto_sumarSospecha(id, delta, ts) {
     const ult = g.ocultacionUltima[id] || 0;
     if (ts - ult >= GESTO_COOLDOWN_OCULT_MS) {
       g.ocultacionUltima[id] = ts;
-      bus.emit('gesto:ocultacion', { trackId: id, puntuacion: Math.round(nueva) });
+      // Si hace poco se vio un objeto conocido en esa mano, se nombra en el aviso.
+      let objeto = null;
+      const om = g.objetoEnMano && g.objetoEnMano[id];
+      if (om && ts - om.ts <= GESTO_OBJETO_CADUCA_MS) objeto = om.clase;
+      bus.emit('gesto:ocultacion', { trackId: id, puntuacion: Math.round(nueva), objeto: objeto });
     }
   }
 }

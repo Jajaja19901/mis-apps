@@ -88,10 +88,12 @@ function alerta_init() {
     alerta_disparar('objeto_abandonado', 'sospecha', 'Objeto sin dueño desde hace ' + Math.round(d.seg || 0) + 's (mochila/bolso/maleta) — revisar', { trackId: d.track.id });
   });
 
-  // gesto:ocultacion → sospecha (JAMÁS "robo"/"ladrón")
+  // gesto:ocultacion → sospecha (JAMÁS "robo"/"ladrón"). Si se vio QUÉ objeto
+  // tenía en la mano al coger, se nombra («posible botella») para la revisión.
   bus.on('gesto:ocultacion', (d) => {
     if (!d) return;
-    alerta_disparar('ocultacion', 'sospecha', 'Gesto de ocultación — revisar. Nunca acuses a nadie basándote solo en esta alerta.', { trackId: d.trackId });
+    const que = d.objeto ? ' (posible ' + nuc_claseES(d.objeto) + ' en la mano)' : '';
+    alerta_disparar('ocultacion', 'sospecha', 'Gesto de ocultación' + que + ' — revisar. Nunca acuses a nadie basándote solo en esta alerta.', { trackId: d.trackId });
   });
 
   // aforo:cambio → sospecha si supera el máximo (cooldown propio 120s)
