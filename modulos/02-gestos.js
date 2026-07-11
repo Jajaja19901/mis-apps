@@ -513,6 +513,11 @@ function gesto_detectarCaida(tracks, ts) {
     if (NUC_PERSONA.indexOf(t.clase) < 0) continue;
     const an = t.caja.an, al = t.caja.al;
     if (an <= 0 || al <= 0) continue;
+    // Anti-falsas: solo personas FIABLES (confianza decente) y con el track ya
+    // MADURO. Un trípode/objeto confundido con «persona» un instante puntúa bajo
+    // y aparece de golpe: así no dispara una «caída» crítica falsa.
+    if (t.score != null && t.score < 0.5) continue;
+    if ((ts - (t.creadoEn || ts)) < 1200) continue;
     let c = g.caida[t.id];
     if (!c) c = g.caida[t.id] = { vertical: false, horizontalDesde: null, disparada: false };
     const esVertical = (al / an) > 1.2;

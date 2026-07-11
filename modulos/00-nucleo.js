@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.56',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.57',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -314,6 +314,34 @@ function nuc_esEnFranja(ts, ini, fin) {
   } catch (e) { return false; }
 }
 function nuc_esMovil() { return /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent); }
+
+/* --- Recarga LIMPIA: borra toda la caché (app, librerías y modelos IA) y el
+ * Service Worker, y recarga desde cero. NO toca los ajustes ni las zonas
+ * (viven en localStorage, que no se toca). Es la salida cuando la app se queda
+ * atascada en una versión vieja o un modelo cacheado da error. */
+async function nuc_recargaLimpia() {
+  try {
+    // 1) Borra TODAS las cachés (Cache API): app, CDNs y modelos ONNX.
+    if (typeof caches !== 'undefined' && caches.keys) {
+      const claves = await caches.keys();
+      await Promise.all(claves.map((k) => caches.delete(k)));
+    }
+  } catch (e) { console.warn('[recarga] cachés:', e && e.message); }
+  try {
+    // 2) Da de baja los Service Workers (para que no re-sirvan lo viejo).
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+  } catch (e) { console.warn('[recarga] sw:', e && e.message); }
+  try {
+    // 3) Marca de versión a cero para que el detector recargue seguro.
+    nuc_borrar('version_cargada');
+    nuc_borrar('version_check_ts');
+  } catch (e) {}
+  // 4) Recarga sin caché.
+  try { location.reload(true); } catch (e) { location.reload(); }
+}
 
 /* --- Hash (PIN) -------------------------------------------------------------*/
 async function nuc_hashTexto(txt) {

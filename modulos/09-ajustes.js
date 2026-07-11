@@ -982,6 +982,15 @@ function cfg_conectarBotones() {
   const btnPin = $('cfg-btnCambiarPin');
   if (btnPin) btnPin.addEventListener('click', cfg_pinCambiar);
 
+  // 🔄 Recarga limpia (borra caché + SW y baja todo de cero). Desatasca la app.
+  const btnRecarga = $('cfg-btnRecargaLimpia');
+  if (btnRecarga) btnRecarga.addEventListener('click', function () {
+    cfg_confirmar('¿Borrar la caché y recargar la app de cero? Tus ajustes y zonas NO se borran. Tardará unos segundos.', 'Recargar limpia', function () {
+      if (typeof ui_toast === 'function') ui_toast('Limpiando y recargando…', 'info');
+      if (typeof nuc_recargaLimpia === 'function') nuc_recargaLimpia();
+    });
+  });
+
   const btnCartel = $('cfg-btnCartel');
   if (btnCartel) btnCartel.addEventListener('click', cfg_generarCartel);
 
