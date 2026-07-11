@@ -117,61 +117,79 @@ function sc_cargarOrt() {
   });
 }
 
-/* URL del modelo (editable en Ajustes). Por defecto: jsDelivr (rápido, con CORS) →
- * Hugging Face (fallback) → carpeta local. El dueño puede sobrescribir la URL. */
-function sc_urlModelo(clave) {
+/* URLs candidatas del modelo, EN ORDEN de preferencia. El dueño puede
+ * sobrescribir con su URL en Ajustes. Por defecto:
+ *   1) Los modelos publicados JUNTO A LA PROPIA APP (docs/modelos/ en GitHub
+ *      Pages): mismo origen, sin depender de terceros.
+ *   2) Hugging Face directo (respaldo si se abre la app fuera de Pages). */
+function sc_urlsModelo(clave) {
   const k = 'scUrl' + clave.toUpperCase();
   const propia = (estado.cfg[k] || '').trim();
-  if (propia) return propia;
-  // jsDelivr es rápido, tiene CORS habilitado y no se cae como Hugging Face.
-  // El espejo jsDelivr de Hugging Face es: https://cdn.jsdelivr.net/gh/onnx-community/yolo11<clave>
-  return 'https://cdn.jsdelivr.net/gh/onnx-community/yolo11' + clave + '@main/onnx/model.onnx';
+  if (propia) return [propia];
+  const urls = [];
+  try {
+    if (/^https?:/.test(location.protocol)) {
+      urls.push(new URL('modelos/yolo11' + clave + '.onnx', location.href).href);
+    }
+  } catch (e) { /* sin location válida: seguimos con los remotos */ }
+  urls.push('https://huggingface.co/onnx-community/yolo11' + clave + '/resolve/main/onnx/model.onnx');
+  return urls;
 }
+/* Compatibilidad: primera candidata (la que se enseña en Ajustes/registro). */
+function sc_urlModelo(clave) { return sc_urlsModelo(clave)[0]; }
 
 /* Descarga el .onnx con PROGRESO y lo guarda en Cache API (persistente).
- * Devuelve ArrayBuffer o null. alProgreso(pct|null, mbBajados) opcional. */
+ * Prueba las URLs candidatas EN ORDEN (propia web → Hugging Face): si una
+ * falla (404, corte), pasa a la siguiente. Devuelve ArrayBuffer o null. */
 async function sc_descargarModelo(clave, alProgreso) {
-  const url = sc_urlModelo(clave);
-  try {
-    // 1) ¿ya está en caché?
-    if (typeof caches !== 'undefined') {
-      try {
-        const cache = await caches.open(SC_CACHE);
-        const hit = await cache.match(url);
-        if (hit) return await hit.arrayBuffer();
-      } catch (e) { /* sin Cache API (file://): descarga directa */ }
-    }
-    // 2) descarga con progreso
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const total = parseInt(resp.headers.get('content-length') || '0', 10);
-    let bajado = 0;
-    const trozos = [];
-    const reader = resp.body && resp.body.getReader ? resp.body.getReader() : null;
-    if (reader) {
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        trozos.push(value); bajado += value.byteLength;
-        if (alProgreso) alProgreso(total ? Math.round(bajado * 100 / total) : null, bajado / 1048576);
+  const candidatas = sc_urlsModelo(clave);
+  let ultError = null;
+  for (let i = 0; i < candidatas.length; i++) {
+    const url = candidatas[i];
+    try {
+      // 1) ¿ya está en caché? (se busca por cada URL candidata)
+      if (typeof caches !== 'undefined') {
+        try {
+          const cache = await caches.open(SC_CACHE);
+          const hit = await cache.match(url);
+          if (hit) return await hit.arrayBuffer();
+        } catch (e) { /* sin Cache API (file://): descarga directa */ }
       }
+      // 2) descarga con progreso
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const total = parseInt(resp.headers.get('content-length') || '0', 10);
+      let bajado = 0;
+      const trozos = [];
+      const reader = resp.body && resp.body.getReader ? resp.body.getReader() : null;
+      if (reader) {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          trozos.push(value); bajado += value.byteLength;
+          if (alProgreso) alProgreso(total ? Math.round(bajado * 100 / total) : null, bajado / 1048576);
+        }
+      }
+      const blob = reader ? new Blob(trozos) : await resp.blob();
+      const buf = await blob.arrayBuffer();
+      // 3) a la caché para la próxima vez
+      if (typeof caches !== 'undefined') {
+        try {
+          const cache = await caches.open(SC_CACHE);
+          await cache.put(url, new Response(blob, { headers: { 'Content-Type': 'application/octet-stream' } }));
+        } catch (e) { /* si no cabe, seguimos sin caché */ }
+      }
+      return buf;
+    } catch (e) {
+      ultError = e;
+      console.warn('[supercerebro] candidata ' + (i + 1) + '/' + candidatas.length +
+        ' falló (' + url + '): ' + (e && e.message));
+      // …y se prueba la siguiente candidata
     }
-    const blob = reader ? new Blob(trozos) : await resp.blob();
-    const buf = await blob.arrayBuffer();
-    // 3) a la caché para la próxima vez
-    if (typeof caches !== 'undefined') {
-      try {
-        const cache = await caches.open(SC_CACHE);
-        await cache.put(url, new Response(blob, { headers: { 'Content-Type': 'application/octet-stream' } }));
-      } catch (e) { /* si no cabe, seguimos sin caché */ }
-    }
-    return buf;
-  } catch (e) {
-    console.warn('[supercerebro] descarga de ' + clave + ' falló:', e && e.message);
-    sc_fallo('No se pudo descargar el modelo ' + clave.toUpperCase() + ' (' +
-      ((e && e.message) || 'red') + '). Comprueba internet o la URL en Ajustes.');
-    return null;
   }
+  sc_fallo('No se pudo descargar el modelo ' + clave.toUpperCase() + ' (' +
+    ((ultError && ultError.message) || 'red') + '). Comprueba internet o la URL en Ajustes.');
+  return null;
 }
 
 /* Crea (o recupera) la sesión de un modelo. WebGPU → WASM con aviso. */
