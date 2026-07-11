@@ -45,6 +45,13 @@ const GESTO_MS_LIMITE = 80;      // si detectForVideo tarda > esta media → 1 d
 const GESTO_MP_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/vision_bundle.mjs';
 const GESTO_WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
 const GESTO_MODELO_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+const GESTO_MANOS_URL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+/* Confirmación por MANOS (21 puntos: dedos y palma). La muñeca sola no sabe si
+ * la mano va abierta y relajada (inocente) o cerrada/oculta (agarrando algo).
+ * El modelo de manos se carga PEREZOSO (la 1ª vez que hace falta) y solo se
+ * consulta en el instante decisivo del gesto, sobre el recorte ya hecho. */
+const GESTO_MANO_RADIO = 1.2;        // radio de emparejamiento mano↔muñeca (×anchoHombros)
+const GESTO_MANO_ABIERTA = 1.45;     // apertura media (punta/nudillo) ≥ esto = mano abierta
 
 /* --- Estado interno del módulo (vive en estado.gesto) ----------------------*/
 function gesto_estado() {
@@ -85,6 +92,8 @@ async function gesto_init() {
     const nPoses = gesto_posesMax();
     const mp = await import(GESTO_MP_URL);
     const fileset = await mp.FilesetResolver.forVisionTasks(GESTO_WASM_URL);
+    // Guardados para cargas perezosas posteriores (modelo de manos).
+    g.mp = mp; g.fileset = fileset;
     // Modo IMAGE + numPoses:1: la pose se calcula sobre el RECORTE de cada
     // persona (no sobre el fotograma entero). Con personas pequeñas o
     // parciales —cámara de tienda— es la diferencia entre ver el esqueleto
@@ -190,6 +199,8 @@ function gesto_analizarPose(fuente, ts, tracks) {
       const lms = resultado && resultado.landmarks && resultado.landmarks[0];
       if (!lms || !lms.length) { g.sinPose[trk.id] = ts; continue; }
       delete g.sinPose[trk.id];
+      // Recorte vigente de ESTA persona: lo usa la confirmación por manos.
+      g.recorteActual = { cnv: cnv, rx: rx, ry: ry, rw: rw, rh: rh };
 
       // Del recorte (normalizado 0..1) al espacio de frame (px).
       const puntos = new Array(lms.length);
@@ -206,6 +217,78 @@ function gesto_analizarPose(fuente, ts, tracks) {
   const dt = gesto_ahora() - t0;
   g.msMedia = g.msMedia ? (g.msMedia * 0.8 + dt * 0.2) : dt;
   g.poses = poses;
+}
+
+/* --- Confirmación por MANOS (carga perezosa) -------------------------------*/
+async function gesto_manosInit() {
+  const g = estado.gesto;
+  if (g.manos || g.manosCargando || !g.mp || !g.fileset) return;
+  g.manosCargando = true;
+  try {
+    const opciones = function (delegado) {
+      return {
+        baseOptions: { modelAssetPath: GESTO_MANOS_URL, delegate: delegado },
+        runningMode: 'IMAGE',
+        numHands: 2,
+      };
+    };
+    let hl = null;
+    try { hl = await g.mp.HandLandmarker.createFromOptions(g.fileset, opciones('GPU')); }
+    catch (eGpu) { hl = await g.mp.HandLandmarker.createFromOptions(g.fileset, opciones('CPU')); }
+    g.manos = hl;
+  } catch (e) {
+    console.warn('[gesto] modelo de manos no disponible (la ocultación sigue sin él):', e && e.message);
+    g.manosFallo = true;   // no reintentar en bucle
+  }
+  g.manosCargando = false;
+}
+
+/* ¿La mano que está en el bolsillo CONFIRMA el gesto? Devuelve true si el
+ * ciclo debe contar. Reglas:
+ *  · Sin modelo de manos (aún cargando / falló / apagado) → true (como antes).
+ *  · Mano NO visible junto a la muñeca → true (metida en el bolsillo/bajo la
+ *    ropa: coherente con esconder algo).
+ *  · Mano visible y CLARAMENTE ABIERTA (dedos extendidos) → false (mano
+ *    relajada apoyada en la cintura: inocente, el ciclo no cuenta).
+ *  · Mano visible cerrada/curvada (agarrando) → true. */
+function gesto_manoConfirma(munecaFramePx, anchoHombros) {
+  const g = estado.gesto;
+  if (!estado.cfg.manosConfirmar) return true;
+  if (!g.manos) {
+    if (!g.manosFallo && !g.manosCargando) { try { gesto_manosInit(); } catch (e) {} }
+    return true;   // sin modelo listo: comportamiento clásico
+  }
+  const rec = g.recorteActual;
+  if (!rec || !rec.cnv || !rec.rw || !rec.rh) return true;
+  try {
+    const res = g.manos.detect(rec.cnv);
+    const manos = (res && res.landmarks) || [];
+    if (!manos.length) return true;   // ninguna mano visible → posible mano oculta
+    let mejor = null, mejorD = Infinity;
+    for (let i = 0; i < manos.length; i++) {
+      const lm = manos[i];
+      if (!lm || !lm[0]) continue;
+      // Muñeca de la mano (landmark 0), del recorte normalizado → px de frame.
+      const wx = rec.rx + lm[0].x * rec.rw, wy = rec.ry + lm[0].y * rec.rh;
+      const d = nuc_dist(wx, wy, munecaFramePx.x, munecaFramePx.y);
+      if (d < mejorD) { mejorD = d; mejor = lm; }
+    }
+    if (!mejor || mejorD > GESTO_MANO_RADIO * anchoHombros) return true; // mano lejana/oculta
+    // Apertura: distancia punta/nudillo respecto a la muñeca, media de 4 dedos.
+    // Mano abierta ≈ 1.6-1.9 · puño/agarre ≈ 0.7-1.1.
+    const pares = [[8, 5], [12, 9], [16, 13], [20, 17]];
+    let suma = 0, n = 0;
+    for (let k = 0; k < pares.length; k++) {
+      const punta = mejor[pares[k][0]], nudillo = mejor[pares[k][1]];
+      if (!punta || !nudillo) continue;
+      const dPunta = nuc_dist(punta.x, punta.y, mejor[0].x, mejor[0].y);
+      const dNudillo = nuc_dist(nudillo.x, nudillo.y, mejor[0].x, mejor[0].y);
+      if (dNudillo > 0.0001) { suma += dPunta / dNudillo; n++; }
+    }
+    if (!n) return true;
+    const apertura = suma / n;
+    return apertura < GESTO_MANO_ABIERTA;   // abierta y extendida → NO confirma
+  } catch (e) { return true; }
 }
 
 /* --- Gesto de ocultación: máquina de estados por track --------------------
@@ -261,7 +344,7 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
     y: hombrosC.y + (caderasC.y - hombrosC.y) * 0.35,
   };
 
-  let extendida = false, cerca = false;
+  let extendida = false, cerca = false, munecaCerca = null;
   const munecas = [mi, md];
   for (let k = 0; k < munecas.length; k++) {
     const muneca = munecas[k];
@@ -274,7 +357,7 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
       if (d < dCadera) dCadera = d;
     }
     const dPecho = nuc_dist(muneca.x, muneca.y, pechoC.x, pechoC.y);
-    if (dCadera < radioCerca || dPecho < GESTO_CERCA_CUERPO * anchoHombros) cerca = true;
+    if (dCadera < radioCerca || dPecho < GESTO_CERCA_CUERPO * anchoHombros) { cerca = true; munecaCerca = muneca; }
   }
   // Si una mano está en la zona del bolsillo/pecho, NO cuenta como "alcanzando":
   // el bolsillo gana (clave cuando el torso es estimado y queda corto).
@@ -320,6 +403,10 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
         const permanenciaMs = nuc_clamp((estado.cfg.ocultacionPermanencia || 0.7) * 1000, 200, 2000);
         if (dwell >= permanenciaMs && !m.completado) {
           m.completado = true;
+          // 🖐 CONFIRMACIÓN POR MANOS en el instante decisivo: si la mano del
+          // bolsillo se ve ABIERTA y extendida (apoyada, relajada), el ciclo
+          // NO cuenta. Cerrada/agarrando u oculta bajo la ropa → sí cuenta.
+          if (munecaCerca && !gesto_manoConfirma(munecaCerca, anchoHombros)) break;
           // Modo "primer gesto claro": UN ciclo coger→bolsillo completo basta
           // para avisar (empuja la puntuación hasta el umbral directamente).
           const puntos_ciclo = estado.cfg.ocultacionUnGesto
