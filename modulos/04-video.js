@@ -811,12 +811,14 @@ function vid_sinSenal(ctx, cnv) {
     if (cnv.width < 320 || cnv.height < 180) { cnv.width = 640; cnv.height = 360; }
     ctx.fillStyle = '#0b0f14';
     ctx.fillRect(0, 0, cnv.width, cnv.height);
+    // Abajo del todo: el centro lo ocupa el botón «Encender cámara» y arriba
+    // está el texto de ayuda (#vid-estado). Así nada se solapa.
     ctx.fillStyle = '#7d8fa0';
     ctx.textAlign = 'center';
-    ctx.font = "bold 26px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
-    ctx.fillText('SIN SEÑAL', cnv.width / 2, cnv.height / 2 - 4);
-    ctx.font = "16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
-    ctx.fillText(nuc_fechaHora(), cnv.width / 2, cnv.height / 2 + 24);
+    ctx.font = "bold 18px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+    ctx.fillText('SIN SEÑAL', cnv.width / 2, cnv.height - 30);
+    ctx.font = "14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+    ctx.fillText(nuc_fechaHora(), cnv.width / 2, cnv.height - 10);
     ctx.textAlign = 'left';
     if (vid_el.canvasPriv) vid_el.canvasPriv.classList.add('oculto');
     if (vid_el.rec) vid_el.rec.classList.add('oculto');

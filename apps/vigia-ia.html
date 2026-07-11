@@ -449,6 +449,10 @@ summary.sec-titulo::before { display: inline-block; }
 /* Drawer de ajustes: bordes redondeados hacia el interior */
 .ui-drawer { border-radius: 16px 0 0 16px; border-left: 1px solid var(--borde); }
 
+/* Visor sin señal: el texto arriba y el botón «Encender cámara» abajo,
+   sin solaparse (antes ambos caían al centro del visor). */
+#vid-estado { align-items: flex-start; padding-top: 14%; }
+
 </style>
 </head>
 <body>
@@ -1997,7 +2001,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.39',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.40',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -4885,12 +4889,14 @@ function vid_sinSenal(ctx, cnv) {
     if (cnv.width < 320 || cnv.height < 180) { cnv.width = 640; cnv.height = 360; }
     ctx.fillStyle = '#0b0f14';
     ctx.fillRect(0, 0, cnv.width, cnv.height);
+    // Abajo del todo: el centro lo ocupa el botón «Encender cámara» y arriba
+    // está el texto de ayuda (#vid-estado). Así nada se solapa.
     ctx.fillStyle = '#7d8fa0';
     ctx.textAlign = 'center';
-    ctx.font = "bold 26px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
-    ctx.fillText('SIN SEÑAL', cnv.width / 2, cnv.height / 2 - 4);
-    ctx.font = "16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
-    ctx.fillText(nuc_fechaHora(), cnv.width / 2, cnv.height / 2 + 24);
+    ctx.font = "bold 18px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+    ctx.fillText('SIN SEÑAL', cnv.width / 2, cnv.height - 30);
+    ctx.font = "14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+    ctx.fillText(nuc_fechaHora(), cnv.width / 2, cnv.height - 10);
     ctx.textAlign = 'left';
     if (vid_el.canvasPriv) vid_el.canvasPriv.classList.add('oculto');
     if (vid_el.rec) vid_el.rec.classList.add('oculto');
