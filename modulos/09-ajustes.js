@@ -900,15 +900,13 @@ function cfg_conectarBotones() {
     } catch (e) { console.warn('[ajustes] vid_usarIP:', e && e.message); }
   });
 
+  // Única puerta del vídeo demo: dispara el MISMO selector del visor
+  // (vid-inputDemo, módulo 04). Un solo mecanismo, sin duplicados.
   const btnDemo = $('cfg-btnCargarDemo');
   if (btnDemo) btnDemo.addEventListener('click', function () {
-    const input = $('cfg-archivoDemo');
-    const file = input && input.files && input.files[0];
-    if (!file) { cfg_avisar('Elige antes un archivo de vídeo.', 'sospecha'); return; }
-    if (typeof vid_usarArchivo !== 'function') { cfg_avisar('El módulo de vídeo aún no está disponible.', 'sospecha'); return; }
-    try {
-      Promise.resolve(vid_usarArchivo(file)).catch(function (e) { console.warn('[ajustes] vid_usarArchivo:', e && e.message); });
-    } catch (e) { console.warn('[ajustes] vid_usarArchivo:', e && e.message); }
+    const input = document.getElementById('vid-inputDemo');
+    if (input) { try { input.click(); return; } catch (e) {} }
+    cfg_avisar('El módulo de vídeo aún no está disponible.', 'sospecha');
   });
 
   // --- Dashcam / cámara RTSP vía go2rtc ---

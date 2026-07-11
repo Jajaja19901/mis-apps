@@ -482,7 +482,8 @@ function ui_initOnboarding() {
   });
 
   if (fuenteDemo) fuenteDemo.addEventListener('click', () => {
-    const input = document.getElementById('cfg-archivoDemo');
+    // Única puerta de vídeo demo: el selector del visor (vid-inputDemo).
+    const input = document.getElementById('vid-inputDemo');
     if (input) input.click();
     ui_onboardingPaso(3);
   });

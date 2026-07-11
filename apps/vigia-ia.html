@@ -1559,13 +1559,11 @@ summary.sec-titulo::before { display: inline-block; }
       <button type="button" class="btn btn-mini btn-fantasma" id="cfg-btnGuiaDashcam">📖 Guía: conectar mi dashcam paso a paso</button>
     </div>
 
+    <!-- ÚNICA puerta para el vídeo demo: el botón 🎬 del visor (sin duplicados).
+         Este botón dispara ese mismo selector; no hay dos mecanismos. -->
     <div id="cfg-grupoArchivo" class="oculto">
-      <div class="campo">
-        <label for="cfg-archivoDemo">Vídeo de demostración</label>
-        <input type="file" id="cfg-archivoDemo" accept="video/*">
-      </div>
-      <button type="button" class="btn btn-primario" id="cfg-btnCargarDemo">🎬 Cargar vídeo demo</button>
-      <p class="etiqueta">Modo demo: sirve para calibrar los umbrales y enseñar la app a clientes cuando no tienes cámara a mano.</p>
+      <button type="button" class="btn btn-primario" id="cfg-btnCargarDemo">🎬 Elegir vídeo de la galería</button>
+      <p class="etiqueta">Sirve para probar la IA con vídeos reales (robos de internet, etc.), calibrar umbrales y enseñar la app a clientes sin cámara a mano.</p>
     </div>
 
     <button type="button" class="btn btn-peligro" id="cfg-btnDetenerFuente">⏹ Detener fuente</button>
@@ -2133,7 +2131,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.53',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.54',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -5957,7 +5955,8 @@ function ui_initOnboarding() {
   });
 
   if (fuenteDemo) fuenteDemo.addEventListener('click', () => {
-    const input = document.getElementById('cfg-archivoDemo');
+    // Única puerta de vídeo demo: el selector del visor (vid-inputDemo).
+    const input = document.getElementById('vid-inputDemo');
     if (input) input.click();
     ui_onboardingPaso(3);
   });
@@ -8739,15 +8738,13 @@ function cfg_conectarBotones() {
     } catch (e) { console.warn('[ajustes] vid_usarIP:', e && e.message); }
   });
 
+  // Única puerta del vídeo demo: dispara el MISMO selector del visor
+  // (vid-inputDemo, módulo 04). Un solo mecanismo, sin duplicados.
   const btnDemo = $('cfg-btnCargarDemo');
   if (btnDemo) btnDemo.addEventListener('click', function () {
-    const input = $('cfg-archivoDemo');
-    const file = input && input.files && input.files[0];
-    if (!file) { cfg_avisar('Elige antes un archivo de vídeo.', 'sospecha'); return; }
-    if (typeof vid_usarArchivo !== 'function') { cfg_avisar('El módulo de vídeo aún no está disponible.', 'sospecha'); return; }
-    try {
-      Promise.resolve(vid_usarArchivo(file)).catch(function (e) { console.warn('[ajustes] vid_usarArchivo:', e && e.message); });
-    } catch (e) { console.warn('[ajustes] vid_usarArchivo:', e && e.message); }
+    const input = document.getElementById('vid-inputDemo');
+    if (input) { try { input.click(); return; } catch (e) {} }
+    cfg_avisar('El módulo de vídeo aún no está disponible.', 'sospecha');
   });
 
   // --- Dashcam / cámara RTSP vía go2rtc ---
