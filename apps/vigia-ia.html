@@ -921,6 +921,14 @@ summary.sec-titulo::before { display: inline-block; }
 
   <div class="tarjeta">
     <button type="button" class="btn btn-primario" id="centinela-btnActivar" style="min-height:52px;width:100%">▶ Activar Centinela</button>
+
+    <!-- Vista previa de la cámara frontal (en espejo): para colocar bien el
+         móvil y VER que te está enfocando. El análisis usa este mismo vídeo. -->
+    <div id="centinela-previewWrap" class="oculto" style="margin-top:10px">
+      <video id="dms-video" playsinline muted style="width:100%;max-height:38vh;object-fit:cover;border-radius:14px;transform:scaleX(-1);background:#000;border:1px solid var(--borde)"></video>
+      <p class="etiqueta" style="margin-top:4px">Colócate de frente: la cámara debe verte la cara entera.</p>
+    </div>
+
     <p id="centinela-estado" style="margin-top:10px">Apagado (sin consumo).</p>
     <div class="fila" style="margin-top:8px">
       <button type="button" class="btn btn-mini btn-fantasma" id="centinela-btnCalibrar">🎯 Recalibrar (20 s)</button>
@@ -2105,7 +2113,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.46',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.47',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -16214,6 +16222,9 @@ function dms_sincronizarControles() {
   }
   const hb = document.getElementById('ui-btnCentinela');
   if (hb) hb.classList.toggle('activo', !!d.activo);
+  // Vista previa de la cámara frontal: visible solo con el Centinela activo.
+  const prev = document.getElementById('centinela-previewWrap');
+  if (prev) prev.classList.toggle('oculto', !d.activo);
   [['centinela-voz', 'dmsVoz'], ['centinela-gpsgate', 'dmsGpsGate'], ['centinela-guardar', 'dmsGuardarCriticos']].forEach(function (par) {
     const el = document.getElementById(par[0]); if (el) el.checked = !!estado.cfg[par[1]];
   });

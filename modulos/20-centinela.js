@@ -532,6 +532,9 @@ function dms_sincronizarControles() {
   }
   const hb = document.getElementById('ui-btnCentinela');
   if (hb) hb.classList.toggle('activo', !!d.activo);
+  // Vista previa de la cámara frontal: visible solo con el Centinela activo.
+  const prev = document.getElementById('centinela-previewWrap');
+  if (prev) prev.classList.toggle('oculto', !d.activo);
   [['centinela-voz', 'dmsVoz'], ['centinela-gpsgate', 'dmsGpsGate'], ['centinela-guardar', 'dmsGuardarCriticos']].forEach(function (par) {
     const el = document.getElementById(par[0]); if (el) el.checked = !!estado.cfg[par[1]];
   });
