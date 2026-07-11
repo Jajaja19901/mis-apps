@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.35',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.36',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -97,6 +97,27 @@ const CFG_DEFECTOS = {
   sonidoOn: true,
   legalResponsable: '',
   legalContacto: '',
+  // 🏠 Modo Casa (módulo 19) — capa sobre el modo super
+  casaActivo: false,            // panel/lógica de casa activos
+  casaEstado: 'desarmado',      // 'desarmado' | 'encasa' | 'total' | 'noche'
+  casaRetardoSalida: 60,        // seg de cuenta atrás al armar (para salir)
+  casaRetardoEntrada: 30,       // seg para desarmar al entrar antes de que salte
+  casaAutoArmar: false,         // armado automático por horario
+  casaAutoArmarHora: '23:00',   // hora de armado automático
+  casaAutoDesarmarHora: '07:00',// hora de desarmado automático
+  casaAutoArmarEstado: 'total', // estado al que se arma solo
+  casaNocheIni: '23:00',        // franja del MODO NOCHE (perímetro + zonas noche)
+  casaNocheFin: '07:00',
+  casaSirena: true,             // sirena potente en alerta crítica estando armado
+  casaLinterna: true,           // linterna/estrobo disuasorio
+  casaVoz: true,                // aviso por voz (speechSynthesis)
+  casaVozTexto: 'Atención: propiedad videovigilada. Sus imágenes están siendo grabadas y transmitidas.',
+  casaBateria: true,            // vigilar corte de corriente (Battery API)
+  casaPaqueteria: true,         // avisos de paquete entregado/retirado
+  casaVacaciones: false,        // sensibilidad máxima + resumen diario por Telegram
+  casaResumenHora: '21:00',     // hora del resumen diario de vacaciones
+  casaPiscinaSeg: 10,           // persona sola en zona piscina → alerta crítica
+  casaMerodeoPuertaSeg: 30,     // en puerta sin entrar → sospecha de merodeo
 };
 
 /* --- Estado central único (los módulos añaden estado.<prefijo> en su init) */

@@ -6,14 +6,15 @@
  * ==========================================================================*/
 
 /* --- Constantes --------------------------------------------------------------*/
-const ZONA_TIPOS = ['prohibida', 'sensible', 'caja', 'plaza', 'detencion', 'analisis'];
+const ZONA_TIPOS = ['prohibida', 'sensible', 'caja', 'plaza', 'detencion', 'analisis', 'exclusion'];
 const ZONA_COLORES = {
   prohibida: '#ff4155', sensible: '#ffb224', caja: '#3fa9ff',
-  detencion: '#ffb224', plaza: '#2ee584', analisis: '#8b5cf6',
+  detencion: '#ffb224', plaza: '#2ee584', analisis: '#8b5cf6', exclusion: '#000000',
 };
 const ZONA_ETIQUETAS = {
   prohibida: 'Zona prohibida', sensible: 'Zona sensible', caja: 'Caja',
   plaza: 'Plaza', detencion: 'Zona detención', analisis: 'Zona de análisis',
+  exclusion: 'Zona de exclusión (privacidad)',
 };
 const ZONA_FUENTE_MONO = "11px 'SFMono-Regular',ui-monospace,'Cascadia Mono',Consolas,monospace";
 const ZONA_PLAZA_MS = 2000;          // anti-parpadeo de plazas (ocupar/liberar)
@@ -331,7 +332,7 @@ function zona_evaluar(tracks, ts) {
   // una máscara para la IA (ya filtró las detecciones): NO generan presencia,
   // merodeo, cola ni ninguna alerta, así que se excluyen de la evaluación.
   const zonasPx = estado.zonas
-    .filter(function (zona) { return zona && zona.tipo !== 'analisis'; })
+    .filter(function (zona) { return zona && zona.tipo !== 'analisis' && zona.tipo !== 'exclusion'; })
     .map(function (zona) {
       return { ref: zona, puntos: zona.puntos.map(function (p) { return { x: p.x * w, y: p.y * h }; }) };
     });

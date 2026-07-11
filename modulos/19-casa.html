@@ -1,0 +1,77 @@
+<!-- 19-CASA — Panel del MODO CASA PREMIUM (capa sobre el modo super). -->
+<style>
+  #casa-panel { display: flex; flex-direction: column; gap: var(--espacio-3); }
+  .casa-estados { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--espacio-2); }
+  .casa-estado-btn { min-height: 56px; font-weight: 700; }
+  .casa-estado-btn.activo { background: var(--rojo); border-color: var(--rojo); color: #250408; }
+  .casa-estado-btn[data-est="desarmado"].activo { background: var(--verde); border-color: var(--verde); color: #05210f; }
+  .casa-toggles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--espacio-2); }
+  .casa-toggle { display: flex; align-items: center; gap: .5rem; font-size: .9rem; }
+  .casa-acciones { display: flex; flex-wrap: wrap; gap: var(--espacio-2); }
+  #casa-timeline { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+  .casa-tl-item { flex: 0 0 72px; display: flex; flex-direction: column; gap: 2px; border-radius: 8px; padding: 3px; background: var(--panel2); border-left: 3px solid var(--texto2); }
+  .casa-tl-item.insignia-sospecha { border-left-color: var(--ambar); }
+  .casa-tl-item.insignia-critico { border-left-color: var(--rojo); }
+  .casa-tl-hora { font-family: var(--mono); font-size: .7rem; color: var(--texto2); text-align: center; }
+  .casa-legal { font-size: .78rem; color: var(--texto2); line-height: 1.4; }
+  #casa-estrobo { position: fixed; inset: 0; background: #fff; z-index: 970; pointer-events: none; animation: casa-flash .12s steps(1) infinite; }
+  @keyframes casa-flash { 0%,49% { opacity: 1; } 50%,100% { opacity: 0; } }
+</style>
+
+<section id="casa-panel" class="sec oculto" aria-label="Modo Casa">
+  <h2 class="sec-titulo">🏠 Modo Casa</h2>
+
+  <!-- 1) Estados de alarma -->
+  <div class="tarjeta">
+    <span class="etiqueta">Estado de la alarma</span>
+    <div class="casa-estados">
+      <button type="button" class="btn casa-estado-btn" id="casa-estado-desarmado" data-est="desarmado">🔓 Desarmado</button>
+      <button type="button" class="btn casa-estado-btn" id="casa-estado-encasa" data-est="encasa">🏡 En casa</button>
+      <button type="button" class="btn casa-estado-btn" id="casa-estado-total" data-est="total">🔒 Total</button>
+      <button type="button" class="btn casa-estado-btn" id="casa-estado-noche" data-est="noche">🌙 Noche</button>
+    </div>
+    <p class="casa-legal" style="margin-top:8px">Armar pide PIN. Al armar hay un retardo de salida (para salir sin autodispararte) y otro de entrada (para desarmar al llegar). «En casa» vigila solo el perímetro; dentro se vive con normalidad.</p>
+    <label class="casa-toggle" style="margin-top:8px"><input type="checkbox" id="casa-autoarmar"> Armado automático por horario</label>
+  </div>
+
+  <!-- 2) Zonas y roles -->
+  <div class="tarjeta">
+    <span class="etiqueta">Zonas de casa</span>
+    <div class="casa-acciones" style="margin-top:8px">
+      <button type="button" class="btn btn-mini" id="casa-btnRoles">🏷 Asignar roles a zonas</button>
+      <button type="button" class="btn btn-mini" id="casa-btnExclusion">⬛ Dibujar zona de exclusión</button>
+      <button type="button" class="btn btn-mini" id="casa-btnVisitas">👁 Visitas de hoy</button>
+    </div>
+    <p class="casa-legal" style="margin-top:8px">Roles: Puerta principal (timbre + registro de visitas), Entrada de vehículos, Piscina (aviso si hay alguien solo) y Perímetro. La <strong>zona de exclusión</strong> tapa en negro la vía pública o la parcela del vecino <em>antes</em> de analizar y grabar (obligación legal); no oculta tu propia evidencia, solo limita lo que se capta.</p>
+  </div>
+
+  <!-- 3-4) Disuasión y supervisión -->
+  <div class="tarjeta">
+    <span class="etiqueta">Disuasión y supervisión</span>
+    <div class="casa-toggles" style="margin-top:8px">
+      <label class="casa-toggle"><input type="checkbox" id="casa-sirena"> 🔊 Sirena</label>
+      <label class="casa-toggle"><input type="checkbox" id="casa-linterna"> 💡 Linterna/estrobo</label>
+      <label class="casa-toggle"><input type="checkbox" id="casa-voz"> 🗣 Voz disuasoria</label>
+      <label class="casa-toggle"><input type="checkbox" id="casa-bateria"> 🔋 Aviso de corte de luz</label>
+      <label class="casa-toggle"><input type="checkbox" id="casa-paqueteria"> 📦 Paquetería</label>
+      <label class="casa-toggle"><input type="checkbox" id="casa-vacaciones"> 🏖 Modo vacaciones</label>
+    </div>
+    <div class="casa-acciones" style="margin-top:8px">
+      <button type="button" class="btn btn-mini btn-fantasma" id="casa-btnProbar">▶ Probar disuasión</button>
+    </div>
+  </div>
+
+  <!-- 7) Vida diaria -->
+  <div class="tarjeta">
+    <span class="etiqueta">Línea de tiempo de hoy</span>
+    <div id="casa-timeline" style="margin-top:8px"><span class="etiqueta">Sin eventos todavía hoy.</span></div>
+  </div>
+
+  <p class="casa-legal">
+    ⚠️ Capa extra de seguridad. La detección de «persona sola en la piscina» <strong>no distingue con fiabilidad niño de adulto y JAMÁS sustituye la supervisión de menores</strong>.
+    Sin reconocimiento facial. El móvil no tiene visión nocturna real (no lleva infrarrojos): de noche necesita luz ambiente; se recomienda una luz exterior con sensor (~10 €) como complemento.
+  </p>
+</section>
+
+<!-- Estrobo disuasorio a pantalla completa (fallback si la lente no tiene linterna). -->
+<div id="casa-estrobo" class="oculto" aria-hidden="true"></div>

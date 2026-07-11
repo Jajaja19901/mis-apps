@@ -41,6 +41,7 @@ async function app_init() {
     if (typeof cop_init === 'function') cop_init();
     if (typeof acc_init === 'function') acc_init();   // acciones avanzadas
     if (typeof mat_init === 'function') mat_init();   // matrícula (evidencia)
+    if (typeof casa_init === 'function') casa_init(); // modo casa (capa sobre super)
     // Supercerebro (ONNX-YOLO11): init siempre; si era el motor elegido,
     // reactiva el modelo guardado (desde la caché, sin re-descargar).
     if (typeof sc_init === 'function') {
@@ -133,11 +134,15 @@ function app_ciclo(tsAnim) {
           // 🎯 Máscara de análisis: si hay zona(s) de análisis, se ignora todo
           // lo de fuera (menos falsos y más rápido). Sin máscara, no cambia nada.
           if (typeof zona_filtrarPorMascara === 'function') dets = zona_filtrarPorMascara(dets);
+          // 🏠 Máscara de exclusión de casa: descarta lo que cae en vía pública /
+          // parcela ajena (esas zonas ya se pintan en negro sobre el compuesto).
+          if (typeof casa_filtrarExclusion === 'function') dets = casa_filtrarExclusion(dets);
           estado.detecciones = dets;
           trk_actualizar(dets, ahora);
           zona_evaluar(estado.tracks, ahora);
           if (estado.cfg.modo === 'super') gesto_procesar(vid_fuente(), ahora);
           if (estado.cfg.modo === 'carretera') car_evaluar(estado.tracks, ahora);
+          if (typeof casa_evaluar === 'function') casa_evaluar(estado.tracks, ahora);
           stats_acumular(estado.tracks, ahora);
           estado.video.msInferencia = performance.now() - t0;
           // FPS real medido (ventana de 3s)
