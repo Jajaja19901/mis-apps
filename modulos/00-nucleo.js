@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.36',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.37',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -118,6 +118,19 @@ const CFG_DEFECTOS = {
   casaResumenHora: '21:00',     // hora del resumen diario de vacaciones
   casaPiscinaSeg: 10,           // persona sola en zona piscina → alerta crítica
   casaMerodeoPuertaSeg: 30,     // en puerta sin entrar → sospecha de merodeo
+  // 👁 CENTINELA — DMS del conductor (módulo 20, carga perezosa)
+  centinelaActivo: false,       // el modelo facial NO se carga hasta activarlo
+  dmsFps: 3,                    // análisis por segundo (2-4; párpados no piden más)
+  dmsPerclosUmbral: 25,         // % de ojos cerrados en 60 s → fatiga
+  dmsMicrosuenoMs: 1500,        // ojos cerrados seguidos → crítica inmediata
+  dmsBostezoMs: 2000,           // jawOpen sostenido = bostezo
+  dmsDistraccionMs: 2500,       // cabeza girada fuera del frente → "ojos a la carretera"
+  dmsCaraPerdidaMs: 5000,       // sin cara en marcha → aviso
+  dmsGpsGate: true,             // activar solo con velocidad GPS > umbral (como los DMS reales)
+  dmsVelMin: 18,                // km/h por debajo de los cuales el Centinela está en pausa
+  dmsVoz: true,                 // avisos por voz (nivel 2 y 3)
+  dmsGuardarCriticos: false,    // guardar captura en críticos (apagado de fábrica: sin fotos del conductor)
+  dmsConduccionMaxH: 2,         // horas de conducción continua → sugerir descanso
 };
 
 /* --- Estado central único (los módulos añaden estado.<prefijo> en su init) */

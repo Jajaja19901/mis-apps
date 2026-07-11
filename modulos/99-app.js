@@ -42,6 +42,7 @@ async function app_init() {
     if (typeof acc_init === 'function') acc_init();   // acciones avanzadas
     if (typeof mat_init === 'function') mat_init();   // matrícula (evidencia)
     if (typeof casa_init === 'function') casa_init(); // modo casa (capa sobre super)
+    if (typeof dms_init === 'function') dms_init();   // centinela del conductor (perezoso)
     // Supercerebro (ONNX-YOLO11): init siempre; si era el motor elegido,
     // reactiva el modelo guardado (desde la caché, sin re-descargar).
     if (typeof sc_init === 'function') {

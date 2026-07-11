@@ -1,0 +1,43 @@
+<!-- 20-CENTINELA — Panel del DMS del conductor (carga perezosa). -->
+<style>
+  #centinela-panel { display: flex; flex-direction: column; gap: var(--espacio-3); }
+  .centinela-toggles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--espacio-2); }
+  .centinela-toggle { display: flex; align-items: center; gap: .5rem; font-size: .9rem; }
+  #centinela-estado { font-family: var(--mono); font-size: .85rem; color: var(--texto2); }
+  .centinela-legal { font-size: .78rem; color: var(--texto2); line-height: 1.4; }
+  #dms-alerta { position: fixed; inset: 0; z-index: 972; display: flex; align-items: center; justify-content: center;
+    background: rgba(255,20,40,.72); animation: dms-pulso .5s steps(1) infinite; pointer-events: none; }
+  #dms-alerta-texto { color: #fff; font-size: 2.4rem; font-weight: 800; text-align: center; text-shadow: 0 2px 12px rgba(0,0,0,.6); padding: 1rem; }
+  @keyframes dms-pulso { 0%,49% { background: rgba(255,20,40,.72); } 50%,100% { background: rgba(120,0,10,.55); } }
+</style>
+
+<section id="centinela-panel" class="sec oculto" aria-label="Centinela del conductor">
+  <h2 class="sec-titulo">👁 Centinela — vigilancia del conductor</h2>
+
+  <div class="tarjeta">
+    <button type="button" class="btn btn-primario" id="centinela-btnActivar" style="min-height:52px;width:100%">▶ Activar Centinela</button>
+    <p id="centinela-estado" style="margin-top:10px">Apagado (sin consumo).</p>
+    <div class="fila" style="margin-top:8px">
+      <button type="button" class="btn btn-mini btn-fantasma" id="centinela-btnCalibrar">🎯 Recalibrar (20 s)</button>
+    </div>
+    <p class="centinela-legal" style="margin-top:8px">El modelo facial y la cámara frontal solo se cargan al activar; al desactivar se liberan del todo (cero consumo). Detecta párpados (PERCLOS y microsueño), bostezos, cabezadas, distracción y cara perdida. Análisis a 2-4 veces por segundo.</p>
+  </div>
+
+  <div class="tarjeta">
+    <span class="etiqueta">Ajustes</span>
+    <div class="centinela-toggles" style="margin-top:8px">
+      <label class="centinela-toggle"><input type="checkbox" id="centinela-voz"> 🗣 Avisos por voz</label>
+      <label class="centinela-toggle"><input type="checkbox" id="centinela-gpsgate"> 🛰 Activar solo en marcha (&gt;18 km/h)</label>
+      <label class="centinela-toggle"><input type="checkbox" id="centinela-guardar"> 📸 Guardar captura en críticos</label>
+    </div>
+    <p class="centinela-legal" style="margin-top:8px">Avisos escalonados: nivel 1 (café + tono suave), nivel 2 (voz + vibración), nivel 3 (microsueño/cabezada → alarma máxima y pantalla roja). También sugiere descanso a las 2 h de conducción continua. Los eventos quedan en la bitácora; sin fotos del conductor salvo que actives «guardar captura en críticos».</p>
+  </div>
+
+  <p class="centinela-legal">
+    ⚠️ <strong>Capa extra de seguridad. Sistema informativo: el conductor es siempre el responsable. No sustituye descansar antes de conducir.</strong>
+    Los coches usan cámaras infrarrojas (ven de noche y con gafas de sol); la cámara frontal del móvil NO: de noche necesita algo de luz y con gafas oscuras la detección ocular falla (se apoya en la postura de la cabeza y los bostezos). No es un sistema certificado.
+  </p>
+</section>
+
+<!-- Alerta de nivel 3 a pantalla completa (aparte del canvas: no entra en la evidencia). -->
+<div id="dms-alerta" class="oculto" aria-hidden="true"><div id="dms-alerta-texto">¡DESPIERTA!</div></div>
