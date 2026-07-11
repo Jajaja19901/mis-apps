@@ -169,10 +169,18 @@ function gesto_procesar(fuente, ts) {
  * recorte YA es de un track concreto. Deja diagnóstico en g.sinPose. */
 function gesto_analizarPose(fuente, ts, tracks) {
   const g = estado.gesto;
-  // Limitación de coste: si va lento (> media 80 ms), inferimos 1 de cada 2 frames.
-  if (g.msMedia > GESTO_MS_LIMITE) {
-    g.saltarContador = (g.saltarContador + 1) % 2;
-    if (g.saltarContador === 0) return;   // este frame se salta (conserva poses previas)
+  // Limitación de coste ADAPTATIVA: cuanto más tarda la pose (móvil caliente,
+  // muchas personas), MÁS frames se saltan. Es degradación TEMPORAL: conserva
+  // las poses previas y recupera el ritmo completo en cuanto se aligera. Así el
+  // hilo principal no se satura y el teléfono deja de arrastrarse, sin perder
+  // nunca la capacidad de detección (solo baja la frecuencia bajo carga).
+  let cadaN = 1;                                    // 1 = analizar todos los frames
+  if (g.msMedia > GESTO_MS_LIMITE) cadaN = 2;              // >80 ms  → 1 de cada 2
+  if (g.msMedia > GESTO_MS_LIMITE * 1.75) cadaN = 3;       // >140 ms → 1 de cada 3
+  if (g.msMedia > GESTO_MS_LIMITE * 2.75) cadaN = 4;       // >220 ms → 1 de cada 4
+  if (cadaN > 1) {
+    g.saltarContador = (g.saltarContador + 1) % cadaN;
+    if (g.saltarContador !== 0) return;   // este frame se salta (conserva poses previas)
   }
 
   const w = estado.video.w, h = estado.video.h;

@@ -2134,7 +2134,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.61',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.62',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -2568,7 +2568,7 @@ function nuc_frameAnalisis(fuente) {
  * Geometría segura: todos los motores escalan las cajas con estado.video.w/h y
  * drawImage estira, así que da igual el tamaño de esta copia. */
 const NUC_NOCHE_UMBRAL = 95;    // luz media (0-255) por debajo → realza (modo auto)
-let nuc_cnvLuz = null, nuc_luzVal = 140;
+let nuc_cnvLuz = null, nuc_luzVal = 140, nuc_luzTs = 0;
 let nuc_cnvNoche = null;
 
 /* Luz media de la escena (muestra minúscula 16×12, coste ~0). */
@@ -2594,7 +2594,12 @@ function nuc_fuenteNoche(fuente) {
   if (modo === 'on') {
     gamma = 2.2; ganancia = 1.15;
   } else {
-    const luz = nuc_luzMedia(fuente);
+    // La luz media apenas cambia entre frames: la remuestreamos como mucho cada
+    // 200 ms (evita un getImageData por cada frame de detección; ~5 veces/s basta).
+    const ahoraLuz = Date.now();
+    let luz;
+    if (ahoraLuz - nuc_luzTs > 200) { luz = nuc_luzMedia(fuente); nuc_luzTs = ahoraLuz; }
+    else { luz = nuc_luzVal; }
     if (luz >= NUC_NOCHE_UMBRAL) { estado.video.realceNoche = false; return null; }  // hay luz: no gastes
     const t = Math.max(0, Math.min(1, (NUC_NOCHE_UMBRAL - luz) / NUC_NOCHE_UMBRAL)); // 0..1 oscuridad
     gamma = 1.6 + t * 1.2;        // 1.60 .. 2.80 (más oscuro → sube más las sombras)
@@ -3271,10 +3276,18 @@ function gesto_procesar(fuente, ts) {
  * recorte YA es de un track concreto. Deja diagnóstico en g.sinPose. */
 function gesto_analizarPose(fuente, ts, tracks) {
   const g = estado.gesto;
-  // Limitación de coste: si va lento (> media 80 ms), inferimos 1 de cada 2 frames.
-  if (g.msMedia > GESTO_MS_LIMITE) {
-    g.saltarContador = (g.saltarContador + 1) % 2;
-    if (g.saltarContador === 0) return;   // este frame se salta (conserva poses previas)
+  // Limitación de coste ADAPTATIVA: cuanto más tarda la pose (móvil caliente,
+  // muchas personas), MÁS frames se saltan. Es degradación TEMPORAL: conserva
+  // las poses previas y recupera el ritmo completo en cuanto se aligera. Así el
+  // hilo principal no se satura y el teléfono deja de arrastrarse, sin perder
+  // nunca la capacidad de detección (solo baja la frecuencia bajo carga).
+  let cadaN = 1;                                    // 1 = analizar todos los frames
+  if (g.msMedia > GESTO_MS_LIMITE) cadaN = 2;              // >80 ms  → 1 de cada 2
+  if (g.msMedia > GESTO_MS_LIMITE * 1.75) cadaN = 3;       // >140 ms → 1 de cada 3
+  if (g.msMedia > GESTO_MS_LIMITE * 2.75) cadaN = 4;       // >220 ms → 1 de cada 4
+  if (cadaN > 1) {
+    g.saltarContador = (g.saltarContador + 1) % cadaN;
+    if (g.saltarContador !== 0) return;   // este frame se salta (conserva poses previas)
   }
 
   const w = estado.video.w, h = estado.video.h;
@@ -5086,7 +5099,7 @@ function vid_registrarPintor(nombre, fn, orden) {
  * ==========================================================================*/
 const VID_MOV_ANCHO = 32;        // miniatura de comparación
 const VID_MOV_ALTO = 24;
-const VID_MOV_CADA_MS = 200;     // medir como mucho 5 veces por segundo
+const VID_MOV_CADA_MS = 400;     // medir como mucho ~2-3 veces por segundo (un getImageData menos por frame)
 const VID_MOV_UMBRAL_PX = 26;    // diferencia de gris que cuenta como cambio
 const VID_MOV_FRACCION = 0.02;   // ≥2% de píxeles cambiados = hay movimiento
 const VID_CALMA_MS = 3000;       // 3 s sin cambios = escena en calma

@@ -695,7 +695,7 @@ function vid_registrarPintor(nombre, fn, orden) {
  * ==========================================================================*/
 const VID_MOV_ANCHO = 32;        // miniatura de comparación
 const VID_MOV_ALTO = 24;
-const VID_MOV_CADA_MS = 200;     // medir como mucho 5 veces por segundo
+const VID_MOV_CADA_MS = 400;     // medir como mucho ~2-3 veces por segundo (un getImageData menos por frame)
 const VID_MOV_UMBRAL_PX = 26;    // diferencia de gris que cuenta como cambio
 const VID_MOV_FRACCION = 0.02;   // ≥2% de píxeles cambiados = hay movimiento
 const VID_CALMA_MS = 3000;       // 3 s sin cambios = escena en calma

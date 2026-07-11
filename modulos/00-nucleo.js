@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.61',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.62',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -445,7 +445,7 @@ function nuc_frameAnalisis(fuente) {
  * Geometría segura: todos los motores escalan las cajas con estado.video.w/h y
  * drawImage estira, así que da igual el tamaño de esta copia. */
 const NUC_NOCHE_UMBRAL = 95;    // luz media (0-255) por debajo → realza (modo auto)
-let nuc_cnvLuz = null, nuc_luzVal = 140;
+let nuc_cnvLuz = null, nuc_luzVal = 140, nuc_luzTs = 0;
 let nuc_cnvNoche = null;
 
 /* Luz media de la escena (muestra minúscula 16×12, coste ~0). */
@@ -471,7 +471,12 @@ function nuc_fuenteNoche(fuente) {
   if (modo === 'on') {
     gamma = 2.2; ganancia = 1.15;
   } else {
-    const luz = nuc_luzMedia(fuente);
+    // La luz media apenas cambia entre frames: la remuestreamos como mucho cada
+    // 200 ms (evita un getImageData por cada frame de detección; ~5 veces/s basta).
+    const ahoraLuz = Date.now();
+    let luz;
+    if (ahoraLuz - nuc_luzTs > 200) { luz = nuc_luzMedia(fuente); nuc_luzTs = ahoraLuz; }
+    else { luz = nuc_luzVal; }
     if (luz >= NUC_NOCHE_UMBRAL) { estado.video.realceNoche = false; return null; }  // hay luz: no gastes
     const t = Math.max(0, Math.min(1, (NUC_NOCHE_UMBRAL - luz) / NUC_NOCHE_UMBRAL)); // 0..1 oscuridad
     gamma = 1.6 + t * 1.2;        // 1.60 .. 2.80 (más oscuro → sube más las sombras)
