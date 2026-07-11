@@ -63,6 +63,23 @@ function vid_init() {
     });
   }
 
+  // 🎬 Probar con un vídeo de la galería (p. ej. un robo real de internet):
+  //    un toque abre el selector y el vídeo elegido entra como fuente de la IA.
+  const btnDemo = document.getElementById('vid-btnDemo');
+  const inputDemo = document.getElementById('vid-inputDemo');
+  if (btnDemo && inputDemo) {
+    btnDemo.addEventListener('click', function () { try { inputDemo.click(); } catch (e) {} });
+    inputDemo.addEventListener('change', function () {
+      const f = inputDemo.files && inputDemo.files[0];
+      if (!f) return;
+      btnDemo.disabled = true; btnDemo.textContent = '🎬 Cargando…';
+      Promise.resolve(vid_usarArchivo(f)).finally(function () {
+        setTimeout(function () { btnDemo.disabled = false; btnDemo.textContent = '🎬 Probar con un vídeo'; }, 1200);
+        inputDemo.value = '';   // permite re-elegir el mismo archivo
+      });
+    });
+  }
+
   // ⛶ Pantalla completa: el vídeo va capado a 68vh para que el scroll funcione;
   // este botón lo pone a tamaño completo (y vuelta) sin perder nitidez.
   if (vid_el.expandir) {
@@ -623,6 +640,8 @@ function vid_detener() {
     if (vid_el.plegar) vid_el.plegar.classList.add('oculto');
     const vbc = document.getElementById('vid-btnCamara');
     if (vbc) vbc.classList.remove('oculto');
+    const vbd = document.getElementById('vid-btnDemo');
+    if (vbd) vbd.classList.remove('oculto');
     vid_mostrarEstado();
   } catch (e) {
     console.warn('[vid] al detener:', e && e.message);
@@ -735,6 +754,8 @@ function vid_componer() {
   if (vid_el.plegar) vid_el.plegar.classList.remove('oculto');
   const vbc = document.getElementById('vid-btnCamara');
   if (vbc && !vbc.classList.contains('oculto')) vbc.classList.add('oculto');
+  const vbd = document.getElementById('vid-btnDemo');
+  if (vbd && !vbd.classList.contains('oculto')) vbd.classList.add('oculto');
 
   const el = v.fuenteEl;
   try {
@@ -829,21 +850,23 @@ function vid_sinSenal(ctx, cnv) {
     if (cnv.width < 320 || cnv.height < 180) { cnv.width = 640; cnv.height = 360; }
     ctx.fillStyle = '#0b0f14';
     ctx.fillRect(0, 0, cnv.width, cnv.height);
-    // Abajo del todo: el centro lo ocupa el botón «Encender cámara» y arriba
-    // está el texto de ayuda (#vid-estado). Así nada se solapa.
+    // Esquina superior izquierda, pequeño: el centro lo ocupan los botones
+    // («Encender cámara» / «Probar con un vídeo») y el texto de ayuda va arriba
+    // centrado (#vid-estado). Así nada se solapa.
     ctx.fillStyle = '#7d8fa0';
-    ctx.textAlign = 'center';
-    ctx.font = "bold 18px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
-    ctx.fillText('SIN SEÑAL', cnv.width / 2, cnv.height - 30);
-    ctx.font = "14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
-    ctx.fillText(nuc_fechaHora(), cnv.width / 2, cnv.height - 10);
     ctx.textAlign = 'left';
+    ctx.font = "bold 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+    ctx.fillText('SIN SEÑAL', 10, 20);
+    ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+    ctx.fillText(nuc_fechaHora(), 10, 36);
     if (vid_el.canvasPriv) vid_el.canvasPriv.classList.add('oculto');
     if (vid_el.rec) vid_el.rec.classList.add('oculto');
     if (vid_el.expandir) vid_el.expandir.classList.add('oculto');
     if (vid_el.plegar) vid_el.plegar.classList.add('oculto');
     const vbc = document.getElementById('vid-btnCamara');
     if (vbc) vbc.classList.remove('oculto');
+    const vbd = document.getElementById('vid-btnDemo');
+    if (vbd) vbd.classList.remove('oculto');
   } catch (e) { /* ignorar */ }
 }
 
