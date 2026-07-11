@@ -847,8 +847,11 @@ function vid_sinSenal(ctx, cnv) {
   } catch (e) { /* ignorar */ }
 }
 
-/* Captura JPEG (~0.6) del compuesto ÍNTEGRO, reducida a anchoMax. null si falla. */
-function vid_capturaJPEG(anchoMax) {
+/* Captura JPEG del compuesto ÍNTEGRO, reducida a anchoMax. null si falla.
+ * calidad opcional (0..1, por defecto 0.6): las fotos que van a Telegram se
+ * piden más grandes y con más calidad (evidencia nítida); las miniaturas del
+ * historial se quedan pequeñas (el almacén del móvil es limitado). */
+function vid_capturaJPEG(anchoMax, calidad) {
   anchoMax = anchoMax || 320;
   const v = estado.vid; if (!v) return null;
   try {
@@ -859,7 +862,7 @@ function vid_capturaJPEG(anchoMax) {
     const tmp = v.tmpCap || (v.tmpCap = document.createElement('canvas'));
     tmp.width = w; tmp.height = h;
     tmp.getContext('2d').drawImage(cnv, 0, 0, w, h);
-    return tmp.toDataURL('image/jpeg', 0.6); // lanza si el canvas está contaminado → catch
+    return tmp.toDataURL('image/jpeg', calidad || 0.6); // lanza si el canvas está contaminado → catch
   } catch (e) { return null; }
 }
 

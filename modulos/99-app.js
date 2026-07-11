@@ -64,6 +64,17 @@ async function app_init() {
     // Al cambiar de fuente de vídeo, el tracker parte de cero (ids limpios)
     bus.on('video:listo', () => { try { trk_reiniciar(); } catch (e) {} });
 
+    // Consejo ÚNICO de precisión: con el motor Básico se pierde detalle. El
+    // Supercerebro (YOLO11) ve más lejos y con más acierto si el móvil puede.
+    bus.on('modelos:listos', () => {
+      try {
+        if (estado.cfg.motor === 'coco' && !nuc_cargar('aviso_precision', false)) {
+          nuc_guardar('aviso_precision', true);
+          ui_toast('Consejo: para MÁS precisión, activa el Supercerebro en Ajustes → Detección → Motor.', 'info');
+        }
+      } catch (e) {}
+    });
+
     // Cargas pesadas en paralelo, sin bloquear la interfaz
     nuc_cargarModelos().catch(() => {});         // motor rápido (siempre, como respaldo)
     if (estado.cfg.motor === 'yolo' && typeof yolo_init === 'function') {

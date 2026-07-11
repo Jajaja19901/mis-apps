@@ -177,9 +177,15 @@ function alerta_disparar(tipo, nivel, texto, datos, forzar) {
   }
   estado.alerta.cooldowns[clave] = ahora;
 
-  // 2) registro
-  let foto = null;
-  try { if (typeof vid_capturaJPEG === 'function') foto = vid_capturaJPEG(); } catch (e) { foto = null; }
+  // 2) registro. Dos capturas del MISMO instante: miniatura (historial, almacén
+  //    limitado) y HD 1280 (solo para Telegram: evidencia nítida, no se guarda).
+  let foto = null, fotoHD = null;
+  try {
+    if (typeof vid_capturaJPEG === 'function') {
+      fotoHD = vid_capturaJPEG(1280, 0.82);
+      foto = vid_capturaJPEG();
+    }
+  } catch (e) { foto = null; fotoHD = null; }
   const registro = { id: nuc_uid('a'), ts: ahora, tipo, nivel, texto, trackId, foto };
 
   // 3) log + rotación + persistencia
@@ -205,9 +211,9 @@ function alerta_disparar(tipo, nivel, texto, datos, forzar) {
     }, 60000);
   }
 
-  // 8) Telegram (solo sospecha/crítico y si está configurado)
+  // 8) Telegram (solo sospecha/crítico y si está configurado) — con la foto HD
   if (nivel !== 'info' && estado.cfg.telegramToken && estado.cfg.telegramChat) {
-    alerta_telegramEncolar(registro);
+    alerta_telegramEncolar(registro, fotoHD);
   }
 
   // 9) bus
@@ -363,12 +369,30 @@ function alerta_borrarLog() {
 /* ============================================================================
  * TELEGRAM — cola con reintentos (5s→15s→60s→60s, máx. 5 intentos)
  * ==========================================================================*/
-function alerta_telegramEncolar(registro) {
+function alerta_telegramEncolar(registro, fotoHD) {
   if (!estado.alerta) return;
-  const item = { id: registro.id, ts: registro.ts, texto: registro.texto, foto: registro.foto || null, intentos: 0 };
+  // La HD viaja SOLO en memoria; al persistir la cola se guarda la miniatura
+  // (fotoMini) para no agotar el almacén si hay que reintentar tras recargar.
+  const item = {
+    id: registro.id, ts: registro.ts, texto: registro.texto,
+    foto: fotoHD || registro.foto || null,
+    fotoMini: registro.foto || null,
+    intentos: 0,
+  };
   estado.alerta.telegramCola.push(item);
-  nuc_guardar('telegramCola', estado.alerta.telegramCola);
+  alerta_telegramPersistirCola();
   alerta_telegramProcesarCola();
+}
+
+/* Guarda la cola SIN las fotos HD (solo miniaturas): el almacén es limitado. */
+function alerta_telegramPersistirCola() {
+  if (!estado.alerta) return;
+  try {
+    const ligera = estado.alerta.telegramCola.map(function (i) {
+      return { id: i.id, ts: i.ts, texto: i.texto, foto: i.fotoMini || i.foto || null, intentos: i.intentos };
+    });
+    nuc_guardar('telegramCola', ligera);
+  } catch (e) { /* si no cabe, la cola sigue en memoria */ }
 }
 
 function alerta_telegramProcesarCola() {
@@ -399,7 +423,7 @@ function alerta_telegramTrasIntento(item, ok) {
   if (!estado.alerta) return;
   if (ok) {
     estado.alerta.telegramCola.shift();
-    nuc_guardar('telegramCola', estado.alerta.telegramCola);
+    alerta_telegramPersistirCola();
     estado.alerta.telegramProcesando = false;
     if (estado.alerta.telegramFalloAvisado) {
       estado.alerta.telegramFalloAvisado = false;
@@ -412,7 +436,7 @@ function alerta_telegramTrasIntento(item, ok) {
   item.intentos = (item.intentos || 0) + 1;
   if (item.intentos >= ALERTA_TG_MAX_INTENTOS) {
     estado.alerta.telegramCola.shift();
-    nuc_guardar('telegramCola', estado.alerta.telegramCola);
+    alerta_telegramPersistirCola();
     console.warn('[telegram] mensaje descartado tras ' + item.intentos + ' intentos');
     estado.alerta.telegramProcesando = false;
     if (!estado.alerta.telegramFalloAvisado) {
@@ -423,7 +447,7 @@ function alerta_telegramTrasIntento(item, ok) {
     return;
   }
 
-  nuc_guardar('telegramCola', estado.alerta.telegramCola);
+  alerta_telegramPersistirCola();
   const espera = ALERTA_TG_ESPERAS[Math.min(item.intentos - 1, ALERTA_TG_ESPERAS.length - 1)];
   setTimeout(() => {
     estado.alerta.telegramProcesando = false;

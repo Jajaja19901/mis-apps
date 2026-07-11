@@ -2105,7 +2105,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.45',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.46',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -5034,8 +5034,11 @@ function vid_sinSenal(ctx, cnv) {
   } catch (e) { /* ignorar */ }
 }
 
-/* Captura JPEG (~0.6) del compuesto ÍNTEGRO, reducida a anchoMax. null si falla. */
-function vid_capturaJPEG(anchoMax) {
+/* Captura JPEG del compuesto ÍNTEGRO, reducida a anchoMax. null si falla.
+ * calidad opcional (0..1, por defecto 0.6): las fotos que van a Telegram se
+ * piden más grandes y con más calidad (evidencia nítida); las miniaturas del
+ * historial se quedan pequeñas (el almacén del móvil es limitado). */
+function vid_capturaJPEG(anchoMax, calidad) {
   anchoMax = anchoMax || 320;
   const v = estado.vid; if (!v) return null;
   try {
@@ -5046,7 +5049,7 @@ function vid_capturaJPEG(anchoMax) {
     const tmp = v.tmpCap || (v.tmpCap = document.createElement('canvas'));
     tmp.width = w; tmp.height = h;
     tmp.getContext('2d').drawImage(cnv, 0, 0, w, h);
-    return tmp.toDataURL('image/jpeg', 0.6); // lanza si el canvas está contaminado → catch
+    return tmp.toDataURL('image/jpeg', calidad || 0.6); // lanza si el canvas está contaminado → catch
   } catch (e) { return null; }
 }
 
@@ -6102,9 +6105,15 @@ function alerta_disparar(tipo, nivel, texto, datos, forzar) {
   }
   estado.alerta.cooldowns[clave] = ahora;
 
-  // 2) registro
-  let foto = null;
-  try { if (typeof vid_capturaJPEG === 'function') foto = vid_capturaJPEG(); } catch (e) { foto = null; }
+  // 2) registro. Dos capturas del MISMO instante: miniatura (historial, almacén
+  //    limitado) y HD 1280 (solo para Telegram: evidencia nítida, no se guarda).
+  let foto = null, fotoHD = null;
+  try {
+    if (typeof vid_capturaJPEG === 'function') {
+      fotoHD = vid_capturaJPEG(1280, 0.82);
+      foto = vid_capturaJPEG();
+    }
+  } catch (e) { foto = null; fotoHD = null; }
   const registro = { id: nuc_uid('a'), ts: ahora, tipo, nivel, texto, trackId, foto };
 
   // 3) log + rotación + persistencia
@@ -6130,9 +6139,9 @@ function alerta_disparar(tipo, nivel, texto, datos, forzar) {
     }, 60000);
   }
 
-  // 8) Telegram (solo sospecha/crítico y si está configurado)
+  // 8) Telegram (solo sospecha/crítico y si está configurado) — con la foto HD
   if (nivel !== 'info' && estado.cfg.telegramToken && estado.cfg.telegramChat) {
-    alerta_telegramEncolar(registro);
+    alerta_telegramEncolar(registro, fotoHD);
   }
 
   // 9) bus
@@ -6288,12 +6297,30 @@ function alerta_borrarLog() {
 /* ============================================================================
  * TELEGRAM — cola con reintentos (5s→15s→60s→60s, máx. 5 intentos)
  * ==========================================================================*/
-function alerta_telegramEncolar(registro) {
+function alerta_telegramEncolar(registro, fotoHD) {
   if (!estado.alerta) return;
-  const item = { id: registro.id, ts: registro.ts, texto: registro.texto, foto: registro.foto || null, intentos: 0 };
+  // La HD viaja SOLO en memoria; al persistir la cola se guarda la miniatura
+  // (fotoMini) para no agotar el almacén si hay que reintentar tras recargar.
+  const item = {
+    id: registro.id, ts: registro.ts, texto: registro.texto,
+    foto: fotoHD || registro.foto || null,
+    fotoMini: registro.foto || null,
+    intentos: 0,
+  };
   estado.alerta.telegramCola.push(item);
-  nuc_guardar('telegramCola', estado.alerta.telegramCola);
+  alerta_telegramPersistirCola();
   alerta_telegramProcesarCola();
+}
+
+/* Guarda la cola SIN las fotos HD (solo miniaturas): el almacén es limitado. */
+function alerta_telegramPersistirCola() {
+  if (!estado.alerta) return;
+  try {
+    const ligera = estado.alerta.telegramCola.map(function (i) {
+      return { id: i.id, ts: i.ts, texto: i.texto, foto: i.fotoMini || i.foto || null, intentos: i.intentos };
+    });
+    nuc_guardar('telegramCola', ligera);
+  } catch (e) { /* si no cabe, la cola sigue en memoria */ }
 }
 
 function alerta_telegramProcesarCola() {
@@ -6324,7 +6351,7 @@ function alerta_telegramTrasIntento(item, ok) {
   if (!estado.alerta) return;
   if (ok) {
     estado.alerta.telegramCola.shift();
-    nuc_guardar('telegramCola', estado.alerta.telegramCola);
+    alerta_telegramPersistirCola();
     estado.alerta.telegramProcesando = false;
     if (estado.alerta.telegramFalloAvisado) {
       estado.alerta.telegramFalloAvisado = false;
@@ -6337,7 +6364,7 @@ function alerta_telegramTrasIntento(item, ok) {
   item.intentos = (item.intentos || 0) + 1;
   if (item.intentos >= ALERTA_TG_MAX_INTENTOS) {
     estado.alerta.telegramCola.shift();
-    nuc_guardar('telegramCola', estado.alerta.telegramCola);
+    alerta_telegramPersistirCola();
     console.warn('[telegram] mensaje descartado tras ' + item.intentos + ' intentos');
     estado.alerta.telegramProcesando = false;
     if (!estado.alerta.telegramFalloAvisado) {
@@ -6348,7 +6375,7 @@ function alerta_telegramTrasIntento(item, ok) {
     return;
   }
 
-  nuc_guardar('telegramCola', estado.alerta.telegramCola);
+  alerta_telegramPersistirCola();
   const espera = ALERTA_TG_ESPERAS[Math.min(item.intentos - 1, ALERTA_TG_ESPERAS.length - 1)];
   setTimeout(() => {
     estado.alerta.telegramProcesando = false;
@@ -16528,6 +16555,17 @@ async function app_init() {
 
     // Al cambiar de fuente de vídeo, el tracker parte de cero (ids limpios)
     bus.on('video:listo', () => { try { trk_reiniciar(); } catch (e) {} });
+
+    // Consejo ÚNICO de precisión: con el motor Básico se pierde detalle. El
+    // Supercerebro (YOLO11) ve más lejos y con más acierto si el móvil puede.
+    bus.on('modelos:listos', () => {
+      try {
+        if (estado.cfg.motor === 'coco' && !nuc_cargar('aviso_precision', false)) {
+          nuc_guardar('aviso_precision', true);
+          ui_toast('Consejo: para MÁS precisión, activa el Supercerebro en Ajustes → Detección → Motor.', 'info');
+        }
+      } catch (e) {}
+    });
 
     // Cargas pesadas en paralelo, sin bloquear la interfaz
     nuc_cargarModelos().catch(() => {});         // motor rápido (siempre, como respaldo)
