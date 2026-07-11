@@ -7,7 +7,7 @@
  *    versión si hay internet, y la app sigue abriendo sin conexión.
  *  · Modelos y librerías de IA (CDNs): caché primero → se descargan UNA vez.
  * ==========================================================================*/
-const VERSION = 'vigia-3-57';
+const VERSION = 'vigia-3-58';
 const CACHE_APP = VERSION + '-app';
 const CACHE_IA = VERSION + '-ia';
 
@@ -38,17 +38,32 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
-  /* Librerías/modelos de IA: caché primero (descarga única) */
+  /* Librerías/modelos de IA (CDNs):
+   *  · MODELOS grandes e inmutables (.onnx/.task/.bin/.data): CACHÉ PRIMERO
+   *    (se bajan una vez y pesan mucho; no reintentar).
+   *  · LIBRERÍAS/scripts (.js/.mjs/.wasm/.css): RED PRIMERO con respaldo de
+   *    caché. Si una copia se guardó rota (descarga a medias), se AUTORREPARA
+   *    en cuanto hay internet, en vez de quedar pillada para siempre. */
   if (HOSTS_IA.some((h) => url.hostname === h || url.hostname.endsWith('.' + h))) {
+    const esModeloGrande = /\.(onnx|task|bin|data)(\?|$)/i.test(url.pathname);
     e.respondWith((async () => {
       const cache = await caches.open(CACHE_IA);
-      const hit = await cache.match(req);
-      if (hit) return hit;
+      if (esModeloGrande) {
+        const hit = await cache.match(req);
+        if (hit) return hit;
+        try {
+          const resp = await fetch(req);
+          if (resp && resp.ok) cache.put(req, resp.clone());
+          return resp;
+        } catch (err) { return hit || Response.error(); }
+      }
+      // Scripts/librerías: red primero.
       try {
         const resp = await fetch(req);
         if (resp && resp.ok) cache.put(req, resp.clone());
         return resp;
       } catch (err) {
+        const hit = await cache.match(req);
         return hit || Response.error();
       }
     })());
