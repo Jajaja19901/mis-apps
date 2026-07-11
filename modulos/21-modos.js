@@ -130,6 +130,11 @@ function modos_aplicar() {
   const aforo = document.getElementById('ui-btnAforo');
   if (aforo) aforo.classList.toggle('oculto', vista !== 'comercio' && vista !== 'carretera');
 
+  // 5) La sección «Cerebro remoto» de Ajustes solo aparece en el modo Mando
+  //    (fuera de él solo confunde: es la salud/configuración del equipo remoto).
+  const secCerebro = document.getElementById('mdash-secCerebro');
+  if (secCerebro) secCerebro.classList.toggle('oculto', vista !== 'mando');
+
   modos_sincronizarBotones();
   if (typeof bus !== 'undefined') bus.emit('modos:vista', { vista: vista });
 }

@@ -404,6 +404,51 @@ h1, h2, h3, p { margin: 0; }
   .ui-onboarding-opciones .btn { width: auto; flex: 1; }
 }
 
+/* ============================================================================
+   PULIDO MODERNO (v3.39) — capa de estilo sobre el sistema existente.
+   Solo apariencia: no cambia estructura, ids ni comportamiento.
+   ========================================================================== */
+:root {
+  --radio: 14px;
+  --sombra: 0 6px 24px rgba(0, 0, 0, .35);
+}
+
+/* Botones: más redondeados, con relieve suave y feedback claro al pulsar */
+.btn { border-radius: 12px; box-shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 2px 8px rgba(0,0,0,.25); }
+.btn-primario { box-shadow: 0 4px 14px rgba(63,169,255,.28); }
+.btn-peligro { box-shadow: 0 4px 14px rgba(255,65,85,.25); }
+
+/* Cabecera con degradado sutil y separación nítida */
+.ui-header { background: linear-gradient(180deg, #121a23 0%, var(--fondo) 100%); border-bottom: 1px solid var(--borde); }
+
+/* Tarjetas: borde fino luminoso arriba (efecto "cristal de sala de control") */
+.tarjeta {
+  border-radius: var(--radio);
+  background: linear-gradient(180deg, rgba(255,255,255,.022) 0%, rgba(255,255,255,0) 42%), var(--panel);
+}
+
+/* Títulos de sección con barra de acento: se ve al instante dónde empieza cada bloque */
+.sec-titulo { display: flex; align-items: center; gap: .55em; }
+.sec-titulo::before { content: ''; flex: 0 0 4px; width: 4px; height: 1.05em; border-radius: 3px; background: linear-gradient(180deg, var(--azul), var(--verde)); }
+summary.sec-titulo { cursor: pointer; }
+summary.sec-titulo::before { display: inline-block; }
+
+/* Cifras grandes con un toque de color */
+.dato-grande { letter-spacing: -.02em; }
+
+/* Campos de formulario: coherentes con los botones */
+.campo input, .campo select, .campo textarea { border-radius: 10px; }
+.campo input:focus, .campo select:focus, .campo textarea:focus { box-shadow: 0 0 0 3px rgba(63,169,255,.18); }
+
+/* Feed de alertas: cada entrada como mini-tarjeta */
+.ui-feed-alertas > li { border-radius: 10px; }
+
+/* Chips de modos: brillo del activo (definidos en el esqueleto; aquí el acento) */
+.modos-chip.activo { box-shadow: 0 4px 16px rgba(63,169,255,.35); }
+
+/* Drawer de ajustes: bordes redondeados hacia el interior */
+.ui-drawer { border-radius: 16px 0 0 16px; border-left: 1px solid var(--borde); }
+
 </style>
 </head>
 <body>
@@ -1061,14 +1106,19 @@ h1, h2, h3, p { margin: 0; }
 
 <div id="mando-panel">
 
+  <div class="tarjeta" style="margin-bottom:10px">
+    <h2 class="sec-titulo">🧠 ¿Qué es el modo Mando?</h2>
+    <p class="etiqueta" style="line-height:1.5">Sirve para <b>controlar a distancia OTRO equipo Vigía</b> (por ejemplo, un móvil viejo dejado como cámara en la tienda o en casa, o un mini-ordenador con varias cámaras — a ese equipo lo llamamos «cerebro»). Desde aquí ves su vídeo, armas y desarmas su alarma y consultas sus datos.<br><b>Si solo usas ESTE móvil como cámara, no necesitas este modo para nada</b>: vuelve a 🛒, 🅿, 🚗, 🏠 o 👁 en la barra de arriba.</p>
+  </div>
+
   <div id="mando-estadoCerebro" class="mando-cerebro-no" role="status" aria-live="polite">🧠 Sin conexión</div>
 
   <!-- CONEXIÓN: visible mientras no hay conexión establecida -->
   <div id="mando-conexion" class="tarjeta mando-conexion">
-    <h2 class="sec-titulo">Conectar con el cerebro</h2>
-    <p class="etiqueta">Escribe la dirección y el token que te dio el instalador, o pega el código QR (empieza por <code>vigia://</code>).</p>
+    <h2 class="sec-titulo">Conectar con tu otra cámara (el «cerebro»)</h2>
+    <p class="etiqueta">Escribe la dirección y el token que muestra el otro equipo al instalarlo, o pega su código QR (empieza por <code>vigia://</code>).</p>
     <div class="campo">
-      <label for="mando-url">Dirección del cerebro</label>
+      <label for="mando-url">Dirección del cerebro (la muestra el otro equipo)</label>
       <input type="url" id="mando-url" inputmode="url" autocomplete="off" placeholder="https://tu-tunel.trycloudflare.com">
     </div>
     <div class="campo">
@@ -1215,8 +1265,10 @@ h1, h2, h3, p { margin: 0; }
 </section>
 
 <template id="mdash-tplAjustes">
-  <details class="tarjeta cfg-sec" id="mdash-secCerebro">
-    <summary class="sec-titulo">🧠 Cerebro (remoto)</summary>
+  <!-- Solo tiene sentido con el modo Mando: el selector de modos (21) lo
+       enseña únicamente en esa vista, para no confundir en el uso normal. -->
+  <details class="tarjeta cfg-sec oculto" id="mdash-secCerebro">
+    <summary class="sec-titulo">🧠 Cerebro remoto (solo modo Mando)</summary>
     <p class="etiqueta oculto" id="mdash-msgAjustes">🧠 Cerebro sin conexión.</p>
 
     <div class="etiqueta">Salud del cerebro</div>
@@ -1519,13 +1571,17 @@ h1, h2, h3, p { margin: 0; }
       <span>Modo preciso <span class="etiqueta">(ve más objetos y más pequeños; va algo más lento. Se recarga el modelo al activarlo.)</span></span>
     </label>
 
-    <fieldset class="campo">
+    <!-- El modo de trabajo se elige en la BARRA DE MODOS (arriba). Los radios
+         siguen aquí ocultos solo como enganche técnico (data-cfg), sin UI
+         duplicada: una única forma de cambiar de modo = ninguna confusión. -->
+    <fieldset class="campo oculto" aria-hidden="true">
       <legend class="etiqueta">Modo de trabajo</legend>
       <div class="fila">
         <label><input type="radio" name="cfg-modo" id="cfg-modo-super" data-cfg="modo" value="super"> Supermercado / comercio</label>
         <label><input type="radio" name="cfg-modo" id="cfg-modo-carretera" data-cfg="modo" value="carretera"> Carretera / tráfico</label>
       </div>
     </fieldset>
+    <p class="etiqueta">El modo de trabajo (🛒 Comercio / 🅿 Parking / 🚗 Copiloto / 🏠 Casa / 👁 Centinela / 🧠 Mando) se elige arriba, en la barra de modos.</p>
   </details>
 
   <!-- 3. AFORO Y ZONAS -->
@@ -1941,7 +1997,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.38',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.39',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -16149,6 +16205,11 @@ function modos_aplicar() {
   // 4) El botón Aforo solo tiene sentido en comercio/parking.
   const aforo = document.getElementById('ui-btnAforo');
   if (aforo) aforo.classList.toggle('oculto', vista !== 'comercio' && vista !== 'carretera');
+
+  // 5) La sección «Cerebro remoto» de Ajustes solo aparece en el modo Mando
+  //    (fuera de él solo confunde: es la salud/configuración del equipo remoto).
+  const secCerebro = document.getElementById('mdash-secCerebro');
+  if (secCerebro) secCerebro.classList.toggle('oculto', vista !== 'mando');
 
   modos_sincronizarBotones();
   if (typeof bus !== 'undefined') bus.emit('modos:vista', { vista: vista });
