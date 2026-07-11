@@ -376,14 +376,37 @@ function ui_alRecibirGrabacion(datos) {
   texto.className = 'ui-feed-texto';
   texto.textContent = 'Grabación disponible' + (datos.motivo ? ' — ' + datos.motivo : '');
 
+  // ▶ VER: reproduce el clip aquí mismo, en un modal (sin salir de la app).
+  const ver = document.createElement('button');
+  ver.type = 'button';
+  ver.className = 'btn btn-mini btn-primario';
+  ver.textContent = '▶ Ver';
+  ver.addEventListener('click', function () {
+    try {
+      const cuerpo = document.createElement('div');
+      const vid = document.createElement('video');
+      vid.src = datos.url; vid.controls = true; vid.autoplay = true;
+      vid.playsInline = true; vid.setAttribute('playsinline', '');
+      vid.style.cssText = 'width:100%;max-height:60vh;border-radius:12px;background:#000';
+      const nota = document.createElement('p');
+      nota.className = 'etiqueta';
+      nota.style.marginTop = '6px';
+      nota.textContent = 'Las grabaciones viven en la memoria de la app: si la cierras o se recarga, se pierden. Descarga las importantes.';
+      cuerpo.appendChild(vid); cuerpo.appendChild(nota);
+      ui_modal('🎬 ' + ('Grabación — ' + (datos.motivo || nuc_horaCorta(datos.ts))), cuerpo,
+        [{ texto: 'Cerrar', clase: 'btn-fantasma', cerrar: true }]);
+    } catch (e) { ui_toast('No se pudo abrir el clip.', 'sospecha'); }
+  });
+
   const enlace = document.createElement('a');
   enlace.className = 'btn btn-mini btn-fantasma';
   enlace.href = datos.url;
   enlace.download = datos.nombre || 'grabacion.webm';
-  enlace.textContent = 'Descargar clip';
+  enlace.textContent = '⬇ Descargar';
 
   li.appendChild(hora);
   li.appendChild(texto);
+  li.appendChild(ver);
   li.appendChild(enlace);
 
   ui_feedAgregar(li);

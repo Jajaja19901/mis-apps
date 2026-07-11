@@ -24,7 +24,7 @@
 const MODOS_DEF = {
   comercio:  { modo: 'super',     zonas: true, secs: ['ui-secVideo', 'ui-contadores', 'ui-secAlertas', 'ui-secStats'] },
   carretera: { modo: 'carretera', zonas: true, secs: ['ui-secVideo', 'ui-contadores', 'ui-secAlertas', 'ui-secStats', 'ui-secCarretera'] },
-  copiloto:  {                                 secs: ['ui-secVideo', 'ui-secCopiloto'] },
+  copiloto:  {                                 secs: ['ui-secVideo', 'ui-secCopiloto', 'ui-secAlertas'] },
   casa:      { modo: 'super',     zonas: true, secs: ['ui-secVideo', 'ui-secCasa', 'ui-secAlertas'] },
   // Centinela usa su PROPIA cámara frontal (invisible) + su panel de estado; NO
   // muestra el visor principal (evita el choque de dos cámaras) ni la barra de zonas.

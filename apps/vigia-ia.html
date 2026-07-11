@@ -2118,7 +2118,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.51',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.52',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -5813,14 +5813,37 @@ function ui_alRecibirGrabacion(datos) {
   texto.className = 'ui-feed-texto';
   texto.textContent = 'Grabación disponible' + (datos.motivo ? ' — ' + datos.motivo : '');
 
+  // ▶ VER: reproduce el clip aquí mismo, en un modal (sin salir de la app).
+  const ver = document.createElement('button');
+  ver.type = 'button';
+  ver.className = 'btn btn-mini btn-primario';
+  ver.textContent = '▶ Ver';
+  ver.addEventListener('click', function () {
+    try {
+      const cuerpo = document.createElement('div');
+      const vid = document.createElement('video');
+      vid.src = datos.url; vid.controls = true; vid.autoplay = true;
+      vid.playsInline = true; vid.setAttribute('playsinline', '');
+      vid.style.cssText = 'width:100%;max-height:60vh;border-radius:12px;background:#000';
+      const nota = document.createElement('p');
+      nota.className = 'etiqueta';
+      nota.style.marginTop = '6px';
+      nota.textContent = 'Las grabaciones viven en la memoria de la app: si la cierras o se recarga, se pierden. Descarga las importantes.';
+      cuerpo.appendChild(vid); cuerpo.appendChild(nota);
+      ui_modal('🎬 ' + ('Grabación — ' + (datos.motivo || nuc_horaCorta(datos.ts))), cuerpo,
+        [{ texto: 'Cerrar', clase: 'btn-fantasma', cerrar: true }]);
+    } catch (e) { ui_toast('No se pudo abrir el clip.', 'sospecha'); }
+  });
+
   const enlace = document.createElement('a');
   enlace.className = 'btn btn-mini btn-fantasma';
   enlace.href = datos.url;
   enlace.download = datos.nombre || 'grabacion.webm';
-  enlace.textContent = 'Descargar clip';
+  enlace.textContent = '⬇ Descargar';
 
   li.appendChild(hora);
   li.appendChild(texto);
+  li.appendChild(ver);
   li.appendChild(enlace);
 
   ui_feedAgregar(li);
@@ -16419,7 +16442,7 @@ function dms_render() {
 const MODOS_DEF = {
   comercio:  { modo: 'super',     zonas: true, secs: ['ui-secVideo', 'ui-contadores', 'ui-secAlertas', 'ui-secStats'] },
   carretera: { modo: 'carretera', zonas: true, secs: ['ui-secVideo', 'ui-contadores', 'ui-secAlertas', 'ui-secStats', 'ui-secCarretera'] },
-  copiloto:  {                                 secs: ['ui-secVideo', 'ui-secCopiloto'] },
+  copiloto:  {                                 secs: ['ui-secVideo', 'ui-secCopiloto', 'ui-secAlertas'] },
   casa:      { modo: 'super',     zonas: true, secs: ['ui-secVideo', 'ui-secCasa', 'ui-secAlertas'] },
   // Centinela usa su PROPIA cámara frontal (invisible) + su panel de estado; NO
   // muestra el visor principal (evita el choque de dos cámaras) ni la barra de zonas.
