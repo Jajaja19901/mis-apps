@@ -220,6 +220,10 @@ function gesto_analizarPose(fuente, ts, tracks) {
 function gesto_evaluarOcultacion(trk, puntos, ts) {
   const g = estado.gesto;
   const id = trk.id;
+  // Filtro anti-falsas: SENTADO o TUMBADO no cuenta. Una persona sentada tiene
+  // las manos cerca de la cintura todo el rato (falsa «ocultación» constante).
+  // De pie la caja es más alta que ancha; sentado/tumbado se achata.
+  if (trk.caja && trk.caja.al < trk.caja.an * 1.05) return;
   const hi = puntos[GESTO_LM.HOMBRO_I], hd = puntos[GESTO_LM.HOMBRO_D];
   const ci = puntos[GESTO_LM.CADERA_I], cd = puntos[GESTO_LM.CADERA_D];
   const mi = puntos[GESTO_LM.MUNECA_I], md = puntos[GESTO_LM.MUNECA_D];
@@ -422,9 +426,12 @@ function gesto_detectarCarrera(tracks, ts) {
     let c = g.carrera[t.id];
     if (!c) c = g.carrera[t.id] = { rapidoDesde: null, ultima: 0 };
     const vel = gesto_velocidad(t);
-    // Guardas: track maduro + confianza decente + velocidad sobre umbral.
+    // Guardas: track maduro + confianza decente + DE PIE (quien corre va
+    // vertical; una caja achatada —sentado, tumbado, medio cuerpo raro— que
+    // «vuela» por la imagen es un salto del detector, no una carrera).
     const fiable = (ts - (t.creadoEn || ts)) >= GESTO_CARRERA_EDAD_MIN_MS
-      && (t.score == null || t.score >= GESTO_CARRERA_SCORE_MIN);
+      && (t.score == null || t.score >= GESTO_CARRERA_SCORE_MIN)
+      && (!t.caja || t.caja.al > t.caja.an);
     if (fiable && vel > umbral && umbral > 0) {
       if (c.rapidoDesde == null) c.rapidoDesde = ts;
       // Además del tiempo sostenido, exige desplazamiento NETO real (mata fantasmas).
