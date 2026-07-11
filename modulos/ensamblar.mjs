@@ -185,8 +185,8 @@ ${css}
 </head>
 <body>
 ${cuerpo}
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"><\/script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"><\/script>
+<script src="lib/tf.min.js"><\/script>
+<script src="lib/coco-ssd.min.js"><\/script>
 <script>
 ${js}
 <\/script>
