@@ -22,12 +22,14 @@
 /* Definición de cada vista: qué secciones enseña y qué perfil de análisis usa.
  * 'modo' (super/carretera) solo se toca en las vistas que lo necesitan. */
 const MODOS_DEF = {
-  comercio:  { modo: 'super',     secs: ['ui-secVideo', 'ui-contadores', 'ui-secAlertas', 'ui-secStats'] },
-  carretera: { modo: 'carretera', secs: ['ui-secVideo', 'ui-contadores', 'ui-secAlertas', 'ui-secStats', 'ui-secCarretera'] },
-  copiloto:  {                    secs: ['ui-secVideo', 'ui-secCopiloto'] },
-  casa:      { modo: 'super',     secs: ['ui-secVideo', 'ui-secCasa', 'ui-secAlertas'] },
-  centinela: {                    secs: ['ui-secVideo', 'ui-secCentinela'] },
-  mando:     {                    secs: ['ui-secMando'] },
+  comercio:  { modo: 'super',     zonas: true, secs: ['ui-secVideo', 'ui-contadores', 'ui-secAlertas', 'ui-secStats'] },
+  carretera: { modo: 'carretera', zonas: true, secs: ['ui-secVideo', 'ui-contadores', 'ui-secAlertas', 'ui-secStats', 'ui-secCarretera'] },
+  copiloto:  {                                 secs: ['ui-secVideo', 'ui-secCopiloto'] },
+  casa:      { modo: 'super',     zonas: true, secs: ['ui-secVideo', 'ui-secCasa', 'ui-secAlertas'] },
+  // Centinela usa su PROPIA cámara frontal (invisible) + su panel de estado; NO
+  // muestra el visor principal (evita el choque de dos cámaras) ni la barra de zonas.
+  centinela: {                                 secs: ['ui-secCentinela'] },
+  mando:     {                                 secs: ['ui-secMando'] },
 };
 const MODOS_VISTAS = Object.keys(MODOS_DEF);
 /* Todas las secciones que este módulo gobierna (unión de las de arriba). */
@@ -128,6 +130,14 @@ function modos_aplicar() {
   MODOS_SECS.forEach(function (id) {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('oculto', def.secs.indexOf(id) < 0);
+  });
+
+  // 1b) Barra de zonas y de detalle: solo en los modos que usan zonas de escena
+  //     (comercio, parking, casa). En copiloto/centinela/mando sobran y confunden.
+  const verZonas = !!def.zonas;
+  ['zona-toolbar', 'det-barra'].forEach(function (id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('oculto', !verZonas);
   });
 
   // 2) Chips: marcar el activo.
