@@ -212,6 +212,27 @@ function ui_actualizarContadores() {
 }
 
 /* Actualiza el punto y el texto de estado de la cabecera */
+/* Estado del MOTOR de detección para enseñarlo SIEMPRE en la cabecera, para que
+ * el dueño nunca esté a ciegas sobre por qué detecta mejor o peor. Devuelve
+ * { etiqueta, nivel } con nivel 'ok' | 'cargando' | 'fallo'. Los motores pesados
+ * (Potente/Supercerebro) caen solos al Básico si no cargan: aquí se ve el aviso. */
+function ui_motorEstado() {
+  const cfg = estado.cfg || {};
+  const y = estado.yolo, s = estado.sc;
+  if (cfg.motor === 'onnx') {
+    if (typeof sc_activo === 'function' && sc_activo()) return { etiqueta: '🧠 Supercerebro', nivel: 'ok' };
+    return { etiqueta: '🧠 Cargando Supercerebro…', nivel: 'cargando' };
+  }
+  if (cfg.motor === 'yolo') {
+    if (y && y.listo) return { etiqueta: '⚡ Potente', nivel: 'ok' };
+    return { etiqueta: '⚡ Cargando Potente… (11 MB, 1ª vez)', nivel: 'cargando' };
+  }
+  // Motor básico activo: ¿elección propia, o CAÍDA desde un motor pesado que falló?
+  if (y && y.error) return { etiqueta: '⚠ El Potente falló → va en Básico', nivel: 'fallo' };
+  if (s && s.avisoBasico) return { etiqueta: '⚠ El Supercerebro falló → va en Básico', nivel: 'fallo' };
+  return { etiqueta: '🟢 Básico', nivel: 'ok' };
+}
+
 function ui_actualizarEstadoHeader() {
   const refs = estado.uiRefs;
   if (!refs || !refs.estadoPunto || !refs.estadoTxt) return;
@@ -230,8 +251,18 @@ function ui_actualizarEstadoHeader() {
     refs.estadoPunto.classList.add('ui-punto-ambar');
     refs.estadoTxt.textContent = 'Esperando fuente de vídeo…';
   } else {
-    refs.estadoPunto.classList.add('ui-punto-verde');
-    refs.estadoTxt.textContent = 'En vivo';
+    // Vídeo en vivo: enseña QUÉ motor está detectando y si está cargando o cayó.
+    const me = ui_motorEstado();
+    if (me.nivel === 'cargando') {
+      refs.estadoPunto.classList.add('ui-punto-ambar');
+      refs.estadoTxt.textContent = me.etiqueta;
+    } else if (me.nivel === 'fallo') {
+      refs.estadoPunto.classList.add('ui-punto-ambar');
+      refs.estadoTxt.textContent = me.etiqueta;
+    } else {
+      refs.estadoPunto.classList.add('ui-punto-verde');
+      refs.estadoTxt.textContent = 'En vivo · ' + me.etiqueta;
+    }
   }
 }
 
