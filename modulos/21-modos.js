@@ -82,19 +82,23 @@ function modos_init() {
 function modos_vista() { return estado.modos ? estado.modos.vista : 'comercio'; }
 
 /* Apaga los sistemas que NO pertenecen a la vista actual, para que no se pisen.
+ * EXCEPCIÓN de coche: Copiloto (trasera→carretera) y Centinela (frontal→conductor)
+ * son COMPLEMENTARIOS y pueden convivir — entre sus dos vistas no se apagan
+ * mutuamente (es la combinación «dos cámaras a la vez», si el móvil la permite).
  * Cada apagado es idempotente y seguro (solo actúa si estaba encendido). */
 function modos_aislar(vista) {
+  const enCoche = (vista === 'copiloto' || vista === 'centinela');
   try {
-    // Copiloto: colisión, peatón, matrícula, velocímetro… → solo en su vista.
-    if (vista !== 'copiloto' && estado.cfg.copActivo && typeof cop_alternar === 'function') cop_alternar(false);
+    // Copiloto: sigue vivo también en la vista Centinela (pareja de coche).
+    if (!enCoche && estado.cfg.copActivo && typeof cop_alternar === 'function') cop_alternar(false);
   } catch (e) {}
   try {
     // Casa: alarma, roles, paquetería, batería… → solo en su vista.
     if (vista !== 'casa' && estado.cfg.casaActivo && typeof casa_alternar === 'function') casa_alternar(false);
   } catch (e) {}
   try {
-    // Centinela: modelo facial + cámara frontal → solo en su vista (libera todo).
-    if (vista !== 'centinela' && typeof dms_activo === 'function' && dms_activo() && typeof dms_alternar === 'function') dms_alternar(false);
+    // Centinela: sigue vivo también en la vista Copiloto (pareja de coche).
+    if (!enCoche && typeof dms_activo === 'function' && dms_activo() && typeof dms_alternar === 'function') dms_alternar(false);
   } catch (e) {}
 }
 
