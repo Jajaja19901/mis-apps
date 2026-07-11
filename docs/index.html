@@ -14973,6 +14973,15 @@ function casa_toast(msg, nivel) {
   console.warn('[casa] ' + msg);
 }
 
+/* Escapa texto antes de insertarlo como HTML (defensa en profundidad: hoy los
+ * nombres de zona son autogenerados, pero si mañana se importan o editan,
+ * ningún texto podrá colar etiquetas). */
+function casa_esc(t) {
+  return String(t == null ? '' : t)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 /* ============================================================================
  * ACTIVAR / DESACTIVAR la capa Casa (botón del header o ajustes).
  * ==========================================================================*/
@@ -15618,8 +15627,8 @@ function casa_modalRoles() {
       const rolActual = casa_rolDe(z.id) || '';
       let opts = '<option value="">— sin rol de casa —</option>';
       CASA_ROLES.forEach(function (r) { opts += '<option value="' + r + '"' + (rolActual === r ? ' selected' : '') + '>' + CASA_ROL_ES[r] + '</option>'; });
-      fila.innerHTML = '<label>' + (z.nombre || z.id) + ' <span class="etiqueta">(' + (z.tipo || 'zona') + ')</span></label>' +
-        '<select data-zona="' + z.id + '">' + opts + '</select>';
+      fila.innerHTML = '<label>' + casa_esc(z.nombre || z.id) + ' <span class="etiqueta">(' + casa_esc(z.tipo || 'zona') + ')</span></label>' +
+        '<select data-zona="' + casa_esc(z.id) + '">' + opts + '</select>';
       cont.appendChild(fila);
     });
     cont.addEventListener('change', function (ev) {
@@ -15644,7 +15653,7 @@ function casa_modalVisitas() {
       const fila = document.createElement('div');
       fila.className = 'fila'; fila.style.marginBottom = '8px';
       const img = v.foto ? '<img src="' + v.foto + '" alt="" style="width:64px;height:48px;object-fit:cover;border-radius:6px">' : '';
-      fila.innerHTML = img + '<span>' + nuc_horaCorta(v.ts) + ' · ' + (v.texto || 'Visita') + '</span>';
+      fila.innerHTML = img + '<span>' + nuc_horaCorta(v.ts) + ' · ' + casa_esc(v.texto || 'Visita') + '</span>';
       cont.appendChild(fila);
     });
   }
@@ -15668,7 +15677,7 @@ function casa_render() {
   let html = '';
   c.timeline.slice(0, 24).forEach(function (t) {
     const img = t.foto ? '<img src="' + t.foto + '" alt="" style="width:100%;height:44px;object-fit:cover;border-radius:6px">' : '<div style="height:44px;border-radius:6px;background:var(--panel2)"></div>';
-    html += '<div class="casa-tl-item insignia-' + (t.nivel || 'info') + '" title="' + (t.texto || '') + '">' +
+    html += '<div class="casa-tl-item insignia-' + casa_esc(t.nivel || 'info') + '" title="' + casa_esc(t.texto || '') + '">' +
       img + '<span class="casa-tl-hora">' + nuc_horaCorta(t.ts) + '</span></div>';
   });
   cont.innerHTML = html;
