@@ -79,6 +79,23 @@ function modos_init() {
 
 function modos_vista() { return estado.modos ? estado.modos.vista : 'comercio'; }
 
+/* Apaga los sistemas que NO pertenecen a la vista actual, para que no se pisen.
+ * Cada apagado es idempotente y seguro (solo actúa si estaba encendido). */
+function modos_aislar(vista) {
+  try {
+    // Copiloto: colisión, peatón, matrícula, velocímetro… → solo en su vista.
+    if (vista !== 'copiloto' && estado.cfg.copActivo && typeof cop_alternar === 'function') cop_alternar(false);
+  } catch (e) {}
+  try {
+    // Casa: alarma, roles, paquetería, batería… → solo en su vista.
+    if (vista !== 'casa' && estado.cfg.casaActivo && typeof casa_alternar === 'function') casa_alternar(false);
+  } catch (e) {}
+  try {
+    // Centinela: modelo facial + cámara frontal → solo en su vista (libera todo).
+    if (vista !== 'centinela' && typeof dms_activo === 'function' && dms_activo() && typeof dms_alternar === 'function') dms_alternar(false);
+  } catch (e) {}
+}
+
 /* Cambia de vista y aplica. */
 function modos_ir(vista) {
   if (MODOS_VISTAS.indexOf(vista) < 0 || !estado.modos) return;
@@ -101,6 +118,11 @@ function modos_aplicar() {
   if (!estado.modos) return;
   const vista = estado.modos.vista;
   const def = MODOS_DEF[vista] || MODOS_DEF.comercio;
+
+  // 0) AÍSLA: un modo cada vez. Al entrar en una vista, se APAGAN los sistemas
+  //    de los demás modos (si no, el copiloto seguiría avisando de «peatón» en
+  //    Comercio, la casa vigilaría en Parking, etc. — sistemas mezclados).
+  modos_aislar(vista);
 
   // 1) Secciones: solo las de la vista.
   MODOS_SECS.forEach(function (id) {
