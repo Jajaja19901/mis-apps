@@ -98,6 +98,13 @@ function car_init() {
       }
     });
   }
+  // 📸 Ver la galería desde el propio panel Parking (antes solo estaba en
+  // Copiloto: el radar guardaba y el dueño no tenía DÓNDE verlo → "no pasa nada").
+  const btnRadarVer = document.getElementById('car-radarVer');
+  if (btnRadarVer) btnRadarVer.addEventListener('click', function () {
+    if (typeof mat_mostrarLista === 'function') mat_mostrarLista();
+  });
+
   const inRadarMin = document.getElementById('car-radarVelMin');
   if (inRadarMin) {
     inRadarMin.value = String(estado.cfg.carRadarVelMin || 0);
@@ -354,6 +361,15 @@ function car_radarCapturar(track, kmh, ts, reg) {
   // Guarda (o reemplaza) la foto con su velocidad.
   const fotoId = mat_fotoGuardar(cnv, ts, { clase: track.clase || 'car', velocidad: kmh, fotoId: reg.fotoId });
   reg.fotoId = fotoId;
+  // Aviso VISIBLE al capturar (antes guardaba en silencio y parecía que "no
+  // pasaba nada") + contador de capturas de la sesión.
+  if (fotoId) {
+    estado.car.radarN = (estado.car.radarN || 0) + 1;
+    if (typeof ui_toast === 'function' && ts - (estado.car.radarUltToast || 0) > 2500) {
+      estado.car.radarUltToast = ts;
+      try { ui_toast('📸 Radar: ~' + kmh + ' km/h guardado (' + estado.car.radarN + ' fotos)', 'info'); } catch (e) {}
+    }
+  }
   // Lectura de matrícula sobre ESE recorte, anotada en la MISMA foto (best-effort).
   if (fotoId && estado.mat && Array.isArray(estado.mat.cola)) {
     estado.mat.cola.push({ cnv: cnv, ts: ts, zona: 'radar', fotoId: fotoId, clase: track.clase || 'car', trackId: track.id });
@@ -455,6 +471,26 @@ function car_render() {
   car_ultimoRender = ahora;
 
   if (!estado.car || !car_refs.coches) return; // panel no montado todavía
+
+  // 🩺 Estado del radar EN VIVO: cada eslabón de la cadena, para que la propia
+  // pantalla diga qué falta (interruptor, calibración, coches seguidos, vel).
+  try {
+    const el = document.getElementById('car-radarEstado');
+    if (el) {
+      if (!estado.cfg.carRadarGuardar) {
+        el.textContent = 'Radar: APAGADO (marca la casilla de arriba)';
+      } else if (!estado.car.pxPorMetro) {
+        el.textContent = 'Radar: falta CALIBRAR (botón 📏)';
+      } else {
+        const veh = (estado.tracks || []).filter((t) => t && NUC_VEHICULOS.indexOf(t.clase) >= 0);
+        let velMax = 0;
+        veh.forEach((t) => { const k = car_velocidadKmh(t); if (k != null && k > velMax) velMax = k; });
+        el.textContent = 'Radar ✔ · coches a la vista: ' + veh.length +
+          (velMax ? ' · vel: ~' + velMax + ' km/h' : '') +
+          ' · fotos: ' + (estado.car.radarN || 0);
+      }
+    }
+  } catch (e) {}
 
   let vehiculos = {};
   let peatones = 0;
