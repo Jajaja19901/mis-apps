@@ -226,6 +226,12 @@ function alerta_disparar(tipo, nivel, texto, datos, forzar) {
     alerta_telegramEncolar(registro, fotoHD);
   }
 
+  // 8b) 🧠 IA (Claude visión) CONFIRMA la alerta si el dueño la activó con su
+  //     clave. No bloquea: cuando responde, avisa en la app y en Telegram.
+  if (nivel !== 'info' && fotoHD && typeof ia_confirmarAlerta === 'function' && typeof ia_activa === 'function' && ia_activa()) {
+    try { ia_confirmarAlerta(fotoHD, tipo, texto); } catch (e) {}
+  }
+
   // 9) bus
   bus.emit('alerta', { registro });
   if (nivel === 'critico') bus.emit('alerta:critica', { registro });

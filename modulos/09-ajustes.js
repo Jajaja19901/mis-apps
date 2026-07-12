@@ -1088,6 +1088,10 @@ function cfg_conectarBotones() {
     selSens.addEventListener('change', function () { cfg_aplicarSensibilidad(selSens.value); });
   }
 
+  // 🧠 Probar la IA (Claude) con la cámara: comprueba que la clave funciona.
+  const btnIa = $('cfg-btnIaProbar');
+  if (btnIa) btnIa.addEventListener('click', function () { if (typeof ia_probar === 'function') ia_probar(); });
+
   // 🧪 Autodiagnóstico: prueba la detección REAL sobre la fuente en vivo.
   const btnDiag = $('cfg-btnAutodiag');
   if (btnDiag) btnDiag.addEventListener('click', function () { cfg_autodiagnostico(); });

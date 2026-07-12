@@ -30,7 +30,7 @@ const JS_ORDEN = [
   "05-ui.js", "06-alertas.js", "07-stats.js", "08-carretera.js", "09-ajustes.js",
   "10-pwa.js", "11-mando.js", "12-mandodash.js", "13-yolo.js",
   "14-detalle.js", "15-copiloto.js", "16-onnx.js", "17-acciones.js", "18-matricula.js",
-  "19-casa.js", "20-centinela.js", "21-modos.js", "23-peligro.js", "99-app.js",
+  "19-casa.js", "20-centinela.js", "21-modos.js", "23-peligro.js", "26-ia.js", "99-app.js",
 ];
 // Los slots se sustituyen en orden: MANDO va antes que MANDODASH porque
 // 11-mando.html contiene a su vez el marcador <!-- SLOT:MANDODASH -->.

@@ -1933,6 +1933,43 @@ summary.sec-titulo::before { display: inline-block; }
     </details>
   </details>
 
+  <!-- 9b. IA que CONFIRMA las alertas (Claude · Anthropic) -->
+  <details class="tarjeta cfg-sec" id="cfg-secIA">
+    <summary class="sec-titulo">🧠 IA que confirma las alertas (Claude)</summary>
+
+    <p class="etiqueta">Cuando salte una alerta con foto, se la manda a la IA de visión de Claude y te dice <b>si parece un incidente real o falsa alarma</b>, con una descripción. NO analiza el vídeo en vivo (eso lo hace YOLO en el móvil): solo confirma las alertas, que es barato y de verdad «entiende» la escena.</p>
+    <p class="etiqueta" style="color:var(--aviso,#ffb224)">⚠️ Con esto ENCENDIDO, la foto de cada alerta SALE a la API de Anthropic para analizarla (solo esas fotos, no el vídeo). Va apagado por defecto y solo funciona con TU clave.</p>
+
+    <label class="fila" style="align-items:flex-start;gap:8px;">
+      <input type="checkbox" id="cfg-iaConfirmar" data-cfg="iaConfirmar">
+      <span>Activar confirmación de alertas por IA <span class="etiqueta">Necesita clave e internet. Cuesta céntimos por foto.</span></span>
+    </label>
+
+    <div class="campo">
+      <label for="cfg-iaApiKey">Clave de API de Anthropic (Claude)</label>
+      <input type="password" id="cfg-iaApiKey" data-cfg="iaApiKey" placeholder="sk-ant-..." autocomplete="off">
+    </div>
+    <div class="campo">
+      <label for="cfg-iaModelo">Modelo</label>
+      <select id="cfg-iaModelo" data-cfg="iaModelo">
+        <option value="claude-haiku-4-5-20251001">Haiku 4.5 — rápido y barato (recomendado)</option>
+        <option value="claude-sonnet-5">Sonnet 5 — más listo, algo más caro</option>
+        <option value="claude-opus-4-8">Opus 4.8 — máxima precisión, más caro</option>
+      </select>
+    </div>
+    <button type="button" class="btn btn-primario" id="cfg-btnIaProbar">🧠 Probar la IA con la cámara</button>
+
+    <details class="cfg-sec">
+      <summary>¿Cómo consigo la clave de Claude?</summary>
+      <ol>
+        <li>Entra en <strong>console.anthropic.com</strong> y crea una cuenta.</li>
+        <li>Ve a <strong>API Keys</strong> → <em>Create Key</em> → copia la clave (empieza por <code>sk-ant-</code>).</li>
+        <li>Pégala aquí, enciende el interruptor y pulsa «Probar la IA». Necesitas algo de saldo en tu cuenta de Anthropic; confirmar una alerta cuesta céntimos.</li>
+      </ol>
+      <p class="etiqueta">La clave se guarda solo en TU móvil. Aun así, en una app que corre en el navegador una clave nunca está 100% oculta: úsala solo en tu teléfono, no la compartas.</p>
+    </details>
+  </details>
+
   <!-- 10. SISTEMA -->
   <details class="tarjeta cfg-sec" id="cfg-secSistema">
     <summary class="sec-titulo">Sistema</summary>
@@ -2149,7 +2186,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.75',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.76',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -2230,6 +2267,12 @@ const CFG_DEFECTOS = {
   alertaCooldownSeg: 30,
   telegramToken: '',
   telegramChat: '',
+  // 🧠 IA de visión (Claude/Anthropic) que CONFIRMA las alertas (módulo 26).
+  // Opt-in: apagada por defecto; solo funciona con la clave del dueño. Con esto
+  // ON, la foto de cada alerta SALE a la API de Anthropic para analizarla.
+  iaConfirmar: false,
+  iaApiKey: '',
+  iaModelo: 'claude-haiku-4-5-20251001',
   detencionSeg: 60,
   calor: false,
   timelapseMin: 5,
@@ -6519,6 +6562,12 @@ function alerta_disparar(tipo, nivel, texto, datos, forzar) {
     alerta_telegramEncolar(registro, fotoHD);
   }
 
+  // 8b) 🧠 IA (Claude visión) CONFIRMA la alerta si el dueño la activó con su
+  //     clave. No bloquea: cuando responde, avisa en la app y en Telegram.
+  if (nivel !== 'info' && fotoHD && typeof ia_confirmarAlerta === 'function' && typeof ia_activa === 'function' && ia_activa()) {
+    try { ia_confirmarAlerta(fotoHD, tipo, texto); } catch (e) {}
+  }
+
   // 9) bus
   bus.emit('alerta', { registro });
   if (nivel === 'critico') bus.emit('alerta:critica', { registro });
@@ -9094,6 +9143,10 @@ function cfg_conectarBotones() {
     selSens.value = estado.cfg.sensibilidadGestos || 'normal';
     selSens.addEventListener('change', function () { cfg_aplicarSensibilidad(selSens.value); });
   }
+
+  // 🧠 Probar la IA (Claude) con la cámara: comprueba que la clave funciona.
+  const btnIa = $('cfg-btnIaProbar');
+  if (btnIa) btnIa.addEventListener('click', function () { if (typeof ia_probar === 'function') ia_probar(); });
 
   // 🧪 Autodiagnóstico: prueba la detección REAL sobre la fuente en vivo.
   const btnDiag = $('cfg-btnAutodiag');
@@ -17075,6 +17128,143 @@ function pel_vigilar() {
       }
     }
   } catch (e) { console.warn('[peligro] ' + (e && e.message)); }
+}
+
+
+/* ===== 26-ia.js ===== */
+/* ============================================================================
+ * 26-IA — Confirmación de alertas con IA de VISIÓN (Claude · Anthropic).
+ * Prefijo: ia_ / IA_.
+ *
+ * QUÉ HACE: cuando salta una alerta CON foto (robo, ocultación, peligro…), le
+ * manda ESA foto a Claude y devuelve un veredicto que "entiende" la escena:
+ * ¿es un incidente real o una falsa alarma? + una descripción en 1 frase. Lo
+ * enseña en la app y lo manda a Telegram.
+ *
+ * QUÉ NO HACE: NO analiza el vídeo en vivo (eso lo hace YOLO en el móvil, que es
+ * instantáneo y gratis). La IA de la nube tarda ~1 s y cuesta céntimos por foto,
+ * así que se usa SOLO para CONFIRMAR alertas — que es donde de verdad ayuda.
+ *
+ * PRIVACIDAD (honesto): con esto ACTIVADO, la foto de cada alerta SALE a la API
+ * de Anthropic para analizarla. Va apagado por defecto; solo funciona si el
+ * dueño pega SU clave (cfg.iaApiKey) y enciende cfg.iaConfirmar.
+ * ==========================================================================*/
+const IA_ENDPOINT = 'https://api.anthropic.com/v1/messages';
+const IA_VERSION = '2023-06-01';
+const IA_MODELO_DEF = 'claude-haiku-4-5-20251001';   // rápido y barato para confirmar; se puede subir a Sonnet
+let ia_ocupada = false;
+
+/* ¿Está la confirmación por IA lista para usarse? (encendida + con clave). */
+function ia_activa() {
+  return !!(estado.cfg && estado.cfg.iaConfirmar && estado.cfg.iaApiKey);
+}
+
+/* Manda la foto de una alerta a Claude y devuelve {real, descripcion, confianza}.
+ * No lanza nunca: ante cualquier fallo devuelve null y avisa suave. */
+async function ia_confirmarAlerta(fotoDataURL, tipo, texto) {
+  if (!ia_activa() || !fotoDataURL || ia_ocupada) return null;
+  const m = String(fotoDataURL).match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
+  if (!m) return null;
+  const mediaType = m[1], b64 = m[2];
+  ia_ocupada = true;
+  try {
+    const prompt =
+      'Eres un analista de una cámara de videovigilancia. La app ha lanzado una ' +
+      'alerta automática de tipo "' + (tipo || '?') + '"' + (texto ? ' (' + texto + ')' : '') + '. ' +
+      'Mira SOLO la imagen y responde ÚNICAMENTE con un JSON válido, sin texto extra:\n' +
+      '{"real": true|false, "descripcion": "qué se ve, en una frase corta", "confianza": 0-100}\n' +
+      '"real" = true si en la imagen se aprecia un incidente coherente con la alerta ' +
+      '(robo, ocultar un objeto, forcejeo, objeto peligroso, persona donde no debe). ' +
+      '"real" = false si parece una falsa alarma (nadie, gesto inocente, mascota, sombra). ' +
+      'Nunca acuses a una persona concreta; describe conductas, no identidades.';
+    const cuerpo = {
+      model: estado.cfg.iaModelo || IA_MODELO_DEF,
+      max_tokens: 300,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } },
+          { type: 'text', text: prompt },
+        ],
+      }],
+    };
+    const r = await fetch(IA_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': estado.cfg.iaApiKey,
+        'anthropic-version': IA_VERSION,
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify(cuerpo),
+    });
+    if (!r || !r.ok) {
+      const cod = r ? r.status : 0;
+      const msg = cod === 401 ? 'la clave de IA no es válida' :
+        (cod === 429 ? 'IA saturada (límite de uso), reintenta luego' :
+          (cod === 400 ? 'la IA rechazó la petición' : ('IA: error ' + cod)));
+      ia_toast('🧠 ' + msg, 'sospecha');
+      return null;
+    }
+    const data = await r.json();
+    const txt = (data && data.content && data.content[0] && data.content[0].text) || '';
+    let v = null;
+    try {
+      const trozo = txt.match(/\{[\s\S]*\}/);
+      v = trozo ? JSON.parse(trozo[0]) : null;
+    } catch (e) { v = null; }
+    if (!v) v = { real: null, descripcion: String(txt).slice(0, 120), confianza: null };
+    ia_mostrar(v);
+    return v;
+  } catch (e) {
+    ia_toast('🧠 No se pudo consultar la IA (¿sin internet?)', 'sospecha');
+    return null;
+  } finally {
+    ia_ocupada = false;
+  }
+}
+
+/* Enseña el veredicto en la app y, si Telegram está puesto, también allí. */
+function ia_mostrar(v) {
+  if (!v) return;
+  const etiqueta = v.real === true ? '✅ PARECE REAL' : (v.real === false ? '☁ posible falsa alarma' : '🧠 IA');
+  const conf = (v.confianza != null && !isNaN(v.confianza)) ? ' (' + Math.round(v.confianza) + '%)' : '';
+  const desc = v.descripcion ? ' — ' + String(v.descripcion).slice(0, 160) : '';
+  const msg = etiqueta + conf + desc;
+  ia_toast('🧠 ' + msg, v.real === true ? 'critico' : 'info');
+  if (estado.cfg.telegramToken && estado.cfg.telegramChat) ia_telegram('🧠 IA sobre la última alerta: ' + msg);
+}
+
+/* Mensaje de texto a Telegram (best-effort, no bloquea ni rompe). */
+function ia_telegram(texto) {
+  try {
+    const url = 'https://api.telegram.org/bot' + encodeURIComponent(estado.cfg.telegramToken) + '/sendMessage';
+    fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ chat_id: estado.cfg.telegramChat, text: texto }),
+    }).catch(function () {});
+  } catch (e) { /* silencioso */ }
+}
+
+function ia_toast(msg, nivel) {
+  if (typeof ui_toast === 'function') { try { ui_toast(msg, nivel || 'info'); } catch (e) {} }
+}
+
+/* Prueba manual desde Ajustes: manda la última foto de alerta (o un frame) a la
+ * IA para comprobar que la clave funciona. Devuelve true si respondió algo. */
+async function ia_probar() {
+  if (!estado.cfg.iaApiKey) { ia_toast('🧠 Pega primero tu clave de IA (Anthropic).', 'sospecha'); return false; }
+  let foto = null;
+  try { if (typeof vid_capturaJPEG === 'function') foto = vid_capturaJPEG(1280, 0.82); } catch (e) {}
+  if (!foto) { ia_toast('🧠 Enciende la cámara o un vídeo para probar la IA.', 'sospecha'); return false; }
+  ia_toast('🧠 Consultando a la IA…', 'info');
+  const prev = estado.cfg.iaConfirmar;
+  estado.cfg.iaConfirmar = true;                 // permite la llamada aunque el toggle esté off
+  const v = await ia_confirmarAlerta(foto, 'prueba', 'prueba manual del dueño');
+  estado.cfg.iaConfirmar = prev;
+  if (v) ia_toast('🧠 ¡La IA respondió! La clave funciona.', 'info');
+  return !!v;
 }
 
 

@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.75',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.76',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -92,6 +92,12 @@ const CFG_DEFECTOS = {
   alertaCooldownSeg: 30,
   telegramToken: '',
   telegramChat: '',
+  // 🧠 IA de visión (Claude/Anthropic) que CONFIRMA las alertas (módulo 26).
+  // Opt-in: apagada por defecto; solo funciona con la clave del dueño. Con esto
+  // ON, la foto de cada alerta SALE a la API de Anthropic para analizarla.
+  iaConfirmar: false,
+  iaApiKey: '',
+  iaModelo: 'claude-haiku-4-5-20251001',
   detencionSeg: 60,
   calor: false,
   timelapseMin: 5,
