@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.71',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.72',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -57,7 +57,7 @@ const CFG_DEFECTOS = {
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)
   resolucion: '1080',       // '480' | '720' | '1080' | '1440' (nitidez; por defecto 1080p)
-  modeloPreciso: false,     // true = modelo más certero (ve más, va algo más lento)
+  modeloPreciso: true,      // true = modelo más certero (mobilenet_v2: encuadra mejor a las personas → la postura pilla la mano; algo más lento que el ligero)
   urlIP: '',
   aforoMax: 50,
   merodeoSeg: 30,
@@ -555,10 +555,21 @@ function nuc_init() {
   // análisis baja a 720p. Ambas cosas se pueden volver a subir a mano.
   if (!nuc_cargar('migr_rapido_v1', false)) {
     nuc_guardar('migr_rapido_v1', true);
-    let cambio = false;
-    if (estado.cfg.motor === 'onnx' || estado.cfg.motor === 'yolo') { estado.cfg.motor = 'coco'; cambio = true; }
-    if (estado.cfg.resolucion === '1080' || estado.cfg.resolucion === '1440') { estado.cfg.resolucion = '720'; cambio = true; }
-    if (cambio && guardada) nuc_guardar('cfg', estado.cfg);
+    // (Ya NO se fuerza el motor: cambiar a Básico-flojo se comía las metidas de
+    // mano. Se respeta el motor elegido; el Básico se hace PRECISO abajo.)
+    if (estado.cfg.resolucion === '1440') { estado.cfg.resolucion = '1080'; if (guardada) nuc_guardar('cfg', estado.cfg); }
+  }
+  // Migración única: el motor Básico usa el modelo PRECISO (mobilenet_v2), que
+  // encuadra a las personas mucho mejor que el ligero → la postura sigue bien la
+  // mano y VUELVE a pillar la metida al bolsillo. Va algo más lento que el ligero
+  // pero muchísimo más rápido que el Supercerebro en modo lento. Se apaga a mano
+  // en Ajustes → Detección → "modelo preciso" quien priorice velocidad.
+  if (!nuc_cargar('migr_preciso_v1', false)) {
+    nuc_guardar('migr_preciso_v1', true);
+    if (estado.cfg.modeloPreciso !== true) {
+      estado.cfg.modeloPreciso = true;
+      if (guardada) nuc_guardar('cfg', estado.cfg);
+    }
   }
   // Migración única: el aviso de «encuadre cambiado» era un falso constante
   // con cámaras que se mueven → pasa a 'oscuro' (solo cámara tapada) también
