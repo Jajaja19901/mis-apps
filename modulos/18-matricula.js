@@ -417,8 +417,43 @@ async function mat_procesarCola() {
     m.cola = m.cola.filter(function (f) { return ahora - f.ts < MAT_FOTO_CADUCA_MS; });
     const foto = m.cola.pop();
     if (!foto) return;
+
+    // 📸 LA FOTO SE GUARDA SIEMPRE (una por coche), LEA O NO LEA el lector.
+    // Antes el guardado dependía del OCR y si el lector no cargaba/no leía en
+    // este móvil, la galería se quedaba a CERO. Ahora: foto garantizada con la
+    // banda de la placa ampliada debajo; si el OCR luego lee, la anota encima.
+    if (!m.fotoDeTrack) m.fotoDeTrack = {};
+    let fotoId = (foto.trackId != null) ? (m.fotoDeTrack[foto.trackId] || null) : null;
+    if (!fotoId) {
+      let imgCnv = foto.cnv;
+      try {
+        const banda = mat_bandaPlaca(foto.cnv);
+        if (banda && banda.width > 0 && banda.height > 0) {
+          const comp = document.createElement('canvas');
+          const bw = foto.cnv.width;
+          const bandaH = Math.max(40, Math.round(banda.height * (bw / banda.width)));
+          comp.width = bw; comp.height = foto.cnv.height + bandaH;
+          const cctx = comp.getContext('2d');
+          cctx.drawImage(foto.cnv, 0, 0);
+          cctx.imageSmoothingEnabled = true; cctx.imageSmoothingQuality = 'high';
+          cctx.drawImage(banda, 0, foto.cnv.height, bw, bandaH);
+          imgCnv = comp;
+        }
+      } catch (e) {}
+      fotoId = mat_fotoGuardar(imgCnv, foto.ts, { clase: foto.clase || 'car' });
+      if (foto.trackId != null && fotoId) m.fotoDeTrack[foto.trackId] = fotoId;
+      if (Object.keys(m.fotoDeTrack).length > 200) m.fotoDeTrack = {};   // no crecer sin fin
+    }
+
     const T = await mat_cargarOCR();
-    if (!T) { m.cola.length = 0; return; }              // sin OCR no hay cola que valga
+    if (!T) {
+      // Sin lector: las fotos YA están guardadas. Se avisa UNA vez, claro.
+      if (!m.ocrFalloAvisado) {
+        m.ocrFalloAvisado = true;
+        mat_toast('⚠ El LECTOR de matrículas no pudo cargar (¿sin internet la primera vez?). Las fotos se guardan igual: lee la placa en la imagen de la galería.', 'sospecha');
+      }
+      m.cola.length = 0; return;
+    }
     if (!m.worker) {
       m.worker = await T.createWorker('eng');
       await m.worker.setParameters({
@@ -442,46 +477,9 @@ async function mat_procesarCola() {
         m.trackListo[foto.trackId] = Date.now();
         m.cola = m.cola.filter(function (f) { return f.trackId !== foto.trackId; });
       }
-      // FOTO: UNA por COCHE (track), guardada a la PRIMERA lectura plausible.
-      // Conduciendo, un coche pasa UNA vez y ~1 s: exigir 2 lecturas iguales
-      // para guardar dejaba la galería a CERO (recorrido con 50 coches y ni
-      // una placa). Con una por track: se pilla la placa al vuelo y sin spam
-      // (ni ruedas —solo se guarda si HAY lectura— ni 200 fotos del mismo).
-      if (!m.fotoDeTrack) m.fotoDeTrack = {};
-      let fotoId = (foto.trackId != null) ? (m.fotoDeTrack[foto.trackId] || null) : null;
-      if (!fotoId) {
-        // Mismo coche re-visto (track nuevo) con placa ya en galería → reanota.
-        try {
-          const lista = mat_fotosLista();
-          for (let i = lista.length - 1; i >= 0; i--) {
-            const f = lista[i];
-            if (f && f.matricula === v.plate && Date.now() - f.ts < 600000) { fotoId = f.id; break; }
-          }
-        } catch (e) {}
-      }
-      if (!fotoId) {
-        // Se guarda el coche + la BANDA DE LA PLACA AMPLIADA pegada debajo:
-        // así los números/letras se ven GRANDES en la foto de la galería.
-        let imgCnv = foto.cnv;
-        try {
-          const banda = mat_bandaPlaca(foto.cnv);
-          if (banda && banda.width > 0 && banda.height > 0) {
-            const comp = document.createElement('canvas');
-            const bw = foto.cnv.width;
-            const bandaH = Math.max(40, Math.round(banda.height * (bw / banda.width)));
-            comp.width = bw; comp.height = foto.cnv.height + bandaH;
-            const cctx = comp.getContext('2d');
-            cctx.drawImage(foto.cnv, 0, 0);
-            cctx.imageSmoothingEnabled = true; cctx.imageSmoothingQuality = 'high';
-            cctx.drawImage(banda, 0, foto.cnv.height, bw, bandaH);
-            imgCnv = comp;
-          }
-        } catch (e) {}
-        fotoId = mat_fotoGuardar(imgCnv, foto.ts, { clase: foto.clase || 'car' });
-        if (foto.trackId != null && fotoId) m.fotoDeTrack[foto.trackId] = fotoId;
-        if (Object.keys(m.fotoDeTrack).length > 200) m.fotoDeTrack = {};   // no crecer sin fin
-      }
-      mat_fotoAnotar(fotoId, v.plate, buena);           // anota la placa en SU foto (✅ si confirmada)
+      // La foto ya está guardada arriba (garantizada): aquí solo se ANOTA la
+      // matrícula leída sobre ella (✅ si está confirmada con 2 lecturas).
+      mat_fotoAnotar(fotoId, v.plate, buena);
       if (buena && mat_guardarLectura(v.plate, false)) {
         mat_toast('✅ Matrícula CONFIRMADA (leída ×' + v.votos + '): ' + v.plate + ' — se borra sola en ' +
           nuc_clamp(estado.cfg.matRetencionMin || 15, 1, 240) + ' min.', 'info');

@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.82',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.83',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -328,10 +328,15 @@ function nuc_esMovil() { return /Android|iPhone|iPad|Mobile/i.test(navigator.use
  * atascada en una versión vieja o un modelo cacheado da error. */
 async function nuc_recargaLimpia() {
   try {
-    // 1) Borra TODAS las cachés (Cache API): app, CDNs y modelos ONNX.
+    // 1) Borra las cachés (Cache API) de la app y las librerías — pero NO el
+    // caché de MODELOS ('vigia-modelos-…', el .onnx del Supercerebro de 10-38
+    // MB): borrarlo obligaba a re-descargarlo tras cada «Forzar actualización»,
+    // y sin buena red fallaba y la app caía al Básico.
     if (typeof caches !== 'undefined' && caches.keys) {
       const claves = await caches.keys();
-      await Promise.all(claves.map((k) => caches.delete(k)));
+      await Promise.all(claves
+        .filter((k) => !String(k).startsWith('vigia-modelos'))
+        .map((k) => caches.delete(k)));
     }
   } catch (e) { console.warn('[recarga] cachés:', e && e.message); }
   try {

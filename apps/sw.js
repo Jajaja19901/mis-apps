@@ -7,7 +7,7 @@
  *    versión si hay internet, y la app sigue abriendo sin conexión.
  *  · Modelos y librerías de IA (CDNs): caché primero → se descargan UNA vez.
  * ==========================================================================*/
-const VERSION = 'vigia-3-82';  // Cambia este número con cada deployment
+const VERSION = 'vigia-3-83';  // Cambia este número con cada deployment
 const CACHE_APP = VERSION + '-app';
 const CACHE_IA = VERSION + '-ia';
 
@@ -33,8 +33,13 @@ self.addEventListener('message', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
     const claves = await caches.keys();
-    // Borra caché viejo (versiones anteriores)
-    await Promise.all(claves.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k)));
+    // Borra caché viejo (versiones anteriores). OJO: el caché de MODELOS
+    // ('vigia-modelos-…', el .onnx de 10-38 MB del Supercerebro) NO se toca:
+    // borrarlo en cada versión obligaba a RE-DESCARGARLO tras cada
+    // actualización, y sin buena red fallaba y la app caía al Básico.
+    await Promise.all(claves
+      .filter((k) => !k.startsWith(VERSION) && !k.startsWith('vigia-modelos'))
+      .map((k) => caches.delete(k)));
     await self.clients.claim();
     // Notifica a todos los clientes que hay nueva versión
     const clientes = await self.clients.matchAll();
