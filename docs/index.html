@@ -2149,7 +2149,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.74',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.75',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -14656,11 +14656,6 @@ function mat_capturarTodas(ahora) {
     if (!t || !t.caja) continue;
     if (t.clase !== 'car' && t.clase !== 'truck' && t.clase !== 'bus' && t.clase !== 'motorcycle') continue;
     if (t.caja.an * t.caja.al < areaFrame * MAT_AREA_MIN_CONTINUO) continue;   // muy lejos: placa ilegible
-    // 🚗 Coche visto DE PERFIL (caja mucho más ancha que alta) → NO se ve la
-    // matrícula, solo la rueda/lateral. Se descarta: la placa solo es legible de
-    // frente o de atrás (el coche de delante mientras conduces), donde la caja es
-    // casi cuadrada o más alta. Esto evita fotografiar la RUEDA del coche de al lado.
-    if (t.clase !== 'motorcycle' && t.caja.al > 0 && (t.caja.an / t.caja.al) > 1.6) continue;
     const ya = m.trackFotos[t.id] || 0;
     if (ahora - ya < MAT_FOTO_TRACK_MS) continue;                              // ya tiene foto reciente
     m.trackFotos[t.id] = ahora;
@@ -14685,8 +14680,10 @@ function mat_fotografiar(veh, ahora) {
   // El buscador de banda (mat_bandaPlaca) localiza la placa real dentro.
   const cnv = mat_recorteZona(c.x + c.an * 0.10, c.y + c.al * 0.35, c.an * 0.80, c.al * 0.70);
   if (!cnv) return;
-  const fotoId = mat_fotoGuardar(cnv, ahora, veh);       // a la galería SIEMPRE
-  m.cola.push({ cnv: cnv, ts: ahora, zona: 'vehiculo', fotoId: fotoId });
+  // NO se guarda la foto todavía: primero el OCR intenta leer la placa. Solo si
+  // lee una matrícula PLAUSIBLE se guarda (así no se guardan ruedas ni laterales
+  // de coches de perfil sin placa). Se conserva la clase para la galería.
+  m.cola.push({ cnv: cnv, ts: ahora, zona: 'vehiculo', fotoId: null, clase: (veh && veh.clase) || 'car' });
   while (m.cola.length > MAT_COLA_MAX) m.cola.shift();   // se cae la más vieja
 }
 
@@ -14812,7 +14809,10 @@ async function mat_procesarCola() {
       const v = mat_votar(cand);
       const buena = v.votos >= MAT_VOTOS_CONFIRMAR;     // "la que pillas es la buena"
       estado.mat.ultima = { matricula: v.plate, votos: v.votos, buena: buena, ts: Date.now() };
-      mat_fotoAnotar(foto.fotoId, cand, buena);         // anota la placa en SU foto
+      // Recién AHORA se guarda la foto (había matrícula de verdad): así la galería
+      // solo tiene coches con placa leída, nunca ruedas ni laterales sin placa.
+      const fotoId = foto.fotoId || mat_fotoGuardar(foto.cnv, foto.ts, { clase: foto.clase || 'car' });
+      mat_fotoAnotar(fotoId, cand, buena);              // anota la placa en SU foto
       if (buena && mat_guardarLectura(v.plate, false)) {
         mat_toast('✅ Matrícula CONFIRMADA (leída ×' + v.votos + '): ' + v.plate + ' — se borra sola en ' +
           nuc_clamp(estado.cfg.matRetencionMin || 15, 1, 240) + ' min.', 'info');
