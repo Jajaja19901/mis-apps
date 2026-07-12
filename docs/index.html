@@ -2148,7 +2148,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.68',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.69',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -2553,7 +2553,7 @@ function nuc_scoreMin() {
  * tamaño nativo: a 1280px quema batería en copiar píxeles que el modelo ni
  * aprovecha. Aquí se le da una copia a 640px y las cajas se devuelven al
  * espacio real. Lo que se ve y se graba sigue a resolución completa. */
-const NUC_ANALISIS_MAX = 640;   // ancho máximo del frame que ve COCO
+const NUC_ANALISIS_MAX = 512;   // ancho máximo del frame que ve COCO (512: más rápido que 640, sin perder personas; COCO-SSD trabaja a ~300px)
 let nuc_cnvAnalisis = null;
 
 /* Devuelve { fuente, escala }: la fuente que debe ver la IA y el factor para
@@ -3341,14 +3341,16 @@ function gesto_analizarPose(fuente, ts, tracks) {
   for (let i = 0; i < personas.length; i++) {
     const trk = personas[i];
     try {
-      // Recorte con margen del 15%, acotado al fotograma, reescalado a 256 px de alto.
+      // Recorte con margen del 15%, acotado al fotograma, reescalado a 192 px de
+      // alto (antes 256): el modelo de postura va MUCHO más rápido y los puntos
+      // gruesos (hombros/caderas/muñecas) que usa la ocultación siguen finos.
       const m = 0.15;
       const rx = nuc_clamp(trk.caja.x - trk.caja.an * m, 0, w);
       const ry = nuc_clamp(trk.caja.y - trk.caja.al * m, 0, h);
       const rw = nuc_clamp(trk.caja.an * (1 + 2 * m), 8, w - rx);
       const rh = nuc_clamp(trk.caja.al * (1 + 2 * m), 12, h - ry);
-      const escala = 256 / rh;
-      const cw = Math.max(32, Math.round(rw * escala)), ch = 256;
+      const escala = 192 / rh;
+      const cw = Math.max(32, Math.round(rw * escala)), ch = 192;
       if (cnv.width !== cw || cnv.height !== ch) { cnv.width = cw; cnv.height = ch; }
       const cctx = cnv.getContext('2d', { willReadFrequently: true });
       cctx.drawImage(fuente, rx, ry, rw, rh, 0, 0, cw, ch);

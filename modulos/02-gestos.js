@@ -193,14 +193,16 @@ function gesto_analizarPose(fuente, ts, tracks) {
   for (let i = 0; i < personas.length; i++) {
     const trk = personas[i];
     try {
-      // Recorte con margen del 15%, acotado al fotograma, reescalado a 256 px de alto.
+      // Recorte con margen del 15%, acotado al fotograma, reescalado a 192 px de
+      // alto (antes 256): el modelo de postura va MUCHO más rápido y los puntos
+      // gruesos (hombros/caderas/muñecas) que usa la ocultación siguen finos.
       const m = 0.15;
       const rx = nuc_clamp(trk.caja.x - trk.caja.an * m, 0, w);
       const ry = nuc_clamp(trk.caja.y - trk.caja.al * m, 0, h);
       const rw = nuc_clamp(trk.caja.an * (1 + 2 * m), 8, w - rx);
       const rh = nuc_clamp(trk.caja.al * (1 + 2 * m), 12, h - ry);
-      const escala = 256 / rh;
-      const cw = Math.max(32, Math.round(rw * escala)), ch = 256;
+      const escala = 192 / rh;
+      const cw = Math.max(32, Math.round(rw * escala)), ch = 192;
       if (cnv.width !== cw || cnv.height !== ch) { cnv.width = cw; cnv.height = ch; }
       const cctx = cnv.getContext('2d', { willReadFrequently: true });
       cctx.drawImage(fuente, rx, ry, rw, rh, 0, 0, cw, ch);

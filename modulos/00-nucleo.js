@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.68',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.69',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -416,7 +416,7 @@ function nuc_scoreMin() {
  * tamaño nativo: a 1280px quema batería en copiar píxeles que el modelo ni
  * aprovecha. Aquí se le da una copia a 640px y las cajas se devuelven al
  * espacio real. Lo que se ve y se graba sigue a resolución completa. */
-const NUC_ANALISIS_MAX = 640;   // ancho máximo del frame que ve COCO
+const NUC_ANALISIS_MAX = 512;   // ancho máximo del frame que ve COCO (512: más rápido que 640, sin perder personas; COCO-SSD trabaja a ~300px)
 let nuc_cnvAnalisis = null;
 
 /* Devuelve { fuente, escala }: la fuente que debe ver la IA y el factor para
