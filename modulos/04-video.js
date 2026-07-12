@@ -916,10 +916,12 @@ function vid_reiniciarBufferGrabacion() {
     const stream = cnv.captureStream(10);
     v.grabStream = stream;
     const mime = vid_mimeGrab();
-    // Bitrate FIJO y alto (4 Mbps): sin él, Android graba con calidad de saldo
-    // y el clip del delito "se ve mal" (borroso a bloques). 4 Mbps a 10 fps es
-    // nítido y un clip de 30 s pesa ~15 MB (asumible en memoria).
-    const opciones = { videoBitsPerSecond: 4000000 };
+    // Bitrate ADAPTATIVO: sin fijarlo, Android graba con calidad de saldo y el
+    // clip del delito "se ve mal". Pero OJO: este codificador corre TODO el
+    // rato (búfer de evidencia), así que a 4 Mbps fijos calentaba el móvil y lo
+    // arrastraba. A ≤720p, 2,5 Mbps ya es nítido; 4 Mbps solo con imagen grande.
+    const bps = ((cnv && cnv.width) || 1280) >= 1600 ? 4000000 : 2500000;
+    const opciones = { videoBitsPerSecond: bps };
     if (mime) opciones.mimeType = mime;
     const rec = new MediaRecorder(stream, opciones);
     v.bufferChunks = [];
