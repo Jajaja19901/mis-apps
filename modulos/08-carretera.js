@@ -350,6 +350,10 @@ function car_radarBarrido() {
       // Mínimo efectivo de 8 km/h: el temblor del recuadro en coches PARADOS da
       // 2-6 km/h falsos; ningún coche "pasando" va a menos de 8.
       if (kmh < Math.max(8, estado.cfg.carRadarVelMin || 0)) continue;
+      // 🎯 Medida MADURA: al menos 4 muestras de velocidad (mediana estable).
+      // Sin esto, la primera lectura (la más ruidosa) mandaba en la foto.
+      const medQ = estado.car.medidas && estado.car.medidas[t.id];
+      if (!medQ || medQ.ks.length < 4) continue;
       // Una foto por coche; se REEMPLAZA si luego pasa MÁS rápido (queda su pico).
       const prev = estado.car.radarUlt[t.id];
       if (prev && kmh <= prev.kmh) continue;
@@ -358,7 +362,10 @@ function car_radarBarrido() {
       car_radarCapturar(t, kmh, ts, estado.car.radarUlt[t.id]);
     }
     for (const id in estado.car.radarUlt) {
-      if (ts - (estado.car.radarUlt[id].ts || 0) > 30000) delete estado.car.radarUlt[id];
+      if (ts - (estado.car.radarUlt[id].ts || 0) > 30000) {
+        delete estado.car.radarUlt[id];
+        if (estado.car.medidas) delete estado.car.medidas[id];
+      }
     }
   } catch (e) { /* el radar nunca rompe el frame */ }
 }
@@ -417,26 +424,61 @@ function car_dirTrack(track) {
   } catch (e) { return null; }
 }
 
+/* Memoria de MEDIDAS por track (anchos de caja y velocidades) para promediar:
+ * el instante engaña (caja que tiembla, pico de ruido); la MEDIANA no. */
+function car_medidas(id) {
+  if (!estado.car.medidas) estado.car.medidas = {};
+  let m = estado.car.medidas[id];
+  if (!m) m = estado.car.medidas[id] = { ws: [], ks: [] };
+  return m;
+}
+function car_mediana(arr) {
+  if (!arr || !arr.length) return null;
+  const s = arr.slice().sort((a, b) => a - b);
+  return s[(s.length - 1) >> 1];
+}
+
 function car_velocidadKmh(track) {
   if (!track || !track.caja || typeof trk_velocidad !== 'function') return null;
   try {
+    // 🎯 PRECISIÓN 1: si la caja TOCA el borde del encuadre, el coche está
+    // entrando/saliendo y su caja sale RECORTADA → escala falsa → velocidad
+    // disparatada. No se mide (mejor sin dato que con dato malo).
+    const W = (estado.video && estado.video.w) || 640;
+    const H = (estado.video && estado.video.h) || 480;
+    const c = track.caja, mg = Math.max(3, W * 0.01);
+    if (c.x <= mg || c.y <= mg || (c.x + c.an) >= W - mg || (c.y + c.al) >= H - mg) return null;
+
     const pxS = trk_velocidad(track);
     if (typeof pxS !== 'number' || !isFinite(pxS)) return null;
     let pxPorMetro = null;
-    if (NUC_VEHICULOS.indexOf(track.clase) >= 0 && track.caja.an > 8) {
+    let med = null;
+    if (NUC_VEHICULOS.indexOf(track.clase) >= 0 && c.an > 8) {
       // ⚙️ ESCALA AUTOMÁTICA por vehículo: si va de LADO, el ancho de su caja
       // es su LARGO real; de frente/atrás, es su ANCHO real.
+      // 🎯 PRECISIÓN 2: la caja tiembla ±10% entre frames → se usa la MEDIANA
+      // del ancho de las últimas muestras, no el instante.
+      med = car_medidas(track.id);
+      med.ws.push(c.an); if (med.ws.length > 12) med.ws.shift();
+      const anMed = car_mediana(med.ws);
       const dir = car_dirTrack(track);
       const lateral = !dir || dir.dx >= dir.dy;   // cruza la pantalla → de lado
       const metros = lateral ? (CAR_LARGO_M[track.clase] || 4.3) : (CAR_ANCHO_M[track.clase] || 1.8);
-      pxPorMetro = track.caja.an / metros;
+      pxPorMetro = anMed / metros;
     } else if (estado.car && estado.car.pxPorMetro) {
       pxPorMetro = estado.car.pxPorMetro;         // peatones/otros: calibración manual
     }
     if (!pxPorMetro || pxPorMetro <= 0) return null;
     const kmh = (pxS / pxPorMetro) * 3.6;
     if (!isFinite(kmh)) return null;
-    return Math.round(Math.max(0, Math.min(220, kmh)));
+    // 🎯 PRECISIÓN 3: se devuelve la MEDIANA de las últimas velocidades del
+    // track (los picos de un frame son ruido del detector, no aceleraciones).
+    const kR = Math.max(0, Math.min(220, kmh));
+    if (med) {
+      med.ks.push(kR); if (med.ks.length > 12) med.ks.shift();
+      return Math.round(car_mediana(med.ks));
+    }
+    return Math.round(kR);
   } catch (e) {
     console.warn('[carretera] fallo calculando velocidad:', e && e.message);
     return null;
