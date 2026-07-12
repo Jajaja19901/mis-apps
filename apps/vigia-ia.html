@@ -2149,7 +2149,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.73',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.74',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -14656,6 +14656,11 @@ function mat_capturarTodas(ahora) {
     if (!t || !t.caja) continue;
     if (t.clase !== 'car' && t.clase !== 'truck' && t.clase !== 'bus' && t.clase !== 'motorcycle') continue;
     if (t.caja.an * t.caja.al < areaFrame * MAT_AREA_MIN_CONTINUO) continue;   // muy lejos: placa ilegible
+    // 🚗 Coche visto DE PERFIL (caja mucho más ancha que alta) → NO se ve la
+    // matrícula, solo la rueda/lateral. Se descarta: la placa solo es legible de
+    // frente o de atrás (el coche de delante mientras conduces), donde la caja es
+    // casi cuadrada o más alta. Esto evita fotografiar la RUEDA del coche de al lado.
+    if (t.clase !== 'motorcycle' && t.caja.al > 0 && (t.caja.an / t.caja.al) > 1.6) continue;
     const ya = m.trackFotos[t.id] || 0;
     if (ahora - ya < MAT_FOTO_TRACK_MS) continue;                              // ya tiene foto reciente
     m.trackFotos[t.id] = ahora;
