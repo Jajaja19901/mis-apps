@@ -2148,7 +2148,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.69',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.70',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -2681,12 +2681,21 @@ function nuc_init() {
   const guardada = nuc_cargar('cfg', null);
   if (guardada && typeof guardada === 'object') {
     estado.cfg = Object.assign({}, CFG_DEFECTOS, guardada);
-  } else {
-    // 🧠 Instalación NUEVA en un móvil con GPU (WebGPU): arranca directamente en
-    // el 🧠 Supercerebro (YOLO11), que es el mejor. Sin GPU o sin red, el propio
-    // Supercerebro cae solo al Básico (que va incluido) — nunca se queda colgado.
-    // A quien ya tenga su motor elegido NO se le toca (respeta lo guardado).
-    try { if (navigator.gpu) estado.cfg.motor = 'onnx'; } catch (e) {}
+  }
+  // (Arranque en Básico por defecto: es RÁPIDO y detecta bien. El Supercerebro
+  // en muchos móviles cae a modo lento y arrastraba la app; se elige a mano en
+  // Ajustes → Detección → Motor quien quiera máxima precisión y tenga hardware.)
+
+  // Migración única: DEJARLO RÁPIDO Y FUNCIONANDO SIN TOCAR NADA. El dueño no
+  // debería pelear con los ajustes: si venía en un motor pesado (Supercerebro/
+  // Potente) que ahoga su móvil, se pasa al Básico rápido; y la resolución de
+  // análisis baja a 720p. Ambas cosas se pueden volver a subir a mano.
+  if (!nuc_cargar('migr_rapido_v1', false)) {
+    nuc_guardar('migr_rapido_v1', true);
+    let cambio = false;
+    if (estado.cfg.motor === 'onnx' || estado.cfg.motor === 'yolo') { estado.cfg.motor = 'coco'; cambio = true; }
+    if (estado.cfg.resolucion === '1080' || estado.cfg.resolucion === '1440') { estado.cfg.resolucion = '720'; cambio = true; }
+    if (cambio && guardada) nuc_guardar('cfg', estado.cfg);
   }
   // Migración única: el aviso de «encuadre cambiado» era un falso constante
   // con cámaras que se mueven → pasa a 'oscuro' (solo cámara tapada) también
