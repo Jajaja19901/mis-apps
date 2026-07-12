@@ -925,9 +925,10 @@ summary.sec-titulo::before { display: inline-block; }
   .centinela-toggle { display: flex; align-items: center; gap: .5rem; font-size: .9rem; }
   #centinela-estado { font-family: var(--mono); font-size: .85rem; color: var(--texto2); }
   .centinela-legal { font-size: .78rem; color: var(--texto2); line-height: 1.4; }
-  #dms-alerta { position: fixed; inset: 0; z-index: 972; display: flex; align-items: center; justify-content: center;
-    background: rgba(255,20,40,.72); animation: dms-pulso .5s steps(1) infinite; pointer-events: none; }
+  #dms-alerta { position: fixed; inset: 0; z-index: 972; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: rgba(255,20,40,.72); animation: dms-pulso .5s steps(1) infinite; pointer-events: auto; cursor: pointer; }
   #dms-alerta-texto { color: #fff; font-size: 2.4rem; font-weight: 800; text-align: center; text-shadow: 0 2px 12px rgba(0,0,0,.6); padding: 1rem; }
+  #dms-alerta-cerrar { color: #fff; font-size: 1.05rem; font-weight: 700; margin-top: .4rem; border: 2px solid rgba(255,255,255,.85); border-radius: 999px; padding: .5rem 1.4rem; background: rgba(0,0,0,.25); }
   @keyframes dms-pulso { 0%,49% { background: rgba(255,20,40,.72); } 50%,100% { background: rgba(120,0,10,.55); } }
 </style>
 
@@ -968,7 +969,7 @@ summary.sec-titulo::before { display: inline-block; }
 </section>
 
 <!-- Alerta de nivel 3 a pantalla completa (aparte del canvas: no entra en la evidencia). -->
-<div id="dms-alerta" class="oculto" aria-hidden="true"><div id="dms-alerta-texto">¡DESPIERTA!</div></div>
+<div id="dms-alerta" class="oculto" role="button" tabindex="0" aria-label="Silenciar la alarma del Centinela"><div id="dms-alerta-texto">¡DESPIERTA!</div><div id="dms-alerta-cerrar">Toca para silenciar ✕</div></div>
 
     </section>
 
@@ -2148,7 +2149,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.72',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.73',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -16298,6 +16299,7 @@ function dms_init() {
     narizY: null, narizYprev: null,
     nivel: 0,              // 0 ok · 1 café · 2 voz · 3 alarma
     ultAviso: {},          // tipo -> ts (cooldown)
+    silenciadoHasta: 0,    // ts hasta el que NO se avisa (el dueño tocó «silenciar»)
     // Calibración
     calibrando: false, calibraHasta: 0, calibraSuma: 0, calibraN: 0,
     // Conducción continua
@@ -16309,6 +16311,16 @@ function dms_init() {
   // y la cámara se descargan al pulsar «Activar Centinela» dentro del panel.
   const btn = document.getElementById('ui-btnCentinela');
   if (btn) btn.addEventListener('click', function () { dms_panelAlternar(); });
+
+  // 🔇 La alarma roja (nivel 3) se SILENCIA tocándola. Antes tenía
+  // pointer-events:none y no había forma de apagarla — era el bug del dueño.
+  const ov = document.getElementById('dms-alerta');
+  if (ov) {
+    const silenciar = function (e) { if (e) { e.preventDefault(); e.stopPropagation(); } dms_silenciar(); };
+    ov.addEventListener('click', silenciar);
+    ov.addEventListener('touchstart', silenciar, { passive: false });
+    ov.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') silenciar(e); });
+  }
 
   dms_cablearControles();
   dms_sincronizarControles();
@@ -16635,6 +16647,8 @@ function dms_conduccionContinua(ahora) {
 function dms_aviso(tipo, nivel, texto) {
   const d = estado.dms;
   const ahora = Date.now();
+  // 🔇 Silenciado a mano: no se avisa durante el mute (el dueño tocó la alarma).
+  if (ahora < (d.silenciadoHasta || 0)) { d.nivel = 0; return; }
   if (d.ultAviso[tipo] && ahora - d.ultAviso[tipo] < DMS_COOLDOWN_MS) { d.nivel = Math.max(d.nivel, nivel); return; }
   d.ultAviso[tipo] = ahora;
   d.nivel = Math.max(d.nivel, nivel);
@@ -16711,6 +16725,19 @@ function dms_mostrarAlerta(texto) {
 function dms_ocultarAlerta() {
   const ov = document.getElementById('dms-alerta');
   if (ov) ov.classList.add('oculto');
+}
+
+/* 🔇 Silenciar la alarma AL INSTANTE (el dueño tocó el overlay rojo). Baja el
+ * nivel, oculta el rojo, corta la voz/vibración y NO vuelve a avisar en 20 s
+ * (mute), para que no reaparezca de golpe si sigue el gesto que la disparó. */
+function dms_silenciar() {
+  const d = estado.dms; if (!d) return;
+  d.nivel = 0;
+  d.silenciadoHasta = Date.now() + 20000;
+  dms_ocultarAlerta();
+  try { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); } catch (e) {}
+  try { if (navigator.vibrate) navigator.vibrate(0); } catch (e) {}
+  dms_toast('🔇 Alarma silenciada 20 s', 'info');
 }
 
 /* ============================================================================

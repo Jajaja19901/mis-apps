@@ -66,6 +66,7 @@ function dms_init() {
     narizY: null, narizYprev: null,
     nivel: 0,              // 0 ok · 1 café · 2 voz · 3 alarma
     ultAviso: {},          // tipo -> ts (cooldown)
+    silenciadoHasta: 0,    // ts hasta el que NO se avisa (el dueño tocó «silenciar»)
     // Calibración
     calibrando: false, calibraHasta: 0, calibraSuma: 0, calibraN: 0,
     // Conducción continua
@@ -77,6 +78,16 @@ function dms_init() {
   // y la cámara se descargan al pulsar «Activar Centinela» dentro del panel.
   const btn = document.getElementById('ui-btnCentinela');
   if (btn) btn.addEventListener('click', function () { dms_panelAlternar(); });
+
+  // 🔇 La alarma roja (nivel 3) se SILENCIA tocándola. Antes tenía
+  // pointer-events:none y no había forma de apagarla — era el bug del dueño.
+  const ov = document.getElementById('dms-alerta');
+  if (ov) {
+    const silenciar = function (e) { if (e) { e.preventDefault(); e.stopPropagation(); } dms_silenciar(); };
+    ov.addEventListener('click', silenciar);
+    ov.addEventListener('touchstart', silenciar, { passive: false });
+    ov.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') silenciar(e); });
+  }
 
   dms_cablearControles();
   dms_sincronizarControles();
@@ -403,6 +414,8 @@ function dms_conduccionContinua(ahora) {
 function dms_aviso(tipo, nivel, texto) {
   const d = estado.dms;
   const ahora = Date.now();
+  // 🔇 Silenciado a mano: no se avisa durante el mute (el dueño tocó la alarma).
+  if (ahora < (d.silenciadoHasta || 0)) { d.nivel = 0; return; }
   if (d.ultAviso[tipo] && ahora - d.ultAviso[tipo] < DMS_COOLDOWN_MS) { d.nivel = Math.max(d.nivel, nivel); return; }
   d.ultAviso[tipo] = ahora;
   d.nivel = Math.max(d.nivel, nivel);
@@ -479,6 +492,19 @@ function dms_mostrarAlerta(texto) {
 function dms_ocultarAlerta() {
   const ov = document.getElementById('dms-alerta');
   if (ov) ov.classList.add('oculto');
+}
+
+/* 🔇 Silenciar la alarma AL INSTANTE (el dueño tocó el overlay rojo). Baja el
+ * nivel, oculta el rojo, corta la voz/vibración y NO vuelve a avisar en 20 s
+ * (mute), para que no reaparezca de golpe si sigue el gesto que la disparó. */
+function dms_silenciar() {
+  const d = estado.dms; if (!d) return;
+  d.nivel = 0;
+  d.silenciadoHasta = Date.now() + 20000;
+  dms_ocultarAlerta();
+  try { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); } catch (e) {}
+  try { if (navigator.vibrate) navigator.vibrate(0); } catch (e) {}
+  dms_toast('🔇 Alarma silenciada 20 s', 'info');
 }
 
 /* ============================================================================
