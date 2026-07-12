@@ -38,7 +38,7 @@ const MAT_ALTO_OCR = 480;              // alto (px) al que se amplía el recorte
  * la matrícula siempre se puede leer a ojo en la galería. El OCR trabaja en
  * segundo plano, sin prisa, y va anotando la placa en cada foto que lee. */
 const MAT_FOTOS_MAX = 40;              // tope de fotos guardadas (las viejas se caen)
-const MAT_FOTO_TRACK_MS = 2000;        // no re-fotografiar el MISMO coche antes de 2 s
+const MAT_FOTO_TRACK_MS = 900;         // re-intento por coche cada 0,9 s MIENTRAS no esté leída (un coche cruzando se ve ~1-2 s: con 2 s solo había 1 intento). Al confirmar, trackListo lo para en seco
 const MAT_FOTO_ANCHO_JPG = 480;        // ancho máx del JPEG guardado (peso contenido)
 const MAT_FOTOS_GUARDAR_MS = 3000;     // persistir la galería como mucho cada 3 s
 
@@ -442,11 +442,15 @@ async function mat_procesarCola() {
         m.trackListo[foto.trackId] = Date.now();
         m.cola = m.cola.filter(function (f) { return f.trackId !== foto.trackId; });
       }
-      // A la galería SOLO las fotos CONFIRMADAS (leída 2 veces igual = la placa
-      // se aprecia de verdad). Y UNA foto por matrícula: si ya tiene de los
-      // últimos 10 min, se reanota esa. Sin duplicados ni fotos ilegibles.
-      let fotoId = null;
-      if (buena) {
+      // FOTO: UNA por COCHE (track), guardada a la PRIMERA lectura plausible.
+      // Conduciendo, un coche pasa UNA vez y ~1 s: exigir 2 lecturas iguales
+      // para guardar dejaba la galería a CERO (recorrido con 50 coches y ni
+      // una placa). Con una por track: se pilla la placa al vuelo y sin spam
+      // (ni ruedas —solo se guarda si HAY lectura— ni 200 fotos del mismo).
+      if (!m.fotoDeTrack) m.fotoDeTrack = {};
+      let fotoId = (foto.trackId != null) ? (m.fotoDeTrack[foto.trackId] || null) : null;
+      if (!fotoId) {
+        // Mismo coche re-visto (track nuevo) con placa ya en galería → reanota.
         try {
           const lista = mat_fotosLista();
           for (let i = lista.length - 1; i >= 0; i--) {
@@ -454,28 +458,30 @@ async function mat_procesarCola() {
             if (f && f.matricula === v.plate && Date.now() - f.ts < 600000) { fotoId = f.id; break; }
           }
         } catch (e) {}
-        if (!fotoId) {
-          // Se guarda el coche + la BANDA DE LA PLACA AMPLIADA pegada debajo:
-          // así los números/letras se ven GRANDES en la foto de la galería.
-          let imgCnv = foto.cnv;
-          try {
-            const banda = mat_bandaPlaca(foto.cnv);
-            if (banda && banda.width > 0 && banda.height > 0) {
-              const comp = document.createElement('canvas');
-              const bw = foto.cnv.width;
-              const bandaH = Math.max(40, Math.round(banda.height * (bw / banda.width)));
-              comp.width = bw; comp.height = foto.cnv.height + bandaH;
-              const cctx = comp.getContext('2d');
-              cctx.drawImage(foto.cnv, 0, 0);
-              cctx.imageSmoothingEnabled = true; cctx.imageSmoothingQuality = 'high';
-              cctx.drawImage(banda, 0, foto.cnv.height, bw, bandaH);
-              imgCnv = comp;
-            }
-          } catch (e) {}
-          fotoId = mat_fotoGuardar(imgCnv, foto.ts, { clase: foto.clase || 'car' });
-        }
-        mat_fotoAnotar(fotoId, v.plate, true);          // anota la placa en SU foto
       }
+      if (!fotoId) {
+        // Se guarda el coche + la BANDA DE LA PLACA AMPLIADA pegada debajo:
+        // así los números/letras se ven GRANDES en la foto de la galería.
+        let imgCnv = foto.cnv;
+        try {
+          const banda = mat_bandaPlaca(foto.cnv);
+          if (banda && banda.width > 0 && banda.height > 0) {
+            const comp = document.createElement('canvas');
+            const bw = foto.cnv.width;
+            const bandaH = Math.max(40, Math.round(banda.height * (bw / banda.width)));
+            comp.width = bw; comp.height = foto.cnv.height + bandaH;
+            const cctx = comp.getContext('2d');
+            cctx.drawImage(foto.cnv, 0, 0);
+            cctx.imageSmoothingEnabled = true; cctx.imageSmoothingQuality = 'high';
+            cctx.drawImage(banda, 0, foto.cnv.height, bw, bandaH);
+            imgCnv = comp;
+          }
+        } catch (e) {}
+        fotoId = mat_fotoGuardar(imgCnv, foto.ts, { clase: foto.clase || 'car' });
+        if (foto.trackId != null && fotoId) m.fotoDeTrack[foto.trackId] = fotoId;
+        if (Object.keys(m.fotoDeTrack).length > 200) m.fotoDeTrack = {};   // no crecer sin fin
+      }
+      mat_fotoAnotar(fotoId, v.plate, buena);           // anota la placa en SU foto (✅ si confirmada)
       if (buena && mat_guardarLectura(v.plate, false)) {
         mat_toast('✅ Matrícula CONFIRMADA (leída ×' + v.votos + '): ' + v.plate + ' — se borra sola en ' +
           nuc_clamp(estado.cfg.matRetencionMin || 15, 1, 240) + ' min.', 'info');
