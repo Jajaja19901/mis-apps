@@ -340,10 +340,25 @@ function mat_fotoGuardar(cnv, ahora, veh) {
     mini.height = Math.max(16, Math.round(cnv.height * esc));
     mini.getContext('2d').drawImage(cnv, 0, 0, mini.width, mini.height);
     const jpg = mini.toDataURL('image/jpeg', 0.6);
-    const id = (typeof nuc_uid === 'function') ? nuc_uid('f') : ('f' + ahora + Math.floor(Math.random() * 1e6));
     const lista = mat_fotosLista();
-    lista.push({ id: id, ts: ahora, img: jpg, matricula: '', buena: false,
-                 clase: (veh && veh.clase) || 'car' });
+    const vel = (veh && typeof veh.velocidad === 'number') ? veh.velocidad : null;   // 📸 radar
+    // Si viene un fotoId (radar reemplazando su propia foto con la velocidad
+    // máxima), se SUSTITUYE la imagen en vez de añadir otra fila.
+    if (veh && veh.fotoId) {
+      for (let i = lista.length - 1; i >= 0; i--) {
+        if (lista[i] && lista[i].id === veh.fotoId) {
+          lista[i].img = jpg; lista[i].ts = ahora;
+          if (vel != null) lista[i].velocidad = vel;
+          m.fotosSucias = true;
+          return veh.fotoId;
+        }
+      }
+    }
+    const id = (typeof nuc_uid === 'function') ? nuc_uid('f') : ('f' + ahora + Math.floor(Math.random() * 1e6));
+    const fila = { id: id, ts: ahora, img: jpg, matricula: '', buena: false,
+                   clase: (veh && veh.clase) || 'car' };
+    if (vel != null) fila.velocidad = vel;
+    lista.push(fila);
     while (lista.length > MAT_FOTOS_MAX) lista.shift();
     m.fotosSucias = true;
     return id;
@@ -423,7 +438,9 @@ async function mat_procesarCola() {
     // este móvil, la galería se quedaba a CERO. Ahora: foto garantizada con la
     // banda de la placa ampliada debajo; si el OCR luego lee, la anota encima.
     if (!m.fotoDeTrack) m.fotoDeTrack = {};
-    let fotoId = (foto.trackId != null) ? (m.fotoDeTrack[foto.trackId] || null) : null;
+    // Si la foto ya venía guardada (p.ej. el RADAR, que graba el coche con su
+    // velocidad antes de leer la placa), se respeta y solo se anota encima.
+    let fotoId = foto.fotoId || ((foto.trackId != null) ? (m.fotoDeTrack[foto.trackId] || null) : null);
     if (!fotoId) {
       let imgCnv = foto.cnv;
       try {
@@ -578,8 +595,9 @@ function mat_mostrarLista() {
       fila.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:6px;';
       const b = document.createElement('b');
       b.style.cssText = 'letter-spacing:2px;font-size:1.05rem;';
-      b.textContent = f.matricula ? ((f.buena ? '✅ ' : '📋 ') + f.matricula) : '👁 léela en la foto';
-      if (!f.matricula) b.style.opacity = '.6';
+      const vel = (typeof f.velocidad === 'number') ? ('🏎 ~' + f.velocidad + ' km/h  ') : '';
+      b.textContent = vel + (f.matricula ? ((f.buena ? '✅ ' : '📋 ') + f.matricula) : (vel ? '' : '👁 léela en la foto'));
+      if (!f.matricula && !vel) b.style.opacity = '.6';
       const t = document.createElement('span'); t.className = 'etiqueta';
       t.textContent = (typeof nuc_fechaHora === 'function') ? nuc_fechaHora(f.ts) : '';
       fila.appendChild(b); fila.appendChild(t);

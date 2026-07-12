@@ -84,7 +84,32 @@ function car_init() {
     }
   });
 
-  bus.on('frame', () => { car_render(); });
+  // 📸 Radar: interruptor + umbral (el panel no está en Ajustes → cableado a mano).
+  const chkRadar = document.getElementById('car-radarGuardar');
+  if (chkRadar) {
+    chkRadar.checked = !!estado.cfg.carRadarGuardar;
+    chkRadar.addEventListener('change', function () {
+      estado.cfg.carRadarGuardar = chkRadar.checked;
+      nuc_guardar('cfg', estado.cfg);
+      if (chkRadar.checked && !estado.car.pxPorMetro && typeof ui_toast === 'function') {
+        ui_toast('📏 Para el radar, primero pulsa "Calibrar velocidad" y marca 2 puntos con su distancia real.', 'sospecha');
+      } else if (typeof ui_toast === 'function') {
+        ui_toast(chkRadar.checked ? '📸 Radar activo: guardará foto + km/h de cada coche.' : 'Radar desactivado.', 'info');
+      }
+    });
+  }
+  const inRadarMin = document.getElementById('car-radarVelMin');
+  if (inRadarMin) {
+    inRadarMin.value = String(estado.cfg.carRadarVelMin || 0);
+    inRadarMin.addEventListener('change', function () {
+      const v = parseInt(inRadarMin.value, 10);
+      estado.cfg.carRadarVelMin = (isNaN(v) || v < 0) ? 0 : Math.min(250, v);
+      inRadarMin.value = String(estado.cfg.carRadarVelMin);
+      nuc_guardar('cfg', estado.cfg);
+    });
+  }
+
+  bus.on('frame', () => { car_render(); car_radarBarrido(); });
 
   if (typeof vid_registrarPintor === 'function') vid_registrarPintor('car', car_pintar, 50);
 
@@ -275,6 +300,68 @@ function car_calibrarPedirMetros(puntos) {
 /* ----------------------------------------------------------------------------
  * car_velocidadKmh(track) → nº redondeado o null si no hay calibración.
  * ------------------------------------------------------------------------- */
+/* ============================================================================
+ * 📸 RADAR DE PARKING — cámara FIJA + calibrada: por cada coche que pasa guarda
+ * una FOTO con su velocidad sellada (y su matrícula si se lee). Reutiliza la
+ * galería de matrículas. Se enciende en el panel Parking → "Guardar foto+vel".
+ * Requiere estar CALIBRADO (sin px/metro no hay km/h que sellar).
+ * ==========================================================================*/
+function car_radarBarrido() {
+  try {
+    if (!estado.cfg.carRadarGuardar) return;
+    if (estado.cfg.modo !== 'carretera') return;
+    if (!estado.car || !estado.car.pxPorMetro) return;   // sin calibrar no hay velocidad
+    if (typeof mat_recorteZona !== 'function' || typeof mat_fotoGuardar !== 'function') return;
+    const tracks = estado.tracks || [];
+    const ts = Date.now();
+    if (!estado.car.radarUlt) estado.car.radarUlt = {};
+    for (let i = 0; i < tracks.length; i++) {
+      const t = tracks[i];
+      if (!t || !t.caja || NUC_VEHICULOS.indexOf(t.clase) === -1) continue;
+      const kmh = car_velocidadKmh(t);
+      if (kmh == null || kmh <= CAR_VEL_MIN_KMH) continue;
+      if (kmh < (estado.cfg.carRadarVelMin || 0)) continue;      // por debajo del umbral: no guarda
+      // Una foto por coche; se REEMPLAZA si luego pasa MÁS rápido (queda su pico).
+      const prev = estado.car.radarUlt[t.id];
+      if (prev && kmh <= prev.kmh) continue;
+      if (prev && (ts - prev.ts) < 700) continue;                // no re-disparar en ráfaga
+      estado.car.radarUlt[t.id] = { ts: ts, kmh: kmh, fotoId: prev ? prev.fotoId : null };
+      car_radarCapturar(t, kmh, ts, estado.car.radarUlt[t.id]);
+    }
+    for (const id in estado.car.radarUlt) {
+      if (ts - (estado.car.radarUlt[id].ts || 0) > 30000) delete estado.car.radarUlt[id];
+    }
+  } catch (e) { /* el radar nunca rompe el frame */ }
+}
+
+/* Recorta el coche entero, sella "~XX km/h" abajo, lo guarda en la galería con
+ * su velocidad y lo manda al lector de matrículas para que la anote si la lee. */
+function car_radarCapturar(track, kmh, ts, reg) {
+  const c = track.caja;
+  const m = 0.08;
+  const cnv = mat_recorteZona(c.x - c.an * m, c.y - c.al * m, c.an * (1 + 2 * m), c.al * (1 + 2 * m));
+  if (!cnv) return;
+  try {
+    const ctx = cnv.getContext('2d');
+    const bh = Math.max(22, Math.round(cnv.height * 0.16));
+    ctx.fillStyle = 'rgba(255,178,36,.93)';
+    ctx.fillRect(0, cnv.height - bh, cnv.width, bh);
+    ctx.fillStyle = '#111';
+    ctx.font = 'bold ' + Math.round(bh * 0.66) + "px system-ui,-apple-system,sans-serif";
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+    ctx.fillText('~' + kmh + ' km/h', cnv.width / 2, cnv.height - bh / 2);
+  } catch (e) {}
+  // Guarda (o reemplaza) la foto con su velocidad.
+  const fotoId = mat_fotoGuardar(cnv, ts, { clase: track.clase || 'car', velocidad: kmh, fotoId: reg.fotoId });
+  reg.fotoId = fotoId;
+  // Lectura de matrícula sobre ESE recorte, anotada en la MISMA foto (best-effort).
+  if (fotoId && estado.mat && Array.isArray(estado.mat.cola)) {
+    estado.mat.cola.push({ cnv: cnv, ts: ts, zona: 'radar', fotoId: fotoId, clase: track.clase || 'car', trackId: track.id });
+    while (estado.mat.cola.length > 16) estado.mat.cola.shift();
+    try { if (typeof mat_procesarCola === 'function') mat_procesarCola(); } catch (e) {}
+  }
+}
+
 function car_velocidadKmh(track) {
   if (!track || !estado.car || !estado.car.pxPorMetro) return null;
   if (typeof trk_velocidad !== 'function') return null;
@@ -321,21 +408,25 @@ function car_pintar(ctx) {
       ctx.restore();
     }
 
-    if (estado.car.calibrando && Array.isArray(estado.car.puntos) && estado.car.puntos.length) {
+    if (estado.car.calibrando) {
+      const puntos = Array.isArray(estado.car.puntos) ? estado.car.puntos : [];
       ctx.save();
-      ctx.fillStyle = '#ffb224';
-      ctx.strokeStyle = '#ffb224';
-      ctx.lineWidth = 2;
-      estado.car.puntos.forEach((p) => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      if (estado.car.puntos.length === 2) {
-        ctx.beginPath();
-        ctx.moveTo(estado.car.puntos[0].x, estado.car.puntos[0].y);
-        ctx.lineTo(estado.car.puntos[1].x, estado.car.puntos[1].y);
-        ctx.stroke();
+      // Franja de instrucción GRANDE arriba (para no confundir con «＋ Línea»).
+      const W = ctx.canvas.width, H = ctx.canvas.height;
+      const bh = Math.max(30, Math.round(H * 0.09));
+      ctx.fillStyle = 'rgba(255,178,36,.94)';
+      ctx.fillRect(0, 0, W, bh);
+      ctx.fillStyle = '#111';
+      ctx.font = 'bold ' + Math.round(bh * 0.42) + "px system-ui,-apple-system,sans-serif";
+      ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+      const msg = puntos.length === 0 ? '📏 CALIBRAR: toca el PUNTO 1 de una distancia que conozcas'
+        : (puntos.length === 1 ? '📏 Ahora toca el PUNTO 2 (te pediré los metros)' : '📏 Escribe los metros…');
+      ctx.fillText(msg, W / 2, bh / 2);
+      // Puntos y línea.
+      ctx.fillStyle = '#ffb224'; ctx.strokeStyle = '#ffb224'; ctx.lineWidth = 3;
+      puntos.forEach((p) => { ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2); ctx.fill(); });
+      if (puntos.length === 2) {
+        ctx.beginPath(); ctx.moveTo(puntos[0].x, puntos[0].y); ctx.lineTo(puntos[1].x, puntos[1].y); ctx.stroke();
       }
       ctx.restore();
     }

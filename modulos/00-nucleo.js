@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.86',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.87',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -63,6 +63,8 @@ const CFG_DEFECTOS = {
   merodeoSeg: 30,
   colaN: 4,
   colaSeg: 45,
+  carRadarGuardar: false,   // 📸 modo radar (Parking, cámara fija): guardar foto+velocidad de cada coche que pasa
+  carRadarVelMin: 0,        // solo guardar si supera estos km/h (0 = todos)
   carreraVel: 2.2,          // umbral relativo: px/s = carreraVel * anchoFrame / 10
   caidaSeg: 3,
   abandonoSeg: 30,
