@@ -2186,7 +2186,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.76',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.77',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -14587,7 +14587,7 @@ function mat_init() {
   if (estado.mat && estado.mat.inited) return;
   estado.mat = { inited: true, cargando: null, worker: null, leyendo: false,
                  ultFoto: 0, ultOcr: 0, ultPurga: 0, ultima: null, votos: [], cola: [],
-                 trackFotos: {}, fotos: null, fotosSucias: false, ultGuardaFotos: 0 };
+                 trackFotos: {}, trackListo: {}, fotos: null, fotosSucias: false, ultGuardaFotos: 0 };
 
   // Muestra la última matrícula leída ENCIMA del vídeo (orden 66, sobre tracks).
   if (typeof vid_registrarPintor === 'function') {
@@ -14709,14 +14709,21 @@ function mat_capturarTodas(ahora) {
     if (!t || !t.caja) continue;
     if (t.clase !== 'car' && t.clase !== 'truck' && t.clase !== 'bus' && t.clase !== 'motorcycle') continue;
     if (t.caja.an * t.caja.al < areaFrame * MAT_AREA_MIN_CONTINUO) continue;   // muy lejos: placa ilegible
+    // ✅ COCHE YA LEÍDO: su matrícula está CONFIRMADA → ni una foto más de este
+    // track mientras siga a la vista (se refresca la marca para que no caduque).
+    // Esto corta las "200 fotos del coche de delante": las justas hasta leerla.
+    if (m.trackListo[t.id]) { m.trackListo[t.id] = ahora; continue; }
     const ya = m.trackFotos[t.id] || 0;
     if (ahora - ya < MAT_FOTO_TRACK_MS) continue;                              // ya tiene foto reciente
     m.trackFotos[t.id] = ahora;
     try { mat_fotografiar(t, ahora); } catch (e) { /* un coche fallido no para el barrido */ }
   }
-  // Limpieza del mapa de throttle (tracks que ya no existen).
+  // Limpieza de mapas de throttle (tracks que ya no existen).
   for (const id in m.trackFotos) {
     if (ahora - m.trackFotos[id] > 30000) delete m.trackFotos[id];
+  }
+  for (const id in m.trackListo) {
+    if (ahora - m.trackListo[id] > 60000) delete m.trackListo[id];
   }
 }
 
@@ -14736,7 +14743,7 @@ function mat_fotografiar(veh, ahora) {
   // NO se guarda la foto todavía: primero el OCR intenta leer la placa. Solo si
   // lee una matrícula PLAUSIBLE se guarda (así no se guardan ruedas ni laterales
   // de coches de perfil sin placa). Se conserva la clase para la galería.
-  m.cola.push({ cnv: cnv, ts: ahora, zona: 'vehiculo', fotoId: null, clase: (veh && veh.clase) || 'car' });
+  m.cola.push({ cnv: cnv, ts: ahora, zona: 'vehiculo', fotoId: null, clase: (veh && veh.clase) || 'car', trackId: veh.id });
   while (m.cola.length > MAT_COLA_MAX) m.cola.shift();   // se cae la más vieja
 }
 
@@ -14862,9 +14869,23 @@ async function mat_procesarCola() {
       const v = mat_votar(cand);
       const buena = v.votos >= MAT_VOTOS_CONFIRMAR;     // "la que pillas es la buena"
       estado.mat.ultima = { matricula: v.plate, votos: v.votos, buena: buena, ts: Date.now() };
-      // Recién AHORA se guarda la foto (había matrícula de verdad): así la galería
-      // solo tiene coches con placa leída, nunca ruedas ni laterales sin placa.
-      const fotoId = foto.fotoId || mat_fotoGuardar(foto.cnv, foto.ts, { clase: foto.clase || 'car' });
+      // ✅ Confirmada → este coche queda LISTO: se deja de fotografiar y se vacían
+      // de la cola sus fotos pendientes (ya no aportan nada, solo gastan OCR).
+      if (buena && foto.trackId != null) {
+        m.trackListo[foto.trackId] = Date.now();
+        m.cola = m.cola.filter(function (f) { return f.trackId !== foto.trackId; });
+      }
+      // UNA foto por matrícula en la galería: si esta placa ya tiene foto de los
+      // últimos 10 min, se reanota esa (no se añade otra). Sin duplicados.
+      let fotoId = null;
+      try {
+        const lista = mat_fotosLista();
+        for (let i = lista.length - 1; i >= 0; i--) {
+          const f = lista[i];
+          if (f && f.matricula === cand && Date.now() - f.ts < 600000) { fotoId = f.id; break; }
+        }
+      } catch (e) {}
+      if (!fotoId) fotoId = mat_fotoGuardar(foto.cnv, foto.ts, { clase: foto.clase || 'car' });
       mat_fotoAnotar(fotoId, cand, buena);              // anota la placa en SU foto
       if (buena && mat_guardarLectura(v.plate, false)) {
         mat_toast('✅ Matrícula CONFIRMADA (leída ×' + v.votos + '): ' + v.plate + ' — se borra sola en ' +
