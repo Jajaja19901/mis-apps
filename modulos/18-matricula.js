@@ -442,18 +442,40 @@ async function mat_procesarCola() {
         m.trackListo[foto.trackId] = Date.now();
         m.cola = m.cola.filter(function (f) { return f.trackId !== foto.trackId; });
       }
-      // UNA foto por matrícula en la galería: si esta placa ya tiene foto de los
-      // últimos 10 min, se reanota esa (no se añade otra). Sin duplicados.
+      // A la galería SOLO las fotos CONFIRMADAS (leída 2 veces igual = la placa
+      // se aprecia de verdad). Y UNA foto por matrícula: si ya tiene de los
+      // últimos 10 min, se reanota esa. Sin duplicados ni fotos ilegibles.
       let fotoId = null;
-      try {
-        const lista = mat_fotosLista();
-        for (let i = lista.length - 1; i >= 0; i--) {
-          const f = lista[i];
-          if (f && f.matricula === cand && Date.now() - f.ts < 600000) { fotoId = f.id; break; }
+      if (buena) {
+        try {
+          const lista = mat_fotosLista();
+          for (let i = lista.length - 1; i >= 0; i--) {
+            const f = lista[i];
+            if (f && f.matricula === v.plate && Date.now() - f.ts < 600000) { fotoId = f.id; break; }
+          }
+        } catch (e) {}
+        if (!fotoId) {
+          // Se guarda el coche + la BANDA DE LA PLACA AMPLIADA pegada debajo:
+          // así los números/letras se ven GRANDES en la foto de la galería.
+          let imgCnv = foto.cnv;
+          try {
+            const banda = mat_bandaPlaca(foto.cnv);
+            if (banda && banda.width > 0 && banda.height > 0) {
+              const comp = document.createElement('canvas');
+              const bw = foto.cnv.width;
+              const bandaH = Math.max(40, Math.round(banda.height * (bw / banda.width)));
+              comp.width = bw; comp.height = foto.cnv.height + bandaH;
+              const cctx = comp.getContext('2d');
+              cctx.drawImage(foto.cnv, 0, 0);
+              cctx.imageSmoothingEnabled = true; cctx.imageSmoothingQuality = 'high';
+              cctx.drawImage(banda, 0, foto.cnv.height, bw, bandaH);
+              imgCnv = comp;
+            }
+          } catch (e) {}
+          fotoId = mat_fotoGuardar(imgCnv, foto.ts, { clase: foto.clase || 'car' });
         }
-      } catch (e) {}
-      if (!fotoId) fotoId = mat_fotoGuardar(foto.cnv, foto.ts, { clase: foto.clase || 'car' });
-      mat_fotoAnotar(fotoId, cand, buena);              // anota la placa en SU foto
+        mat_fotoAnotar(fotoId, v.plate, true);          // anota la placa en SU foto
+      }
       if (buena && mat_guardarLectura(v.plate, false)) {
         mat_toast('✅ Matrícula CONFIRMADA (leída ×' + v.votos + '): ' + v.plate + ' — se borra sola en ' +
           nuc_clamp(estado.cfg.matRetencionMin || 15, 1, 240) + ' min.', 'info');

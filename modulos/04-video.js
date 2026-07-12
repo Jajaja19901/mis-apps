@@ -916,7 +916,12 @@ function vid_reiniciarBufferGrabacion() {
     const stream = cnv.captureStream(10);
     v.grabStream = stream;
     const mime = vid_mimeGrab();
-    const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+    // Bitrate FIJO y alto (4 Mbps): sin él, Android graba con calidad de saldo
+    // y el clip del delito "se ve mal" (borroso a bloques). 4 Mbps a 10 fps es
+    // nítido y un clip de 30 s pesa ~15 MB (asumible en memoria).
+    const opciones = { videoBitsPerSecond: 4000000 };
+    if (mime) opciones.mimeType = mime;
+    const rec = new MediaRecorder(stream, opciones);
     v.bufferChunks = [];
     rec.ondataavailable = (e) => {
       if (!e.data || !e.data.size) return;

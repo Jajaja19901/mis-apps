@@ -434,6 +434,25 @@ function ui_alRecibirGrabacion(datos) {
   enlace.href = datos.url;
   enlace.download = datos.nombre || 'grabacion.webm';
   enlace.textContent = '⬇ Descargar';
+  // En el APK (WebView) los enlaces blob: no descargan NADA: se usa el puente
+  // VigiaAndroid.guardarArchivo → escribe el clip en la carpeta Descargas.
+  enlace.addEventListener('click', function (e) {
+    try {
+      if (!(window.VigiaAndroid && window.VigiaAndroid.guardarArchivo)) return;  // navegador: enlace normal
+      e.preventDefault();
+      ui_toast('Guardando el vídeo en Descargas…', 'info');
+      fetch(datos.url).then(function (r) { return r.blob(); }).then(function (blob) {
+        const fr = new FileReader();
+        fr.onload = function () {
+          const b64 = String(fr.result || '').split(',')[1] || '';
+          if (!b64) { ui_toast('No se pudo leer el clip.', 'sospecha'); return; }
+          window.VigiaAndroid.guardarArchivo(b64, datos.nombre || 'grabacion.webm', blob.type || 'video/webm');
+        };
+        fr.onerror = function () { ui_toast('No se pudo leer el clip.', 'sospecha'); };
+        fr.readAsDataURL(blob);
+      }).catch(function () { ui_toast('No se pudo leer el clip para guardarlo.', 'sospecha'); });
+    } catch (err) { /* enlace normal como respaldo */ }
+  });
 
   li.appendChild(hora);
   li.appendChild(texto);
