@@ -2186,7 +2186,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.83',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.84',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -17374,9 +17374,21 @@ function modos_vista() { return estado.modos ? estado.modos.vista : 'comercio'; 
  * Cada apagado es idempotente y seguro (solo actúa si estaba encendido). */
 function modos_aislar(vista) {
   const enCoche = (vista === 'copiloto' || vista === 'centinela');
+  // ¿Es una TRANSICIÓN real de vista, o una re-aplicación de la misma? El
+  // auto-encendido de abajo solo debe dispararse al ENTRAR (si no, re-encendería
+  // el copiloto nada más apagarlo a mano, porque el botón re-aplica la vista).
+  const entrando = estado.modos.vistaAislada !== vista;
+  estado.modos.vistaAislada = vista;
   try {
     // Copiloto: sigue vivo también en la vista Centinela (pareja de coche).
     if (!enCoche && estado.cfg.copActivo && typeof cop_alternar === 'function') cop_alternar(false);
+  } catch (e) {}
+  try {
+    // SIMETRÍA: ENTRAR en la vista Copiloto lo enciende solo (igual que salir
+    // lo apaga solo). Sin esto, el dueño conducía con la pestaña abierta pero
+    // el copiloto APAGADO → ni avisos ni matrículas, y parecía "roto".
+    // Solo en la transición: dentro de la vista se puede apagar a mano.
+    if (entrando && vista === 'copiloto' && !estado.cfg.copActivo && typeof cop_alternar === 'function') cop_alternar(true);
   } catch (e) {}
   try {
     // Casa: alarma, roles, paquetería, batería… → solo en su vista.
@@ -17885,151 +17897,350 @@ if (document.readyState === 'loading') {
 </script>
 <script type="application/json" id="acceptance-tests">
 [
-  {
-    "name": "Onboarding: 3 pasos completos (modo → fuente → línea) y se cierra",
-    "steps": [
-      { "expectVisible": "#ui-pasoModo" },
-      { "click": "#ui-modoSuper" },
-      { "expectVisible": "#ui-fuenteSaltar" },
-      { "click": "#ui-fuenteSaltar" },
-      { "expectVisible": "#ui-dibujarLinea" },
-      { "click": "#ui-onboardingTerminar" },
-      { "expectGone": "#ui-pasoModo" }
-    ]
-  },
-  {
-    "name": "PIN: crear PIN de 4 dígitos y abrir el panel de ajustes",
-    "steps": [
-      { "click": "#ui-modoSuper" },
-      { "click": "#ui-fuenteSaltar" },
-      { "click": "#ui-onboardingTerminar" },
-      { "click": "#ui-btnAjustes" },
-      { "wait": 400 },
-      { "fill": { "sel": "#cfg-pinNuevo1", "value": "1234" } },
-      { "fill": { "sel": "#cfg-pinNuevo2", "value": "1234" } },
-      { "clickText": "Crear PIN" },
-      { "wait": 500 },
-      { "expectVisible": "#ui-btnCerrarAjustes" },
-      { "expect": "Fuente de vídeo" }
-    ]
-  },
-  {
-    "name": "Pantalla pública de aforo: se abre con PASE y se cierra al tocar",
-    "steps": [
-      { "click": "#ui-modoSuper" },
-      { "click": "#ui-fuenteSaltar" },
-      { "click": "#ui-onboardingTerminar" },
-      { "click": "#ui-btnAforo" },
-      { "expectVisible": "#ui-aforoNumero" },
-      { "expect": "PASE" },
-      { "click": "#ui-aforo" },
-      { "expectGone": "#ui-aforoNumero" }
-    ]
-  },
-  {
-    "name": "Alerta crítica de prueba: flash a pantalla completa, cierre y registro en el feed",
-    "steps": [
-      { "click": "#ui-modoSuper" },
-      { "click": "#ui-fuenteSaltar" },
-      { "click": "#ui-onboardingTerminar" },
-      { "click": "#cfg-btnProbar-critico" },
-      { "wait": 400 },
-      { "expectVisible": "#alerta-btnCerrar" },
-      { "click": "#alerta-btnCerrar" },
-      { "expectGone": "#alerta-btnCerrar" },
-      { "expect": "Alerta de prueba" }
-    ]
-  },
-  {
-    "name": "Zonas: la toolbar de dibujo responde sin vídeo (línea → cancelar)",
-    "steps": [
-      { "click": "#ui-modoSuper" },
-      { "click": "#ui-fuenteSaltar" },
-      { "click": "#ui-onboardingTerminar" },
-      { "click": "#zona-linea" },
-      { "expectVisible": "#zona-ayuda" },
-      { "expectVisible": "#zona-cancelar" },
-      { "click": "#zona-cancelar" },
-      { "expectGone": "#zona-ayuda" }
-    ]
-  },
-  {
-    "name": "Modo carretera: panel de vehículos/plazas visible y aviso de velocidad honesto",
-    "steps": [
-      { "click": "#ui-modoCarretera" },
-      { "click": "#ui-fuenteSaltar" },
-      { "click": "#ui-onboardingTerminar" },
-      { "wait": 300 },
-      { "expectVisible": "#car-plazas" },
-      { "expectVisible": "#zona-plaza" },
-      { "expect": "no válida como medición legal" }
-    ]
-  },
-  {
-    "name": "Modo Casa: abre el panel, aviso de menores y modal de roles",
-    "steps": [
-      { "click": "#ui-modoSuper" },
-      { "click": "#ui-fuenteSaltar" },
-      { "click": "#ui-onboardingTerminar" },
-      { "click": "#modos-chipCasa" },
-      { "wait": 250 },
-      { "expectVisible": "#casa-panel" },
-      { "expectVisible": "#casa-btnActivar" },
-      { "expect": "sustituye la supervisión de menores" },
-      { "click": "#casa-btnRoles" },
-      { "wait": 250 },
-      { "expect": "Roles de las zonas" }
-    ]
-  },
-  {
-    "name": "Centinela: abre el panel, límites honestos y sigue apagado (sin consumo)",
-    "steps": [
-      { "click": "#ui-modoSuper" },
-      { "click": "#ui-fuenteSaltar" },
-      { "click": "#ui-onboardingTerminar" },
-      { "click": "#modos-chipCentinela" },
-      { "wait": 250 },
-      { "expectVisible": "#centinela-panel" },
-      { "expect": "el conductor es siempre el responsable" },
-      { "expectVisible": "#centinela-btnActivar" }
-    ]
-  },
-  {
-    "name": "Selector de modos: cada vista enseña SOLO sus paneles",
-    "steps": [
-      { "click": "#ui-modoSuper" },
-      { "click": "#ui-fuenteSaltar" },
-      { "click": "#ui-onboardingTerminar" },
-      { "wait": 250 },
-      { "expectVisible": "#ui-contadores" },
-      { "click": "#modos-chipCopiloto" },
-      { "wait": 250 },
-      { "expectVisible": "#cop-panel" },
-      { "expectGone": "#ui-contadores" },
-      { "click": "#modos-chipComercio" },
-      { "wait": 250 },
-      { "expectVisible": "#ui-contadores" },
-      { "expectGone": "#cop-panel" }
-    ]
-  },
-  {
-    "name": "Modos aislados: activar copiloto y cambiar de modo lo APAGA (no se mezcla)",
-    "steps": [
-      { "click": "#ui-modoSuper" },
-      { "click": "#ui-fuenteSaltar" },
-      { "click": "#ui-onboardingTerminar" },
-      { "click": "#modos-chipCopiloto" },
-      { "wait": 300 },
-      { "click": "#cop-btnActivar" },
-      { "wait": 300 },
-      { "expect": "⏹ Desactivar copiloto" },
-      { "click": "#modos-chipComercio" },
-      { "wait": 300 },
-      { "click": "#modos-chipCopiloto" },
-      { "wait": 300 },
-      { "expect": "▶ Activar copiloto" }
-    ]
-  }
+ {
+  "name": "Onboarding: 3 pasos completos (modo → fuente → línea) y se cierra",
+  "steps": [
+   {
+    "expectVisible": "#ui-pasoModo"
+   },
+   {
+    "click": "#ui-modoSuper"
+   },
+   {
+    "expectVisible": "#ui-fuenteSaltar"
+   },
+   {
+    "click": "#ui-fuenteSaltar"
+   },
+   {
+    "expectVisible": "#ui-dibujarLinea"
+   },
+   {
+    "click": "#ui-onboardingTerminar"
+   },
+   {
+    "expectGone": "#ui-pasoModo"
+   }
+  ]
+ },
+ {
+  "name": "PIN: crear PIN de 4 dígitos y abrir el panel de ajustes",
+  "steps": [
+   {
+    "click": "#ui-modoSuper"
+   },
+   {
+    "click": "#ui-fuenteSaltar"
+   },
+   {
+    "click": "#ui-onboardingTerminar"
+   },
+   {
+    "click": "#ui-btnAjustes"
+   },
+   {
+    "wait": 400
+   },
+   {
+    "fill": {
+     "sel": "#cfg-pinNuevo1",
+     "value": "1234"
+    }
+   },
+   {
+    "fill": {
+     "sel": "#cfg-pinNuevo2",
+     "value": "1234"
+    }
+   },
+   {
+    "clickText": "Crear PIN"
+   },
+   {
+    "wait": 500
+   },
+   {
+    "expectVisible": "#ui-btnCerrarAjustes"
+   },
+   {
+    "expect": "Fuente de vídeo"
+   }
+  ]
+ },
+ {
+  "name": "Pantalla pública de aforo: se abre con PASE y se cierra al tocar",
+  "steps": [
+   {
+    "click": "#ui-modoSuper"
+   },
+   {
+    "click": "#ui-fuenteSaltar"
+   },
+   {
+    "click": "#ui-onboardingTerminar"
+   },
+   {
+    "click": "#ui-btnAforo"
+   },
+   {
+    "expectVisible": "#ui-aforoNumero"
+   },
+   {
+    "expect": "PASE"
+   },
+   {
+    "click": "#ui-aforo"
+   },
+   {
+    "expectGone": "#ui-aforoNumero"
+   }
+  ]
+ },
+ {
+  "name": "Alerta crítica de prueba: flash a pantalla completa, cierre y registro en el feed",
+  "steps": [
+   {
+    "click": "#ui-modoSuper"
+   },
+   {
+    "click": "#ui-fuenteSaltar"
+   },
+   {
+    "click": "#ui-onboardingTerminar"
+   },
+   {
+    "click": "#cfg-btnProbar-critico"
+   },
+   {
+    "wait": 400
+   },
+   {
+    "expectVisible": "#alerta-btnCerrar"
+   },
+   {
+    "click": "#alerta-btnCerrar"
+   },
+   {
+    "expectGone": "#alerta-btnCerrar"
+   },
+   {
+    "expect": "Alerta de prueba"
+   }
+  ]
+ },
+ {
+  "name": "Zonas: la toolbar de dibujo responde sin vídeo (línea → cancelar)",
+  "steps": [
+   {
+    "click": "#ui-modoSuper"
+   },
+   {
+    "click": "#ui-fuenteSaltar"
+   },
+   {
+    "click": "#ui-onboardingTerminar"
+   },
+   {
+    "click": "#zona-linea"
+   },
+   {
+    "expectVisible": "#zona-ayuda"
+   },
+   {
+    "expectVisible": "#zona-cancelar"
+   },
+   {
+    "click": "#zona-cancelar"
+   },
+   {
+    "expectGone": "#zona-ayuda"
+   }
+  ]
+ },
+ {
+  "name": "Modo carretera: panel de vehículos/plazas visible y aviso de velocidad honesto",
+  "steps": [
+   {
+    "click": "#ui-modoCarretera"
+   },
+   {
+    "click": "#ui-fuenteSaltar"
+   },
+   {
+    "click": "#ui-onboardingTerminar"
+   },
+   {
+    "wait": 300
+   },
+   {
+    "expectVisible": "#car-plazas"
+   },
+   {
+    "expectVisible": "#zona-plaza"
+   },
+   {
+    "expect": "no válida como medición legal"
+   }
+  ]
+ },
+ {
+  "name": "Modo Casa: abre el panel, aviso de menores y modal de roles",
+  "steps": [
+   {
+    "click": "#ui-modoSuper"
+   },
+   {
+    "click": "#ui-fuenteSaltar"
+   },
+   {
+    "click": "#ui-onboardingTerminar"
+   },
+   {
+    "click": "#modos-chipCasa"
+   },
+   {
+    "wait": 250
+   },
+   {
+    "expectVisible": "#casa-panel"
+   },
+   {
+    "expectVisible": "#casa-btnActivar"
+   },
+   {
+    "expect": "sustituye la supervisión de menores"
+   },
+   {
+    "click": "#casa-btnRoles"
+   },
+   {
+    "wait": 250
+   },
+   {
+    "expect": "Roles de las zonas"
+   }
+  ]
+ },
+ {
+  "name": "Centinela: abre el panel, límites honestos y sigue apagado (sin consumo)",
+  "steps": [
+   {
+    "click": "#ui-modoSuper"
+   },
+   {
+    "click": "#ui-fuenteSaltar"
+   },
+   {
+    "click": "#ui-onboardingTerminar"
+   },
+   {
+    "click": "#modos-chipCentinela"
+   },
+   {
+    "wait": 250
+   },
+   {
+    "expectVisible": "#centinela-panel"
+   },
+   {
+    "expect": "el conductor es siempre el responsable"
+   },
+   {
+    "expectVisible": "#centinela-btnActivar"
+   }
+  ]
+ },
+ {
+  "name": "Selector de modos: cada vista enseña SOLO sus paneles",
+  "steps": [
+   {
+    "click": "#ui-modoSuper"
+   },
+   {
+    "click": "#ui-fuenteSaltar"
+   },
+   {
+    "click": "#ui-onboardingTerminar"
+   },
+   {
+    "wait": 250
+   },
+   {
+    "expectVisible": "#ui-contadores"
+   },
+   {
+    "click": "#modos-chipCopiloto"
+   },
+   {
+    "wait": 250
+   },
+   {
+    "expectVisible": "#cop-panel"
+   },
+   {
+    "expectGone": "#ui-contadores"
+   },
+   {
+    "click": "#modos-chipComercio"
+   },
+   {
+    "wait": 250
+   },
+   {
+    "expectVisible": "#ui-contadores"
+   },
+   {
+    "expectGone": "#cop-panel"
+   }
+  ]
+ },
+ {
+  "name": "Modos de coche: el copiloto se ENCIENDE al entrar y se apaga al salir (no se mezcla)",
+  "steps": [
+   {
+    "click": "#ui-modoSuper"
+   },
+   {
+    "click": "#ui-fuenteSaltar"
+   },
+   {
+    "click": "#ui-onboardingTerminar"
+   },
+   {
+    "click": "#modos-chipCopiloto"
+   },
+   {
+    "wait": 500
+   },
+   {
+    "expect": "⏹ Desactivar copiloto"
+   },
+   {
+    "click": "#cop-btnActivar"
+   },
+   {
+    "wait": 300
+   },
+   {
+    "expect": "▶ Activar copiloto"
+   },
+   {
+    "click": "#modos-chipComercio"
+   },
+   {
+    "wait": 400
+   },
+   {
+    "click": "#modos-chipCopiloto"
+   },
+   {
+    "wait": 500
+   },
+   {
+    "expect": "⏹ Desactivar copiloto"
+   }
+  ]
+ }
 ]
 </script>
 </body>

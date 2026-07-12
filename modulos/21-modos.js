@@ -88,9 +88,21 @@ function modos_vista() { return estado.modos ? estado.modos.vista : 'comercio'; 
  * Cada apagado es idempotente y seguro (solo actúa si estaba encendido). */
 function modos_aislar(vista) {
   const enCoche = (vista === 'copiloto' || vista === 'centinela');
+  // ¿Es una TRANSICIÓN real de vista, o una re-aplicación de la misma? El
+  // auto-encendido de abajo solo debe dispararse al ENTRAR (si no, re-encendería
+  // el copiloto nada más apagarlo a mano, porque el botón re-aplica la vista).
+  const entrando = estado.modos.vistaAislada !== vista;
+  estado.modos.vistaAislada = vista;
   try {
     // Copiloto: sigue vivo también en la vista Centinela (pareja de coche).
     if (!enCoche && estado.cfg.copActivo && typeof cop_alternar === 'function') cop_alternar(false);
+  } catch (e) {}
+  try {
+    // SIMETRÍA: ENTRAR en la vista Copiloto lo enciende solo (igual que salir
+    // lo apaga solo). Sin esto, el dueño conducía con la pestaña abierta pero
+    // el copiloto APAGADO → ni avisos ni matrículas, y parecía "roto".
+    // Solo en la transición: dentro de la vista se puede apagar a mano.
+    if (entrando && vista === 'copiloto' && !estado.cfg.copActivo && typeof cop_alternar === 'function') cop_alternar(true);
   } catch (e) {}
   try {
     // Casa: alarma, roles, paquetería, batería… → solo en su vista.
