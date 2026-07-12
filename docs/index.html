@@ -2199,7 +2199,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.88',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.89',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -7932,13 +7932,29 @@ function car_init() {
     chkRadar.addEventListener('change', function () {
       estado.cfg.carRadarGuardar = chkRadar.checked;
       nuc_guardar('cfg', estado.cfg);
-      if (chkRadar.checked && !estado.car.pxPorMetro && typeof ui_toast === 'function') {
-        ui_toast('📏 Para el radar, primero pulsa "Calibrar velocidad" y marca 2 puntos con su distancia real.', 'sospecha');
-      } else if (typeof ui_toast === 'function') {
-        ui_toast(chkRadar.checked ? '📸 Radar activo: guardará foto + km/h de cada coche.' : 'Radar desactivado.', 'info');
+      if (typeof ui_toast === 'function') {
+        ui_toast(chkRadar.checked
+          ? '📸 Radar activo (escala automática, sin calibrar): deja el móvil FIJO y guardará foto + km/h de cada coche que pase.'
+          : 'Radar desactivado.', 'info');
       }
     });
   }
+  // 📵 Guardián de móvil quieto: el acelerómetro congela el radar 1,5 s tras
+  // cada movimiento del teléfono (mover la cámara hacía que los coches PARADOS
+  // dieran velocidad y foto falsas). Pasivo y barato; sin sensor, no molesta.
+  try {
+    if (typeof window !== 'undefined' && 'ondevicemotion' in window) {
+      window.addEventListener('devicemotion', function (ev) {
+        try {
+          const a = ev.acceleration;   // sin gravedad
+          if (!a) return;
+          const mag = Math.sqrt((a.x || 0) * (a.x || 0) + (a.y || 0) * (a.y || 0) + (a.z || 0) * (a.z || 0));
+          if (mag > 1.2 && estado.car) estado.car.movilHasta = Date.now() + 1500;
+        } catch (e) {}
+      }, { passive: true });
+    }
+  } catch (e) {}
+
   // 📸 Ver la galería desde el propio panel Parking (antes solo estaba en
   // Copiloto: el radar guardaba y el dueño no tenía DÓNDE verlo → "no pasa nada").
   const btnRadarVer = document.getElementById('car-radarVer');
@@ -8158,17 +8174,23 @@ function car_radarBarrido() {
   try {
     if (!estado.cfg.carRadarGuardar) return;
     if (estado.cfg.modo !== 'carretera') return;
-    if (!estado.car || !estado.car.pxPorMetro) return;   // sin calibrar no hay velocidad
+    if (!estado.car) return;
+    // 📵 MÓVIL EN MOVIMIENTO: si la cámara se mueve, TODO "se mueve" en la
+    // imagen y los coches parados dan velocidad falsa. El acelerómetro congela
+    // el radar 1,5 s tras cada meneo (ver listener en car_init).
+    const ts = Date.now();
+    if (estado.car.movilHasta && ts < estado.car.movilHasta) return;
     if (typeof mat_recorteZona !== 'function' || typeof mat_fotoGuardar !== 'function') return;
     const tracks = estado.tracks || [];
-    const ts = Date.now();
     if (!estado.car.radarUlt) estado.car.radarUlt = {};
     for (let i = 0; i < tracks.length; i++) {
       const t = tracks[i];
       if (!t || !t.caja || NUC_VEHICULOS.indexOf(t.clase) === -1) continue;
       const kmh = car_velocidadKmh(t);
       if (kmh == null || kmh <= CAR_VEL_MIN_KMH) continue;
-      if (kmh < (estado.cfg.carRadarVelMin || 0)) continue;      // por debajo del umbral: no guarda
+      // Mínimo efectivo de 8 km/h: el temblor del recuadro en coches PARADOS da
+      // 2-6 km/h falsos; ningún coche "pasando" va a menos de 8.
+      if (kmh < Math.max(8, estado.cfg.carRadarVelMin || 0)) continue;
       // Una foto por coche; se REEMPLAZA si luego pasa MÁS rápido (queda su pico).
       const prev = estado.car.radarUlt[t.id];
       if (prev && kmh <= prev.kmh) continue;
@@ -8219,14 +8241,43 @@ function car_radarCapturar(track, kmh, ts, reg) {
   }
 }
 
+/* Medidas reales medias por clase (m): largo (visto de LADO) y ancho (de
+ * FRENTE/ATRÁS). Con ellas, el PROPIO vehículo da la escala px/metro a SU
+ * distancia exacta → sin calibrar y SIN el error de perspectiva (calibrar en
+ * un plano y medir coches en otro daba 5-6 km/h donde había 30-40). */
+const CAR_LARGO_M = { car: 4.3, truck: 8.5, bus: 11, motorcycle: 2.1, bicycle: 1.8 };
+const CAR_ANCHO_M = { car: 1.8, truck: 2.5, bus: 2.55, motorcycle: 0.8, bicycle: 0.6 };
+
+/* Dirección dominante del movimiento del track en su historial (~2 s). */
+function car_dirTrack(track) {
+  try {
+    const h = track.historial;
+    if (!Array.isArray(h) || h.length < 2) return null;
+    const a = h[0], b = h[h.length - 1];
+    return { dx: Math.abs(b.cx - a.cx), dy: Math.abs(b.cy - a.cy) };
+  } catch (e) { return null; }
+}
+
 function car_velocidadKmh(track) {
-  if (!track || !estado.car || !estado.car.pxPorMetro) return null;
-  if (typeof trk_velocidad !== 'function') return null;
+  if (!track || !track.caja || typeof trk_velocidad !== 'function') return null;
   try {
     const pxS = trk_velocidad(track);
     if (typeof pxS !== 'number' || !isFinite(pxS)) return null;
-    const kmh = (pxS / estado.car.pxPorMetro) * 3.6;
-    return Math.round(kmh);
+    let pxPorMetro = null;
+    if (NUC_VEHICULOS.indexOf(track.clase) >= 0 && track.caja.an > 8) {
+      // ⚙️ ESCALA AUTOMÁTICA por vehículo: si va de LADO, el ancho de su caja
+      // es su LARGO real; de frente/atrás, es su ANCHO real.
+      const dir = car_dirTrack(track);
+      const lateral = !dir || dir.dx >= dir.dy;   // cruza la pantalla → de lado
+      const metros = lateral ? (CAR_LARGO_M[track.clase] || 4.3) : (CAR_ANCHO_M[track.clase] || 1.8);
+      pxPorMetro = track.caja.an / metros;
+    } else if (estado.car && estado.car.pxPorMetro) {
+      pxPorMetro = estado.car.pxPorMetro;         // peatones/otros: calibración manual
+    }
+    if (!pxPorMetro || pxPorMetro <= 0) return null;
+    const kmh = (pxS / pxPorMetro) * 3.6;
+    if (!isFinite(kmh)) return null;
+    return Math.round(Math.max(0, Math.min(220, kmh)));
   } catch (e) {
     console.warn('[carretera] fallo calculando velocidad:', e && e.message);
     return null;
@@ -8243,7 +8294,10 @@ function car_pintar(ctx) {
   if (!estado.cfg || estado.cfg.modo !== 'carretera') return;
 
   try {
-    if (estado.car.pxPorMetro && Array.isArray(estado.tracks) && estado.tracks.length) {
+    // Velocidades: escala AUTOMÁTICA por vehículo (no exige calibrar). Con el
+    // móvil moviéndose no se pintan (serían falsas: "se mueve" todo el encuadre).
+    const movilQuieto = !(estado.car.movilHasta && Date.now() < estado.car.movilHasta);
+    if (movilQuieto && Array.isArray(estado.tracks) && estado.tracks.length) {
       ctx.save();
       ctx.font = CAR_MONO;
       ctx.textAlign = 'center';
@@ -8251,7 +8305,7 @@ function car_pintar(ctx) {
       estado.tracks.forEach((track) => {
         if (!track || NUC_VEHICULOS.indexOf(track.clase) === -1) return;
         const kmh = car_velocidadKmh(track);
-        if (kmh === null || kmh <= CAR_VEL_MIN_KMH) return;
+        if (kmh === null || kmh < 5) return;   // el temblor de un coche parado da 2-4 falsos
         const texto = '~' + kmh + ' km/h';
         const x = (typeof track.cx === 'number') ? track.cx : (track.caja.x + track.caja.an / 2);
         const yBase = track.caja ? track.caja.y : track.cy;
@@ -8320,13 +8374,13 @@ function car_render() {
     if (el) {
       if (!estado.cfg.carRadarGuardar) {
         el.textContent = 'Radar: APAGADO (marca la casilla de arriba)';
-      } else if (!estado.car.pxPorMetro) {
-        el.textContent = 'Radar: falta CALIBRAR (botón 📏)';
+      } else if (estado.car.movilHasta && ahora < estado.car.movilHasta) {
+        el.textContent = 'Radar: EN PAUSA — el móvil se está moviendo (déjalo fijo)';
       } else {
         const veh = (estado.tracks || []).filter((t) => t && NUC_VEHICULOS.indexOf(t.clase) >= 0);
         let velMax = 0;
         veh.forEach((t) => { const k = car_velocidadKmh(t); if (k != null && k > velMax) velMax = k; });
-        el.textContent = 'Radar ✔ · coches a la vista: ' + veh.length +
+        el.textContent = 'Radar ✔ (escala auto) · coches a la vista: ' + veh.length +
           (velMax ? ' · vel: ~' + velMax + ' km/h' : '') +
           ' · fotos: ' + (estado.car.radarN || 0);
       }
