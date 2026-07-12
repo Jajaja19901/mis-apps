@@ -169,9 +169,14 @@ function gesto_procesar(fuente, ts) {
  * recorte YA es de un track concreto. Deja diagnóstico en g.sinPose. */
 function gesto_analizarPose(fuente, ts, tracks) {
   const g = estado.gesto;
-  // Limitación de coste: si va lento (> media 80 ms) se analiza 1 de cada 2
-  // frames (como la versión que iba fina). NO se salta más que eso: seguir los
-  // brazos de cerca es lo que pilla la mano al bolsillo; skip agresivo los perdía.
+  // 🎥 FLUIDEZ: la postura (MediaPipe) es lo que más bloquea el hilo y hace que
+  // la CÁMARA se entrecorte. La limitamos a como mucho ~6 veces por segundo
+  // (gap de 150 ms): entre pose y pose el hilo queda libre para pintar el vídeo
+  // suave. 6/s sobra para pillar la mano al bolsillo (dura ~0,7 s).
+  if (ts - (g.ultPoseTs || 0) < 150) return;
+  g.ultPoseTs = ts;
+  // Limitación de coste extra: si aun así va lento (> media 80 ms) se analiza 1
+  // de cada 2 frames. Seguir los brazos de cerca es lo que pilla el gesto.
   if (g.msMedia > GESTO_MS_LIMITE) {
     g.saltarContador = (g.saltarContador + 1) % 2;
     if (g.saltarContador === 0) return;   // este frame se salta (conserva poses previas)
