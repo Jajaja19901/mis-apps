@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.62',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.63',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -52,7 +52,7 @@ const CFG_DEFECTOS = {
   matContinuo: true,        // leer matrículas SOLA en continuo (del vehículo de delante) mientras el copiloto está activo
   matRetencionMin: 15,      // borrar las matrículas guardadas pasados X minutos (RGPD)
   ahorroEnergia: true,      // sin movimiento 3s → baja a 2 fps (vuelve solo al instante)
-  monitorRend: false,       // monitor de rendimiento en vivo sobre el vídeo
+  monitorRend: true,        // monitor de rendimiento en vivo sobre el vídeo (visible por defecto: FPS, ms IA y motor)
   modoNoche: 'auto',        // 🌙 realce de imagen oscura antes de detectar: 'off'|'auto'|'on'
   camara: 'environment',    // 'user' | 'environment' (lado, si no hay lente concreta)
   camaraId: '',             // deviceId de la lente EXACTA elegida ('' = automática por lado)

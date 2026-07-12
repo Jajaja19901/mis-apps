@@ -393,6 +393,72 @@ function cfg_pinCambiar() {
 /* ============================================================================
  * CARTEL "ZONA VIDEOVIGILADA" (art. 22 LOPDGDD)
  * ==========================================================================*/
+/* 🧪 AUTODIAGNÓSTICO — la app se prueba a sí misma sobre la fuente en vivo y
+ * responde en llano si la detección va bien. No inventa nada: informa de lo que
+ * ve DE VERDAD (motor cargado, fuente activa, personas/objetos vistos en 6 s y
+ * velocidad del motor). Es la respuesta a "¿cómo sé que va bien?". */
+let cfg_diagEnMarcha = false;
+async function cfg_autodiagnostico() {
+  const out = document.getElementById('cfg-autodiagRes');
+  const linea = function (t) { if (out) { const d = document.createElement('div'); d.textContent = t; out.appendChild(d); } };
+  if (out) out.textContent = '';
+  if (cfg_diagEnMarcha) return;
+  cfg_diagEnMarcha = true;
+  const btn = document.getElementById('cfg-btnAutodiag');
+  if (btn) btn.disabled = true;
+  try {
+    // 1) ¿Motor de IA cargado? ¿cuál?
+    const motor = (typeof ui_motorEstado === 'function') ? ui_motorEstado() : { etiqueta: '?' };
+    const listo = (typeof nuc_modeloListo === 'function') && nuc_modeloListo();
+    if (!listo) {
+      linea('❌ El motor de IA todavía no está cargado. Espera unos segundos y repite; si persiste, pulsa 🔄 Forzar actualización.');
+      return;
+    }
+    linea('✅ Motor de IA cargado: ' + motor.etiqueta);
+
+    // 2) ¿Hay fuente de vídeo (cámara/vídeo) en marcha?
+    if (!estado.video || !estado.video.listo) {
+      linea('⚠ No hay cámara ni vídeo en marcha. Enciende la cámara (📷) o carga un vídeo (🎬), ponte delante y repite: sin imagen no se puede comprobar la detección.');
+      return;
+    }
+    linea('✅ Fuente de vídeo activa (' + (estado.video.w || '?') + '×' + (estado.video.h || '?') + ').');
+    linea('⏳ Observando la detección 6 segundos… ponte delante de la cámara y muévete un poco.');
+
+    // 3) Observa la detección REAL durante ~6 s (sin tocar el bucle).
+    let maxObj = 0, maxPers = 0, sumMs = 0, n = 0;
+    const t0 = Date.now();
+    await new Promise(function (res) {
+      const iv = setInterval(function () {
+        try {
+          const dets = (estado.detecciones || []);
+          const pers = (estado.tracks || []).filter(function (t) { return t && NUC_PERSONA.indexOf(t.clase) >= 0; }).length;
+          if (dets.length > maxObj) maxObj = dets.length;
+          if (pers > maxPers) maxPers = pers;
+          if (estado.video.msInferencia) { sumMs += estado.video.msInferencia; n++; }
+        } catch (e) {}
+        if (Date.now() - t0 > 6000) { clearInterval(iv); res(); }
+      }, 250);
+    });
+
+    // 4) Veredicto claro.
+    const ms = n ? Math.round(sumMs / n) : 0;
+    const juicio = ms ? (ms < 250 ? ' (rápido)' : (ms < 700 ? ' (aceptable)' : ' (lento: activa el ⚡ Potente o baja la resolución en Ajustes)')) : '';
+    linea('— Velocidad del motor: ' + (ms || '?') + ' ms por análisis' + juicio);
+    if (maxPers > 0) {
+      linea('✅ DETECCIÓN CORRECTA — vio hasta ' + maxPers + ' persona(s) y ' + maxObj + ' objeto(s) en escena. La app va bien.');
+    } else if (maxObj > 0) {
+      linea('✅ El motor ve objetos (' + maxObj + '), pero no clasificó a nadie como persona. Ponte bien de frente, con luz, y repite.');
+    } else {
+      linea('⚠ No vio NADA en 6 s. Comprueba que hay alguien delante y con luz. Si la cabecera pone «Básico», activa el ⚡ Potente en Detección → Motor y repite.');
+    }
+  } catch (e) {
+    linea('❌ El autodiagnóstico falló: ' + ((e && e.message) || 'error') + '.');
+  } finally {
+    cfg_diagEnMarcha = false;
+    if (btn) btn.disabled = false;
+  }
+}
+
 function cfg_generarCartel() {
   const cuerpo = document.createElement('div');
   cuerpo.innerHTML =
@@ -990,6 +1056,10 @@ function cfg_conectarBotones() {
       if (typeof nuc_recargaLimpia === 'function') nuc_recargaLimpia();
     });
   });
+
+  // 🧪 Autodiagnóstico: prueba la detección REAL sobre la fuente en vivo.
+  const btnDiag = $('cfg-btnAutodiag');
+  if (btnDiag) btnDiag.addEventListener('click', function () { cfg_autodiagnostico(); });
 
   const btnCartel = $('cfg-btnCartel');
   if (btnCartel) btnCartel.addEventListener('click', cfg_generarCartel);
