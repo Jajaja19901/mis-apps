@@ -164,7 +164,7 @@ function ui_actualizarMonitor() {
   // Motor activo (+ ⧉ si corre en hilo aparte, + 🌙 si realza de noche).
   let motor = (typeof nuc_cocoWorkerListo !== 'undefined' && nuc_cocoWorkerListo) ? 'Básico ⧉' : 'Básico';
   if (estado.cfg.motor === 'yolo') motor = (estado.yolo && estado.yolo.workerListo) ? 'Potente ⧉' : 'Potente';
-  else if (estado.cfg.motor === 'onnx') motor = 'Supercerebro';
+  else if (estado.cfg.motor === 'onnx') motor = (estado.sc && estado.sc.enWorker) ? 'Supercerebro ⧉' : 'Supercerebro';
   if (estado.video.realceNoche) motor += ' 🌙';
   set('vid-mon-motor', motor, '');
 
@@ -220,7 +220,9 @@ function ui_motorEstado() {
   const cfg = estado.cfg || {};
   const y = estado.yolo, s = estado.sc;
   if (cfg.motor === 'onnx') {
-    if (typeof sc_activo === 'function' && sc_activo()) return { etiqueta: '🧠 Supercerebro', nivel: 'ok' };
+    if (typeof sc_activo === 'function' && sc_activo()) {
+      return { etiqueta: (s && s.enWorker) ? '🧠 Supercerebro ⧉' : '🧠 Supercerebro', nivel: 'ok' };
+    }
     return { etiqueta: '🧠 Cargando Supercerebro…', nivel: 'cargando' };
   }
   if (cfg.motor === 'yolo') {
