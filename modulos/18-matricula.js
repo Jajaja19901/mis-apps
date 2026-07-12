@@ -773,40 +773,80 @@ function mat_bandaPlaca(cnv) {
     for (let i = 0; i < px.length; i += 4) hist[px[i]]++;
     const umbral = mat_otsu(hist, px.length / 4);
     const subida = Math.min(255, umbral + 10), bajada = Math.max(0, umbral - 10);
-    const trans = new Array(h);
+    // Transiciones por fila Y sus posiciones x (para acotar la placa también
+    // en horizontal: antes solo se cogía la franja entera y una RUEDA con
+    // radios ganaba por contraste — el error de "foto de la rueda").
+    const transFila = new Array(h);
+    const transX = new Array(h);
     for (let y = 0; y < h; y++) {
-      let c = 0, claro = px[y * w * 4] > umbral;
+      const xs = [];
+      let claro = px[y * w * 4] > umbral;
       for (let x = 1; x < w; x++) {
         const v = px[(y * w + x) * 4];
-        if (claro && v < bajada) { claro = false; c++; }
-        else if (!claro && v > subida) { claro = true; c++; }
+        if (claro && v < bajada) { claro = false; xs.push(x); }
+        else if (!claro && v > subida) { claro = true; xs.push(x); }
       }
-      trans[y] = Math.min(c, 60);   // tope: una fila de puro ruido no manda
+      transFila[y] = Math.min(xs.length, 60);
+      transX[y] = xs;
     }
     let max = 0;
-    for (let y = 0; y < h; y++) if (trans[y] > max) max = trans[y];
-    if (max < 4) return null;                        // muy permisivo: detecta incluso fotos de noche (menos agresivo)
-    const lim = Math.max(3, max * 0.25);             // muy tolerante: acepta filas débiles (fotos oscuras)
-    // La banda contigua más ALTA de filas con muchas transiciones.
-    let mejorIni = 0, mejorFin = 0, ini = 0, dentro = false;
+    for (let y = 0; y < h; y++) if (transFila[y] > max) max = transFila[y];
+    if (max < 4) return null;
+    const lim = Math.max(3, max * 0.25);
+    // TODAS las franjas candidatas (no solo la más alta): cada una se valida
+    // como "¿parece una MATRÍCULA?" y gana la de mejor puntuación.
+    const franjas = [];
+    let ini = 0, dentro = false;
     for (let y = 0; y <= h; y++) {
-      const ok = y < h && trans[y] >= lim;
+      const ok = y < h && transFila[y] >= lim;
       if (ok && !dentro) { dentro = true; ini = y; }
-      if (!ok && dentro) { dentro = false; if (y - ini > mejorFin - mejorIni) { mejorIni = ini; mejorFin = y; } }
+      if (!ok && dentro) { dentro = false; franjas.push([ini, y]); }
     }
-    const alto = mejorFin - mejorIni;
-    if (alto < 4 || alto > h * 0.90) return null;    // muy flexible: detecta bandas incluso borrosas
-    const margen = alto * 0.8;                       // margen generoso: contexto extra para PSM 8
-    const y0 = Math.max(0, Math.floor(mejorIni - margen));
-    const y1 = Math.min(h, Math.ceil(mejorFin + margen));
-    // Banda a ~120 px de alto: tamaño ideal para el OCR (nítido y pequeño).
-    const esc = Math.max(0.5, Math.min(4, 120 / (y1 - y0)));
+    let mejor = null, mejorPunt = 0;
+    for (let f = 0; f < franjas.length; f++) {
+      const y0 = franjas[f][0], y1 = franjas[f][1], alto = y1 - y0;
+      if (alto < 5 || alto > h * 0.5) continue;      // ni ruido ni media foto (una rueda es ALTA)
+      // Acotar en X: ventana mínima que concentra el 85% de las transiciones.
+      const hx = new Float64Array(w + 1);
+      let total = 0;
+      for (let y = y0; y < y1; y++) { const xs = transX[y]; for (let k = 0; k < xs.length; k++) { hx[xs[k] + 1]++; total++; } }
+      if (total < 8) continue;
+      for (let x = 0; x < w; x++) hx[x + 1] += hx[x];   // prefijos
+      const objetivo = total * 0.85;
+      let bx = 0, bw2 = w;
+      let a = 0;
+      for (let b = 1; b <= w; b++) {
+        while (hx[b] - hx[a + 1] >= objetivo && a < b - 2) a++;
+        if (hx[b] - hx[a] >= objetivo && (b - a) < bw2) { bw2 = b - a; bx = a; }
+      }
+      if (bw2 < 16 || bw2 >= w) continue;
+      // ── VALIDACIÓN "es una placa" ──────────────────────────────────────
+      // 1) Proporción APAISADA (placa española ≈ 4.7:1; margen 1.8–9).
+      const ratio = bw2 / alto;
+      if (ratio < 1.8 || ratio > 9) continue;        // una rueda es ~1:1 → fuera
+      // 2) FONDO CLARO: la placa es blanca/reflectante; una rueda es oscura.
+      let suma = 0, n = 0;
+      const pasoY = Math.max(1, Math.floor(alto / 8)), pasoX = Math.max(1, Math.floor(bw2 / 24));
+      for (let y = y0; y < y1; y += pasoY) for (let x = bx; x < bx + bw2; x += pasoX) { suma += px[(y * w + x) * 4]; n++; }
+      const brillo = n ? suma / n : 0;
+      if (brillo < umbral) continue;                 // más oscura que la media → no es placa
+      // 3) Puntuación: densidad de texto × centrado (la placa suele ir centrada).
+      const centro = 1 - Math.abs((bx + bw2 / 2) - w / 2) / (w / 2) * 0.5;
+      const punt = total * centro * (brillo / 255);
+      if (punt > mejorPunt) { mejorPunt = punt; mejor = { x: bx, y: y0, an: bw2, al: alto }; }
+    }
+    if (!mejor) return null;                         // sin nada con pinta de placa: NO se engaña con ruedas
+    // Recorte con margen y reescalado a ~120 px de alto (tamaño ideal de OCR).
+    const mgY = mejor.al * 0.6, mgX = mejor.an * 0.08;
+    const ry0 = Math.max(0, Math.floor(mejor.y - mgY)), ry1 = Math.min(h, Math.ceil(mejor.y + mejor.al + mgY));
+    const rx0 = Math.max(0, Math.floor(mejor.x - mgX)), rx1 = Math.min(w, Math.ceil(mejor.x + mejor.an + mgX));
+    const esc = Math.max(0.5, Math.min(4, 120 / (ry1 - ry0)));
     const out = document.createElement('canvas');
-    out.width = Math.max(24, Math.round(w * esc));
-    out.height = Math.max(16, Math.round((y1 - y0) * esc));
+    out.width = Math.max(24, Math.round((rx1 - rx0) * esc));
+    out.height = Math.max(16, Math.round((ry1 - ry0) * esc));
     const octx = out.getContext('2d');
     octx.imageSmoothingEnabled = true; octx.imageSmoothingQuality = 'high';
-    octx.drawImage(cnv, 0, y0, w, y1 - y0, 0, 0, out.width, out.height);
+    octx.drawImage(cnv, rx0, ry0, rx1 - rx0, ry1 - ry0, 0, 0, out.width, out.height);
     return out;
   } catch (e) { return null; }
 }
