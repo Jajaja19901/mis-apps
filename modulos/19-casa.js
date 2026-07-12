@@ -795,7 +795,8 @@ function casa_modalVisitas() {
     c.visitas.forEach(function (v) {
       const fila = document.createElement('div');
       fila.className = 'fila'; fila.style.marginBottom = '8px';
-      const img = v.foto ? '<img src="' + v.foto + '" alt="" style="width:64px;height:48px;object-fit:cover;border-radius:6px">' : '';
+      const fotoOk = v.foto && /^data:image\//.test(String(v.foto));   // solo dataURL propio (nada de HTML inyectado)
+      const img = fotoOk ? '<img src="' + v.foto + '" alt="" style="width:64px;height:48px;object-fit:cover;border-radius:6px">' : '';
       fila.innerHTML = img + '<span>' + nuc_horaCorta(v.ts) + ' · ' + casa_esc(v.texto || 'Visita') + '</span>';
       cont.appendChild(fila);
     });
@@ -819,7 +820,8 @@ function casa_render() {
   if (!c.timeline.length) { cont.innerHTML = '<span class="etiqueta">Sin eventos todavía hoy.</span>'; return; }
   let html = '';
   c.timeline.slice(0, 24).forEach(function (t) {
-    const img = t.foto ? '<img src="' + t.foto + '" alt="" style="width:100%;height:44px;object-fit:cover;border-radius:6px">' : '<div style="height:44px;border-radius:6px;background:var(--panel2)"></div>';
+    const fotoOk = t.foto && /^data:image\//.test(String(t.foto));   // solo dataURL propio (nada de HTML inyectado)
+    const img = fotoOk ? '<img src="' + t.foto + '" alt="" style="width:100%;height:44px;object-fit:cover;border-radius:6px">' : '<div style="height:44px;border-radius:6px;background:var(--panel2)"></div>';
     html += '<div class="casa-tl-item insignia-' + casa_esc(t.nivel || 'info') + '" title="' + casa_esc(t.texto || '') + '">' +
       img + '<span class="casa-tl-hora">' + nuc_horaCorta(t.ts) + '</span></div>';
   });

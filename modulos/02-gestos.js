@@ -422,19 +422,30 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
         const dwell = ts - m.tCerca;
         const permanenciaMs = nuc_clamp((estado.cfg.ocultacionPermanencia || 0.7) * 1000, 200, 2000);
         if (dwell >= permanenciaMs && !m.completado) {
-          m.completado = true;
           // 🖐 CONFIRMACIÓN POR MANOS en el instante decisivo: si la mano del
-          // bolsillo se ve ABIERTA y extendida (apoyada, relajada), el ciclo
-          // NO cuenta. Cerrada/agarrando u oculta bajo la ropa → sí cuenta.
-          if (munecaCerca && !gesto_manoConfirma(munecaCerca, anchoHombros)) break;
-          // Modo "primer gesto claro": UN ciclo coger→bolsillo completo basta
-          // para avisar (empuja la puntuación hasta el umbral directamente).
-          const puntos_ciclo = estado.cfg.ocultacionUnGesto
-            ? Math.max(GESTO_PTS_CICLO, estado.cfg.ocultacionUmbral || 60)
-            : GESTO_PTS_CICLO;
-          gesto_sumarSospecha(id, puntos_ciclo, ts, true);   // ciclo alcanzar→esconder COMPLETO
+          // bolsillo se ve ABIERTA y extendida (apoyada, relajada), el ciclo NO
+          // cuenta y NO se latcha —así, si luego CIERRA el puño para guardar, se
+          // reevalúa (antes se daba por cerrado y se perdía esa pillada). El
+          // veredicto de manos se cachea ~300 ms para no reejecutar el modelo
+          // cada frame. Cerrada/agarrando u oculta bajo la ropa → sí cuenta.
+          let manoOk = true;
+          if (munecaCerca) {
+            if (ts - (m.tMano || 0) > 300) { m.manoOk = gesto_manoConfirma(munecaCerca, anchoHombros); m.tMano = ts; }
+            manoOk = m.manoOk;
+          }
+          if (manoOk) {
+            m.completado = true;
+            // Modo "primer gesto claro": UN ciclo coger→bolsillo completo basta
+            // para avisar (empuja la puntuación hasta el umbral directamente).
+            const puntos_ciclo = estado.cfg.ocultacionUnGesto
+              ? Math.max(GESTO_PTS_CICLO, estado.cfg.ocultacionUmbral || 60)
+              : GESTO_PTS_CICLO;
+            gesto_sumarSospecha(id, puntos_ciclo, ts, true);   // ciclo alcanzar→esconder COMPLETO
+          }
         }
-        if (dwell >= GESTO_DWELL_LARGO_MS && !m.bonus) {
+        // El bonus por permanencia SOLO si el ciclo ya contó (mano confirmada):
+        // una mano abierta apoyada en la cintura ya no acumula sospecha sola.
+        if (m.completado && dwell >= GESTO_DWELL_LARGO_MS && !m.bonus) {
           m.bonus = true;
           gesto_sumarSospecha(id, GESTO_PTS_BONUS, ts);   // permanece mucho: bonus
         }

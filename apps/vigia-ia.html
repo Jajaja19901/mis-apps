@@ -1249,7 +1249,7 @@ summary.sec-titulo::before { display: inline-block; }
     </div>
     <div class="campo">
       <label for="mando-token">Token</label>
-      <input type="text" id="mando-token" autocomplete="off" placeholder="32 caracteres">
+      <input type="password" id="mando-token" autocomplete="off" placeholder="32 caracteres">
     </div>
     <div class="fila">
       <button type="button" id="mando-btnConectar" class="btn btn-primario">Conectar</button>
@@ -1904,7 +1904,7 @@ summary.sec-titulo::before { display: inline-block; }
 
     <div class="campo">
       <label for="cfg-telegramToken">Token del bot</label>
-      <input type="text" id="cfg-telegramToken" data-cfg="telegramToken" placeholder="123456789:AA...." autocomplete="off">
+      <input type="password" id="cfg-telegramToken" data-cfg="telegramToken" placeholder="123456789:AA...." autocomplete="off">
     </div>
     <div class="campo">
       <label for="cfg-telegramChat">Chat ID</label>
@@ -2138,7 +2138,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.65',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.66',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -3533,19 +3533,30 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
         const dwell = ts - m.tCerca;
         const permanenciaMs = nuc_clamp((estado.cfg.ocultacionPermanencia || 0.7) * 1000, 200, 2000);
         if (dwell >= permanenciaMs && !m.completado) {
-          m.completado = true;
           // 🖐 CONFIRMACIÓN POR MANOS en el instante decisivo: si la mano del
-          // bolsillo se ve ABIERTA y extendida (apoyada, relajada), el ciclo
-          // NO cuenta. Cerrada/agarrando u oculta bajo la ropa → sí cuenta.
-          if (munecaCerca && !gesto_manoConfirma(munecaCerca, anchoHombros)) break;
-          // Modo "primer gesto claro": UN ciclo coger→bolsillo completo basta
-          // para avisar (empuja la puntuación hasta el umbral directamente).
-          const puntos_ciclo = estado.cfg.ocultacionUnGesto
-            ? Math.max(GESTO_PTS_CICLO, estado.cfg.ocultacionUmbral || 60)
-            : GESTO_PTS_CICLO;
-          gesto_sumarSospecha(id, puntos_ciclo, ts, true);   // ciclo alcanzar→esconder COMPLETO
+          // bolsillo se ve ABIERTA y extendida (apoyada, relajada), el ciclo NO
+          // cuenta y NO se latcha —así, si luego CIERRA el puño para guardar, se
+          // reevalúa (antes se daba por cerrado y se perdía esa pillada). El
+          // veredicto de manos se cachea ~300 ms para no reejecutar el modelo
+          // cada frame. Cerrada/agarrando u oculta bajo la ropa → sí cuenta.
+          let manoOk = true;
+          if (munecaCerca) {
+            if (ts - (m.tMano || 0) > 300) { m.manoOk = gesto_manoConfirma(munecaCerca, anchoHombros); m.tMano = ts; }
+            manoOk = m.manoOk;
+          }
+          if (manoOk) {
+            m.completado = true;
+            // Modo "primer gesto claro": UN ciclo coger→bolsillo completo basta
+            // para avisar (empuja la puntuación hasta el umbral directamente).
+            const puntos_ciclo = estado.cfg.ocultacionUnGesto
+              ? Math.max(GESTO_PTS_CICLO, estado.cfg.ocultacionUmbral || 60)
+              : GESTO_PTS_CICLO;
+            gesto_sumarSospecha(id, puntos_ciclo, ts, true);   // ciclo alcanzar→esconder COMPLETO
+          }
         }
-        if (dwell >= GESTO_DWELL_LARGO_MS && !m.bonus) {
+        // El bonus por permanencia SOLO si el ciclo ya contó (mano confirmada):
+        // una mano abierta apoyada en la cintura ya no acumula sospecha sola.
+        if (m.completado && dwell >= GESTO_DWELL_LARGO_MS && !m.bonus) {
           m.bonus = true;
           gesto_sumarSospecha(id, GESTO_PTS_BONUS, ts);   // permanece mucho: bonus
         }
@@ -16090,7 +16101,8 @@ function casa_modalVisitas() {
     c.visitas.forEach(function (v) {
       const fila = document.createElement('div');
       fila.className = 'fila'; fila.style.marginBottom = '8px';
-      const img = v.foto ? '<img src="' + v.foto + '" alt="" style="width:64px;height:48px;object-fit:cover;border-radius:6px">' : '';
+      const fotoOk = v.foto && /^data:image\//.test(String(v.foto));   // solo dataURL propio (nada de HTML inyectado)
+      const img = fotoOk ? '<img src="' + v.foto + '" alt="" style="width:64px;height:48px;object-fit:cover;border-radius:6px">' : '';
       fila.innerHTML = img + '<span>' + nuc_horaCorta(v.ts) + ' · ' + casa_esc(v.texto || 'Visita') + '</span>';
       cont.appendChild(fila);
     });
@@ -16114,7 +16126,8 @@ function casa_render() {
   if (!c.timeline.length) { cont.innerHTML = '<span class="etiqueta">Sin eventos todavía hoy.</span>'; return; }
   let html = '';
   c.timeline.slice(0, 24).forEach(function (t) {
-    const img = t.foto ? '<img src="' + t.foto + '" alt="" style="width:100%;height:44px;object-fit:cover;border-radius:6px">' : '<div style="height:44px;border-radius:6px;background:var(--panel2)"></div>';
+    const fotoOk = t.foto && /^data:image\//.test(String(t.foto));   // solo dataURL propio (nada de HTML inyectado)
+    const img = fotoOk ? '<img src="' + t.foto + '" alt="" style="width:100%;height:44px;object-fit:cover;border-radius:6px">' : '<div style="height:44px;border-radius:6px;background:var(--panel2)"></div>';
     html += '<div class="casa-tl-item insignia-' + casa_esc(t.nivel || 'info') + '" title="' + casa_esc(t.texto || '') + '">' +
       img + '<span class="casa-tl-hora">' + nuc_horaCorta(t.ts) + '</span></div>';
   });
