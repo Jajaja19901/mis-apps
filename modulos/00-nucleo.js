@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.67',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.68',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -79,7 +79,7 @@ const CFG_DEFECTOS = {
   accAglomeracion: false,   // grupo con movimiento brusco (posible incidente)
   accColarse: false,        // dos entradas casi pegadas (tailgating)
   ocultacionPermanencia: 0.7, // seg que la mano debe quedarse en bolsillo/cintura (bajar pilla metidas rápidas)
-  manosConfirmar: true,     // 🖐 confirmar la ocultación mirando la MANO (abierta=inocente; cerrada/oculta=cuenta)
+  manosConfirmar: false,    // 🖐 confirmar la ocultación mirando la MANO (abierta=inocente; cerrada/oculta=cuenta). OFF por defecto: rechazaba metidas reales; se activa a mano quien quiera menos falsos
   fueraHorarioOn: false,
   fueraHorarioIni: '22:00',
   fueraHorarioFin: '07:00',
@@ -95,7 +95,7 @@ const CFG_DEFECTOS = {
   detencionSeg: 60,
   calor: false,
   timelapseMin: 5,
-  debugPose: false,
+  debugPose: true,          // 🔵 dibujar el esqueleto azul (piernas/brazos/cuerpo) que sigue el movimiento — visible por defecto
   sonidoOn: true,
   legalResponsable: '',
   legalContacto: '',
@@ -558,6 +558,26 @@ function nuc_init() {
     nuc_guardar('migr_sabotaje_v2', true);
     if (estado.cfg.sabotajeModo === 'completo') {
       estado.cfg.sabotajeModo = 'oscuro';
+      if (guardada) nuc_guardar('cfg', estado.cfg);
+    }
+  }
+  // Migración única: el ESQUELETO AZUL (líneas sobre piernas/brazos/cuerpo que
+  // siguen el movimiento) vuelve a estar VISIBLE — se apagaba solo al actualizar
+  // y el dueño lo echaba en falta. Se puede ocultar en Ajustes → "Ver esqueleto".
+  if (!nuc_cargar('migr_esqueleto_on_v1', false)) {
+    nuc_guardar('migr_esqueleto_on_v1', true);
+    if (estado.cfg.debugPose !== true) {
+      estado.cfg.debugPose = true;
+      if (guardada) nuc_guardar('cfg', estado.cfg);
+    }
+  }
+  // Migración única: la confirmación por MANOS rechazaba metidas de mano REALES
+  // (leía la mano como "abierta" y no contaba). Vuelve al comportamiento de la
+  // versión que iba fina: OFF. Quien quiera menos falsos la reactiva a mano.
+  if (!nuc_cargar('migr_manos_off_v1', false)) {
+    nuc_guardar('migr_manos_off_v1', true);
+    if (estado.cfg.manosConfirmar === true) {
+      estado.cfg.manosConfirmar = false;
       if (guardada) nuc_guardar('cfg', estado.cfg);
     }
   }

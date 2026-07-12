@@ -169,18 +169,12 @@ function gesto_procesar(fuente, ts) {
  * recorte YA es de un track concreto. Deja diagnóstico en g.sinPose. */
 function gesto_analizarPose(fuente, ts, tracks) {
   const g = estado.gesto;
-  // Limitación de coste ADAPTATIVA: cuanto más tarda la pose (móvil caliente,
-  // muchas personas), MÁS frames se saltan. Es degradación TEMPORAL: conserva
-  // las poses previas y recupera el ritmo completo en cuanto se aligera. Así el
-  // hilo principal no se satura y el teléfono deja de arrastrarse, sin perder
-  // nunca la capacidad de detección (solo baja la frecuencia bajo carga).
-  let cadaN = 1;                                    // 1 = analizar todos los frames
-  if (g.msMedia > GESTO_MS_LIMITE) cadaN = 2;              // >80 ms  → 1 de cada 2
-  if (g.msMedia > GESTO_MS_LIMITE * 1.75) cadaN = 3;       // >140 ms → 1 de cada 3
-  if (g.msMedia > GESTO_MS_LIMITE * 2.75) cadaN = 4;       // >220 ms → 1 de cada 4
-  if (cadaN > 1) {
-    g.saltarContador = (g.saltarContador + 1) % cadaN;
-    if (g.saltarContador !== 0) return;   // este frame se salta (conserva poses previas)
+  // Limitación de coste: si va lento (> media 80 ms) se analiza 1 de cada 2
+  // frames (como la versión que iba fina). NO se salta más que eso: seguir los
+  // brazos de cerca es lo que pilla la mano al bolsillo; skip agresivo los perdía.
+  if (g.msMedia > GESTO_MS_LIMITE) {
+    g.saltarContador = (g.saltarContador + 1) % 2;
+    if (g.saltarContador === 0) return;   // este frame se salta (conserva poses previas)
   }
 
   const w = estado.video.w, h = estado.video.h;
@@ -319,12 +313,10 @@ function gesto_manoConfirma(munecaFramePx, anchoHombros) {
 function gesto_evaluarOcultacion(trk, puntos, ts) {
   const g = estado.gesto;
   const id = trk.id;
-  // Filtro anti-falsas: solo se descarta a quien está CLARAMENTE tumbado/plano
-  // (caja mucho más ancha que alta, típico de un salto del detector o medio
-  // cuerpo raro). La gente SENTADA —caja casi cuadrada— SÍ cuenta: un ladrón
-  // agachado o sentado junto al estante también esconde cosas. (Antes exigía
-  // estar de pie y se comía las pilladas de gente sentada.)
-  if (trk.caja && trk.caja.al < trk.caja.an * 0.72) return;
+  // (Sin filtro de postura: la versión que iba fina esta tarde NO descartaba a
+  // nadie por estar sentado/agachado. Un ladrón sentado o agachado junto al
+  // estante también esconde; que cuente. Los falsos se controlan con la
+  // Sensibilidad y la confirmación por manos si el dueño la activa.)
   const hi = puntos[GESTO_LM.HOMBRO_I], hd = puntos[GESTO_LM.HOMBRO_D];
   const ci = puntos[GESTO_LM.CADERA_I], cd = puntos[GESTO_LM.CADERA_D];
   const mi = puntos[GESTO_LM.MUNECA_I], md = puntos[GESTO_LM.MUNECA_D];
