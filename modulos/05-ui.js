@@ -161,8 +161,8 @@ function ui_actualizarMonitor() {
   const msIA = Math.round(v.msInferencia || 0);
   set('vid-mon-ia', msIA ? (msIA + ' ms') : '—', msIA ? clase(msIA, 200, 900) : '');
 
-  // Motor activo (+ si YOLO corre en hilo aparte, + 🌙 si realza de noche).
-  let motor = 'Básico';
+  // Motor activo (+ ⧉ si corre en hilo aparte, + 🌙 si realza de noche).
+  let motor = (typeof nuc_cocoWorkerListo !== 'undefined' && nuc_cocoWorkerListo) ? 'Básico ⧉' : 'Básico';
   if (estado.cfg.motor === 'yolo') motor = (estado.yolo && estado.yolo.workerListo) ? 'Potente ⧉' : 'Potente';
   else if (estado.cfg.motor === 'onnx') motor = 'Supercerebro';
   if (estado.video.realceNoche) motor += ' 🌙';
@@ -230,7 +230,8 @@ function ui_motorEstado() {
   // Motor básico activo: ¿elección propia, o CAÍDA desde un motor pesado que falló?
   if (y && y.error) return { etiqueta: '⚠ El Potente falló → va en Básico', nivel: 'fallo' };
   if (s && s.avisoBasico) return { etiqueta: '⚠ El Supercerebro falló → va en Básico', nivel: 'fallo' };
-  return { etiqueta: '🟢 Básico', nivel: 'ok' };
+  const enW = (typeof nuc_cocoWorkerListo !== 'undefined' && nuc_cocoWorkerListo);
+  return { etiqueta: enW ? '🟢 Básico ⧉' : '🟢 Básico', nivel: 'ok' };
 }
 
 function ui_actualizarEstadoHeader() {

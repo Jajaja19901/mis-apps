@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.78',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.79',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -376,18 +376,119 @@ function nuc_descargar(nombre, contenido, mime) {
   } catch (e) { console.warn('[descarga] falló:', e && e.message); return false; }
 }
 
+/* --- 🚀 Motor Básico en HILO APARTE (worker) ---------------------------------
+ * La detección bloqueaba el hilo principal ~150-400 ms por análisis: la cámara
+ * "se frameaba" (se congelaba a tirones mientras la IA pensaba). En un worker,
+ * la IA piensa EN PARALELO y el visor pinta fluido. Mismo patrón PROBADO que el
+ * worker del motor Potente (13-yolo). La frecuencia de detección NO baja: se
+ * analiza lo mismo, solo que sin pisar a la cámara. Si el worker no puede
+ * (navegador raro, WebGL en worker no disponible), se cae al hilo principal
+ * exactamente como antes — cero riesgo de quedarse ciego. */
+let nuc_cocoWorker = null, nuc_cocoWorkerListo = false;
+let nuc_cocoWorkerPeticiones = {}, nuc_cocoWorkerSeq = 0, nuc_cnvWorkerFuente = null;
+
+function nuc_cocoWorkerCodigo() {
+  const tfUrl = new URL('lib/tf.min.js', location.href).href;
+  const cocoUrl = new URL('lib/coco-ssd.min.js', location.href).href;
+  return [
+    'let modelo = null;',
+    'self.onmessage = async (e) => {',
+    '  const m = e.data || {};',
+    '  if (m.tipo === "cargar") {',
+    '    try {',
+    '      importScripts(' + JSON.stringify(tfUrl) + ', ' + JSON.stringify(cocoUrl) + ');',
+    '      try { await tf.setBackend("webgl"); } catch (err) {}',
+    '      await tf.ready();',
+    '      modelo = await cocoSsd.load({ base: m.base });',
+    '      self.postMessage({ tipo: "listo", backend: (tf.getBackend && tf.getBackend()) || "?" });',
+    '    } catch (err) {',
+    '      self.postMessage({ tipo: "fallo", msg: (err && err.message) || "no cargó" });',
+    '    }',
+    '  } else if (m.tipo === "detectar") {',
+    '    try {',
+    '      if (!modelo) { self.postMessage({ tipo: "dets", id: m.id, dets: [] }); return; }',
+    '      const img = new ImageData(new Uint8ClampedArray(m.buffer), m.w, m.h);',
+    '      const res = await modelo.detect(img, m.maxDet, m.scoreMin);',
+    '      self.postMessage({ tipo: "dets", id: m.id, dets: res.map((d) => ({ clase: d.class, score: d.score, bbox: d.bbox })) });',
+    '    } catch (err) {',
+    '      self.postMessage({ tipo: "dets", id: m.id, dets: [] });',
+    '    }',
+    '  }',
+    '};',
+  ].join('\n');
+}
+
+/* Arranca el worker y carga el modelo dentro. true si quedó listo CON WebGL
+ * (sin GPU en el worker iría a CPU lenta: mejor el hilo principal de siempre). */
+function nuc_cocoWorkerInit(base) {
+  return new Promise((resolve) => {
+    let w = null;
+    const temporizador = setTimeout(() => { try { if (w) w.terminate(); } catch (e) {} resolve(false); }, 45000);
+    try {
+      const blob = new Blob([nuc_cocoWorkerCodigo()], { type: 'text/javascript' });
+      w = new Worker(URL.createObjectURL(blob));
+    } catch (e) { clearTimeout(temporizador); resolve(false); return; }
+    w.onerror = () => { clearTimeout(temporizador); try { w.terminate(); } catch (e) {} resolve(false); };
+    w.onmessage = (ev) => {
+      const m = ev.data || {};
+      if (m.tipo === 'listo') {
+        clearTimeout(temporizador);
+        if (m.backend !== 'webgl') { try { w.terminate(); } catch (e) {} resolve(false); return; }
+        nuc_cocoWorker = w; nuc_cocoWorkerListo = true;
+        w.onmessage = (e2) => {
+          const r = e2.data || {};
+          if (r.tipo === 'dets' && nuc_cocoWorkerPeticiones[r.id]) {
+            nuc_cocoWorkerPeticiones[r.id](r.dets || []);
+            delete nuc_cocoWorkerPeticiones[r.id];
+          }
+        };
+        resolve(true);
+      } else if (m.tipo === 'fallo') {
+        clearTimeout(temporizador);
+        try { w.terminate(); } catch (e) {}
+        resolve(false);
+      }
+    };
+    try { w.postMessage({ tipo: 'cargar', base: base }); } catch (e) { clearTimeout(temporizador); resolve(false); }
+  });
+}
+
+/* Manda un fotograma (ImageData) al worker y espera las cajas. Nunca cuelga:
+ * a los 5 s sin respuesta devuelve [] y libera. */
+function nuc_cocoWorkerDetectar(img, maxDet, scoreMin) {
+  return new Promise((resolve) => {
+    const id = ++nuc_cocoWorkerSeq;
+    nuc_cocoWorkerPeticiones[id] = resolve;
+    setTimeout(() => { if (nuc_cocoWorkerPeticiones[id]) { delete nuc_cocoWorkerPeticiones[id]; resolve([]); } }, 5000);
+    try {
+      nuc_cocoWorker.postMessage(
+        { tipo: 'detectar', id: id, buffer: img.data.buffer, w: img.width, h: img.height, maxDet: maxDet, scoreMin: scoreMin },
+        [img.data.buffer]);
+    } catch (e) { delete nuc_cocoWorkerPeticiones[id]; resolve([]); }
+  });
+}
+
 /* --- Modelos de IA ----------------------------------------------------------*/
 async function nuc_cargarModelos() {
+  const base = estado.cfg.modeloPreciso ? 'mobilenet_v2' : 'lite_mobilenet_v2';
+  estado.modelos.cocoListo = false;
+  // 1º) HILO APARTE (⧉): la cámara no se entera de que la IA piensa.
+  try {
+    if (typeof Worker !== 'undefined' && await nuc_cocoWorkerInit(base)) {
+      estado.modelos.cocoListo = true;
+      estado.modelos.base = base;
+      estado.modelos.enWorker = true;
+      bus.emit('modelos:listos', { base: base, worker: true });
+      return true;
+    }
+  } catch (e) { /* sigue al hilo principal */ }
+  // 2º) HILO PRINCIPAL (como siempre): funciona igual, con algún tirón.
   try {
     if (typeof cocoSsd === 'undefined' || typeof tf === 'undefined') {
       throw new Error('Las librerías de IA no han cargado (¿sin internet en la primera visita?)');
     }
     try { await tf.setBackend('webgl'); } catch (e) { /* cae a cpu/wasm solo */ }
     await tf.ready();
-    // Modo preciso: modelo mayor (mobilenet_v2) — ve más objetos y más pequeños,
-    // a cambio de algo menos de FPS. Modo ligero (lite): rápido, para equipos flojos.
-    const base = estado.cfg.modeloPreciso ? 'mobilenet_v2' : 'lite_mobilenet_v2';
-    estado.modelos.cocoListo = false;
     estado.modelos.coco = await cocoSsd.load({ base: base });
     estado.modelos.cocoListo = true;
     estado.modelos.base = base;
@@ -531,6 +632,32 @@ async function nuc_detectar(fuente) {
   if (!estado.modelos.cocoListo) return [];
   try {
     const prep = nuc_frameAnalisis(fx);
+    // ⧉ HILO APARTE: se extraen los píxeles (barato, ~2-5 ms) y la IA piensa en
+    // el worker SIN congelar la cámara. Misma frecuencia de análisis que antes.
+    if (nuc_cocoWorkerListo && nuc_cocoWorker) {
+      let cnvSrc = prep.fuente;
+      if (!(cnvSrc && typeof cnvSrc.getContext === 'function')) {
+        // Fuente cruda (<video>/<img>): se copia a un canvas para leer píxeles.
+        const w0 = estado.video.w || cnvSrc.videoWidth || 640;
+        const h0 = estado.video.h || cnvSrc.videoHeight || 480;
+        if (!nuc_cnvWorkerFuente) nuc_cnvWorkerFuente = document.createElement('canvas');
+        if (nuc_cnvWorkerFuente.width !== w0 || nuc_cnvWorkerFuente.height !== h0) {
+          nuc_cnvWorkerFuente.width = w0; nuc_cnvWorkerFuente.height = h0;
+        }
+        nuc_cnvWorkerFuente.getContext('2d', { willReadFrequently: true }).drawImage(cnvSrc, 0, 0, w0, h0);
+        cnvSrc = nuc_cnvWorkerFuente;
+      }
+      const img = cnvSrc.getContext('2d', { willReadFrequently: true })
+        .getImageData(0, 0, cnvSrc.width, cnvSrc.height);
+      const res = await nuc_cocoWorkerDetectar(img, 100, nuc_scoreMin());
+      return res.map((d) => ({
+        clase: d.clase, score: d.score,
+        caja: {
+          x: d.bbox[0] * prep.escala, y: d.bbox[1] * prep.escala,
+          an: d.bbox[2] * prep.escala, al: d.bbox[3] * prep.escala,
+        },
+      }));
+    }
     const res = await estado.modelos.coco.detect(prep.fuente, 100, nuc_scoreMin());
     return res.map((d) => ({
       clase: d.class, score: d.score,

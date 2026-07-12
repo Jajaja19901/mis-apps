@@ -136,8 +136,12 @@ function app_ciclo(tsAnim) {
     //    la mayor parte es espera asíncrona de la GPU, no hilo principal →
     //    factor 1.1 (la red térmica de sc_vigilar sigue vigilando por detrás).
     const enGpu = estado.cfg.motor === 'onnx' && estado.sc && estado.sc.backend === 'webgpu';
+    // Básico en worker (⧉): la IA piensa en paralelo, el hilo principal queda
+    // libre → el descanso 1.5× sobra (era para no ahogar el hilo). Factor 1.1.
+    const enParalelo = enGpu || (estado.cfg.motor === 'coco' &&
+      typeof nuc_cocoWorkerListo !== 'undefined' && nuc_cocoWorkerListo);
     const intervalo = 1000 / app_fpsObjetivo();
-    const descanso = Math.max(intervalo, (estado.video.msInferencia || 0) * (enGpu ? 1.1 : 1.5));
+    const descanso = Math.max(intervalo, (estado.video.msInferencia || 0) * (enParalelo ? 1.1 : 1.5));
     if (!app_ocupado && nuc_modeloListo() && estado.video.listo &&
         (ahora - app_ultimaInferencia) >= descanso) {
       app_ocupado = true;
