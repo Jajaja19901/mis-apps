@@ -539,9 +539,18 @@ function car_render() {
         const veh = (estado.tracks || []).filter((t) => t && NUC_VEHICULOS.indexOf(t.clase) >= 0);
         let velMax = 0;
         veh.forEach((t) => { const k = car_velocidadKmh(t); if (k != null && k > velMax) velMax = k; });
+        // Estado del LECTOR de placas (tesseract): nunca confirmado en el móvil
+        // del dueño (todas sus fotos salían "léela en la foto"). Ahora se ve.
+        let lector = '—';
+        if (estado.mat) {
+          if (estado.mat.worker) lector = '✔';
+          else if (estado.mat.ocrFalloAvisado) lector = '✖ no cargó';
+          else if (estado.mat.cargando) lector = 'cargando…';
+        }
         el.textContent = 'Radar ✔ (escala auto) · coches a la vista: ' + veh.length +
           (velMax ? ' · vel: ~' + velMax + ' km/h' : '') +
-          ' · fotos: ' + (estado.car.radarN || 0);
+          ' · fotos: ' + (estado.car.radarN || 0) +
+          ' · lector placas: ' + lector;
       }
     }
   } catch (e) {}
