@@ -2199,7 +2199,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.91',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.92',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -2721,14 +2721,23 @@ function nuc_scoreMin() {
 const NUC_ANALISIS_MAX = 512;   // ancho máximo del frame que ve COCO (512: más rápido que 640, sin perder personas; COCO-SSD trabaja a ~300px)
 let nuc_cnvAnalisis = null;
 
+/* En modos de COCHE (carretera/copiloto) se analiza a 704 px: un coche que
+ * viene DE FRENTE a 30 m mide ~15-20 px a 512 (invisible para el modelo) y
+ * ~25-30 px a 704 (visible → lo encuadra). La IA corre en hilo aparte (⧉),
+ * así que el coste extra no toca la fluidez de la cámara. */
+function nuc_analisisMax() {
+  return (estado.cfg.modo === 'carretera' || estado.cfg.copActivo) ? 704 : NUC_ANALISIS_MAX;
+}
+
 /* Devuelve { fuente, escala }: la fuente que debe ver la IA y el factor para
  * devolver las cajas al espacio del frame completo. Ante cualquier fallo
  * (canvas contaminado, dims raras) devuelve la fuente original tal cual. */
 function nuc_frameAnalisis(fuente) {
   try {
+    const lim = nuc_analisisMax();
     const w = estado.video.w || 0, h = estado.video.h || 0;
-    if (!w || !h || w <= NUC_ANALISIS_MAX) return { fuente: fuente, escala: 1 };
-    const factor = NUC_ANALISIS_MAX / w;
+    if (!w || !h || w <= lim) return { fuente: fuente, escala: 1 };
+    const factor = lim / w;
     const cw = Math.round(w * factor), ch = Math.round(h * factor);
     if (!nuc_cnvAnalisis) nuc_cnvAnalisis = document.createElement('canvas');
     const cnv = nuc_cnvAnalisis;
@@ -15331,7 +15340,11 @@ function mat_capturarTodas(ahora) {
     const t = tracks[i];
     if (!t || !t.caja) continue;
     if (t.clase !== 'car' && t.clase !== 'truck' && t.clase !== 'bus' && t.clase !== 'motorcycle') continue;
-    if (t.caja.an * t.caja.al < areaFrame * MAT_AREA_MIN_CONTINUO) continue;   // muy lejos: placa ilegible
+    // CONDUCIENDO, el que viene DE FRENTE solo está "cerca" un instante: se le
+    // fotografía desde la mitad de tamaño (1,5%) para no perderlo. Parado
+    // (radar), se mantiene el 3% (por debajo la placa es físicamente ilegible).
+    const areaMin = estado.cfg.copActivo ? (MAT_AREA_MIN_CONTINUO * 0.5) : MAT_AREA_MIN_CONTINUO;
+    if (t.caja.an * t.caja.al < areaFrame * areaMin) continue;   // muy lejos: placa ilegible
     // ✅ COCHE YA LEÍDO: su matrícula está CONFIRMADA → ni una foto más de este
     // track mientras siga a la vista (se refresca la marca para que no caduque).
     // Esto corta las "200 fotos del coche de delante": las justas hasta leerla.

@@ -275,7 +275,11 @@ function mat_capturarTodas(ahora) {
     const t = tracks[i];
     if (!t || !t.caja) continue;
     if (t.clase !== 'car' && t.clase !== 'truck' && t.clase !== 'bus' && t.clase !== 'motorcycle') continue;
-    if (t.caja.an * t.caja.al < areaFrame * MAT_AREA_MIN_CONTINUO) continue;   // muy lejos: placa ilegible
+    // CONDUCIENDO, el que viene DE FRENTE solo está "cerca" un instante: se le
+    // fotografía desde la mitad de tamaño (1,5%) para no perderlo. Parado
+    // (radar), se mantiene el 3% (por debajo la placa es físicamente ilegible).
+    const areaMin = estado.cfg.copActivo ? (MAT_AREA_MIN_CONTINUO * 0.5) : MAT_AREA_MIN_CONTINUO;
+    if (t.caja.an * t.caja.al < areaFrame * areaMin) continue;   // muy lejos: placa ilegible
     // ✅ COCHE YA LEÍDO: su matrícula está CONFIRMADA → ni una foto más de este
     // track mientras siga a la vista (se refresca la marca para que no caduque).
     // Esto corta las "200 fotos del coche de delante": las justas hasta leerla.
