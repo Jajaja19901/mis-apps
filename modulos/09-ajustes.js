@@ -393,6 +393,30 @@ function cfg_pinCambiar() {
 /* ============================================================================
  * CARTEL "ZONA VIDEOVIGILADA" (art. 22 LOPDGDD)
  * ==========================================================================*/
+/* 🎚️ SENSIBILIDAD DE ROBO — un solo mando que ajusta de golpe umbral +
+ * permanencia + nº de gestos. Reutiliza los controles finos existentes (no
+ * duplica lógica): solo escribe sus valores y refresca la pantalla. */
+const CFG_SENSIBILIDAD = {
+  baja:   { ocultacionUmbral: 78, ocultacionPermanencia: 1.0, ocultacionUnGesto: false },
+  normal: { ocultacionUmbral: 60, ocultacionPermanencia: 0.7, ocultacionUnGesto: false },
+  alta:   { ocultacionUmbral: 42, ocultacionPermanencia: 0.5, ocultacionUnGesto: true  },
+};
+function cfg_aplicarSensibilidad(nivel) {
+  const p = CFG_SENSIBILIDAD[nivel] || CFG_SENSIBILIDAD.normal;
+  estado.cfg.sensibilidadGestos = (nivel in CFG_SENSIBILIDAD) ? nivel : 'normal';
+  estado.cfg.ocultacionUmbral = p.ocultacionUmbral;
+  estado.cfg.ocultacionPermanencia = p.ocultacionPermanencia;
+  estado.cfg.ocultacionUnGesto = p.ocultacionUnGesto;
+  nuc_guardar('cfg', estado.cfg);
+  // Refresca los controles finos y sus etiquetas para que reflejen el preset.
+  if (typeof cfg_resincronizarTodos === 'function') cfg_resincronizarTodos();
+  ['cfg-ocultacionUmbral', 'cfg-ocultacionPermanencia'].forEach(function (idc) {
+    const el = document.getElementById(idc);
+    if (el) el.dispatchEvent(new Event('input', { bubbles: true }));   // repinta el -out
+  });
+  if (typeof ui_toast === 'function') { try { ui_toast('Sensibilidad: ' + estado.cfg.sensibilidadGestos.toUpperCase(), 'info'); } catch (e) {} }
+}
+
 /* 🧪 AUTODIAGNÓSTICO — la app se prueba a sí misma sobre la fuente en vivo y
  * responde en llano si la detección va bien. No inventa nada: informa de lo que
  * ve DE VERDAD (motor cargado, fuente activa, personas/objetos vistos en 6 s y
@@ -1056,6 +1080,13 @@ function cfg_conectarBotones() {
       if (typeof nuc_recargaLimpia === 'function') nuc_recargaLimpia();
     });
   });
+
+  // 🎚️ Sensibilidad de robo: un mando que ajusta umbral+permanencia+unGesto.
+  const selSens = $('cfg-sensibilidad');
+  if (selSens) {
+    selSens.value = estado.cfg.sensibilidadGestos || 'normal';
+    selSens.addEventListener('change', function () { cfg_aplicarSensibilidad(selSens.value); });
+  }
 
   // 🧪 Autodiagnóstico: prueba la detección REAL sobre la fuente en vivo.
   const btnDiag = $('cfg-btnAutodiag');

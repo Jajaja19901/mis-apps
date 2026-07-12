@@ -1770,6 +1770,16 @@ summary.sec-titulo::before { display: inline-block; }
       <p class="etiqueta">Si hay 5 personas y quieres vigilar los gestos de LAS 5, sube esto a 5-6. Cada persona extra cuesta CPU: si va lento, el sistema procesa 1 de cada 2 fotogramas de postura (y te lo compensa). Caídas, carrera, zonas y conteos analizan SIEMPRE a todas, esto solo afecta a los gestos de ocultación.</p>
     </div>
 
+    <div class="campo">
+      <label for="cfg-sensibilidad">🎚️ Sensibilidad de la detección de robos (un solo mando)</label>
+      <select id="cfg-sensibilidad">
+        <option value="baja">Baja — pocos avisos, casi sin falsos</option>
+        <option value="normal">Normal — equilibrio recomendado</option>
+        <option value="alta">Alta — pilla MÁS (con algún falso más)</option>
+      </select>
+      <p class="etiqueta">Ajusta de golpe el umbral, la permanencia y el nº de gestos. Los controles finos de abajo se mueven solos; si prefieres, retócalos a mano después.</p>
+    </div>
+
     <label class="fila" style="align-items:flex-start;gap:8px;">
       <input type="checkbox" id="cfg-ocultacionUnGesto" data-cfg="ocultacionUnGesto">
       <span>Avisar al PRIMER gesto claro (coger de estante → mano al bolsillo y quedarse) <span class="etiqueta">Sin esto, hacen falta 2 gestos. Más avisos = también más falsos: sigue siendo «para revisión», nunca una acusación.</span></span>
@@ -2138,7 +2148,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.66',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.67',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -2194,6 +2204,7 @@ const CFG_DEFECTOS = {
   caidaSeg: 3,
   abandonoSeg: 30,
   abandonoDistRel: 0.18,
+  sensibilidadGestos: 'normal', // 🎚️ preset de robo: 'baja'|'normal'|'alta' (ajusta umbral+permanencia+unGesto de golpe)
   ocultacionUmbral: 60,
   ocultacionUnGesto: false, // true = avisa al PRIMER gesto claro coger→bolsillo (más avisos, más falsos)
   ocultacionSoloEstanteria: false, // true = el "coger" solo cuenta si la mano tocó una zona SENSIBLE dibujada (estantería)
@@ -2670,6 +2681,12 @@ function nuc_init() {
   const guardada = nuc_cargar('cfg', null);
   if (guardada && typeof guardada === 'object') {
     estado.cfg = Object.assign({}, CFG_DEFECTOS, guardada);
+  } else {
+    // 🧠 Instalación NUEVA en un móvil con GPU (WebGPU): arranca directamente en
+    // el 🧠 Supercerebro (YOLO11), que es el mejor. Sin GPU o sin red, el propio
+    // Supercerebro cae solo al Básico (que va incluido) — nunca se queda colgado.
+    // A quien ya tenga su motor elegido NO se le toca (respeta lo guardado).
+    try { if (navigator.gpu) estado.cfg.motor = 'onnx'; } catch (e) {}
   }
   // Migración única: el aviso de «encuadre cambiado» era un falso constante
   // con cámaras que se mueven → pasa a 'oscuro' (solo cámara tapada) también
@@ -8348,6 +8365,30 @@ function cfg_pinCambiar() {
 /* ============================================================================
  * CARTEL "ZONA VIDEOVIGILADA" (art. 22 LOPDGDD)
  * ==========================================================================*/
+/* 🎚️ SENSIBILIDAD DE ROBO — un solo mando que ajusta de golpe umbral +
+ * permanencia + nº de gestos. Reutiliza los controles finos existentes (no
+ * duplica lógica): solo escribe sus valores y refresca la pantalla. */
+const CFG_SENSIBILIDAD = {
+  baja:   { ocultacionUmbral: 78, ocultacionPermanencia: 1.0, ocultacionUnGesto: false },
+  normal: { ocultacionUmbral: 60, ocultacionPermanencia: 0.7, ocultacionUnGesto: false },
+  alta:   { ocultacionUmbral: 42, ocultacionPermanencia: 0.5, ocultacionUnGesto: true  },
+};
+function cfg_aplicarSensibilidad(nivel) {
+  const p = CFG_SENSIBILIDAD[nivel] || CFG_SENSIBILIDAD.normal;
+  estado.cfg.sensibilidadGestos = (nivel in CFG_SENSIBILIDAD) ? nivel : 'normal';
+  estado.cfg.ocultacionUmbral = p.ocultacionUmbral;
+  estado.cfg.ocultacionPermanencia = p.ocultacionPermanencia;
+  estado.cfg.ocultacionUnGesto = p.ocultacionUnGesto;
+  nuc_guardar('cfg', estado.cfg);
+  // Refresca los controles finos y sus etiquetas para que reflejen el preset.
+  if (typeof cfg_resincronizarTodos === 'function') cfg_resincronizarTodos();
+  ['cfg-ocultacionUmbral', 'cfg-ocultacionPermanencia'].forEach(function (idc) {
+    const el = document.getElementById(idc);
+    if (el) el.dispatchEvent(new Event('input', { bubbles: true }));   // repinta el -out
+  });
+  if (typeof ui_toast === 'function') { try { ui_toast('Sensibilidad: ' + estado.cfg.sensibilidadGestos.toUpperCase(), 'info'); } catch (e) {} }
+}
+
 /* 🧪 AUTODIAGNÓSTICO — la app se prueba a sí misma sobre la fuente en vivo y
  * responde en llano si la detección va bien. No inventa nada: informa de lo que
  * ve DE VERDAD (motor cargado, fuente activa, personas/objetos vistos en 6 s y
@@ -9011,6 +9052,13 @@ function cfg_conectarBotones() {
       if (typeof nuc_recargaLimpia === 'function') nuc_recargaLimpia();
     });
   });
+
+  // 🎚️ Sensibilidad de robo: un mando que ajusta umbral+permanencia+unGesto.
+  const selSens = $('cfg-sensibilidad');
+  if (selSens) {
+    selSens.value = estado.cfg.sensibilidadGestos || 'normal';
+    selSens.addEventListener('change', function () { cfg_aplicarSensibilidad(selSens.value); });
+  }
 
   // 🧪 Autodiagnóstico: prueba la detección REAL sobre la fuente en vivo.
   const btnDiag = $('cfg-btnAutodiag');

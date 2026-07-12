@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.66',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.67',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -67,6 +67,7 @@ const CFG_DEFECTOS = {
   caidaSeg: 3,
   abandonoSeg: 30,
   abandonoDistRel: 0.18,
+  sensibilidadGestos: 'normal', // 🎚️ preset de robo: 'baja'|'normal'|'alta' (ajusta umbral+permanencia+unGesto de golpe)
   ocultacionUmbral: 60,
   ocultacionUnGesto: false, // true = avisa al PRIMER gesto claro coger→bolsillo (más avisos, más falsos)
   ocultacionSoloEstanteria: false, // true = el "coger" solo cuenta si la mano tocó una zona SENSIBLE dibujada (estantería)
@@ -543,6 +544,12 @@ function nuc_init() {
   const guardada = nuc_cargar('cfg', null);
   if (guardada && typeof guardada === 'object') {
     estado.cfg = Object.assign({}, CFG_DEFECTOS, guardada);
+  } else {
+    // 🧠 Instalación NUEVA en un móvil con GPU (WebGPU): arranca directamente en
+    // el 🧠 Supercerebro (YOLO11), que es el mejor. Sin GPU o sin red, el propio
+    // Supercerebro cae solo al Básico (que va incluido) — nunca se queda colgado.
+    // A quien ya tenga su motor elegido NO se le toca (respeta lo guardado).
+    try { if (navigator.gpu) estado.cfg.motor = 'onnx'; } catch (e) {}
   }
   // Migración única: el aviso de «encuadre cambiado» era un falso constante
   // con cámaras que se mueven → pasa a 'oscuro' (solo cámara tapada) también
