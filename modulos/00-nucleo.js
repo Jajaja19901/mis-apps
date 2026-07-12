@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.85',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.86',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -696,6 +696,18 @@ function nuc_init() {
     // (Ya NO se fuerza el motor: cambiar a Básico-flojo se comía las metidas de
     // mano. Se respeta el motor elegido; el Básico se hace PRECISO abajo.)
     if (estado.cfg.resolucion === '1440') { estado.cfg.resolucion = '1080'; if (guardada) nuc_guardar('cfg', estado.cfg); }
+  }
+  // Migración única: DESHACER el 720p que impuso una versión anterior (v3.70).
+  // A 720p la placa de un coche a 8-10 m mide ~50 px: ILEGIBLE físicamente —
+  // por eso "10 fotos y ninguna matrícula". Vuelta a 1080p (la detección sigue
+  // analizando a 512 px, así que apenas cuesta velocidad; solo pesan un poco más
+  // el pintado y las capturas, que es justo donde hacen falta los píxeles).
+  if (!nuc_cargar('migr_res1080_v1', false)) {
+    nuc_guardar('migr_res1080_v1', true);
+    if (estado.cfg.resolucion === '720' || estado.cfg.resolucion === '480') {
+      estado.cfg.resolucion = '1080';
+      if (guardada) nuc_guardar('cfg', estado.cfg);
+    }
   }
   // Migración única: el motor Básico usa el modelo PRECISO (mobilenet_v2), que
   // encuadra a las personas mucho mejor que el ligero → la postura sigue bien la

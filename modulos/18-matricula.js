@@ -31,7 +31,7 @@ const MAT_OCR_HUECO_MS = 250;          // respiro entre lecturas de la cola (no 
 const MAT_FOTO_CADUCA_MS = 45000;      // una foto sin leer en 45 s ya no aporta (fuera)
 const MAT_DEDUPE_MS = 60000;           // no repetir la MISMA matrícula en 1 min
 const MAT_PURGA_MS = 30000;            // cada cuánto se revisa el borrado automático
-const MAT_AREA_MIN_CONTINUO = 0.015;   // el vehículo debe ocupar ≥1.5% (si no, placa ilegible)
+const MAT_AREA_MIN_CONTINUO = 0.03;    // el vehículo debe ocupar ≥3% del frame: por debajo la placa mide <60 px y es ILEGIBLE físicamente — fotografiarlo solo genera fotos basura sin matrícula
 const MAT_ALTO_OCR = 480;              // alto (px) al que se amplía el recorte (era 320: muy pequeño)
 /* GALERÍA DE FOTOS: la app fotografía SOLA a TODOS los vehículos que ve
  * (capturar cuesta milésimas). La foto queda guardada aunque el OCR falle:
