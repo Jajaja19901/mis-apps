@@ -237,7 +237,7 @@ function yolo_vigilarLentitud(ms) {
   // muy claro para sacar al dueño de la trampa.
   let hayGpu = false;
   try { hayGpu = !!(navigator.gpu); } catch (e) {}
-  if (mediana > 4000 && hayGpu && !y.avisoGpu) {
+  if (mediana > 2000 && hayGpu && !y.avisoGpu) {
     y.avisoGpu = true;
     if (typeof ui_toast === 'function') {
       try { ui_toast('⚠ El motor «Potente» va MUY lento aquí (~' + Math.round(mediana / 1000) +
@@ -295,7 +295,11 @@ async function yolo_detectar(fuente) {
     try { datos = ctx.getImageData(0, 0, dw, dh); }
     catch (e) { return []; }   // canvas contaminado (cámara IP sin CORS)
 
-    const umbral = Math.max(0.15, Math.min(0.8,
+    // yolos-tiny es RUIDOSO: a 0.35 etiqueta media tienda como "banco",
+    // "snowboard", "paraguas", "maleta"… (falsos de baja confianza). Le exigimos
+    // MÁS certeza (piso 0.5) para que solo salga lo seguro y no ese desastre de
+    // cajas. El Supercerebro (YOLO11) es preciso y no necesita este colchón.
+    const umbral = Math.max(0.5, Math.min(0.8,
       (typeof nuc_scoreMin === 'function' ? nuc_scoreMin() : estado.cfg.scoreMin) || 0.35));
     const sx = W / dw, sy = H / dh;
     const t0 = performance.now();
