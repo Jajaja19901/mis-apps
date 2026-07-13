@@ -100,6 +100,7 @@ function ui_init() {
 
   /* Bus de eventos */
   bus.on('alerta', ui_alRecibirAlerta);
+  bus.on('ia:estado', ui_alEstadoIA);
   bus.on('grabacion:lista', ui_alRecibirGrabacion);
   bus.on('video:error', ui_alVideoError);
   bus.on('modelos:error', ui_alModelosError);
@@ -364,10 +365,11 @@ function ui_feedAgregar(nodo) {
   }
 }
 
-/* Construye el <li> de una alerta (insignia + hora + texto + miniatura). */
+/* Construye el <li> de una alerta (insignia + hora + texto + miniatura + IA). */
 function ui_feedItemNodo(registro) {
   const li = document.createElement('li');
   li.className = 'ui-feed-item';
+  if (registro.id) li.setAttribute('data-alerta-id', registro.id);
 
   const insignia = document.createElement('span');
   const nivel = registro.nivel || 'info';
@@ -393,7 +395,32 @@ function ui_feedItemNodo(registro) {
     img.alt = 'Miniatura de la alerta';
     li.appendChild(img);
   }
+  // 🧠 Veredicto de la IA pegado a la alerta (visible y persistente).
+  if (registro.iaTexto) {
+    const ia = document.createElement('span');
+    ia.className = 'ui-feed-ia';
+    ia.textContent = registro.iaTexto;
+    li.appendChild(ia);
+  }
   return li;
+}
+
+/* Actualiza (o crea) la línea 🧠 IA dentro de la tarjeta de una alerta, en vivo:
+ * "Consultando…" → veredicto o error. Así el dueño VE que la IA trabaja. */
+function ui_alEstadoIA(datos) {
+  if (!datos || !datos.registroId) return;
+  const refs = estado.uiRefs;
+  if (!refs || !refs.feedAlertas) return;
+  const li = refs.feedAlertas.querySelector('[data-alerta-id="' + datos.registroId + '"]');
+  if (!li) return;
+  let ia = li.querySelector('.ui-feed-ia');
+  if (!ia) {
+    ia = document.createElement('span');
+    ia.className = 'ui-feed-ia';
+    li.appendChild(ia);
+  }
+  ia.textContent = datos.texto || '';
+  ia.classList.toggle('ui-feed-ia-alerta', datos.tono === 'critico' || datos.tono === 'sospecha');
 }
 
 function ui_alRecibirAlerta(datos) {

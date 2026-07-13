@@ -280,10 +280,12 @@ function alerta_disparar(tipo, nivel, texto, datos, forzar) {
     alerta_telegramEncolar(registro, fotoHD);
   }
 
-  // 8b) 🧠 IA (Claude visión) CONFIRMA la alerta si el dueño la activó con su
-  //     clave. No bloquea: cuando responde, avisa en la app y en Telegram.
+  // 8b) 🧠 IA de visión CONFIRMA la alerta si el dueño la activó con su clave.
+  //     No bloquea: cuando responde, el veredicto se PEGA a esta alerta en el
+  //     feed (visible y persistente) y también va a Telegram. Se le pasa el id
+  //     del registro para poder marcar ESA tarjeta.
   if (nivel !== 'info' && fotoHD && typeof ia_confirmarAlerta === 'function' && typeof ia_activa === 'function' && ia_activa()) {
-    try { ia_confirmarAlerta(fotoHD, tipo, texto); } catch (e) {}
+    try { ia_confirmarAlerta(fotoHD, tipo, texto, registro.id); } catch (e) {}
   }
 
   // 9) bus

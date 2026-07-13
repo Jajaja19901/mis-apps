@@ -184,11 +184,30 @@ function ia_nombreProv(prov) {
     (prov === 'custom' ? 'tu IA' : 'Gemini'));
 }
 
+/* Marca el estado de la IA sobre una alerta: lo enseña en su tarjeta del feed
+ * (visible y persistente), lo guarda en el registro y avisa por el bus. Así el
+ * dueño VE que la IA trabaja, en vez de un aviso que se esfuma. */
+function ia_marcar(registroId, texto, tono, verdicto) {
+  try {
+    if (registroId && estado.alerta && estado.alerta.log) {
+      const reg = estado.alerta.log.filter(function (r) { return r && r.id === registroId; })[0];
+      if (reg) {
+        reg.iaTexto = texto;
+        if (verdicto) reg.ia = verdicto;
+        try { nuc_guardar('log', estado.alerta.log); } catch (e) {}
+      }
+    }
+  } catch (e) {}
+  try { if (typeof bus !== 'undefined' && bus.emit) bus.emit('ia:estado', { registroId: registroId, texto: texto, tono: tono || 'info' }); } catch (e) {}
+}
+
 /* Manda la SECUENCIA de una alerta a la IA elegida y devuelve {real,
  * descripcion, confianza}. `fotoDataURL` = el instante de la alarma; se le
- * añaden los fotogramas recientes del búfer (el "antes"). No lanza nunca. */
-async function ia_confirmarAlerta(fotoDataURL, tipo, texto) {
+ * añaden los fotogramas recientes del búfer (el "antes"). `registroId` = la
+ * alerta a la que pegar el veredicto en el feed. No lanza nunca. */
+async function ia_confirmarAlerta(fotoDataURL, tipo, texto, registroId) {
   if (!ia_activa() || !fotoDataURL || ia_ocupada) return null;
+  ia_marcar(registroId, '🧠 Consultando a ' + ia_nombreProv(ia_proveedor()) + '…', 'info');
   // Secuencia = últimos del búfer (antes/durante) + el instante de la alarma.
   const crudas = ia_ring.slice(-(IA_RING_MAX - 1)).concat([fotoDataURL]);
   const fotos = [];
@@ -212,6 +231,7 @@ async function ia_confirmarAlerta(fotoDataURL, tipo, texto) {
           (cod === 400 ? ia_nombreProv(prov) + ' rechazó la petición (¿modelo mal escrito?)' :
             (cod === 404 ? ia_nombreProv(prov) + ': modelo o endpoint no encontrado' : ('IA: error ' + cod))));
       ia_toast('🧠 ' + msg, 'sospecha');
+      ia_marcar(registroId, '🧠 ' + msg, 'sospecha');
       return null;
     }
     const data = await r.json();
@@ -222,24 +242,27 @@ async function ia_confirmarAlerta(fotoDataURL, tipo, texto) {
       v = trozo ? JSON.parse(trozo[0]) : null;
     } catch (e) { v = null; }
     if (!v) v = { real: null, descripcion: String(txt).slice(0, 120), confianza: null };
-    ia_mostrar(v);
+    ia_mostrar(v, registroId);
     return v;
   } catch (e) {
     ia_toast('🧠 No se pudo consultar la IA (¿sin internet o CORS?)', 'sospecha');
+    ia_marcar(registroId, '🧠 No se pudo consultar (¿sin internet o CORS?)', 'sospecha');
     return null;
   } finally {
     ia_ocupada = false;
   }
 }
 
-/* Enseña el veredicto en la app y, si Telegram está puesto, también allí. */
-function ia_mostrar(v) {
+/* Enseña el veredicto: toast + lo PEGA a la tarjeta de la alerta (persistente)
+ * + Telegram si está puesto. */
+function ia_mostrar(v, registroId) {
   if (!v) return;
   const etiqueta = v.real === true ? '✅ PARECE REAL' : (v.real === false ? '☁ posible falsa alarma' : '🧠 IA');
   const conf = (v.confianza != null && !isNaN(v.confianza)) ? ' (' + Math.round(v.confianza) + '%)' : '';
   const desc = v.descripcion ? ' — ' + String(v.descripcion).slice(0, 160) : '';
   const msg = etiqueta + conf + desc;
   ia_toast('🧠 ' + msg, v.real === true ? 'critico' : 'info');
+  ia_marcar(registroId, '🧠 ' + msg, v.real === true ? 'critico' : 'info', { real: v.real, descripcion: v.descripcion, confianza: v.confianza });
   if (estado.cfg.telegramToken && estado.cfg.telegramChat) ia_telegram('🧠 IA sobre la última alerta: ' + msg);
 }
 
