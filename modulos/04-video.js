@@ -929,9 +929,19 @@ function vid_reiniciarBufferGrabacion() {
       if (!e.data || !e.data.size) return;
       const est = estado.vid; if (!est) return;
       est.bufferChunks.push(e.data);
-      // Se conserva el trozo 0 (cabecera webm) + los últimos N; durante un evento, hasta el tope duro.
-      const tope = est.eventoActivo ? VID_EVENTO_MAX_TROZOS : (VID_BUFFER_TROZOS + 1);
-      while (est.bufferChunks.length > tope) est.bufferChunks.splice(1, 1);
+      // ⚠️ NUNCA tirar trozos del MEDIO (el viejo splice(1,1) dejaba cabecera +
+      // trozos salteados → webm con saltos internos → el reproductor no podía
+      // abrirlo: "▶ Ver no muestra nada"). Estrategia por SEGMENTOS: el archivo
+      // siempre es contiguo desde su cabecera.
+      if (!est.eventoActivo && est.bufferChunks.length > VID_BUFFER_TROZOS + 1) {
+        // Sin evento: el búfer se renueva REINICIANDO el grabador (cabecera
+        // nueva, memoria acotada, archivo siempre válido).
+        setTimeout(() => { try { if (estado.vid && !estado.vid.eventoActivo) vid_reiniciarBufferGrabacion(); } catch (e2) {} }, 0);
+      } else if (est.eventoActivo && est.bufferChunks.length > VID_EVENTO_MAX_TROZOS) {
+        // Evento larguísimo: se cierra ya (clip completo y válido) en vez de
+        // agujerear el archivo.
+        setTimeout(() => { try { vid_finalizarEvento(); } catch (e2) {} }, 0);
+      }
     };
     rec.onerror = () => { /* errores de grabación no deben romper el bucle */ };
     rec.start(1000);
@@ -993,7 +1003,8 @@ function vid_finalizarEvento() {
   const motivo = v.eventoMotivo || 'evento';
   v.eventoActivo = false;
   estado.video.grabando = false;
-  try { while (v.bufferChunks.length > VID_BUFFER_TROZOS + 1) v.bufferChunks.splice(1, 1); } catch (e) {}
+  // Tras cerrar el clip, búfer NUEVO desde cero (cabecera fresca, sin agujeros).
+  try { setTimeout(() => { try { vid_reiniciarBufferGrabacion(); } catch (e2) {} }, 0); } catch (e) {}
   if (!chunks.length) return;
   try {
     const mime = vid_mimeGrab() || 'video/webm';

@@ -420,6 +420,7 @@ function ui_alRecibirGrabacion(datos) {
       const cuerpo = document.createElement('div');
       const vid = document.createElement('video');
       vid.src = datos.url; vid.controls = true; vid.autoplay = true;
+      vid.muted = true;   // sin esto el WebView bloquea el autoplay y el visor sale negro
       vid.playsInline = true; vid.setAttribute('playsinline', '');
       vid.style.cssText = 'width:100%;max-height:60vh;border-radius:12px;background:#000';
       const nota = document.createElement('p');
@@ -441,7 +442,15 @@ function ui_alRecibirGrabacion(datos) {
   // VigiaAndroid.guardarArchivo → escribe el clip en la carpeta Descargas.
   enlace.addEventListener('click', function (e) {
     try {
-      if (!(window.VigiaAndroid && window.VigiaAndroid.guardarArchivo)) return;  // navegador: enlace normal
+      if (!(window.VigiaAndroid && window.VigiaAndroid.guardarArchivo)) {
+        // APK ANTIGUO (WebView sin puente): el enlace blob: no descarga NADA y
+        // fallaba en silencio. Ahora se avisa con la solución.
+        if (/; wv\)/.test(navigator.userAgent || '')) {
+          e.preventDefault();
+          ui_toast('⬇ Tu APK es antiguo y no puede guardar clips. Instala el APK nuevo (v3.78+) del enlace de siempre: se instala ENCIMA, sin perder nada.', 'sospecha');
+        }
+        return;  // navegador normal: enlace de descarga estándar
+      }
       e.preventDefault();
       ui_toast('Guardando el vídeo en Descargas…', 'info');
       fetch(datos.url).then(function (r) { return r.blob(); }).then(function (blob) {
