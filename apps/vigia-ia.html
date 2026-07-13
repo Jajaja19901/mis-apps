@@ -2199,7 +2199,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.95',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.96',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -2367,7 +2367,7 @@ const NUC_BOLSAS   = ['backpack', 'handbag', 'suitcase'];
 const NUC_ANIMALES = ['dog', 'cat', 'bird'];
 /* Objetos peligrosos que el modelo general SÍ conoce (COCO). NO incluye armas
  * de fuego: el modelo general no las detecta. El aviso es orientativo. */
-const NUC_PELIGRO  = ['knife', 'baseball bat'];
+const NUC_PELIGRO  = ['knife', 'baseball bat', 'scissors'];   // los modelos confunden cuchillo↔tijeras: se vigilan ambos
 const NUC_CLASES_ES = {
   person: 'persona', car: 'coche', truck: 'camión', bus: 'bus', motorcycle: 'moto',
   bicycle: 'bici', backpack: 'mochila', handbag: 'bolso', suitcase: 'maleta',
@@ -2726,7 +2726,10 @@ let nuc_cnvAnalisis = null;
  * ~25-30 px a 704 (visible → lo encuadra). La IA corre en hilo aparte (⧉),
  * así que el coste extra no toca la fluidez de la cámara. */
 function nuc_analisisMax() {
-  return (estado.cfg.modo === 'carretera' || estado.cfg.copActivo) ? 704 : NUC_ANALISIS_MAX;
+  // Coche (matrículas/coches de frente) y CASA (un cuchillo en mano son ~15 px
+  // a 512: invisible) analizan a 704. Comercio se queda en 512 (más rápido).
+  const casa = !!(estado.cfg.casaActivo || (estado.modos && estado.modos.vista === 'casa'));
+  return (estado.cfg.modo === 'carretera' || estado.cfg.copActivo || casa) ? 704 : NUC_ANALISIS_MAX;
 }
 
 /* Devuelve { fuente, escala }: la fuente que debe ver la IA y el factor para
@@ -3533,10 +3536,12 @@ function gesto_procesar(fuente, ts) {
   const tracks = estado.tracks || [];
   gesto_decaer(t);                         // el decaimiento corre siempre
   if (!tracks.length) { g.poses = []; return; }
-  // En el coche (copiloto activo) el modelo de POSTURA no aporta (ocultación/
-  // gestos son de tienda) y es de lo más caro del frame: se salta. Caída y
-  // carrera (baratos, por tracks) se mantienen — sirven también aparcado.
-  if (g.poseListo && g.landmarker && fuente && !estado.cfg.copActivo &&
+  // La OCULTACIÓN (postura + mano al bolsillo) es lógica DE TIENDA: solo corre
+  // en la vista Comercio. En Casa no pinta nada («gesto de ocultación» en el
+  // salón era mezcla de modos) y en el coche tampoco. Caída y carrera (baratos,
+  // por tracks) se mantienen SIEMPRE: en casa importan (intruso, caída).
+  const vistaComercio = !estado.modos || !estado.modos.vista || estado.modos.vista === 'comercio';
+  if (g.poseListo && g.landmarker && fuente && !estado.cfg.copActivo && vistaComercio &&
       estado.video.w > 0 && estado.video.h > 0) {
     gesto_analizarPose(fuente, t, tracks);
   }
@@ -17864,7 +17869,7 @@ function modos_sincronizarBotones() {
  * ==========================================================================*/
 
 const PEL_COOLDOWN_MS = 20000;   // no repetir el mismo tipo de objeto en 20 s
-const PEL_SCORE_MIN = 0.5;       // confianza mínima (alta, para menos falsos)
+const PEL_SCORE_MIN = 0.4;       // confianza mínima (0.5 dejaba MUDO un cuchillo EN MANO: objeto pequeño puntúa bajo; el texto ya dice «revisar», nunca acusa)
 const PEL_CERCA_REL = 0.35;      // objeto a <35% del ancho junto a una persona = más peligroso
 
 function pel_init() {

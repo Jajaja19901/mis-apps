@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.95',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.96',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -179,7 +179,7 @@ const NUC_BOLSAS   = ['backpack', 'handbag', 'suitcase'];
 const NUC_ANIMALES = ['dog', 'cat', 'bird'];
 /* Objetos peligrosos que el modelo general SÍ conoce (COCO). NO incluye armas
  * de fuego: el modelo general no las detecta. El aviso es orientativo. */
-const NUC_PELIGRO  = ['knife', 'baseball bat'];
+const NUC_PELIGRO  = ['knife', 'baseball bat', 'scissors'];   // los modelos confunden cuchillo↔tijeras: se vigilan ambos
 const NUC_CLASES_ES = {
   person: 'persona', car: 'coche', truck: 'camión', bus: 'bus', motorcycle: 'moto',
   bicycle: 'bici', backpack: 'mochila', handbag: 'bolso', suitcase: 'maleta',
@@ -538,7 +538,10 @@ let nuc_cnvAnalisis = null;
  * ~25-30 px a 704 (visible → lo encuadra). La IA corre en hilo aparte (⧉),
  * así que el coste extra no toca la fluidez de la cámara. */
 function nuc_analisisMax() {
-  return (estado.cfg.modo === 'carretera' || estado.cfg.copActivo) ? 704 : NUC_ANALISIS_MAX;
+  // Coche (matrículas/coches de frente) y CASA (un cuchillo en mano son ~15 px
+  // a 512: invisible) analizan a 704. Comercio se queda en 512 (más rápido).
+  const casa = !!(estado.cfg.casaActivo || (estado.modos && estado.modos.vista === 'casa'));
+  return (estado.cfg.modo === 'carretera' || estado.cfg.copActivo || casa) ? 704 : NUC_ANALISIS_MAX;
 }
 
 /* Devuelve { fuente, escala }: la fuente que debe ver la IA y el factor para

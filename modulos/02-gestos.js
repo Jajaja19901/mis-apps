@@ -153,10 +153,12 @@ function gesto_procesar(fuente, ts) {
   const tracks = estado.tracks || [];
   gesto_decaer(t);                         // el decaimiento corre siempre
   if (!tracks.length) { g.poses = []; return; }
-  // En el coche (copiloto activo) el modelo de POSTURA no aporta (ocultación/
-  // gestos son de tienda) y es de lo más caro del frame: se salta. Caída y
-  // carrera (baratos, por tracks) se mantienen — sirven también aparcado.
-  if (g.poseListo && g.landmarker && fuente && !estado.cfg.copActivo &&
+  // La OCULTACIÓN (postura + mano al bolsillo) es lógica DE TIENDA: solo corre
+  // en la vista Comercio. En Casa no pinta nada («gesto de ocultación» en el
+  // salón era mezcla de modos) y en el coche tampoco. Caída y carrera (baratos,
+  // por tracks) se mantienen SIEMPRE: en casa importan (intruso, caída).
+  const vistaComercio = !estado.modos || !estado.modos.vista || estado.modos.vista === 'comercio';
+  if (g.poseListo && g.landmarker && fuente && !estado.cfg.copActivo && vistaComercio &&
       estado.video.w > 0 && estado.video.h > 0) {
     gesto_analizarPose(fuente, t, tracks);
   }

@@ -15,7 +15,7 @@
  * ==========================================================================*/
 
 const PEL_COOLDOWN_MS = 20000;   // no repetir el mismo tipo de objeto en 20 s
-const PEL_SCORE_MIN = 0.5;       // confianza mínima (alta, para menos falsos)
+const PEL_SCORE_MIN = 0.4;       // confianza mínima (0.5 dejaba MUDO un cuchillo EN MANO: objeto pequeño puntúa bajo; el texto ya dice «revisar», nunca acusa)
 const PEL_CERCA_REL = 0.35;      // objeto a <35% del ancho junto a una persona = más peligroso
 
 function pel_init() {
