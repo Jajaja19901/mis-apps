@@ -112,7 +112,8 @@ function ui_init() {
   bus.on('aforo:cambio', ui_alAforoCambio);
   bus.on('cfg:cambio', ui_alCfgCambio);
 
-  /* Primer render y asistente de bienvenida si procede */
+  /* Primer render y asistente de bienvenida si procede. El feed se reconstruye
+   * desde el log al final de alerta_init (que corre DESPUÉS y carga el log). */
   ui_actualizarContadores();
   ui_actualizarEstadoHeader();
   ui_onboarding();
@@ -363,9 +364,8 @@ function ui_feedAgregar(nodo) {
   }
 }
 
-function ui_alRecibirAlerta(datos) {
-  const registro = datos && datos.registro;
-  if (!registro) return;
+/* Construye el <li> de una alerta (insignia + hora + texto + miniatura). */
+function ui_feedItemNodo(registro) {
   const li = document.createElement('li');
   li.className = 'ui-feed-item';
 
@@ -393,8 +393,29 @@ function ui_alRecibirAlerta(datos) {
     img.alt = 'Miniatura de la alerta';
     li.appendChild(img);
   }
+  return li;
+}
 
-  ui_feedAgregar(li);
+function ui_alRecibirAlerta(datos) {
+  const registro = datos && datos.registro;
+  if (!registro) return;
+  ui_feedAgregar(ui_feedItemNodo(registro));
+}
+
+/* Reconstruye el feed desde el log guardado: tras recargar o volver de una
+ * vista de cámara, las alertas (con su miniatura del momento) siguen ahí, no
+ * solo en Telegram. Sin esto el feed solo mostraba lo ocurrido EN VIVO. */
+function ui_reconstruirFeed() {
+  try {
+    const log = (estado.alerta && estado.alerta.log) || [];
+    if (!log.length) return;
+    // Los más recientes primero: insertamos del más viejo al más nuevo del
+    // tramo visible para que ui_feedAgregar (inserta arriba) los deje en orden.
+    const inicio = Math.max(0, log.length - UI_FEED_MAX);
+    for (let i = inicio; i < log.length; i++) {
+      ui_feedAgregar(ui_feedItemNodo(log[i]));
+    }
+  } catch (e) { /* el feed en vivo sigue funcionando aunque esto falle */ }
 }
 
 function ui_alRecibirGrabacion(datos) {

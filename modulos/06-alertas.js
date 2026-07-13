@@ -166,6 +166,10 @@ function alerta_init() {
   });
 
   if (estado.alerta.telegramCola.length) alerta_telegramProcesarCola();
+
+  // El log ya está cargado: reconstruye el feed para que las alertas (con su
+  // foto del momento) se vean al abrir la app, no solo las ocurridas en vivo.
+  if (typeof ui_reconstruirFeed === 'function') ui_reconstruirFeed();
 }
 
 /* ============================================================================
