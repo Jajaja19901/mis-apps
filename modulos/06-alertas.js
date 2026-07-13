@@ -171,9 +171,59 @@ function alerta_init() {
 /* ============================================================================
  * NÚCLEO: alerta_disparar
  * ==========================================================================*/
+/* ============================================================================
+ * 🚧 MATRIZ DE MODOS — LA GARANTÍA CENTRAL DE NO-MEZCLA.
+ * TODAS las alertas pasan por alerta_disparar: aquí se define, tipo a tipo, en
+ * QUÉ vistas puede sonar cada una. Una alerta de tienda en la vista Casa (el
+ * «gesto de ocultación» en el salón) es IMPOSIBLE por diseño, no por promesa.
+ * Tipo desconocido → se permite (y se anota en consola): no mata tipos futuros.
+ * ==========================================================================*/
+const ALERTA_VISTAS = {
+  // — SOLO TIENDA (vista Comercio) —
+  ocultacion: ['comercio'], ocultacion_repetida: ['comercio'],
+  ocultacion_bolsa: ['comercio'], ocultacion_salida: ['comercio'],
+  agachado: ['comercio'], aglomeracion: ['comercio'],
+  contrasentido: ['comercio'], colarse: ['comercio'],
+  aforo: ['comercio'], cola: ['comercio'], merodeo: ['comercio'],
+  // — ESCENA VIGILADA (tienda o casa) —
+  caida: ['comercio', 'casa'], carrera: ['comercio', 'casa'],
+  peligro: ['comercio', 'casa'], animal: ['comercio', 'casa'],
+  zona_prohibida: ['comercio', 'casa'], zona_sensible: ['comercio', 'casa'],
+  objeto_abandonado: ['comercio', 'casa'],
+  fuera_horario: ['comercio', 'casa'], ruido: ['comercio', 'casa'],
+  sabotaje: ['comercio', 'casa', 'carretera'],
+  // — CARRETERA / PARKING (cámara fija) —
+  vehiculo_detenido: ['carretera'],
+  // — COCHE (Copiloto y Centinela conviven: pareja de coche) —
+  colision_frontal: ['copiloto', 'centinela'], peaton_delante: ['copiloto', 'centinela'],
+  stop_delante: ['copiloto', 'centinela'], muy_pegado: ['copiloto', 'centinela'],
+  fatiga: ['copiloto', 'centinela'], impacto: ['copiloto', 'centinela'],
+  aparcado_golpe: ['copiloto', 'centinela'],
+  // — la alerta de PRUEBA del botón suena en cualquier vista —
+  prueba: null,
+};
+/* ¿Puede sonar este tipo en la vista actual? (prefijos casa_/dms_ incluidos) */
+function alerta_permitidaEnVista(tipo) {
+  try {
+    const vista = (estado.modos && estado.modos.vista) || 'comercio';
+    if (tipo.indexOf('casa_') === 0) return vista === 'casa';
+    if (tipo.indexOf('dms_') === 0) return vista === 'centinela' || vista === 'copiloto';
+    const permitidas = ALERTA_VISTAS[tipo];
+    if (permitidas === null) return true;                        // 'prueba': siempre
+    if (!permitidas) {
+      console.info('[alertas] tipo sin vista asignada (se permite): ' + tipo);
+      return true;                                               // tipo futuro: no se mata
+    }
+    return permitidas.indexOf(vista) >= 0;
+  } catch (e) { return true; }
+}
+
 function alerta_disparar(tipo, nivel, texto, datos, forzar) {
   if (!estado.alerta) return null;
   if (!tipo || !nivel || !texto) return null;
+  // 🚧 Puerta central anti-mezcla: si el tipo no pertenece a la vista actual,
+  // NO suena, NO se registra, NO se graba y NO va a Telegram. Punto.
+  if (!alerta_permitidaEnVista(tipo)) return null;
   datos = datos || {};
   const trackId = datos.trackId != null ? datos.trackId : null;
   const clave = tipo + '|' + (trackId != null ? trackId : '');
