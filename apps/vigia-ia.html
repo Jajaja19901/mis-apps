@@ -2199,7 +2199,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '3.93',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '3.94',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -3744,7 +3744,12 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
     // 📦 ¿Hay un objeto conocido EN esa mano? Se memoriza para nombrarlo en el aviso.
     gesto_objetoEnMano(id, muneca, anchoHombros, ts);
     const dT = nuc_dist(muneca.x, muneca.y, torsoC.x, torsoC.y);
-    if (dT > GESTO_EXT_ALCANCE * anchoHombros) extendida = true;
+    // «COGER» de verdad = brazo extendido A ALTURA DE ESTANTE (a la altura de
+    // la cadera o por encima). Un brazo que pasa extendido POR DEBAJO de la
+    // cadera (balanceo, meterse la mano al bolsillo desde abajo) NO es coger:
+    // armaba ciclos falsos y las metidas de mano VACÍAS puntuaban como robo.
+    if (dT > GESTO_EXT_ALCANCE * anchoHombros &&
+        muneca.y <= caderasC.y + anchoHombros * 0.25) extendida = true;
     let dCadera = Infinity;
     for (let r = 0; r < refsBolsillo.length; r++) {
       const d = nuc_dist(muneca.x, muneca.y, refsBolsillo[r].x, refsBolsillo[r].y);
@@ -3809,11 +3814,17 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
           }
           if (manoOk) {
             m.completado = true;
-            // Modo "primer gesto claro": UN ciclo coger→bolsillo completo basta
-            // para avisar (empuja la puntuación hasta el umbral directamente).
-            const puntos_ciclo = estado.cfg.ocultacionUnGesto
-              ? Math.max(GESTO_PTS_CICLO, estado.cfg.ocultacionUmbral || 60)
-              : GESTO_PTS_CICLO;
+            // 🎯 LA FIRMA DEL ROBO: coger → esconder CON UN OBJETO visto en esa
+            // mano hace un momento → alerta DIRECTA (umbral de golpe). Meterse
+            // la mano al bolsillo sin haber cogido nada suma lo normal — así el
+            // aviso cae en la metida del objeto (la 3ª del vídeo del dueño), no
+            // en las vacías de antes.
+            const om = g.objetoEnMano && g.objetoEnMano[id];
+            const conObjeto = !!(om && ts - om.ts <= GESTO_OBJETO_CADUCA_MS);
+            let puntos_ciclo = GESTO_PTS_CICLO;
+            if (conObjeto || estado.cfg.ocultacionUnGesto) {
+              puntos_ciclo = Math.max(GESTO_PTS_CICLO * 2, estado.cfg.ocultacionUmbral || 60);
+            }
             gesto_sumarSospecha(id, puntos_ciclo, ts, true);   // ciclo alcanzar→esconder COMPLETO
           }
         }
