@@ -401,6 +401,93 @@ const CFG_SENSIBILIDAD = {
   normal: { ocultacionUmbral: 60, ocultacionPermanencia: 0.7, ocultacionUnGesto: false },
   alta:   { ocultacionUmbral: 42, ocultacionPermanencia: 0.5, ocultacionUnGesto: true  },
 };
+/* 🧠 Metadatos por proveedor de IA (etiqueta de clave, modelos sugeridos, nota). */
+const CFG_IA_PROV = {
+  gemini: {
+    keyLabel: 'Clave de API de Google (Gemini)',
+    keyPlaceholder: 'AIza...',
+    modelos: ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'],
+    modeloDef: 'gemini-2.0-flash',
+    nota: 'GRATIS con límites de uso. Clave en aistudio.google.com (sin tarjeta).',
+    modeloNota: 'Usa un modelo «flash» (rápido y con visión).',
+    endpoint: false,
+  },
+  anthropic: {
+    keyLabel: 'Clave de API de Anthropic (Claude)',
+    keyPlaceholder: 'sk-ant-...',
+    modelos: ['claude-haiku-4-5-20251001', 'claude-sonnet-5', 'claude-opus-4-8'],
+    modeloDef: 'claude-haiku-4-5-20251001',
+    nota: 'De pago por uso. Cuesta céntimos por foto. Clave en console.anthropic.com.',
+    modeloNota: 'Haiku = rápido y barato; Sonnet/Opus = más listos y más caros.',
+    endpoint: false,
+  },
+  openai: {
+    keyLabel: 'Clave de API de OpenAI',
+    keyPlaceholder: 'sk-...',
+    modelos: ['gpt-4o-mini', 'gpt-4o'],
+    modeloDef: 'gpt-4o-mini',
+    nota: 'De pago por uso. Clave en platform.openai.com.',
+    modeloNota: 'Usa un modelo con visión (gpt-4o / gpt-4o-mini).',
+    endpoint: false,
+  },
+  custom: {
+    keyLabel: 'Clave de tu API',
+    keyPlaceholder: 'tu clave...',
+    modelos: [],
+    modeloDef: '',
+    nota: 'Cualquier API compatible con OpenAI (OpenRouter, Groq, servidor propio…).',
+    modeloNota: 'Escribe el nombre EXACTO del modelo de tu proveedor (que tenga visión).',
+    endpoint: true,
+  },
+};
+
+/* Adapta la UI de la sección IA al proveedor elegido. Si `cambioUsuario` es true
+ * (el dueño acaba de cambiar el selector), rellena el modelo por defecto cuando
+ * el actual no encaja con el nuevo proveedor, para que no quede uno incompatible. */
+function cfg_iaProveedorActualizar(cambioUsuario) {
+  const sel = document.getElementById('cfg-iaProveedor');
+  if (!sel) return;
+  const prov = sel.value || 'gemini';
+  const meta = CFG_IA_PROV[prov] || CFG_IA_PROV.gemini;
+
+  const label = document.getElementById('cfg-iaKeyLabel');
+  if (label) label.textContent = meta.keyLabel;
+  const key = document.getElementById('cfg-iaApiKey');
+  if (key) key.placeholder = meta.keyPlaceholder;
+
+  const provNota = document.getElementById('cfg-iaProvNota');
+  if (provNota) provNota.textContent = meta.nota;
+  const modNota = document.getElementById('cfg-iaModeloNota');
+  if (modNota) modNota.textContent = meta.modeloNota;
+
+  const campoEnd = document.getElementById('cfg-iaEndpointCampo');
+  if (campoEnd) campoEnd.classList.toggle('oculto', !meta.endpoint);
+
+  // Datalist de modelos sugeridos.
+  const lista = document.getElementById('cfg-iaModelosLista');
+  if (lista) {
+    lista.innerHTML = '';
+    meta.modelos.forEach(function (m) {
+      const op = document.createElement('option');
+      op.value = m; lista.appendChild(op);
+    });
+  }
+
+  // Al cambiar de proveedor, si el modelo actual no pertenece a la familia nueva,
+  // pon el por defecto (evita mandar un modelo de otro proveedor).
+  if (cambioUsuario) {
+    const modelo = document.getElementById('cfg-iaModelo');
+    const actual = modelo ? String(modelo.value || '').trim() : '';
+    const encaja = meta.modelos.indexOf(actual) !== -1;
+    if ((!encaja || !actual) && meta.modeloDef) {
+      if (modelo) modelo.value = meta.modeloDef;
+      estado.cfg.iaModelo = meta.modeloDef;
+    }
+    estado.cfg.iaProveedor = prov;
+    nuc_guardar('cfg', estado.cfg);
+  }
+}
+
 function cfg_aplicarSensibilidad(nivel) {
   const p = CFG_SENSIBILIDAD[nivel] || CFG_SENSIBILIDAD.normal;
   estado.cfg.sensibilidadGestos = (nivel in CFG_SENSIBILIDAD) ? nivel : 'normal';
@@ -1088,9 +1175,17 @@ function cfg_conectarBotones() {
     selSens.addEventListener('change', function () { cfg_aplicarSensibilidad(selSens.value); });
   }
 
-  // 🧠 Probar la IA (Claude) con la cámara: comprueba que la clave funciona.
+  // 🧠 Probar la IA con la cámara: comprueba que la clave funciona.
   const btnIa = $('cfg-btnIaProbar');
   if (btnIa) btnIa.addEventListener('click', function () { if (typeof ia_probar === 'function') ia_probar(); });
+
+  // 🧠 Selector de proveedor de IA: adapta la UI (etiqueta de clave, endpoint,
+  // modelos sugeridos) al proveedor elegido. Gemini es gratis y va por defecto.
+  const selIaProv = $('cfg-iaProveedor');
+  if (selIaProv) {
+    selIaProv.addEventListener('change', function () { cfg_iaProveedorActualizar(true); });
+    cfg_iaProveedorActualizar(false);
+  }
 
   // 🧪 Autodiagnóstico: prueba la detección REAL sobre la fuente en vivo.
   const btnDiag = $('cfg-btnAutodiag');

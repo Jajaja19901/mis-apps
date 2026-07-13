@@ -1946,40 +1946,56 @@ summary.sec-titulo::before { display: inline-block; }
     </details>
   </details>
 
-  <!-- 9b. IA que CONFIRMA las alertas (Claude · Anthropic) -->
+  <!-- 9b. IA que CONFIRMA las alertas (multi-proveedor) -->
   <details class="tarjeta cfg-sec" id="cfg-secIA">
-    <summary class="sec-titulo">🧠 IA que confirma las alertas (Claude)</summary>
+    <summary class="sec-titulo">🧠 IA que confirma las alertas</summary>
 
-    <p class="etiqueta">Cuando salte una alerta con foto, se la manda a la IA de visión de Claude y te dice <b>si parece un incidente real o falsa alarma</b>, con una descripción. NO analiza el vídeo en vivo (eso lo hace YOLO en el móvil): solo confirma las alertas, que es barato y de verdad «entiende» la escena.</p>
-    <p class="etiqueta" style="color:var(--aviso,#ffb224)">⚠️ Con esto ENCENDIDO, la foto de cada alerta SALE a la API de Anthropic para analizarla (solo esas fotos, no el vídeo). Va apagado por defecto y solo funciona con TU clave.</p>
+    <p class="etiqueta">Cuando salte una alerta con foto, se la manda a una IA de visión y te dice <b>si parece un incidente real o falsa alarma</b>, con una descripción. NO analiza el vídeo en vivo (eso lo hace YOLO en el móvil): solo confirma las alertas, que es donde de verdad «entiende» la escena.</p>
+    <p class="etiqueta" style="color:var(--aviso,#ffb224)">⚠️ Con esto ENCENDIDO, la foto de cada alerta SALE a la API que elijas para analizarla (solo esas fotos, no el vídeo). Va apagado por defecto y solo funciona con TU clave.</p>
 
     <label class="fila" style="align-items:flex-start;gap:8px;">
       <input type="checkbox" id="cfg-iaConfirmar" data-cfg="iaConfirmar">
-      <span>Activar confirmación de alertas por IA <span class="etiqueta">Necesita clave e internet. Cuesta céntimos por foto.</span></span>
+      <span>Activar confirmación de alertas por IA <span class="etiqueta">Necesita clave e internet.</span></span>
     </label>
 
     <div class="campo">
-      <label for="cfg-iaApiKey">Clave de API de Anthropic (Claude)</label>
-      <input type="password" id="cfg-iaApiKey" data-cfg="iaApiKey" placeholder="sk-ant-..." autocomplete="off">
+      <label for="cfg-iaProveedor">Proveedor de IA</label>
+      <select id="cfg-iaProveedor" data-cfg="iaProveedor">
+        <option value="gemini">Google Gemini — tiene plan GRATIS (recomendado)</option>
+        <option value="anthropic">Anthropic (Claude) — de pago por uso</option>
+        <option value="openai">OpenAI (GPT) — de pago por uso</option>
+        <option value="custom">Otra / personalizada (compatible con OpenAI)</option>
+      </select>
+      <p class="etiqueta" id="cfg-iaProvNota"></p>
     </div>
+
+    <div class="campo">
+      <label for="cfg-iaApiKey" id="cfg-iaKeyLabel">Clave de API</label>
+      <input type="password" id="cfg-iaApiKey" data-cfg="iaApiKey" placeholder="clave..." autocomplete="off">
+    </div>
+
+    <div class="campo oculto" id="cfg-iaEndpointCampo">
+      <label for="cfg-iaEndpoint">Endpoint (API compatible con OpenAI)</label>
+      <input type="text" id="cfg-iaEndpoint" data-cfg="iaEndpoint" placeholder="https://tu-servidor/v1" autocomplete="off" inputmode="url">
+      <p class="etiqueta">Ejemplos: OpenRouter (<code>https://openrouter.ai/api/v1</code>), Groq (<code>https://api.groq.com/openai/v1</code>), o tu propio servidor. Vale la base (…/v1) o el endpoint completo.</p>
+    </div>
+
     <div class="campo">
       <label for="cfg-iaModelo">Modelo</label>
-      <select id="cfg-iaModelo" data-cfg="iaModelo">
-        <option value="claude-haiku-4-5-20251001">Haiku 4.5 — rápido y barato (recomendado)</option>
-        <option value="claude-sonnet-5">Sonnet 5 — más listo, algo más caro</option>
-        <option value="claude-opus-4-8">Opus 4.8 — máxima precisión, más caro</option>
-      </select>
+      <input type="text" id="cfg-iaModelo" data-cfg="iaModelo" list="cfg-iaModelosLista" placeholder="modelo..." autocomplete="off">
+      <datalist id="cfg-iaModelosLista"></datalist>
+      <p class="etiqueta" id="cfg-iaModeloNota"></p>
     </div>
+
     <button type="button" class="btn btn-primario" id="cfg-btnIaProbar">🧠 Probar la IA con la cámara</button>
 
     <details class="cfg-sec">
-      <summary>¿Cómo consigo la clave de Claude?</summary>
-      <ol>
-        <li>Entra en <strong>console.anthropic.com</strong> y crea una cuenta.</li>
-        <li>Ve a <strong>API Keys</strong> → <em>Create Key</em> → copia la clave (empieza por <code>sk-ant-</code>).</li>
-        <li>Pégala aquí, enciende el interruptor y pulsa «Probar la IA». Necesitas algo de saldo en tu cuenta de Anthropic; confirmar una alerta cuesta céntimos.</li>
-      </ol>
-      <p class="etiqueta">La clave se guarda solo en TU móvil. Aun así, en una app que corre en el navegador una clave nunca está 100% oculta: úsala solo en tu teléfono, no la compartas.</p>
+      <summary>¿Cómo consigo la clave? (según el proveedor)</summary>
+      <p class="etiqueta"><b>Gemini (gratis):</b> entra en <strong>aistudio.google.com</strong> → <em>Get API key</em> → crea una clave (no pide tarjeta). Pégala arriba. El plan gratuito tiene límites de uso por minuto/día, de sobra para confirmar alertas.</p>
+      <p class="etiqueta"><b>Claude:</b> <strong>console.anthropic.com</strong> → <em>API Keys</em> → <em>Create Key</em> (empieza por <code>sk-ant-</code>). Necesita saldo; cuesta céntimos por foto.</p>
+      <p class="etiqueta"><b>OpenAI:</b> <strong>platform.openai.com</strong> → <em>API keys</em> (empieza por <code>sk-</code>). Necesita saldo.</p>
+      <p class="etiqueta"><b>Otra:</b> cualquier servicio compatible con OpenAI (OpenRouter, Groq, Together…): pega su endpoint, tu clave y el nombre del modelo (que tenga visión).</p>
+      <p class="etiqueta" style="color:var(--aviso,#ffb224)">La clave se guarda solo en TU móvil. Aun así, en una app de navegador una clave nunca está 100% oculta: úsala solo en tu teléfono, no la compartas.</p>
     </details>
   </details>
 
@@ -2282,12 +2298,18 @@ const CFG_DEFECTOS = {
   alertaCooldownSeg: 30,
   telegramToken: '',
   telegramChat: '',
-  // 🧠 IA de visión (Claude/Anthropic) que CONFIRMA las alertas (módulo 26).
+  // 🧠 IA de visión que CONFIRMA las alertas (módulo 26). MULTI-PROVEEDOR:
+  //  · gemini  → Google, tiene plan GRATIS con visión (recomendado).
+  //  · anthropic → Claude (de pago).
+  //  · openai  → GPT (de pago).
+  //  · custom  → cualquier API compatible con OpenAI (pega endpoint + clave).
   // Opt-in: apagada por defecto; solo funciona con la clave del dueño. Con esto
-  // ON, la foto de cada alerta SALE a la API de Anthropic para analizarla.
+  // ON, la foto de cada alerta SALE a la API elegida para analizarla.
   iaConfirmar: false,
+  iaProveedor: 'gemini',
   iaApiKey: '',
-  iaModelo: 'claude-haiku-4-5-20251001',
+  iaModelo: 'gemini-2.0-flash',
+  iaEndpoint: '',           // solo para proveedor 'custom' (endpoint compatible OpenAI)
   detencionSeg: 60,
   calor: false,
   timelapseMin: 5,
@@ -2971,6 +2993,24 @@ function nuc_init() {
     if (estado.cfg.matContinuo !== true) {
       estado.cfg.matContinuo = true;
       if (guardada) nuc_guardar('cfg', estado.cfg);
+    }
+  }
+  // Migración única: la IA de confirmación pasa a MULTI-PROVEEDOR. Quien ya tenía
+  // una clave puesta antes (solo existía Anthropic/Claude) sigue en Claude sin
+  // tocar nada; se deduce el proveedor por la forma de la clave. Sin clave previa,
+  // el defecto es Gemini (gratis).
+  if (!nuc_cargar('migr_ia_multiprov_v1', false)) {
+    nuc_guardar('migr_ia_multiprov_v1', true);
+    if (guardada && estado.cfg.iaApiKey && guardada.iaProveedor === undefined) {
+      const k = String(estado.cfg.iaApiKey);
+      if (k.indexOf('sk-ant') === 0) {
+        estado.cfg.iaProveedor = 'anthropic';
+        if (!estado.cfg.iaModelo || estado.cfg.iaModelo.indexOf('claude') !== 0) estado.cfg.iaModelo = 'claude-haiku-4-5-20251001';
+      } else if (k.indexOf('sk-') === 0) {
+        estado.cfg.iaProveedor = 'openai';
+        if (!estado.cfg.iaModelo || estado.cfg.iaModelo.indexOf('gpt') !== 0) estado.cfg.iaModelo = 'gpt-4o-mini';
+      }
+      nuc_guardar('cfg', estado.cfg);
     }
   }
   estado.zonas = nuc_cargar('zonas', []);
@@ -8997,6 +9037,93 @@ const CFG_SENSIBILIDAD = {
   normal: { ocultacionUmbral: 60, ocultacionPermanencia: 0.7, ocultacionUnGesto: false },
   alta:   { ocultacionUmbral: 42, ocultacionPermanencia: 0.5, ocultacionUnGesto: true  },
 };
+/* 🧠 Metadatos por proveedor de IA (etiqueta de clave, modelos sugeridos, nota). */
+const CFG_IA_PROV = {
+  gemini: {
+    keyLabel: 'Clave de API de Google (Gemini)',
+    keyPlaceholder: 'AIza...',
+    modelos: ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-1.5-flash'],
+    modeloDef: 'gemini-2.0-flash',
+    nota: 'GRATIS con límites de uso. Clave en aistudio.google.com (sin tarjeta).',
+    modeloNota: 'Usa un modelo «flash» (rápido y con visión).',
+    endpoint: false,
+  },
+  anthropic: {
+    keyLabel: 'Clave de API de Anthropic (Claude)',
+    keyPlaceholder: 'sk-ant-...',
+    modelos: ['claude-haiku-4-5-20251001', 'claude-sonnet-5', 'claude-opus-4-8'],
+    modeloDef: 'claude-haiku-4-5-20251001',
+    nota: 'De pago por uso. Cuesta céntimos por foto. Clave en console.anthropic.com.',
+    modeloNota: 'Haiku = rápido y barato; Sonnet/Opus = más listos y más caros.',
+    endpoint: false,
+  },
+  openai: {
+    keyLabel: 'Clave de API de OpenAI',
+    keyPlaceholder: 'sk-...',
+    modelos: ['gpt-4o-mini', 'gpt-4o'],
+    modeloDef: 'gpt-4o-mini',
+    nota: 'De pago por uso. Clave en platform.openai.com.',
+    modeloNota: 'Usa un modelo con visión (gpt-4o / gpt-4o-mini).',
+    endpoint: false,
+  },
+  custom: {
+    keyLabel: 'Clave de tu API',
+    keyPlaceholder: 'tu clave...',
+    modelos: [],
+    modeloDef: '',
+    nota: 'Cualquier API compatible con OpenAI (OpenRouter, Groq, servidor propio…).',
+    modeloNota: 'Escribe el nombre EXACTO del modelo de tu proveedor (que tenga visión).',
+    endpoint: true,
+  },
+};
+
+/* Adapta la UI de la sección IA al proveedor elegido. Si `cambioUsuario` es true
+ * (el dueño acaba de cambiar el selector), rellena el modelo por defecto cuando
+ * el actual no encaja con el nuevo proveedor, para que no quede uno incompatible. */
+function cfg_iaProveedorActualizar(cambioUsuario) {
+  const sel = document.getElementById('cfg-iaProveedor');
+  if (!sel) return;
+  const prov = sel.value || 'gemini';
+  const meta = CFG_IA_PROV[prov] || CFG_IA_PROV.gemini;
+
+  const label = document.getElementById('cfg-iaKeyLabel');
+  if (label) label.textContent = meta.keyLabel;
+  const key = document.getElementById('cfg-iaApiKey');
+  if (key) key.placeholder = meta.keyPlaceholder;
+
+  const provNota = document.getElementById('cfg-iaProvNota');
+  if (provNota) provNota.textContent = meta.nota;
+  const modNota = document.getElementById('cfg-iaModeloNota');
+  if (modNota) modNota.textContent = meta.modeloNota;
+
+  const campoEnd = document.getElementById('cfg-iaEndpointCampo');
+  if (campoEnd) campoEnd.classList.toggle('oculto', !meta.endpoint);
+
+  // Datalist de modelos sugeridos.
+  const lista = document.getElementById('cfg-iaModelosLista');
+  if (lista) {
+    lista.innerHTML = '';
+    meta.modelos.forEach(function (m) {
+      const op = document.createElement('option');
+      op.value = m; lista.appendChild(op);
+    });
+  }
+
+  // Al cambiar de proveedor, si el modelo actual no pertenece a la familia nueva,
+  // pon el por defecto (evita mandar un modelo de otro proveedor).
+  if (cambioUsuario) {
+    const modelo = document.getElementById('cfg-iaModelo');
+    const actual = modelo ? String(modelo.value || '').trim() : '';
+    const encaja = meta.modelos.indexOf(actual) !== -1;
+    if ((!encaja || !actual) && meta.modeloDef) {
+      if (modelo) modelo.value = meta.modeloDef;
+      estado.cfg.iaModelo = meta.modeloDef;
+    }
+    estado.cfg.iaProveedor = prov;
+    nuc_guardar('cfg', estado.cfg);
+  }
+}
+
 function cfg_aplicarSensibilidad(nivel) {
   const p = CFG_SENSIBILIDAD[nivel] || CFG_SENSIBILIDAD.normal;
   estado.cfg.sensibilidadGestos = (nivel in CFG_SENSIBILIDAD) ? nivel : 'normal';
@@ -9684,9 +9811,17 @@ function cfg_conectarBotones() {
     selSens.addEventListener('change', function () { cfg_aplicarSensibilidad(selSens.value); });
   }
 
-  // 🧠 Probar la IA (Claude) con la cámara: comprueba que la clave funciona.
+  // 🧠 Probar la IA con la cámara: comprueba que la clave funciona.
   const btnIa = $('cfg-btnIaProbar');
   if (btnIa) btnIa.addEventListener('click', function () { if (typeof ia_probar === 'function') ia_probar(); });
+
+  // 🧠 Selector de proveedor de IA: adapta la UI (etiqueta de clave, endpoint,
+  // modelos sugeridos) al proveedor elegido. Gemini es gratis y va por defecto.
+  const selIaProv = $('cfg-iaProveedor');
+  if (selIaProv) {
+    selIaProv.addEventListener('change', function () { cfg_iaProveedorActualizar(true); });
+    cfg_iaProveedorActualizar(false);
+  }
 
   // 🧪 Autodiagnóstico: prueba la detección REAL sobre la fuente en vivo.
   const btnDiag = $('cfg-btnAutodiag');
@@ -17997,91 +18132,211 @@ function pel_vigilar() {
 
 /* ===== 26-ia.js ===== */
 /* ============================================================================
- * 26-IA — Confirmación de alertas con IA de VISIÓN (Claude · Anthropic).
+ * 26-IA — Confirmación de alertas con IA de VISIÓN (MULTI-PROVEEDOR).
  * Prefijo: ia_ / IA_.
  *
  * QUÉ HACE: cuando salta una alerta CON foto (robo, ocultación, peligro…), le
- * manda ESA foto a Claude y devuelve un veredicto que "entiende" la escena:
- * ¿es un incidente real o una falsa alarma? + una descripción en 1 frase. Lo
- * enseña en la app y lo manda a Telegram.
+ * manda ESA foto a la IA de visión que el dueño elija y devuelve un veredicto
+ * que "entiende" la escena: ¿es un incidente real o una falsa alarma? + una
+ * descripción en 1 frase. Lo enseña en la app y lo manda a Telegram.
+ *
+ * PROVEEDORES:
+ *  · gemini    → Google. Tiene plan GRATIS con visión (recomendado).
+ *  · anthropic → Claude (de pago, por uso).
+ *  · openai    → GPT (de pago, por uso).
+ *  · custom    → cualquier API compatible con OpenAI (endpoint + clave propios:
+ *                OpenRouter, Groq, Together, un servidor propio…).
  *
  * QUÉ NO HACE: NO analiza el vídeo en vivo (eso lo hace YOLO en el móvil, que es
- * instantáneo y gratis). La IA de la nube tarda ~1 s y cuesta céntimos por foto,
- * así que se usa SOLO para CONFIRMAR alertas — que es donde de verdad ayuda.
+ * instantáneo y gratis). La IA de la nube tarda ~1 s, así que se usa SOLO para
+ * CONFIRMAR alertas — que es donde de verdad ayuda.
  *
  * PRIVACIDAD (honesto): con esto ACTIVADO, la foto de cada alerta SALE a la API
- * de Anthropic para analizarla. Va apagado por defecto; solo funciona si el
- * dueño pega SU clave (cfg.iaApiKey) y enciende cfg.iaConfirmar.
+ * elegida para analizarla. Va apagado por defecto; solo funciona si el dueño
+ * pega SU clave (cfg.iaApiKey) y enciende cfg.iaConfirmar.
  * ==========================================================================*/
-const IA_ENDPOINT = 'https://api.anthropic.com/v1/messages';
-const IA_VERSION = '2023-06-01';
-const IA_MODELO_DEF = 'claude-haiku-4-5-20251001';   // rápido y barato para confirmar; se puede subir a Sonnet
+const IA_MODELO_DEF = {
+  gemini: 'gemini-2.0-flash',
+  anthropic: 'claude-haiku-4-5-20251001',
+  openai: 'gpt-4o-mini',
+  custom: 'gpt-4o-mini',
+};
 let ia_ocupada = false;
 
-/* ¿Está la confirmación por IA lista para usarse? (encendida + con clave). */
-function ia_activa() {
-  return !!(estado.cfg && estado.cfg.iaConfirmar && estado.cfg.iaApiKey);
+/* Proveedor efectivo (con respaldo a gemini si viniera algo raro). */
+function ia_proveedor() {
+  const p = estado.cfg && estado.cfg.iaProveedor;
+  return (p === 'anthropic' || p === 'openai' || p === 'custom' || p === 'gemini') ? p : 'gemini';
 }
 
-/* Manda la foto de una alerta a Claude y devuelve {real, descripcion, confianza}.
- * No lanza nunca: ante cualquier fallo devuelve null y avisa suave. */
+/* Modelo efectivo (el elegido, o el por defecto del proveedor). */
+function ia_modelo() {
+  const m = estado.cfg && estado.cfg.iaModelo ? String(estado.cfg.iaModelo).trim() : '';
+  return m || IA_MODELO_DEF[ia_proveedor()] || 'gemini-2.0-flash';
+}
+
+/* ¿Está la confirmación por IA lista para usarse? (encendida + con clave, y
+ * con endpoint si es 'custom'). */
+function ia_activa() {
+  if (!(estado.cfg && estado.cfg.iaConfirmar && estado.cfg.iaApiKey)) return false;
+  if (ia_proveedor() === 'custom' && !String(estado.cfg.iaEndpoint || '').trim()) return false;
+  return true;
+}
+
+/* El texto del prompt (común a todos los proveedores). */
+function ia_prompt(tipo, texto) {
+  return 'Eres un analista de una cámara de videovigilancia. La app ha lanzado una ' +
+    'alerta automática de tipo "' + (tipo || '?') + '"' + (texto ? ' (' + texto + ')' : '') + '. ' +
+    'Mira SOLO la imagen y responde ÚNICAMENTE con un JSON válido, sin texto extra:\n' +
+    '{"real": true|false, "descripcion": "qué se ve, en una frase corta", "confianza": 0-100}\n' +
+    '"real" = true si en la imagen se aprecia un incidente coherente con la alerta ' +
+    '(robo, ocultar un objeto, forcejeo, objeto peligroso, persona donde no debe). ' +
+    '"real" = false si parece una falsa alarma (nadie, gesto inocente, mascota, sombra). ' +
+    'Nunca acuses a una persona concreta; describe conductas, no identidades.';
+}
+
+/* Construye {url, headers, body} para cada proveedor. Devuelve null si el
+ * proveedor no está soportado. `foto` = {dataURL, mediaType, b64}. */
+function ia_construirPeticion(prov, foto, tipo, texto) {
+  const modelo = ia_modelo();
+  const clave = String(estado.cfg.iaApiKey || '').trim();
+  const prompt = ia_prompt(tipo, texto);
+
+  if (prov === 'anthropic') {
+    return {
+      url: 'https://api.anthropic.com/v1/messages',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': clave,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: {
+        model: modelo,
+        max_tokens: 300,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'image', source: { type: 'base64', media_type: foto.mediaType, data: foto.b64 } },
+            { type: 'text', text: prompt },
+          ],
+        }],
+      },
+    };
+  }
+
+  if (prov === 'gemini') {
+    // La clave viaja en la URL (?key=…), como pide la API de Google.
+    return {
+      url: 'https://generativelanguage.googleapis.com/v1beta/models/' +
+        encodeURIComponent(modelo) + ':generateContent?key=' + encodeURIComponent(clave),
+      headers: { 'content-type': 'application/json' },
+      body: {
+        contents: [{
+          parts: [
+            { inline_data: { mime_type: foto.mediaType, data: foto.b64 } },
+            { text: prompt },
+          ],
+        }],
+        generationConfig: { maxOutputTokens: 300 },
+      },
+    };
+  }
+
+  // openai y custom → formato OpenAI (chat/completions con imagen por data URL).
+  if (prov === 'openai' || prov === 'custom') {
+    let url = 'https://api.openai.com/v1/chat/completions';
+    if (prov === 'custom') {
+      let base = String(estado.cfg.iaEndpoint || '').trim().replace(/\/+$/, '');
+      // Acepta tanto la base (…/v1) como el endpoint completo.
+      url = /\/chat\/completions$/.test(base) ? base : (base + '/chat/completions');
+    }
+    return {
+      url: url,
+      headers: {
+        'content-type': 'application/json',
+        'authorization': 'Bearer ' + clave,
+      },
+      body: {
+        model: modelo,
+        max_tokens: 300,
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt },
+            { type: 'image_url', image_url: { url: foto.dataURL } },
+          ],
+        }],
+      },
+    };
+  }
+
+  return null;
+}
+
+/* Saca el texto de respuesta según el proveedor (los formatos difieren). */
+function ia_extraerTexto(prov, data) {
+  try {
+    if (prov === 'anthropic') {
+      return (data && data.content && data.content[0] && data.content[0].text) || '';
+    }
+    if (prov === 'gemini') {
+      const c = data && data.candidates && data.candidates[0];
+      const parts = c && c.content && c.content.parts;
+      if (parts && parts.length) return parts.map((p) => p.text || '').join('');
+      return '';
+    }
+    // openai / custom
+    const ch = data && data.choices && data.choices[0];
+    return (ch && ch.message && ch.message.content) || '';
+  } catch (e) { return ''; }
+}
+
+/* Nombre bonito del proveedor para los avisos. */
+function ia_nombreProv(prov) {
+  return prov === 'anthropic' ? 'Claude' : (prov === 'openai' ? 'OpenAI' :
+    (prov === 'custom' ? 'tu IA' : 'Gemini'));
+}
+
+/* Manda la foto de una alerta a la IA elegida y devuelve {real, descripcion,
+ * confianza}. No lanza nunca: ante cualquier fallo devuelve null y avisa suave. */
 async function ia_confirmarAlerta(fotoDataURL, tipo, texto) {
   if (!ia_activa() || !fotoDataURL || ia_ocupada) return null;
   const m = String(fotoDataURL).match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
   if (!m) return null;
-  const mediaType = m[1], b64 = m[2];
+  const prov = ia_proveedor();
+  const foto = { dataURL: fotoDataURL, mediaType: m[1], b64: m[2] };
   ia_ocupada = true;
   try {
-    const prompt =
-      'Eres un analista de una cámara de videovigilancia. La app ha lanzado una ' +
-      'alerta automática de tipo "' + (tipo || '?') + '"' + (texto ? ' (' + texto + ')' : '') + '. ' +
-      'Mira SOLO la imagen y responde ÚNICAMENTE con un JSON válido, sin texto extra:\n' +
-      '{"real": true|false, "descripcion": "qué se ve, en una frase corta", "confianza": 0-100}\n' +
-      '"real" = true si en la imagen se aprecia un incidente coherente con la alerta ' +
-      '(robo, ocultar un objeto, forcejeo, objeto peligroso, persona donde no debe). ' +
-      '"real" = false si parece una falsa alarma (nadie, gesto inocente, mascota, sombra). ' +
-      'Nunca acuses a una persona concreta; describe conductas, no identidades.';
-    const cuerpo = {
-      model: estado.cfg.iaModelo || IA_MODELO_DEF,
-      max_tokens: 300,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'image', source: { type: 'base64', media_type: mediaType, data: b64 } },
-          { type: 'text', text: prompt },
-        ],
-      }],
-    };
-    const r = await fetch(IA_ENDPOINT, {
+    const pet = ia_construirPeticion(prov, foto, tipo, texto);
+    if (!pet) { ia_toast('🧠 Proveedor de IA no soportado.', 'sospecha'); return null; }
+    const r = await fetch(pet.url, {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': estado.cfg.iaApiKey,
-        'anthropic-version': IA_VERSION,
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify(cuerpo),
+      headers: pet.headers,
+      body: JSON.stringify(pet.body),
     });
     if (!r || !r.ok) {
       const cod = r ? r.status : 0;
-      const msg = cod === 401 ? 'la clave de IA no es válida' :
-        (cod === 429 ? 'IA saturada (límite de uso), reintenta luego' :
-          (cod === 400 ? 'la IA rechazó la petición' : ('IA: error ' + cod)));
+      const msg = (cod === 401 || cod === 403) ? 'la clave de ' + ia_nombreProv(prov) + ' no es válida' :
+        (cod === 429 ? ia_nombreProv(prov) + ' saturada (límite de uso), reintenta luego' :
+          (cod === 400 ? ia_nombreProv(prov) + ' rechazó la petición (¿modelo mal escrito?)' :
+            (cod === 404 ? ia_nombreProv(prov) + ': modelo o endpoint no encontrado' :
+              ('IA: error ' + cod))));
       ia_toast('🧠 ' + msg, 'sospecha');
       return null;
     }
     const data = await r.json();
-    const txt = (data && data.content && data.content[0] && data.content[0].text) || '';
+    const txt = ia_extraerTexto(prov, data);
     let v = null;
     try {
-      const trozo = txt.match(/\{[\s\S]*\}/);
+      const trozo = String(txt).match(/\{[\s\S]*\}/);
       v = trozo ? JSON.parse(trozo[0]) : null;
     } catch (e) { v = null; }
     if (!v) v = { real: null, descripcion: String(txt).slice(0, 120), confianza: null };
     ia_mostrar(v);
     return v;
   } catch (e) {
-    ia_toast('🧠 No se pudo consultar la IA (¿sin internet?)', 'sospecha');
+    ia_toast('🧠 No se pudo consultar la IA (¿sin internet o CORS?)', 'sospecha');
     return null;
   } finally {
     ia_ocupada = false;
@@ -18115,19 +18370,22 @@ function ia_toast(msg, nivel) {
   if (typeof ui_toast === 'function') { try { ui_toast(msg, nivel || 'info'); } catch (e) {} }
 }
 
-/* Prueba manual desde Ajustes: manda la última foto de alerta (o un frame) a la
- * IA para comprobar que la clave funciona. Devuelve true si respondió algo. */
+/* Prueba manual desde Ajustes: manda un frame a la IA para comprobar la clave.
+ * Devuelve true si respondió algo. */
 async function ia_probar() {
-  if (!estado.cfg.iaApiKey) { ia_toast('🧠 Pega primero tu clave de IA (Anthropic).', 'sospecha'); return false; }
+  if (!estado.cfg.iaApiKey) { ia_toast('🧠 Pega primero tu clave de IA.', 'sospecha'); return false; }
+  if (ia_proveedor() === 'custom' && !String(estado.cfg.iaEndpoint || '').trim()) {
+    ia_toast('🧠 Pega también el endpoint de tu IA (proveedor «Otra»).', 'sospecha'); return false;
+  }
   let foto = null;
   try { if (typeof vid_capturaJPEG === 'function') foto = vid_capturaJPEG(1280, 0.82); } catch (e) {}
   if (!foto) { ia_toast('🧠 Enciende la cámara o un vídeo para probar la IA.', 'sospecha'); return false; }
-  ia_toast('🧠 Consultando a la IA…', 'info');
+  ia_toast('🧠 Consultando a ' + ia_nombreProv(ia_proveedor()) + '…', 'info');
   const prev = estado.cfg.iaConfirmar;
   estado.cfg.iaConfirmar = true;                 // permite la llamada aunque el toggle esté off
   const v = await ia_confirmarAlerta(foto, 'prueba', 'prueba manual del dueño');
   estado.cfg.iaConfirmar = prev;
-  if (v) ia_toast('🧠 ¡La IA respondió! La clave funciona.', 'info');
+  if (v) ia_toast('🧠 ¡' + ia_nombreProv(ia_proveedor()) + ' respondió! La clave funciona.', 'info');
   return !!v;
 }
 

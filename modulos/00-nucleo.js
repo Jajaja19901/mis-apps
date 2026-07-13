@@ -94,12 +94,18 @@ const CFG_DEFECTOS = {
   alertaCooldownSeg: 30,
   telegramToken: '',
   telegramChat: '',
-  // 🧠 IA de visión (Claude/Anthropic) que CONFIRMA las alertas (módulo 26).
+  // 🧠 IA de visión que CONFIRMA las alertas (módulo 26). MULTI-PROVEEDOR:
+  //  · gemini  → Google, tiene plan GRATIS con visión (recomendado).
+  //  · anthropic → Claude (de pago).
+  //  · openai  → GPT (de pago).
+  //  · custom  → cualquier API compatible con OpenAI (pega endpoint + clave).
   // Opt-in: apagada por defecto; solo funciona con la clave del dueño. Con esto
-  // ON, la foto de cada alerta SALE a la API de Anthropic para analizarla.
+  // ON, la foto de cada alerta SALE a la API elegida para analizarla.
   iaConfirmar: false,
+  iaProveedor: 'gemini',
   iaApiKey: '',
-  iaModelo: 'claude-haiku-4-5-20251001',
+  iaModelo: 'gemini-2.0-flash',
+  iaEndpoint: '',           // solo para proveedor 'custom' (endpoint compatible OpenAI)
   detencionSeg: 60,
   calor: false,
   timelapseMin: 5,
@@ -783,6 +789,24 @@ function nuc_init() {
     if (estado.cfg.matContinuo !== true) {
       estado.cfg.matContinuo = true;
       if (guardada) nuc_guardar('cfg', estado.cfg);
+    }
+  }
+  // Migración única: la IA de confirmación pasa a MULTI-PROVEEDOR. Quien ya tenía
+  // una clave puesta antes (solo existía Anthropic/Claude) sigue en Claude sin
+  // tocar nada; se deduce el proveedor por la forma de la clave. Sin clave previa,
+  // el defecto es Gemini (gratis).
+  if (!nuc_cargar('migr_ia_multiprov_v1', false)) {
+    nuc_guardar('migr_ia_multiprov_v1', true);
+    if (guardada && estado.cfg.iaApiKey && guardada.iaProveedor === undefined) {
+      const k = String(estado.cfg.iaApiKey);
+      if (k.indexOf('sk-ant') === 0) {
+        estado.cfg.iaProveedor = 'anthropic';
+        if (!estado.cfg.iaModelo || estado.cfg.iaModelo.indexOf('claude') !== 0) estado.cfg.iaModelo = 'claude-haiku-4-5-20251001';
+      } else if (k.indexOf('sk-') === 0) {
+        estado.cfg.iaProveedor = 'openai';
+        if (!estado.cfg.iaModelo || estado.cfg.iaModelo.indexOf('gpt') !== 0) estado.cfg.iaModelo = 'gpt-4o-mini';
+      }
+      nuc_guardar('cfg', estado.cfg);
     }
   }
   estado.zonas = nuc_cargar('zonas', []);
