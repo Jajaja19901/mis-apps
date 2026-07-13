@@ -1,26 +1,31 @@
 /* ============================================================================
- * 26-IA — Confirmación de alertas con IA de VISIÓN (MULTI-PROVEEDOR).
+ * 26-IA — Confirmación de alertas con IA de VISIÓN (MULTI-PROVEEDOR + SECUENCIA).
  * Prefijo: ia_ / IA_.
  *
  * QUÉ HACE: cuando salta una alerta CON foto (robo, ocultación, peligro…), le
- * manda ESA foto a la IA de visión que el dueño elija y devuelve un veredicto
- * que "entiende" la escena: ¿es un incidente real o una falsa alarma? + una
- * descripción en 1 frase. Lo enseña en la app y lo manda a Telegram.
+ * manda a la IA de visión que el dueño elija NO una foto suelta, sino una
+ * SECUENCIA de fotogramas seguidos (los ~segundos de ANTES + el instante de la
+ * alarma). Así la IA ve el MOVIMIENTO (coger → esconder → irse), que es lo que
+ * de verdad delata un robo: una sola foto congelada es ambigua (una mano en el
+ * bolsillo puede ser el móvil o un hurto). Devuelve un veredicto: ¿incidente
+ * real o falsa alarma? + descripción en 1 frase. Lo enseña en la app y Telegram.
+ *
+ * CÓMO CONSIGUE EL "ANTES": mientras la IA está activa, guarda un pequeño búfer
+ * circular de fotogramas recientes (throttle ~350 ms, máx 4). Sin IA activa NO
+ * captura nada → coste cero. La alarma salta DESPUÉS del gesto, así que sin este
+ * búfer la IA solo vería al ladrón ya quieto.
  *
  * PROVEEDORES:
- *  · gemini    → Google. Tiene plan GRATIS con visión (recomendado).
- *  · anthropic → Claude (de pago, por uso).
- *  · openai    → GPT (de pago, por uso).
- *  · custom    → cualquier API compatible con OpenAI (endpoint + clave propios:
- *                OpenRouter, Groq, Together, un servidor propio…).
+ *  · gemini    → Google. Plan GRATIS con visión (recomendado).
+ *  · anthropic → Claude (de pago por uso).
+ *  · openai    → GPT (de pago por uso).
+ *  · custom    → cualquier API compatible con OpenAI (endpoint + clave propios).
  *
- * QUÉ NO HACE: NO analiza el vídeo en vivo (eso lo hace YOLO en el móvil, que es
- * instantáneo y gratis). La IA de la nube tarda ~1 s, así que se usa SOLO para
- * CONFIRMAR alertas — que es donde de verdad ayuda.
+ * QUÉ NO HACE: NO analiza el vídeo en vivo (eso lo hace YOLO en el móvil, gratis
+ * e instantáneo). La IA de la nube tarda ~1 s: se usa SOLO para CONFIRMAR.
  *
- * PRIVACIDAD (honesto): con esto ACTIVADO, la foto de cada alerta SALE a la API
- * elegida para analizarla. Va apagado por defecto; solo funciona si el dueño
- * pega SU clave (cfg.iaApiKey) y enciende cfg.iaConfirmar.
+ * PRIVACIDAD (honesto): con esto ACTIVADO, los fotogramas de cada alerta SALEN a
+ * la API elegida. Va apagado por defecto; solo funciona con la clave del dueño.
  * ==========================================================================*/
 const IA_MODELO_DEF = {
   gemini: 'gemini-2.0-flash',
@@ -28,7 +33,12 @@ const IA_MODELO_DEF = {
   openai: 'gpt-4o-mini',
   custom: 'gpt-4o-mini',
 };
+const IA_RING_MAX = 4;      // fotogramas de la secuencia (antes/durante + instante)
+const IA_RING_MS = 350;     // separación mínima entre capturas del búfer
+const IA_RING_ANCHO = 640;  // ancho de los fotogramas del búfer (ligeros)
 let ia_ocupada = false;
+let ia_ring = [];           // búfer circular de dataURLs recientes
+let ia_ringUlt = 0;
 
 /* Proveedor efectivo (con respaldo a gemini si viniera algo raro). */
 function ia_proveedor() {
@@ -42,34 +52,71 @@ function ia_modelo() {
   return m || IA_MODELO_DEF[ia_proveedor()] || 'gemini-2.0-flash';
 }
 
-/* ¿Está la confirmación por IA lista para usarse? (encendida + con clave, y
- * con endpoint si es 'custom'). */
+/* ¿Está la confirmación por IA lista para usarse? (encendida + con clave, y con
+ * endpoint si es 'custom'). */
 function ia_activa() {
   if (!(estado.cfg && estado.cfg.iaConfirmar && estado.cfg.iaApiKey)) return false;
   if (ia_proveedor() === 'custom' && !String(estado.cfg.iaEndpoint || '').trim()) return false;
   return true;
 }
 
-/* El texto del prompt (común a todos los proveedores). */
-function ia_prompt(tipo, texto) {
+/* Búfer circular de fotogramas recientes: alimenta el "antes" de la secuencia.
+ * Solo captura mientras la IA está activa (si no, coste cero). */
+function ia_init() {
+  ia_ring = [];
+  ia_ringUlt = 0;
+  if (typeof bus === 'undefined' || !bus.on) return;
+  bus.on('frame', function (d) {
+    try {
+      if (!ia_activa() || typeof vid_capturaJPEG !== 'function') return;
+      const ahora = (d && d.ts) || Date.now();
+      if (ahora - ia_ringUlt < IA_RING_MS) return;
+      const f = vid_capturaJPEG(IA_RING_ANCHO, 0.7);
+      if (!f) return;
+      ia_ringUlt = ahora;
+      ia_ring.push(f);
+      while (ia_ring.length > IA_RING_MAX) ia_ring.shift();
+    } catch (e) { /* nunca rompe el bucle de vídeo */ }
+  });
+}
+
+/* Parte un dataURL en {dataURL, mediaType, b64}; null si no es imagen base64. */
+function ia_parseFoto(dataURL) {
+  const m = String(dataURL || '').match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
+  if (!m) return null;
+  return { dataURL: dataURL, mediaType: m[1], b64: m[2] };
+}
+
+/* El texto del prompt. Cambia según sea 1 imagen o una secuencia. */
+function ia_prompt(tipo, texto, n) {
+  const cab = n > 1
+    ? 'Te paso ' + n + ' fotogramas SEGUIDOS del mismo momento, en orden (de antes al instante de la alarma). ' +
+      'Fíjate en el MOVIMIENTO entre ellos (qué coge una persona, si lo esconde en ropa/bolsa/bolsillo, hacia dónde va), no en una sola imagen suelta. '
+    : 'Mira la imagen. ';
   return 'Eres un analista de una cámara de videovigilancia. La app ha lanzado una ' +
     'alerta automática de tipo "' + (tipo || '?') + '"' + (texto ? ' (' + texto + ')' : '') + '. ' +
-    'Mira SOLO la imagen y responde ÚNICAMENTE con un JSON válido, sin texto extra:\n' +
+    cab +
+    'Responde ÚNICAMENTE con un JSON válido, sin texto extra:\n' +
     '{"real": true|false, "descripcion": "qué se ve, en una frase corta", "confianza": 0-100}\n' +
-    '"real" = true si en la imagen se aprecia un incidente coherente con la alerta ' +
+    '"real" = true si se aprecia un incidente coherente con la alerta ' +
     '(robo, ocultar un objeto, forcejeo, objeto peligroso, persona donde no debe). ' +
     '"real" = false si parece una falsa alarma (nadie, gesto inocente, mascota, sombra). ' +
     'Nunca acuses a una persona concreta; describe conductas, no identidades.';
 }
 
-/* Construye {url, headers, body} para cada proveedor. Devuelve null si el
- * proveedor no está soportado. `foto` = {dataURL, mediaType, b64}. */
-function ia_construirPeticion(prov, foto, tipo, texto) {
+/* Construye {url, headers, body} para cada proveedor con una LISTA de fotos.
+ * `fotos` = [{dataURL, mediaType, b64}, …]. Devuelve null si el proveedor no
+ * está soportado. */
+function ia_construirPeticion(prov, fotos, tipo, texto) {
   const modelo = ia_modelo();
   const clave = String(estado.cfg.iaApiKey || '').trim();
-  const prompt = ia_prompt(tipo, texto);
+  const prompt = ia_prompt(tipo, texto, fotos.length);
 
   if (prov === 'anthropic') {
+    const content = fotos.map(function (f) {
+      return { type: 'image', source: { type: 'base64', media_type: f.mediaType, data: f.b64 } };
+    });
+    content.push({ type: 'text', text: prompt });
     return {
       url: 'https://api.anthropic.com/v1/messages',
       headers: {
@@ -78,63 +125,36 @@ function ia_construirPeticion(prov, foto, tipo, texto) {
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true',
       },
-      body: {
-        model: modelo,
-        max_tokens: 300,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: foto.mediaType, data: foto.b64 } },
-            { type: 'text', text: prompt },
-          ],
-        }],
-      },
+      body: { model: modelo, max_tokens: 300, messages: [{ role: 'user', content: content }] },
     };
   }
 
   if (prov === 'gemini') {
-    // La clave viaja en la URL (?key=…), como pide la API de Google.
+    const parts = fotos.map(function (f) {
+      return { inline_data: { mime_type: f.mediaType, data: f.b64 } };
+    });
+    parts.push({ text: prompt });
     return {
       url: 'https://generativelanguage.googleapis.com/v1beta/models/' +
         encodeURIComponent(modelo) + ':generateContent?key=' + encodeURIComponent(clave),
       headers: { 'content-type': 'application/json' },
-      body: {
-        contents: [{
-          parts: [
-            { inline_data: { mime_type: foto.mediaType, data: foto.b64 } },
-            { text: prompt },
-          ],
-        }],
-        generationConfig: { maxOutputTokens: 300 },
-      },
+      body: { contents: [{ parts: parts }], generationConfig: { maxOutputTokens: 300 } },
     };
   }
 
-  // openai y custom → formato OpenAI (chat/completions con imagen por data URL).
+  // openai y custom → formato OpenAI (chat/completions con imágenes por data URL).
   if (prov === 'openai' || prov === 'custom') {
     let url = 'https://api.openai.com/v1/chat/completions';
     if (prov === 'custom') {
-      let base = String(estado.cfg.iaEndpoint || '').trim().replace(/\/+$/, '');
-      // Acepta tanto la base (…/v1) como el endpoint completo.
+      const base = String(estado.cfg.iaEndpoint || '').trim().replace(/\/+$/, '');
       url = /\/chat\/completions$/.test(base) ? base : (base + '/chat/completions');
     }
+    const content = [{ type: 'text', text: prompt }];
+    fotos.forEach(function (f) { content.push({ type: 'image_url', image_url: { url: f.dataURL } }); });
     return {
       url: url,
-      headers: {
-        'content-type': 'application/json',
-        'authorization': 'Bearer ' + clave,
-      },
-      body: {
-        model: modelo,
-        max_tokens: 300,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'text', text: prompt },
-            { type: 'image_url', image_url: { url: foto.dataURL } },
-          ],
-        }],
-      },
+      headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + clave },
+      body: { model: modelo, max_tokens: 300, messages: [{ role: 'user', content: content }] },
     };
   }
 
@@ -150,10 +170,9 @@ function ia_extraerTexto(prov, data) {
     if (prov === 'gemini') {
       const c = data && data.candidates && data.candidates[0];
       const parts = c && c.content && c.content.parts;
-      if (parts && parts.length) return parts.map((p) => p.text || '').join('');
+      if (parts && parts.length) return parts.map(function (p) { return p.text || ''; }).join('');
       return '';
     }
-    // openai / custom
     const ch = data && data.choices && data.choices[0];
     return (ch && ch.message && ch.message.content) || '';
   } catch (e) { return ''; }
@@ -165,30 +184,33 @@ function ia_nombreProv(prov) {
     (prov === 'custom' ? 'tu IA' : 'Gemini'));
 }
 
-/* Manda la foto de una alerta a la IA elegida y devuelve {real, descripcion,
- * confianza}. No lanza nunca: ante cualquier fallo devuelve null y avisa suave. */
+/* Manda la SECUENCIA de una alerta a la IA elegida y devuelve {real,
+ * descripcion, confianza}. `fotoDataURL` = el instante de la alarma; se le
+ * añaden los fotogramas recientes del búfer (el "antes"). No lanza nunca. */
 async function ia_confirmarAlerta(fotoDataURL, tipo, texto) {
   if (!ia_activa() || !fotoDataURL || ia_ocupada) return null;
-  const m = String(fotoDataURL).match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i);
-  if (!m) return null;
+  // Secuencia = últimos del búfer (antes/durante) + el instante de la alarma.
+  const crudas = ia_ring.slice(-(IA_RING_MAX - 1)).concat([fotoDataURL]);
+  const fotos = [];
+  let ultimo = null;
+  for (let i = 0; i < crudas.length; i++) {
+    if (crudas[i] === ultimo) continue;          // evita duplicados consecutivos
+    const f = ia_parseFoto(crudas[i]);
+    if (f) { fotos.push(f); ultimo = crudas[i]; }
+  }
+  if (!fotos.length) return null;
   const prov = ia_proveedor();
-  const foto = { dataURL: fotoDataURL, mediaType: m[1], b64: m[2] };
   ia_ocupada = true;
   try {
-    const pet = ia_construirPeticion(prov, foto, tipo, texto);
+    const pet = ia_construirPeticion(prov, fotos, tipo, texto);
     if (!pet) { ia_toast('🧠 Proveedor de IA no soportado.', 'sospecha'); return null; }
-    const r = await fetch(pet.url, {
-      method: 'POST',
-      headers: pet.headers,
-      body: JSON.stringify(pet.body),
-    });
+    const r = await fetch(pet.url, { method: 'POST', headers: pet.headers, body: JSON.stringify(pet.body) });
     if (!r || !r.ok) {
       const cod = r ? r.status : 0;
       const msg = (cod === 401 || cod === 403) ? 'la clave de ' + ia_nombreProv(prov) + ' no es válida' :
         (cod === 429 ? ia_nombreProv(prov) + ' saturada (límite de uso), reintenta luego' :
           (cod === 400 ? ia_nombreProv(prov) + ' rechazó la petición (¿modelo mal escrito?)' :
-            (cod === 404 ? ia_nombreProv(prov) + ': modelo o endpoint no encontrado' :
-              ('IA: error ' + cod))));
+            (cod === 404 ? ia_nombreProv(prov) + ': modelo o endpoint no encontrado' : ('IA: error ' + cod))));
       ia_toast('🧠 ' + msg, 'sospecha');
       return null;
     }
@@ -237,8 +259,8 @@ function ia_toast(msg, nivel) {
   if (typeof ui_toast === 'function') { try { ui_toast(msg, nivel || 'info'); } catch (e) {} }
 }
 
-/* Prueba manual desde Ajustes: manda un frame a la IA para comprobar la clave.
- * Devuelve true si respondió algo. */
+/* Prueba manual desde Ajustes: manda un frame (+ búfer si lo hay) a la IA para
+ * comprobar la clave. Devuelve true si respondió algo. */
 async function ia_probar() {
   if (!estado.cfg.iaApiKey) { ia_toast('🧠 Pega primero tu clave de IA.', 'sospecha'); return false; }
   if (ia_proveedor() === 'custom' && !String(estado.cfg.iaEndpoint || '').trim()) {

@@ -44,6 +44,7 @@ async function app_init() {
     if (typeof casa_init === 'function') casa_init(); // modo casa (capa sobre super)
     if (typeof dms_init === 'function') dms_init();   // centinela del conductor (perezoso)
     if (typeof pel_init === 'function') pel_init();   // aviso de objeto peligroso (cuchillo/palo)
+    if (typeof ia_init === 'function') ia_init();     // IA de confirmación (búfer de secuencia)
     if (typeof modos_init === 'function') modos_init(); // selector de modos (el ÚLTIMO: impone la vista)
     // Supercerebro (ONNX-YOLO11): init siempre; si era el motor elegido,
     // reactiva el modelo guardado (desde la caché, sin re-descargar).
