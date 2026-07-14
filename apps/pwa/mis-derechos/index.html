@@ -13167,7 +13167,10 @@ async function _llamarAPI(seleccion) {
 
     try {
       const ctrlIA = new AbortController();
-      const timerIA = setTimeout(function(){ ctrlIA.abort(); }, 45000);
+      // NVIDIA (Qwen3-80B en plan gratis) es lento, sobre todo la 1ª llamada (arranque en frío):
+      // le damos 90s. El resto de proveedores son rápidos: 45s de sobra.
+      const msTimeout = proveedor === 'nvidia' ? 90000 : 45000;
+      const timerIA = setTimeout(function(){ ctrlIA.abort(); }, msTimeout);
       const resp = await fetch(cfg.endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
@@ -13175,13 +13178,23 @@ async function _llamarAPI(seleccion) {
         signal: ctrlIA.signal
       });
       clearTimeout(timerIA);
-      const data = await resp.json();
+      // Leemos SIEMPRE como texto y luego parseamos: si el worker/proveedor devuelve algo que
+      // NO es JSON (página de error de Cloudflare, cuerpo vacío...), no reventamos y mostramos
+      // lo que de verdad llegó, en vez de perder el motivo real del fallo.
+      const rawBody = await resp.text();
+      let data = null;
+      try { data = rawBody ? JSON.parse(rawBody) : null; } catch(e) { data = null; }
       if (!resp.ok) {
-        const err = data.error?.message || `Error ${resp.status}`;
+        const err = (data && data.error && data.error.message)
+          || (rawBody && rawBody.trim() ? rawBody.slice(0, 300) : `Error ${resp.status}`);
         // Detectar errores "retryables" con fallback
         const esRateLimit = err.includes('too large') || err.includes('TPM') || err.includes('rate_limit') || resp.status === 429;
         const esQuota = err.includes('quota') || err.includes('billing') || err.includes('exceeded');
         return { ok: false, err, proveedor, esRateLimit, esQuota, status: resp.status };
+      }
+      if (!data) {
+        // Respondió 200 pero el cuerpo no es JSON válido (rarísimo): mostrar lo que llegó
+        return { ok: false, err: 'Respuesta no válida del proveedor: ' + (rawBody ? rawBody.slice(0, 200) : 'cuerpo vacío'), proveedor, esRateLimit: false, esQuota: false, status: resp.status };
       }
       const choice = data.choices?.[0] || {};
       const msg = choice.message || {};
@@ -13287,7 +13300,10 @@ async function _llamarAPI(seleccion) {
   document.getElementById('ia-typing')?.remove();
   historialIA.pop();
   if (resultado.esTimeout) {
-    return `⏱️ **El proveedor de IA no responde**\n\nHe esperado 45 segundos sin respuesta (caída o sobrecarga puntual del servicio). Vuelve a preguntar en un momento; si persiste, revisa tus keys en ⚙️ IA.`;
+    const extra = resultado.proveedor === 'nvidia'
+      ? ' NVIDIA en plan gratis es lento (sobre todo la primera pregunta): prueba otra vez, la segunda suele ir mejor.'
+      : '';
+    return `⏱️ **El proveedor de IA no responde**\n\nHe esperado sin respuesta (caída o sobrecarga puntual del servicio).${extra} Vuelve a preguntar en un momento; si persiste, revisa tus keys en ⚙️ IA.`;
   }
   if (resultado.esRateLimit) {
     return `⏱️ **Límite temporal alcanzado en todos tus proveedores**\n\nHas alcanzado el límite de uso gratuito por minuto. Espera 30-60 segundos y vuelve a preguntar.\n\nPara evitar esto: en ⚙️ IA puedes tener configuradas **Groq + Cerebras** a la vez. Si una falla, la app usa la otra automáticamente.`;
