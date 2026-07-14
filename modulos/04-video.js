@@ -91,6 +91,12 @@ function vid_init() {
     });
   }
 
+  // 🧠 "¿Qué ves?": pregunta a la IA (Gemini/OpenRouter/…) qué hay ahora en la
+  // imagen — reconoce cualquier objeto (un mechero, etc.), no solo los 80 del
+  // detector del móvil. Bajo demanda: cada toque gasta una consulta de la IA.
+  const btnQueVe = document.getElementById('vid-btnQueVe');
+  if (btnQueVe) btnQueVe.addEventListener('click', function () { if (typeof ia_queVes === 'function') ia_queVes(); });
+
   /* Estado interno del módulo (único sitio mutable, contrato §0.2) */
   estado.vid = {
     inicializado: true,
@@ -752,6 +758,8 @@ function vid_componer() {
   if (vid_el.visor) vid_el.visor.classList.add('vid-activo');
   if (vid_el.expandir) vid_el.expandir.classList.remove('oculto');
   if (vid_el.plegar) vid_el.plegar.classList.remove('oculto');
+  const vqv = document.getElementById('vid-btnQueVe');
+  if (vqv) vqv.classList.remove('oculto');   // 🧠 preguntar a la IA qué ve (si está configurada)
   const vbc = document.getElementById('vid-btnCamara');
   if (vbc && !vbc.classList.contains('oculto')) vbc.classList.add('oculto');
   const vbd = document.getElementById('vid-btnDemo');

@@ -195,6 +195,17 @@ h1, h2, h3, p { margin: 0; }
 }
 .vid-expandir:active { transform: scale(.95); }
 
+/* 🧠 «¿Qué ves?»: pregunta a la IA qué hay ahora en la imagen (arriba a la derecha). */
+.vid-queve {
+  position: absolute; right: .6rem; top: .6rem; z-index: 6;
+  background: rgba(6, 10, 14, .78); color: #dfe8f0;
+  border: 1px solid rgba(120, 150, 180, .45);
+  padding: .4rem .7rem; border-radius: .8rem;
+  font-size: .92rem; font-weight: 600; line-height: 1; cursor: pointer;
+  box-shadow: 0 3px 12px rgba(0,0,0,.5);
+}
+.vid-queve:active { transform: scale(.95); }
+
 /* Botón «▼ Reducir / ▲ Agrandar»: pliega la cámara para dejar sitio al menú. */
 .vid-plegar {
   position: absolute; right: .6rem; bottom: .6rem; z-index: 5;
@@ -632,6 +643,7 @@ summary.sec-titulo::before { display: inline-block; }
   <canvas id="vid-canvasPriv" class="oculto"></canvas>
   <div id="vid-rec" class="vid-rec oculto">● REC</div>
   <button type="button" id="mat-flotante" class="mat-flotante oculto" aria-label="Leer matrícula del coche de delante">📋 Matrícula</button>
+  <button type="button" id="vid-btnQueVe" class="vid-queve oculto" aria-label="Preguntar a la IA qué ve ahora mismo">🧠 ¿Qué ves?</button>
   <button type="button" id="vid-expandir" class="vid-expandir oculto" aria-label="Ver el vídeo a pantalla completa">⛶</button>
   <button type="button" id="vid-plegar" class="vid-plegar oculto" aria-label="Reducir la cámara para ver el menú">▼ Reducir</button>
   <div id="vid-monitor" class="vid-monitor oculto" aria-live="polite">
@@ -2225,7 +2237,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '4.05',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '4.06',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -4847,6 +4859,12 @@ function vid_init() {
     });
   }
 
+  // 🧠 "¿Qué ves?": pregunta a la IA (Gemini/OpenRouter/…) qué hay ahora en la
+  // imagen — reconoce cualquier objeto (un mechero, etc.), no solo los 80 del
+  // detector del móvil. Bajo demanda: cada toque gasta una consulta de la IA.
+  const btnQueVe = document.getElementById('vid-btnQueVe');
+  if (btnQueVe) btnQueVe.addEventListener('click', function () { if (typeof ia_queVes === 'function') ia_queVes(); });
+
   /* Estado interno del módulo (único sitio mutable, contrato §0.2) */
   estado.vid = {
     inicializado: true,
@@ -5508,6 +5526,8 @@ function vid_componer() {
   if (vid_el.visor) vid_el.visor.classList.add('vid-activo');
   if (vid_el.expandir) vid_el.expandir.classList.remove('oculto');
   if (vid_el.plegar) vid_el.plegar.classList.remove('oculto');
+  const vqv = document.getElementById('vid-btnQueVe');
+  if (vqv) vqv.classList.remove('oculto');   // 🧠 preguntar a la IA qué ve (si está configurada)
   const vbc = document.getElementById('vid-btnCamara');
   if (vbc && !vbc.classList.contains('oculto')) vbc.classList.add('oculto');
   const vbd = document.getElementById('vid-btnDemo');
@@ -18302,10 +18322,10 @@ function ia_prompt(tipo, texto, n) {
 /* Construye {url, headers, body} para cada proveedor con una LISTA de fotos.
  * `fotos` = [{dataURL, mediaType, b64}, …]. Devuelve null si el proveedor no
  * está soportado. */
-function ia_construirPeticion(prov, fotos, tipo, texto) {
+function ia_construirPeticion(prov, fotos, tipo, texto, promptOverride) {
   const modelo = ia_modelo();
   const clave = String(estado.cfg.iaApiKey || '').trim();
-  const prompt = ia_prompt(tipo, texto, fotos.length);
+  const prompt = promptOverride || ia_prompt(tipo, texto, fotos.length);
 
   if (prov === 'anthropic') {
     const content = fotos.map(function (f) {
@@ -18574,6 +18594,53 @@ async function ia_probarConexion() {
   } catch (e) {
     ia_estadoConexion('❌ NO sirve — no se pudo conectar (¿sin internet, o el proveedor bloquea el navegador/CORS?).', 'error');
     return false;
+  }
+}
+
+/* 🧠 ¿QUÉ VES? — pregunta bajo demanda: manda el fotograma actual a la IA y
+ * enseña, en una ventana, QUÉ hay en la imagen (reconoce cualquier objeto —un
+ * mechero, etc.—, no solo los 80 del detector del móvil). Cada toque = 1 consulta. */
+async function ia_queVes() {
+  const prov = ia_proveedor();
+  if (!ia_activa()) { ia_toast('🧠 Configura y activa la IA primero (Ajustes → 🧠 IA).', 'sospecha'); return; }
+  let foto = null;
+  try { if (typeof vid_capturaJPEG === 'function') foto = vid_capturaJPEG(1280, 0.82); } catch (e) {}
+  if (!foto) { ia_toast('🧠 Enciende la cámara o un vídeo para preguntar a la IA.', 'sospecha'); return; }
+  const f = ia_parseFoto(foto);
+  if (!f) { ia_toast('🧠 No se pudo capturar la imagen.', 'sospecha'); return; }
+
+  // Ventana persistente con el resultado (se actualiza cuando responde).
+  let parr = null;
+  if (typeof ui_modal === 'function') {
+    parr = document.createElement('p');
+    parr.style.margin = '0'; parr.style.fontSize = '1.02rem'; parr.style.lineHeight = '1.5';
+    parr.textContent = '🧠 Preguntando a ' + ia_nombreProv(prov) + '…';
+    ui_modal('🧠 ¿Qué ve la IA?', parr);
+  } else {
+    ia_toast('🧠 Preguntando a ' + ia_nombreProv(prov) + '…', 'info');
+  }
+  const poner = function (t) { if (parr) parr.textContent = t; else ia_toast(t, 'info'); };
+
+  const prompt = 'Mira esta imagen de una cámara y describe en español, en 1 o 2 frases, qué se ve: ' +
+    'personas, animales y objetos; y SOBRE TODO qué objeto tiene la persona en la mano si se aprecia. ' +
+    'Di el objeto por su nombre si lo reconoces (p. ej. "un mechero"). Sé concreto y HONESTO: si algo no ' +
+    'se distingue bien, dilo. No inventes.';
+  try {
+    const pet = ia_construirPeticion(prov, [f], 'descripcion', '', prompt);
+    if (!pet) { poner('🧠 Proveedor no soportado.'); return; }
+    const r = await fetch(pet.url, { method: 'POST', headers: pet.headers, body: JSON.stringify(pet.body) });
+    if (!r || !r.ok) {
+      const cod = r ? r.status : 0;
+      poner('🧠 No pudo responder (error ' + cod + '). Revisa clave/modelo en Ajustes → 🧠 IA.');
+      return;
+    }
+    const data = await r.json();
+    const errC = ia_errorCuerpo(data);
+    const txt = ia_extraerTexto(prov, data);
+    poner((txt && String(txt).trim()) ? '🧠 ' + String(txt).trim()
+      : ('🧠 ' + (errC || 'respondió vacío (¿el modelo no admite imágenes? usa uno «vision»)')));
+  } catch (e) {
+    poner('🧠 No se pudo conectar (¿sin internet o el proveedor bloquea el navegador/CORS?).');
   }
 }
 

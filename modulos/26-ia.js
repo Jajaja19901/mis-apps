@@ -111,10 +111,10 @@ function ia_prompt(tipo, texto, n) {
 /* Construye {url, headers, body} para cada proveedor con una LISTA de fotos.
  * `fotos` = [{dataURL, mediaType, b64}, …]. Devuelve null si el proveedor no
  * está soportado. */
-function ia_construirPeticion(prov, fotos, tipo, texto) {
+function ia_construirPeticion(prov, fotos, tipo, texto, promptOverride) {
   const modelo = ia_modelo();
   const clave = String(estado.cfg.iaApiKey || '').trim();
-  const prompt = ia_prompt(tipo, texto, fotos.length);
+  const prompt = promptOverride || ia_prompt(tipo, texto, fotos.length);
 
   if (prov === 'anthropic') {
     const content = fotos.map(function (f) {
@@ -383,6 +383,53 @@ async function ia_probarConexion() {
   } catch (e) {
     ia_estadoConexion('❌ NO sirve — no se pudo conectar (¿sin internet, o el proveedor bloquea el navegador/CORS?).', 'error');
     return false;
+  }
+}
+
+/* 🧠 ¿QUÉ VES? — pregunta bajo demanda: manda el fotograma actual a la IA y
+ * enseña, en una ventana, QUÉ hay en la imagen (reconoce cualquier objeto —un
+ * mechero, etc.—, no solo los 80 del detector del móvil). Cada toque = 1 consulta. */
+async function ia_queVes() {
+  const prov = ia_proveedor();
+  if (!ia_activa()) { ia_toast('🧠 Configura y activa la IA primero (Ajustes → 🧠 IA).', 'sospecha'); return; }
+  let foto = null;
+  try { if (typeof vid_capturaJPEG === 'function') foto = vid_capturaJPEG(1280, 0.82); } catch (e) {}
+  if (!foto) { ia_toast('🧠 Enciende la cámara o un vídeo para preguntar a la IA.', 'sospecha'); return; }
+  const f = ia_parseFoto(foto);
+  if (!f) { ia_toast('🧠 No se pudo capturar la imagen.', 'sospecha'); return; }
+
+  // Ventana persistente con el resultado (se actualiza cuando responde).
+  let parr = null;
+  if (typeof ui_modal === 'function') {
+    parr = document.createElement('p');
+    parr.style.margin = '0'; parr.style.fontSize = '1.02rem'; parr.style.lineHeight = '1.5';
+    parr.textContent = '🧠 Preguntando a ' + ia_nombreProv(prov) + '…';
+    ui_modal('🧠 ¿Qué ve la IA?', parr);
+  } else {
+    ia_toast('🧠 Preguntando a ' + ia_nombreProv(prov) + '…', 'info');
+  }
+  const poner = function (t) { if (parr) parr.textContent = t; else ia_toast(t, 'info'); };
+
+  const prompt = 'Mira esta imagen de una cámara y describe en español, en 1 o 2 frases, qué se ve: ' +
+    'personas, animales y objetos; y SOBRE TODO qué objeto tiene la persona en la mano si se aprecia. ' +
+    'Di el objeto por su nombre si lo reconoces (p. ej. "un mechero"). Sé concreto y HONESTO: si algo no ' +
+    'se distingue bien, dilo. No inventes.';
+  try {
+    const pet = ia_construirPeticion(prov, [f], 'descripcion', '', prompt);
+    if (!pet) { poner('🧠 Proveedor no soportado.'); return; }
+    const r = await fetch(pet.url, { method: 'POST', headers: pet.headers, body: JSON.stringify(pet.body) });
+    if (!r || !r.ok) {
+      const cod = r ? r.status : 0;
+      poner('🧠 No pudo responder (error ' + cod + '). Revisa clave/modelo en Ajustes → 🧠 IA.');
+      return;
+    }
+    const data = await r.json();
+    const errC = ia_errorCuerpo(data);
+    const txt = ia_extraerTexto(prov, data);
+    poner((txt && String(txt).trim()) ? '🧠 ' + String(txt).trim()
+      : ('🧠 ' + (errC || 'respondió vacío (¿el modelo no admite imágenes? usa uno «vision»)')));
+  } catch (e) {
+    poner('🧠 No se pudo conectar (¿sin internet o el proveedor bloquea el navegador/CORS?).');
   }
 }
 
