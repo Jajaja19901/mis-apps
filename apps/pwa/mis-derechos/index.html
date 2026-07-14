@@ -12165,7 +12165,7 @@ const LEX_NUCLEO = `Eres Lex, abogado español. Valor supremo: VERDAD LEGAL VERI
 P0 CLASIFICA: caso PERSONAL sin EL dato que cambia el régimen→UNA pregunta y para. Pregunta GENERAL→PROHIBIDO pedir contexto: verdad general directa + VERDAD INCÓMODA si aplica.
 P1 👁️ LO QUE NO TE CUENTAN: 1-3 frases, verdad práctica, probabilidad explícita ("SÍ","muy probable"). Llano ("calabozo","te despiden"). Sin teoría ni "depende" a secas; si depende: "Si A→X. Si B→Y."
 P2 🛡️ QUÉ HACER AHORA: pasos numerados por urgencia.
-P3 ⚖️ BASE LEGAL: SOLO artículos de tus APUNTES o del TEXTO BOE adjunto, cada uno para SU concepto; el resto→"verifícalo en BOE". JAMÁS inventes números, penas, plazos, horarios, organismos, trámites ni "modelos" de formularios (los reales de cabecera: Juzgado de Guardia, Defensor del Pueblo, hoja de reclamaciones, AEPD, Inspección de Trabajo, SEPRONA). PROHIBIDO rellenar con CE genérica (14/18/24/33) que no aporte: mejor pocos artículos exactos.
+P3 ⚖️ BASE LEGAL: SOLO artículos de tus APUNTES o del TEXTO BOE adjunto, cada uno para SU concepto; el resto→"verifícalo en BOE". JAMÁS inventes números, penas, plazos, horarios, organismos, trámites ni "modelos" de formularios (los reales de cabecera: Juzgado de Guardia, Defensor del Pueblo, hoja de reclamaciones, AEPD, Inspección de Trabajo, SEPRONA). PROHIBIDO rellenar con CE genérica (14/18/24/33) que no aporte: mejor pocos artículos exactos. Cada artículo=UNA línea corta con su idea en TUS palabras (ej. "Art. 153.1 CP: 6m-1a al hombre agresor"); JAMÁS copies el texto literal de la ley (ni entre comillas ni en apartados numerados "1. 2."): quien quiera el texto entero, a boe.es.
 APUNTES BASE:
 CE: 14 igualdad · 17 libertad · 18 domicilio · 21 manifestación (derecho SIN autorización: solo comunicación previa de los ORGANIZADORES; al asistente pacífico de una no comunicada NO se le multa: responden los convocantes) · 24 tutela · 24.2 presunción de inocencia · 33 propiedad
 LO 4/2015: 16 identificación SOLO con indicios (negarse cuando procede=infracción 36.6+traslado a comisaría MÁX 6h SOLO para identificar — NO es delito; el 556 CP exige resistencia FÍSICA: 3m-1a, no inventes otra pena; NO llevar el DNI encima NO es sancionable: cabe identificarse por otros medios) · 18 comprobación de vehículos (indicios) · 20 cacheos (indicios y agente del MISMO SEXO salvo urgencia, 20.2; contrario sin urgencia=irregular, reclamable) · 36.23 GRABAR a agentes ES LEGAL (lo sancionable es DIFUNDIR poniendo en riesgo una operación)
@@ -13018,6 +13018,29 @@ function limpiarFugasPrompt(texto) {
     .replace(/\n{3,}/g, '\n\n').trim();
 }
 
+// ═══ RECORTA LA LEY LITERAL (código): algunos modelos (Llama sobre todo) copian el texto
+// entero de los artículos —entre comillas o en apartados numerados del BOE— en vez de
+// explicarlos en una línea. Eso alarga la respuesta y la hace ilegible en el móvil.
+// Esta función quita SOLO el ladrillo claramente literal y deja la cita corta:
+//   · comillas con >140 caracteres (el artículo entero) → "(texto completo en boe.es)"
+//   · en la zona de BASE LEGAL, líneas numeradas >180 caracteres (subapartados del BOE)
+// Es conservadora: nunca toca las explicaciones cortas ni los pasos de QUÉ HACER AHORA
+// (que van antes de BASE LEGAL y son breves).
+function recortarLeyLiteral(texto) {
+  if (!texto) return texto;
+  texto = texto.replace(/"[^"]{140,}"/g, '(texto completo en boe.es)')
+               .replace(/[«“][^«»“”]{140,}[»”]/g, '(texto completo en boe.es)');
+  const iBL = texto.search(/base legal/i);
+  if (iBL !== -1) {
+    const cabeza = texto.slice(0, iBL);
+    const cola = texto.slice(iBL).split('\n').filter(function(l){
+      return !/^\s*\d+[.)]\s.{180,}$/.test(l); // "1. <texto legal larguísimo>" = subapartado del BOE
+    }).join('\n');
+    texto = cabeza + cola;
+  }
+  return texto.replace(/\n{3,}/g, '\n\n').trim();
+}
+
 // Ancla del PRIMER bloque en una respuesta ya normalizada (sin acentos ni emoji).
 // Acepta el titulo actual "lo que no te cuentan" y, por si el modelo se despista,
 // tambien el antiguo "respuesta directa": asi el detector nunca se rompe por el nombre.
@@ -13185,7 +13208,7 @@ async function _llamarAPI(seleccion) {
       }
       const choice = data.choices?.[0] || {};
       const msg = choice.message || {};
-      let respuesta = limpiarFugasPrompt(validarArticulosLex(msg.content || msg.reasoning || 'Sin respuesta'));
+      let respuesta = recortarLeyLiteral(limpiarFugasPrompt(validarArticulosLex(msg.content || msg.reasoning || 'Sin respuesta')));
       if (choice.finish_reason === 'length') {
         respuesta += '\n\n⚠️ Me he quedado sin espacio. Escribe "sigue" y continúo donde lo dejé.';
       }
