@@ -2265,7 +2265,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '4.15',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '4.16',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -2912,59 +2912,87 @@ function nuc_fuenteNoche(fuente) {
  * grande vive en la nube. El servidor responde detecciones NORMALIZADAS (0-1) y
  * aquí se escalan al tamaño real del vídeo. NUNCA lanza: si el servidor tarda o
  * falla, se sigue mostrando lo último bueno (o []). */
-let nuc_srvEnVuelo = false;      // ¿hay una petición viajando ahora mismo?
-let nuc_srvUltimo = [];          // últimas cajas que devolvió el servidor
+let nuc_srvEnVuelo = 0;          // cuántas fotos viajan al servidor ahora mismo
+let nuc_srvUltimo = [];          // últimas cajas buenas que devolvió el servidor
+let nuc_srvSeqEnv = 0;           // nº de la última foto ENVIADA
+let nuc_srvSeqApl = 0;           // nº de la última respuesta ya dibujada
+let nuc_srvUltimoEnvio = 0;      // cuándo se mandó la última (para no saturar)
 let nuc_srvAviso = 0;            // para no llenar la consola de errores repetidos
-async function nuc_detectarServidor() {
-  const url = (estado.cfg.servidorUrl || '').trim();
-  if (!url) return [];
-  // Si ya hay una petición en vuelo NO encadenamos otra (evita atascar la red y
-  // el servidor): reutilizamos las últimas cajas hasta que llegue la respuesta.
-  if (nuc_srvEnVuelo) return nuc_srvUltimo;
-  const jpeg = (typeof vid_capturaJPEG === 'function') ? vid_capturaJPEG(640, 0.6) : null;
-  if (!jpeg) return nuc_srvUltimo;
-  nuc_srvEnVuelo = true;
-  try {
-    const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-    const to = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 8000) : null;
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imagen: jpeg }),
-      signal: ctrl ? ctrl.signal : undefined,
+const NUC_SRV_MAX_VUELO = 3;     // hasta 3 fotos a la vez → MUCHOS más análisis/segundo
+const NUC_SRV_MIN_MS = 80;       // tope: no mandar más de ~12 fotos/segundo
+
+/* Convierte lo que responde el servidor en cajas escaladas al vídeo. */
+function nuc_srvEscalar(dets) {
+  const w = estado.video.w || 640, h = estado.video.h || 480;
+  const salida = [];
+  for (let i = 0; i < (dets || []).length; i++) {
+    const d = dets[i]; if (!d) continue;
+    // Acepta caja como {x,y,an,al}, {caja:{...}} o bbox [x,y,an,al].
+    let x = d.x, y = d.y, an = d.an, al = d.al;
+    if (d.caja) { x = d.caja.x; y = d.caja.y; an = d.caja.an; al = d.caja.al; }
+    else if (Array.isArray(d.bbox)) { x = d.bbox[0]; y = d.bbox[1]; an = d.bbox[2]; al = d.bbox[3]; }
+    if (typeof x !== 'number' || typeof y !== 'number' || typeof an !== 'number' || typeof al !== 'number') continue;
+    // Si vienen 0-1 (normalizadas) se escalan al vídeo; si ya vienen en px, se dejan.
+    const norm = (x <= 1.5 && y <= 1.5 && an <= 1.5 && al <= 1.5);
+    salida.push({
+      clase: d.clase || d.class || d.nombre || 'objeto',
+      score: (typeof d.score === 'number') ? d.score : (typeof d.conf === 'number' ? d.conf : 0.5),
+      caja: norm
+        ? { x: x * w, y: y * h, an: an * w, al: al * h }
+        : { x: x, y: y, an: an, al: al },
     });
+  }
+  return salida;
+}
+
+/* Manda UNA foto al servidor SIN esperar (dispara y sigue). Deja hasta
+ * NUC_SRV_MAX_VUELO viajando a la vez → así salen muchos más análisis por
+ * segundo (el móvil no se queda parado esperando la respuesta anterior). */
+function nuc_srvLanzar() {
+  const url = (estado.cfg.servidorUrl || '').trim();
+  if (!url) return;
+  if (nuc_srvEnVuelo >= NUC_SRV_MAX_VUELO) return;        // ya hay bastantes en el aire
+  const ahora = Date.now();
+  if (ahora - nuc_srvUltimoEnvio < NUC_SRV_MIN_MS) return; // no saturar la red/servidor
+  const jpeg = (typeof vid_capturaJPEG === 'function') ? vid_capturaJPEG(640, 0.6) : null;
+  if (!jpeg) return;
+  nuc_srvUltimoEnvio = ahora;
+  const seq = ++nuc_srvSeqEnv;
+  nuc_srvEnVuelo++;
+  const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  const to = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 8000) : null;
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ imagen: jpeg }),
+    signal: ctrl ? ctrl.signal : undefined,
+  }).then(function (r) {
     if (to) clearTimeout(to);
     if (!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-    const dets = (data && (data.detecciones || data.detections)) || [];
-    const w = estado.video.w || 640, h = estado.video.h || 480;
-    const salida = [];
-    for (let i = 0; i < dets.length; i++) {
-      const d = dets[i]; if (!d) continue;
-      // Acepta caja como {x,y,an,al}, {caja:{...}} o bbox [x,y,an,al].
-      let x = d.x, y = d.y, an = d.an, al = d.al;
-      if (d.caja) { x = d.caja.x; y = d.caja.y; an = d.caja.an; al = d.caja.al; }
-      else if (Array.isArray(d.bbox)) { x = d.bbox[0]; y = d.bbox[1]; an = d.bbox[2]; al = d.bbox[3]; }
-      if (typeof x !== 'number' || typeof y !== 'number' || typeof an !== 'number' || typeof al !== 'number') continue;
-      // Si vienen 0-1 (normalizadas) se escalan al vídeo; si ya vienen en px, se dejan.
-      const norm = (x <= 1.5 && y <= 1.5 && an <= 1.5 && al <= 1.5);
-      salida.push({
-        clase: d.clase || d.class || d.nombre || 'objeto',
-        score: (typeof d.score === 'number') ? d.score : (typeof d.conf === 'number' ? d.conf : 0.5),
-        caja: norm
-          ? { x: x * w, y: y * h, an: an * w, al: al * h }
-          : { x: x, y: y, an: an, al: al },
-      });
-    }
-    nuc_srvUltimo = salida;
-    return salida;
-  } catch (e) {
-    const ahora = Date.now();
-    if (ahora - nuc_srvAviso > 5000) { nuc_srvAviso = ahora; console.warn('[servidor] ' + (e && e.message)); }
-    return nuc_srvUltimo;   // mientras se recupera, seguimos con lo último bueno
-  } finally {
-    nuc_srvEnVuelo = false;
-  }
+    return r.json();
+  }).then(function (data) {
+    const salida = nuc_srvEscalar(data && (data.detecciones || data.detections));
+    // Con varias fotos en vuelo pueden llegar desordenadas: dibujamos SOLO si
+    // esta respuesta es más nueva que la última pintada (nunca pisar lo reciente).
+    if (seq >= nuc_srvSeqApl) { nuc_srvSeqApl = seq; nuc_srvUltimo = salida; }
+  }).catch(function (e) {
+    const a = Date.now();
+    if (a - nuc_srvAviso > 5000) { nuc_srvAviso = a; console.warn('[servidor] ' + (e && e.message)); }
+  }).finally(function () {
+    if (to) clearTimeout(to);
+    nuc_srvEnVuelo--;
+  });
+}
+
+/* 🖥️ MOTOR "SERVIDOR EN LA NUBE": el móvil NO piensa nada. En cada vuelta manda
+ * una foto NUEVA al ordenador potente (si hay hueco) y DEVUELVE AL INSTANTE las
+ * últimas cajas que ya llegaron — sin esperar. Así el vídeo va fluido y se
+ * analiza muchas veces por segundo. El servidor responde cajas NORMALIZADAS
+ * (0-1) que aquí se escalan al vídeo. NUNCA lanza. */
+async function nuc_detectarServidor() {
+  if (!(estado.cfg.servidorUrl || '').trim()) return [];
+  nuc_srvLanzar();          // dispara una foto nueva si hay hueco (no espera)
+  return nuc_srvUltimo;     // al instante: las últimas cajas buenas del servidor
 }
 
 /* Detecta sobre un <video>/<img>/<canvas> listo. Devuelve [] si algo falla.
