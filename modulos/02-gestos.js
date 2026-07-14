@@ -331,6 +331,14 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
   if (anchoHombros < 1) return;
   const hombrosC = { x: (hi.x + hd.x) / 2, y: (hi.y + hd.y) / 2 };
 
+  // 👔 ZONA DE PERSONAL: si esta persona está en la zona del personal (barra/
+  // caja), sus gestos NO cuentan como robo — es el dependiente trabajando. Se
+  // usa el punto de los hombros (siempre visible). Sin zona dibujada, no aplica.
+  if (typeof zona_enPersonal === 'function' && zona_enPersonal(hombrosC.x, hombrosC.y)) {
+    if (g.maquinas[id]) g.maquinas[id].fase = 'reposo';
+    return;
+  }
+
   // Caderas/cintura: si se ven, usamos las reales; si están TAPADAS (persona
   // tras el mostrador, encuadre de medio cuerpo) las ESTIMAMOS bajo los hombros
   // usando la anchura de hombros como escala. Así el gesto se detecta también

@@ -6,15 +6,16 @@
  * ==========================================================================*/
 
 /* --- Constantes --------------------------------------------------------------*/
-const ZONA_TIPOS = ['prohibida', 'sensible', 'caja', 'plaza', 'detencion', 'analisis', 'exclusion'];
+const ZONA_TIPOS = ['prohibida', 'sensible', 'caja', 'plaza', 'detencion', 'analisis', 'exclusion', 'personal'];
 const ZONA_COLORES = {
   prohibida: '#ff4155', sensible: '#ffb224', caja: '#3fa9ff',
   detencion: '#ffb224', plaza: '#2ee584', analisis: '#8b5cf6', exclusion: '#000000',
+  personal: '#2ee5c8',
 };
 const ZONA_ETIQUETAS = {
   prohibida: 'Zona prohibida', sensible: 'Zona sensible', caja: 'Caja',
   plaza: 'Plaza', detencion: 'Zona detención', analisis: 'Zona de análisis',
-  exclusion: 'Zona de exclusión (privacidad)',
+  exclusion: 'Zona de exclusión (privacidad)', personal: 'Zona de personal',
 };
 const ZONA_FUENTE_MONO = "11px 'SFMono-Regular',ui-monospace,'Cascadia Mono',Consolas,monospace";
 const ZONA_PLAZA_MS = 2000;          // anti-parpadeo de plazas (ocupar/liberar)
@@ -72,6 +73,7 @@ function zona_conectarToolbar() {
   zona_boton('zona-plaza', function () { zona_iniciarDibujo('plaza'); });
   zona_boton('zona-detencion', function () { zona_iniciarDibujo('detencion'); });
   zona_boton('zona-analisis', function () { zona_iniciarDibujo('analisis'); });
+  zona_boton('zona-personal', function () { zona_iniciarDibujo('personal'); });
   zona_boton('zona-linea', function () { zona_iniciarLinea(); });
   zona_boton('zona-cerrar', function () { zona_terminarDibujo(); });
   zona_boton('zona-cancelar', function () { zona_cancelarDibujo(); });
@@ -295,6 +297,22 @@ function zona_hayBolsaCon(persona, bolsas, w) {
 function zona_hayMascara() {
   return (estado.zonas || []).some(function (z) { return z && z.tipo === 'analisis' && z.puntos && z.puntos.length >= 3; });
 }
+
+/* 👔 ¿El punto (en PX del frame) cae en una "Zona de personal"? Ahí los gestos
+ * de robo NO cuentan (el dependiente detrás de la barra/caja trabaja tranquilo).
+ * Sin ninguna zona de personal dibujada, siempre devuelve false. */
+function zona_enPersonal(xPx, yPx) {
+  try {
+    const zonas = (estado.zonas || []).filter(function (z) { return z && z.tipo === 'personal' && z.puntos && z.puntos.length >= 3; });
+    if (!zonas.length) return false;
+    const w = estado.video.w || 640, h = estado.video.h || 480;
+    for (let i = 0; i < zonas.length; i++) {
+      const pts = zonas[i].puntos.map(function (p) { return { x: p.x * w, y: p.y * h }; });
+      if (typeof zona_puntoEnPoligono === 'function' && zona_puntoEnPoligono(xPx, yPx, pts)) return true;
+    }
+    return false;
+  } catch (e) { return false; }
+}
 function zona_filtrarPorMascara(dets) {
   if (!Array.isArray(dets) || !dets.length) return dets || [];
   const zonas = (estado.zonas || []).filter(function (z) { return z && z.tipo === 'analisis' && z.puntos && z.puntos.length >= 3; });
@@ -332,7 +350,7 @@ function zona_evaluar(tracks, ts) {
   // una máscara para la IA (ya filtró las detecciones): NO generan presencia,
   // merodeo, cola ni ninguna alerta, así que se excluyen de la evaluación.
   const zonasPx = estado.zonas
-    .filter(function (zona) { return zona && zona.tipo !== 'analisis' && zona.tipo !== 'exclusion'; })
+    .filter(function (zona) { return zona && zona.tipo !== 'analisis' && zona.tipo !== 'exclusion' && zona.tipo !== 'personal'; })
     .map(function (zona) {
       return { ref: zona, puntos: zona.puntos.map(function (p) { return { x: p.x * w, y: p.y * h }; }) };
     });
