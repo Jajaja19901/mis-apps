@@ -13010,7 +13010,7 @@ function validarArticulosLex(texto) {
 // ═══ FILTRO ANTI-FUGA (código): si el modelo copia trozos de sus instrucciones internas
 // (VERDADES INCÓMODAS, REGLA DE PODERES...) en la respuesta, esas líneas se eliminan.
 function limpiarFugasPrompt(texto) {
-  const marcas = /VERDAD(ES)? INC(Ó|O)MODA(S)?\s*[:—–-]|REGLA DE PODERES|PRINCIPIOS TRANSVERSALES\s*[:—–-]|CIERRE OBLIGATORIO|AUTO-TEST|LEY vs PR(Á|A)CTICA|PRIMERA FRASE:|=FALSA|exige nombrar la LLAVE|responde QUI(É|E)N, sin pedir contexto|cada art(í|i)culo=SOLO su concepto|APUNTES BASE/i;
+  const marcas = /^\s*VERDAD(ES)? INC(Ó|O)MODA(S)?\s*[:—–-]?\s*$|VERDAD(ES)? INC(Ó|O)MODA(S)?\s*[:—–-]|^\s*REGLA DE PODERES\s*[:—–-]?\s*$|REGLA DE PODERES|PRINCIPIOS TRANSVERSALES\s*[:—–-]|CIERRE OBLIGATORIO|AUTO-TEST|LEY vs PR(Á|A)CTICA|PRIMERA FRASE:|=FALSA|exige nombrar la LLAVE|responde QUI(É|E)N, sin pedir contexto|cada art(í|i)culo=SOLO su concepto|APUNTES BASE/i;
   texto = texto.replace(/①\s*/g, '1) ').replace(/②\s*/g, '2) ').replace(/③\s*/g, '3) ');
   return texto.split('\n').filter(function(linea){ return !marcas.test(linea); }).join('\n')
     .replace(/(ante la |a la |la )?oficina de (derechos humanos|derechos y garant(í|i)as)( del defensor del pueblo)?/gi, function(m){ return m.match(/^ante/i) ? 'ante el Defensor del Pueblo' : (m.match(/^a la/i) ? 'al Defensor del Pueblo' : 'el Defensor del Pueblo'); })
