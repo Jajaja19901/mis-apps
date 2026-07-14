@@ -2225,7 +2225,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '4.04',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '4.05',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -2295,6 +2295,7 @@ const CFG_DEFECTOS = {
   accAglomeracion: false,   // grupo con movimiento brusco (posible incidente)
   accColarse: false,        // dos entradas casi pegadas (tailgating)
   ocultacionPermanencia: 0.7, // seg que la mano debe quedarse en bolsillo/cintura (bajar pilla metidas rápidas)
+  ocultacionAlcance: 1.1,   // 🤏 cuánto hay que estirar el brazo para que cuente como "coger" (×ancho hombros). Menos = pilla robos disimulados (la IA filtra los extra). Lo ajusta el preset de sensibilidad.
   manosConfirmar: false,    // 🖐 confirmar la ocultación mirando la MANO (abierta=inocente; cerrada/oculta=cuenta). OFF por defecto: rechazaba metidas reales; se activa a mano quien quiera menos falsos
   fueraHorarioOn: false,
   fueraHorarioIni: '22:00',
@@ -3805,7 +3806,11 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
     // DEBAJO y PEGADO al cuerpo (balanceo, metida de mano directa al bolsillo)
     // NO es coger — esas metidas vacías puntuaban como robo.
     const dxTorso = Math.abs(muneca.x - torsoC.x);
-    if (dT > GESTO_EXT_ALCANCE * anchoHombros &&
+    // El "alcance" mínimo es AFINABLE por sensibilidad: en ALTA se pide un gesto
+    // más corto (0,85×) para pillar robos DISIMULADOS (coger sin estirar mucho),
+    // que antes se colaban; los falsos extra los filtra la IA de confirmación.
+    const alcanceMin = nuc_clamp(estado.cfg.ocultacionAlcance || GESTO_EXT_ALCANCE, 0.6, 1.6);
+    if (dT > alcanceMin * anchoHombros &&
         (muneca.y <= caderasC.y + anchoHombros * 0.25 || dxTorso > anchoHombros * 0.85)) {
       extendida = true;
     }
@@ -9072,9 +9077,9 @@ function cfg_pinCambiar() {
  * permanencia + nº de gestos. Reutiliza los controles finos existentes (no
  * duplica lógica): solo escribe sus valores y refresca la pantalla. */
 const CFG_SENSIBILIDAD = {
-  baja:   { ocultacionUmbral: 78, ocultacionPermanencia: 1.0, ocultacionUnGesto: false },
-  normal: { ocultacionUmbral: 60, ocultacionPermanencia: 0.7, ocultacionUnGesto: false },
-  alta:   { ocultacionUmbral: 42, ocultacionPermanencia: 0.5, ocultacionUnGesto: true  },
+  baja:   { ocultacionUmbral: 78, ocultacionPermanencia: 1.0, ocultacionUnGesto: false, ocultacionAlcance: 1.25 },
+  normal: { ocultacionUmbral: 60, ocultacionPermanencia: 0.7, ocultacionUnGesto: false, ocultacionAlcance: 1.1 },
+  alta:   { ocultacionUmbral: 42, ocultacionPermanencia: 0.5, ocultacionUnGesto: true,  ocultacionAlcance: 0.85 },
 };
 /* 🧠 Metadatos por proveedor de IA (etiqueta de clave, modelos sugeridos, nota). */
 const CFG_IA_PROV = {
@@ -9178,6 +9183,7 @@ function cfg_aplicarSensibilidad(nivel) {
   estado.cfg.ocultacionUmbral = p.ocultacionUmbral;
   estado.cfg.ocultacionPermanencia = p.ocultacionPermanencia;
   estado.cfg.ocultacionUnGesto = p.ocultacionUnGesto;
+  if (p.ocultacionAlcance != null) estado.cfg.ocultacionAlcance = p.ocultacionAlcance;
   nuc_guardar('cfg', estado.cfg);
   // Refresca los controles finos y sus etiquetas para que reflejen el preset.
   if (typeof cfg_resincronizarTodos === 'function') cfg_resincronizarTodos();

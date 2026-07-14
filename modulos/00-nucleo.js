@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '4.04',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '4.05',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -81,6 +81,7 @@ const CFG_DEFECTOS = {
   accAglomeracion: false,   // grupo con movimiento brusco (posible incidente)
   accColarse: false,        // dos entradas casi pegadas (tailgating)
   ocultacionPermanencia: 0.7, // seg que la mano debe quedarse en bolsillo/cintura (bajar pilla metidas rápidas)
+  ocultacionAlcance: 1.1,   // 🤏 cuánto hay que estirar el brazo para que cuente como "coger" (×ancho hombros). Menos = pilla robos disimulados (la IA filtra los extra). Lo ajusta el preset de sensibilidad.
   manosConfirmar: false,    // 🖐 confirmar la ocultación mirando la MANO (abierta=inocente; cerrada/oculta=cuenta). OFF por defecto: rechazaba metidas reales; se activa a mano quien quiera menos falsos
   fueraHorarioOn: false,
   fueraHorarioIni: '22:00',

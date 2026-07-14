@@ -397,9 +397,9 @@ function cfg_pinCambiar() {
  * permanencia + nº de gestos. Reutiliza los controles finos existentes (no
  * duplica lógica): solo escribe sus valores y refresca la pantalla. */
 const CFG_SENSIBILIDAD = {
-  baja:   { ocultacionUmbral: 78, ocultacionPermanencia: 1.0, ocultacionUnGesto: false },
-  normal: { ocultacionUmbral: 60, ocultacionPermanencia: 0.7, ocultacionUnGesto: false },
-  alta:   { ocultacionUmbral: 42, ocultacionPermanencia: 0.5, ocultacionUnGesto: true  },
+  baja:   { ocultacionUmbral: 78, ocultacionPermanencia: 1.0, ocultacionUnGesto: false, ocultacionAlcance: 1.25 },
+  normal: { ocultacionUmbral: 60, ocultacionPermanencia: 0.7, ocultacionUnGesto: false, ocultacionAlcance: 1.1 },
+  alta:   { ocultacionUmbral: 42, ocultacionPermanencia: 0.5, ocultacionUnGesto: true,  ocultacionAlcance: 0.85 },
 };
 /* 🧠 Metadatos por proveedor de IA (etiqueta de clave, modelos sugeridos, nota). */
 const CFG_IA_PROV = {
@@ -503,6 +503,7 @@ function cfg_aplicarSensibilidad(nivel) {
   estado.cfg.ocultacionUmbral = p.ocultacionUmbral;
   estado.cfg.ocultacionPermanencia = p.ocultacionPermanencia;
   estado.cfg.ocultacionUnGesto = p.ocultacionUnGesto;
+  if (p.ocultacionAlcance != null) estado.cfg.ocultacionAlcance = p.ocultacionAlcance;
   nuc_guardar('cfg', estado.cfg);
   // Refresca los controles finos y sus etiquetas para que reflejen el preset.
   if (typeof cfg_resincronizarTodos === 'function') cfg_resincronizarTodos();

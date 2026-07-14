@@ -372,7 +372,11 @@ function gesto_evaluarOcultacion(trk, puntos, ts) {
     // DEBAJO y PEGADO al cuerpo (balanceo, metida de mano directa al bolsillo)
     // NO es coger — esas metidas vacías puntuaban como robo.
     const dxTorso = Math.abs(muneca.x - torsoC.x);
-    if (dT > GESTO_EXT_ALCANCE * anchoHombros &&
+    // El "alcance" mínimo es AFINABLE por sensibilidad: en ALTA se pide un gesto
+    // más corto (0,85×) para pillar robos DISIMULADOS (coger sin estirar mucho),
+    // que antes se colaban; los falsos extra los filtra la IA de confirmación.
+    const alcanceMin = nuc_clamp(estado.cfg.ocultacionAlcance || GESTO_EXT_ALCANCE, 0.6, 1.6);
+    if (dT > alcanceMin * anchoHombros &&
         (muneca.y <= caderasC.y + anchoHombros * 0.25 || dxTorso > anchoHombros * 0.85)) {
       extendida = true;
     }
