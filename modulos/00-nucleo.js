@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '4.12',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '4.13',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -547,10 +547,12 @@ let nuc_cnvAnalisis = null;
  * ~25-30 px a 704 (visible → lo encuadra). La IA corre en hilo aparte (⧉),
  * así que el coste extra no toca la fluidez de la cámara. */
 function nuc_analisisMax() {
-  // Coche (matrículas/coches de frente) y CASA (un cuchillo en mano son ~15 px
-  // a 512: invisible) analizan a 704. Comercio se queda en 512 (más rápido).
-  const casa = !!(estado.cfg.casaActivo || (estado.modos && estado.modos.vista === 'casa'));
-  return (estado.cfg.modo === 'carretera' || estado.cfg.copActivo || casa) ? 704 : NUC_ANALISIS_MAX;
+  // TODOS los modos de escena analizan a 704 px. Una persona LEJOS en la tienda
+  // (la que roba al fondo), o un coche/cuchillo pequeño, mide ~20-30 px a 512 —
+  // invisible para el modelo — y el doble a 704, donde SÍ se encuadra. La IA
+  // corre en hilo aparte (⧉ Supercerebro/Potente), así que el coste extra apenas
+  // toca la fluidez de la cámara. (El Básico/COCO usa su propia copia a 512.)
+  return 704;
 }
 
 /* Devuelve { fuente, escala }: la fuente que debe ver la IA y el factor para
