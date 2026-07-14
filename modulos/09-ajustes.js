@@ -430,6 +430,15 @@ const CFG_IA_PROV = {
     modeloNota: 'Usa un modelo con visión (gpt-4o / gpt-4o-mini).',
     endpoint: false,
   },
+  openrouter: {
+    keyLabel: 'Clave de API de OpenRouter',
+    keyPlaceholder: 'sk-or-...',
+    modelos: ['meta-llama/llama-3.2-11b-vision-instruct', 'meta-llama/llama-3.2-90b-vision-instruct', 'google/gemini-flash-1.5', 'openai/gpt-4o-mini'],
+    modeloDef: 'meta-llama/llama-3.2-11b-vision-instruct',
+    nota: 'Una clave = muchas IAs, y SÍ funciona desde el móvil. Clave en openrouter.ai (hay modelos gratis).',
+    modeloNota: 'Usa uno con visión (…-vision-instruct, gpt-4o, gemini-flash…).',
+    endpoint: false,
+  },
   custom: {
     keyLabel: 'Clave de tu API',
     keyPlaceholder: 'tu clave...',

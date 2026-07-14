@@ -31,6 +31,7 @@ const IA_MODELO_DEF = {
   gemini: 'gemini-2.0-flash',
   anthropic: 'claude-haiku-4-5-20251001',
   openai: 'gpt-4o-mini',
+  openrouter: 'meta-llama/llama-3.2-11b-vision-instruct',
   custom: 'gpt-4o-mini',
 };
 const IA_RING_MAX = 4;      // fotogramas de la secuencia (antes/durante + instante)
@@ -43,7 +44,7 @@ let ia_ringUlt = 0;
 /* Proveedor efectivo (con respaldo a gemini si viniera algo raro). */
 function ia_proveedor() {
   const p = estado.cfg && estado.cfg.iaProveedor;
-  return (p === 'anthropic' || p === 'openai' || p === 'custom' || p === 'gemini') ? p : 'gemini';
+  return (p === 'anthropic' || p === 'openai' || p === 'openrouter' || p === 'custom' || p === 'gemini') ? p : 'gemini';
 }
 
 /* Modelo efectivo (el elegido, o el por defecto del proveedor). */
@@ -142,10 +143,13 @@ function ia_construirPeticion(prov, fotos, tipo, texto) {
     };
   }
 
-  // openai y custom → formato OpenAI (chat/completions con imágenes por data URL).
-  if (prov === 'openai' || prov === 'custom') {
+  // openai, openrouter y custom → formato OpenAI (chat/completions, imagen por
+  // data URL). Solo cambia la URL; openrouter la trae fija (no pide endpoint).
+  if (prov === 'openai' || prov === 'openrouter' || prov === 'custom') {
     let url = 'https://api.openai.com/v1/chat/completions';
-    if (prov === 'custom') {
+    if (prov === 'openrouter') {
+      url = 'https://openrouter.ai/api/v1/chat/completions';
+    } else if (prov === 'custom') {
       const base = String(estado.cfg.iaEndpoint || '').trim().replace(/\/+$/, '');
       url = /\/chat\/completions$/.test(base) ? base : (base + '/chat/completions');
     }
@@ -181,7 +185,7 @@ function ia_extraerTexto(prov, data) {
 /* Nombre bonito del proveedor para los avisos. */
 function ia_nombreProv(prov) {
   return prov === 'anthropic' ? 'Claude' : (prov === 'openai' ? 'OpenAI' :
-    (prov === 'custom' ? 'tu IA' : 'Gemini'));
+    (prov === 'openrouter' ? 'OpenRouter' : (prov === 'custom' ? 'tu IA' : 'Gemini')));
 }
 
 /* Marca el estado de la IA sobre una alerta: lo enseña en su tarjeta del feed
