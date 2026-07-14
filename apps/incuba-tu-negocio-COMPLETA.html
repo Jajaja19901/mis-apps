@@ -502,6 +502,60 @@
     .pcard-body{max-height:none!important;overflow:visible}
   }
 
+
+  /* ================= CINEMÁTICO v2 — épico de verdad ================= */
+  .chero h1{font-size:clamp(40px,9.2vw,94px)!important;line-height:.98!important;letter-spacing:-.035em!important}
+  .chero p.sub{font-size:clamp(17px,2.3vw,23px)!important}
+  .chero-glow{width:min(860px,98vw)!important;height:min(860px,98vw)!important;opacity:1!important;
+    background:radial-gradient(circle,#27e6a63a,#8b6bff22 42%,transparent 64%)!important;filter:blur(34px)!important}
+  .sec-head{max-width:860px!important;margin:0 auto 36px!important}
+  .sec-head h2{font-size:clamp(30px,5.8vw,58px)!important;line-height:1.02!important;letter-spacing:-.03em!important}
+
+  /* reveals MUCHO más marcados */
+  .cin{opacity:0;transform:translateY(74px) scale(.9);filter:blur(7px);transition:opacity 1s var(--ease),transform 1.15s var(--ease),filter 1s var(--ease)}
+  .cin.in{opacity:1;transform:none;filter:none}
+  .cin-left{opacity:0;transform:translateX(-84px) rotate(-1.6deg);filter:blur(6px);transition:opacity 1s var(--ease),transform 1.15s var(--ease),filter 1s var(--ease)}
+  .cin-left.in{opacity:1;transform:none;filter:none}
+  .cin-right{opacity:0;transform:translateX(84px) rotate(1.6deg);filter:blur(6px);transition:opacity 1s var(--ease),transform 1.15s var(--ease),filter 1s var(--ease)}
+  .cin-right.in{opacity:1;transform:none;filter:none}
+  .rvt .w{transform:translateY(.7em) rotate(4deg);filter:blur(8px)}
+  .rvt.in .w{transform:none;filter:none}
+
+  /* orbes de color con parallax + latido (se inyectan por JS) */
+  .sec-glow{position:absolute;width:560px;height:560px;border-radius:50%;filter:blur(100px);opacity:.14;pointer-events:none;z-index:0;will-change:transform,opacity;animation:orbPulse 7s ease-in-out infinite}
+  .sec-glow.g-neo{background:#27e6a6}.sec-glow.g-vio{background:#8b6bff}.sec-glow.g-cyan{background:#35d6ff}
+  @keyframes orbPulse{0%,100%{opacity:.09}50%{opacity:.2}}
+  @media(max-width:760px){.sec-glow{width:360px;height:360px;filter:blur(66px)}}
+  .ps,.showcase,.pricing,.proof,#proceso,.cta-epic{overflow:hidden}
+
+  /* tarjetas: laten, brillan y saltan al hover */
+  .appcard:hover{transform:translateY(-10px) scale(1.025)!important}
+  .appcard:hover .cfront,.appcard:hover .cback{box-shadow:0 26px 66px rgba(0,0,0,.55),0 0 0 1px var(--accent,#27e6a6),0 0 40px -6px var(--accent,#27e6a6)}
+  .cfront .fliphint{animation:hintPulse 2.4s var(--ease) infinite}
+  @keyframes hintPulse{0%,100%{opacity:.5}50%{opacity:1;color:var(--neo)}}
+  .ztile{box-shadow:0 8px 26px rgba(0,0,0,.4)}
+
+  /* neón que vibra en botones y acentos */
+  .btn-primary{animation:btnGlow 3.6s ease-in-out infinite}
+  @keyframes btnGlow{0%,100%{box-shadow:0 0 0 1px #27e6a655,0 10px 30px #27e6a644}50%{box-shadow:0 0 0 1px #27e6a6,0 14px 44px #27e6a688}}
+  .eyebrow,.tag{text-shadow:0 0 22px #27e6a655}
+
+  /* fondo animado más presente + morphing de color visible */
+  .cinebg{opacity:1!important}
+  .cinebg::after{opacity:.75!important;animation:bgHue 26s linear infinite}
+  @keyframes bgHue{to{filter:hue-rotate(360deg)}}
+
+  /* zoom un poco más ágil */
+  .zoom-stage{height:300vh}
+  @media(max-width:560px){.zoom-stage{height:260vh}}
+
+  @media(prefers-reduced-motion:reduce){
+    .cin,.cin-left,.cin-right,.rvt .w{opacity:1!important;transform:none!important;filter:none!important}
+    .sec-glow{display:none!important}
+    .cfront .fliphint,.btn-primary,.cinebg::after{animation:none!important}
+    .zoom-stage{height:auto!important}
+  }
+
 </style>
 </head>
 <body>
@@ -629,7 +683,7 @@ function renderLanding(){
   const C=CONFIG;
   const tiles = APPS_GRID.map(function(a){ return '<div class="ztile" style="--to:0"><span class="ic" style="background:linear-gradient(135deg,'+a.accent+','+a.accent2+')">'+a.icon+'</span><b>'+esc(a.short)+'</b></div>'; }).join("");
   const cards = APPS_GRID.map(function(a,i){ return (
-    '<button class="appcard cin" type="button" data-demo="'+esc(a.key)+'" style="--accent:'+a.accent+';transition-delay:'+((i%4)*70)+'ms" aria-label="Abrir demo: '+esc(a.name)+'">'
+    '<button class="appcard cin" type="button" data-demo="'+esc(a.key)+'" style="--accent:'+a.accent+';transition-delay:'+((i%4)*95+Math.floor(i/4)*120)+'ms" aria-label="Abrir demo: '+esc(a.name)+'">'
     + '<div class="flip-inner">'
     +   '<div class="cface cfront">'
     +     '<span class="ic" style="background:linear-gradient(135deg,'+a.accent+','+a.accent2+')" aria-hidden="true">'+a.icon+'</span>'
@@ -829,6 +883,7 @@ function renderLanding(){
   document.querySelectorAll(".pcard-head").forEach(function(h){ h.addEventListener("click",function(){ var card=h.closest(".pcard"); var open=card.classList.toggle("open"); h.setAttribute("aria-expanded",open?"true":"false"); }); });
 
   initCinema();
+  if(typeof enhanceCinema==="function") enhanceCinema();
 }
 
 /* ==================================================================
@@ -931,6 +986,35 @@ function initCinema(){
   frame();
 }
 
+function enhanceCinema(){
+  var main=document.getElementById("main"); if(!main) return;
+  var reduce=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var defs=[
+    {sel:".ps",       c:"g-vio", css:"top:6%;right:-100px",   par:0.05},
+    {sel:"#proceso",  c:"g-cyan",css:"top:18%;left:-100px",   par:0.06},
+    {sel:".showcase", c:"g-cyan",css:"top:2%;left:-110px",    par:0.045},
+    {sel:".showcase", c:"g-neo", css:"bottom:2%;right:-110px",par:0.075},
+    {sel:".pricing",  c:"g-neo", css:"top:8%;right:-100px",   par:0.05},
+    {sel:".proof",    c:"g-vio", css:"bottom:2%;left:-100px", par:0.055},
+    {sel:".cta-epic", c:"g-cyan",css:"top:8%;left:-90px",     par:0.05}
+  ];
+  var pars=[];
+  defs.forEach(function(d){ var s=main.querySelector(d.sel); if(!s) return;
+    var o=document.createElement("div"); o.className="sec-glow "+d.c; o.setAttribute("aria-hidden","true");
+    o.style.cssText=d.css; s.insertBefore(o,s.firstChild); pars.push({el:o,par:d.par}); });
+  if(reduce) return;
+  var heroGlow=document.getElementById("heroGlow");
+  var mx=0,my=0,tick=false;
+  function loop(){ tick=false; var vh=window.innerHeight;
+    for(var i=0;i<pars.length;i++){ var pe=pars[i].el; var r=pe.getBoundingClientRect(); var c=r.top+r.height/2-vh/2;
+      pe.style.transform="translate3d("+(mx*16).toFixed(1)+"px,"+((c*-pars[i].par)+my*16).toFixed(1)+"px,0)"; } }
+  function req(){ if(!tick){ tick=true; requestAnimationFrame(loop); } }
+  window.addEventListener("scroll",req,{passive:true});
+  window.addEventListener("resize",req,{passive:true});
+  window.addEventListener("mousemove",function(e){ mx=(e.clientX/window.innerWidth-0.5); my=(e.clientY/window.innerHeight-0.5);
+    if(heroGlow) heroGlow.style.marginLeft=(mx*46).toFixed(1)+"px"; req(); },{passive:true});
+  req();
+}
 function countUp(el){
   const to=parseFloat(el.dataset.count)||0, pre=el.dataset.prefix||"", suf=el.dataset.suffix||"";
   const reduce=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
