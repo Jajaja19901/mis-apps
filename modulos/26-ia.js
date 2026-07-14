@@ -88,21 +88,24 @@ function ia_parseFoto(dataURL) {
   return { dataURL: dataURL, mediaType: m[1], b64: m[2] };
 }
 
-/* El texto del prompt. Cambia según sea 1 imagen o una secuencia. */
+/* El texto del prompt. PRUDENTE: no inventar objetos y exigir COGER+ESCONDER
+ * para dar un robo por real (meter la mano en el bolsillo, por sí solo, no basta).
+ * Cambia según sea 1 imagen o una secuencia. */
 function ia_prompt(tipo, texto, n) {
   const cab = n > 1
     ? 'Te paso ' + n + ' fotogramas SEGUIDOS del mismo momento, en orden (de antes al instante de la alarma). ' +
-      'Fíjate en el MOVIMIENTO entre ellos (qué coge una persona, si lo esconde en ropa/bolsa/bolsillo, hacia dónde va), no en una sola imagen suelta. '
+      'Fíjate en el MOVIMIENTO entre ellos: si una persona COGE un objeto y luego lo ESCONDE en ropa/bolso/bolsillo. '
     : 'Mira la imagen. ';
-  return 'Eres un analista de una cámara de videovigilancia. La app ha lanzado una ' +
+  return 'Eres un analista de videovigilancia PRUDENTE y objetivo. La app ha lanzado una ' +
     'alerta automática de tipo "' + (tipo || '?') + '"' + (texto ? ' (' + texto + ')' : '') + '. ' +
     cab +
+    'REGLAS:\n' +
+    '1) Describe SOLO lo que veas con CLARIDAD. NO inventes el objeto: si no distingues qué es, di "un objeto" o "algo"; NUNCA nombres un tipo concreto (p. ej. "botella", "cartera") si no se ve claramente.\n' +
+    '2) Para un ROBO, "real": true SOLO si ves que la persona COGE un objeto Y lo ESCONDE. Meter la mano en el bolsillo, tocar o mirar productos NO es robar por sí solo → "real": false.\n' +
+    '3) Ante la duda, "real": false y baja la confianza. Es peor una acusación falsa que un aviso perdido.\n' +
+    '4) Nunca acuses a una persona concreta; describe conductas, no identidades.\n' +
     'Responde ÚNICAMENTE con un JSON válido, sin texto extra:\n' +
-    '{"real": true|false, "descripcion": "qué se ve, en una frase corta", "confianza": 0-100}\n' +
-    '"real" = true si se aprecia un incidente coherente con la alerta ' +
-    '(robo, ocultar un objeto, forcejeo, objeto peligroso, persona donde no debe). ' +
-    '"real" = false si parece una falsa alarma (nadie, gesto inocente, mascota, sombra). ' +
-    'Nunca acuses a una persona concreta; describe conductas, no identidades.';
+    '{"real": true|false, "descripcion": "una frase corta, solo lo que veas seguro", "confianza": 0-100}';
 }
 
 /* Construye {url, headers, body} para cada proveedor con una LISTA de fotos.
