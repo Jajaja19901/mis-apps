@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '4.13',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '4.14',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -529,8 +529,13 @@ function nuc_modeloListo() {
  * perdían). El resto del tiempo manda el ajuste del dueño tal cual. */
 function nuc_scoreMin() {
   const base = estado.cfg.scoreMin || 0.35;
-  const enCoche = estado.cfg.modo === 'carretera' || estado.cfg.copActivo;
-  return enCoche ? Math.max(0.2, base - 0.1) : base;
+  // Antes SOLO el coche bajaba el listón (−0.1) para pillar coches pequeños y
+  // lejanos. La tienda tenía la misma necesidad y no lo hacía: una persona al
+  // FONDO (la que roba lejos de la caja) puntúa bajo y quedaba por debajo del
+  // corte. Ahora TODOS los modos bajan el listón igual → se detecta a la gente
+  // lejana como se detectan los coches lejanos. (Cuesta algún cuadro de más,
+  // pero un "persona" de sobra no dispara robo sin el gesto completo.)
+  return Math.max(0.2, base - 0.1);
 }
 
 /* --- Eficiencia: COCO analiza una COPIA REDUCIDA del frame -------------------
