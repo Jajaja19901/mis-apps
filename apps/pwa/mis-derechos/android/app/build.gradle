@@ -1,0 +1,42 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'es.incubatunegocio.misderechos'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'es.incubatunegocio.misderechos'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName '1.0'
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+// La web (index.html, manifest, sw, iconos) se copia desde apps/pwa/mis-derechos
+// en cada compilación: una sola fuente de verdad, nada duplicado a mano.
+def copiarWeb = tasks.register('copiarWeb', Copy) {
+    def origen = new File(projectDir, '../..').canonicalFile
+    from(origen) {
+        include 'index.html', 'manifest.json', 'sw.js', 'icon-192.png', 'icon-512.png'
+    }
+    into new File(projectDir, 'src/main/assets')
+}
+tasks.named('preBuild') { dependsOn copiarWeb }
+
+dependencies {
+    implementation 'androidx.webkit:webkit:1.11.0'
+}
