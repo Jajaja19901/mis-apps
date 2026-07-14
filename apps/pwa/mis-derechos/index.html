@@ -12052,6 +12052,8 @@ const APIS = {
   'gsk_': { endpoint: 'https://api.groq.com/openai/v1/chat/completions',     model: 'meta-llama/llama-4-scout-17b-16e-instruct',     nombre: 'Groq · Llama 4 Scout' },
   'csk-': { endpoint: 'https://api.cerebras.ai/v1/chat/completions',         model: 'gpt-oss-120b',            nombre: 'Cerebras · GPT-OSS 120B' },
   'xai-': { endpoint: 'https://api.x.ai/v1/chat/completions',                model: 'grok-3-mini',             nombre: 'Grok (xAI)' },
+  // NVIDIA bloquea llamadas directas desde navegador (CORS) → se pasa por nuestro worker, que solo reenvía
+  'nvapi-': { endpoint: 'https://noisy-hall-57fc.edujosepepelolo.workers.dev/?ia=nvidia', model: 'meta/llama-3.3-70b-instruct', nombre: 'NVIDIA · Llama 3.3 70B' },
 };
 function getAPIConfig(key) {
   for (const [prefix, config] of Object.entries(APIS)) {
@@ -12347,7 +12349,7 @@ async function inicializarKey() {
     const storedMulti = localStorage.getItem('derechos_keys_v2');
     if (storedMulti) {
       const obj = JSON.parse(storedMulti);
-      for (const prov of ['groq', 'cerebras', 'xai']) {
+      for (const prov of ['groq', 'cerebras', 'xai', 'nvidia']) {
         if (obj[prov]) {
           const descifrada = await _descifrarKey(obj[prov]);
           if (descifrada) _CACHED_KEYS[prov] = descifrada;
@@ -12375,7 +12377,7 @@ async function inicializarKey() {
 async function _guardarKeysEnStorage() {
   try {
     const obj = {};
-    for (const prov of ['groq', 'cerebras', 'xai']) {
+    for (const prov of ['groq', 'cerebras', 'xai', 'nvidia']) {
       if (_CACHED_KEYS[prov]) {
         obj[prov] = await _cifrarKey(_CACHED_KEYS[prov]);
       }
@@ -12405,19 +12407,20 @@ function chequearRateLimit() {
 
 // ============ GESTIÓN DE MÚLTIPLES KEYS ============
 // Objeto con las keys cacheadas en memoria por proveedor
-let _CACHED_KEYS = { groq: null, cerebras: null, xai: null };
+let _CACHED_KEYS = { groq: null, cerebras: null, xai: null, nvidia: null };
 
 function detectarProveedor(key) {
   if (!key) return null;
   if (key.startsWith('gsk_')) return 'groq';
   if (key.startsWith('csk-')) return 'cerebras';
   if (key.startsWith('xai-')) return 'xai';
+  if (key.startsWith('nvapi-')) return 'nvidia';
   return null;
 }
 
 function tieneKey(proveedor) { return !!_CACHED_KEYS[proveedor]; }
 function tieneAlgunaKey() {
-  return !!(_CACHED_KEYS.groq || _CACHED_KEYS.cerebras || _CACHED_KEYS.xai);
+  return !!(_CACHED_KEYS.groq || _CACHED_KEYS.cerebras || _CACHED_KEYS.xai || _CACHED_KEYS.nvidia);
 }
 
 // Elige el mejor proveedor según contexto
@@ -12429,10 +12432,12 @@ function elegirKey(tieneImagen) {
     if (_CACHED_KEYS.xai) return { key: _CACHED_KEYS.xai, proveedor: 'xai' };
     return null; // Ninguna admite fotos
   }
-  // Sin imagen: Cerebras primero (mejor calidad respuesta)
+  // Sin imagen: Cerebras primero (mejor calidad respuesta). NVIDIA el último:
+  // sus 1.000 peticiones gratis se GASTAN (no se renuevan a diario como Groq/Cerebras).
   if (_CACHED_KEYS.cerebras) return { key: _CACHED_KEYS.cerebras, proveedor: 'cerebras' };
   if (_CACHED_KEYS.groq) return { key: _CACHED_KEYS.groq, proveedor: 'groq' };
   if (_CACHED_KEYS.xai) return { key: _CACHED_KEYS.xai, proveedor: 'xai' };
+  if (_CACHED_KEYS.nvidia) return { key: _CACHED_KEYS.nvidia, proveedor: 'nvidia' };
   return null;
 }
 
@@ -12444,12 +12449,10 @@ function elegirKeyFallback(proveedorFallido, tieneImagen) {
     if (proveedorFallido === 'xai' && _CACHED_KEYS.groq) return { key: _CACHED_KEYS.groq, proveedor: 'groq' };
     return null;
   }
-  // Sin imagen: si falló Cerebras, ir a Groq. Si falló Groq, ir a Cerebras.
-  if (proveedorFallido === 'cerebras' && _CACHED_KEYS.groq) return { key: _CACHED_KEYS.groq, proveedor: 'groq' };
-  if (proveedorFallido === 'groq' && _CACHED_KEYS.cerebras) return { key: _CACHED_KEYS.cerebras, proveedor: 'cerebras' };
-  if (proveedorFallido === 'xai') {
-    if (_CACHED_KEYS.cerebras) return { key: _CACHED_KEYS.cerebras, proveedor: 'cerebras' };
-    if (_CACHED_KEYS.groq) return { key: _CACHED_KEYS.groq, proveedor: 'groq' };
+  // Sin imagen: probar el resto en orden de calidad, saltando el que acaba de fallar
+  const ordenTexto = ['cerebras', 'groq', 'xai', 'nvidia'];
+  for (const prov of ordenTexto) {
+    if (prov !== proveedorFallido && _CACHED_KEYS[prov]) return { key: _CACHED_KEYS[prov], proveedor: prov };
   }
   return null;
 }
@@ -12467,7 +12470,7 @@ async function activarIA() {
   const proveedor = detectarProveedor(key);
   if (!proveedor || key.length < 20) {
     input.style.borderColor = '#ef4444';
-    input.placeholder = 'Usa Groq (gsk_), Cerebras (csk-) o Grok (xai-)';
+    input.placeholder = 'Usa Groq (gsk_), Cerebras (csk-), Grok (xai-) o NVIDIA (nvapi-)';
     return;
   }
   // Guardar en el slot del proveedor detectado
@@ -12502,12 +12505,12 @@ async function activarIAextra() {
 }
 
 function desactivarIA() {
-  const numKeys = ['groq','cerebras','xai'].filter(p => _CACHED_KEYS[p]).length;
+  const numKeys = ['groq','cerebras','xai','nvidia'].filter(p => _CACHED_KEYS[p]).length;
   const msg = numKeys > 1
     ? `¿Eliminar TODAS las ${numKeys} keys guardadas? El chat volverá al modo básico.`
     : '¿Eliminar la API key? El chat volverá al modo básico.';
   if (!confirm(msg)) return;
-  _CACHED_KEYS = { groq: null, cerebras: null, xai: null };
+  _CACHED_KEYS = { groq: null, cerebras: null, xai: null, nvidia: null };
   try {
     localStorage.removeItem('derechos_keys_v2');
     localStorage.removeItem('grok_api_key'); // limpiar formato antiguo también
@@ -12523,7 +12526,7 @@ function desactivarIA() {
 // Eliminar una key concreta (para el botón "quitar Groq" o "quitar Cerebras")
 async function eliminarKeyProveedor(proveedor) {
   if (!_CACHED_KEYS[proveedor]) return;
-  const nombres = { groq: 'Groq', cerebras: 'Cerebras', xai: 'xAI/Grok' };
+  const nombres = { groq: 'Groq', cerebras: 'Cerebras', xai: 'xAI/Grok', nvidia: 'NVIDIA' };
   if (!confirm(`¿Eliminar la key de ${nombres[proveedor]}?`)) return;
   _CACHED_KEYS[proveedor] = null;
   await _guardarKeysEnStorage();
@@ -12634,13 +12637,13 @@ function actualizarUIia() {
   if (conKey) conKey.style.display = tiene ? 'block' : 'none';
   if (subtitulo) {
     if (tiene) {
-      const numKeys = ['groq','cerebras','xai'].filter(p => _CACHED_KEYS[p]).length;
+      const numKeys = ['groq','cerebras','xai','nvidia'].filter(p => _CACHED_KEYS[p]).length;
       if (numKeys > 1) {
         subtitulo.textContent = `⚡ IA ACTIVA · ${numKeys} PROVEEDORES`;
       } else {
         // Solo un proveedor: mostrar cuál
-        const p = ['groq','cerebras','xai'].find(x => _CACHED_KEYS[x]);
-        const nombres = { groq: 'GROQ · LLAMA 4 SCOUT', cerebras: 'CEREBRAS · GPT-OSS 120B', xai: 'GROK (xAI)' };
+        const p = ['groq','cerebras','xai','nvidia'].find(x => _CACHED_KEYS[x]);
+        const nombres = { groq: 'GROQ · LLAMA 4 SCOUT', cerebras: 'CEREBRAS · GPT-OSS 120B', xai: 'GROK (xAI)', nvidia: 'NVIDIA · LLAMA 3.3 70B' };
         subtitulo.textContent = `⚡ IA ACTIVA · ${nombres[p]}`;
       }
     } else {
@@ -12685,7 +12688,8 @@ function actualizarUIia() {
     const proveedores = [
       { id: 'cerebras', nombre: 'Cerebras · GPT-OSS 120B', color: '#8b5cf6', descripcion: 'Mejor para texto legal (respuestas más directas). Sin fotos.' },
       { id: 'groq', nombre: 'Groq · Llama 4 Scout', color: '#10b981', descripcion: 'Mejor para fotos de documentos. También para texto.' },
-      { id: 'xai', nombre: 'Grok (xAI)', color: '#ff9447', descripcion: 'De pago. Alternativa premium con fotos.' }
+      { id: 'xai', nombre: 'Grok (xAI)', color: '#ff9447', descripcion: 'De pago. Alternativa premium con fotos.' },
+      { id: 'nvidia', nombre: 'NVIDIA · Llama 3.3 70B', color: '#76b900', descripcion: 'Reserva: 1.000 respuestas gratis al crear la cuenta (se gastan, no se renuevan). Sin fotos.' }
     ];
     let html = '';
     for (const p of proveedores) {
@@ -12709,9 +12713,9 @@ function actualizarUIia() {
   // Mostrar/ocultar bloque "AÑADE OTRA KEY" según cuántas keys haya
   const bloqueAnadir = document.getElementById('bloque-anadir-key');
   if (bloqueAnadir) {
-    const numKeys = ['groq','cerebras','xai'].filter(p => _CACHED_KEYS[p]).length;
-    if (numKeys >= 3) {
-      // Ya tiene las 3, ocultar
+    const numKeys = ['groq','cerebras','xai','nvidia'].filter(p => _CACHED_KEYS[p]).length;
+    if (numKeys >= 4) {
+      // Ya tiene las 4, ocultar
       bloqueAnadir.style.display = 'none';
     } else {
       bloqueAnadir.style.display = 'block';
@@ -13632,7 +13636,7 @@ window.addEventListener('appinstalled', () => {
       <!-- INPUT + BOTÓN ARRIBA (visible sin scroll) -->
       <div style="background:linear-gradient(135deg,rgba(255,214,10,0.08),rgba(255,214,10,0.02));border:2px solid var(--urgent);border-radius:10px;padding:12px;margin-bottom:14px;">
         <div style="font-size:12px;font-weight:700;color:var(--urgent);margin-bottom:8px;">🔑 ¿Ya tienes una key? Pégala aquí:</div>
-        <input type="password" id="input-api-key" placeholder="gsk_... o csk-... o xai-..." style="width:100%;padding:11px;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:6px;font-size:14px;font-family:inherit;box-sizing:border-box;margin-bottom:8px;" aria-label="API Key">
+        <input type="password" id="input-api-key" placeholder="gsk_... / csk-... / xai-... / nvapi-..." style="width:100%;padding:11px;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:6px;font-size:14px;font-family:inherit;box-sizing:border-box;margin-bottom:8px;" aria-label="API Key">
         <button onclick="activarIA()" style="width:100%;padding:12px;background:var(--urgent);color:#0a0a0a;border:none;border-radius:6px;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;">⚡ ACTIVAR ASESOR IA</button>
         <p style="font-size:10px;color:var(--text-dim);margin-top:6px;text-align:center;line-height:1.4;">La app detecta sola qué proveedor es. Tu key se cifra y guarda solo en tu móvil.</p>
       </div>
@@ -13658,6 +13662,14 @@ window.addEventListener('appinstalled', () => {
           <a href="https://cloud.cerebras.ai" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;background:var(--bg);border:1px solid var(--line);color:var(--text);padding:10px;border-radius:6px;font-weight:700;font-size:12px;text-decoration:none;">ABRIR SITIO DE CEREBRAS →</a>
         </div>
 
+        <!-- Tarjeta NVIDIA -->
+        <div style="background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0;">
+          <div style="font-size:14px;font-weight:700;color:#76b900;margin-bottom:4px;">🟢 NVIDIA</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;line-height:1.5;">1.000 respuestas gratis al crear la cuenta (se gastan, no se renuevan) · solo texto · sin tarjeta</div>
+          <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;line-height:1.6;">1. Pulsa el botón · 2. Crea cuenta · 3. En cualquier modelo pulsa <strong>Get API Key</strong> · 4. Copia la key <code style="background:var(--bg-2);padding:1px 4px;border-radius:3px;">nvapi-...</code></div>
+          <a href="https://build.nvidia.com" target="_blank" rel="noopener noreferrer" style="display:block;text-align:center;background:var(--bg);border:1px solid #76b900;color:#76b900;padding:10px;border-radius:6px;font-weight:700;font-size:12px;text-decoration:none;">ABRIR SITIO DE NVIDIA →</a>
+        </div>
+
         <!-- Tarjeta xAI (Grok) -->
         <div style="background:rgba(255,255,255,0.02);border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0;">
           <div style="font-size:14px;font-weight:700;color:var(--text-dim);margin-bottom:4px;">🟡 Grok (xAI)</div>
@@ -13679,9 +13691,9 @@ window.addEventListener('appinstalled', () => {
       <div id="bloque-anadir-key" style="background:linear-gradient(135deg,rgba(255,214,10,0.12),rgba(255,214,10,0.03));border:2px solid var(--urgent);border-radius:10px;padding:12px;margin-bottom:12px;">
         <div style="font-size:12px;font-weight:800;color:var(--urgent);margin-bottom:6px;">💡 AÑADE OTRA KEY (muy recomendado)</div>
         <p style="font-size:11px;color:var(--text-dim);margin-bottom:8px;line-height:1.5;">Con 2 keys configuradas la app usa la mejor para cada caso y tiene fallback si una falla. Pega otra aquí:</p>
-        <input type="password" id="input-api-key-extra" placeholder="gsk_... / csk-... / xai-..." style="width:100%;padding:11px;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:6px;font-size:14px;font-family:inherit;box-sizing:border-box;margin-bottom:8px;">
+        <input type="password" id="input-api-key-extra" placeholder="gsk_... / csk-... / xai-... / nvapi-..." style="width:100%;padding:11px;background:var(--bg);border:1px solid var(--line);color:var(--text);border-radius:6px;font-size:14px;font-family:inherit;box-sizing:border-box;margin-bottom:8px;">
         <button onclick="activarIAextra()" style="width:100%;padding:11px;background:var(--urgent);color:#0a0a0a;border:none;border-radius:6px;font-weight:800;font-size:14px;cursor:pointer;font-family:inherit;">➕ AÑADIR ESTA KEY</button>
-        <p style="font-size:10px;color:var(--text-dim);margin-top:6px;text-align:center;line-height:1.4;">Groq (fotos) · Cerebras (mejor texto) · xAI (premium)</p>
+        <p style="font-size:10px;color:var(--text-dim);margin-top:6px;text-align:center;line-height:1.4;">Groq (fotos) · Cerebras (mejor texto) · xAI (premium) · NVIDIA (reserva)</p>
       </div>
 
       <button onclick="desactivarIA()" style="width:100%;padding:8px;background:var(--bg);border:1px solid #ef4444;color:#ef4444;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit;">🗑️ Eliminar TODAS las keys</button>
