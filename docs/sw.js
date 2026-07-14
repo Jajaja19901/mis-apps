@@ -7,7 +7,7 @@
  *    versión si hay internet, y la app sigue abriendo sin conexión.
  *  · Modelos y librerías de IA (CDNs): caché primero → se descargan UNA vez.
  * ==========================================================================*/
-const VERSION = 'vigia-4-06';
+const VERSION = 'vigia-4-07';
 const CACHE_APP = VERSION + '-app';
 const CACHE_IA = VERSION + '-ia';
 

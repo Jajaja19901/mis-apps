@@ -96,16 +96,17 @@ function ia_prompt(tipo, texto, n) {
     ? 'Te paso ' + n + ' fotogramas SEGUIDOS del mismo momento, en orden (de antes al instante de la alarma). ' +
       'Fíjate en el MOVIMIENTO entre ellos: si una persona COGE un objeto y luego lo ESCONDE en ropa/bolso/bolsillo. '
     : 'Mira la imagen. ';
-  return 'Eres un analista de videovigilancia PRUDENTE y objetivo. La app ha lanzado una ' +
+  return 'Eres un analista de videovigilancia objetivo. La app ha lanzado una ' +
     'alerta automática de tipo "' + (tipo || '?') + '"' + (texto ? ' (' + texto + ')' : '') + '. ' +
     cab +
     'REGLAS:\n' +
-    '1) Describe SOLO lo que veas con CLARIDAD. NO inventes el objeto: si no distingues qué es, di "un objeto" o "algo"; NUNCA nombres un tipo concreto (p. ej. "botella", "cartera") si no se ve claramente.\n' +
-    '2) Para un ROBO, "real": true SOLO si ves que la persona COGE un objeto Y lo ESCONDE. Meter la mano en el bolsillo, tocar o mirar productos NO es robar por sí solo → "real": false.\n' +
-    '3) Ante la duda, "real": false y baja la confianza. Es peor una acusación falsa que un aviso perdido.\n' +
-    '4) Nunca acuses a una persona concreta; describe conductas, no identidades.\n' +
+    '1) NO inventes el objeto: si no distingues qué es, di "un objeto" o "algo"; NUNCA nombres un tipo concreto (p. ej. "botella") que no se vea claramente.\n' +
+    '2) CLAVE: en un hurto lo normal es OCULTAR el objeto. Que el objeto acabe escondido o no se vea NO significa inocente — ocultarlo es precisamente lo típico de un hurto. Si la persona COGE o manipula algo y lleva la mano al cuerpo/bolsillo/cintura/ropa, es SOSPECHOSO aunque ya no veas el objeto.\n' +
+    '3) Es inocente (confianza baja) SOLO si claramente no pasa nada: nadie, mascota, solo mira o toca sin llevárselo, o la mano descansa apoyada.\n' +
+    '4) "confianza" = probabilidad de que SÍ sea un incidente real (0 = seguro inocente, 100 = seguro robo). Úsala con honestidad: alta si ves la ocultación clara; media (40-65) si es plausible pero no seguro. "real" = true si esa probabilidad es 50 o más.\n' +
+    '5) Nunca acuses a una persona concreta; describe conductas, no identidades.\n' +
     'Responde ÚNICAMENTE con un JSON válido, sin texto extra:\n' +
-    '{"real": true|false, "descripcion": "una frase corta, solo lo que veas seguro", "confianza": 0-100}';
+    '{"real": true|false, "descripcion": "una frase corta", "confianza": 0-100}';
 }
 
 /* Construye {url, headers, body} para cada proveedor con una LISTA de fotos.
@@ -295,12 +296,20 @@ async function ia_confirmarAlerta(fotoDataURL, tipo, texto, registroId) {
  * + Telegram si está puesto. */
 function ia_mostrar(v, registroId) {
   if (!v) return;
-  const etiqueta = v.real === true ? '✅ PARECE REAL' : (v.real === false ? '☁ posible falsa alarma' : 'IA');
-  const conf = (v.confianza != null && !isNaN(v.confianza)) ? ' (' + Math.round(v.confianza) + '%)' : '';
+  // Nivel por probabilidad de ser REAL (0-100). Con un tramo intermedio DUDOSO
+  // para no descartar como "falsa" un robo donde el objeto acabó oculto.
+  let conf = (v.confianza != null && !isNaN(v.confianza)) ? Number(v.confianza)
+    : (v.real === true ? 70 : (v.real === false ? 25 : null));
+  let etiqueta, tono;
+  if (conf == null) { etiqueta = 'IA'; tono = 'info'; }
+  else if (conf >= 65) { etiqueta = '✅ PARECE REAL'; tono = 'critico'; }
+  else if (conf >= 40) { etiqueta = '⚠ DUDOSO — revisar'; tono = 'sospecha'; }
+  else { etiqueta = '☁ posible falsa alarma'; tono = 'info'; }
+  const confTxt = conf != null ? ' (' + Math.round(conf) + '%)' : '';
   const desc = v.descripcion ? ' — ' + String(v.descripcion).slice(0, 160) : '';
-  const msg = etiqueta + conf + desc;
-  ia_toast('🧠 ' + msg, v.real === true ? 'critico' : 'info');
-  ia_marcar(registroId, '🧠 ' + msg, v.real === true ? 'critico' : 'info', { real: v.real, descripcion: v.descripcion, confianza: v.confianza });
+  const msg = etiqueta + confTxt + desc;
+  ia_toast('🧠 ' + msg, tono);
+  ia_marcar(registroId, '🧠 ' + msg, tono, { real: v.real, descripcion: v.descripcion, confianza: v.confianza });
   if (estado.cfg.telegramToken && estado.cfg.telegramChat) ia_telegram('🧠 IA sobre la última alerta: ' + msg);
 }
 
