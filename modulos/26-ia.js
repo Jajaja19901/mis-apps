@@ -155,9 +155,12 @@ function ia_construirPeticion(prov, fotos, tipo, texto) {
     }
     const content = [{ type: 'text', text: prompt }];
     fotos.forEach(function (f) { content.push({ type: 'image_url', image_url: { url: f.dataURL } }); });
+    const headers = { 'content-type': 'application/json', 'authorization': 'Bearer ' + clave };
+    // OpenRouter recomienda identificar la app (evita rechazos anti-abuso).
+    if (prov === 'openrouter') { headers['HTTP-Referer'] = 'https://jajaja19901.github.io/mis-apps/'; headers['X-Title'] = 'Vigia IA'; }
     return {
       url: url,
-      headers: { 'content-type': 'application/json', 'authorization': 'Bearer ' + clave },
+      headers: headers,
       body: { model: modelo, max_tokens: 300, messages: [{ role: 'user', content: content }] },
     };
   }
@@ -165,11 +168,14 @@ function ia_construirPeticion(prov, fotos, tipo, texto) {
   return null;
 }
 
-/* Saca el texto de respuesta según el proveedor (los formatos difieren). */
+/* Saca el texto de respuesta según el proveedor. `content` puede ser texto o un
+ * array de partes (algunos modelos de OpenRouter lo devuelven así). */
 function ia_extraerTexto(prov, data) {
   try {
     if (prov === 'anthropic') {
-      return (data && data.content && data.content[0] && data.content[0].text) || '';
+      const c = data && data.content;
+      if (Array.isArray(c)) return c.map(function (b) { return (b && b.text) || ''; }).join('');
+      return '';
     }
     if (prov === 'gemini') {
       const c = data && data.candidates && data.candidates[0];
@@ -178,7 +184,23 @@ function ia_extraerTexto(prov, data) {
       return '';
     }
     const ch = data && data.choices && data.choices[0];
-    return (ch && ch.message && ch.message.content) || '';
+    let cont = ch && ch.message && ch.message.content;
+    if (Array.isArray(cont)) cont = cont.map(function (p) { return (typeof p === 'string') ? p : ((p && p.text) || ''); }).join('');
+    return cont || '';
+  } catch (e) { return ''; }
+}
+
+/* Si la respuesta trae un ERROR en el cuerpo (con HTTP 200, como hace a veces
+ * OpenRouter/OpenAI), lo saca en texto legible. '' si no hay error. */
+function ia_errorCuerpo(data) {
+  try {
+    if (!data) return '';
+    if (data.error) {
+      if (typeof data.error === 'string') return data.error;
+      return data.error.message || String(JSON.stringify(data.error)).slice(0, 140);
+    }
+    if (data.message && !data.choices && !data.candidates && !data.content) return String(data.message).slice(0, 140);
+    return '';
   } catch (e) { return ''; }
 }
 
@@ -239,13 +261,22 @@ async function ia_confirmarAlerta(fotoDataURL, tipo, texto, registroId) {
       return null;
     }
     const data = await r.json();
+    // Algunos proveedores mandan el error DENTRO del cuerpo con HTTP 200.
+    const errCuerpo = ia_errorCuerpo(data);
     const txt = ia_extraerTexto(prov, data);
+    if (!String(txt).trim()) {
+      const msg = errCuerpo ? errCuerpo : 'respondió vacío (¿el modelo no admite imágenes? usa uno «vision»)';
+      ia_toast('🧠 ' + msg, 'sospecha');
+      ia_marcar(registroId, '🧠 ' + msg, 'sospecha');
+      return null;
+    }
     let v = null;
     try {
       const trozo = String(txt).match(/\{[\s\S]*\}/);
       v = trozo ? JSON.parse(trozo[0]) : null;
     } catch (e) { v = null; }
-    if (!v) v = { real: null, descripcion: String(txt).slice(0, 120), confianza: null };
+    // Si no vino JSON pero SÍ texto, se enseña el texto (ya es útil).
+    if (!v) v = { real: null, descripcion: String(txt).trim().slice(0, 160), confianza: null };
     ia_mostrar(v, registroId);
     return v;
   } catch (e) {
@@ -261,7 +292,7 @@ async function ia_confirmarAlerta(fotoDataURL, tipo, texto, registroId) {
  * + Telegram si está puesto. */
 function ia_mostrar(v, registroId) {
   if (!v) return;
-  const etiqueta = v.real === true ? '✅ PARECE REAL' : (v.real === false ? '☁ posible falsa alarma' : '🧠 IA');
+  const etiqueta = v.real === true ? '✅ PARECE REAL' : (v.real === false ? '☁ posible falsa alarma' : 'IA');
   const conf = (v.confianza != null && !isNaN(v.confianza)) ? ' (' + Math.round(v.confianza) + '%)' : '';
   const desc = v.descripcion ? ' — ' + String(v.descripcion).slice(0, 160) : '';
   const msg = etiqueta + conf + desc;
