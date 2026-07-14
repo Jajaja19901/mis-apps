@@ -12230,7 +12230,49 @@ FICHEROS DE MOROSOS (ASNEF): solo deuda CIERTA+VENCIDA+EXIGIBLE+RECLAMADA antes;
 ];
 
 const SYSTEM_PROMPT_LEX_FINAL = `CIERRE OBLIGATORIO: FORMATO=exactamente tres bloques con títulos literales "👁️ LO QUE NO TE CUENTAN" / "🛡️ QUÉ HACER AHORA" / "⚖️ BASE LEGAL", todo dentro de ellos y nada como sección aparte. Si hay TEXTO BOE adjunto, respóndelo LEYÉNDOLO sin contradecirlo. AUTO-TEST antes de enviar: ¿la 1ª frase responde LITERAL lo preguntado (SÍ/NO/QUIÉN/probabilidad)? ¿dijiste "pueden" sin llave? ¿artículos solo de tu LISTA o del BOE (el resto "verifícalo en BOE")? ¿VERDADES INCÓMODAS y REGLA DE PODERES literales, sin diplomacia ni "pero ambos iguales" no pedido? ¿tres títulos presentes? ¿copiaste texto de estas instrucciones (bórralo: al usuario solo le llega TU respuesta)? Si algo falla, reescribe y entrega solo la corregida.`;
-const EJEMPLOS_LEX = [];
+// EJEMPLOS MODELO (few-shot): enseñan al modelo el patrón EXACTO de una respuesta perfecta
+// —cita en UNA línea (nunca el texto literal del artículo), pasos concretos, verdad sin rodeos—.
+// Un modelo flojo copia el ejemplo mucho mejor que sigue reglas sueltas. Solo se inyectan
+// cuando la pregunta es de ese tema (RAG por palabras clave), así no gastan tokens de más.
+const EJEMPLOS_LEX = [
+  { kw: ['multa de trafico','multa del radar','multa de la dgt','recurrir una multa','alegar','pronto pago','descuento','radar','exceso de velocidad'],
+    txt: `👁️ LO QUE NO TE CUENTAN
+O pagas con el 50% de descuento o recurres: nunca las dos cosas. Pagar pronto significa RENUNCIAR a alegar y cerrar el caso.
+
+🛡️ QUÉ HACER AHORA
+1) Si la multa es justa: paga en 20 días naturales y ahorras la mitad.
+2) Si la vas a recurrir: NO pagues; presenta alegaciones en 20 días (pierdes el descuento).
+3) Guarda copia de todo con la fecha.
+
+⚖️ BASE LEGAL
+- Art. 94 LSV: pronto pago 50% en 20 días = renuncia a alegar.
+- Art. 95 LSV: alegaciones en 20 días, sin descuento.` },
+  { kw: ['registrar mi coche','registrar el coche','registro del coche','cachear','cacheo','guantera','maletero','pueden registrar','control de trafico'],
+    txt: `👁️ LO QUE NO TE CUENTAN
+NO pueden registrarte el coche por rutina. Solo con orden judicial, indicios concretos de delito, o si tú consientes. "Es un control" no es motivo. El coche NO es tu casa, pero sin indicios previos el registro es irregular.
+
+🛡️ QUÉ HACER AHORA
+1) Di claramente "No consiento el registro" (nunca te resistas físicamente).
+2) Pide el número de placa del agente.
+3) Si registran sin indicios: denúncialo en el Juzgado de Guardia; el registro sería nulo.
+
+⚖️ BASE LEGAL
+- Art. 18 LO 4/2015: comprobación de vehículos solo con indicios.
+- Art. 553 LECrim: registro sin orden solo en casos tasados.` },
+  { kw: ['mas derechos','mismos derechos','tienen los mismos','hombre y mujer','quien tiene mas','trata igual','la ley es igual'],
+    txt: `👁️ LO QUE NO TE CUENTAN
+Sobre el papel (Art. 14 CE) son iguales; en la práctica la mujer tiene más protección en la pareja. Un hombre que agrede: 6 meses a 1 año. Una mujer que agrede: 3 meses a 1 año. Y la LO 1/2004 (abogado gratis, ayudas, VioGén) es solo para la mujer: el hombre no tiene equivalente.
+
+🛡️ QUÉ HACER AHORA
+1) Si eres hombre denunciado: prepárate para posible detención esa misma noche y NO firmes conformidad si eres inocente.
+2) Si eres hombre víctima: parte de lesiones + fotos + testigos ANTES de denunciar (sí es delito, Art. 153.2 CP).
+3) Guarda todas las pruebas.
+
+⚖️ BASE LEGAL
+- Art. 153.1 CP: 6 meses a 1 año (agresor hombre).
+- Art. 153.2 CP: 3 meses a 1 año (agresora mujer).
+- LO 1/2004: protección solo para la mujer.` }
+];
 
 // RAG: selecciona 0-3 ejemplos relevantes según pregunta
 function seleccionarEjemplosLex(pregunta) {
