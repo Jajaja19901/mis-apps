@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '4.14',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '4.15',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -20,7 +20,8 @@ const CFG_DEFECTOS = {
   fps: 8,                   // FPS de inferencia (3-20; a partir de 10 exige móvil potente)
   posesMax: 3,              // personas analizadas A LA VEZ por el modelo de postura (1-6)
   scoreMin: 0.35,           // confianza mínima (bajo = detecta más personas)
-  motor: 'coco',            // 'coco' básico | 'yolo' potente (Transformers.js) | 'onnx' SUPERCEREBRO (YOLO11)
+  motor: 'coco',            // 'coco' básico | 'yolo' potente (Transformers.js) | 'onnx' SUPERCEREBRO (YOLO11) | 'servidor' cerebro en la nube
+  servidorUrl: '',          // 🖥️ dirección del servidor-cerebro (Python en la nube): la app le manda la cámara y él devuelve las cajas. Vacío = no se usa.
   yoloModelo: 'Xenova/yolos-tiny',  // modelo del motor potente (yolos-tiny|yolos-small|detr-resnet-50)
   yoloRes: 512,             // ancho de análisis del motor potente (más alto = ve más lejos, más lento)
   // Supercerebro (ONNX Runtime + YOLO11, módulo 16)
@@ -651,11 +652,76 @@ function nuc_fuenteNoche(fuente) {
   } catch (e) { estado.video.realceNoche = false; return null; }
 }
 
+/* 🖥️ MOTOR "SERVIDOR EN LA NUBE": el móvil NO calcula nada pesado. Saca un
+ * fotograma pequeño (JPEG 640px) y lo manda a un ordenador potente (Python +
+ * YOLO) que devuelve las cajas ya pensadas. Así el móvil va fluido y el cerebro
+ * grande vive en la nube. El servidor responde detecciones NORMALIZADAS (0-1) y
+ * aquí se escalan al tamaño real del vídeo. NUNCA lanza: si el servidor tarda o
+ * falla, se sigue mostrando lo último bueno (o []). */
+let nuc_srvEnVuelo = false;      // ¿hay una petición viajando ahora mismo?
+let nuc_srvUltimo = [];          // últimas cajas que devolvió el servidor
+let nuc_srvAviso = 0;            // para no llenar la consola de errores repetidos
+async function nuc_detectarServidor() {
+  const url = (estado.cfg.servidorUrl || '').trim();
+  if (!url) return [];
+  // Si ya hay una petición en vuelo NO encadenamos otra (evita atascar la red y
+  // el servidor): reutilizamos las últimas cajas hasta que llegue la respuesta.
+  if (nuc_srvEnVuelo) return nuc_srvUltimo;
+  const jpeg = (typeof vid_capturaJPEG === 'function') ? vid_capturaJPEG(640, 0.6) : null;
+  if (!jpeg) return nuc_srvUltimo;
+  nuc_srvEnVuelo = true;
+  try {
+    const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    const to = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 8000) : null;
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imagen: jpeg }),
+      signal: ctrl ? ctrl.signal : undefined,
+    });
+    if (to) clearTimeout(to);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    const dets = (data && (data.detecciones || data.detections)) || [];
+    const w = estado.video.w || 640, h = estado.video.h || 480;
+    const salida = [];
+    for (let i = 0; i < dets.length; i++) {
+      const d = dets[i]; if (!d) continue;
+      // Acepta caja como {x,y,an,al}, {caja:{...}} o bbox [x,y,an,al].
+      let x = d.x, y = d.y, an = d.an, al = d.al;
+      if (d.caja) { x = d.caja.x; y = d.caja.y; an = d.caja.an; al = d.caja.al; }
+      else if (Array.isArray(d.bbox)) { x = d.bbox[0]; y = d.bbox[1]; an = d.bbox[2]; al = d.bbox[3]; }
+      if (typeof x !== 'number' || typeof y !== 'number' || typeof an !== 'number' || typeof al !== 'number') continue;
+      // Si vienen 0-1 (normalizadas) se escalan al vídeo; si ya vienen en px, se dejan.
+      const norm = (x <= 1.5 && y <= 1.5 && an <= 1.5 && al <= 1.5);
+      salida.push({
+        clase: d.clase || d.class || d.nombre || 'objeto',
+        score: (typeof d.score === 'number') ? d.score : (typeof d.conf === 'number' ? d.conf : 0.5),
+        caja: norm
+          ? { x: x * w, y: y * h, an: an * w, al: al * h }
+          : { x: x, y: y, an: an, al: al },
+      });
+    }
+    nuc_srvUltimo = salida;
+    return salida;
+  } catch (e) {
+    const ahora = Date.now();
+    if (ahora - nuc_srvAviso > 5000) { nuc_srvAviso = ahora; console.warn('[servidor] ' + (e && e.message)); }
+    return nuc_srvUltimo;   // mientras se recupera, seguimos con lo último bueno
+  } finally {
+    nuc_srvEnVuelo = false;
+  }
+}
+
 /* Detecta sobre un <video>/<img>/<canvas> listo. Devuelve [] si algo falla.
- * Enruta según el motor elegido: SUPERCEREBRO (ONNX-YOLO11) → POTENTE
- * (Transformers.js) → básico (COCO-SSD, siempre de respaldo). */
+ * Enruta según el motor elegido: SERVIDOR (nube) → SUPERCEREBRO (ONNX-YOLO11) →
+ * POTENTE (Transformers.js) → básico (COCO-SSD, siempre de respaldo). */
 async function nuc_detectar(fuente) {
   if (!fuente) return [];
+  // 🖥️ Cerebro en la nube: el móvil solo manda la foto y dibuja lo que le llega.
+  if (estado.cfg.motor === 'servidor' && (estado.cfg.servidorUrl || '').trim()) {
+    return nuc_detectarServidor();
+  }
   // 🌙 Realce nocturno (una vez, para todos los motores).
   const fx = (typeof nuc_fuenteNoche === 'function' && nuc_fuenteNoche(fuente)) || fuente;
   if (typeof sc_activo === 'function' && sc_activo()) {

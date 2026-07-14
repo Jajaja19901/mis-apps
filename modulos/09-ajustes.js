@@ -939,9 +939,11 @@ function cfg_conectarBotones() {
   const selMotor = $('cfg-motor');
   const grupoYolo = $('cfg-grupoYolo');
   const grupoOnnx = $('cfg-grupoOnnx');
+  const grupoServidor = $('cfg-grupoServidor');
   const cfg_mostrarMotor = function () {
     if (grupoYolo) grupoYolo.classList.toggle('oculto', estado.cfg.motor !== 'yolo');
     if (grupoOnnx) grupoOnnx.classList.toggle('oculto', estado.cfg.motor !== 'onnx');
+    if (grupoServidor) grupoServidor.classList.toggle('oculto', estado.cfg.motor !== 'servidor');
     const b = $('cfg-scBackend');
     if (b) b.textContent = (estado.sc && estado.sc.backend) ? estado.sc.backend.toUpperCase() : '—';
     // Chivato del motor potente: ¿corre en hilo aparte (fluido) o no?
@@ -966,9 +968,55 @@ function cfg_conectarBotones() {
       } else { cfg_avisar('El motor potente no está disponible.', 'sospecha'); }
     } else if (selMotor.value === 'onnx') {
       cfg_avisar('Elige un modelo y pulsa «Descargar y activar».', 'info');
+    } else if (selMotor.value === 'servidor') {
+      cfg_avisar('Pega la dirección de tu servidor-cerebro y pulsa «Probar servidor».', 'info');
     } else {
       cfg_avisar('Detector básico activo.', 'info');
     }
+  });
+
+  // 🖥️ Probar el servidor-cerebro: le manda una foto de la cámara (o una de
+  // prueba) y comprueba que responde con detecciones. Dice claro si sirve.
+  const btnProbarSrv = $('cfg-btnProbarServidor');
+  if (btnProbarSrv) btnProbarSrv.addEventListener('click', function () {
+    const campo = $('cfg-servidorUrl');
+    const out = $('cfg-servidorEstado');
+    const url = (campo && campo.value || '').trim();
+    if (!url) { if (out) { out.textContent = '❌ Escribe primero la dirección del servidor.'; out.style.color = '#ff6b6b'; } return; }
+    if (out) { out.textContent = '⏳ Probando conexión con el servidor…'; out.style.color = ''; }
+    // Guardamos ya la URL para que el motor la use en cuanto se confirme.
+    estado.cfg.servidorUrl = url;
+    if (typeof nuc_guardar === 'function') nuc_guardar('cfg', estado.cfg);
+    // Imagen de prueba: la cámara si está en marcha; si no, un pixel en blanco.
+    let jpeg = null;
+    try { if (typeof vid_capturaJPEG === 'function') jpeg = vid_capturaJPEG(640, 0.6); } catch (e) {}
+    if (!jpeg) jpeg = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACP/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AfwD/2Q==';
+    const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    const to = ctrl ? setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 10000) : null;
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imagen: jpeg }),
+      signal: ctrl ? ctrl.signal : undefined,
+    }).then(function (r) {
+      if (to) clearTimeout(to);
+      if (!r.ok) throw new Error('El servidor respondió HTTP ' + r.status);
+      return r.json();
+    }).then(function (data) {
+      const dets = (data && (data.detecciones || data.detections));
+      if (!Array.isArray(dets)) throw new Error('Responde, pero no con el formato esperado ({detecciones:[…]}).');
+      if (out) {
+        out.textContent = '✅ SIRVE. El servidor responde bien (' + dets.length + ' detección(es) en la prueba). Ya puedes vigilar con el cerebro en la nube.';
+        out.style.color = '#39d98a';
+      }
+    }).catch(function (e) {
+      if (to) clearTimeout(to);
+      const msg = (e && e.name === 'AbortError') ? 'tardó demasiado (¿está encendido?)' : (e && e.message || 'no responde');
+      if (out) {
+        out.textContent = '❌ NO SIRVE: ' + msg + '. Revisa que el ordenador-servidor esté encendido, la dirección termine en /detectar y sea https.';
+        out.style.color = '#ff6b6b';
+      }
+    });
   });
 
   // --- Supercerebro (ONNX-YOLO11) ---
