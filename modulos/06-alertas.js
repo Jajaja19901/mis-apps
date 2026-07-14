@@ -228,6 +228,10 @@ function alerta_disparar(tipo, nivel, texto, datos, forzar) {
   // 🚧 Puerta central anti-mezcla: si el tipo no pertenece a la vista actual,
   // NO suena, NO se registra, NO se graba y NO va a Telegram. Punto.
   if (!alerta_permitidaEnVista(tipo)) return null;
+  // 🎯 SOLO ROBOS: si el dueño lo activó, se silencia TODO menos la familia de
+  // ocultación (robo), el sabotaje de cámara y la alerta de prueba. Así se
+  // acaban los avisos de correr, agacharse, caídas, merodeo, colas, etc.
+  if (estado.cfg.soloRobos && tipo.indexOf('ocultacion') !== 0 && tipo !== 'sabotaje' && tipo !== 'prueba') return null;
   datos = datos || {};
   const trackId = datos.trackId != null ? datos.trackId : null;
   const clave = tipo + '|' + (trackId != null ? trackId : '');

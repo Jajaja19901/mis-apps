@@ -1933,6 +1933,12 @@ summary.sec-titulo::before { display: inline-block; }
     <label class="fila"><input type="checkbox" id="cfg-sonidoOn" data-cfg="sonidoOn"> Sonido de alarma</label>
 
     <label class="fila" style="align-items:flex-start;gap:8px;">
+      <input type="checkbox" id="cfg-soloRobos" data-cfg="soloRobos">
+      <span>🎯 <b>Solo robos</b>
+      <span class="etiqueta">Silencia TODO lo demás (correr, agacharse, caídas, merodeo, colas, aglomeración…) y deja solo los avisos de <b>robo/ocultación</b> (+ sabotaje de cámara). Ideal si solo te interesan los hurtos.</span></span>
+    </label>
+
+    <label class="fila" style="align-items:flex-start;gap:8px;">
       <input type="checkbox" id="cfg-alertaDiscreto" data-cfg="alertaDiscreto">
       <span>🔕 <b>Solo sonar/saltar con robo CONFIRMADO</b>
       <span class="etiqueta">El sonido y la pantalla completa saltan SOLO cuando la IA confirma el robo (≥65%). Las sospechas y dudosas (ámbar) van en silencio al listado de abajo. <b>Necesita la IA encendida</b>; sin IA, suena solo en las alertas críticas.</span></span>
@@ -2248,7 +2254,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '4.09',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '4.10',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -2331,6 +2337,7 @@ const CFG_DEFECTOS = {
   clipSospecha: true,
   alertaCooldownSeg: 30,
   alertaDiscreto: false,    // 🔕 solo SONAR y saltar la pantalla con robo CONFIRMADO (IA ≥65%); el resto (sospecha/dudoso) va SILENCIOSO al feed. Sin IA, suena solo en crítico.
+  soloRobos: false,         // 🎯 solo avisar de ROBOS (ocultación): silencia correr, agacharse, caídas, merodeo, aglomeración, colas… (deja robo + sabotaje + prueba)
   telegramToken: '',
   telegramChat: '',
   // 🧠 IA de visión que CONFIRMA las alertas (módulo 26). MULTI-PROVEEDOR:
@@ -6982,6 +6989,10 @@ function alerta_disparar(tipo, nivel, texto, datos, forzar) {
   // 🚧 Puerta central anti-mezcla: si el tipo no pertenece a la vista actual,
   // NO suena, NO se registra, NO se graba y NO va a Telegram. Punto.
   if (!alerta_permitidaEnVista(tipo)) return null;
+  // 🎯 SOLO ROBOS: si el dueño lo activó, se silencia TODO menos la familia de
+  // ocultación (robo), el sabotaje de cámara y la alerta de prueba. Así se
+  // acaban los avisos de correr, agacharse, caídas, merodeo, colas, etc.
+  if (estado.cfg.soloRobos && tipo.indexOf('ocultacion') !== 0 && tipo !== 'sabotaje' && tipo !== 'prueba') return null;
   datos = datos || {};
   const trackId = datos.trackId != null ? datos.trackId : null;
   const clave = tipo + '|' + (trackId != null ? trackId : '');
