@@ -15,7 +15,7 @@
  * ==========================================================================*/
 
 const PEL_COOLDOWN_MS = 20000;   // no repetir el mismo tipo de objeto en 20 s
-const PEL_SCORE_MIN = 0.4;       // confianza mínima (0.5 dejaba MUDO un cuchillo EN MANO: objeto pequeño puntúa bajo; el texto ya dice «revisar», nunca acusa)
+const PEL_SCORE_MIN = 0.62;      // confianza mínima ALTA a propósito: a 0.4 el detector llamaba "cuchillo" a botellas/objetos alargados y saltaba basura. Mejor perder un cuchillo dudoso que inventarlos. Un cuchillo claro supera 0.62.
 const PEL_CERCA_REL = 0.35;      // objeto a <35% del ancho junto a una persona = más peligroso
 
 function pel_init() {

@@ -25,6 +25,16 @@ const GESTO_HUESOS = [
   [23, 25], [25, 27], [24, 26], [26, 28],           // piernas
 ];
 const GESTO_PUNTOS_CLAVE = [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28];
+/* Color de cada hueso (mismo orden que GESTO_HUESOS): brazos en cálido (lo que
+ * importa para el robo), torso turquesa, piernas en frío. Como el vídeo SUPRA. */
+const GESTO_HUESO_COLOR = [
+  '#2ee5c8',            // hombros (torso)
+  '#ff8c42', '#ff8c42', // brazo izquierdo (naranja)
+  '#ffd23f', '#ffd23f', // brazo derecho (amarillo)
+  '#2ee5c8', '#2ee5c8', '#2ee5c8', // torso + caderas (turquesa)
+  '#2ee584', '#2ee584', // pierna izquierda (verde)
+  '#5cc8ff', '#5cc8ff', // pierna derecha (azul)
+];
 
 /* Umbrales de la máquina de ocultación (relativos a la anchura de hombros) ---*/
 const GESTO_EXT_ALCANCE = 1.1;   // muñeca-torso > 1.1× anchoHombros → "alcanzar estante"
@@ -655,28 +665,46 @@ function gesto_pintar(ctx) {
   } catch (e) { /* diagnóstico jamás rompe el pintado */ }
   if (!g.poses || !g.poses.length) return;
   ctx.save();
-  ctx.strokeStyle = '#3fa9ff';
-  ctx.fillStyle = '#3fa9ff';
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
   for (let i = 0; i < g.poses.length; i++) {
     const p = g.poses[i].puntos;
     if (!p || !p.length) continue;
+    // Cada hueso con su COLOR (como el vídeo de referencia): así se sigue a
+    // simple vista qué hace cada brazo/pierna. Los brazos, que son lo que
+    // importa para el robo, van en cálido (naranja/amarillo).
     for (let h = 0; h < GESTO_HUESOS.length; h++) {
       const a = p[GESTO_HUESOS[h][0]], b = p[GESTO_HUESOS[h][1]];
-      if (!a || !b) continue;
-      if (!gesto_visible(a) || !gesto_visible(b)) continue;
+      if (!a || !b || !gesto_visible(a) || !gesto_visible(b)) continue;
+      ctx.strokeStyle = GESTO_HUESO_COLOR[h] || '#3fa9ff';
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
       ctx.stroke();
     }
+    // Articulaciones (puntos) en blanco para que resalten sobre el color.
+    ctx.fillStyle = '#eef4ff';
     for (let k = 0; k < GESTO_PUNTOS_CLAVE.length; k++) {
       const pt = p[GESTO_PUNTOS_CLAVE[k]];
       if (!pt || !gesto_visible(pt)) continue;
       ctx.beginPath();
-      ctx.arc(pt.x, pt.y, 2.5, 0, Math.PI * 2);
+      ctx.arc(pt.x, pt.y, 3, 0, Math.PI * 2);
       ctx.fill();
     }
+    // ✋ MANOS resaltadas: círculo grande en cada muñeca. El color dice la fase
+    // del gesto → ROJO si está escondiendo, ÁMBAR si está cogiendo/alcanzando,
+    // verde si nada. Es lo que hace "ver clarísimo" el momento del robo.
+    const fase = (g.maquinas && g.maquinas[g.poses[i].trackId]) ? g.maquinas[g.poses[i].trackId].fase : 'reposo';
+    const colorMano = fase === 'ocultando' ? '#ff4155' : (fase === 'alcanzado' ? '#ffb224' : '#2ee584');
+    [p[GESTO_LM.MUNECA_I], p[GESTO_LM.MUNECA_D]].forEach(function (mu) {
+      if (!mu || !gesto_visible(mu)) return;
+      ctx.beginPath();
+      ctx.arc(mu.x, mu.y, 9, 0, Math.PI * 2);
+      ctx.fillStyle = colorMano;
+      ctx.globalAlpha = 0.35; ctx.fill();
+      ctx.globalAlpha = 1; ctx.lineWidth = 3; ctx.strokeStyle = colorMano; ctx.stroke();
+      ctx.lineWidth = 4;
+    });
   }
   ctx.restore();
 }
