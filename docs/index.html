@@ -1994,7 +1994,9 @@ summary.sec-titulo::before { display: inline-block; }
       <p class="etiqueta" id="cfg-iaModeloNota"></p>
     </div>
 
-    <button type="button" class="btn btn-primario" id="cfg-btnIaProbar">🧠 Probar la IA con la cámara</button>
+    <button type="button" class="btn btn-primario" id="cfg-btnIaConexion">🔌 Probar conexión (dice si sirve)</button>
+    <p class="etiqueta" id="cfg-iaEstadoConexion" aria-live="polite" style="min-height:1.2em;margin:.4rem 0"></p>
+    <button type="button" class="btn btn-fantasma" id="cfg-btnIaProbar">🧠 Probar con la cámara (imagen real)</button>
 
     <details class="cfg-sec">
       <summary>¿Cómo consigo la clave? (según el proveedor)</summary>
@@ -2222,7 +2224,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '4.00',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '4.01',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -9847,7 +9849,11 @@ function cfg_conectarBotones() {
     selSens.addEventListener('change', function () { cfg_aplicarSensibilidad(selSens.value); });
   }
 
-  // 🧠 Probar la IA con la cámara: comprueba que la clave funciona.
+  // 🔌 Probar CONEXIÓN de la IA (sin cámara): dice claro si sirve o no y por qué.
+  const btnIaConx = $('cfg-btnIaConexion');
+  if (btnIaConx) btnIaConx.addEventListener('click', function () { if (typeof ia_probarConexion === 'function') ia_probarConexion(); });
+
+  // 🧠 Probar la IA con la cámara: comprueba con una imagen real de la escena.
   const btnIa = $('cfg-btnIaProbar');
   if (btnIa) btnIa.addEventListener('click', function () { if (typeof ia_probar === 'function') ia_probar(); });
 
@@ -18449,6 +18455,72 @@ function ia_telegram(texto) {
 
 function ia_toast(msg, nivel) {
   if (typeof ui_toast === 'function') { try { ui_toast(msg, nivel || 'info'); } catch (e) {} }
+}
+
+/* Escribe el resultado del probador de conexión en Ajustes (persistente y con
+ * color), para que el dueño VEA claro si sirve o no. */
+function ia_estadoConexion(texto, tono) {
+  const el = document.getElementById('cfg-iaEstadoConexion');
+  if (!el) return;
+  el.textContent = texto;
+  el.style.color = tono === 'ok' ? 'var(--verde, #2ee584)' :
+    (tono === 'error' ? 'var(--rojo, #ff4155)' : 'var(--texto2)');
+}
+
+/* Imagen de prueba generada (sin cámara): un cuadro con "AI" dibujado. Sirve
+ * para comprobar que el modelo admite imágenes sin depender del vídeo. */
+function ia_imagenPrueba() {
+  try {
+    const c = document.createElement('canvas'); c.width = 96; c.height = 96;
+    const g = c.getContext('2d');
+    g.fillStyle = '#1a2230'; g.fillRect(0, 0, 96, 96);
+    g.fillStyle = '#5cc8ff'; g.fillRect(22, 22, 52, 52);
+    g.fillStyle = '#0b0f14'; g.font = 'bold 24px sans-serif'; g.fillText('AI', 30, 60);
+    return c.toDataURL('image/jpeg', 0.7);
+  } catch (e) { return null; }
+}
+
+/* 🔌 PROBADOR DE CONEXIÓN — dice claramente si la IA configurada SIRVE o no, y
+ * por qué. No necesita cámara, no toca el feed y no exige encender la
+ * confirmación: es solo para validar clave + endpoint + modelo. */
+async function ia_probarConexion() {
+  const prov = ia_proveedor();
+  if (!estado.cfg.iaApiKey) { ia_estadoConexion('❌ Falta la CLAVE: pégala arriba.', 'error'); return false; }
+  if (prov === 'custom' && !String(estado.cfg.iaEndpoint || '').trim()) {
+    ia_estadoConexion('❌ Falta el ENDPOINT (proveedor «Otra»).', 'error'); return false;
+  }
+  if (!ia_modelo()) { ia_estadoConexion('❌ Falta el nombre del MODELO.', 'error'); return false; }
+  const img = ia_imagenPrueba();
+  const foto = img ? ia_parseFoto(img) : null;
+  if (!foto) { ia_estadoConexion('❌ No se pudo crear la imagen de prueba.', 'error'); return false; }
+  ia_estadoConexion('⏳ Probando ' + ia_nombreProv(prov) + ' («' + ia_modelo() + '»)…', 'info');
+  try {
+    const pet = ia_construirPeticion(prov, [foto], 'prueba', 'prueba de conexión: responde brevemente');
+    if (!pet) { ia_estadoConexion('❌ Proveedor no soportado.', 'error'); return false; }
+    const r = await fetch(pet.url, { method: 'POST', headers: pet.headers, body: JSON.stringify(pet.body) });
+    if (!r || !r.ok) {
+      const cod = r ? r.status : 0;
+      let msg;
+      if (cod === 401 || cod === 403) msg = 'la CLAVE no es válida o no tiene permiso.';
+      else if (cod === 404) msg = 'el MODELO o el ENDPOINT no existe. Revisa el nombre del modelo.';
+      else if (cod === 400) msg = 'petición rechazada: puede que ese modelo NO admita imágenes. Usa uno «vision».';
+      else if (cod === 429) msg = 'límite de uso alcanzado; prueba en un rato.';
+      else msg = 'error ' + cod + '.';
+      ia_estadoConexion('❌ NO sirve — ' + msg, 'error');
+      return false;
+    }
+    const data = await r.json();
+    const txt = ia_extraerTexto(prov, data);
+    if (txt && String(txt).trim()) {
+      ia_estadoConexion('✅ ¡SIRVE! ' + ia_nombreProv(prov) + ' respondió y ve imágenes. Ya puedes activar la confirmación.', 'ok');
+      return true;
+    }
+    ia_estadoConexion('⚠ Respondió pero vacío: quizá el modelo no admite imágenes. Prueba otro «vision».', 'error');
+    return false;
+  } catch (e) {
+    ia_estadoConexion('❌ NO sirve — no se pudo conectar (¿sin internet, o el proveedor bloquea el navegador/CORS?).', 'error');
+    return false;
+  }
 }
 
 /* Prueba manual desde Ajustes: manda un frame (+ búfer si lo hay) a la IA para

@@ -1175,7 +1175,11 @@ function cfg_conectarBotones() {
     selSens.addEventListener('change', function () { cfg_aplicarSensibilidad(selSens.value); });
   }
 
-  // 🧠 Probar la IA con la cámara: comprueba que la clave funciona.
+  // 🔌 Probar CONEXIÓN de la IA (sin cámara): dice claro si sirve o no y por qué.
+  const btnIaConx = $('cfg-btnIaConexion');
+  if (btnIaConx) btnIaConx.addEventListener('click', function () { if (typeof ia_probarConexion === 'function') ia_probarConexion(); });
+
+  // 🧠 Probar la IA con la cámara: comprueba con una imagen real de la escena.
   const btnIa = $('cfg-btnIaProbar');
   if (btnIa) btnIa.addEventListener('click', function () { if (typeof ia_probar === 'function') ia_probar(); });
 
