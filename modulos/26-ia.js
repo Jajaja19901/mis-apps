@@ -235,8 +235,30 @@ function ia_marcar(registroId, texto, tono, verdicto) {
  * descripcion, confianza}. `fotoDataURL` = el instante de la alarma; se le
  * añaden los fotogramas recientes del búfer (el "antes"). `registroId` = la
  * alerta a la que pegar el veredicto en el feed. No lanza nunca. */
-async function ia_confirmarAlerta(fotoDataURL, tipo, texto, registroId) {
-  if (!ia_activa() || !fotoDataURL || ia_ocupada) return null;
+/* 🔕 RED DE SEGURIDAD del modo discreto: en discreto, el sonido de la alarma se
+ * aplaza esperando el veredicto de la IA. Si la IA NO pudo darlo (error, ocupada,
+ * vacío, sin foto) y la alerta era CRÍTICA, suena IGUAL — más vale un aviso de
+ * más que perderse un robo con el filtro caído. OJO: si la IA SÍ juzgó y la
+ * descartó (confianza baja), NO entra aquí: eso es el filtro haciendo su trabajo. */
+function ia_faltaVerdicto(registroId, nivel) {
+  if (!estado.cfg.alertaDiscreto || nivel !== 'critico') return;
+  try {
+    const reg = (estado.alerta && estado.alerta.log || []).filter(function (r) { return r && r.id === registroId; })[0];
+    if (typeof alerta_sonido === 'function') alerta_sonido('critico');
+    if (typeof alerta_vibrar === 'function') alerta_vibrar('critico');
+    if (reg && typeof alerta_flashMostrar === 'function') alerta_flashMostrar(reg);
+  } catch (e) {}
+}
+
+async function ia_confirmarAlerta(fotoDataURL, tipo, texto, registroId, nivel) {
+  if (!ia_activa() || !fotoDataURL) return null;
+  // Otra consulta en curso: no encolamos, pero en discreto un crítico debe sonar
+  // igual (si no, coincidir con otra alerta lo dejaría mudo).
+  if (ia_ocupada) {
+    ia_marcar(registroId, '🧠 IA ocupada (otra alerta en curso)', 'sospecha');
+    ia_faltaVerdicto(registroId, nivel);
+    return null;
+  }
   ia_marcar(registroId, '🧠 Consultando a ' + ia_nombreProv(ia_proveedor()) + '…', 'info');
   // Secuencia = últimos del búfer (antes/durante) + el instante de la alarma.
   const crudas = ia_ring.slice(-(IA_RING_MAX - 1)).concat([fotoDataURL]);
@@ -247,12 +269,21 @@ async function ia_confirmarAlerta(fotoDataURL, tipo, texto, registroId) {
     const f = ia_parseFoto(crudas[i]);
     if (f) { fotos.push(f); ultimo = crudas[i]; }
   }
-  if (!fotos.length) return null;
+  if (!fotos.length) {
+    ia_marcar(registroId, '🧠 No se pudo preparar la imagen', 'sospecha');
+    ia_faltaVerdicto(registroId, nivel);
+    return null;
+  }
   const prov = ia_proveedor();
   ia_ocupada = true;
   try {
     const pet = ia_construirPeticion(prov, fotos, tipo, texto);
-    if (!pet) { ia_toast('🧠 Proveedor de IA no soportado.', 'sospecha'); return null; }
+    if (!pet) {
+      ia_toast('🧠 Proveedor de IA no soportado.', 'sospecha');
+      ia_marcar(registroId, '🧠 Proveedor de IA no soportado', 'sospecha');
+      ia_faltaVerdicto(registroId, nivel);
+      return null;
+    }
     const r = await fetch(pet.url, { method: 'POST', headers: pet.headers, body: JSON.stringify(pet.body) });
     if (!r || !r.ok) {
       const cod = r ? r.status : 0;
@@ -262,6 +293,7 @@ async function ia_confirmarAlerta(fotoDataURL, tipo, texto, registroId) {
             (cod === 404 ? ia_nombreProv(prov) + ': modelo o endpoint no encontrado' : ('IA: error ' + cod))));
       ia_toast('🧠 ' + msg, 'sospecha');
       ia_marcar(registroId, '🧠 ' + msg, 'sospecha');
+      ia_faltaVerdicto(registroId, nivel);
       return null;
     }
     const data = await r.json();
@@ -272,6 +304,7 @@ async function ia_confirmarAlerta(fotoDataURL, tipo, texto, registroId) {
       const msg = errCuerpo ? errCuerpo : 'respondió vacío (¿el modelo no admite imágenes? usa uno «vision»)';
       ia_toast('🧠 ' + msg, 'sospecha');
       ia_marcar(registroId, '🧠 ' + msg, 'sospecha');
+      ia_faltaVerdicto(registroId, nivel);
       return null;
     }
     let v = null;
@@ -286,6 +319,7 @@ async function ia_confirmarAlerta(fotoDataURL, tipo, texto, registroId) {
   } catch (e) {
     ia_toast('🧠 No se pudo consultar la IA (¿sin internet o CORS?)', 'sospecha');
     ia_marcar(registroId, '🧠 No se pudo consultar (¿sin internet o CORS?)', 'sospecha');
+    ia_faltaVerdicto(registroId, nivel);
     return null;
   } finally {
     ia_ocupada = false;
@@ -410,7 +444,9 @@ async function ia_probarConexion() {
  * mechero, etc.—, no solo los 80 del detector del móvil). Cada toque = 1 consulta. */
 async function ia_queVes() {
   const prov = ia_proveedor();
-  if (!ia_activa()) { ia_toast('🧠 Configura y activa la IA primero (Ajustes → 🧠 IA).', 'sospecha'); return; }
+  // A demanda: basta una clave válida (no exige el interruptor de confirmación).
+  if (!estado.cfg.iaApiKey) { ia_toast('🧠 Pon primero tu clave de IA (Ajustes → 🧠 IA).', 'sospecha'); return; }
+  if (prov === 'custom' && !String(estado.cfg.iaEndpoint || '').trim()) { ia_toast('🧠 Pon también el endpoint (proveedor «Otra»).', 'sospecha'); return; }
   let foto = null;
   try { if (typeof vid_capturaJPEG === 'function') foto = vid_capturaJPEG(1280, 0.82); } catch (e) {}
   if (!foto) { ia_toast('🧠 Enciende la cámara o un vídeo para preguntar a la IA.', 'sospecha'); return; }

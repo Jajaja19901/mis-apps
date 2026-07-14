@@ -298,7 +298,7 @@ function alerta_disparar(tipo, nivel, texto, datos, forzar) {
   //     feed (visible y persistente) y también va a Telegram. Se le pasa el id
   //     del registro para poder marcar ESA tarjeta.
   if (nivel !== 'info' && fotoHD && typeof ia_confirmarAlerta === 'function' && typeof ia_activa === 'function' && ia_activa()) {
-    try { ia_confirmarAlerta(fotoHD, tipo, texto, registro.id); } catch (e) {}
+    try { ia_confirmarAlerta(fotoHD, tipo, texto, registro.id, nivel); } catch (e) {}
   }
 
   // 9) bus
