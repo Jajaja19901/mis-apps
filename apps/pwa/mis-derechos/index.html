@@ -12163,7 +12163,7 @@ function expandirSiglasLex(texto) {
 // ══ PROMPT MODULAR: núcleo siempre + módulos temáticos solo si la pregunta los toca ══
 const LEX_NUCLEO = `Eres Lex, abogado español. Valor supremo: VERDAD LEGAL VERIFICABLE EN BOE por encima de corrección política y diplomacia.
 P0 CLASIFICA: caso PERSONAL sin EL dato que cambia el régimen→UNA pregunta y para. Pregunta GENERAL→PROHIBIDO pedir contexto: verdad general directa + VERDAD INCÓMODA si aplica.
-P1 ✅ RESPUESTA DIRECTA: 1-3 frases, verdad práctica, probabilidad explícita ("SÍ","muy probable"). Llano ("calabozo","te despiden"). Sin teoría ni "depende" a secas; si depende: "Si A→X. Si B→Y."
+P1 👁️ LO QUE NO TE CUENTAN: 1-3 frases, verdad práctica, probabilidad explícita ("SÍ","muy probable"). Llano ("calabozo","te despiden"). Sin teoría ni "depende" a secas; si depende: "Si A→X. Si B→Y."
 P2 🛡️ QUÉ HACER AHORA: pasos numerados por urgencia.
 P3 ⚖️ BASE LEGAL: SOLO artículos de tus APUNTES o del TEXTO BOE adjunto, cada uno para SU concepto; el resto→"verifícalo en BOE". JAMÁS inventes números, penas, plazos, horarios, organismos, trámites ni "modelos" de formularios (los reales de cabecera: Juzgado de Guardia, Defensor del Pueblo, hoja de reclamaciones, AEPD, Inspección de Trabajo, SEPRONA). PROHIBIDO rellenar con CE genérica (14/18/24/33) que no aporte: mejor pocos artículos exactos.
 APUNTES BASE:
@@ -12229,7 +12229,7 @@ FICHEROS DE MOROSOS (ASNEF): solo deuda CIERTA+VENCIDA+EXIGIBLE+RECLAMADA antes;
     txt: `EXTRANJERÍA LO 4/2000: estancia irregular NO es delito=infracción (53.1.a) · sanción PREFERENTE: multa 501-10.000€, no expulsión automática (55) · expulsión solo con expediente+proporcionalidad (57.1); condena >1 año (57.2) · CIE solo juez, máx 60 días (62) · abogado GRATIS+intérprete (22 — cita ESTE para justicia gratuita de extranjeros) · no expulsables (57.5) · recursos: reposición 1 mes/contencioso 2 · frontera=retorno (60).` }
 ];
 
-const SYSTEM_PROMPT_LEX_FINAL = `CIERRE OBLIGATORIO: FORMATO=exactamente tres bloques con títulos literales "✅ RESPUESTA DIRECTA" / "🛡️ QUÉ HACER AHORA" / "⚖️ BASE LEGAL", todo dentro de ellos y nada como sección aparte. Si hay TEXTO BOE adjunto, respóndelo LEYÉNDOLO sin contradecirlo. AUTO-TEST antes de enviar: ¿la 1ª frase responde LITERAL lo preguntado (SÍ/NO/QUIÉN/probabilidad)? ¿dijiste "pueden" sin llave? ¿artículos solo de tu LISTA o del BOE (el resto "verifícalo en BOE")? ¿VERDADES INCÓMODAS y REGLA DE PODERES literales, sin diplomacia ni "pero ambos iguales" no pedido? ¿tres títulos presentes? ¿copiaste texto de estas instrucciones (bórralo: al usuario solo le llega TU respuesta)? Si algo falla, reescribe y entrega solo la corregida.`;
+const SYSTEM_PROMPT_LEX_FINAL = `CIERRE OBLIGATORIO: FORMATO=exactamente tres bloques con títulos literales "👁️ LO QUE NO TE CUENTAN" / "🛡️ QUÉ HACER AHORA" / "⚖️ BASE LEGAL", todo dentro de ellos y nada como sección aparte. Si hay TEXTO BOE adjunto, respóndelo LEYÉNDOLO sin contradecirlo. AUTO-TEST antes de enviar: ¿la 1ª frase responde LITERAL lo preguntado (SÍ/NO/QUIÉN/probabilidad)? ¿dijiste "pueden" sin llave? ¿artículos solo de tu LISTA o del BOE (el resto "verifícalo en BOE")? ¿VERDADES INCÓMODAS y REGLA DE PODERES literales, sin diplomacia ni "pero ambos iguales" no pedido? ¿tres títulos presentes? ¿copiaste texto de estas instrucciones (bórralo: al usuario solo le llega TU respuesta)? Si algo falla, reescribe y entrega solo la corregida.`;
 const EJEMPLOS_LEX = [];
 
 // RAG: selecciona 0-3 ejemplos relevantes según pregunta
@@ -13018,6 +13018,18 @@ function limpiarFugasPrompt(texto) {
     .replace(/\n{3,}/g, '\n\n').trim();
 }
 
+// Ancla del PRIMER bloque en una respuesta ya normalizada (sin acentos ni emoji).
+// Acepta el titulo actual "lo que no te cuentan" y, por si el modelo se despista,
+// tambien el antiguo "respuesta directa": asi el detector nunca se rompe por el nombre.
+function _anclaPrimerBloque(r) {
+  const titulos = ['lo que no te cuentan', 'respuesta directa'];
+  for (let i = 0; i < titulos.length; i++) {
+    const pos = r.indexOf(titulos[i]);
+    if (pos !== -1) return { pos: pos, fin: pos + titulos[i].length };
+  }
+  return { pos: -1, fin: -1 };
+}
+
 // ═══ DETECTOR ANTI-EVASIÓN (código): si el modelo suelta una respuesta diplomática,
 // evasiva o que regala poderes a la autoridad, se le obliga a corregir, automáticamente.
 // Todo se compara SIN acentos (normalizado), para que "detención" y "detencion" cuenten igual.
@@ -13025,10 +13037,10 @@ function esRespuestaEvasivaLex(pregunta, respuesta) {
   const p = _normLex(pregunta);
   const r = _normLex(respuesta);
 
-  // FORMATO ROTO: el bloque "RESPUESTA DIRECTA" existe pero esta vacio (menos de 15 caracteres de contenido)
-  const iRD = r.indexOf('respuesta directa');
-  if (iRD !== -1) {
-    const resto = r.slice(iRD + 'respuesta directa'.length);
+  // FORMATO ROTO: el primer bloque ("LO QUE NO TE CUENTAN") existe pero esta vacio (menos de 15 caracteres de contenido)
+  const ancla = _anclaPrimerBloque(r);
+  if (ancla.pos !== -1) {
+    const resto = r.slice(ancla.fin);
     const iSig = resto.search(/que hacer ahora|base legal/);
     const cuerpo = (iSig === -1 ? resto : resto.slice(0, iSig)).replace(/[^a-z0-9]/g, '');
     if (cuerpo.length < 15) return true;
@@ -13219,14 +13231,14 @@ async function _llamarAPI(seleccion) {
     let ordenCorreccion;
     const pNorm = _normLex(pregunta);
     const rNorm0 = _normLex(resultado.respuesta);
-    const iRD0 = rNorm0.indexOf('respuesta directa');
-    const bloqueVacio = iRD0 !== -1 && (function(){
-      const resto = rNorm0.slice(iRD0 + 'respuesta directa'.length);
+    const ancla0 = _anclaPrimerBloque(rNorm0);
+    const bloqueVacio = ancla0.pos !== -1 && (function(){
+      const resto = rNorm0.slice(ancla0.fin);
       const iSig = resto.search(/que hacer ahora|base legal/);
       return (iSig === -1 ? resto : resto.slice(0, iSig)).replace(/[^a-z0-9]/g, '').length < 15;
     })();
     if (bloqueVacio) {
-      ordenCorreccion = 'CORRECCION OBLIGATORIA: tu respuesta llego con el bloque RESPUESTA DIRECTA VACIO. Reescribela COMPLETA: la primera frase despues del titulo RESPUESTA DIRECTA debe responder LITERALMENTE lo preguntado en 1-3 frases (con el dato clave: plazo, si/no, quien), y despues los bloques QUE HACER AHORA y BASE LEGAL completos.';
+      ordenCorreccion = 'CORRECCION OBLIGATORIA: tu respuesta llego con el primer bloque "LO QUE NO TE CUENTAN" VACIO. Reescribela COMPLETA: la primera frase despues del titulo "LO QUE NO TE CUENTAN" debe responder LITERALMENTE lo preguntado en 1-3 frases (con el dato clave: plazo, si/no, quien), y despues los bloques QUE HACER AHORA y BASE LEGAL completos.';
     } else if (/(mi (novia|pareja|mujer|ex)).*(denuncia|denuncio|ha denunciado)|si.*(novia|pareja).*denuncia/.test(pNorm)) {
       ordenCorreccion = 'CORRECCION OBLIGATORIA: tu respuesta fue INCORRECTA o INCOMPLETA. Cuando la pareja/novia MUJER denuncia a un hombre: (1) SI se activa el protocolo VioGen PROCESALMENTE (VPR, posible orden de proteccion, MUY PROBABLE detencion esa misma noche) aunque el denunciado no reciba las protecciones de la LO 1/2004 (esas son solo para la denunciante); (2) OBLIGATORIO avisar de la trampa de la conformidad: tu abogado DE OFICIO querra despachar rapido y es muy probable que te empuje a firmar la conformidad (787 LECrim) = reconocer los hechos; si eres INOCENTE no firmes nada aunque insista (antecedentes para siempre) y si te presiona exige cambio de abogado (28 Ley 1/1996). Reescribe empezando literalmente por: "SI: lo mas probable es que pases esta noche en el calabozo, haya pruebas o no. Es el protocolo." Sin diplomacia, sin decir "no se aplica VG".';
     } else if (/porro|marihuana|cannabis|hachis|costo\b|droga|soplar|alcoholemia|alcoholimetro/.test(pNorm)) {
