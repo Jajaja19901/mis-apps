@@ -307,6 +307,7 @@ h1, h2, h3, p { margin: 0; }
 }
 .ui-contador { display: flex; flex-direction: column; padding: var(--espacio-2); }
 
+.ui-feed-cabecera { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
 .ui-feed-alertas { display: flex; flex-direction: column; gap: .5rem; }
 .ui-feed-vacio { color: var(--texto2); font-size: .9rem; padding: var(--espacio-2) 0; }
 .ui-feed-item {
@@ -1020,7 +1021,10 @@ summary.sec-titulo::before { display: inline-block; }
     </section>
 
     <section class="sec" id="ui-secAlertas">
-      <h2 class="sec-titulo">Alertas recientes</h2>
+      <div class="ui-feed-cabecera">
+        <h2 class="sec-titulo">Alertas recientes</h2>
+        <button type="button" class="btn btn-mini btn-fantasma" id="ui-btnBorrarFeed">🗑 Borrar</button>
+      </div>
       <ul id="ui-feedAlertas" class="ui-feed-alertas">
         <li class="ui-feed-vacio" id="ui-feedVacio">Sin alertas — todo en orden</li>
       </ul>
@@ -1927,6 +1931,12 @@ summary.sec-titulo::before { display: inline-block; }
 
     <label class="fila"><input type="checkbox" id="cfg-sonidoOn" data-cfg="sonidoOn"> Sonido de alarma</label>
 
+    <label class="fila" style="align-items:flex-start;gap:8px;">
+      <input type="checkbox" id="cfg-alertaDiscreto" data-cfg="alertaDiscreto">
+      <span>🔕 <b>Solo sonar/saltar con robo CONFIRMADO</b>
+      <span class="etiqueta">El sonido y la pantalla completa saltan SOLO cuando la IA confirma el robo (≥65%). Las sospechas y dudosas (ámbar) van en silencio al listado de abajo. <b>Necesita la IA encendida</b>; sin IA, suena solo en las alertas críticas.</span></span>
+    </label>
+
     <div class="campo">
       <label for="cfg-alertaCooldownSeg">Tiempo mínimo entre alertas repetidas (segundos)</label>
       <input type="number" id="cfg-alertaCooldownSeg" data-cfg="alertaCooldownSeg" min="5" max="300" step="5">
@@ -2237,7 +2247,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '4.07',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '4.08',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -2319,6 +2329,7 @@ const CFG_DEFECTOS = {
   privacidad: false,
   clipSospecha: true,
   alertaCooldownSeg: 30,
+  alertaDiscreto: false,    // 🔕 solo SONAR y saltar la pantalla con robo CONFIRMADO (IA ≥65%); el resto (sospecha/dudoso) va SILENCIOSO al feed. Sin IA, suena solo en crítico.
   telegramToken: '',
   telegramChat: '',
   // 🧠 IA de visión que CONFIRMA las alertas (módulo 26). MULTI-PROVEEDOR:
@@ -6024,7 +6035,18 @@ function ui_init() {
   /* Bus de eventos */
   bus.on('alerta', ui_alRecibirAlerta);
   bus.on('ia:estado', ui_alEstadoIA);
+  bus.on('alerta:borradas', ui_vaciarFeed);
   bus.on('grabacion:lista', ui_alRecibirGrabacion);
+
+  /* 🗑 Borrar avisos del feed (con confirmación). */
+  const btnBorrarFeed = $('ui-btnBorrarFeed');
+  if (btnBorrarFeed) btnBorrarFeed.addEventListener('click', function () {
+    if (typeof ui_modal !== 'function') { if (typeof alerta_borrarLog === 'function') alerta_borrarLog(); return; }
+    ui_modal('Borrar avisos', '<p>¿Borrar todos los avisos del listado? No se puede deshacer.</p>', [
+      { texto: 'Cancelar', clase: 'btn-fantasma' },
+      { texto: '🗑 Borrar', clase: 'btn-peligro', fn: function () { if (typeof alerta_borrarLog === 'function') alerta_borrarLog(); } },
+    ]);
+  });
   bus.on('video:error', ui_alVideoError);
   bus.on('modelos:error', ui_alModelosError);
   bus.on('pose:error', ui_alPoseError);
@@ -6350,6 +6372,19 @@ function ui_alRecibirAlerta(datos) {
   const registro = datos && datos.registro;
   if (!registro) return;
   ui_feedAgregar(ui_feedItemNodo(registro));
+}
+
+/* Vacía el feed en pantalla y restaura el estado "sin alertas". */
+function ui_vaciarFeed() {
+  const refs = estado.uiRefs;
+  if (!refs || !refs.feedAlertas) return;
+  refs.feedAlertas.innerHTML = '';
+  const vacio = document.createElement('li');
+  vacio.className = 'ui-feed-vacio';
+  vacio.id = 'ui-feedVacio';
+  vacio.textContent = 'Sin alertas — todo en orden';
+  refs.feedAlertas.appendChild(vacio);
+  refs.feedVacio = vacio;
 }
 
 /* Reconstruye el feed desde el log guardado: tras recargar o volver de una
@@ -6949,14 +6984,23 @@ function alerta_disparar(tipo, nivel, texto, datos, forzar) {
   alerta_recortarLog();
   nuc_guardar('log', estado.alerta.log);
 
-  // 4) sonido (Web Audio, respeta cfg.sonidoOn y silenciadoHasta)
-  alerta_sonido(nivel);
-
-  // 5) vibración
-  alerta_vibrar(nivel);
-
-  // 6) flash visual (info solo va al feed, no abre overlay)
-  if (nivel === 'critico' || nivel === 'sospecha') alerta_flashMostrar(registro);
+  // 4-6) sonido + vibración + flash a pantalla completa.
+  // 🔕 MODO DISCRETO (cfg.alertaDiscreto): solo suena/salta con robo CONFIRMADO.
+  //   · Si la IA va a confirmar esta alerta → NO suena aún; lo hará ia_mostrar
+  //     cuando el veredicto sea ≥65% (robo seguro). El resto queda mudo en el feed.
+  //   · Si NO hay IA que confirme → al menos suena/salta en crítico (no mudo del todo).
+  // Sin modo discreto: comportamiento normal (crítico y sospecha suenan y saltan).
+  const iaConfirmara = estado.cfg.alertaDiscreto && nivel !== 'info' && fotoHD &&
+    typeof ia_confirmarAlerta === 'function' && typeof ia_activa === 'function' && ia_activa();
+  if (!estado.cfg.alertaDiscreto) {
+    alerta_sonido(nivel);
+    alerta_vibrar(nivel);
+    if (nivel === 'critico' || nivel === 'sospecha') alerta_flashMostrar(registro);
+  } else if (!iaConfirmara && nivel === 'critico') {
+    alerta_sonido('critico');
+    alerta_vibrar('critico');
+    alerta_flashMostrar(registro);
+  }
 
   // 7) criticoTracks (para privacidad/pintado) — usa estado.alertas (del núcleo)
   if (nivel === 'critico' && trackId != null) {
@@ -7128,6 +7172,8 @@ function alerta_borrarLog() {
   if (!estado.alerta) return;
   estado.alerta.log = [];
   nuc_guardar('log', []);
+  // Vacía también el feed en pantalla (la UI escucha este evento).
+  try { if (typeof bus !== 'undefined' && bus.emit) bus.emit('alerta:borradas', {}); } catch (e) {}
 }
 
 /* ============================================================================
@@ -18521,6 +18567,16 @@ function ia_mostrar(v, registroId) {
   const msg = etiqueta + confTxt + desc;
   ia_toast('🧠 ' + msg, tono);
   ia_marcar(registroId, '🧠 ' + msg, tono, { real: v.real, descripcion: v.descripcion, confianza: v.confianza });
+  // 🔕 MODO DISCRETO: aquí es donde SUENA y salta la pantalla, SOLO si la IA
+  //   confirma un robo seguro (≥65%). Así solo molesta con lo confirmado.
+  if (estado.cfg.alertaDiscreto && conf != null && conf >= 65 && registroId) {
+    try {
+      const reg = (estado.alerta && estado.alerta.log || []).filter(function (r) { return r && r.id === registroId; })[0];
+      if (typeof alerta_sonido === 'function') alerta_sonido('critico');
+      if (typeof alerta_vibrar === 'function') alerta_vibrar('critico');
+      if (reg && typeof alerta_flashMostrar === 'function') alerta_flashMostrar(reg);
+    } catch (e) {}
+  }
   if (estado.cfg.telegramToken && estado.cfg.telegramChat) ia_telegram('🧠 IA sobre la última alerta: ' + msg);
 }
 

@@ -11,7 +11,7 @@ const CONFIG = {
   STUDIO_BRAND: 'Incuba tu Negocio',
   STUDIO_AUTHOR: 'Jaime M. M.',
   STUDIO_URL: 'https://incubatunegocio.example',
-  VERSION: '4.07',   // súbela con cada entrega: se ve en Ajustes → Sistema
+  VERSION: '4.08',   // súbela con cada entrega: se ve en Ajustes → Sistema
 };
 
 /* --- Valores por defecto de configuración (la app funciona sin tocar nada) */
@@ -93,6 +93,7 @@ const CFG_DEFECTOS = {
   privacidad: false,
   clipSospecha: true,
   alertaCooldownSeg: 30,
+  alertaDiscreto: false,    // 🔕 solo SONAR y saltar la pantalla con robo CONFIRMADO (IA ≥65%); el resto (sospecha/dudoso) va SILENCIOSO al feed. Sin IA, suena solo en crítico.
   telegramToken: '',
   telegramChat: '',
   // 🧠 IA de visión que CONFIRMA las alertas (módulo 26). MULTI-PROVEEDOR:

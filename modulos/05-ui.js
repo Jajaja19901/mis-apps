@@ -101,7 +101,18 @@ function ui_init() {
   /* Bus de eventos */
   bus.on('alerta', ui_alRecibirAlerta);
   bus.on('ia:estado', ui_alEstadoIA);
+  bus.on('alerta:borradas', ui_vaciarFeed);
   bus.on('grabacion:lista', ui_alRecibirGrabacion);
+
+  /* 🗑 Borrar avisos del feed (con confirmación). */
+  const btnBorrarFeed = $('ui-btnBorrarFeed');
+  if (btnBorrarFeed) btnBorrarFeed.addEventListener('click', function () {
+    if (typeof ui_modal !== 'function') { if (typeof alerta_borrarLog === 'function') alerta_borrarLog(); return; }
+    ui_modal('Borrar avisos', '<p>¿Borrar todos los avisos del listado? No se puede deshacer.</p>', [
+      { texto: 'Cancelar', clase: 'btn-fantasma' },
+      { texto: '🗑 Borrar', clase: 'btn-peligro', fn: function () { if (typeof alerta_borrarLog === 'function') alerta_borrarLog(); } },
+    ]);
+  });
   bus.on('video:error', ui_alVideoError);
   bus.on('modelos:error', ui_alModelosError);
   bus.on('pose:error', ui_alPoseError);
@@ -427,6 +438,19 @@ function ui_alRecibirAlerta(datos) {
   const registro = datos && datos.registro;
   if (!registro) return;
   ui_feedAgregar(ui_feedItemNodo(registro));
+}
+
+/* Vacía el feed en pantalla y restaura el estado "sin alertas". */
+function ui_vaciarFeed() {
+  const refs = estado.uiRefs;
+  if (!refs || !refs.feedAlertas) return;
+  refs.feedAlertas.innerHTML = '';
+  const vacio = document.createElement('li');
+  vacio.className = 'ui-feed-vacio';
+  vacio.id = 'ui-feedVacio';
+  vacio.textContent = 'Sin alertas — todo en orden';
+  refs.feedAlertas.appendChild(vacio);
+  refs.feedVacio = vacio;
 }
 
 /* Reconstruye el feed desde el log guardado: tras recargar o volver de una

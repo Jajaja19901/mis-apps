@@ -310,6 +310,16 @@ function ia_mostrar(v, registroId) {
   const msg = etiqueta + confTxt + desc;
   ia_toast('🧠 ' + msg, tono);
   ia_marcar(registroId, '🧠 ' + msg, tono, { real: v.real, descripcion: v.descripcion, confianza: v.confianza });
+  // 🔕 MODO DISCRETO: aquí es donde SUENA y salta la pantalla, SOLO si la IA
+  //   confirma un robo seguro (≥65%). Así solo molesta con lo confirmado.
+  if (estado.cfg.alertaDiscreto && conf != null && conf >= 65 && registroId) {
+    try {
+      const reg = (estado.alerta && estado.alerta.log || []).filter(function (r) { return r && r.id === registroId; })[0];
+      if (typeof alerta_sonido === 'function') alerta_sonido('critico');
+      if (typeof alerta_vibrar === 'function') alerta_vibrar('critico');
+      if (reg && typeof alerta_flashMostrar === 'function') alerta_flashMostrar(reg);
+    } catch (e) {}
+  }
   if (estado.cfg.telegramToken && estado.cfg.telegramChat) ia_telegram('🧠 IA sobre la última alerta: ' + msg);
 }
 

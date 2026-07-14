@@ -257,14 +257,23 @@ function alerta_disparar(tipo, nivel, texto, datos, forzar) {
   alerta_recortarLog();
   nuc_guardar('log', estado.alerta.log);
 
-  // 4) sonido (Web Audio, respeta cfg.sonidoOn y silenciadoHasta)
-  alerta_sonido(nivel);
-
-  // 5) vibración
-  alerta_vibrar(nivel);
-
-  // 6) flash visual (info solo va al feed, no abre overlay)
-  if (nivel === 'critico' || nivel === 'sospecha') alerta_flashMostrar(registro);
+  // 4-6) sonido + vibración + flash a pantalla completa.
+  // 🔕 MODO DISCRETO (cfg.alertaDiscreto): solo suena/salta con robo CONFIRMADO.
+  //   · Si la IA va a confirmar esta alerta → NO suena aún; lo hará ia_mostrar
+  //     cuando el veredicto sea ≥65% (robo seguro). El resto queda mudo en el feed.
+  //   · Si NO hay IA que confirme → al menos suena/salta en crítico (no mudo del todo).
+  // Sin modo discreto: comportamiento normal (crítico y sospecha suenan y saltan).
+  const iaConfirmara = estado.cfg.alertaDiscreto && nivel !== 'info' && fotoHD &&
+    typeof ia_confirmarAlerta === 'function' && typeof ia_activa === 'function' && ia_activa();
+  if (!estado.cfg.alertaDiscreto) {
+    alerta_sonido(nivel);
+    alerta_vibrar(nivel);
+    if (nivel === 'critico' || nivel === 'sospecha') alerta_flashMostrar(registro);
+  } else if (!iaConfirmara && nivel === 'critico') {
+    alerta_sonido('critico');
+    alerta_vibrar('critico');
+    alerta_flashMostrar(registro);
+  }
 
   // 7) criticoTracks (para privacidad/pintado) — usa estado.alertas (del núcleo)
   if (nivel === 'critico' && trackId != null) {
@@ -436,6 +445,8 @@ function alerta_borrarLog() {
   if (!estado.alerta) return;
   estado.alerta.log = [];
   nuc_guardar('log', []);
+  // Vacía también el feed en pantalla (la UI escucha este evento).
+  try { if (typeof bus !== 'undefined' && bus.emit) bus.emit('alerta:borradas', {}); } catch (e) {}
 }
 
 /* ============================================================================
