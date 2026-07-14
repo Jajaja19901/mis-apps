@@ -13021,24 +13021,35 @@ function limpiarFugasPrompt(texto) {
 // ═══ RECORTA LA LEY LITERAL (código): algunos modelos (Llama sobre todo) copian el texto
 // entero de los artículos —entre comillas o en apartados numerados del BOE— en vez de
 // explicarlos en una línea. Eso alarga la respuesta y la hace ilegible en el móvil.
-// Esta función quita SOLO el ladrillo claramente literal y deja la cita corta:
-//   · comillas con >140 caracteres (el artículo entero) → "(texto completo en boe.es)"
-//   · en la zona de BASE LEGAL, líneas numeradas >180 caracteres (subapartados del BOE)
+// Quita SOLO el ladrillo claramente literal y deja la CITA LIMPIA del artículo (la idea
+// completa ya va arriba, en el primer bloque):
+//   · "Art. 14 CE: <texto entero entre comillas>"  → "Art. 14 CE"
+//   · en BASE LEGAL, apartados numerados larguísimos (subapartados del BOE) → fuera
+//   · dos puntos colgando y viñetas que quedan vacías → se limpian
 // Es conservadora: nunca toca las explicaciones cortas ni los pasos de QUÉ HACER AHORA
 // (que van antes de BASE LEGAL y son breves).
 function recortarLeyLiteral(texto) {
   if (!texto) return texto;
-  texto = texto.replace(/"[^"]{140,}"/g, '(texto completo en boe.es)')
-               .replace(/[«“][^«»“”]{140,}[»”]/g, '(texto completo en boe.es)');
+  // 1) El texto entero del artículo entre comillas (>120): fuera el ladrillo, se queda la cita.
+  //    Con ":" delante nos comemos también los dos puntos, para no dejar "Art. 14 CE:" colgando.
+  texto = texto.replace(/\s*:?\s*"[^"]{120,}"/g, '')
+               .replace(/\s*:?\s*[«“][^«»“”]{120,}[»”]/g, '');
+  // 2) En la zona de BASE LEGAL: apartados numerados larguísimos = subapartados literales del BOE.
   const iBL = texto.search(/base legal/i);
   if (iBL !== -1) {
     const cabeza = texto.slice(0, iBL);
     const cola = texto.slice(iBL).split('\n').filter(function(l){
-      return !/^\s*\d+[.)]\s.{180,}$/.test(l); // "1. <texto legal larguísimo>" = subapartado del BOE
+      return !/^\s*\d+[.)]\s.{160,}$/.test(l); // "1. <texto legal larguísimo>" = subapartado del BOE
     }).join('\n');
     texto = cabeza + cola;
   }
-  return texto.replace(/\n{3,}/g, '\n\n').trim();
+  // 3) Limpieza: quitar el placeholder viejo si aparece, dos puntos al final de línea y
+  //    viñetas que quedaron vacías tras el recorte.
+  return texto
+    .replace(/\s*\(texto completo en boe\.es\)/gi, '')
+    .replace(/[ \t]*:[ \t]*$/gm, '')
+    .split('\n').filter(function(l){ return !/^\s*[-•*]\s*:?\s*$/.test(l); }).join('\n')
+    .replace(/\n{3,}/g, '\n\n').trim();
 }
 
 // Ancla del PRIMER bloque en una respuesta ya normalizada (sin acentos ni emoji).
