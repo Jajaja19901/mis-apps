@@ -371,7 +371,7 @@
     .bfinal{bottom:5%}.tcode{min-height:180px}
   }
   @media(prefers-reduced-motion:reduce){
-    .build-scene{--idea:0;--codev:0;--phonev:1;--reveal:1;--screenv:1;--scanop:0;--finalv:1}
+    .build-scene{--idea:0;--codev:0;--phonev:1;--live:1;--screenv:1;--finalv:1}
     .spark,.caret{animation:none!important}
     .build-stage{height:auto!important}
     .build-sticky{position:relative;height:auto;min-height:100vh;padding:60px 0;display:block}
@@ -643,6 +643,30 @@
   .bscan{position:absolute;left:-6px;right:-6px;top:calc(var(--reveal,0) * 100%);height:3px;margin-top:-1.5px;z-index:3;opacity:var(--scanop,0);background:linear-gradient(90deg,transparent,var(--neo),#eaf1fb,var(--neo),transparent);box-shadow:0 0 18px var(--neo),0 0 46px var(--neo)}
   @media(prefers-reduced-motion:reduce){.bskel,.bscan{display:none}.bapp{clip-path:none}}
 
+
+  /* montaje: secciones reales de la app encajan y luego cobra vida (app en vivo) */
+  .bscreen{position:absolute;inset:18px 12px 12px;padding:0;overflow:hidden;background:#070b12;border-radius:26px}
+  .bskel,.bscan,.bscreen::after,.gphone-frame::after{display:none!important}
+  .bmock{position:absolute;inset:0;z-index:1;display:flex;flex-direction:column;gap:9px;padding:12px 11px;background:#090e15;overflow:hidden;opacity:calc(1 - var(--live,0))}
+  .bsec{will-change:transform,opacity}
+  .mk-head{display:flex;align-items:center;gap:8px;background:#0d1420;border:1px solid #17223a;border-radius:12px;padding:7px 9px}
+  .mk-logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#ff9a3d,#ff5e62);flex:0 0 auto}
+  .mk-ht b{display:block;font-size:12px;color:#fff;font-family:var(--sg)}
+  .mk-ht i{font-style:normal;font-size:7.5px;letter-spacing:.12em;color:#8aa0b8}
+  .mk-en{margin-left:auto;font-size:9px;color:#ffb648;border:1px solid #ffb64855;border-radius:6px;padding:2px 6px}
+  .mk-qr{width:84px;height:84px;margin:8px auto 4px;border-radius:12px;background:#eef2f7;
+    background-image:repeating-linear-gradient(90deg,#0b1018 0 5px,transparent 5px 10px),repeating-linear-gradient(0deg,#0b1018 0 5px,transparent 5px 10px);box-shadow:inset 0 0 0 6px #eef2f7}
+  .mk-h{display:block;text-align:center;font-size:19px;color:#fff;font-family:var(--sg);font-weight:700}
+  .mk-h em{font-style:normal;color:#ff9a3d}
+  .mk-p{text-align:center;font-size:9.5px;color:#8aa0b8;margin:3px 10px 0;line-height:1.35}
+  .mk-lbl{display:block;text-align:center;font-size:11px;color:#cfe3f0;font-style:normal;margin-top:8px;font-weight:600}
+  .mk-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:7px}
+  .mk-grid span{background:#0d1420;border:1px solid #1d2a40;border-radius:8px;text-align:center;font-size:11px;color:#cfe3f0;padding:6px 0}
+  .mk-cta{margin-top:10px;background:linear-gradient(120deg,#ff9a3d,#ff7a00);color:#241100;text-align:center;font-weight:800;font-size:12px;border-radius:10px;padding:11px}
+  .bapp{position:absolute;inset:0;overflow:hidden;clip-path:none;z-index:2;opacity:var(--live,1)}
+  .bframe{position:absolute;top:0;left:0}
+  @media(prefers-reduced-motion:reduce){.bmock{display:none}.bapp{opacity:1}}
+
 </style>
 </head>
 <body>
@@ -865,9 +889,13 @@ function renderLanding(){
           <div class="bphone" aria-hidden="true">
             <div class="bphone-frame">
               <div class="bscreen">
+                <div class="bmock" id="bmock" aria-hidden="true">
+                  <div class="bsec"><div class="mk-head"><span class="mk-logo"></span><div class="mk-ht"><b>Bar Demo</b><i>PIDE DESDE TU MESA</i></div><span class="mk-en">EN</span></div></div>
+                  <div class="bsec"><div class="mk-qr"></div><b class="mk-h">Pide desde tu <em>mesa</em></b><p class="mk-p">Escaneas el QR de tu mesa y la comanda llega directa a la barra.</p></div>
+                  <div class="bsec"><i class="mk-lbl">¿En qué mesa estás?</i><div class="mk-grid"><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span></div></div>
+                  <div class="bsec"><div class="mk-cta">Elige tu mesa para empezar</div></div>
+                </div>
                 <div class="bapp" id="bapp"><iframe class="bframe" id="buildFrame" title="El Camarero Digital — vista previa en vivo" scrolling="no" tabindex="-1" aria-hidden="true"></iframe></div>
-                <div class="bskel" id="bskel" aria-hidden="true"></div>
-                <div class="bscan" id="bscan" aria-hidden="true"></div>
               </div>
             </div>
           </div>
@@ -1050,6 +1078,8 @@ function initCinema(){
   const bscene=document.getElementById("buildscene");
   const bcode=document.getElementById("buildCode");
   const bframe=document.getElementById("buildFrame");
+  const bmock=document.getElementById("bmock");
+  const bsecs=bmock?bmock.querySelectorAll(".bsec"):[];
   const gstage=document.getElementById("gallerystage");
   const gsticky=gstage?gstage.querySelector(".gallery-sticky"):null;
   const gfA=document.getElementById("gfA");
@@ -1108,7 +1138,8 @@ function pedir(plato){
 
 caja.cobrar(comanda.total());
 panel.actualizar(stats);`;
-  const BCAPS=["","Escribiendo el código…","Montando tu app de verdad…","¡Lista para vender!"];
+  const BCAPS=["","Escribiendo el código…","Montando la app real…","¡Cobra vida!"];
+  const BSX=[0,240,-230,0], BSY=[-165,-55,75,215], BSR=[-4,10,-10,6];
   function coverFit(f){ if(!f) return; var box=f.parentElement; if(!box) return; var W=box.clientWidth, Hh=box.clientHeight; if(!W||!Hh) return; var lw=380, ch=0; try{ var d=f.contentDocument; if(d) ch=Math.max(d.body?d.body.scrollHeight:0, d.documentElement?d.documentElement.scrollHeight:0); }catch(e){} if(!ch||ch<80) ch=Math.round(Hh*lw/W); var k=Math.max(W/lw, Hh/ch); f.style.width=lw+"px"; f.style.height=ch+"px"; f.style.transformOrigin="top left"; f.style.transform="translateX("+((W-lw*k)/2).toFixed(1)+"px) scale("+k.toFixed(4)+")"; }
   function fitFrame(){ coverFit(bframe); }
   function loadFrame(){ if(!bframe||bframe.__loaded||!window.demoSrcdoc) return; bframe.__loaded=true; bframe.onload=fitFrame; try{ bframe.srcdoc=window.demoSrcdoc("camarero-top.html"); }catch(e){} fitFrame(); if(!loadFrame.__r){ loadFrame.__r=1; window.addEventListener("resize",fitFrame,{passive:true}); } }
@@ -1132,7 +1163,7 @@ panel.actualizar(stats);`;
     if(cinebg){ cinebg.style.transform="translateY("+(y*0.03)+"px)"; cinebg.style.setProperty("--hue",(y*0.02)%360); }
     if(heroGlow && y<vh*1.3) heroGlow.style.transform="translate(-50%,calc(-50% + "+(y*0.18)+"px))";
 
-    // ---- CREACIÓN DE LA APP (montaje real de arriba a abajo) ----
+    // ---- CREACIÓN DE LA APP (secciones que encajan -> app real cobra vida) ----
     if(bstage && bscene && !reduce){
       const top=bstage.offsetTop, h=bstage.offsetHeight;
       const p=clamp((y-top)/(h-vh),0,1);
@@ -1141,16 +1172,19 @@ panel.actualizar(stats);`;
         S.setProperty("--idea", clamp(1-(p-0.14)/0.05,0,1).toFixed(3));
         S.setProperty("--codev", (clamp((p-0.15)/0.05,0,1)*clamp(1-(p-0.40)/0.05,0,1)).toFixed(3));
         S.setProperty("--phonev", clamp((p-0.40)/0.05,0,1).toFixed(3));
-        if(bframe && !bframe.__loaded && p>0.38) loadFrame();
-        var rev=clamp((p-0.46)/0.28,0,1);
-        S.setProperty("--reveal", rev.toFixed(3));
-        S.setProperty("--screenv", rev.toFixed(3));
-        S.setProperty("--scanop", (clamp((p-0.45)/0.03,0,1)*clamp(1-(rev-0.9)/0.1,0,1)).toFixed(3));
-        const fv=clamp((p-0.80)/0.08,0,1);
+        if(bframe && !bframe.__loaded && p>0.40) loadFrame();
+        var asm=clamp((p-0.44)/0.26,0,1);
+        var live=clamp((p-0.72)/0.10,0,1);
+        S.setProperty("--live", live.toFixed(3));
+        S.setProperty("--screenv", Math.max(asm*0.5, live).toFixed(3));
+        for(var si=0; si<bsecs.length; si++){ var iv=clamp((asm - si*0.16)/0.42,0,1); var e2=bsecs[si];
+          e2.style.opacity=iv.toFixed(3);
+          e2.style.transform="translate("+((BSX[si]||0)*(1-iv)).toFixed(1)+"px,"+((BSY[si]||0)*(1-iv)).toFixed(1)+"px) rotate("+((BSR[si]||0)*(1-iv)).toFixed(1)+"deg) scale("+(0.72+0.28*iv).toFixed(3)+")"; }
+        const fv=clamp((p-0.82)/0.08,0,1);
         S.setProperty("--finalv", fv.toFixed(3));
         if(bfinal) bfinal.style.pointerEvents=fv>0.5?"auto":"none";
         if(bcode){ const cp=clamp((p-0.16)/0.2,0,1); const n=Math.floor(BCODE.length*cp); if(n!==bcode.__n){ bcode.__n=n; bcode.textContent=BCODE.slice(0,n); } }
-        setBStep(p<0.19?0:(p<0.42?1:(p<0.76?2:3)));
+        setBStep(p<0.19?0:(p<0.42?1:(p<0.8?2:3)));
       }
     }
 
