@@ -371,7 +371,7 @@
     .bfinal{bottom:5%}.tcode{min-height:180px}
   }
   @media(prefers-reduced-motion:reduce){
-    .build-scene{--idea:0;--codev:0;--phonev:1;--piecev:1;--assemble:1;--screenv:1;--finalv:1}
+    .build-scene{--idea:0;--codev:0;--phonev:1;--reveal:1;--screenv:1;--scanop:0;--finalv:1}
     .spark,.caret{animation:none!important}
     .build-stage{height:auto!important}
     .build-sticky{position:relative;height:auto;min-height:100vh;padding:60px 0;display:block}
@@ -631,6 +631,18 @@
 
 
 
+
+  /* montaje real: la app se construye de arriba a abajo dentro del móvil */
+  .bscreen{position:absolute;inset:18px 12px 12px;padding:0;overflow:hidden;background:#070b12;border-radius:26px}
+  .bscreen::after,.gphone-frame::after{display:none!important}
+  .bapp{position:absolute;inset:0;overflow:hidden;clip-path:inset(0 0 calc((1 - var(--reveal,1)) * 100%) 0)}
+  .bframe{position:absolute;top:0;left:0}
+  .bskel{position:absolute;inset:0;z-index:2;clip-path:inset(calc(var(--reveal,1) * 100%) 0 0 0);background:#0a1526;background-image:repeating-linear-gradient(0deg,#0f1c32 0 7px,#0a1526 7px 18px);overflow:hidden}
+  .bskel::after{content:"";position:absolute;top:0;bottom:0;left:-45%;width:45%;background:linear-gradient(100deg,transparent,#27e6a63a,transparent);animation:bskelshine 1.5s linear infinite}
+  @keyframes bskelshine{to{left:100%}}
+  .bscan{position:absolute;left:-6px;right:-6px;top:calc(var(--reveal,0) * 100%);height:3px;margin-top:-1.5px;z-index:3;opacity:var(--scanop,0);background:linear-gradient(90deg,transparent,var(--neo),#eaf1fb,var(--neo),transparent);box-shadow:0 0 18px var(--neo),0 0 46px var(--neo)}
+  @media(prefers-reduced-motion:reduce){.bskel,.bscan{display:none}.bapp{clip-path:none}}
+
 </style>
 </head>
 <body>
@@ -835,7 +847,7 @@ function renderLanding(){
     <section class="build-stage" id="buildstage" aria-label="Cómo se crea tu app">
       <div class="build-sticky">
         <div class="build-scene" id="buildscene">
-          <div class="build-steps" aria-hidden="true"><span data-s="0">Idea</span><span data-s="1">Código</span><span data-s="2">Piezas</span><span data-s="3">Ensamblaje</span><span data-s="4">¡Nace!</span></div>
+          <div class="build-steps" aria-hidden="true"><span data-s="0">Idea</span><span data-s="1">Código</span><span data-s="2">Montaje</span><span data-s="3">¡Nace!</span></div>
           <div class="bcap" id="buildCap" aria-hidden="true"></div>
 
           <div class="blayer b-idea">
@@ -852,12 +864,11 @@ function renderLanding(){
 
           <div class="bphone" aria-hidden="true">
             <div class="bphone-frame">
-              <div class="bpiece p1"><b>📋</b><span>Carta QR</span></div>
-              <div class="bpiece p2"><b>🧾</b><span>Comanda</span></div>
-              <div class="bpiece p3"><b>🔔</b><span>Aviso a barra</span></div>
-              <div class="bpiece p4"><b>💳</b><span>Caja / cobro</span></div>
-              <div class="bpiece p5"><b>📊</b><span>Panel del dueño</span></div>
-              <div class="bscreen"><iframe class="bframe" id="buildFrame" title="El Camarero Digital — vista previa en vivo" scrolling="no" tabindex="-1" aria-hidden="true"></iframe></div>
+              <div class="bscreen">
+                <div class="bapp" id="bapp"><iframe class="bframe" id="buildFrame" title="El Camarero Digital — vista previa en vivo" scrolling="no" tabindex="-1" aria-hidden="true"></iframe></div>
+                <div class="bskel" id="bskel" aria-hidden="true"></div>
+                <div class="bscan" id="bscan" aria-hidden="true"></div>
+              </div>
             </div>
           </div>
 
@@ -1056,8 +1067,8 @@ function initCinema(){
     {k:"floristeria-ejemplo.html",     n:"Floristería / Pastelería",   c:"Encargos con fecha",         col:"#ff77a9"}
   ];
   let gFrontA=true, gCur=-1, gInited=false;
-  function gFit(){ [gfA,gfB].forEach(function(f){ if(!f)return; var box=f.parentElement; if(!box)return; var w=box.clientWidth,hh=box.clientHeight; if(!w||!hh)return; var k=w/380; f.style.width="380px"; f.style.height=(hh/k)+"px"; f.style.transformOrigin="top left"; f.style.transform="scale("+k.toFixed(4)+")"; }); }
-  function gLoad(f,key){ if(!f||f.__key===key||!window.demoSrcdoc)return; f.__key=key; try{ f.srcdoc=window.demoSrcdoc(key); }catch(e){} }
+  function gFit(){ [gfA,gfB].forEach(function(f){ coverFit(f); }); }
+  function gLoad(f,key){ if(!f||f.__key===key||!window.demoSrcdoc)return; f.__key=key; f.onload=gFit; try{ f.srcdoc=window.demoSrcdoc(key); }catch(e){} }
   function gLabel(i){ var a=GAPPS[i]; if(!a)return; if(gTitle)gTitle.textContent=a.n; if(gCat)gCat.textContent=a.c; if(gCta)gCta.setAttribute("data-demo",a.k); if(gsticky)gsticky.style.setProperty("--gcol",a.col); if(gGlow)gGlow.style.setProperty("--gcol",a.col); if(gDots){ var ds=gDots.children; for(var d=0;d<ds.length;d++) ds[d].classList.toggle("on",d===i); } }
   function gInit(){ if(gInited||!window.demoSrcdoc||!gfA)return; gInited=true; if(gDots&&!gDots.children.length){ for(var d=0;d<GAPPS.length;d++){ var el=document.createElement("i"); if(d===0)el.className="on"; gDots.appendChild(el);} } gLoad(gfA,GAPPS[0].k); gfA.style.opacity="1"; gFit(); if(GAPPS[1])gLoad(gfB,GAPPS[1].k); gFrontA=true; gCur=0; gLabel(0); if(!gInit.__r){gInit.__r=1; window.addEventListener("resize",gFit,{passive:true});} }
   function gShow(seg){ gInit(); if(!gInited||seg===gCur)return; var a=GAPPS[seg]; if(!a)return; gCur=seg; var back=gFrontA?gfB:gfA, front=gFrontA?gfA:gfB; if(back.__key!==a.k) gLoad(back,a.k); gFit(); back.style.opacity="1"; front.style.opacity="0"; gFrontA=!gFrontA; gLabel(seg); var nx=GAPPS[seg+1]||GAPPS[seg-1]; if(nx)gLoad(front,nx.k); }
@@ -1097,9 +1108,10 @@ function pedir(plato){
 
 caja.cobrar(comanda.total());
 panel.actualizar(stats);`;
-  const BCAPS=["","","Las piezas cobran forma","Encajan solas, como un puzzle","¡Listo para vender!"];
-  function fitFrame(){ if(!bframe) return; var box=bframe.parentElement; if(!box) return; var w=box.clientWidth, hh=box.clientHeight; if(!w||!hh) return; var k=w/380; bframe.style.width="380px"; bframe.style.height=(hh/k)+"px"; bframe.style.transformOrigin="top left"; bframe.style.transform="scale("+k.toFixed(4)+")"; }
-  function loadFrame(){ if(!bframe||bframe.__loaded||!window.demoSrcdoc) return; bframe.__loaded=true; try{ bframe.srcdoc=window.demoSrcdoc("camarero-top.html"); }catch(e){} fitFrame(); if(!loadFrame.__r){ loadFrame.__r=1; window.addEventListener("resize",fitFrame,{passive:true}); } }
+  const BCAPS=["","Escribiendo el código…","Montando tu app de verdad…","¡Lista para vender!"];
+  function coverFit(f){ if(!f) return; var box=f.parentElement; if(!box) return; var W=box.clientWidth, Hh=box.clientHeight; if(!W||!Hh) return; var lw=380, ch=0; try{ var d=f.contentDocument; if(d) ch=Math.max(d.body?d.body.scrollHeight:0, d.documentElement?d.documentElement.scrollHeight:0); }catch(e){} if(!ch||ch<80) ch=Math.round(Hh*lw/W); var k=Math.max(W/lw, Hh/ch); f.style.width=lw+"px"; f.style.height=ch+"px"; f.style.transformOrigin="top left"; f.style.transform="translateX("+((W-lw*k)/2).toFixed(1)+"px) scale("+k.toFixed(4)+")"; }
+  function fitFrame(){ coverFit(bframe); }
+  function loadFrame(){ if(!bframe||bframe.__loaded||!window.demoSrcdoc) return; bframe.__loaded=true; bframe.onload=fitFrame; try{ bframe.srcdoc=window.demoSrcdoc("camarero-top.html"); }catch(e){} fitFrame(); if(!loadFrame.__r){ loadFrame.__r=1; window.addEventListener("resize",fitFrame,{passive:true}); } }
   if(reduce && bframe){ var __ft=setInterval(function(){ loadFrame(); if(bframe.__loaded) clearInterval(__ft); },140); setTimeout(function(){ clearInterval(__ft); },5000); }
 
   const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
@@ -1120,7 +1132,7 @@ panel.actualizar(stats);`;
     if(cinebg){ cinebg.style.transform="translateY("+(y*0.03)+"px)"; cinebg.style.setProperty("--hue",(y*0.02)%360); }
     if(heroGlow && y<vh*1.3) heroGlow.style.transform="translate(-50%,calc(-50% + "+(y*0.18)+"px))";
 
-    // ---- CREACIÓN DE LA APP ----
+    // ---- CREACIÓN DE LA APP (montaje real de arriba a abajo) ----
     if(bstage && bscene && !reduce){
       const top=bstage.offsetTop, h=bstage.offsetHeight;
       const p=clamp((y-top)/(h-vh),0,1);
@@ -1129,15 +1141,16 @@ panel.actualizar(stats);`;
         S.setProperty("--idea", clamp(1-(p-0.14)/0.05,0,1).toFixed(3));
         S.setProperty("--codev", (clamp((p-0.15)/0.05,0,1)*clamp(1-(p-0.40)/0.05,0,1)).toFixed(3));
         S.setProperty("--phonev", clamp((p-0.40)/0.05,0,1).toFixed(3));
-        S.setProperty("--piecev", (clamp((p-0.42)/0.05,0,1)*clamp(1-(p-0.66)/0.10,0,1)).toFixed(3));
-        S.setProperty("--assemble", clamp((p-0.44)/0.18,0,1).toFixed(3));
-        S.setProperty("--screenv", clamp((p-0.60)/0.12,0,1).toFixed(3));
-        if(bframe && !bframe.__loaded && p>0.45) loadFrame();
-        const fv=clamp((p-0.78)/0.08,0,1);
+        if(bframe && !bframe.__loaded && p>0.38) loadFrame();
+        var rev=clamp((p-0.46)/0.28,0,1);
+        S.setProperty("--reveal", rev.toFixed(3));
+        S.setProperty("--screenv", rev.toFixed(3));
+        S.setProperty("--scanop", (clamp((p-0.45)/0.03,0,1)*clamp(1-(rev-0.9)/0.1,0,1)).toFixed(3));
+        const fv=clamp((p-0.80)/0.08,0,1);
         S.setProperty("--finalv", fv.toFixed(3));
         if(bfinal) bfinal.style.pointerEvents=fv>0.5?"auto":"none";
         if(bcode){ const cp=clamp((p-0.16)/0.2,0,1); const n=Math.floor(BCODE.length*cp); if(n!==bcode.__n){ bcode.__n=n; bcode.textContent=BCODE.slice(0,n); } }
-        setBStep(p<0.19?0:(p<0.42?1:(p<0.46?2:(p<0.66?3:4))));
+        setBStep(p<0.19?0:(p<0.42?1:(p<0.76?2:3)));
       }
     }
 
