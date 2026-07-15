@@ -583,24 +583,48 @@
   .bframe{border:0;background:#070b12;display:block;pointer-events:none}
 
 
-  /* ---------- 3b · TORNADO 3D de apps ---------- */
-  .tornado-stage{position:relative;height:260vh}
-  .tornado-sticky{position:sticky;position:-webkit-sticky;top:0;height:100vh;overflow:hidden;display:grid;place-items:center;perspective:900px;background:radial-gradient(900px 700px at 50% 45%,#0a1526,#070b12 76%)}
-  .tornado-cam{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) translateZ(var(--fly,-700px)) rotateY(var(--spin,0deg));transform-style:preserve-3d;will-change:transform}
-  .tornado{position:relative;transform-style:preserve-3d;animation:tspin 26s linear infinite;will-change:transform}
-  @keyframes tspin{to{transform:rotateY(360deg)}}
-  .ttile{position:absolute;top:0;left:0;width:76px;height:76px;margin:-38px;border-radius:20px;display:grid;place-items:center;font-size:38px;
-    box-shadow:0 10px 30px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.28),0 0 30px -6px #27e6a6;
-    transform:rotateY(calc(var(--i) * 41deg)) translateZ(262px) translateY(calc(var(--i) * 38px - 741px));-webkit-backface-visibility:hidden;backface-visibility:hidden}
-  @media(max-width:560px){.ttile{width:58px;height:58px;margin:-29px;font-size:29px;transform:rotateY(calc(var(--i) * 41deg)) translateZ(190px) translateY(calc(var(--i) * 32px - 624px))}}
-  .tornado-fog{position:absolute;inset:0;pointer-events:none;z-index:5;
-    background:radial-gradient(circle at 50% 48%,transparent 26%,rgba(7,11,18,.82) 70%,#070b12 100%),linear-gradient(#070b12,transparent 16%,transparent 84%,#070b12)}
-  .tornado-cap{position:absolute;left:50%;bottom:11%;transform:translateX(-50%);z-index:6;text-align:center;width:min(92vw,640px);pointer-events:none}
-  .tornado-cap .eyebrow{margin-bottom:10px;display:inline-block}
-  .tornado-cap h2{font-family:var(--sg);font-weight:700;font-size:clamp(26px,6vw,54px);line-height:1.05;letter-spacing:-.03em;text-shadow:0 3px 26px #070b12,0 0 52px #070b12}
-  .tornado-cap h2 em{font-style:normal;background:linear-gradient(120deg,var(--neo),var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}
-  .tcap2{margin-top:14px;font-family:var(--mono);font-size:14px;color:var(--neo);opacity:0}
-  @media(prefers-reduced-motion:reduce){.tornado-stage{display:none}}
+  /* ---------- 3b · GALERÍA de apps reales (cambian al scrollear) ---------- */
+  .gallery-stage{position:relative;height:380vh}
+  .gallery-sticky{position:sticky;position:-webkit-sticky;top:0;height:100vh;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:58px 16px 22px;--gcol:#27e6a6}
+  .gallery-glow{position:absolute;top:50%;left:50%;width:min(680px,120vw);height:min(680px,120vw);transform:translate(-50%,-50%);z-index:0;pointer-events:none;filter:blur(64px);opacity:.5;background:radial-gradient(circle,var(--gcol,#27e6a6) 0,transparent 60%);transition:background .6s}
+  .gallery-head{position:relative;z-index:2;text-align:center;min-height:92px}
+  .gallery-head .eyebrow{margin-bottom:8px;display:inline-block}
+  .gallery-head h2{font-family:var(--sg);font-weight:700;font-size:clamp(24px,5vw,44px);line-height:1.05;letter-spacing:-.02em}
+  .gallery-head .gcat{font-family:var(--mono);font-size:13px;color:var(--neo);margin-top:6px}
+  .gphone{position:relative;z-index:2;flex:0 0 auto}
+  .gphone-frame{position:relative;width:min(300px,74vw);height:min(560px,56vh);border-radius:40px;border:2px solid #24344e;background:#070b12;box-shadow:0 44px 130px #000c,0 0 0 7px #0b1220,0 0 74px -6px var(--gcol,#27e6a6);overflow:hidden;transition:box-shadow .6s}
+  .gphone-frame::before{content:"";position:absolute;top:12px;left:50%;transform:translateX(-50%);width:80px;height:6px;border-radius:6px;background:#24344e;z-index:5}
+  .gframe{position:absolute;inset:0;border:0;background:#070b12;pointer-events:none;opacity:0;transition:opacity .5s ease}
+  .gdots{position:relative;z-index:2;display:flex;gap:8px}
+  .gdots i{width:8px;height:8px;border-radius:50%;background:#2a3a55;transition:transform .3s,background .3s,box-shadow .3s}
+  .gdots i.on{background:var(--neo);box-shadow:0 0 10px var(--neo);transform:scale(1.35)}
+  .gcta-wrap{position:relative;z-index:2}
+  @media(max-width:560px){.gphone-frame{width:min(250px,76vw);height:min(460px,50vh)}.gallery-head h2{font-size:clamp(20px,6.4vw,30px)}.gallery-head{min-height:78px}}
+  @media(prefers-reduced-motion:reduce){
+    .gallery-stage{height:auto}
+    .gallery-sticky{position:relative;height:auto;min-height:auto;padding:50px 16px}
+    .gframe{transition:none}
+  }
+
+
+
+  /* apps orbitando en 3D alrededor del móvil central */
+  .gallery-sticky{perspective:1200px}
+  .gallery-head{position:absolute;top:44px;left:0;right:0;z-index:4}
+  .gdots{position:absolute;bottom:74px;left:0;right:0;justify-content:center;z-index:4}
+  .gcta-wrap{position:absolute;bottom:22px;left:0;right:0;display:flex;justify-content:center;z-index:4}
+  .gphone{z-index:3}
+  .orbit-wrap{position:absolute;top:50%;left:50%;width:0;height:0;z-index:1;transform-style:preserve-3d;pointer-events:none}
+  .orbit{position:absolute;top:0;left:0;transform-style:preserve-3d;animation:orbitspin 24s linear infinite;will-change:transform}
+  @keyframes orbitspin{from{transform:rotateX(-8deg) rotateY(0deg)}to{transform:rotateX(-8deg) rotateY(360deg)}}
+  .oicon{position:absolute;top:0;left:0;width:62px;height:62px;margin:-31px;border-radius:17px;display:grid;place-items:center;font-size:31px;
+    box-shadow:0 12px 28px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.26),0 0 26px -6px #27e6a6;
+    transform:rotateY(calc(var(--i) * 27.692deg)) translateZ(300px);opacity:.94}
+  @media(max-width:560px){
+    .oicon{width:48px;height:48px;margin:-24px;font-size:24px;transform:rotateY(calc(var(--i) * 27.692deg)) translateZ(198px)}
+    .gallery-head{top:36px}
+  }
+  @media(prefers-reduced-motion:reduce){.orbit{animation:none}.orbit-wrap{display:none}}
 
 </style>
 </head>
@@ -840,19 +864,25 @@ function renderLanding(){
       </div>
     </section>
 
-    <!-- 3b · TORNADO 3D DE APPS -->
-    <section class="tornado-stage" id="tornadostage" aria-label="Nuestro catálogo de apps">
-      <div class="tornado-sticky">
-        <div class="tornado-cam" id="tornadocam">
-          <div class="tornado" id="tornado">
-            ${APPS_GRID.concat(APPS_GRID,APPS_GRID).map(function(a,i){ return '<div class="ttile" style="--i:'+i+';background:linear-gradient(135deg,'+a.accent+','+a.accent2+')" aria-hidden="true">'+a.icon+'</div>'; }).join("")}
+    <!-- 3b · GALERÍA DE APPS REALES -->
+    <section class="gallery-stage" id="gallerystage" aria-label="Apps reales funcionando">
+      <div class="gallery-sticky">
+        <div class="gallery-glow" id="galleryGlow" aria-hidden="true"></div>
+        <div class="orbit-wrap" aria-hidden="true"><div class="orbit" id="orbit">${APPS_GRID.map(function(a,i){ return '<div class="oicon" style="--i:'+i+';background:linear-gradient(135deg,'+a.accent+','+a.accent2+')">'+a.icon+'</div>'; }).join("")}</div></div>
+        <div class="gallery-head">
+          <div class="eyebrow">Apps reales, funcionando</div>
+          <h2 id="gTitle">El Camarero Digital</h2>
+          <div class="gcat" id="gCat">Hostelería · pedir por QR</div>
+        </div>
+        <div class="gphone">
+          <div class="gphone-frame">
+            <iframe class="gframe" id="gfA" title="App real (vista previa)" scrolling="no" tabindex="-1" aria-hidden="true"></iframe>
+            <iframe class="gframe" id="gfB" title="App real (vista previa)" scrolling="no" tabindex="-1" aria-hidden="true"></iframe>
           </div>
         </div>
-        <div class="tornado-fog" aria-hidden="true"></div>
-        <div class="tornado-cap">
-          <div class="eyebrow">Nuestro catálogo</div>
-          <h2 id="tcap1">Un <em>universo</em> de apps a tu medida</h2>
-          <div id="tcap2" class="tcap2">Elige el tuyo ↓</div>
+        <div class="gdots" id="gDots" aria-hidden="true"></div>
+        <div class="gcta-wrap">
+          <button class="btn btn-primary btn-lg" type="button" id="gCta" data-demo="camarero-top.html">▶ Abrir esta app</button>
         </div>
       </div>
     </section>
@@ -1004,9 +1034,29 @@ function initCinema(){
   const bscene=document.getElementById("buildscene");
   const bcode=document.getElementById("buildCode");
   const bframe=document.getElementById("buildFrame");
-  const tstage=document.getElementById("tornadostage");
-  const tcam=document.getElementById("tornadocam");
-  const tcap2=document.getElementById("tcap2");
+  const gstage=document.getElementById("gallerystage");
+  const gsticky=gstage?gstage.querySelector(".gallery-sticky"):null;
+  const gfA=document.getElementById("gfA");
+  const gfB=document.getElementById("gfB");
+  const gTitle=document.getElementById("gTitle");
+  const gCat=document.getElementById("gCat");
+  const gCta=document.getElementById("gCta");
+  const gDots=document.getElementById("gDots");
+  const gGlow=document.getElementById("galleryGlow");
+  const GAPPS=[
+    {k:"camarero-top.html",            n:"El Camarero Digital",        c:"Hostelería · pedir por QR",  col:"#ff7a59"},
+    {k:"restaurante-ejemplo.html",     n:"Reservas Restaurante / Bar", c:"Reservar mesa + carta",      col:"#ff8a5b"},
+    {k:"cafeteria-ejemplo.html",       n:"Cafetería / Pizzería",       c:"Pedido a domicilio + panel", col:"#d9a066"},
+    {k:"veterinario-ejemplo.html",     n:"Veterinario / Canina",       c:"Reservar cita + servicios",  col:"#5ad1c4"},
+    {k:"floristeria-ejemplo.html",     n:"Floristería / Pastelería",   c:"Encargos con fecha",         col:"#ff77a9"}
+  ];
+  let gFrontA=true, gCur=-1, gInited=false;
+  function gFit(){ [gfA,gfB].forEach(function(f){ if(!f)return; var box=f.parentElement; if(!box)return; var w=box.clientWidth,hh=box.clientHeight; if(!w||!hh)return; var k=w/380; f.style.width="380px"; f.style.height=(hh/k)+"px"; f.style.transformOrigin="top left"; f.style.transform="scale("+k.toFixed(4)+")"; }); }
+  function gLoad(f,key){ if(!f||f.__key===key||!window.demoSrcdoc)return; f.__key=key; try{ f.srcdoc=window.demoSrcdoc(key); }catch(e){} }
+  function gLabel(i){ var a=GAPPS[i]; if(!a)return; if(gTitle)gTitle.textContent=a.n; if(gCat)gCat.textContent=a.c; if(gCta)gCta.setAttribute("data-demo",a.k); if(gsticky)gsticky.style.setProperty("--gcol",a.col); if(gGlow)gGlow.style.setProperty("--gcol",a.col); if(gDots){ var ds=gDots.children; for(var d=0;d<ds.length;d++) ds[d].classList.toggle("on",d===i); } }
+  function gInit(){ if(gInited||!window.demoSrcdoc||!gfA)return; gInited=true; if(gDots&&!gDots.children.length){ for(var d=0;d<GAPPS.length;d++){ var el=document.createElement("i"); if(d===0)el.className="on"; gDots.appendChild(el);} } gLoad(gfA,GAPPS[0].k); gfA.style.opacity="1"; gFit(); if(GAPPS[1])gLoad(gfB,GAPPS[1].k); gFrontA=true; gCur=0; gLabel(0); if(!gInit.__r){gInit.__r=1; window.addEventListener("resize",gFit,{passive:true});} }
+  function gShow(seg){ gInit(); if(!gInited||seg===gCur)return; var a=GAPPS[seg]; if(!a)return; gCur=seg; var back=gFrontA?gfB:gfA, front=gFrontA?gfA:gfB; if(back.__key!==a.k) gLoad(back,a.k); gFit(); back.style.opacity="1"; front.style.opacity="0"; gFrontA=!gFrontA; gLabel(seg); var nx=GAPPS[seg+1]||GAPPS[seg-1]; if(nx)gLoad(front,nx.k); }
+  if(reduce && gfA){ var __gt=setInterval(function(){ gInit(); if(gInited)clearInterval(__gt); },150); setTimeout(function(){clearInterval(__gt);},6000); }
   const bcap=document.getElementById("buildCap");
   const bfinal=bscene?bscene.querySelector(".bfinal"):null;
   const bsteps=bscene?bscene.querySelectorAll(".build-steps span"):[];
@@ -1070,14 +1120,14 @@ panel.actualizar(stats);`;
     }
 
 
-    // ---- TORNADO 3D ----
-    if(tstage && tcam && !reduce){
-      const tt=tstage.offsetTop, tl=tstage.offsetHeight;
-      const tp=clamp((y-tt)/(tl-vh),0,1);
-      if(y>tt-vh && y<tt+tl){
-        tcam.style.setProperty("--fly",(-700+tp*1120).toFixed(0)+"px");
-        tcam.style.setProperty("--spin",(tp*540).toFixed(1)+"deg");
-        if(tcap2) tcap2.style.opacity=clamp((tp-0.6)/0.2,0,1).toFixed(3);
+    // ---- GALERÍA DE APPS REALES ----
+    if(gstage && gfA && !reduce){
+      const gt=gstage.offsetTop, gh=gstage.offsetHeight;
+      const gp=clamp((y-gt)/(gh-vh),0,1);
+      if(y>gt-vh && y<gt+gh){
+        gInit();
+        const seg=Math.min(GAPPS.length-1, Math.floor(clamp((gp-0.05)/0.9,0,0.999)*GAPPS.length));
+        gShow(seg);
       }
     }
 
