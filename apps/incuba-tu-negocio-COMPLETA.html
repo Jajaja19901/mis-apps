@@ -575,6 +575,13 @@
   #nosotros{padding:clamp(50px,8vh,100px) 0}
   #faq{padding:clamp(40px,6vh,80px) 0 clamp(56px,8vh,100px)}
 
+
+  /* móvil final: la app REAL en vivo dentro del teléfono */
+  .bphone-frame{width:min(300px,76vw);height:min(600px,82vh)}
+  @media(max-width:560px){.bphone-frame{width:min(248px,80vw);height:min(500px,72vh)}}
+  .bscreen{inset:18px 12px 12px;padding:0;overflow:hidden;background:#070b12;box-shadow:inset 0 0 42px #27e6a622}
+  .bframe{border:0;background:#070b12;display:block;pointer-events:none}
+
 </style>
 </head>
 <body>
@@ -801,17 +808,13 @@ function renderLanding(){
               <div class="bpiece p3"><b>🔔</b><span>Aviso a barra</span></div>
               <div class="bpiece p4"><b>💳</b><span>Caja / cobro</span></div>
               <div class="bpiece p5"><b>📊</b><span>Panel del dueño</span></div>
-              <div class="bscreen">
-                <div class="bscreen-top">🍽️ El Camarero Digital</div>
-                <div class="bscreen-rows"><span>🍤 Gambas al ajillo · pedir</span><span>🥘 Paella mixta · pedir</span><span>🍷 Rioja crianza · pedir</span></div>
-                <div class="bscreen-cta">Enviar comanda a barra</div>
-              </div>
+              <div class="bscreen"><iframe class="bframe" id="buildFrame" title="El Camarero Digital — vista previa en vivo" scrolling="no" tabindex="-1" aria-hidden="true"></iframe></div>
             </div>
           </div>
 
           <div class="bfinal">
             <h2 class="btitle">Y nace tu <em>app</em></h2>
-            <button class="btn btn-primary btn-lg" type="button" data-demo="camarero-top.html">▶ Ver El Camarero Digital en vivo</button>
+            <button class="btn btn-primary btn-lg" type="button" data-demo="camarero-top.html">▶ Probar El Camarero Digital a pantalla completa</button>
           </div>
         </div>
       </div>
@@ -963,6 +966,7 @@ function initCinema(){
   const bstage=document.getElementById("buildstage");
   const bscene=document.getElementById("buildscene");
   const bcode=document.getElementById("buildCode");
+  const bframe=document.getElementById("buildFrame");
   const bcap=document.getElementById("buildCap");
   const bfinal=bscene?bscene.querySelector(".bfinal"):null;
   const bsteps=bscene?bscene.querySelectorAll(".build-steps span"):[];
@@ -982,6 +986,9 @@ function pedir(plato){
 caja.cobrar(comanda.total());
 panel.actualizar(stats);`;
   const BCAPS=["","","Las piezas cobran forma","Encajan solas, como un puzzle","¡Listo para vender!"];
+  function fitFrame(){ if(!bframe) return; var box=bframe.parentElement; if(!box) return; var w=box.clientWidth, hh=box.clientHeight; if(!w||!hh) return; var k=w/380; bframe.style.width="380px"; bframe.style.height=(hh/k)+"px"; bframe.style.transformOrigin="top left"; bframe.style.transform="scale("+k.toFixed(4)+")"; }
+  function loadFrame(){ if(!bframe||bframe.__loaded||!window.demoSrcdoc) return; bframe.__loaded=true; try{ bframe.srcdoc=window.demoSrcdoc("camarero-top.html"); }catch(e){} fitFrame(); if(!loadFrame.__r){ loadFrame.__r=1; window.addEventListener("resize",fitFrame,{passive:true}); } }
+  if(reduce && bframe){ var __ft=setInterval(function(){ loadFrame(); if(bframe.__loaded) clearInterval(__ft); },140); setTimeout(function(){ clearInterval(__ft); },5000); }
 
   const clamp=(v,a,b)=>v<a?a:(v>b?b:v);
   function setBStep(step){
@@ -1013,6 +1020,7 @@ panel.actualizar(stats);`;
         S.setProperty("--piecev", (clamp((p-0.42)/0.05,0,1)*clamp(1-(p-0.92)/0.05,0,1)).toFixed(3));
         S.setProperty("--assemble", clamp((p-0.5)/0.2,0,1).toFixed(3));
         S.setProperty("--screenv", clamp((p-0.74)/0.08,0,1).toFixed(3));
+        if(bframe && !bframe.__loaded && p>0.6) loadFrame();
         const fv=clamp((p-0.84)/0.08,0,1);
         S.setProperty("--finalv", fv.toFixed(3));
         if(bfinal) bfinal.style.pointerEvents=fv>0.5?"auto":"none";
@@ -1334,6 +1342,7 @@ route();
   }
   document.addEventListener('click',function(e){ var a=e.target&&e.target.closest?e.target.closest('a[href]'):null; if(!a) return; var href=a.getAttribute('href')||''; if(href.indexOf('restaurante-qr-ejemplo.html')!==-1){ e.preventDefault(); chooserQR(); return; } for(var key in APPS){ if(href.indexOf(key)!==-1){ e.preventDefault(); open(b64ToUtf8(APPS[key])); return; } } }, true);
   window.openDemo=function(k){ try{ if(APPS[k]) open(b64ToUtf8(APPS[k])); }catch(e){} };
+  window.demoSrcdoc=function(k){ try{ return APPS[k]?injectShim(b64ToUtf8(APPS[k])):""; }catch(e){ return ""; } };
   window.hasDemo=function(k){ return !!APPS[k]; };
 })();
 </script>
