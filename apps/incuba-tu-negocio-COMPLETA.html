@@ -582,6 +582,26 @@
   .bscreen{inset:18px 12px 12px;padding:0;overflow:hidden;background:#070b12;box-shadow:inset 0 0 42px #27e6a622}
   .bframe{border:0;background:#070b12;display:block;pointer-events:none}
 
+
+  /* ---------- 3b · TORNADO 3D de apps ---------- */
+  .tornado-stage{position:relative;height:260vh}
+  .tornado-sticky{position:sticky;position:-webkit-sticky;top:0;height:100vh;overflow:hidden;display:grid;place-items:center;perspective:900px;background:radial-gradient(900px 700px at 50% 45%,#0a1526,#070b12 76%)}
+  .tornado-cam{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) translateZ(var(--fly,-700px)) rotateY(var(--spin,0deg));transform-style:preserve-3d;will-change:transform}
+  .tornado{position:relative;transform-style:preserve-3d;animation:tspin 26s linear infinite;will-change:transform}
+  @keyframes tspin{to{transform:rotateY(360deg)}}
+  .ttile{position:absolute;top:0;left:0;width:76px;height:76px;margin:-38px;border-radius:20px;display:grid;place-items:center;font-size:38px;
+    box-shadow:0 10px 30px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.28),0 0 30px -6px #27e6a6;
+    transform:rotateY(calc(var(--i) * 41deg)) translateZ(262px) translateY(calc(var(--i) * 38px - 741px));-webkit-backface-visibility:hidden;backface-visibility:hidden}
+  @media(max-width:560px){.ttile{width:58px;height:58px;margin:-29px;font-size:29px;transform:rotateY(calc(var(--i) * 41deg)) translateZ(190px) translateY(calc(var(--i) * 32px - 624px))}}
+  .tornado-fog{position:absolute;inset:0;pointer-events:none;z-index:5;
+    background:radial-gradient(circle at 50% 48%,transparent 26%,rgba(7,11,18,.82) 70%,#070b12 100%),linear-gradient(#070b12,transparent 16%,transparent 84%,#070b12)}
+  .tornado-cap{position:absolute;left:50%;bottom:11%;transform:translateX(-50%);z-index:6;text-align:center;width:min(92vw,640px);pointer-events:none}
+  .tornado-cap .eyebrow{margin-bottom:10px;display:inline-block}
+  .tornado-cap h2{font-family:var(--sg);font-weight:700;font-size:clamp(26px,6vw,54px);line-height:1.05;letter-spacing:-.03em;text-shadow:0 3px 26px #070b12,0 0 52px #070b12}
+  .tornado-cap h2 em{font-style:normal;background:linear-gradient(120deg,var(--neo),var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .tcap2{margin-top:14px;font-family:var(--mono);font-size:14px;color:var(--neo);opacity:0}
+  @media(prefers-reduced-motion:reduce){.tornado-stage{display:none}}
+
 </style>
 </head>
 <body>
@@ -820,6 +840,23 @@ function renderLanding(){
       </div>
     </section>
 
+    <!-- 3b · TORNADO 3D DE APPS -->
+    <section class="tornado-stage" id="tornadostage" aria-label="Nuestro catálogo de apps">
+      <div class="tornado-sticky">
+        <div class="tornado-cam" id="tornadocam">
+          <div class="tornado" id="tornado">
+            ${APPS_GRID.concat(APPS_GRID,APPS_GRID).map(function(a,i){ return '<div class="ttile" style="--i:'+i+';background:linear-gradient(135deg,'+a.accent+','+a.accent2+')" aria-hidden="true">'+a.icon+'</div>'; }).join("")}
+          </div>
+        </div>
+        <div class="tornado-fog" aria-hidden="true"></div>
+        <div class="tornado-cap">
+          <div class="eyebrow">Nuestro catálogo</div>
+          <h2 id="tcap1">Un <em>universo</em> de apps a tu medida</h2>
+          <div id="tcap2" class="tcap2">Elige el tuyo ↓</div>
+        </div>
+      </div>
+    </section>
+
     <!-- 4 · SHOWCASE 3D -->
     <section id="demos" class="showcase" aria-label="Demos que puedes probar"><div class="wrap">
       <div class="sec-head cin"><span class="eyebrow">Ejemplos reales</span><h2>No te lo contamos: te lo enseñamos</h2><p>13 demos funcionando de verdad. Toca cualquiera y pruébala al momento.</p></div>
@@ -967,6 +1004,9 @@ function initCinema(){
   const bscene=document.getElementById("buildscene");
   const bcode=document.getElementById("buildCode");
   const bframe=document.getElementById("buildFrame");
+  const tstage=document.getElementById("tornadostage");
+  const tcam=document.getElementById("tornadocam");
+  const tcap2=document.getElementById("tcap2");
   const bcap=document.getElementById("buildCap");
   const bfinal=bscene?bscene.querySelector(".bfinal"):null;
   const bsteps=bscene?bscene.querySelectorAll(".build-steps span"):[];
@@ -1026,6 +1066,18 @@ panel.actualizar(stats);`;
         if(bfinal) bfinal.style.pointerEvents=fv>0.5?"auto":"none";
         if(bcode){ const cp=clamp((p-0.16)/0.2,0,1); const n=Math.floor(BCODE.length*cp); if(n!==bcode.__n){ bcode.__n=n; bcode.textContent=BCODE.slice(0,n); } }
         setBStep(p<0.19?0:(p<0.42?1:(p<0.46?2:(p<0.66?3:4))));
+      }
+    }
+
+
+    // ---- TORNADO 3D ----
+    if(tstage && tcam && !reduce){
+      const tt=tstage.offsetTop, tl=tstage.offsetHeight;
+      const tp=clamp((y-tt)/(tl-vh),0,1);
+      if(y>tt-vh && y<tt+tl){
+        tcam.style.setProperty("--fly",(-700+tp*1120).toFixed(0)+"px");
+        tcam.style.setProperty("--spin",(tp*540).toFixed(1)+"deg");
+        if(tcap2) tcap2.style.opacity=clamp((tp-0.6)/0.2,0,1).toFixed(3);
       }
     }
 
