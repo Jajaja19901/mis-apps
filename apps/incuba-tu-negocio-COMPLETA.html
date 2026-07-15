@@ -629,6 +629,17 @@
   .appcard,.flip-inner{min-height:304px}
   @media(max-width:560px){.appcard,.flip-inner{min-height:242px}}
 
+
+  /* ---------- transición fibra óptica ---------- */
+  .fiber-stage{position:relative;height:200vh}
+  .fiber-sticky{position:sticky;position:-webkit-sticky;top:0;height:100vh;overflow:hidden;display:grid;place-items:center;background:#070b12}
+  .fiber-canvas{position:absolute;inset:0;width:100%;height:100%;display:block;z-index:0}
+  .fiber-cap{position:relative;z-index:2;text-align:center;width:min(92vw,760px);padding:0 16px;pointer-events:none}
+  .fiber-cap .eyebrow{margin-bottom:12px;display:inline-block}
+  .fiber-cap h2{font-family:var(--sg);font-weight:700;font-size:clamp(26px,6vw,58px);line-height:1.04;letter-spacing:-.03em;text-shadow:0 3px 30px #070b12,0 0 70px #070b12,0 0 30px #070b12}
+  .fiber-cap h2 em{font-style:normal;background:linear-gradient(120deg,var(--neo),var(--cyan) 55%,var(--vio));-webkit-background-clip:text;background-clip:text;color:transparent}
+  @media(prefers-reduced-motion:reduce){.fiber-stage{height:auto}.fiber-sticky{position:relative;height:64vh}.fiber-canvas{display:none}}
+
 </style>
 </head>
 <body>
@@ -867,6 +878,17 @@ function renderLanding(){
       </div>
     </section>
 
+    <!-- 2c · TRANSICIÓN FIBRA ÓPTICA -->
+    <section class="fiber-stage" id="fiberstage" aria-label="Conexión">
+      <div class="fiber-sticky">
+        <canvas class="fiber-canvas" id="fiberCanvas"></canvas>
+        <div class="fiber-cap">
+          <div class="eyebrow">Conectamos tu negocio</div>
+          <h2>De tu idea a tus clientes, <em>a la velocidad de la luz</em></h2>
+        </div>
+      </div>
+    </section>
+
     <!-- 3b · GALERÍA DE APPS REALES -->
     <section class="gallery-stage" id="gallerystage" aria-label="Apps reales funcionando">
       <div class="gallery-sticky">
@@ -1077,6 +1099,28 @@ function initCinema(){
   if(!reduce && orbitWrap && gstage && "IntersectionObserver" in window){
     new IntersectionObserver(function(es){ es.forEach(function(x){ if(x.isIntersecting) orbStart(); else orbStop(); }); },{threshold:0.02}).observe(gstage);
   }
+  // ---- TRANSICIÓN FIBRA ÓPTICA (canvas) ----
+  (function(){
+    var cv=document.getElementById("fiberCanvas"); if(!cv||reduce) return;
+    var ctx=cv.getContext("2d"), dpr=Math.min(2,window.devicePixelRatio||1), W=0,Hc=0, fibers=[], raf=null, running=false;
+    var COLS=[[39,230,166],[53,214,255],[139,107,255]];
+    function build(){ fibers=[]; var n=Math.max(14,Math.min(32,Math.round(Hc/(22*dpr)))); for(var i=0;i<n;i++){ var c=COLS[i%3]; fibers.push({ y:(i+0.5)/n*Hc+(Math.random()-0.5)*12*dpr, amp:(10+Math.random()*28)*dpr, k:(0.6+Math.random()*1.3)/(120*dpr), ph:Math.random()*6.283, sp:0.15+Math.random()*0.4, col:c, px:Math.random()*W, pv:(0.8+Math.random()*1.8)*dpr }); } }
+    function resize(){ var r=cv.getBoundingClientRect(); W=cv.width=Math.max(1,Math.round(r.width*dpr)); Hc=cv.height=Math.max(1,Math.round(r.height*dpr)); build(); }
+    function frame(t){ raf=requestAnimationFrame(frame); ctx.fillStyle="rgba(7,11,18,0.22)"; ctx.fillRect(0,0,W,Hc); var tt=t*0.001;
+      for(var i=0;i<fibers.length;i++){ var f=fibers[i]; ctx.lineWidth=1*dpr; ctx.strokeStyle="rgba("+f.col[0]+","+f.col[1]+","+f.col[2]+",0.13)"; ctx.beginPath();
+        for(var x=0;x<=W;x+=16*dpr){ var y=f.y+Math.sin(x*f.k+f.ph+tt*f.sp)*f.amp; if(x===0)ctx.moveTo(x,y); else ctx.lineTo(x,y); } ctx.stroke();
+        f.px+=f.pv*2.4; if(f.px>W+40*dpr)f.px=-40*dpr; var py=f.y+Math.sin(f.px*f.k+f.ph+tt*f.sp)*f.amp;
+        var g=ctx.createRadialGradient(f.px,py,0,f.px,py,16*dpr); g.addColorStop(0,"rgba("+f.col[0]+","+f.col[1]+","+f.col[2]+",0.95)"); g.addColorStop(1,"rgba("+f.col[0]+","+f.col[1]+","+f.col[2]+",0)");
+        ctx.fillStyle=g; ctx.beginPath(); ctx.arc(f.px,py,16*dpr,0,6.283); ctx.fill();
+      }
+    }
+    function start(){ if(running)return; running=true; resize(); raf=requestAnimationFrame(frame); }
+    function stop(){ running=false; if(raf){cancelAnimationFrame(raf);raf=null;} }
+    window.addEventListener("resize",function(){ if(running)resize(); },{passive:true});
+    var fs=document.getElementById("fiberstage");
+    if(fs && "IntersectionObserver" in window){ new IntersectionObserver(function(es){ es.forEach(function(x){ if(x.isIntersecting)start(); else stop(); }); },{threshold:0.02}).observe(fs); }
+    else start();
+  })();
   const bcap=document.getElementById("buildCap");
   const bfinal=bscene?bscene.querySelector(".bfinal"):null;
   const bsteps=bscene?bscene.querySelectorAll(".build-steps span"):[];
