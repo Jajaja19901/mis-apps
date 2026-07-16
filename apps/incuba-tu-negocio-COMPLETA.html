@@ -756,6 +756,18 @@
     .build-scene{--phonev:1;--screenv:1;--finalv:1;--pz:0}
   }
 
+
+  /* ==== experiencia: saltar, hint, volver arriba, spinner demo ==== */
+  .skipstage{position:absolute;right:14px;bottom:18px;z-index:60;background:#0d1626cc;border:1px solid #2a3a55;color:#8aa0b8;font-family:var(--mono);font-size:11px;letter-spacing:.08em;border-radius:999px;padding:9px 15px;cursor:pointer;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:color .3s,border-color .3s}
+  .skipstage:hover,.skipstage:focus-visible{color:var(--neo);border-color:#27e6a666}
+  .scrollhint{position:absolute;left:50%;bottom:24px;transform:translateX(-50%);z-index:7;display:flex;flex-direction:column;align-items:center;gap:1px;font-family:var(--mono);font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--neo);opacity:var(--hintv,1);pointer-events:none;text-shadow:0 2px 12px #070b12}
+  .scrollhint span{font-size:16px;animation:hintbob 1.3s ease-in-out infinite}
+  @keyframes hintbob{50%{transform:translateY(5px)}}
+  #toTop{position:fixed;right:14px;bottom:76px;z-index:9000;width:42px;height:42px;border-radius:50%;border:1px solid #2a3a55;background:#0d1626d9;color:var(--neo);font-size:18px;line-height:1;cursor:pointer;opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .3s,transform .3s;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+  #toTop.show{opacity:1;pointer-events:auto;transform:none}
+  @keyframes ovspin{to{transform:rotate(360deg)}}
+  @media(prefers-reduced-motion:reduce){.skipstage,.scrollhint{display:none}#toTop{transition:none}}
+
 </style>
 </head>
 <body>
@@ -959,10 +971,12 @@ function renderLanding(){
     <!-- 3 · ZOOM INFINITO -->
     <section class="build-stage" id="buildstage" aria-label="Cómo se crea tu app">
       <div class="build-sticky">
+        <button class="skipstage" type="button" data-skip="buildstage" aria-label="Saltar la animación de montaje">Saltar ↓</button>
         <div class="build-scene" id="buildscene">
           <pre class="bcodebg" aria-hidden="true"><code id="buildCode"></code><span class="caret"></span></pre>
           <div class="build-steps" aria-hidden="true"><span data-s="0">Dueño</span><span data-s="1">Cliente</span><span data-s="2">Barra</span><span data-s="3">¡Nace!</span></div>
           <div class="bcap" id="buildCap" aria-hidden="true"></div>
+          <div class="scrollhint" aria-hidden="true">desliza<span>▾</span></div>
 
           <div class="bview" id="bviewA" aria-hidden="true">
             <div class="bwin">
@@ -1040,6 +1054,7 @@ function renderLanding(){
     <!-- 3b · GALERÍA DE APPS REALES -->
     <section class="gallery-stage" id="gallerystage" aria-label="Apps reales funcionando">
       <div class="gallery-sticky">
+        <button class="skipstage" type="button" data-skip="gallerystage" aria-label="Saltar la galería">Saltar ↓</button>
         <div class="gallery-glow" id="galleryGlow" aria-hidden="true"></div>
         <div class="orbit-wrap" id="orbitWrap" aria-hidden="true">${[["💈","Barbería","#37c2ff","#2f57d8"],["💅","Estética y uñas","#ff77a9","#ff4d8d"],["🦷","Dentista","#35d6ff","#2bb3a3"],["💪","Entrenador personal","#ff7a59","#c0392b"],["⚖️","Abogado y gestoría","#a66bff","#6b3bff"],["🏠","Inmobiliaria","#4fd97e","#0f9d6a"],["🚗","Autoescuela","#ffb648","#ff7a00"],["🔧","Taller mecánico","#ff9a3d","#ff5e62"],["📸","Fotógrafo","#8b6bff","#35d6ff"],["🎂","Pastelería","#ff9a5a","#ff6fae"],["👗","Tienda de ropa","#f06ab0","#a66bff"],["🏡","Casa rural","#5ad1c4","#2bb3a3"],["🍔","Food truck","#ffd23f","#ff9a00"],["💆","Fisioterapeuta","#27e6a6","#0c9c74"],["🌱","Jardinería","#4fd97e","#0f9d6a"],["🎸","Clases de música","#ff6fae","#ff9a5a"],["🏋️","Gimnasio / CrossFit","#ff7a59","#c0392b"],["🧘","Yoga / Pilates","#a66bff","#f06ab0"],["🍦","Heladería","#35d6ff","#8b6bff"],["🐕","Adiestrador canino","#5ad1c4","#2bb3a3"],["🎤","DJ / eventos","#8b6bff","#35d6ff"],["🖥️","Reparación móvil/PC","#35d6ff","#3b6bff"],["🧹","Limpieza a domicilio","#4fd97e","#27e6a6"],["📚","Academia de idiomas","#4fd97e","#0f9d6a"],["🍷","Bodega / vinos","#a66bff","#6b3bff"],["🌸","Spa / masajes","#ff77a9","#ff4d8d"]].map(function(a,i){ return '<div class="ocard" style="--i:'+i+'"><span class="oic" style="background:linear-gradient(135deg,'+a[2]+','+a[3]+')">'+a[0]+'</span><b>'+a[1]+'</b></div>'; }).join("")}</div>
         <div class="gallery-head">
@@ -1170,6 +1185,8 @@ function renderLanding(){
   document.getElementById("leadForm").addEventListener("submit",onLead);
   // abrir demos reales embebidas
   document.querySelectorAll("[data-demo]").forEach(function(el){ el.addEventListener("click",function(){ var k=el.getAttribute("data-demo"); if(window.openDemo) window.openDemo(k); }); });
+  document.querySelectorAll(".skipstage").forEach(function(b){ b.addEventListener("click",function(){ var st=document.getElementById(b.getAttribute("data-skip")); if(!st) return; var yy=st.offsetTop+st.offsetHeight-window.innerHeight+6; try{ window.scrollTo({top:yy,behavior:"smooth"}); }catch(e){ window.scrollTo(0,yy); } }); });
+  (function(){ if(document.getElementById("toTop")) return; var t=document.createElement("button"); t.id="toTop"; t.type="button"; t.setAttribute("aria-label","Volver arriba"); t.textContent="\u2191"; document.body.appendChild(t); t.addEventListener("click",function(){ try{ window.scrollTo({top:0,behavior:"smooth"}); }catch(e){ window.scrollTo(0,0); } }); })();
   // acordeón de precios
   document.querySelectorAll(".pcard-head").forEach(function(h){ h.addEventListener("click",function(){ var card=h.closest(".pcard"); var open=card.classList.toggle("open"); h.setAttribute("aria-expanded",open?"true":"false"); }); });
 
@@ -1312,6 +1329,7 @@ qr.generar(mesas);                  // cartelitos listos para imprimir`;
 
     if(bar) bar.style.transform="scaleX("+(doc>0?clamp(y/doc,0,1):0)+")";
     if(head) head.classList.toggle("scrolled",y>40);
+    var __tt=document.getElementById("toTop"); if(__tt) __tt.classList.toggle("show", y>vh*2.2 && (!doc || y<doc-vh*0.2));
     if(cinebg){ cinebg.style.transform="translateY("+(y*0.03)+"px)"; cinebg.style.setProperty("--hue",(y*0.02)%360); }
     if(heroGlow && y<vh*1.3) heroGlow.style.transform="translate(-50%,calc(-50% + "+(y*0.18)+"px))";
 
@@ -1323,6 +1341,7 @@ qr.generar(mesas);                  // cartelitos listos para imprimir`;
         const S=bscene.style;
         var cb=clamp(p/0.04,0,1)*(1-0.75*clamp((p-0.86)/0.06,0,1));
         S.setProperty("--codebg", cb.toFixed(3));
+        S.setProperty("--hintv", clamp(1-p/0.04,0,1).toFixed(3));
         if(bcode){ const cp=clamp(p/0.82,0,1); const n=Math.floor(BCODE.length*cp); if(n!==bcode.__n){ bcode.__n=n; bcode.textContent=BCODE.slice(0,n); } }
         bSetView(0, clamp((p-0.03)/0.06,0,1), clamp((p-0.07)/0.21,0,1), clamp((p-0.29)/0.07,0,1));
         bSetView(1, clamp((p-0.34)/0.06,0,1), clamp((p-0.38)/0.21,0,1), clamp((p-0.60)/0.07,0,1));
@@ -1564,9 +1583,10 @@ route();
   let ov=null, curUrl=null;
   function ensure(){ if(ov) return; ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;z-index:99999;background:#070b12;display:none;flex-direction:column';
     const bar=document.createElement('div'); bar.style.cssText='height:50px;flex:0 0 auto;display:flex;align-items:center;gap:12px;padding:0 14px;background:#0b1220;border-bottom:1px solid #1d2a40;font-family:Inter,system-ui,sans-serif;color:#eaf1fb';
-    bar.innerHTML='<button id="ovBack" style="background:#27e6a6;color:#04221a;border:none;border-radius:999px;padding:9px 18px;font-weight:700;cursor:pointer;font-family:inherit">\u2190 Volver</button><span style="opacity:.65;font-size:14px">Vista previa</span>';
+    bar.innerHTML='<button id="ovBack" style="background:#27e6a6;color:#04221a;border:none;border-radius:999px;padding:9px 18px;font-weight:700;cursor:pointer;font-family:inherit">\u2190 Volver</button><span id="ovLab" style="opacity:.65;font-size:14px">Cargando la demo\u2026</span><span id="ovSpin" style="display:inline-block;width:15px;height:15px;border:2px solid #27e6a640;border-top-color:#27e6a6;border-radius:50%;animation:ovspin .8s linear infinite"></span>';
     const fr=document.createElement('iframe'); fr.id='ovFrame'; fr.title='Vista previa'; fr.style.cssText='flex:1;width:100%;border:0;background:#070b12';
     ov.appendChild(bar); ov.appendChild(fr); document.body.appendChild(ov);
+    fr.addEventListener('load',function(){ var s=document.getElementById('ovSpin'); if(s)s.style.display='none'; var l=document.getElementById('ovLab'); if(l)l.textContent='Vista previa \u00b7 pulsa Volver para salir'; });
     bar.querySelector('#ovBack').addEventListener('click',close); document.addEventListener('keydown',function(e){ if(e.key==='Escape') close(); }); }
   /* Las demos usan enrutado por hash con <a href="#/calc">. Cargadas con srcdoc el navegador resuelve
      esos href contra la URL del PADRE (la incubadora) y te sacaba fuera; cargadas con blob: desde file://
@@ -1606,11 +1626,19 @@ route();
     if(/<html[^>]*>/i.test(html)) return html.replace(/<html[^>]*>/i,function(m){return m+shim;});
     return shim+html;
   }
-  function open(html){ ensure(); ov.style.display='flex'; var f=document.getElementById('ovFrame');
+  var ovPushed=false;
+  function open(html){ ensure(); ov.style.display='flex';
+    var s=document.getElementById('ovSpin'); if(s)s.style.display='inline-block';
+    var l=document.getElementById('ovLab'); if(l)l.textContent='Cargando la demo\u2026';
+    document.body.style.overflow='hidden';
+    if(!ovPushed){ try{ history.pushState({ovDemo:1},''); ovPushed=true; }catch(e){} }
+    var f=document.getElementById('ovFrame');
     if(curUrl){ try{URL.revokeObjectURL(curUrl);}catch(e){} curUrl=null; }
     f.removeAttribute('src');
-    f.srcdoc=injectShim(html); window.scrollTo(0,0); }
-  function close(){ if(ov){ var f=document.getElementById('ovFrame'); if(f){ f.removeAttribute('srcdoc'); f.src='about:blank'; } ov.style.display='none'; if(curUrl){ try{URL.revokeObjectURL(curUrl);}catch(e){} curUrl=null; } } }
+    f.srcdoc=injectShim(html); }
+  function doClose(){ if(ov){ var f=document.getElementById('ovFrame'); if(f){ f.removeAttribute('srcdoc'); f.src='about:blank'; } ov.style.display='none'; document.body.style.overflow=''; if(curUrl){ try{URL.revokeObjectURL(curUrl);}catch(e){} curUrl=null; } } }
+  function close(){ if(ovPushed){ ovPushed=false; try{ history.back(); return; }catch(e){} } doClose(); }
+  window.addEventListener('popstate',function(){ if(ov && ov.style.display!=='none'){ ovPushed=false; doClose(); } });
   function chooserQR(){
     var bk=document.createElement('div'); bk.id='qrPick';
     bk.style.cssText='position:fixed;inset:0;z-index:99998;background:rgba(4,8,16,.9);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto;font-family:Inter,system-ui,sans-serif';
