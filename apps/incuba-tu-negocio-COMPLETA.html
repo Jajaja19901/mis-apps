@@ -1020,6 +1020,14 @@
     .form-wrap input,.form-wrap select,.form-wrap textarea{background:rgba(7,13,22,.45)!important}
   }
 
+
+  /* ==== fondos anclados: la barra de direcciones ya no los re-pinta ==== */
+  @supports(height:100lvh){
+    #aurora{inset:auto;top:-25lvh;left:-25vw;width:150vw;height:150lvh}
+    #stars{inset:auto;top:0;left:0;width:100vw;height:100lvh}
+    .cinebg{inset:auto;top:0;left:0;width:100vw;height:100lvh}
+  }
+
 </style>
 </head>
 <body>
@@ -2130,8 +2138,16 @@ function palAt(f){ var i0=Math.floor(clamp(f,0,3.999)), l=clamp((clamp(f,0,4)-i0
   var A=COLS[i0],B=COLS[Math.min(i0+1,4)];
   return {a:lerp3(A.a,B.a,l), b:lerp3(A.b,B.b,l)}; }
 
-function size(){ cv.width=innerWidth*DPR; cv.height=innerHeight*DPR; }
-size(); addEventListener("resize",size);
+function size(force){
+  /* la barra de direcciones del movil dispara resize al hacer scroll; asignar cv.width
+     BORRA el canvas y se ve un flash. Solo redimensionamos con cambios reales. */
+  var w=Math.round(innerWidth*DPR), hh=Math.round(innerHeight*DPR);
+  if(!force && cv.width===w && Math.abs(cv.height-hh)<170*DPR) return;
+  cv.width=w; cv.height=hh;
+}
+size(true);
+var szT=null;
+addEventListener("resize",function(){ clearTimeout(szT); szT=setTimeout(function(){ size(false); },260); });
 
 /* anclas de seccion -> forma */
 var anch=null;
