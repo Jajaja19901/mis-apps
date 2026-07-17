@@ -825,6 +825,34 @@
   .ocard .oic{color:#fff}
   .ocard .oic svg{display:block}
 
+
+  /* ==== pase editorial ==== */
+  .ticker{overflow:hidden;border-top:1px solid var(--hair);border-bottom:1px solid var(--hair);padding:13px 0;background:#070d15aa;position:relative;z-index:2}
+  .tk{display:flex;white-space:nowrap;width:max-content;animation:tkmove 36s linear infinite}
+  .tk span{font-family:var(--mono);font-size:11px;letter-spacing:.24em;color:var(--ink-mut,#5c6d7e)}
+  .tk span:nth-child(odd){color:var(--neo)}
+  @keyframes tkmove{to{transform:translateX(-50%)}}
+  .statement{padding:clamp(60px,10vh,120px) 18px;text-align:center;font-family:var(--sg);font-weight:700;
+    font-size:clamp(38px,9.5vw,104px);line-height:1.04;letter-spacing:-.05em;color:var(--ink);text-wrap:balance}
+  .statement em{font-style:normal;color:transparent;-webkit-text-stroke:1.5px var(--neo)}
+  /* KPIs editoriales: numeros de revista, no tarjetitas */
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:0 30px;counter-reset:kpi}
+  .kpi{background:none!important;border:0!important;border-top:1px solid var(--hair)!important;border-radius:0!important;
+    box-shadow:none!important;text-align:left!important;padding:16px 0 24px!important;position:relative;counter-increment:kpi}
+  .kpi::before{content:"/0" counter(kpi);position:absolute;top:16px;right:0;font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-mut,#5c6d7e)}
+  .kpi .big{font-family:var(--sg);font-size:clamp(38px,8.6vw,60px)!important;letter-spacing:-.05em;line-height:1;color:var(--ink);font-variant-numeric:tabular-nums}
+  .kpi small{display:block;margin-top:7px;font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-mut,#5c6d7e)}
+  /* indice tecnico en titulos de seccion */
+  body{counter-reset:sec}
+  .sec-head{counter-increment:sec}
+  .sec-head h2::after{content:" /0" counter(sec);font-family:var(--mono);font-size:.32em;font-weight:400;letter-spacing:.18em;color:var(--ink-mut,#5c6d7e);vertical-align:1.1em;margin-left:8px}
+  /* pie editorial */
+  footer.site{border-top:1px solid var(--hair)}
+  footer.site h3{font-family:var(--mono);font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-mut,#5c6d7e)}
+  .gi{color:var(--neo)}
+  .gi svg{display:block}
+  @media(prefers-reduced-motion:reduce){.tk{animation:none}}
+
 </style>
 </head>
 <body>
@@ -998,6 +1026,11 @@ function renderLanding(){
     </section>
 
     <!-- 2 · PROBLEMA → SOLUCIÓN -->
+    <div class="ticker" aria-hidden="true"><div class="tk">
+      <span>WEBS QUE VENDEN&nbsp;&nbsp;·&nbsp;&nbsp;APPS A MEDIDA&nbsp;&nbsp;·&nbsp;&nbsp;PEDIDOS POR QR&nbsp;&nbsp;·&nbsp;&nbsp;PANEL DEL DUEÑO&nbsp;&nbsp;·&nbsp;&nbsp;SIN CUOTAS OBLIGATORIAS&nbsp;&nbsp;·&nbsp;&nbsp;ENTREGA EN 7 DÍAS&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+      <span>WEBS QUE VENDEN&nbsp;&nbsp;·&nbsp;&nbsp;APPS A MEDIDA&nbsp;&nbsp;·&nbsp;&nbsp;PEDIDOS POR QR&nbsp;&nbsp;·&nbsp;&nbsp;PANEL DEL DUEÑO&nbsp;&nbsp;·&nbsp;&nbsp;SIN CUOTAS OBLIGATORIAS&nbsp;&nbsp;·&nbsp;&nbsp;ENTREGA EN 7 DÍAS&nbsp;&nbsp;·&nbsp;&nbsp;</span>
+    </div></div>
+
     <section class="ps" aria-label="El problema y la solución"><div class="wrap">
       <div class="sec-head cin"><span class="eyebrow">El porqué</span><h2 class="rvt">De la idea a un negocio que vende</h2></div>
       <div class="split">
@@ -1140,6 +1173,8 @@ function renderLanding(){
     </div></section>
 
     <!-- 6 · PRICING (accordion mejorado) -->
+    <div class="statement cin" aria-hidden="true">De la idea a <em>vender</em>.</div>
+
     <section id="niveles" class="pricing" aria-label="Niveles y precios"><div class="wrap">
       <div class="sec-head cin"><span class="eyebrow">Niveles</span><h2>Elige cuánto quieres crecer</h2><p>Toca un nivel para ver todo lo que incluye.</p></div>
       <div class="pstack">
@@ -1157,7 +1192,7 @@ function renderLanding(){
           +   '<button class="btn '+(n.destacado?'btn-primary':'btn-ghost')+'" data-nivel="'+esc(n.id)+'">Incubar '+esc(n.id)+'</button>'
           + '</div></div></div>'); }).join("")}
       </div>
-      <div class="pay-note cin">💳 <b>Pago único + mantenimiento desde 20€/mes.</b> Reservas tu plaza con una señal de ${C.SENAL}€ y pagas el resto cuando eclosiona tu web.</div>
+      <div class="pay-note cin"><span style="display:inline-block;vertical-align:-.32em;color:var(--neo)"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x='3' y='5.5' width='18' height='13' rx='2.5'/><path d='M3 10h18M7 15h4'/></svg></span> <b>Pago único + mantenimiento desde 20€/mes.</b> Reservas tu plaza con una señal de ${C.SENAL}€ y pagas el resto cuando eclosiona tu web.</div>
     </div></section>
 
     <!-- 7 · PROOF / GARANTÍAS -->
@@ -1171,10 +1206,10 @@ function renderLanding(){
       </div>
       <div style="text-align:center;margin-bottom:22px" class="cin"><span class="stars" id="proofStars">${svgStar()+svgStar()+svgStar()+svgStar()+svgStar()}</span></div>
       <div class="guarantees">
-        <div class="gcard cin"><span class="gi">🔓</span><div><b>Sin cuota mensual obligatoria</b><p>Pago único. El mantenimiento (desde 20€/mes) es opcional y tú decides.</p></div></div>
-        <div class="gcard cin d1"><span class="gi">🫵</span><div><b>La web es 100% tuya</b><p>Te la entregamos lista y la controlas tú, con tu panel de gestión.</p></div></div>
-        <div class="gcard cin d2"><span class="gi">🍪</span><div><b>Sin cookies · sin RGPD</b><p>Tus clientes no se registran ni se rastrean. Te ahorras el papeleo.</p></div></div>
-        <div class="gcard cin d3"><span class="gi">⚡</span><div><b>Rápida y para móvil</b><p>Carga en menos de 2s y se ve perfecta en cualquier pantalla.</p></div></div>
+        <div class="gcard cin"><span class="gi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x='5' y='10.5' width='14' height='9' rx='2.4'/><path d='M8.5 10.5V8a3.5 3.5 0 0 1 6.53-1.75'/><circle cx='12' cy='15' r='1.3'/></svg></span><div><b>Sin cuota mensual obligatoria</b><p>Pago único. El mantenimiento (desde 20€/mes) es opcional y tú decides.</p></div></div>
+        <div class="gcard cin d1"><span class="gi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx='7.5' cy='15.5' r='4'/><path d='M10.3 12.7 20 3M16 4.5l3 3M13 7.5l2.5 2.5'/></svg></span><div><b>La web es 100% tuya</b><p>Te la entregamos lista y la controlas tú, con tu panel de gestión.</p></div></div>
+        <div class="gcard cin d2"><span class="gi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d='M12 3.5 19.5 6v5c0 4.8-3 8.2-7.5 9.5C7.5 19.2 4.5 15.8 4.5 11V6L12 3.5ZM9 11.8l2.2 2.2 4-4.3'/></svg></span><div><b>Sin cookies · sin RGPD</b><p>Tus clientes no se registran ni se rastrean. Te ahorras el papeleo.</p></div></div>
+        <div class="gcard cin d3"><span class="gi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d='M13 2.5 4.5 13.5h6l-1 8L18 10.5h-6l1-8Z'/></svg></span><div><b>Rápida y para móvil</b><p>Carga en menos de 2s y se ve perfecta en cualquier pantalla.</p></div></div>
       </div>
       <div class="vmarquee" aria-hidden="true"><div class="vtrack">${
         (function(){ var v=["Webs profesionales","Apps a medida","Tiendas online","Embudos de venta","Reservas y citas","Presupuestadores","Catálogos","Bots de atención","Pedidos por WhatsApp","Panel del dueño","Desde <b>250€</b>","Sin cookies"]; var one=v.map(function(x){return '<span class="vchip">'+x+'</span>';}).join(""); return one+one; })()
