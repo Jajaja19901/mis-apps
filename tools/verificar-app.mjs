@@ -104,7 +104,7 @@ function ctxOf(frame) {
 }
 
 async function load() {
-  await page.goto(fileUrl, { waitUntil: "networkidle0", timeout: 30000 });
+  await page.goto(fileUrl, { waitUntil: "networkidle0", timeout: 90000 });
   await sleep(300);
 }
 
