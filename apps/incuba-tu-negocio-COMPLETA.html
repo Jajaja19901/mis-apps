@@ -1053,6 +1053,39 @@
   .sf:hover{border-color:var(--neo);color:var(--neo)}
   .sf.on:hover{color:#03130c;background:var(--neo)}
 
+
+  /* ==== galeria: movil realista + telefonos fantasma ==== */
+  .gphone{perspective:900px}
+  .gside{position:absolute;top:50%;width:56%;aspect-ratio:250/460;border-radius:26px;overflow:hidden;
+    border:1.5px solid #22324b;box-shadow:0 24px 70px rgba(0,0,0,.6);opacity:.55;z-index:1;
+    pointer-events:none;background:#0a1220}
+  .gsl{left:-34%;transform:translateY(-50%) rotateY(22deg) scale(.86)}
+  .gsr{right:-34%;transform:translateY(-50%) rotateY(-22deg) scale(.86)}
+  .gside img{width:100%;height:100%;object-fit:cover;object-position:top;display:block;filter:saturate(.75) brightness(.62)}
+  .gside::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,8,15,.12),rgba(5,8,15,.5))}
+  .gphone-frame{z-index:3}
+  .pchrome{position:absolute;inset:0;pointer-events:none;z-index:6}
+  .pstatus{position:absolute;top:0;left:0;right:0;height:32px;display:flex;justify-content:space-between;
+    align-items:flex-start;padding:7px 18px 0;color:#fff;font-family:var(--mono);font-size:11.5px;font-weight:700;
+    text-shadow:0 1px 4px rgba(0,0,0,.75);background:linear-gradient(rgba(4,7,12,.4),transparent)}
+  .pst-i{display:flex;gap:5px;align-items:center}
+  .pst-i svg{display:block;filter:drop-shadow(0 1px 3px rgba(0,0,0,.75))}
+  .ppunch{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:10px;height:10px;border-radius:50%;
+    background:#000;box-shadow:inset 0 0 2px 1px #1c2c44,0 0 0 2.5px rgba(0,0,0,.55)}
+  .phome{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);width:104px;height:4px;border-radius:3px;
+    background:rgba(255,255,255,.85);box-shadow:0 1px 5px rgba(0,0,0,.55)}
+  .gphone-frame::before{display:none}
+  .gphone::before{content:"";position:absolute;left:-11px;top:25%;width:3.5px;height:50px;border-radius:2px;
+    background:#22324b;box-shadow:0 62px 0 #22324b;z-index:0}
+  .gphone::after{content:"";position:absolute;right:-11px;top:30%;width:3.5px;height:76px;border-radius:2px;
+    background:#22324b;z-index:0}
+  @media(max-width:560px){
+    .gside{width:52%}
+    .gsl{left:-27%}.gsr{right:-27%}
+    .pstatus{padding:6px 14px 0;font-size:10.5px}
+    .phome{width:86px}
+  }
+
 </style>
 </head>
 <body>
@@ -1375,9 +1408,16 @@ function renderLanding(){
           <div class="gcat" id="gCat">Hostelería · pedir por QR</div>
         </div>
         <div class="gphone">
+          <div class="gside gsl" aria-hidden="true"><img id="gsImgL" alt="" loading="lazy" decoding="async"></div>
+          <div class="gside gsr" aria-hidden="true"><img id="gsImgR" alt="" loading="lazy" decoding="async"></div>
           <div class="gphone-frame">
             <iframe class="gframe" id="gfA" title="App real (vista previa)" scrolling="no" tabindex="-1" aria-hidden="true"></iframe>
             <iframe class="gframe" id="gfB" title="App real (vista previa)" scrolling="no" tabindex="-1" aria-hidden="true"></iframe>
+            <div class="pchrome" aria-hidden="true">
+              <div class="pstatus"><span class="pst-t">9:41</span><span class="pst-i"><svg width="15" height="11" viewBox="0 0 16 12" fill="currentColor" aria-hidden="true"><rect x="0" y="8" width="3" height="4" rx="1"/><rect x="4.3" y="5.5" width="3" height="6.5" rx="1"/><rect x="8.6" y="3" width="3" height="9" rx="1"/><rect x="12.9" y="0.5" width="3" height="11.5" rx="1"/></svg><svg width="15" height="11" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M1.5 4.2a10 10 0 0 1 13 0M3.8 6.8a6.6 6.6 0 0 1 8.4 0M6.1 9.3a3.2 3.2 0 0 1 3.8 0"/><circle cx="8" cy="11" r="0.9" fill="currentColor" stroke="none"/></svg><svg width="20" height="11" viewBox="0 0 22 12" fill="none" stroke="currentColor" stroke-width="1.2" aria-hidden="true"><rect x="0.8" y="0.8" width="17.5" height="10.4" rx="2.6"/><rect x="2.6" y="2.6" width="12" height="6.8" rx="1.4" fill="currentColor" stroke="none"/><path d="M20.4 4v4" stroke-linecap="round" stroke-width="1.6"/></svg></span></div>
+              <div class="ppunch"></div>
+              <div class="phome"></div>
+            </div>
           </div>
         </div>
         <div class="gdots" id="gDots" aria-hidden="true"></div>
@@ -1583,7 +1623,7 @@ function initCinema(){
   let gFrontA=true, gCur=-1, gInited=false;
   function gFit(){ [gfA,gfB].forEach(function(f){ coverFit(f); }); }
   function gLoad(f,key){ if(!f||f.__key===key||!window.demoSrcdoc)return; f.__key=key; f.onload=gFit; try{ f.srcdoc=window.demoSrcdoc(key); }catch(e){} }
-  function gLabel(i){ var a=GAPPS[i]; if(!a)return; if(gTitle)gTitle.textContent=a.n; if(gCat)gCat.textContent=a.c; if(gCta)gCta.setAttribute("data-demo",a.k); if(gsticky)gsticky.style.setProperty("--gcol",a.col); if(gGlow)gGlow.style.setProperty("--gcol",a.col); if(gDots){ var ds=gDots.children; for(var d=0;d<ds.length;d++) ds[d].classList.toggle("on",d===i); } }
+  function gLabel(i){ var a=GAPPS[i]; if(!a)return; if(gTitle)gTitle.textContent=a.n; if(gCat)gCat.textContent=a.c; if(gCta)gCta.setAttribute("data-demo",a.k); if(gsticky)gsticky.style.setProperty("--gcol",a.col); if(gGlow)gGlow.style.setProperty("--gcol",a.col); if(gDots){ var ds=gDots.children; for(var d=0;d<ds.length;d++) ds[d].classList.toggle("on",d===i); } var gsL=document.getElementById("gsImgL"), gsR=document.getElementById("gsImgR"); if(gsL&&gsR&&typeof THUMBS!=="undefined"){ var pv=GAPPS[(i-1+GAPPS.length)%GAPPS.length], nxg=GAPPS[(i+1)%GAPPS.length]; if(gsL.__k!==pv.k){gsL.__k=pv.k; gsL.src=THUMBS[pv.k]||"";} if(gsR.__k!==nxg.k){gsR.__k=nxg.k; gsR.src=THUMBS[nxg.k]||"";} } }
   function gInit(){ if(gInited||!window.demoSrcdoc||!gfA)return; gInited=true; if(gDots&&!gDots.children.length){ for(var d=0;d<GAPPS.length;d++){ var el=document.createElement("i"); if(d===0)el.className="on"; gDots.appendChild(el);} } gLoad(gfA,GAPPS[0].k); gfA.style.opacity="1"; gFit(); if(GAPPS[1])gLoad(gfB,GAPPS[1].k); gFrontA=true; gCur=0; gLabel(0); if(!gInit.__r){gInit.__r=1; window.addEventListener("resize",gFit,{passive:true});} }
   function gShow(seg){ gInit(); if(!gInited||seg===gCur)return; var a=GAPPS[seg]; if(!a)return; gCur=seg; var back=gFrontA?gfB:gfA, front=gFrontA?gfA:gfB; if(back.__key!==a.k) gLoad(back,a.k); gFit(); back.style.opacity="1"; front.style.opacity="0"; gFrontA=!gFrontA; gLabel(seg); var nx=GAPPS[seg+1]||GAPPS[seg-1]; if(nx)gLoad(front,nx.k); }
   if(reduce && gfA){ var __gt=setInterval(function(){ gInit(); if(gInited)clearInterval(__gt); },150); setTimeout(function(){clearInterval(__gt);},6000); }
@@ -1591,11 +1631,11 @@ function initCinema(){
   const orbCards=orbitWrap?orbitWrap.querySelectorAll(".ocard"):[];
   let orbRAF=null, orbT0=null;
   function orbLoop(ts){ if(orbT0==null)orbT0=ts; var t=(ts-orbT0)/1000; var spin=t*0.5; var N=orbCards.length||1;
-    var vw=window.innerWidth, vh=window.innerHeight; var RX=Math.min(320, vw*0.36); var VY=Math.min(150, vh*0.20);
+    var vw=window.innerWidth, vh=window.innerHeight; var RX=Math.min(360, vw*0.46); var VY=Math.min(150, vh*0.20);
     for(var i=0;i<orbCards.length;i++){ var a=(i/N)*6.28319+spin; var dep=Math.cos(a); var x=Math.sin(a)*RX; var y=Math.sin(a+ i*2.0)*VY;
       var sc=0.48+(dep+1)/2*0.64; var op=0.30+(dep+1)/2*0.70; var c=orbCards[i];
       c.style.transform="translate(-50%,-50%) translate("+x.toFixed(1)+"px,"+y.toFixed(1)+"px) scale("+sc.toFixed(3)+")";
-      c.style.opacity=op.toFixed(2); c.style.zIndex=(dep>0?40:8); c.style.filter=(dep>0?"none":"blur("+((1-(dep+1)/2)*2.4).toFixed(1)+"px)");
+      c.style.opacity=op.toFixed(2); c.style.zIndex=(dep>0?22:8); c.style.filter=(dep>0?"none":"blur("+((1-(dep+1)/2)*2.4).toFixed(1)+"px)");
     }
     orbRAF=requestAnimationFrame(orbLoop);
   }
