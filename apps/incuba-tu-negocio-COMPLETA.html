@@ -931,6 +931,20 @@
   .ps-card,.fase,.plan,.anchor,.socio,.form-wrap,.tl-node,.cfront,.cback,.pcard,.gcard,.acc-body{
     text-shadow:0 1px 10px rgba(4,7,12,.9),0 0 22px rgba(4,7,12,.7)}
 
+
+  /* aurora viva tras el contenido: siempre hay luz detras del cristal */
+  #aurora{position:fixed;inset:-25%;z-index:-1;pointer-events:none;
+    background:
+      radial-gradient(42% 34% at 28% 30%, rgba(46,242,176,.16), transparent 70%),
+      radial-gradient(38% 30% at 74% 62%, rgba(53,214,255,.12), transparent 70%),
+      radial-gradient(30% 26% at 52% 86%, rgba(46,242,176,.10), transparent 70%);
+    animation:auroraDrift 24s ease-in-out infinite alternate}
+  @keyframes auroraDrift{
+    0%{transform:translate(0,0) scale(1)}
+    50%{transform:translate(4%,-3%) scale(1.06)}
+    100%{transform:translate(-4%,3%) scale(1.02)}}
+  @media(prefers-reduced-motion:reduce){#aurora{animation:none}}
+
 </style>
 </head>
 <body>
@@ -1882,9 +1896,11 @@ function clamp(v,a,b){return v<a?a:(v>b?b:v);}
 function rnd(a,b){return a+Math.random()*(b-a);}
 var cv=document.createElement("canvas"); cv.id="swarmbg"; cv.setAttribute("aria-hidden","true");
 document.body.insertBefore(cv,document.body.firstChild);
+var au=document.createElement("div"); au.id="aurora"; au.setAttribute("aria-hidden","true");
+document.body.insertBefore(au,cv.nextSibling);
 var gl=cv.getContext("webgl",{antialias:false,alpha:true,premultipliedAlpha:true});
 if(!gl){ cv.remove(); return; }
-var NS=(innerWidth<420?2800:3600), ND=600, N=NS+ND;
+var NS=(innerWidth<420?2800:3600), ND=1600, N=NS+ND;
 
 var VS="attribute vec3 aS0,aS1,aS2,aS3,aS4; attribute vec2 aRnd;\n"+
 "uniform float uT,uF,uBurst,uAsp,uBack,uXoff;\n"+
@@ -2011,7 +2027,7 @@ function buildEuro(){
 }
 buildEuro();
 S4.set(S0);
-(function(){ for(var i=NS;i<N;i++){ var x=rnd(-2.2,2.2),y=rnd(-1.35,1.35),z=rnd(.55,1);
+(function(){ for(var i=NS;i<N;i++){ var x=rnd(-2.4,2.4),y=rnd(-1.45,1.45),z=rnd(.12,.95);
   [S0,S1,S2,S3,S4].forEach(function(S){ S[i*3]=x; S[i*3+1]=y; S[i*3+2]=z; }); } })();
 var RR=new Float32Array(N*2);
 for(var i=0;i<N;i++){RR[i*2]=Math.random();RR[i*2+1]=Math.random();}
