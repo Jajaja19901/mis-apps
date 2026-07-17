@@ -925,6 +925,12 @@ const CONFIG = {
       incluye:["Todo lo de Premium","Bot integrado de atención","Lo más completo"] },
   ],
 };
+/* precio "desde" unico: sale SOLO del primer nivel del CONFIG.
+   Cambia el precio ahi arriba y toda la pagina (hero, KPIs, chips y metas) se actualiza sola. */
+const PRECIO_NUM = parseInt((String(CONFIG.NIVELES[0].precio).match(/\d+/)||[250])[0],10);
+const PRECIO_DESDE = PRECIO_NUM + "\u20ac";
+try{ ["meta[name='description']","meta[property='og:description']"].forEach(function(s){
+  var m=document.querySelector(s); if(m) m.setAttribute("content", m.getAttribute("content").replace(/\d+\u20ac/g, PRECIO_DESDE)); }); }catch(e){}
 const APPS_GRID=[
   {key:"camarero-basico.html",  icon:"<svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><circle cx='12' cy='12' r='8'/><circle cx='12' cy='12' r='3.4'/></svg>", name:"El Camarero Digital \u00b7 B\u00e1sica", short:"Camarero \u00b7 B\u00e1sica", cat:"Hosteler\u00eda \u00b7 QR", tag:"Carta por QR y pedir desde la mesa. Lo esencial.", accent:"#ff9a3d", accent2:"#ff5e62"},
   {key:"camarero-medio.html",   icon:"<svg width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><circle cx='12' cy='12' r='8'/><circle cx='12' cy='12' r='3.4'/></svg>", name:"El Camarero Digital \u00b7 Media", short:"Camarero \u00b7 Media", cat:"Hosteler\u00eda \u00b7 QR", tag:"+ camareros, caja, estado en vivo, cuenta y para llevar.", accent:"#ff7a59", accent2:"#c0392b"},
@@ -1032,7 +1038,7 @@ function renderLanding(){
       <div class="inner">
         <span class="tag cin">Incubadora de webs y apps</span>
         <h1 class="cin d1">Mete tu negocio en la incubadora y sal con tu <em>web o app</em> que vende.</h1>
-        <p class="sub cin d2">Creamos <b>webs y apps a medida</b> para autónomos y pymes. Tú nos cuentas tu idea, la metemos a incubar y eclosiona profesional, rápida y lista para conseguirte clientes. Desde 250€.</p>
+        <p class="sub cin d2">Creamos <b>webs y apps a medida</b> para autónomos y pymes. Tú nos cuentas tu idea, la metemos a incubar y eclosiona profesional, rápida y lista para conseguirte clientes. Desde ${PRECIO_DESDE}.</p>
         <div class="incubator cin d2" aria-hidden="true">
           <div class="pod">
             <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
@@ -1073,7 +1079,7 @@ function renderLanding(){
         <div class="ps-arrow cin" aria-hidden="true">↓</div>
         <div class="ps-card ps-sol cin-right">
           <span class="k">La solución</span>
-          <h3 class="rvt">Incuba tu Negocio: a medida, lista para vender, desde 250€.</h3>
+          <h3 class="rvt">Incuba tu Negocio: a medida, lista para vender, desde ${PRECIO_DESDE}.</h3>
           <p>Metemos tu idea a incubar y sale una web o app profesional pensada para un solo objetivo: <b>conseguirte clientes</b>. Y con tu panel para gestionarlo todo tú.</p>
           <ul class="ps-list">
             <li><span class="dot">✓</span><span>Precio de salida bajo, sin sorpresas.</span></li>
@@ -1225,7 +1231,7 @@ function renderLanding(){
     <section class="proof" aria-label="Garantías"><div class="wrap">
       <div class="sec-head cin"><span class="eyebrow">Por qué la incubadora</span><h2>La misma calidad, sin pagar de más</h2></div>
       <div class="kpis">
-        <div class="kpi cin"><div class="big" data-count="250" data-prefix="" data-suffix="€">0€</div><small>Precio de salida</small></div>
+        <div class="kpi cin"><div class="big" data-count="${PRECIO_NUM}" data-prefix="" data-suffix="€">0€</div><small>Precio de salida</small></div>
         <div class="kpi cin d1"><div class="big" data-count="1750" data-prefix="+" data-suffix="€">0€</div><small>Ahorro medio</small></div>
         <div class="kpi cin d2"><div class="big" data-count="13" data-suffix="">0</div><small>Demos que puedes probar</small></div>
         <div class="kpi cin d3"><div class="big" data-count="4" data-suffix=" fases">0</div><small>De la idea a vender</small></div>
@@ -1238,7 +1244,7 @@ function renderLanding(){
         <div class="gcard cin d3"><span class="gi"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d='M13 2.5 4.5 13.5h6l-1 8L18 10.5h-6l1-8Z'/></svg></span><div><b>Rápida y para móvil</b><p>Carga en menos de 2s y se ve perfecta en cualquier pantalla.</p></div></div>
       </div>
       <div class="vmarquee" aria-hidden="true"><div class="vtrack">${
-        (function(){ var v=["Webs profesionales","Apps a medida","Tiendas online","Embudos de venta","Reservas y citas","Presupuestadores","Catálogos","Bots de atención","Pedidos por WhatsApp","Panel del dueño","Desde <b>250€</b>","Sin cookies"]; var one=v.map(function(x){return '<span class="vchip">'+x+'</span>';}).join(""); return one+one; })()
+        (function(){ var v=["Webs profesionales","Apps a medida","Tiendas online","Embudos de venta","Reservas y citas","Presupuestadores","Catálogos","Bots de atención","Pedidos por WhatsApp","Panel del dueño","Desde <b>"+PRECIO_DESDE+"</b>","Sin cookies"]; var one=v.map(function(x){return '<span class="vchip">'+x+'</span>';}).join(""); return one+one; })()
       }</div></div>
     </div></section>
 
