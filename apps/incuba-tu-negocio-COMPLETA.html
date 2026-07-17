@@ -853,6 +853,32 @@
   .gi svg{display:block}
   @media(prefers-reduced-motion:reduce){.tk{animation:none}}
 
+
+  /* ==== ESCRITORIO EDITORIAL (>=1024px): el movil no cambia ==== */
+  @media(min-width:1024px){
+    .wrap{max-width:1180px}
+    /* hero a dos bandas: texto izquierda, huevo de estrellas derecha */
+    .chero .inner{max-width:1180px;width:100%;text-align:left;padding:0 40px}
+    .chero h1{margin-left:0;max-width:11ch;font-size:clamp(64px,6.4vw,104px)}
+    .chero p.sub{margin-left:0;max-width:52ch}
+    .chero .hero-cta{justify-content:flex-start}
+    .chero .tag{margin-left:0}
+    /* KPIs en fila de cuatro, numeros enormes */
+    .kpis{grid-template-columns:repeat(4,1fr);gap:0 40px}
+    .kpi .big{font-size:clamp(52px,4.6vw,76px)!important}
+    /* garantias 2x2 */
+    .guarantees{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    /* manifiesto a toda pantalla */
+    .statement{font-size:clamp(84px,9vw,150px);padding:140px 18px}
+    /* cinta mas presente */
+    .tk span{font-size:12.5px}
+    /* secciones con mas aire */
+    .sec-head{margin-bottom:34px}
+    section .wrap{padding-left:40px;padding-right:40px}
+    /* formulario centrado con anchura editorial */
+    #incubar .form-card{max-width:680px;margin-left:auto;margin-right:auto}
+  }
+
 </style>
 </head>
 <body>
@@ -1803,7 +1829,7 @@ if(!gl){ cv.remove(); return; }
 var NS=(innerWidth<420?2800:3600), ND=600, N=NS+ND;
 
 var VS="attribute vec3 aS0,aS1,aS2,aS3,aS4; attribute vec2 aRnd;\n"+
-"uniform float uT,uF,uBurst,uAsp,uBack;\n"+
+"uniform float uT,uF,uBurst,uAsp,uBack,uXoff;\n"+
 "uniform vec2 uPtr;\n"+
 "varying float vC; varying float vA; varying float vLum;\n"+
 "mat2 rot(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}\n"+
@@ -1827,6 +1853,7 @@ var VS="attribute vec3 aS0,aS1,aS2,aS3,aS4; attribute vec2 aRnd;\n"+
 "  pos.xy*=sc;\n"+
 "  pos.y+=.08;\n"+
 "  vec2 scr=vec2(pos.x/uAsp,pos.y)*.72;\n"+
+"  scr.x+=uXoff;\n"+
 "  vec2 d=scr-uPtr; float dl=length(d);\n"+
 "  scr+=(d/max(dl,.001))*exp(-dl*5.5)*.11;\n"+
 "  gl_Position=vec4(scr,0.,1.);\n"+
@@ -1939,7 +1966,7 @@ function attr(name,arr,size){ var b=bufs[name]||gl.createBuffer(); bufs[name]=b;
 attr("aS0",S0,3);attr("aS1",S1,3);attr("aS2",S2,3);attr("aS3",S3,3);attr("aS4",S4,3);attr("aRnd",RR,2);
 if(document.fonts&&document.fonts.ready){ document.fonts.ready.then(function(){ buildEuro(); attr("aS3",S3,3); }); }
 
-var U={};["uT","uF","uBurst","uAsp","uPtr","uCol","uCol2","uGA","uBack"].forEach(function(n){U[n]=gl.getUniformLocation(pr,n);});
+var U={};["uT","uF","uBurst","uAsp","uPtr","uCol","uCol2","uGA","uBack","uXoff"].forEach(function(n){U[n]=gl.getUniformLocation(pr,n);});
 var COLS=[
  {a:[.16,.88,.62], b:[.32,1.,.86]},
  {a:[.16,.62,.98], b:[.42,.88,1.]},
@@ -1994,7 +2021,7 @@ function aAt(y){
                   dimZone(y,A.proof+400,A.incu-650,450,0.25));
 }
 
-var ptr=[9,9], burst=0, raf=null, t0=null, tPrev=0, fShown=0, aShown=1;
+var ptr=[9,9], burst=0, raf=null, t0=null, tPrev=0, fShown=0, aShown=1, xShown=0;
 addEventListener("pointermove",function(e){ if(e.pointerType==="touch")return;
   ptr=[(e.clientX/innerWidth*2-1),-(e.clientY/innerHeight*2-1)]; },{passive:true});
 var tS=null;
@@ -2016,11 +2043,15 @@ function frame(ts){
   var y=scrollY||pageYOffset||0;
   fShown+=(fAt(y)-fShown)*Math.min(1,dt*2.3);
   aShown+=(aAt(y)-aShown)*Math.min(1,dt*3);
+  /* escritorio: la forma se aparta a un lado, alternando, estilo revista */
+  var xT=0;
+  if(innerWidth>=1024){ xT=[0.42,-0.42,0.42,-0.40,0.42][Math.max(0,Math.min(4,Math.round(fShown)))]||0; }
+  xShown+=(xT-xShown)*Math.min(1,dt*2.2);
   burst*=Math.pow(.03,dt);
   gl.viewport(0,0,cv.width,cv.height);
   gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
   gl.uniform1f(U.uT,t); gl.uniform1f(U.uF,fShown); gl.uniform1f(U.uBurst,burst);
-  gl.uniform1f(U.uAsp,cv.width/cv.height); gl.uniform2f(U.uPtr,ptr[0],ptr[1]);
+  gl.uniform1f(U.uAsp,cv.width/cv.height); gl.uniform2f(U.uPtr,ptr[0],ptr[1]); gl.uniform1f(U.uXoff,xShown);
   var pal=palAt(fShown);
   gl.uniform3f(U.uCol,pal.a[0],pal.a[1],pal.a[2]);
   gl.uniform3f(U.uCol2,pal.b[0],pal.b[1],pal.b[2]);
