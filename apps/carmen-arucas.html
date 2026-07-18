@@ -11,8 +11,8 @@
 
   <link rel="manifest" href="data:application/manifest+json,{%22name%22:%22Botánica Carmen Arucas%22,%22short_name%22:%22Carmen%22,%22start_url%22:%22./%22,%22display%22:%22standalone%22,%22background_color%22:%22%23fafaf8%22,%22theme_color%22:%22%23059669%22,%22icons%22:[{%22src%22:%22data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g1'><stop offset='0%25' style='stop-color:%23059669'/><stop offset='100%25' style='stop-color:%23fbbf24'/></linearGradient></defs><rect fill='url(%23g1)' width='192' height='192' rx='45'/><text x='96' y='120' text-anchor='middle' font-size='80' font-weight='bold' fill='white' font-family='Arial'>C</text></svg>%22,%22sizes%22:%22192x192%22,%22type%22:%22image/svg+xml%22}]}">
 
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
 
   <style>
     * {
@@ -746,7 +746,7 @@
           <label class="config-label" style="margin-bottom: 8px;">🔑 Key de Pl@ntNet (gratis, recomendado)</label>
           <input type="password" id="plantnetApiKey" placeholder="Pega aquí tu API key de Pl@ntNet" style="margin-bottom: 8px;">
           <div style="font-size: 11px; color: var(--text-light); line-height: 1.5;">
-            💡 <strong>Cómo conseguirla (2 min):</strong> entra en <a href="https://my.plantnet.org" target="_blank" rel="noopener" style="color: var(--blue);">my.plantnet.org</a>,
+            💡 <strong>Cómo conseguirla (2 min):</strong> entra en <a href="https://my.plantnet.org" target="_blank" rel="noopener noreferrer" style="color: var(--blue);">my.plantnet.org</a>,
             crea una cuenta gratis y copia la API key de tu panel. Te da <strong>500 identificaciones al día gratis</strong>.<br><br>
             Sin key, la app intentará un servicio gratuito de respaldo (puede tardar en despertar o estar caído) y,
             si tampoco responde, te dará una estimación local avisándote.
@@ -773,7 +773,7 @@
           <div style="margin-top: 8px; color: var(--text-light);">Recibe el clima real de Arucas en tu dashboard</div>
           <div style="display: flex; gap: 8px; margin-top: 8px;">
             <input type="text" id="apiWeather" placeholder="Tu API key (gratis)" style="margin: 0; font-size: 12px;">
-            <button class="btn btn-small" style="background: var(--blue);" onclick="window.open('https://openweathermap.org/api', '_blank')">
+            <button class="btn btn-small" style="background: var(--blue);" onclick="window.open('https://openweathermap.org/api', '_blank', 'noopener')">
               Obtener
             </button>
           </div>
@@ -874,6 +874,11 @@
       <button class="btn" style="width: 100%; margin-top: 16px;" onclick="downloadReport()">
         📥 Descargar reporte
       </button>
+
+      <div class="config-section" style="margin-top: 16px;">
+        <label class="config-label">🚑 Historial de incidentes</label>
+        <div id="incidentHistory"></div>
+      </div>
     </div>
 
     <!-- INCIDENTE -->
@@ -884,7 +889,8 @@
       <h2>🚑 Reportar Incidente</h2>
 
       <div class="alert">
-        Se registrará con fecha y hora. Tu supervisor será notificado.
+        Se registrará con fecha y hora en tu historial (pestaña Estadísticas).
+        Recuerda comunicarlo también por el canal oficial de tu ayuntamiento: la app no lo envía sola.
       </div>
 
       <div class="config-section">
@@ -1061,6 +1067,16 @@
     return z;
   });
   Store.save('cd_zones', state.zones);
+
+  // Migración: las tareas urgentes antiguas de la patrulla (type:'urgent') no se
+  // veían en la vista Tareas. Las convertimos en to-dos urgentes visibles.
+  state.tasks = (state.tasks || []).map(t => {
+    if (t.type === 'urgent') {
+      return { id: t.id, type: 'todo', text: `⚠️ Revisar ${t.plant || 'planta'} (patrulla)`, done: false, urgent: true };
+    }
+    return t;
+  });
+  Store.save('cd_tasks', state.tasks);
 
   // PLANT IDENTIFICATION
   let currentScanPhoto = null;
@@ -1365,7 +1381,11 @@
       nameEl.style.cssText = 'font-weight: 600; font-size: 16px; color: var(--green);';
       nameEl.textContent = `#${r.rank}: ${r.name}`;
       if(r.scientific) {
-        nameEl.innerHTML += `<div style="font-size: 12px; font-weight: normal; color: var(--text-light); margin-top: 4px; font-style: italic;">${r.scientific}</div>`;
+        // r.scientific viene de APIs externas: SIEMPRE como texto, nunca como HTML
+        const sciEl = document.createElement('div');
+        sciEl.style.cssText = 'font-size: 12px; font-weight: normal; color: var(--text-light); margin-top: 4px; font-style: italic;';
+        sciEl.textContent = r.scientific;
+        nameEl.appendChild(sciEl);
       }
 
       const confEl = document.createElement('div');
@@ -1532,8 +1552,8 @@
   function updateDashboard() {
     const tareasEl = document.getElementById('tareas-hoy');
     const alarmasEl = document.getElementById('alarmas-count');
-    if (tareasEl) tareasEl.textContent = state.tasks.length;
-    if (alarmasEl) alarmasEl.textContent = state.tasks.filter(t => t.type === 'urgent').length;
+    if (tareasEl) tareasEl.textContent = state.tasks.filter(t => !t.done).length;
+    if (alarmasEl) alarmasEl.textContent = state.tasks.filter(t => t.urgent && !t.done).length;
   }
 
   // PATRULLA RÁPIDA
@@ -1558,7 +1578,7 @@
     if(ok) {
       showToast(`✅ ${p?.name || 'Planta'} perfecta`);
     } else {
-      state.tasks.push({ id: Date.now(), plant: p?.name || 'Planta', type: 'urgent', date: new Date().toLocaleDateString() });
+      state.tasks.push({ id: Date.now(), type: 'todo', text: `⚠️ Revisar ${p?.name || 'planta'} (patrulla)`, done: false, urgent: true });
       Store.save('cd_tasks', state.tasks);
       showToast(`⚠️ Tarea creada`);
     }
@@ -1726,20 +1746,45 @@
 
   function updateReport() {
     document.getElementById('stat-plants').textContent = (state.plants || []).length;
-    document.getElementById('stat-trabajos').textContent = Math.floor(Math.random() * 8) + 1;
+    document.getElementById('stat-trabajos').textContent = (state.jobs || []).filter(j => j.done).length;
     document.getElementById('stat-zonas').textContent = (state.zones || []).length;
     document.getElementById('stat-tareas').textContent = (state.tasks || []).filter(t => t.done).length;
+    renderIncidentHistory();
+  }
+
+  function renderIncidentHistory() {
+    const list = document.getElementById('incidentHistory');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!(state.incidents || []).length) {
+      list.innerHTML = '<p style="color: var(--text-light); font-size: 13px;">Sin incidentes registrados. 🎉</p>';
+      return;
+    }
+    const tipos = { cut: '✂️ Corte/Herida', burn: '🔥 Quemadura', allergy: '😷 Alergia/irritación', fall: '⬇️ Caída', other: '❓ Otro' };
+    state.incidents.slice().reverse().forEach(inc => {
+      const div = document.createElement('div');
+      div.style.cssText = 'padding: 10px 12px; background: rgba(236, 72, 153, 0.06); border-left: 4px solid var(--pink); border-radius: 8px; margin: 8px 0; font-size: 13px;';
+      const head = document.createElement('strong');
+      head.textContent = `${tipos[inc.type] || inc.type} — ${inc.date}`;
+      const body = document.createElement('div');
+      body.style.cssText = 'color: var(--text-light); margin-top: 4px;';
+      body.textContent = `${inc.desc} (📍 ${inc.zone})`;
+      div.appendChild(head); div.appendChild(body);
+      list.appendChild(div);
+    });
   }
 
   function downloadReport() {
     const html = `
       <h1>Reporte Semanal</h1>
-      <p>Carmen Delia - Arucas, Gran Canaria</p>
+      <p>${esc(CONFIG.NOMBRE)} - ${esc(CONFIG.MUNICIPIO)}, Gran Canaria</p>
       <h2>Resumen</h2>
       <ul>
         <li>Plantas revisadas: ${(state.plants || []).length}</li>
+        <li>Trabajos completados: ${(state.jobs || []).filter(j => j.done).length} de ${(state.jobs || []).length}</li>
         <li>Zonas: ${(state.zones || []).length}</li>
         <li>Tareas completadas: ${(state.tasks || []).filter(t => t.done).length}</li>
+        <li>Incidentes registrados: ${(state.incidents || []).length}</li>
       </ul>
       <p style="margin-top: 30px; font-size: 12px;">Generado: ${new Date().toLocaleString('es-ES')}</p>
     `;
