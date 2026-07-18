@@ -2257,7 +2257,7 @@ if(!gl){ cv.remove(); return; }
 var NS=(innerWidth<420?2800:3600), ND=1600, N=NS+ND;
 
 var VS="attribute vec3 aS0,aS1,aS2,aS3,aS4; attribute vec2 aRnd;\n"+
-"uniform float uT,uF,uBurst,uAsp,uBack,uXoff;\n"+
+"uniform float uT,uF,uBurst,uAsp,uBack,uXoff,uSc;\n"+
 "uniform vec2 uPtr;\n"+
 "varying float vC; varying float vA; varying float vLum;\n"+
 "mat2 rot(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}\n"+
@@ -2279,6 +2279,8 @@ var VS="attribute vec3 aS0,aS1,aS2,aS3,aS4; attribute vec2 aRnd;\n"+
 "  pos+=.011*vec3(sin(uT*.9+aRnd.x*41.),cos(uT*.75+aRnd.y*33.),sin(uT*.6+aRnd.x*57.));\n"+
 "  pos.xz*=rot(.22*sin(uT*.22)); pos.yz*=rot(.09*sin(uT*.17));\n"+
 "  pos*=1.+.006*sin(uT*.8+aRnd.x*6.2832);\n"+
+"  vec3 scat=vec3(pos.x*2.6+sin(uT*.22+aRnd.x*37.)*.55, pos.y*2.2+cos(uT*.17+aRnd.y*29.)*.45+sin(uT*.11+aRnd.x*13.)*.22, pos.z);\n"+
+"  pos=mix(pos,scat,uSc*(.5+.5*aRnd.y));\n"+
 "  pos+=normalize(pos+vec3(.0001))*uBurst*(.45+aRnd.y*.85);\n"+
 "  float sc=min(1.,uAsp/.72);\n"+
 "  pos.xy*=sc;\n"+
@@ -2397,7 +2399,7 @@ function attr(name,arr,size){ var b=bufs[name]||gl.createBuffer(); bufs[name]=b;
 attr("aS0",S0,3);attr("aS1",S1,3);attr("aS2",S2,3);attr("aS3",S3,3);attr("aS4",S4,3);attr("aRnd",RR,2);
 if(document.fonts&&document.fonts.ready){ document.fonts.ready.then(function(){ buildEuro(); attr("aS3",S3,3); }); }
 
-var U={};["uT","uF","uBurst","uAsp","uPtr","uCol","uCol2","uGA","uBack","uXoff"].forEach(function(n){U[n]=gl.getUniformLocation(pr,n);});
+var U={};["uT","uF","uBurst","uAsp","uPtr","uCol","uCol2","uGA","uBack","uXoff","uSc"].forEach(function(n){U[n]=gl.getUniformLocation(pr,n);});
 var COLS=[
  {a:[.16,.88,.62], b:[.32,1.,.86]},
  {a:[.16,.62,.98], b:[.42,.88,1.]},
@@ -2456,11 +2458,17 @@ function dimZone(y,z0,z1,ramp,low){
 function aAt(y){
   if(!anch) return 1;
   var A=anch;
-  return Math.min(dimZone(y,A.build-150,A.demos-750,450,0.20),
-                  dimZone(y,A.proof+400,A.incu-650,450,0.25));
+  return Math.min(dimZone(y,A.build-150,A.demos-750,450,0.45),
+                  dimZone(y,A.proof+400,A.incu-650,450,0.45));
+}
+function scAt(y){
+  if(!anch) return 0;
+  var A=anch;
+  return 1-Math.min(dimZone(y,A.build-150,A.demos-750,450,0),
+                    dimZone(y,A.proof+400,A.incu-650,450,0));
 }
 
-var ptr=[9,9], burst=0, raf=null, t0=null, tPrev=0, fShown=0, aShown=1, xShown=0;
+var ptr=[9,9], burst=0, raf=null, t0=null, tPrev=0, fShown=0, aShown=1, xShown=0, scShown=0;
 addEventListener("pointermove",function(e){ if(e.pointerType==="touch")return;
   ptr=[(e.clientX/innerWidth*2-1),-(e.clientY/innerHeight*2-1)]; },{passive:true});
 var tS=null;
@@ -2482,6 +2490,7 @@ function frame(ts){
   var y=scrollY||pageYOffset||0;
   fShown+=(fAt(y)-fShown)*Math.min(1,dt*2.3);
   aShown+=(aAt(y)-aShown)*Math.min(1,dt*3);
+  scShown+=(scAt(y)-scShown)*Math.min(1,dt*1.9);
   /* escritorio: la forma se aparta a un lado, alternando, estilo revista */
   var xT=0;
   if(innerWidth>=1024){ xT=[0.42,-0.42,0.42,-0.40,0.42][Math.max(0,Math.min(4,Math.round(fShown)))]||0; }
@@ -2490,7 +2499,7 @@ function frame(ts){
   gl.viewport(0,0,cv.width,cv.height);
   gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT);
   gl.uniform1f(U.uT,t); gl.uniform1f(U.uF,fShown); gl.uniform1f(U.uBurst,burst);
-  gl.uniform1f(U.uAsp,cv.width/cv.height); gl.uniform2f(U.uPtr,ptr[0],ptr[1]); gl.uniform1f(U.uXoff,xShown);
+  gl.uniform1f(U.uAsp,cv.width/cv.height); gl.uniform2f(U.uPtr,ptr[0],ptr[1]); gl.uniform1f(U.uXoff,xShown); gl.uniform1f(U.uSc,scShown);
   var pal=palAt(fShown);
   gl.uniform3f(U.uCol,pal.a[0],pal.a[1],pal.a[2]);
   gl.uniform3f(U.uCol2,pal.b[0],pal.b[1],pal.b[2]);
