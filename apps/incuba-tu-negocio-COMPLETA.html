@@ -1146,6 +1146,26 @@
   .oreal .oic.oic3d svg{width:100%;height:100%;display:block;filter:none}
   @media(max-width:560px){.oreal .oic.oic3d{border-radius:13px}}
 
+
+  /* ==== ESTABILIDAD TOTAL: fuera saltos y repintados intermitentes ==== */
+  /* las secciones fijas ya no se redimensionan cuando la barra de Android se esconde */
+  @supports(height:100svh){
+    .build-sticky,.gallery-sticky{height:100svh}
+    @media(prefers-reduced-motion:reduce){.build-sticky{height:auto}}
+  }
+  @media(max-width:1023px){
+    /* el titular del hero repintaba su degradado animado en cada frame: fijo en movil */
+    .chero h1 em{animation:none}
+    /* chispa del montaje: fuera el drop-shadow recalculado por frame */
+    .spark{filter:none}
+    /* blob del CTA final: sin morphing animado con blur de 60px en movil */
+    .cta-blob{animation:none;filter:blur(30px)}
+    /* pulsos infinitos que repintan: fuera en movil */
+    .cfront .fliphint{animation:none;opacity:.85}
+    .btn-primary{animation:none}
+    .gracias .egg{animation:none}
+  }
+
 </style>
 </head>
 <body>
@@ -1688,7 +1708,7 @@ function initCinema(){
     for(var i=0;i<orbCards.length;i++){ var a=(i/N)*6.28319+spin; var dep=Math.cos(a); var x=Math.sin(a)*RX; var y=Math.sin(a+ i*2.0)*VY;
       var sc=0.48+(dep+1)/2*0.64; var op=0.30+(dep+1)/2*0.70; var c=orbCards[i];
       c.style.transform="translate(-50%,-50%) translate("+x.toFixed(1)+"px,"+y.toFixed(1)+"px) scale("+sc.toFixed(3)+")";
-      c.style.opacity=op.toFixed(2); c.style.zIndex=(dep>0?40:8); var far=dep<0; if(c.__far!==far){c.__far=far; c.classList.toggle("ofar",far);}
+      c.style.opacity=op.toFixed(2); var far=dep<0; if(c.__far!==far){c.__far=far; c.classList.toggle("ofar",far); c.style.zIndex=far?8:40;}
     }
     orbRAF=requestAnimationFrame(orbLoop);
   }
