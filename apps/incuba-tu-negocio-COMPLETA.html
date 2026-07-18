@@ -1286,6 +1286,14 @@
     ::-webkit-scrollbar-thumb:hover{background:#2ef2b0}
   }
 
+
+  /* fase final del montaje: la pantalla recorta siempre su contenido */
+  .bscreen{overflow:hidden}
+  /* en movil, el Saltar del montaje se va a la izquierda (el CTA largo y la flecha viven a la derecha) */
+  @media(max-width:700px){
+    #buildstage .skipstage{right:auto;left:12px;bottom:16px}
+  }
+
 </style>
 </head>
 <body>
@@ -1938,7 +1946,10 @@ qr.generar(mesas);                  // cartelitos listos para imprimir`;
         bSetView(0, clamp((p-0.03)/0.06,0,1), clamp((p-0.07)/0.21,0,1), clamp((p-0.29)/0.07,0,1));
         bSetView(1, clamp((p-0.34)/0.06,0,1), clamp((p-0.38)/0.21,0,1), clamp((p-0.60)/0.07,0,1));
         bSetView(2, clamp((p-0.65)/0.06,0,1), clamp((p-0.69)/0.16,0,1), clamp((p-0.84)/0.055,0,1));
-        if(bframe && !bframe.__loaded && p>0.5) loadFrame();
+        if(bframe && !bframe.__loaded && p>0.04) loadFrame();
+        if(bframe && bframe.__loaded && p>0.8 && !bframe.__refit){ bframe.__refit=1; setTimeout(fitFrame,60); }
+        if(!window.__bSkip && bstage) window.__bSkip=bstage.querySelector(".skipstage");
+        if(window.__bSkip){ var _hb=p>0.76; if(window.__bSkip.__h!==_hb){ window.__bSkip.__h=_hb; window.__bSkip.style.opacity=_hb?"0":"1"; window.__bSkip.style.pointerEvents=_hb?"none":""; } }
         S.setProperty("--phonev", clamp((p-0.855)/0.03,0,1).toFixed(3));
         S.setProperty("--pz", (1-easeO(clamp((p-0.86)/0.095,0,1))).toFixed(4));
         S.setProperty("--screenv", clamp((p-0.87)/0.06,0,1).toFixed(3));
@@ -2500,8 +2511,8 @@ function fAt(y){
   if(y<A.ps+100) return segLin(y,A.ps-500,A.ps+100,0,1);
   if(y<A.build-200) return 1;
   if(y<A.demos-600) return segLin(y,A.build-200,A.demos-600,1,2);
-  if(y<A.niv-800) return 2;
-  if(y<A.niv-150) return segLin(y,A.niv-800,A.niv-150,2,3);
+  if(y<A.niv-430) return 2;
+  if(y<A.niv-70) return segLin(y,A.niv-430,A.niv-70,2,3);
   if(y<A.proof+250) return 3;
   if(y<A.incu-500) return segLin(y,A.proof+250,A.incu-500,3,4);
   return 4;
