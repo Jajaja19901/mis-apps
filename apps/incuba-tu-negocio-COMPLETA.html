@@ -2268,11 +2268,14 @@ var VS="attribute vec3 aS0,aS1,aS2,aS3,aS4; attribute vec2 aRnd;\n"+
 "  float lraw=fract(f);\n"+
 "  float l0=clamp((lraw-.30)/.40,0.,1.);\n"+
 "  l0=max(0.,l0-uBack);\n"+
-"  float st=clamp((l0-aRnd.x*.30)/.70,0.,1.); st=st*st*(3.-2.*st);\n"+
+"  float st=clamp((l0-aRnd.x*.42)/.58,0.,1.); st=st*st*(3.-2.*st);\n"+
+"  float trav=st*(1.-st)*4.;\n"+
 "  vec3 mid=(A+B)*.5;\n"+
 "  float dir=(aRnd.x-.5)*2.;\n"+
 "  mid.x+=dir*.5; mid.y+=(aRnd.y-.5)*.42; mid.z+=dir*.2;\n"+
 "  vec3 pos=mix(mix(A,mid,st),mix(mid,B,st),st);\n"+
+"  vec2 dv=normalize(B.xy-A.xy+vec2(.0001,.0001));\n"+
+"  pos.xy+=vec2(-dv.y,dv.x)*sin(st*6.2832+aRnd.y*3.14)*.055*dir*trav;\n"+
 "  pos+=.011*vec3(sin(uT*.9+aRnd.x*41.),cos(uT*.75+aRnd.y*33.),sin(uT*.6+aRnd.x*57.));\n"+
 "  pos.xz*=rot(.22*sin(uT*.22)); pos.yz*=rot(.09*sin(uT*.17));\n"+
 "  pos*=1.+.006*sin(uT*.8+aRnd.x*6.2832);\n"+
@@ -2286,10 +2289,10 @@ var VS="attribute vec3 aS0,aS1,aS2,aS3,aS4; attribute vec2 aRnd;\n"+
 "  scr+=(d/max(dl,.001))*exp(-dl*5.5)*.11;\n"+
 "  gl_Position=vec4(scr,0.,1.);\n"+
 "  float depth=clamp(.5+.5*pos.z,0.,1.);\n"+
-"  gl_PointSize=(2.1+aRnd.y*3.4)*(1.55-depth*1.0)*"+DPR.toFixed(2)+";\n"+
+"  gl_PointSize=(2.1+aRnd.y*3.4)*(1.55-depth*1.0)*(1.+trav*.5)*"+DPR.toFixed(2)+";\n"+
 "  float tw=.92+.08*sin(uT*.55+aRnd.y*6.2832);\n"+
 "  vC=aRnd.x;\n"+
-"  vA=(.30+.70*(1.-depth))*tw*(1.-uBurst*.3);\n"+
+"  vA=(.30+.70*(1.-depth))*tw*(1.-uBurst*.3)*(1.+trav*.95);\n"+
 "  vLum=mix(.68,1.22,clamp((pos.y+.9)/1.8,0.,1.));\n"+
 "}";
 var FS="precision mediump float;\n"+
