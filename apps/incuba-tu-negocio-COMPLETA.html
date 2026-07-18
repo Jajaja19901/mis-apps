@@ -1166,6 +1166,61 @@
     .gracias .egg{animation:none}
   }
 
+
+  /* ==== CALIDAD PRO (especificaciones UI/UX Pro Max: Modern Dark Cinema) ==== */
+  /* superficies: radio 16, borde fino de cristal, luz en el canto superior */
+  .ps-card,.plan,.pcard,.gcard,.form-card,.fase,.socio,.anchor,.anchor-col,.tl-node,.cfront,.cback,.acc-body,.say{
+    border-radius:16px!important;border:1px solid rgba(255,255,255,.08)!important;
+    transition:transform .25s var(--ease),box-shadow .25s var(--ease),border-color .25s var(--ease)}
+  @media(hover:hover){
+    .ps-card:hover,.plan:hover,.gcard:hover,.say:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.16)!important}
+  }
+  /* botones: presion fisica y halo que crece */
+  .btn{transition:transform .18s var(--ease),box-shadow .25s var(--ease),background .25s var(--ease)}
+  .btn:active{transform:translateY(1px) scale(.97)!important}
+  @media(hover:hover){.btn-primary:hover{box-shadow:0 0 0 1px #2ef2b0,0 16px 54px #27e6a650,0 0 56px -8px #27e6a6}}
+  /* raya que se dibuja bajo cada titulo de seccion al entrar */
+  .sec-head h2{position:relative;padding-bottom:12px}
+  .sec-head h2::before{content:"";position:absolute;left:0;bottom:0;width:72px;height:2px;
+    background:linear-gradient(90deg,var(--neo),transparent);transform:scaleX(0);transform-origin:left;
+    transition:transform .9s var(--ease) .25s}
+  .sec-head.in h2::before{transform:scaleX(1)}
+  a{transition:color .2s var(--ease)}
+
+  /* ==== menu de secciones con scrollspy (escritorio) ==== */
+  .mainnav{display:none}
+  @media(min-width:1024px){
+    .mainnav{display:flex;gap:26px;margin:0 auto}
+    .mainnav a{position:relative;font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);text-decoration:none;padding:6px 0}
+    .mainnav a::after{content:"";position:absolute;left:0;bottom:0;width:100%;height:2px;background:var(--neo);transform:scaleX(0);transform-origin:left;transition:transform .3s var(--ease)}
+    .mainnav a:hover{color:var(--ink)}
+    .mainnav a:hover::after,.mainnav a.on::after{transform:scaleX(1)}
+    .mainnav a.on{color:var(--neo)}
+  }
+
+  /* ==== opiniones ==== */
+  .saysec{padding:clamp(50px,8vh,100px) 0}
+  .saywall{display:grid;gap:16px;grid-template-columns:1fr;margin-top:26px}
+  @media(min-width:768px){.saywall{grid-template-columns:repeat(3,1fr)}}
+  .say{background:rgba(9,16,28,.24);padding:22px;margin:0;display:flex;flex-direction:column;gap:12px}
+  .saystars{color:#f2c230;display:flex;gap:3px}
+  .say blockquote{margin:0;font-size:14.5px;line-height:1.65;color:var(--ink-soft)}
+  .say figcaption b{display:block;font-size:14px}
+  .say figcaption span{font-size:12.5px;color:var(--ink-mut)}
+  .sayph{border-style:dashed!important;opacity:.75}
+  .sayph blockquote{font-style:italic;color:var(--ink-mut)}
+
+  /* ==== sello de confianza del formulario ==== */
+  .trustline{font-family:var(--mono);font-size:11.5px;letter-spacing:.04em;color:var(--neo);
+    margin:2px 0 12px;line-height:1.8}
+
+  /* ==== checklist tactil de la skill ==== */
+  .pcard-head{cursor:pointer}
+  @media(max-width:1023px){
+    .sf{min-height:44px;padding:12px 16px}
+    .gdots i{width:12px;height:12px}
+  }
+
 </style>
 </head>
 <body>
@@ -1250,6 +1305,11 @@ const THUMBS={
 };
 const SECTORES={"camarero-basico.html":"hosteleria","camarero-medio.html":"hosteleria","camarero-top.html":"hosteleria","restaurante-qr-ejemplo.html":"hosteleria","restaurante-ejemplo.html":"hosteleria","cafeteria-ejemplo.html":"hosteleria","peluqueria-aurora.html":"citas","veterinario-ejemplo.html":"citas","reformas-presupuestador.html":"servicios","fontanero-ejemplo.html":"servicios","floristeria-ejemplo.html":"tiendas","tienda-arte-ejemplo.html":"tiendas","huerta-natural-ejemplo.html":"tiendas"};
 const PLAN_ACCENTS=["#35d6ff","#27e6a6","#27e6a6","#8b6bff","#ff9a3d"];
+const TESTIMONIOS=[  // \u2b50 PON AQUI las opiniones REALES de tus clientes (sustituye estos huecos)
+  { q:"Hueco para la opini\u00f3n de tu primer cliente. P\u00eddesela y p\u00e9gala aqu\u00ed arriba, en TESTIMONIOS.", n:"Nombre del cliente", b:"Su negocio", ph:true },
+  { q:"Segundo hueco: dos frases suyas sobre qu\u00e9 consigui\u00f3 con su web (reservas, pedidos, clientes\u2026).", n:"Nombre del cliente", b:"Su negocio", ph:true },
+  { q:"Tercer hueco: mejor si menciona cifras (\u00ab15 reservas la primera semana\u00bb convence m\u00e1s que \u00abmuy bien\u00bb).", n:"Nombre del cliente", b:"Su negocio", ph:true }
+];
 const LEADS_KEY="incuba_leads_v1", ADMIN_KEY="incuba_admin_ok", GATE_KEY="incuba_gate";
 let preNivel="";
 
@@ -1515,6 +1575,15 @@ function renderLanding(){
     </div></section>
 
     <!-- 6 · PRICING (accordion mejorado) -->
+    <!-- OPINIONES -->
+    <section class="saysec" aria-label="Opiniones de clientes"><div class="wrap">
+      <div class="sec-head cin"><span class="eyebrow">Confianza</span><h2>Lo que dicen los due\u00f1os</h2><p>Opiniones reales de clientes. (Se rellenan arriba del c\u00f3digo, en TESTIMONIOS.)</p></div>
+      <div class="saywall">${TESTIMONIOS.map(function(t,i){ return '<figure class="say cin'+(t.ph?' sayph':'')+'" style="transition-delay:'+(i*120)+'ms">'
+        +'<div class="saystars" aria-hidden="true">'+Array(5).fill('<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3 6.6 7.2.8-5.4 4.9 1.5 7.1L12 18l-6.3 3.4 1.5-7.1L1.8 9.4 9 8.6z"/></svg>').join('')+'</div>'
+        +'<blockquote>'+esc(t.q)+'</blockquote>'
+        +'<figcaption><b>'+esc(t.n)+'</b><span>'+esc(t.b)+'</span></figcaption></figure>'; }).join("")}</div>
+    </div></section>
+
     <div class="statement cin" aria-hidden="true">De la idea a <em>vender</em>.</div>
 
     <section id="niveles" class="pricing" aria-label="Niveles y precios"><div class="wrap">
@@ -1604,6 +1673,7 @@ function renderLanding(){
           </div>
           <div class="ff"><label for="i-msg">Cuéntanos tu idea (opcional)</label><textarea id="i-msg" maxlength="600" rows="2"></textarea></div>
           <div class="ff" id="f-acepto"><label for="i-acepto" style="display:flex;gap:9px;align-items:flex-start;font-family:var(--sans);font-size:14px;color:var(--ink-soft);cursor:pointer"><input type="checkbox" id="i-acepto" style="width:auto;margin-top:3px"> <span>Acepto la <a href="#/legal" style="color:var(--neo);text-decoration:underline">política de privacidad</a> y que me contactéis. *</span></label></div>
+          <div class="trustline" role="note">\u2713 Sin permanencia &nbsp;\u00b7&nbsp; \u2713 Respuesta en menos de 24h &nbsp;\u00b7&nbsp; \u2713 Tus datos, solo para contactarte</div>
           <button type="submit" class="btn btn-primary btn-lg btn-glow morph">Empezar a incubar</button>
           <div style="text-align:center;margin-top:12px"><a href="${esc(C.BRIEFING_URL)}" style="color:var(--neo);font-size:14px;text-decoration:underline">…o rellenar el cuestionario completo →</a></div>
           <div class="priv">🔒 No usamos cookies de seguimiento. Solo usamos lo que escribes para contactarte.</div>
@@ -1626,6 +1696,12 @@ function renderLanding(){
 
   initCinema();
   if(typeof enhanceCinema==="function") enhanceCinema();
+  // scrollspy: el menu marca la seccion visible
+  (function(){ var links=document.querySelectorAll(".mainnav a[data-spy]"); if(!links.length||!("IntersectionObserver" in window)) return;
+    var map={}; links.forEach(function(a){ map[a.getAttribute("data-spy")]=a; });
+    var io=new IntersectionObserver(function(es){ es.forEach(function(x){ if(x.isIntersecting){ links.forEach(function(a){a.classList.remove("on")}); var a=map[x.target.id]; if(a) a.classList.add("on"); } }); },{rootMargin:"-35% 0px -55% 0px"});
+    Object.keys(map).forEach(function(id){ var s=document.getElementById(id); if(s) io.observe(s); });
+  })();
 }
 
 /* ==================================================================
@@ -1977,7 +2053,7 @@ function renderGate(bad){
 }
 
 /* reutilizables */
-function header(){ return `<header class="site"><div class="wrap"><a class="logo" href="#/">${logoMark(34)}<span>${esc(CONFIG.BUSINESS_NAME)}</span></a><a href="${esc(CONFIG.BRIEFING_URL)}" class="btn btn-primary nav-cta">Incubar mi negocio</a></div></header>`; }
+function header(){ return `<header class="site"><div class="wrap"><a class="logo" href="#/">${logoMark(34)}<span>${esc(CONFIG.BUSINESS_NAME)}</span></a><nav class="mainnav" aria-label="Secciones"><a href="#buildstage" data-spy="buildstage">C\u00f3mo se hace</a><a href="#demos" data-spy="demos">Demos</a><a href="#niveles" data-spy="niveles">Precios</a><a href="#faq" data-spy="faq">FAQ</a></nav><a href="${esc(CONFIG.BRIEFING_URL)}" class="btn btn-primary nav-cta">Incubar mi negocio</a></div></header>`; }
 function footer(){ const C=CONFIG; return `<footer class="site"><div class="wrap"><nav class="cols" aria-label="Pie de página"><div><div class="logo" style="margin-bottom:10px">${logoMark(30)}<span>${esc(C.BUSINESS_NAME)}</span></div><p style="font-size:14px;max-width:300px;color:var(--ink-soft)">Incubamos tu negocio: webs y apps profesionales para autónomos y pymes. Rápidas, baratas y para vender.</p></div><div><h3>Incubadora</h3><a href="#buildstage">Cómo funciona</a><a href="#faq">Preguntas frecuentes</a><a href="#niveles">Niveles</a><a href="${esc(C.BRIEFING_URL)}">Cuestionario</a></div><div><h3>Contacto</h3><a href="mailto:${esc(C.EMAIL)}">${esc(C.EMAIL)}</a></div></nav><div class="copyr"><span>© ${new Date().getFullYear()} ${esc(C.BUSINESS_NAME)} · sin cookies de tracking · <span style="opacity:.75">Diseñado por Incuba tu Negocio · Jaime M. M.</span></span><span><a href="#/legal">Política de privacidad y aviso legal</a> · <a href="#/admin">Acceso equipo</a></span></div></div></footer>`; }
 function faq(q,a){ return `<details><summary>${esc(q)}</summary><div class="a">${esc(a)}</div></details>`; }
 function showToast(m){ const t=document.getElementById("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(showToast._t); showToast._t=setTimeout(()=>t.classList.remove("show"),2600); }
