@@ -1247,6 +1247,45 @@
   .gcta-wrap{pointer-events:none}
   .gcta-wrap *{pointer-events:auto}
 
+
+  /* ==== NIVEL AWARDS ==== */
+  /* preloader */
+  #arrival{display:grid;place-items:center}
+  .arr-in{display:flex;flex-direction:column;align-items:center;gap:12px}
+  .arr-egg ellipse{stroke-dasharray:100;stroke-dashoffset:100;animation:arrDraw 1.05s cubic-bezier(.16,1,.3,1) forwards;filter:drop-shadow(0 0 14px #2ef2b088)}
+  @keyframes arrDraw{to{stroke-dashoffset:0}}
+  .arr-n{font-family:var(--sg);font-weight:700;font-size:46px;color:#eef4fb;font-variant-numeric:tabular-nums;line-height:1}
+  .arr-n::after{content:"%";font-size:20px;color:var(--neo);margin-left:2px}
+  .arr-l{font-family:var(--mono);font-size:10px;letter-spacing:.42em;color:var(--ink-mut)}
+  body.arrived .arr-in{opacity:0;transition:opacity .35s}
+  /* grano de pelicula */
+  #grain{position:fixed;inset:-40px;z-index:9990;pointer-events:none;opacity:.045;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='280'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");background-size:280px 280px}
+  @media(min-width:1024px){#grain{animation:grainShift 1.1s steps(5) infinite}}
+  @keyframes grainShift{0%{background-position:0 0}20%{background-position:-70px 40px}40%{background-position:60px -90px}60%{background-position:-40px -60px}80%{background-position:90px 30px}100%{background-position:0 0}}
+  /* cursor propio */
+  #cur,#curR{opacity:0;will-change:transform}
+  @media(pointer:fine) and (min-width:1024px){
+    body,a,button,input,select,textarea,summary,label,.sf,.pcard-head{cursor:none}
+    #cur{position:fixed;left:0;top:0;width:8px;height:8px;border-radius:50%;background:#2ef2b0;z-index:99999;pointer-events:none;mix-blend-mode:difference;transition:opacity .3s}
+    #curR{position:fixed;left:0;top:0;width:34px;height:34px;border-radius:50%;border:1.5px solid rgba(46,242,176,.7);z-index:99999;pointer-events:none;display:grid;place-items:center;
+      transition:width .25s cubic-bezier(.16,1,.3,1),height .25s cubic-bezier(.16,1,.3,1),background .25s,opacity .3s}
+    #curR.hov{width:54px;height:54px;background:rgba(46,242,176,.10)}
+    #curR.dem{width:76px;height:76px;background:rgba(46,242,176,.95);border-color:transparent}
+    #curR.dem::after{content:"VER";font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:#03130c;font-weight:700}
+  }
+  /* HUD de esquinas */
+  .hud{display:none}
+  @media(min-width:1024px){
+    .hud{display:block;position:fixed;z-index:80;font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--ink-mut);pointer-events:none;opacity:.75}
+    #hudL{left:22px;bottom:15px}
+    #hudR{right:22px;bottom:15px}
+    ::-webkit-scrollbar{width:9px}
+    ::-webkit-scrollbar-track{background:#070b12}
+    ::-webkit-scrollbar-thumb{background:#1d2a40;border-radius:5px}
+    ::-webkit-scrollbar-thumb:hover{background:#2ef2b0}
+  }
+
 </style>
 </head>
 <body>
@@ -2542,11 +2581,15 @@ try{
     sessionStorage.setItem("itn_arrived","1");
     document.body.classList.add("arriving");
     var veil=document.createElement("div"); veil.id="arrival"; veil.setAttribute("aria-hidden","true");
+    veil.innerHTML='<div class="arr-in"><svg class="arr-egg" width="72" height="72" viewBox="0 0 48 48" fill="none" aria-hidden="true"><ellipse cx="24" cy="26" rx="14" ry="16" stroke="#2ef2b0" stroke-width="1.6" pathLength="100"/></svg><b class="arr-n">0</b><span class="arr-l">INCUBANDO</span></div>';
     document.body.appendChild(veil);
-    requestAnimationFrame(function(){ requestAnimationFrame(function(){
-      document.body.classList.add("arrived"); document.body.classList.remove("arriving");
-      setTimeout(function(){ try{veil.remove();}catch(e){} },1200);
-    }); });
+    var an0=performance.now(), aD=1150, aEl=veil.querySelector(".arr-n");
+    (function acnt(t){ var p=Math.min(1,(t-an0)/aD); var e=1-Math.pow(1-p,3);
+      if(aEl) aEl.textContent=Math.round(e*100);
+      if(p<1){ requestAnimationFrame(acnt); }
+      else{ document.body.classList.add("arrived"); document.body.classList.remove("arriving");
+        setTimeout(function(){ try{veil.remove();}catch(e){} },1200); }
+    })(an0);
   }
 }catch(e){}
 if(reduce) return;
@@ -2609,6 +2652,49 @@ document.addEventListener("click",function(e){
     if(show){ c.classList.remove("fin"); void c.offsetWidth; c.style.animationDelay=(fi*45)+"ms"; c.classList.add("fin"); fi++; }
   });
 });
+</script>
+
+
+<script>
+/* nivel awards: cursor propio + HUD (solo escritorio con raton) */
+(function(){
+"use strict";
+if(matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+/* grano de pelicula (todas las pantallas, estatico y sutil) */
+var gr=document.createElement("div"); gr.id="grain"; gr.setAttribute("aria-hidden","true");
+document.body.appendChild(gr);
+if(!(matchMedia("(pointer:fine)").matches && innerWidth>=1024)) return;
+/* cursor */
+var cd=document.createElement("div"); cd.id="cur";
+var cr=document.createElement("div"); cr.id="curR";
+document.body.appendChild(cd); document.body.appendChild(cr);
+var mx=innerWidth/2,my=innerHeight/2,rx=mx,ry=my,vis=false;
+addEventListener("pointermove",function(e){ if(e.pointerType==="touch")return; mx=e.clientX;my=e.clientY;
+  if(!vis){vis=true;cd.style.opacity="1";cr.style.opacity="1";} },{passive:true});
+document.addEventListener("mouseleave",function(){ vis=false; cd.style.opacity="0"; cr.style.opacity="0"; });
+document.addEventListener("pointerover",function(e){
+  var t=e.target;
+  var dem=t.closest&&t.closest(".appcard[data-demo]");
+  var hov=!dem&&t.closest&&t.closest("a,button,select,input,textarea,summary,label,.sf,.pcard-head,[data-demo]");
+  cr.classList.toggle("dem",!!dem); cr.classList.toggle("hov",!!hov);
+},true);
+(function loop(){ requestAnimationFrame(loop);
+  rx+=(mx-rx)*.18; ry+=(my-ry)*.18;
+  cd.style.transform="translate("+mx+"px,"+my+"px) translate(-50%,-50%)";
+  cr.style.transform="translate("+rx.toFixed(1)+"px,"+ry.toFixed(1)+"px) translate(-50%,-50%)";
+})();
+/* HUD de esquinas */
+var hl=document.createElement("div"); hl.className="hud"; hl.id="hudL"; hl.textContent="\u00a9 2026 \u2014 INCUBA TU NEGOCIO";
+var hr=document.createElement("div"); hr.className="hud"; hr.id="hudR";
+document.body.appendChild(hl); document.body.appendChild(hr);
+function hud(){ var d=document.documentElement;
+  var p=Math.round((scrollY)/(Math.max(1,d.scrollHeight-innerHeight))*100);
+  var t=new Date(), hhmm=("0"+t.getHours()).slice(-2)+":"+("0"+t.getMinutes()).slice(-2);
+  hr.textContent="SCROLL "+("00"+p).slice(-3)+"% \u00b7 "+hhmm; }
+hud(); var hT=false;
+addEventListener("scroll",function(){ if(hT)return; hT=true; requestAnimationFrame(function(){ hud(); hT=false; }); },{passive:true});
+setInterval(hud,30000);
+})();
 </script>
 
 </body>
