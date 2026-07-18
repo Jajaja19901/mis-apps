@@ -592,6 +592,15 @@
         <button class="btn" style="width: 100%; margin-top: 20px;" onclick="goTab('patrulla')">
           🚀 Iniciar Patrulla Rápida
         </button>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+          <button class="btn btn-secondary" style="margin: 0;" onclick="goTab('trabajos')">
+            ✓ Trabajos
+          </button>
+          <button class="btn btn-secondary" style="margin: 0;" onclick="goTab('tareas')">
+            📋 Tareas
+          </button>
+        </div>
       </div>
     </div>
 
@@ -641,11 +650,11 @@
     <div id="view-escanear" class="view">
       <h2>📷 Identificador de Plantas</h2>
 
-      <div class="badge-inline" id="methodBadge">📱 Offline (Análisis local)</div>
+      <div class="badge-inline" id="methodBadge">📱 Offline (estimación local)</div>
 
       <div id="methodInfo" style="background: rgba(5, 150, 105, 0.1); border-left: 4px solid var(--green); padding: 12px; border-radius: 8px; margin: 12px 0; font-size: 13px;">
-        <strong id="methodTitle">🤖 Sin internet</strong><br>
-        <span id="methodDescription">Análisis offline con heurísticas locales. Precisión 70%.</span>
+        <strong id="methodTitle">📱 Sin internet</strong><br>
+        <span id="methodDescription">Estimación por color y forma. Para identificar la especie de verdad, activa el modo Online en Configuración.</span>
       </div>
 
       <input type="file" id="photoInput" accept="image/*" capture="environment" style="display: none;">
@@ -722,23 +731,25 @@
       <div class="config-section">
         <label class="config-label">🤖 Identificador de Plantas</label>
         <div style="margin-bottom: 12px;">
-          <div class="radio-label" onclick="setIdentificationMethod('offline', this)">
+          <div class="radio-label" role="button" tabindex="0" onclick="setIdentificationMethod('offline', this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setIdentificationMethod('offline', this);}">
             <input type="radio" name="plantMethod" value="offline" checked>
-            <span><strong>📱 Offline (Análisis local)</strong></span>
-            <span style="display: block; font-size: 11px; color: var(--text-light); margin-top: 4px;">Sin internet. Precisión 70%.</span>
+            <span><strong>📱 Offline (estimación local)</strong></span>
+            <span style="display: block; font-size: 11px; color: var(--text-light); margin-top: 4px;">Sin internet. Solo orienta por color/forma, no identifica especies.</span>
           </div>
-          <div class="radio-label" onclick="setIdentificationMethod('online', this)">
+          <div class="radio-label" role="button" tabindex="0" onclick="setIdentificationMethod('online', this)" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setIdentificationMethod('online', this);}">
             <input type="radio" name="plantMethod" value="online">
-            <span><strong>🌐 Online (Gradio Spaces)</strong></span>
-            <span style="display: block; font-size: 11px; color: var(--text-light); margin-top: 4px;">Requiere WiFi/4G y API key gratuita. Precisión 95%.</span>
+            <span><strong>🌐 Online (identificación real con IA)</strong></span>
+            <span style="display: block; font-size: 11px; color: var(--text-light); margin-top: 4px;">Requiere WiFi/4G. Con key de Pl@ntNet (gratis) es lo más fiable.</span>
           </div>
         </div>
         <div id="plantIdConfig" style="display: none; padding: 12px; background: rgba(34, 197, 94, 0.08); border-radius: 8px; border-left: 4px solid var(--green);">
-          <label class="config-label" style="margin-bottom: 8px;">ℹ️ Gradio Spaces (100% Gratuito, Sin API key)</label>
-          <input type="password" id="plantIdApiKey" placeholder="Tu API key (gratuita)" style="margin-bottom: 8px;">
-          <div style="font-size: 11px; color: var(--text-light);">
-            💡 Obtén tu API key gratis en <a href="https://plant.id/api-access-request/" target="_blank" style="color: var(--blue);">plant.id/api-access-request</a><br>
-            100 identificaciones gratuitas por mes. Luego €0.01-0.05 por ID.
+          <label class="config-label" style="margin-bottom: 8px;">🔑 Key de Pl@ntNet (gratis, recomendado)</label>
+          <input type="password" id="plantnetApiKey" placeholder="Pega aquí tu API key de Pl@ntNet" style="margin-bottom: 8px;">
+          <div style="font-size: 11px; color: var(--text-light); line-height: 1.5;">
+            💡 <strong>Cómo conseguirla (2 min):</strong> entra en <a href="https://my.plantnet.org" target="_blank" rel="noopener" style="color: var(--blue);">my.plantnet.org</a>,
+            crea una cuenta gratis y copia la API key de tu panel. Te da <strong>500 identificaciones al día gratis</strong>.<br><br>
+            Sin key, la app intentará un servicio gratuito de respaldo (puede tardar en despertar o estar caído) y,
+            si tampoco responde, te dará una estimación local avisándote.
           </div>
         </div>
       </div>
@@ -808,8 +819,7 @@
         <label class="config-label">ℹ️ Acerca de</label>
         <p style="font-size: 13px; color: var(--text-light); line-height: 1.6;">
           <strong>🌺 Botánica de Carmen Arucas</strong><br>
-          v3.2 con Dual Mode (Offline + Gradio Spaces)<br>
-          Identificación: 100% Gratuita, Sin API keys<br><br>
+          v3.3 — Identificación en cascada: Pl@ntNet (key gratis) → IA de respaldo → estimación local<br><br>
           <strong>Hecho especialmente para ti, Carmen.</strong><br>
           Tu asistente municipal en el móvil.<br><br>
           Diseño: Incuba tu Negocio<br>
@@ -918,11 +928,15 @@
   const CONFIG = {
     NOMBRE: "Carmen",
     MUNICIPIO: "Arucas",
-    LAT: 37.9,
-    LON: -15.3,
+    LAT: 28.117,   // Arucas, Gran Canaria
+    LON: -15.521,
     SUPERVISOR: "Responsable de Parques Municipales",
     ZONAS_INICIALES: ['Parque Municipal', 'Firgas', 'Moya', 'Avenida Gáldar', 'Barrio Obrero'],
-    PLANTID_API: 'https://plant.id/api/v3/identification',
+    // Key GRATUITA de Pl@ntNet (my.plantnet.org → cuenta gratis → 500 identificaciones/día).
+    // Pégala aquí o en Configuración dentro de la app. Sin key, la app usa un servicio
+    // gratuito de respaldo (puede tardar o no estar disponible).
+    PLANTNET_API_KEY: '',
+    GRADIO_SPACE: 'https://umutbozdag-plant-identity.hf.space',
     DB_VERSION: 1,
     DB_NAME: 'cdb-images'
   };
@@ -1005,6 +1019,13 @@
     { name: 'Geranio', icon: '🌺', zone: 'Parque Municipal' }
   ];
 
+  // Escapa texto del usuario antes de meterlo en innerHTML (anti-XSS)
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
   // STORAGE
   const Store = {
     load: (key, def = []) => {
@@ -1023,13 +1044,23 @@
     plants: Store.load('cd_plants', []),
     zones: Store.load('cd_zones', CONFIG.ZONAS_INICIALES.map((z, i) => ({ id: i, name: z, lat: CONFIG.LAT + Math.random() * 0.05, lon: CONFIG.LON + Math.random() * 0.05 }))),
     tasks: Store.load('cd_tasks', []),
+    jobs: Store.load('cd_jobs', []),
     incidents: Store.load('cd_incidents', []),
     currentTab: 'hoy',
     plantIndex: 0,
     map: null,
-    identificationMethod: Store.load('identificationMethod', 'offline'),
-    plantIdApiKey: Store.load('plantIdApiKey', '')
+    identificationMethod: Store.load('identificationMethod', 'offline')
   };
+
+  // Migración: versiones antiguas guardaban las zonas con coordenadas fuera de
+  // Gran Canaria (lat ~37.9). Las recolocamos alrededor de Arucas.
+  state.zones = (state.zones || []).map(z => {
+    if (typeof z.lat !== 'number' || z.lat < 27.5 || z.lat > 28.6 || z.lon < -16.1 || z.lon > -15.0) {
+      return { ...z, lat: CONFIG.LAT + Math.random() * 0.03, lon: CONFIG.LON + Math.random() * 0.03 };
+    }
+    return z;
+  });
+  Store.save('cd_zones', state.zones);
 
   // PLANT IDENTIFICATION
   let currentScanPhoto = null;
@@ -1069,22 +1100,24 @@
           let results = [];
 
           if (greenRatio > 0.35) {
-            results.push({ rank: 1, name: 'Helecho o Árbol', confidence: 75, icon: '🌿' });
-            results.push({ rank: 2, name: 'Planta Tropical', confidence: 65, icon: '🌱' });
-            results.push({ rank: 3, name: 'Follaje Verde', confidence: 55, icon: '🍃' });
+            results.push({ rank: 1, name: 'Follaje denso (helecho, árbol...)', icon: '🌿' });
+            results.push({ rank: 2, name: 'Planta tropical de hoja', icon: '🌱' });
           } else if (avgGreen > 120) {
-            results.push({ rank: 1, name: 'Arbusto', confidence: 70, icon: '🌿' });
-            results.push({ rank: 2, name: 'Mata', confidence: 60, icon: '🌲' });
-            results.push({ rank: 3, name: 'Planta de Hoja', confidence: 50, icon: '🍂' });
+            results.push({ rank: 1, name: 'Arbusto o mata', icon: '🌿' });
+            results.push({ rank: 2, name: 'Planta de hoja verde', icon: '🍂' });
           } else if (avgRed > 150 || avgGreen > 150) {
-            results.push({ rank: 1, name: 'Flor o Floral', confidence: 72, icon: '🌺' });
-            results.push({ rank: 2, name: 'Rosa', confidence: 62, icon: '🌹' });
-            results.push({ rank: 3, name: 'Buganvilla', confidence: 52, icon: '🌸' });
+            results.push({ rank: 1, name: 'Planta con flor', icon: '🌺' });
+            results.push({ rank: 2, name: 'Floral (rosa, buganvilla...)', icon: '🌸' });
           } else {
-            results.push({ rank: 1, name: 'Planta Desconocida', confidence: 68, icon: '🌿' });
-            results.push({ rank: 2, name: 'Especie Local', confidence: 58, icon: '🌱' });
-            results.push({ rank: 3, name: 'Flora de Canarias', confidence: 48, icon: '🌾' });
+            results.push({ rank: 1, name: 'Planta sin identificar', icon: '🌿' });
+            results.push({ rank: 2, name: 'Flora local', icon: '🌾' });
           }
+
+          // La estimación local NO identifica especies: solo orienta por color/textura.
+          results = results.map((r, i) => ({
+            ...r, rank: i + 1, scientific: '', confidence: 0,
+            source: 'Estimación local (sin IA)', estimacion: true
+          }));
 
           resolve(results);
         };
@@ -1094,46 +1127,144 @@
     });
   }
 
-  // PLANT.ID API - ONLINE (95% accuracy)
-  async function identifyWithGradio(imageBlob) {
-    try {
-      const formData = new FormData();
-      formData.append('data', imageBlob);
+  // ====== IDENTIFICACIÓN ONLINE (cascada: Pl@ntNet → IA gratuita → estimación local) ======
 
-      const response = await fetch('https://umutbozdag-plant-identity.hf.space/api/predict/', {
-        method: 'POST',
-        body: formData
+  function getPlantnetKey() {
+    const saved = Store.load('plantnetApiKey', '');
+    if (typeof saved === 'string' && saved.trim()) return saved.trim();
+    return (CONFIG.PLANTNET_API_KEY || '').trim();
+  }
+
+  function fetchTimeout(url, opts = {}, ms = 25000) {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), ms);
+    return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(t));
+  }
+
+  function blobToDataURL(blob) {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = () => res(r.result);
+      r.onerror = rej;
+      r.readAsDataURL(blob);
+    });
+  }
+
+  // Pl@ntNet: el método FIABLE. Key gratuita en my.plantnet.org (500 identificaciones/día).
+  async function identifyWithPlantNet(imageBlob) {
+    const key = getPlantnetKey();
+    if (!key) return null;
+    const fd = new FormData();
+    fd.append('images', imageBlob, 'planta.jpg');
+    fd.append('organs', 'auto');
+    const url = 'https://my-api.plantnet.org/v2/identify/all?api-key=' + encodeURIComponent(key) + '&lang=es&nb-results=3';
+    const resp = await fetchTimeout(url, { method: 'POST', body: fd }, 25000);
+    if (resp.status === 401 || resp.status === 403) throw new Error('La API key de Pl@ntNet no es válida. Revísala en Configuración.');
+    if (resp.status === 404) throw new Error('Pl@ntNet no ve ninguna planta clara en la foto. Acércate a hojas o flores.');
+    if (resp.status === 429) throw new Error('Has agotado las identificaciones gratis de hoy en Pl@ntNet (500/día).');
+    if (!resp.ok) throw new Error('Pl@ntNet respondió con error ' + resp.status);
+    const data = await resp.json();
+    const results = (data.results || []).slice(0, 3).map((r, i) => ({
+      rank: i + 1,
+      name: (r.species && r.species.commonNames && r.species.commonNames[0]) ||
+            (r.species && r.species.scientificNameWithoutAuthor) || 'Especie sin nombre común',
+      scientific: (r.species && r.species.scientificNameWithoutAuthor) || '',
+      confidence: Math.round((r.score || 0) * 100),
+      icon: '🌿',
+      source: 'Pl@ntNet'
+    }));
+    return results.length ? results : null;
+  }
+
+  // Convierte respuestas de Gradio (varios formatos) a nuestra lista de resultados.
+  function parseGradioResult(data) {
+    if (!data) return null;
+    const first = Array.isArray(data) ? data[0] : data;
+    if (first && typeof first === 'object' && Array.isArray(first.confidences) && first.confidences.length) {
+      return first.confidences.slice(0, 3).map((c, i) => ({
+        rank: i + 1,
+        name: c.label || 'Planta',
+        scientific: '',
+        confidence: Math.round((c.confidence || 0) * 100),
+        icon: '🌿',
+        source: 'IA gratuita'
+      }));
+    }
+    if (first && typeof first === 'object' && first.label) {
+      return [{ rank: 1, name: first.label, scientific: '', confidence: 0, icon: '🌿', source: 'IA gratuita' }];
+    }
+    if (typeof first === 'string' && first.trim()) {
+      return first.split('\n').filter(Boolean).slice(0, 3).map((line, i) => {
+        const parts = line.split(':');
+        return {
+          rank: i + 1,
+          name: (parts[0] || '').trim() || 'Planta',
+          scientific: (parts[1] || '').trim(),
+          confidence: 0,
+          icon: '🌿',
+          source: 'IA gratuita'
+        };
       });
+    }
+    return null;
+  }
 
-      if(!response.ok) {
-        showToast(`Error API Gradio: ${response.status}`);
-        return [];
-      }
-
-      const data = await response.json();
-
-      if(data.data && Array.isArray(data.data) && data.data.length > 0) {
-        const results = data.data[0];
-        if(typeof results === 'string') {
-          const parsed = results.split('\n').slice(0, 3).map((line, i) => {
-            const parts = line.split(':');
-            return {
-              rank: i + 1,
-              name: parts[0]?.trim() || 'Planta desconocida',
-              scientific: parts[1]?.trim() || '',
-              confidence: Math.round(Math.random() * 25 + 70),
-              icon: '🌿'
-            };
-          });
-          return parsed;
+  // Servicio gratuito de respaldo (Hugging Face Space). Puede tardar en "despertar" o estar caído.
+  // Prueba el protocolo moderno (Gradio 4/5) y después el antiguo (Gradio 3).
+  async function identifyWithGradio(imageBlob) {
+    const base = CONFIG.GRADIO_SPACE;
+    // 1) Protocolo moderno: subir archivo → llamar → leer stream de eventos
+    try {
+      const up = new FormData();
+      up.append('files', imageBlob, 'planta.jpg');
+      const upResp = await fetchTimeout(base + '/gradio_api/upload', { method: 'POST', body: up }, 30000);
+      if (upResp.ok) {
+        const uploaded = await upResp.json();
+        const path = Array.isArray(uploaded) ? uploaded[0] : null;
+        if (path) {
+          const call = await fetchTimeout(base + '/gradio_api/call/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: [{ path: path, meta: { _type: 'gradio.FileData' } }] })
+          }, 30000);
+          if (call.ok) {
+            const info = await call.json();
+            if (info && info.event_id) {
+              const stream = await fetchTimeout(base + '/gradio_api/call/predict/' + info.event_id, {}, 60000);
+              const text = await stream.text();
+              const lines = text.split('\n').filter(l => l.startsWith('data:'));
+              for (let i = lines.length - 1; i >= 0; i--) {
+                try {
+                  const parsed = parseGradioResult(JSON.parse(lines[i].slice(5)));
+                  if (parsed) return parsed;
+                } catch (e) { /* línea no válida, sigue */ }
+              }
+            }
+          }
         }
       }
-      return [];
-    } catch(error) {
-      console.error('Gradio identification error:', error);
-      showToast('Error en identificación online: ' + error.message);
-      return [];
-    }
+    } catch (e) { console.warn('Gradio (protocolo moderno) falló:', e.message); }
+
+    // 2) Protocolo antiguo: JSON con la imagen en base64
+    try {
+      const b64 = await blobToDataURL(imageBlob);
+      for (const ep of ['/run/predict', '/api/predict/']) {
+        try {
+          const resp = await fetchTimeout(base + ep, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: [b64] })
+          }, 45000);
+          if (resp.ok) {
+            const json = await resp.json();
+            const parsed = parseGradioResult(json && json.data);
+            if (parsed) return parsed;
+          }
+        } catch (e) { /* prueba el siguiente endpoint */ }
+      }
+    } catch (e) { console.warn('Gradio (protocolo antiguo) falló:', e.message); }
+
+    return null;
   }
 
   function capturePhoto() {
@@ -1168,33 +1299,50 @@
     document.getElementById('scanResult').style.display = 'none';
 
     const loadingText = document.getElementById('loadingSubtext');
+    const blob = dataURLtoBlob(dataUrl);
 
     try {
-      let results = [];
+      let results = null;
 
-      if(state.identificationMethod === 'offline') {
-        loadingText.textContent = 'Analizando color y textura...';
-        const blob = dataURLtoBlob(dataUrl);
+      if (state.identificationMethod === 'offline') {
+        loadingText.textContent = 'Estimando por color y textura (sin IA)...';
         results = await analyzePlantOffline(blob);
+      } else {
+        // CASCADA ONLINE: 1º Pl@ntNet (si hay key) → 2º IA gratuita → 3º estimación local
+        if (getPlantnetKey()) {
+          loadingText.textContent = 'Identificando con Pl@ntNet...';
+          try {
+            results = await identifyWithPlantNet(blob);
+          } catch (e) {
+            showToast('⚠️ ' + e.message);
+          }
+        }
+
+        if (!results) {
+          loadingText.textContent = 'Probando IA gratuita (si está dormida puede tardar 30-60s)...';
+          results = await identifyWithGradio(blob);
+        }
+
+        if (!results) {
+          loadingText.textContent = 'Sin conexión con las IAs. Haciendo estimación local...';
+          results = await analyzePlantOffline(blob);
+          const hint = getPlantnetKey()
+            ? 'Las IAs online no respondieron. Esto es solo una estimación local.'
+            : 'Las IAs online no respondieron. Consejo: pon tu key GRATIS de Pl@ntNet en Configuración (my.plantnet.org) para identificación fiable.';
+          showToast('⚠️ ' + hint);
+        }
+      }
+
+      if (results && results.length) {
         currentScanResults = results;
         renderScanResults();
-        document.getElementById('loadingSpinner').style.display = 'none';
       } else {
-        loadingText.textContent = 'Identificando con Gradio Spaces...';
-        const blob = dataURLtoBlob(dataUrl);
-        results = await identifyWithGradio(blob);
-
-        if(results.length > 0) {
-          currentScanResults = results;
-          renderScanResults();
-        } else {
-          showToast('No se pudo identificar. Intenta otra foto más clara.');
-        }
-        document.getElementById('loadingSpinner').style.display = 'none';
+        showToast('No se pudo identificar. Intenta otra foto más clara y cercana.');
       }
     } catch (error) {
       console.error('Plant identification error:', error);
       showToast('Error: ' + error.message);
+    } finally {
       document.getElementById('loadingSpinner').style.display = 'none';
     }
   }
@@ -1222,7 +1370,14 @@
 
       const confEl = document.createElement('div');
       confEl.style.cssText = 'font-size: 12px; color: var(--text-light); margin-top: 6px;';
-      confEl.textContent = `${r.confidence}% confianza`;
+      const partes = [];
+      if (r.confidence > 0) partes.push(`${r.confidence}% confianza`);
+      if (r.source) partes.push(r.source);
+      confEl.textContent = partes.join(' · ') || 'Sin datos de confianza';
+      if (r.estimacion) {
+        confEl.style.color = '#b45309';
+        confEl.textContent = '⚠️ ' + confEl.textContent + ' — confírmalo con la IA online';
+      }
 
       div.appendChild(nameEl);
       div.appendChild(confEl);
@@ -1312,35 +1467,43 @@
     const title = document.getElementById('methodTitle');
 
     if(method === 'offline') {
-      badge.textContent = '📱 Offline (Análisis local)';
-      title.textContent = '🤖 Sin internet';
-      desc.textContent = 'Análisis offline con heurísticas locales. Precisión 70%.';
+      badge.textContent = '📱 Offline (estimación local)';
+      title.textContent = '📱 Sin internet';
+      desc.textContent = 'Estimación por color y forma. No identifica la especie: para eso usa el modo Online.';
       document.getElementById('plantIdConfig').style.display = 'none';
     } else {
-      badge.textContent = '🌐 Online (Gradio Spaces)';
+      badge.textContent = getPlantnetKey() ? '🌐 Online (Pl@ntNet)' : '🌐 Online (IA gratuita de respaldo)';
       title.textContent = '🌐 Con internet';
-      desc.textContent = '🌐 Identificación con IA profesional. Requiere WiFi/4G. Precisión 75-85%. 100% Gratuito, Sin API key.';
+      desc.textContent = getPlantnetKey()
+        ? 'Identificación real con Pl@ntNet (500 al día gratis con tu key).'
+        : 'Sin key configurada: usaré un servicio gratuito de respaldo (puede tardar). Para fiabilidad, pon tu key GRATIS de Pl@ntNet en Configuración.';
       document.getElementById('plantIdConfig').style.display = 'block';
     }
 
     // Update radio labels
-    document.querySelectorAll('.radio-label').forEach(label => {
-      label.classList.remove('selected');
-    });
-    if(element) {
-      element.classList.add('selected');
+    const labels = document.querySelectorAll('.radio-label');
+    labels.forEach(label => label.classList.remove('selected'));
+    const target = element || labels[method === 'offline' ? 0 : 1];
+    if(target) {
+      target.classList.add('selected');
+      const radio = target.querySelector('input[type="radio"]');
+      if (radio) radio.checked = true;
     }
 
-    showToast(`Método cambiado a: ${method === 'offline' ? 'Offline' : 'Gradio Spaces Online'}`);
+    showToast(`Método cambiado a: ${method === 'offline' ? 'Offline (estimación)' : 'Online (IA real)'}`);
   }
 
   // NAVIGATION
+  const NAV_TABS = ['hoy', 'patrulla', 'plantas', 'escanear', 'mas'];
   function goTab(tab) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(`view-${tab}`)?.classList.add('active');
 
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    event?.target?.classList.add('active');
+    // Resalta el icono de la barra inferior que corresponda (las vistas
+    // secundarias como trabajos/tareas/mapa no tienen icono propio).
+    document.querySelectorAll('.nav-item').forEach((n, i) => {
+      n.classList.toggle('active', NAV_TABS[i] === tab);
+    });
 
     state.currentTab = tab;
     if(tab === 'mapa') setTimeout(initMap, 100);
@@ -1349,8 +1512,8 @@
 
   // CLIMA
   async function loadWeather() {
-    const apiKey = Store.load('apiWeather');
-    if (!apiKey) {
+    const apiKey = Store.load('apiWeather', '');
+    if (!apiKey || typeof apiKey !== 'string') {
       const clima = ['Soleado', 'Parcialmente nublado', 'Viento leve'][Math.floor(Math.random() * 3)];
       document.getElementById('clima-desc').textContent = clima + ' (API no configurada)';
       return;
@@ -1365,6 +1528,14 @@
     }
   }
 
+  // DASHBOARD (contadores de "Hoy")
+  function updateDashboard() {
+    const tareasEl = document.getElementById('tareas-hoy');
+    const alarmasEl = document.getElementById('alarmas-count');
+    if (tareasEl) tareasEl.textContent = state.tasks.length;
+    if (alarmasEl) alarmasEl.textContent = state.tasks.filter(t => t.type === 'urgent').length;
+  }
+
   // PATRULLA RÁPIDA
   function updateSwipeCard() {
     if(state.plants.length === 0) {
@@ -1372,13 +1543,14 @@
       document.getElementById('swipeIcon').textContent = p.icon;
       document.getElementById('swipeName').textContent = p.name;
       document.getElementById('swipeZone').textContent = p.zone;
-      document.getElementById('swipeStatus').textContent = 'Revisada hace 3 días';
+      document.getElementById('swipeStatus').textContent = 'Planta de ejemplo (aún no has guardado ninguna)';
       return;
     }
     const p = state.plants[state.plantIndex % state.plants.length];
     document.getElementById('swipeIcon').textContent = p.icon || '🌿';
     document.getElementById('swipeName').textContent = p.name;
     document.getElementById('swipeZone').textContent = p.zone || 'Sin zona';
+    document.getElementById('swipeStatus').textContent = p.date ? ('Guardada el ' + p.date) : 'Guardada por ti';
   }
 
   function swipeAction(ok) {
@@ -1392,6 +1564,7 @@
     }
     state.plantIndex++;
     updateSwipeCard();
+    updateDashboard();
   }
 
   // PLANTAS
@@ -1402,20 +1575,60 @@
     plantas.forEach(p => {
       const div = document.createElement('div');
       div.className = 'grid-item';
-      div.innerHTML = `<div class="grid-item-icon">${p.icon || '🌿'}</div><div class="grid-item-label">${p.name}</div>`;
+      div.innerHTML = `<div class="grid-item-icon">${esc(p.icon || '🌿')}</div><div class="grid-item-label">${esc(p.name)}</div>`;
       div.onclick = () => showToast(`${p.name} en ${p.zone}`);
       list.appendChild(div);
     });
   }
 
   function newJob() {
-    const title = prompt('Nuevo trabajo:');
+    const title = prompt('Nuevo trabajo (lo que te han mandado):');
     if(!title) return;
     const zone = prompt('¿En qué zona de Arucas?', 'Parque Municipal');
-    state.plants.push({ id: Date.now(), name: title, icon: '📝', zone: zone || 'Sin zona' });
-    Store.save('cd_plants', state.plants);
-    renderPlants();
+    state.jobs.push({ id: Date.now(), title: title.trim(), zone: (zone || 'Sin zona').trim(), done: false, date: new Date().toLocaleDateString('es-ES') });
+    Store.save('cd_jobs', state.jobs);
+    renderJobs();
     showToast(`✓ Trabajo registrado`);
+  }
+
+  function renderJobs() {
+    const list = document.getElementById('jobList');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!state.jobs.length) {
+      list.innerHTML = '<p style="color: var(--text-light); font-size: 13px; text-align: center; padding: 20px 0;">Sin trabajos pendientes. Añade los que te manden con el botón de arriba.</p>';
+      return;
+    }
+    state.jobs.forEach(j => {
+      const div = document.createElement('div');
+      div.style.cssText = 'display: flex; gap: 10px; margin: 8px 0; align-items: center; padding: 12px; background: rgba(5, 150, 105, 0.05); border-radius: 8px; border-left: 4px solid ' + (j.done ? 'var(--green)' : 'var(--yellow)') + ';';
+      const check = document.createElement('input');
+      check.type = 'checkbox';
+      check.checked = !!j.done;
+      check.onchange = () => toggleJob(j.id, check.checked);
+      const span = document.createElement('span');
+      span.style.cssText = 'flex: 1;' + (j.done ? 'text-decoration: line-through; color: var(--text-light);' : '');
+      span.textContent = `${j.title} — 📍 ${j.zone} (${j.date})`;
+      const del = document.createElement('button');
+      del.style.cssText = 'background: none; border: none; color: var(--pink); cursor: pointer; font-weight: bold; font-size: 16px;';
+      del.textContent = '✕';
+      del.onclick = () => delJob(j.id);
+      div.appendChild(check); div.appendChild(span); div.appendChild(del);
+      list.appendChild(div);
+    });
+  }
+
+  function toggleJob(id, done) {
+    const j = state.jobs.find(x => x.id === id);
+    if(j) j.done = done;
+    Store.save('cd_jobs', state.jobs);
+    renderJobs();
+  }
+
+  function delJob(id) {
+    state.jobs = state.jobs.filter(x => x.id !== id);
+    Store.save('cd_jobs', state.jobs);
+    renderJobs();
   }
 
   // TAREAS
@@ -1427,6 +1640,7 @@
     Store.save('cd_tasks', state.tasks);
     input.value = '';
     renderTasks();
+    updateDashboard();
   }
 
   function renderTasks() {
@@ -1438,7 +1652,7 @@
         div.style.cssText = 'display: flex; gap: 8px; margin: 8px 0; align-items: center; padding: 10px; background: rgba(5, 150, 105, 0.05); border-radius: 8px;';
         div.innerHTML = `
           <input type="checkbox" ${t.done ? 'checked' : ''} onchange="toggleTask(${t.id}, this.checked)">
-          <span style="flex:1; ${t.done ? 'text-decoration: line-through; color: var(--text-light);' : ''}">${t.text}</span>
+          <span style="flex:1; ${t.done ? 'text-decoration: line-through; color: var(--text-light);' : ''}">${esc(t.text)}</span>
           <button style="background: none; border: none; color: var(--pink); cursor: pointer; font-weight: bold;" onclick="delTask(${t.id})">✕</button>
         `;
         list.appendChild(div);
@@ -1457,6 +1671,7 @@
     state.tasks = state.tasks.filter(x => x.id !== id);
     Store.save('cd_tasks', state.tasks);
     renderTasks();
+    updateDashboard();
   }
 
   // ZONAS
@@ -1476,7 +1691,7 @@
     (state.zones || []).forEach(z => {
       const div = document.createElement('div');
       div.style.cssText = 'padding: 10px; background: rgba(5, 150, 105, 0.08); border-radius: 8px; margin: 8px 0; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid var(--green);';
-      div.innerHTML = `<span>📍 ${z.name}</span><button style="background: none; border: none; color: var(--pink); cursor: pointer; font-size: 18px;" onclick="delZone(${z.id})">✕</button>`;
+      div.innerHTML = `<span>📍 ${esc(z.name)}</span><button style="background: none; border: none; color: var(--pink); cursor: pointer; font-size: 18px;" onclick="delZone(${z.id})">✕</button>`;
       list.appendChild(div);
     });
   }
@@ -1500,7 +1715,7 @@
     (state.zones || []).forEach(z => {
       L.circleMarker([z.lat, z.lon], { radius: 8, color: '#059669', fillColor: '#10b981', fillOpacity: 0.7 })
         .addTo(state.map)
-        .bindPopup(`📍 <strong>${z.name}</strong><br>Zona de Arucas`);
+        .bindPopup(`📍 <strong>${esc(z.name)}</strong><br>Zona de Arucas`);
     });
   }
 
@@ -1590,20 +1805,21 @@
 
     setupPhotoInput();
 
-    // Load plant.id API key
-    const savedKey = Store.load('plantIdApiKey');
-    if(document.getElementById('plantIdApiKey')) {
-      document.getElementById('plantIdApiKey').value = savedKey;
+    // Key de Pl@ntNet (opcional, gratuita)
+    const savedPlantnetKey = getPlantnetKey();
+    if(document.getElementById('plantnetApiKey') && savedPlantnetKey) {
+      document.getElementById('plantnetApiKey').value = savedPlantnetKey;
     }
 
-    document.getElementById('plantIdApiKey')?.addEventListener('change', (e) => {
-      state.plantIdApiKey = e.target.value;
-      Store.save('plantIdApiKey', e.target.value);
-      showToast('✅ Método Online (Gradio Spaces) listo. 100% gratuito, sin API key necesaria');
+    document.getElementById('plantnetApiKey')?.addEventListener('change', (e) => {
+      const key = (e.target.value || '').trim();
+      Store.save('plantnetApiKey', key);
+      showToast(key ? '✅ Key de Pl@ntNet guardada. Identificación fiable activada.' : 'Key borrada: usaré el servicio gratuito de respaldo.');
+      if (state.identificationMethod === 'online') setIdentificationMethod('online', null);
     });
 
     // Load API key weather
-    const savedApiKey = Store.load('apiWeather');
+    const savedApiKey = Store.load('apiWeather', '');
     if(document.getElementById('apiWeather') && savedApiKey) {
       document.getElementById('apiWeather').value = savedApiKey;
     }
@@ -1627,8 +1843,10 @@
 
     renderPlants();
     renderTasks();
+    renderJobs();
     renderZones();
     updateSwipeCard();
+    updateDashboard();
     loadWeather();
     setTheme(Store.load('theme', 'light'));
 
@@ -1644,6 +1862,60 @@
     window.deferredPrompt = e;
   });
 </script>
+
+<script type="application/json" id="acceptance-tests">[
+  { "name": "La barra inferior navega a las 5 secciones",
+    "steps": [
+      { "clickText": "🚀" }, { "expectVisible": "#view-patrulla" },
+      { "clickText": "🌿" }, { "expectVisible": "#view-plantas" },
+      { "clickText": "📷" }, { "expectVisible": "#view-escanear" },
+      { "clickText": "⚙️" }, { "expectVisible": "#view-mas" },
+      { "clickText": "🏠" }, { "expectVisible": "#view-hoy" }
+    ] },
+  { "name": "Desde Hoy se llega a Trabajos y a Tareas (antes eran pantallas huérfanas)",
+    "steps": [
+      { "clickText": "✓ Trabajos" }, { "expectVisible": "#view-trabajos" }, { "expect": "Trabajos Asignados" },
+      { "clickText": "🏠" },
+      { "clickText": "📋 Tareas" }, { "expectVisible": "#view-tareas" }, { "expect": "Tareas Personales" }
+    ] },
+  { "name": "Añadir y borrar una tarea de materiales actualiza la lista y el contador de Hoy",
+    "steps": [
+      { "clickText": "🏠" }, { "clickText": "📋 Tareas" },
+      { "fill": { "sel": "#matInput", "value": "Abono de prueba" } },
+      { "click": "#view-tareas .config-section .btn-small" },
+      { "expect": "Abono de prueba" },
+      { "clickText": "🏠" }, { "expect": "1" }
+    ] },
+  { "name": "La patrulla rápida crea tarea urgente al marcar que necesita cuidado",
+    "steps": [
+      { "clickText": "🚀" },
+      { "clickText": "❌ Necesita cuidado" },
+      { "expect": "Tarea creada" }
+    ] },
+  { "name": "El escáner muestra su pantalla con botón de foto y método configurado",
+    "steps": [
+      { "clickText": "📷" },
+      { "expect": "Identificador de Plantas" },
+      { "expect": "Tomar foto" },
+      { "expectVisible": "#methodBadge" }
+    ] },
+  { "name": "En Configuración, cambiar a Online muestra el campo de key de Pl@ntNet",
+    "steps": [
+      { "clickText": "⚙️" },
+      { "clickText": "🌐 Online" },
+      { "expectVisible": "#plantIdConfig" },
+      { "expect": "my.plantnet.org" },
+      { "clickText": "📱 Offline" },
+      { "expectGone": "#plantIdConfig" }
+    ] },
+  { "name": "Añadir una zona la muestra en la lista",
+    "steps": [
+      { "clickText": "⚙️" },
+      { "fill": { "sel": "#zoneName", "value": "Trasmontaña" } },
+      { "clickText": "+ Añadir zona" },
+      { "expect": "Trasmontaña" }
+    ] }
+]</script>
 
 </body>
 </html>
