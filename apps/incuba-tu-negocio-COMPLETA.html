@@ -2595,7 +2595,7 @@ function frame(ts){
   var pal=palAt(fShown);
   gl.uniform3f(U.uCol,pal.a[0],pal.a[1],pal.a[2]);
   gl.uniform3f(U.uCol2,pal.b[0],pal.b[1],pal.b[2]);
-  draw(.09,.16*aShown); draw(.045,.28*aShown); draw(0,1*aShown);
+  if(!window.__vidVis){ draw(.09,.16*aShown); draw(.045,.28*aShown); } draw(0,1*aShown);
 }
 raf=requestAnimationFrame(frame);
 document.addEventListener("visibilitychange",function(){
@@ -2764,6 +2764,25 @@ setInterval(hud,30000);
     var s=document.createElement("script"); s.type="application/ld+json";
     s.textContent=JSON.stringify(g); document.head.appendChild(s);
   }catch(e){}
+})();
+</script>
+
+
+<script>
+/* el video incrustado solo consume cuando esta en pantalla */
+(function(){
+  function arm(){
+    var v=document.querySelector(".vidad"); if(!v||v.__armed) return; v.__armed=1;
+    if(!("IntersectionObserver" in window)) return;
+    new IntersectionObserver(function(es){ es.forEach(function(x){
+      window.__vidVis = x.isIntersecting;
+      if(x.isIntersecting){ var p=v.play(); if(p&&p.catch)p.catch(function(){}); }
+      else v.pause();
+    }); },{threshold:0.2}).observe(v);
+    document.addEventListener("visibilitychange",function(){ if(document.hidden){ v.pause(); } });
+  }
+  arm();
+  var mo=new MutationObserver(arm); mo.observe(document.getElementById("app")||document.body,{childList:true,subtree:true});
 })();
 </script>
 
