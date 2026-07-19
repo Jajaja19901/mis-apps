@@ -23,15 +23,23 @@ if (!fs.existsSync(COMPLETA)) { console.error("No existe " + COMPLETA); process.
 let comp = fs.readFileSync(COMPLETA, "utf8");
 let n = 0;
 
+// Operar SOLO dentro del bloque `const APPS = {...}`: en la pagina hay otros objetos
+// con las mismas claves (THUMBS, SECTORES) y un replace global corrompe el que no toca.
+const start = comp.indexOf("const APPS = {");
+const end = comp.indexOf("\n  };", start);
+if (start === -1 || end === -1) { console.error("No se encontro el bloque const APPS = {...}"); process.exit(1); }
+let bloque = comp.slice(start, end);
+
 for (const [key, src] of Object.entries(SOURCES)) {
   if (!fs.existsSync(src)) { console.log("⚠ falta el fuente: " + src); continue; }
   const b64 = Buffer.from(fs.readFileSync(src, "utf8"), "utf8").toString("base64");
-  const re = new RegExp('("' + key.replace(/\./g, "\\.") + '":")[A-Za-z0-9+/=]+(")');
-  if (!re.test(comp)) { console.log("⚠ clave no encontrada en APPS: " + key); continue; }
-  comp = comp.replace(re, (m, p1, p2) => p1 + b64 + p2);
+  const re = new RegExp('("' + key.replace(/\./g, "\\.") + '":\\s*")[A-Za-z0-9+/=]+(")');
+  if (!re.test(bloque)) { console.log("⚠ clave no encontrada en APPS: " + key); continue; }
+  bloque = bloque.replace(re, (m, p1, p2) => p1 + b64 + p2);
   n++;
   console.log("✓ re-embebido " + key + " (" + b64.length + " chars base64)");
 }
+comp = comp.slice(0, start) + bloque + comp.slice(end);
 
 fs.writeFileSync(COMPLETA, comp);
 console.log("\nListo: " + n + " app(s) re-embebidas en " + COMPLETA);
