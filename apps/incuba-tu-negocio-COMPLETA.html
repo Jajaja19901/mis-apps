@@ -1317,7 +1317,7 @@
     .cinebg::after{mix-blend-mode:normal;opacity:.16}
     .blob{filter:blur(26px);opacity:.22}
     .sec-glow{filter:blur(54px)}
-    .cin,.bsec,.bel,.bit,.bphone,.bpiece,.btn-primary,.appcard .flip-inner,.ocard{will-change:auto}
+    .cin,.btn-primary,.appcard .flip-inner{will-change:auto}
   }
 
 </style>
@@ -2607,7 +2607,8 @@ function frame(ts){
   var pal=palAt(fShown);
   gl.uniform3f(U.uCol,pal.a[0],pal.a[1],pal.a[2]);
   gl.uniform3f(U.uCol2,pal.b[0],pal.b[1],pal.b[2]);
-  if(!window.__vidVis){ draw(.09,.16*aShown); draw(.045,.28*aShown); } draw(0,1*aShown);
+  var vm=window.__vidMix||0; vm+=((window.__vidVis?1:0)-vm)*Math.min(1,dt*3); window.__vidMix=vm;
+  if(vm<.97){ draw(.09,.16*aShown*(1-vm)); draw(.045,.28*aShown*(1-vm)); } draw(0,1*aShown);
 }
 raf=requestAnimationFrame(frame);
 document.addEventListener("visibilitychange",function(){
@@ -2726,6 +2727,7 @@ document.addEventListener("pointerover",function(e){
   cr.classList.toggle("dem",!!dem); cr.classList.toggle("hov",!!hov);
 },true);
 (function loop(){ requestAnimationFrame(loop);
+  if(!vis) return;
   rx+=(mx-rx)*.18; ry+=(my-ry)*.18;
   cd.style.transform="translate("+mx+"px,"+my+"px) translate(-50%,-50%)";
   cr.style.transform="translate("+rx.toFixed(1)+"px,"+ry.toFixed(1)+"px) translate(-50%,-50%)";
@@ -2787,10 +2789,10 @@ setInterval(hud,30000);
     var v=document.querySelector(".vidad"); if(!v||v.__armed) return; v.__armed=1;
     if(!("IntersectionObserver" in window)) return;
     new IntersectionObserver(function(es){ es.forEach(function(x){
-      window.__vidVis = x.isIntersecting;
-      if(x.isIntersecting){ var p=v.play(); if(p&&p.catch)p.catch(function(){}); }
-      else v.pause();
-    }); },{threshold:0.2}).observe(v);
+      var r=x.intersectionRatio;
+      if(r>=0.35){ if(!window.__vidVis){ window.__vidVis=true; var p=v.play(); if(p&&p.catch)p.catch(function(){}); } }
+      else if(r<=0.05){ if(window.__vidVis){ window.__vidVis=false; v.pause(); } }
+    }); },{threshold:[0.05,0.35]}).observe(v);
     document.addEventListener("visibilitychange",function(){ if(document.hidden){ v.pause(); } });
   }
   arm();
