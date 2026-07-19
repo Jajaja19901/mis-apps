@@ -1309,6 +1309,17 @@
   .vidframe video{display:block;width:100%;height:auto}
   .vidframe::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)}
 
+
+  /* ==== movil: menos capas de GPU (evita azulejos negros en Samsung Internet) ==== */
+  @media (max-width:1023px), (pointer:coarse){
+    #grain{display:none!important}
+    body::after{display:none!important}
+    .cinebg::after{mix-blend-mode:normal;opacity:.16}
+    .blob{filter:blur(26px);opacity:.22}
+    .sec-glow{filter:blur(54px)}
+    .cin,.bsec,.bel,.bit,.bphone,.bpiece,.btn-primary,.appcard .flip-inner,.ocard{will-change:auto}
+  }
+
 </style>
 </head>
 <body>
@@ -2335,7 +2346,8 @@ route();
 (function(){
 "use strict";
 if(matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-var DPR=Math.min(1.75,window.devicePixelRatio||1);
+var MOB=(window.matchMedia&&matchMedia("(pointer:coarse)").matches)||innerWidth<820;
+var DPR=Math.min(MOB?1.3:1.75,window.devicePixelRatio||1);
 function clamp(v,a,b){return v<a?a:(v>b?b:v);}
 function rnd(a,b){return a+Math.random()*(b-a);}
 var cv=document.createElement("canvas"); cv.id="swarmbg"; cv.setAttribute("aria-hidden","true");
