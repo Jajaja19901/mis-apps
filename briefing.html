@@ -1105,6 +1105,18 @@
     border-color: var(--accent, #c8553d);
     box-shadow: 0 0 0 3px var(--accent-soft, rgba(200,85,61,.15));
   }
+  .paypanel {
+    margin-top: 10px; padding: 13px 14px; border-radius: 12px;
+    border: 1.5px solid var(--accent, #c8553d); background: var(--accent-soft, rgba(200,85,61,.08));
+    font-size: 13.5px; line-height: 1.55; text-align: left;
+  }
+  .paypanel b { font-size: 15px; }
+  .paypanel ol { margin: 6px 0 10px 18px; padding: 0; }
+  .paypanel ol li { margin: 3px 0; }
+  .paypanel .wa-confirm {
+    display: block; text-align: center; margin-top: 8px; padding: 11px 12px; border-radius: 10px;
+    background: #25d366; color: #fff; font-weight: 700; text-decoration: none; font-size: 14px;
+  }
   .deposit-note {
     font-size: 11.5px;
     color: var(--ink-muted, #8a8378);
@@ -1195,6 +1207,10 @@ const CONFIG = {
   //    (pantalla de pago segura de Stripe; funciona con la web publicada en internet).
   // Si un enlace está vacío, el botón queda en modo demostración y no se cobra nada.
   STRIPE_LINKS: { 100: "", 150: "", 200: "" },
+  // ── COBRO POR BIZUM (funciona YA: es tu número de móvil) ──
+  BIZUM_PHONE: "680363828",
+  // ── TRANSFERENCIA: pega tu IBAN para mostrarlo al cliente; vacío = se pide por WhatsApp ──
+  IBAN: "",
 };
 
 /* ========================================
@@ -3068,7 +3084,8 @@ function renderFinal() {
         <button class="deposit-method" data-m="Tarjeta" type="button" aria-pressed="false">💳 Tarjeta</button>
         <button class="deposit-method" data-m="Transferencia" type="button" aria-pressed="false">🏦 Transferencia</button>
       </div>
-      <p class="deposit-note">${(CONFIG.STRIPE_LINKS && CONFIG.STRIPE_LINKS[senal]) ? 'Pago seguro con tarjeta a través de Stripe. Bizum y transferencia se confirman por WhatsApp.' : 'Demostración — el pago todavía es visual, no se cobra nada.'}</p>
+      <div id="payPanel" aria-live="polite"></div>
+      <p class="deposit-note">${(CONFIG.STRIPE_LINKS && CONFIG.STRIPE_LINKS[senal]) ? 'Pago seguro con tarjeta a través de Stripe · Bizum y transferencia, confirmación por WhatsApp.' : 'Bizum y transferencia funcionan ya · el pago con tarjeta se está activando.'}</p>
     </div>`;
 
   const div = document.createElement('div');
@@ -3144,13 +3161,35 @@ function renderFinal() {
       document.querySelectorAll('.deposit-method').forEach(b => { b.classList.remove('selected'); b.setAttribute('aria-pressed','false'); });
       btn.classList.add('selected');
       btn.setAttribute('aria-pressed','true');
-      const link = (btn.dataset.m === 'Tarjeta' && CONFIG.STRIPE_LINKS) ? (CONFIG.STRIPE_LINKS[senal] || '') : '';
-      if (link) {
-        showToast('Abriendo el pago seguro de ' + senal + '€…');
-        window.open(link, '_blank', 'noopener');
+      const metodo = btn.dataset.m;
+      const negRaw = state.answers.nombre_negocio || 'mi negocio';
+      const negocio = escapeHtml(negRaw);
+      const waMsg = encodeURIComponent(`Hola, soy de "${negRaw}". Acabo de enviar la señal de ${senal}€ por ${metodo} para incubar mi app.`);
+      const waHref = `https://wa.me/${CONFIG.WHATSAPP_NUMBER}?text=${waMsg}`;
+      const panel = document.getElementById('payPanel');
+      if (metodo === 'Tarjeta') {
+        const link = (CONFIG.STRIPE_LINKS && CONFIG.STRIPE_LINKS[senal]) || '';
+        if (link) {
+          panel.innerHTML = '';
+          showToast('Abriendo el pago seguro de ' + senal + '€…');
+          window.open(link, '_blank', 'noopener');
+        } else {
+          panel.innerHTML = `<div class="paypanel">💳 El pago con tarjeta se está activando.<br>
+            Mientras tanto puedes pagar la señal de <b>${senal}€</b> por <b>📲 Bizum</b> (arriba) — es un momento.</div>`;
+        }
+      } else if (metodo === 'Bizum') {
+        panel.innerHTML = `<div class="paypanel">📲 <b>Bizum de ${senal}€</b><ol>
+          <li>Abre la app de tu banco → <b>Bizum</b> → Enviar dinero.</li>
+          <li>Número: <b>${CONFIG.BIZUM_PHONE}</b></li>
+          <li>Importe: <b>${senal}€</b> · Concepto: <b>Señal ${negocio}</b></li></ol>
+          <a class="wa-confirm" href="${waHref}" target="_blank" rel="noopener noreferrer">✅ Ya lo envié → confirmar por WhatsApp</a></div>`;
       } else {
-        showToast(`Demostración: aquí iría el pago de ${senal}€ por ${btn.dataset.m}`);
+        panel.innerHTML = `<div class="paypanel">🏦 <b>Transferencia de ${senal}€</b><br>
+          ${CONFIG.IBAN ? `IBAN: <b>${CONFIG.IBAN}</b><br>Concepto: <b>Señal ${negocio}</b>` :
+          'Escríbenos por WhatsApp y te pasamos el IBAN al momento.'}
+          <a class="wa-confirm" href="${waHref}" target="_blank" rel="noopener noreferrer">${CONFIG.IBAN ? '✅ Ya la envié → confirmar por WhatsApp' : '💬 Pedir el IBAN por WhatsApp'}</a></div>`;
       }
+      if (panel.firstElementChild) panel.firstElementChild.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
   });
 
