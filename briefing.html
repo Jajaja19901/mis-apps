@@ -1207,10 +1207,16 @@ const CONFIG = {
   //    (pantalla de pago segura de Stripe; funciona con la web publicada en internet).
   // Si un enlace está vacío, el botón queda en modo demostración y no se cobra nada.
   STRIPE_LINKS: { 100: "", 150: "", 200: "" },
-  // ── COBRO POR BIZUM (funciona YA: es tu número de móvil) ──
+  // ── COBRO POR BIZUM (tu número de móvil, para cuando el cobro sea real) ──
   BIZUM_PHONE: "680363828",
   // ── TRANSFERENCIA: pega tu IBAN para mostrarlo al cliente; vacío = se pide por WhatsApp ──
   IBAN: "",
+  // ── INTERRUPTOR DEL COBRO ──
+  // false = FICTICIO: todo el recorrido de pago se ve y se puede probar, pero nada es real
+  //         (número de Bizum tapado, tarjeta simulada, no se cobra ni se guarda nada).
+  // true  = REAL: Bizum con tu número de verdad + confirmación por WhatsApp, y la tarjeta
+  //         cobra con Stripe si has pegado los enlaces de arriba.
+  PAGO_REAL: false,
 };
 
 /* ========================================
@@ -3085,7 +3091,7 @@ function renderFinal() {
         <button class="deposit-method" data-m="Transferencia" type="button" aria-pressed="false">🏦 Transferencia</button>
       </div>
       <div id="payPanel" aria-live="polite"></div>
-      <p class="deposit-note">${(CONFIG.STRIPE_LINKS && CONFIG.STRIPE_LINKS[senal]) ? 'Pago seguro con tarjeta a través de Stripe · Bizum y transferencia, confirmación por WhatsApp.' : 'Bizum y transferencia funcionan ya · el pago con tarjeta se está activando.'}</p>
+      <p class="deposit-note">${!CONFIG.PAGO_REAL ? 'Vista previa del pago — aún no se cobra nada.' : (CONFIG.STRIPE_LINKS && CONFIG.STRIPE_LINKS[senal]) ? 'Pago seguro con tarjeta a través de Stripe · Bizum y transferencia, confirmación por WhatsApp.' : 'Bizum y transferencia funcionan ya · el pago con tarjeta se está activando.'}</p>
     </div>`;
 
   const div = document.createElement('div');
@@ -3167,6 +3173,36 @@ function renderFinal() {
       const waMsg = encodeURIComponent(`Hola, soy de "${negRaw}". Acabo de enviar la señal de ${senal}€ por ${metodo} para incubar mi app.`);
       const waHref = `https://wa.me/${CONFIG.WHATSAPP_NUMBER}?text=${waMsg}`;
       const panel = document.getElementById('payPanel');
+      if (!CONFIG.PAGO_REAL) {
+        // ── MODO FICTICIO: recorrido completo de pago, sin cobrar ni guardar nada ──
+        const exito = `<div class="paypanel">✅ <b>¡Señal de ${senal}€ recibida!</b> (simulación)<br>
+          Tu plaza queda reservada y nos ponemos con <b>${negocio}</b>. Te contactamos en menos de 24h.</div>`;
+        if (metodo === 'Tarjeta') {
+          panel.innerHTML = `<div class="paypanel">💳 <b>Pago con tarjeta · ${senal}€</b>
+            <div style="font-size:11.5px;margin:2px 0 8px">Simulación — no introduzcas una tarjeta real. No se cobra ni se guarda nada.</div>
+            <input class="preview-box" style="height:auto;padding:10px;margin:4px 0" inputmode="numeric" autocomplete="off" placeholder="Número de tarjeta · 4242 4242 4242 4242" aria-label="Número de tarjeta (simulación)">
+            <div style="display:flex;gap:8px">
+              <input class="preview-box" style="height:auto;padding:10px;flex:1" autocomplete="off" placeholder="MM/AA" aria-label="Caducidad (simulación)">
+              <input class="preview-box" style="height:auto;padding:10px;flex:1" inputmode="numeric" autocomplete="off" placeholder="CVC" aria-label="CVC (simulación)">
+            </div>
+            <a class="wa-confirm" href="#" id="simPayBtn">Pagar ${senal}€</a></div>`;
+          document.getElementById('simPayBtn').addEventListener('click', (e) => { e.preventDefault(); panel.innerHTML = exito; });
+        } else if (metodo === 'Bizum') {
+          panel.innerHTML = `<div class="paypanel">📲 <b>Bizum de ${senal}€</b> <span style="font-size:11.5px">(simulación)</span><ol>
+            <li>Abre la app de tu banco → <b>Bizum</b> → Enviar dinero.</li>
+            <li>Número: <b>6•• ••• •••</b></li>
+            <li>Importe: <b>${senal}€</b> · Concepto: <b>Señal ${negocio}</b></li></ol>
+            <a class="wa-confirm" href="#" id="simPayBtn">✅ Ya lo envié</a></div>`;
+          document.getElementById('simPayBtn').addEventListener('click', (e) => { e.preventDefault(); panel.innerHTML = exito; });
+        } else {
+          panel.innerHTML = `<div class="paypanel">🏦 <b>Transferencia de ${senal}€</b> <span style="font-size:11.5px">(simulación)</span><br>
+            IBAN: <b>ES•• •••• •••• •••• ••••</b><br>Concepto: <b>Señal ${negocio}</b>
+            <a class="wa-confirm" href="#" id="simPayBtn">✅ Ya la envié</a></div>`;
+          document.getElementById('simPayBtn').addEventListener('click', (e) => { e.preventDefault(); panel.innerHTML = exito; });
+        }
+        if (panel.firstElementChild) panel.firstElementChild.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        return;
+      }
       if (metodo === 'Tarjeta') {
         const link = (CONFIG.STRIPE_LINKS && CONFIG.STRIPE_LINKS[senal]) || '';
         if (link) {
