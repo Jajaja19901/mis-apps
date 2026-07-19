@@ -131,6 +131,14 @@ OBLIGATORIAS para el director y los 10 agentes, en CADA app. El Agente 10 (QA) l
 `apps/peluqueria-aurora.html` es una app completa que sigue toda esta filosofía
 (embudo + formulario de leads + panel de admin con export CSV). Úsala como patrón.
 
+## 🧠 Memoria entre conversaciones (obligatoria)
+Las conversaciones no se ven entre sí. Para no perder el hilo:
+- **Al empezar** cualquier trabajo: lee `docs/MEMORIA.md` (últimas entradas) y, si hace
+  falta, `git log --oneline -30`.
+- **Al terminar** un trabajo importante: añade una entrada arriba de `docs/MEMORIA.md`
+  (formato en la skill `memoria-sesiones`) en el mismo commit.
+- Si el usuario pregunta "¿qué hicimos?" o "¿en qué quedamos?", la respuesta sale de ahí.
+
 ## Entrega
 - Un archivo `.html` por app en `apps/`.
 - Caja de configuración (`CONFIG`) arriba del todo para que el dueño cambie nombre, WhatsApp,
