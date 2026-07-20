@@ -26,10 +26,13 @@ El notebook está dividido en **fases**, cada una con una celda **✅ VERIFICACI
 > Si una verificación falla, **para ahí** y no sigas: casi siempre es el vídeo (perfil / poca luz)
 > o una descarga de pesos que no cuadró (lo dice la propia celda).
 
-## 4) Subir tu vídeo de prueba
-- Panel izquierdo de Colab → icono **📁 (Archivos)** → **Subir**.
-- Copia la ruta (ej. `/content/mi_video_es.mp4`) en las celdas `VIDEO_PRUEBA_ES` / `VIDEO_PRUEBA_EN`.
-- Vídeo ideal: **cara de frente, buena luz, 1–4 segundos**, un solo hablante.
+## 4) Vídeos de prueba: ya vienen incluidos (casi todos)
+- El notebook **crea solo** dos vídeos de prueba desde los GIFs de demo del propio repo:
+  `/content/test_en.mp4` (inglés) y `/content/test_fr.mp4` (francés), **con el texto real conocido**
+  → inglés y francés se verifican sin que grabes nada.
+- Para **español** (y portugués/mandarín) sí necesitas un vídeo tuyo: panel 📁 → **Subir**, y pon la
+  ruta (ej. `/content/mi_video_es.mp4`) en la celda de la Fase 3b.
+- Vídeo ideal: **cara de frente, buena luz, 2–4 segundos**, un solo hablante.
 
 ## 5) Usar la app desde el navegador del móvil
 - Cuando ejecutes la **Fase 4**, copia el enlace `gradio.live` que aparece.

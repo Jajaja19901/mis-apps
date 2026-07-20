@@ -3,6 +3,12 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-07-20 (2) — VSR: pipeline EJECUTADO de verdad en CPU + parches reales
+- Qué se hizo: se instaló todo el stack (torch 2.13, mediapipe 0.10.9, av 18, numpy 2.4) y se EJECUTÓ el preprocesado completo del repo mpc001 en CPU con vídeo real: MediaPipe detectó 150/150 fotogramas y el recorte de boca 96×96 se verificó visualmente. Bugs de compatibilidad REALES cazados y parcheados en el notebook: (a) torchvision moderno eliminó read_video → repuesto con PyAV; (b) mediapipe moderno eliminó la API solutions → pin 0.10.9/0.10.14; (c) torch.load weights_only (torch≥2.6) → parche. Bonus: vídeos de prueba EN/FR extraídos de los GIFs de demo del propio repo (texto real conocido) → inglés y francés se verifican sin grabar nada. Las celdas ejecutables del .ipynb se corrieron TAL CUAL y pasan.
+- Archivos tocados: apps/lectura-labios-multilingue/ (notebook v2, requirements.txt con versiones verificadas, GUIA-MOVIL.md).
+- Pendiente / siguiente paso: la inferencia con pesos NO pudo ejecutarse aquí (proxy bloquea Drive/Zenodo/HF; solo pasa GitHub/PyPI) → se verifica en Colab (Fases 1 y 3). El usuario debe correr el notebook y pegar salidas si algo falla.
+- Datos a confirmar: ninguno nuevo (italiano sigue sin pesos públicos).
+
 ## 2026-07-20 — App de lectura de labios multilingüe (VSR) para Colab
 - Qué se hizo: notebook Colab (GPU T4) que transcribe vídeo SIN audio con el repo mpc001/Visual_Speech_Recognition_for_Multiple_Languages. Inferencia only, MediaPipe (no dlib), Gradio share=True, descarga de pesos por idioma con gdown bajo demanda. Construido por fases con verificación. Verificado contra el CÓDIGO FUENTE real del repo (clonado): API InferencePipeline/AVSRDataLoader confirmada y 2 bugs corregidos (el recorte de labios necesita landmarks calculados ANTES y transform=False para ser visible). Sintaxis Python de las 28 celdas validada. NO ejecutado end-to-end aquí (sin GPU/pesos): la verificación real la corre el usuario en Colab. Datos reales del repo (configs, enlaces bit.ly→Drive, WER).
 - Archivos tocados: apps/lectura-labios-multilingue/ (lectura_labios_vsr.ipynb, requirements.txt, GUIA-MOVIL.md).
