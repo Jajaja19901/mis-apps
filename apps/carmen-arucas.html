@@ -1055,7 +1055,7 @@
     currentTab: 'hoy',
     plantIndex: 0,
     map: null,
-    identificationMethod: Store.load('identificationMethod', 'offline')
+    identificationMethod: Store.load('identificationMethod', 'online')
   };
 
   // Migración: versiones antiguas guardaban las zonas con coordenadas fuera de
@@ -1859,8 +1859,13 @@
     document.getElementById('plantnetApiKey')?.addEventListener('change', (e) => {
       const key = (e.target.value || '').trim();
       Store.save('plantnetApiKey', key);
-      showToast(key ? '✅ Key de Pl@ntNet guardada. Identificación fiable activada.' : 'Key borrada: usaré el servicio gratuito de respaldo.');
-      if (state.identificationMethod === 'online') setIdentificationMethod('online', null);
+      // Al guardar una key válida, activa automáticamente el modo online (Pl@ntNet).
+      if (key) {
+        setIdentificationMethod('online', null);
+        showToast('✅ Key de Pl@ntNet guardada. Identificación real activada.');
+      } else {
+        showToast('Key borrada: usaré el servicio gratuito de respaldo.');
+      }
     });
 
     // Load API key weather
