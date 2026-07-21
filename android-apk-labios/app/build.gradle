@@ -1,0 +1,47 @@
+plugins {
+  id 'com.android.application'
+}
+
+android {
+  namespace 'com.incuba.leelabios'
+  compileSdk 34
+
+  defaultConfig {
+    applicationId "com.incuba.leelabios"
+    minSdk 24
+    targetSdk 34
+    versionCode 1
+    versionName "1.0"
+  }
+
+  // Firma fija (reutiliza la keystore probada del proyecto): así las
+  // versiones nuevas se instalan encima de la anterior sin desinstalar.
+  signingConfigs {
+    firma {
+      storeFile file('../firma.keystore')
+      storePassword 'vigia-ia-2026'
+      keyAlias 'vigia'
+      keyPassword 'vigia-ia-2026'
+    }
+  }
+
+  buildTypes {
+    debug {
+      minifyEnabled false
+      signingConfig signingConfigs.firma
+    }
+    release {
+      minifyEnabled false
+      signingConfig signingConfigs.firma
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+}
+
+dependencies {
+  implementation 'androidx.core:core:1.12.0'
+}

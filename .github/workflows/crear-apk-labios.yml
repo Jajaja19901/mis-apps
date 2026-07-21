@@ -1,0 +1,62 @@
+name: Construir APK de Lee Labios
+
+# Fabrica el APK descargable de Lee Labios (envoltorio WebView con la app
+# incluida dentro). Se lanza a mano (workflow_dispatch) o al cambiar el
+# proyecto Android. El APK queda publicado en la release "labios-apk".
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/multilingual-lip-reading-app-vgqi12]
+    paths:
+      - 'android-apk-labios/**'
+      - '.github/workflows/crear-apk-labios.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  construir:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Preparar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Preparar el SDK de Android
+        uses: android-actions/setup-android@v3
+
+      - name: Preparar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.2'
+
+      - name: Compilar el APK (debug, firmado con clave fija)
+        working-directory: android-apk-labios
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Renombrar el APK
+        run: cp android-apk-labios/app/build/outputs/apk/debug/app-debug.apk lee-labios.apk
+
+      - name: Publicar el APK en la release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: labios-apk
+          name: "Lee Labios — APK para instalar"
+          prerelease: true
+          files: lee-labios.apk
+          body: |
+            APK de Lee Labios listo para instalar en el móvil.
+
+            1) Descarga **lee-labios.apk** desde aquí (en el teléfono).
+            2) Ábrelo. Si Android avisa, permite "instalar apps de origen
+               desconocido" para ese navegador/archivos.
+            3) Se instala como una app normal, con su icono 👄.
+            4) Ábrela, pega el enlace .gradio.live que te da Colab y a usar.
+
+            La app (mando) va dentro del APK; el "cerebro" que lee labios sigue
+            en Colab (hace falta el enlace .gradio.live encendido).

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lee Labios">
+<title>Lee Labios</title>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230a0a0f'/%3E%3Ctext x='90' y='125' font-size='95' text-anchor='middle'%3E%F0%9F%91%84%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230a0a0f'/%3E%3Ctext x='90' y='125' font-size='95' text-anchor='middle'%3E%F0%9F%91%84%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Lee%20Labios%22%2C%22short_name%22%3A%22Lee%20Labios%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230a0a0f%22%2C%22theme_color%22%3A%22%230a0a0f%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%253Csvg%2520xmlns%253D%2527http%253A%252F%252Fwww.w3.org%252F2000%252Fsvg%2527%2520viewBox%253D%25270%25200%2520180%2520180%2527%253E%253Crect%2520width%253D%2527180%2527%2520height%253D%2527180%2527%2520rx%253D%252740%2527%2520fill%253D%2527%25230a0a0f%2527%252F%253E%253Ctext%2520x%253D%252790%2527%2520y%253D%2527125%2527%2520font-size%253D%252795%2527%2520text-anchor%253D%2527middle%2527%253E%25F0%259F%2591%2584%253C%252Ftext%253E%253C%252Fsvg%253E%22%2C%22sizes%22%3A%22180x180%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: #0a0a0f; color: #f0f0f5; font-family: system-ui, -apple-system, sans-serif; overflow: hidden; }
+  body { display: flex; flex-direction: column; }
+
+  header {
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 10px;
+    padding: max(10px, env(safe-area-inset-top)) 14px 10px;
+    background: #12121a; border-bottom: 1px solid #22222e;
+  }
+  header .logo { font-size: 22px; }
+  header .title { font-weight: 700; font-size: 16px; letter-spacing: .02em; flex: 1; }
+  header .estado { font-size: 10px; padding: 3px 8px; border-radius: 20px; background: #22222e; color: #8a8a9a; white-space: nowrap; }
+  header .estado.on { background: rgba(0,240,140,.15); color: #00f08c; }
+  header button.gear { background: none; border: none; color: #8a8a9a; font-size: 20px; padding: 4px 6px; cursor: pointer; }
+
+  #frameWrap { flex: 1; position: relative; background: #0a0a0f; }
+  iframe { width: 100%; height: 100%; border: none; display: block; background: #0a0a0f; }
+
+  /* Pantalla de configuración / primera vez */
+  .pantalla {
+    position: absolute; inset: 0; z-index: 5;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 24px; gap: 16px; overflow-y: auto;
+    background: radial-gradient(120% 80% at 50% 0%, #16121f 0%, #0a0a0f 60%);
+  }
+  .pantalla.oculto { display: none; }
+  .pantalla .big { font-size: 46px; text-align: center; }
+  .pantalla h1 { font-size: 22px; text-align: center; font-weight: 800; }
+  .pantalla p { font-size: 13.5px; line-height: 1.6; color: #b8b8c8; text-align: center; }
+  .pantalla label { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: #8a8a9a; margin-top: 4px; }
+  .pantalla input {
+    width: 100%; padding: 14px 14px; border-radius: 12px;
+    background: #16161f; border: 1.5px solid #2a2a3a; color: #fff; font-size: 15px;
+  }
+  .pantalla input:focus { outline: none; border-color: #7c3aed; }
+  .pantalla .btn {
+    width: 100%; padding: 16px; border: none; border-radius: 12px; cursor: pointer;
+    background: linear-gradient(135deg, #7c3aed, #ec4899); color: #fff; font-size: 16px; font-weight: 700;
+  }
+  .pantalla .btn:active { opacity: .85; }
+  .pantalla .btn.sec { background: #22222e; }
+  .aviso { font-size: 11.5px; line-height: 1.6; color: #f0b866; background: rgba(240,184,102,.08);
+           border: 1px solid rgba(240,184,102,.25); border-radius: 10px; padding: 12px 14px; }
+  .link-actual { font-size: 11px; color: #6b6b7a; word-break: break-all; text-align: center; }
+</style>
+</head>
+<body>
+  <header>
+    <span class="logo">👄</span>
+    <span class="title">Lee Labios</span>
+    <span class="estado" id="estado">sin conectar</span>
+    <button class="gear" id="btnConfig" title="Cambiar enlace">⚙️</button>
+  </header>
+
+  <div id="frameWrap">
+    <iframe id="frame" title="Lectura de labios" allow="camera; microphone; fullscreen" referrerpolicy="no-referrer"></iframe>
+
+    <!-- Pantalla de configuración -->
+    <div class="pantalla" id="config">
+      <div class="big">👄</div>
+      <h1>Conecta tu app</h1>
+      <p>Esta app es el mando del motor que corre en Google Colab.
+         Pega aquí el enlace <b>.gradio.live</b> que te da Colab.</p>
+
+      <label for="url">Enlace del motor (.gradio.live)</label>
+      <input id="url" type="url" inputmode="url" autocomplete="off" autocapitalize="off"
+             placeholder="https://xxxxxxxx.gradio.live/">
+
+      <button class="btn" id="btnConectar">Conectar y abrir la app</button>
+      <button class="btn sec" id="btnAbrirFuera">Abrir en el navegador ↗</button>
+
+      <div class="aviso">
+        ⚠️ El enlace <b>cambia cada vez</b> que enciendes Colab (y muere si Colab se apaga).
+        Cuando deje de funcionar, dale al ▶ en Colab, copia el nuevo enlace y pégalo aquí con el ⚙️.
+      </div>
+      <div class="link-actual" id="linkActual"></div>
+    </div>
+  </div>
+
+<script>
+  const LS = 'lee_labios_url';
+  const frame = document.getElementById('frame');
+  const config = document.getElementById('config');
+  const estado = document.getElementById('estado');
+  const inputUrl = document.getElementById('url');
+  const linkActual = document.getElementById('linkActual');
+
+  function normaliza(u) {
+    u = (u || '').trim();
+    if (!u) return '';
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    return u;
+  }
+
+  function conectar(u) {
+    u = normaliza(u);
+    if (!/gradio\.live|ngrok|trycloudflare|https?:\/\//i.test(u)) {
+      alert('Pega un enlace válido (el que acaba en .gradio.live)');
+      return;
+    }
+    localStorage.setItem(LS, u);
+    frame.src = u;
+    config.classList.add('oculto');
+    estado.textContent = 'conectado';
+    estado.classList.add('on');
+  }
+
+  function abrirConfig() {
+    const guardado = localStorage.getItem(LS) || '';
+    inputUrl.value = guardado;
+    linkActual.textContent = guardado ? 'Ahora: ' + guardado : '';
+    config.classList.remove('oculto');
+    estado.textContent = 'sin conectar';
+    estado.classList.remove('on');
+    inputUrl.focus();
+  }
+
+  document.getElementById('btnConectar').addEventListener('click', () => conectar(inputUrl.value));
+  document.getElementById('btnAbrirFuera').addEventListener('click', () => {
+    const u = normaliza(inputUrl.value || localStorage.getItem(LS));
+    if (u) window.open(u, '_blank', 'noopener');
+    else alert('Primero pega el enlace .gradio.live');
+  });
+  inputUrl.addEventListener('keydown', (e) => { if (e.key === 'Enter') conectar(inputUrl.value); });
+  document.getElementById('btnConfig').addEventListener('click', abrirConfig);
+
+  // Arranque: si ya hay enlace guardado, conecta directo; si no, pide el enlace.
+  const guardado = localStorage.getItem(LS);
+  if (guardado) conectar(guardado);
+  else abrirConfig();
+</script>
+</body>
+</html>
