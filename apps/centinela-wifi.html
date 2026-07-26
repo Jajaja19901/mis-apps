@@ -954,7 +954,7 @@ $("#btn-export").addEventListener("click", () => {
     const filas = [["fecha", "hora", "tipo", "zona", "nivel", "detalle"]];
     S.eventos.slice().reverse().forEach((e) => {
       const d = new Date(e.t);
-      filas.push([d.toLocaleDateString("es-ES"), d.toLocaleTimeString("es-ES"), e.tipo, e.zona, e.nivel, e.msg || ""]);
+      filas.push([d.toLocaleDateString("es-ES"), d.toLocaleTimeString("es-ES"), e.tipo, e.zona, Number.isFinite(+e.nivel) ? Math.round(+e.nivel) : 0, e.msg || ""]);
     });
     const csv = "﻿" + filas.map((f) => f.map(celdaCSV).join(";")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
