@@ -112,6 +112,10 @@ const CONFIG = {
   .chip .dot{width:7px;height:7px;border-radius:50%;background:var(--mut)}
   .chip.sim .dot{background:var(--warn)}
   .chip.real .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .chip.esperando{border-color:rgba(86,200,240,.5);color:var(--cyan)}
+  .chip.esperando .dot{background:var(--cyan);animation:latido 1.4s ease-in-out infinite}
+  @media (prefers-reduced-motion:reduce){.chip.esperando .dot{animation:none}}
+  @keyframes latido{50%{opacity:.25}}
 
   /* ── zonas ── */
   .zona{background:var(--panel-2);border:1px solid var(--line);border-radius:13px;padding:14px 15px}
@@ -480,7 +484,11 @@ const CONFIG = {
   {"name":"La guía de montaje explica el sensor ESP32 y ESPectre",
    "steps":[{"goto":"#/guia"},{"expect":"ESP32"},{"expect":"ESPectre"},{"expect":"Mosquitto"}]},
   {"name":"Cómo funciona explica el CSI y la página legal pide consentimiento",
-   "steps":[{"goto":"#/tecnologia"},{"expect":"CSI"},{"goto":"#/legal"},{"expect":"consentimiento"}]}
+   "steps":[{"goto":"#/tecnologia"},{"expect":"CSI"},{"goto":"#/legal"},{"expect":"consentimiento"}]},
+  {"name":"Con un sensor configurado que no responde, la portada lo dice y no finge estar conectada",
+   "steps":[{"goto":"#/admin"},{"fill":{"sel":"#admin-pass","value":"centinela123"}},{"click":"#btn-admin-entrar"},
+            {"fill":{"sel":"#cfg-url","value":"ws://127.0.0.1:9/nada"}},{"click":"#btn-mqtt-conectar"},{"wait":600},
+            {"goto":"#/"},{"expect":"Buscando tu sensor"},{"expect":"sigo en simulación"}]}
 ]
 </script>
 
@@ -536,6 +544,7 @@ const S = {
   ultimaAlarmaZona: new Map(),      // cooldown alarma por zona
   ultimoLogZona: new Map(),         // cooldown log movimiento por zona
   ultimaMedida: 0,                  // ts de la última medida MQTT (vigilante de silencio)
+  mqttMsg: "",                      // último estado de la conexión, en palabras
   adminOk: false
 };
 
@@ -655,9 +664,18 @@ function pintarEstado() {
   btn.classList.toggle("btn-ok", !S.armado);
   btn.classList.toggle("btn-ghost", S.armado);
 
-  const chip = $("#chip-fuente"), chipTxt = $("#chip-fuente-txt");
-  if (S.fuente === "mqtt") { chip.className = "chip real"; chipTxt.textContent = "Sensor real conectado"; $("#aviso-sim").style.display = "none"; }
-  else { chip.className = "chip sim"; chipTxt.textContent = "Simulación · sin sensor real"; $("#aviso-sim").style.display = ""; }
+  // El chip de la portada dice la VERDAD en cada momento: conectado, intentándolo, o simulación.
+  const chip = $("#chip-fuente"), chipTxt = $("#chip-fuente-txt"), aviso = $("#aviso-sim");
+  if (S.fuente === "mqtt") {
+    chip.className = "chip real"; chipTxt.textContent = "Sensor real conectado"; aviso.style.display = "none";
+  } else if (cfg.MQTT_URL) {                       // hay sensor configurado pero no está dando datos
+    chip.className = "chip esperando"; chipTxt.textContent = "Buscando tu sensor…"; aviso.style.display = "";
+    aviso.innerHTML = "⏳ No consigo hablar con tu sensor, así que <strong>sigo en simulación</strong>. Estado: <span id=\"aviso-sim-motivo\"></span> Revísalo en <a href=\"#/admin\">Ajustes</a>.";
+    const motivo = $("#aviso-sim-motivo"); if (motivo) motivo.textContent = S.mqttMsg || "conectando…";
+  } else {
+    chip.className = "chip sim"; chipTxt.textContent = "Simulación · sin sensor real"; aviso.style.display = "";
+    aviso.innerHTML = "⚠️ Ahora mismo ves una <strong>Simulación</strong> de demostración. Para vigilar de verdad necesitas un sensor de ~10&nbsp;€: te lo explico en <a href=\"#/guia\">Montaje</a>.";
+  }
 
   S.historial.push(max);
   if (S.historial.length > 140) S.historial.shift();
@@ -739,8 +757,9 @@ const MQTT = {
   ws: null, buf: new Uint8Array(0), pingTimer: null, quiero: false,
   estado(txt, ok) {
     const el = $("#mqtt-estado"); if (el) el.textContent = txt;
-    const chipCambia = (S.fuente === "mqtt") !== !!ok;
+    const chipCambia = (S.fuente === "mqtt") !== !!ok || S.mqttMsg !== txt;
     S.fuente = ok ? "mqtt" : "sim";
+    S.mqttMsg = txt;                 // se muestra también en la portada, no solo en Ajustes
     if (chipCambia) pintarEstado();
   },
   conectar() {
