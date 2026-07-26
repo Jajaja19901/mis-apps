@@ -1,0 +1,967 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Centinela Wi-Fi · Vigila tu casa con la señal Wi-Fi</title>
+<meta name="description" content="Centro de control para vigilar tu casa detectando presencia a través de la señal Wi-Fi (sensor ESP32 + CSI). Sin cámaras, sin nubes: todo queda en tu dispositivo.">
+<meta name="theme-color" content="#0a101e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Centinela">
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   ⚙️  CONFIG — cambia estos datos en 1 minuto (el dueño edita aquí)
+   ═══════════════════════════════════════════════════════════════════ */
+const CONFIG = {
+  APP_NAME: "Centinela Wi-Fi",          // nombre de la app (cámbialo si quieres)
+  ADMIN_PASSWORD: "centinela123",       // ⚠️ CAMBIA esta clave del panel del dueño
+
+  // ── Sensor real (opcional): broker MQTT con WebSockets ──
+  // Si lo rellenas, la app se conecta sola al arrancar. Si no, funciona en simulación.
+  MQTT_URL: "",                         // ej. "ws://192.168.1.50:9001"
+  MQTT_USER: "",                        // usuario del broker (si tiene)
+  MQTT_PASS: "",                        // contraseña del broker (si tiene)
+  MQTT_TOPIC: "centinela/#",            // topic al que publican tus sensores
+
+  SENSIBILIDAD: 60,                     // umbral de movimiento 0-100 (más bajo = más sensible)
+  DURACION_SIRENA_S: 20,                // segundos que suena la sirena
+
+  STUDIO_BRAND: "Incuba tu Negocio",
+  STUDIO_AUTHOR: "Jaime M. M.",
+  STUDIO_URL: ""
+};
+</script>
+
+<style>
+  :root{
+    --bg:#0a101e; --panel:#111a2d; --panel-2:#0d1526; --line:rgba(148,175,255,.14);
+    --ink:#e9effb; --soft:#a7b3cf; --mut:#7787a8;
+    --ok:#38e07b; --ok-deep:#0c3f24; --cyan:#56c8f0; --warn:#ffc857; --alarm:#ff5468;
+    --radius:16px; --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,sans-serif;
+    --shadow:0 1px 2px rgba(0,0,0,.35),0 10px 34px rgba(0,0,0,.35);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;min-height:100dvh;display:flex;flex-direction:column}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;background:
+    radial-gradient(900px 500px at 85% -10%, rgba(86,200,240,.08), transparent 60%),
+    radial-gradient(700px 420px at 0% 110%, rgba(56,224,123,.06), transparent 60%);}
+  a{color:var(--cyan)}
+  h1,h2,h3{letter-spacing:-.02em;line-height:1.15}
+  .wrap{width:100%;max-width:980px;margin:0 auto;padding:0 18px;position:relative}
+  :focus-visible{outline:3px solid var(--cyan);outline-offset:3px;border-radius:8px}
+
+  /* ── botones ── */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--sans);font-weight:700;font-size:15px;
+    border:none;border-radius:12px;padding:13px 20px;cursor:pointer;text-decoration:none;line-height:1;transition:transform .12s,filter .15s;color:var(--ink)}
+  .btn:active{transform:scale(.97)}
+  .btn-ok{background:var(--ok);color:#04170c}
+  .btn-ok:hover{filter:brightness(1.08)}
+  .btn-alarm{background:var(--alarm);color:#2a040a}
+  .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+  .btn-ghost:hover{border-color:var(--soft)}
+  .btn-mini{padding:9px 14px;font-size:13px;border-radius:10px}
+  .btn[disabled]{opacity:.5;cursor:not-allowed}
+
+  /* ── cabecera ── */
+  header.site{position:sticky;top:0;z-index:40;background:rgba(10,16,30,.85);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  header.site .wrap{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;padding-top:10px;padding-bottom:10px}
+  @media(max-width:680px){nav.main{flex-basis:100%;margin-left:-8px;justify-content:flex-start}}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:800;font-size:17px;color:var(--ink);text-decoration:none;white-space:nowrap}
+  .logo svg{width:26px;height:26px;flex:none}
+  nav.main{margin-left:auto;display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+  nav.main::-webkit-scrollbar{display:none}
+  nav.main a{color:var(--soft);text-decoration:none;font-size:14px;font-weight:600;padding:8px 11px;border-radius:9px;white-space:nowrap}
+  nav.main a:hover{color:var(--ink);background:rgba(148,175,255,.08)}
+  nav.main a[aria-current="page"]{color:var(--ink);background:rgba(148,175,255,.12)}
+  .pill-estado{flex:none;display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;padding:7px 12px;border-radius:999px;border:1px solid var(--line);color:var(--soft)}
+  .pill-estado .dot{width:8px;height:8px;border-radius:50%;background:var(--mut)}
+  .pill-estado.on{border-color:rgba(56,224,123,.5);color:var(--ok)}
+  .pill-estado.on .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+
+  main{flex:1;padding:26px 0 60px}
+  [data-view]{display:none}
+  [data-view].activa{display:block}
+  section.bloque{padding:10px 0 26px}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+  .grid{display:grid;gap:14px}
+  @media(min-width:760px){.g2{grid-template-columns:1fr 1fr}.g3{grid-template-columns:repeat(3,1fr)}}
+  .eyebrow{font-size:11.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan)}
+  .titulo{font-size:clamp(26px,6vw,40px);font-weight:800;margin:8px 0 10px}
+  .sub{color:var(--soft);max-width:640px}
+
+  /* ── panel de estado (home) ── */
+  .estado-card{display:grid;gap:18px;align-items:center;padding:22px}
+  @media(min-width:760px){.estado-card{grid-template-columns:260px 1fr}}
+  .radar-caja{display:flex;align-items:center;justify-content:center}
+  canvas#radar{width:230px;height:230px;max-width:100%}
+  #estado-texto{font-size:clamp(21px,5vw,28px);font-weight:800;margin:4px 0 6px}
+  .estado-sub{color:var(--soft);font-size:14.5px}
+  .estado-acciones{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  .chip{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;padding:6px 11px;border-radius:999px;border:1px solid var(--line);color:var(--soft)}
+  .chip .dot{width:7px;height:7px;border-radius:50%;background:var(--mut)}
+  .chip.sim .dot{background:var(--warn)}
+  .chip.real .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+
+  /* ── zonas ── */
+  .zona{background:var(--panel-2);border:1px solid var(--line);border-radius:13px;padding:14px 15px}
+  .zona h3{font-size:15px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .zona .nivel-num{font-size:12.5px;color:var(--mut);font-weight:600}
+  .barra{height:8px;border-radius:99px;background:rgba(148,175,255,.12);margin:10px 0 7px;overflow:hidden}
+  .barra i{display:block;height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,var(--ok),var(--cyan));transition:width .5s ease}
+  .zona.movimiento .barra i{background:linear-gradient(90deg,var(--warn),var(--alarm))}
+  .zona .ultimo{font-size:12.5px;color:var(--mut)}
+
+  /* ── actividad / feed ── */
+  .feed{list-style:none;display:grid;gap:8px}
+  .feed li{display:flex;gap:11px;align-items:flex-start;background:var(--panel-2);border:1px solid var(--line);border-radius:12px;padding:11px 13px;font-size:14px}
+  .feed .ico{flex:none;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;font-size:15px;background:rgba(148,175,255,.1)}
+  .feed .ico.alarma{background:rgba(255,84,104,.16)}
+  .feed .ico.mov{background:rgba(255,200,87,.14)}
+  .feed .ico.sys{background:rgba(86,200,240,.14)}
+  .feed .cuando{color:var(--mut);font-size:12px}
+  .vacio{border:1.5px dashed var(--line);border-radius:14px;padding:28px 18px;text-align:center;color:var(--soft);font-size:14.5px}
+
+  canvas#spark{width:100%;height:64px;display:block;margin-top:8px}
+
+  /* ── banner de alarma ── */
+  #alarma-capa{position:fixed;left:0;right:0;bottom:0;z-index:80;pointer-events:none}
+  #alarma-banner{pointer-events:auto;background:linear-gradient(180deg,#3a0a12,#2a040a);border-top:2px solid var(--alarm);padding:16px 18px calc(16px + env(safe-area-inset-bottom));display:none}
+  #alarma-banner.activa{display:block;animation:parpadeo 1s steps(2) infinite}
+  @media (prefers-reduced-motion:reduce){#alarma-banner.activa{animation:none}}
+  @keyframes parpadeo{50%{background:linear-gradient(180deg,#55101c,#3a0a12)}}
+  #alarma-banner .wrap{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  #alarma-banner strong{font-size:17px;color:#ffd7dc}
+  #alarma-banner p{color:#f3aab4;font-size:13.5px;flex:1 1 200px}
+
+  /* ── formularios ── */
+  .field{display:grid;gap:6px;margin-bottom:14px}
+  .field label{font-size:13.5px;font-weight:700;color:var(--soft)}
+  .field input,.field select{background:var(--panel-2);border:1px solid var(--line);border-radius:11px;color:var(--ink);font-size:15px;padding:12px 13px;width:100%;font-family:var(--sans)}
+  .field input:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(86,200,240,.35)}
+  .field .ayuda{font-size:12.5px;color:var(--mut)}
+  .msg-err{color:#ffb3bc;font-size:14px;font-weight:600;margin-top:10px;display:none}
+  .msg-err.ver{display:block}
+  .msg-ok{color:var(--ok);font-size:14px;font-weight:600;margin-top:10px;display:none}
+  .msg-ok.ver{display:block}
+  .switch{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer}
+  .switch input{width:20px;height:20px;accent-color:var(--ok);flex:none}
+  .switch b{font-size:14.5px}
+  .switch small{display:block;color:var(--mut);font-size:12.5px;font-weight:400}
+
+  /* ── guía / pasos ── */
+  .paso{display:flex;gap:14px;margin-bottom:18px}
+  .paso .num{flex:none;width:34px;height:34px;border-radius:50%;background:rgba(56,224,123,.14);border:1px solid rgba(56,224,123,.4);color:var(--ok);display:grid;place-items:center;font-weight:800;font-size:15px}
+  .paso h3{font-size:16.5px;margin-bottom:5px}
+  .paso p,.paso li{color:var(--soft);font-size:14.5px}
+  .paso ul{padding-left:18px;margin-top:6px}
+  .paso code{background:rgba(148,175,255,.12);border-radius:6px;padding:2px 7px;font-size:13px;color:var(--cyan)}
+  .nota{background:rgba(255,200,87,.09);border:1px solid rgba(255,200,87,.35);border-radius:13px;padding:14px 16px;font-size:14px;color:#ffe3a8;margin:16px 0}
+  .nota b{color:var(--warn)}
+  .tabla{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px}
+  .tabla th,.tabla td{text-align:left;padding:10px 10px;border-bottom:1px solid var(--line);color:var(--soft)}
+  .tabla th{color:var(--ink);font-size:13px}
+  .prosa p{color:var(--soft);margin-bottom:12px}
+  .prosa h3{margin:20px 0 8px;font-size:17px}
+  .prosa strong{color:var(--ink)}
+
+  footer.site{border-top:1px solid var(--line);padding:24px 0 34px;color:var(--mut);font-size:13px}
+  footer.site .wrap{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;justify-content:space-between}
+  footer.site a{color:var(--soft);text-decoration:none}
+  footer.site a:hover{color:var(--ink)}
+  .firma{width:100%;font-size:12px;color:var(--mut)}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <a class="logo" href="#/" aria-label="Centinela Wi-Fi, inicio">
+      <svg viewBox="0 0 48 48" fill="none" aria-hidden="true"><rect width="48" height="48" rx="12" fill="#0d1a2f"/><circle cx="24" cy="27" r="14" stroke="#38e07b" stroke-width="2" opacity=".35"/><circle cx="24" cy="27" r="8.5" stroke="#38e07b" stroke-width="2" opacity=".55"/><path d="M24 27 36 17" stroke="#38e07b" stroke-width="2.4" stroke-linecap="round"/><circle cx="24" cy="27" r="2.6" fill="#38e07b"/><path d="M13 12c3-3.5 8-5.5 11-5.5S32 8.5 35 12" stroke="#56c8f0" stroke-width="2.2" stroke-linecap="round"/><path d="M17 16c2-2.2 5-3.4 7-3.4s5 1.2 7 3.4" stroke="#56c8f0" stroke-width="2.2" stroke-linecap="round" opacity=".7"/></svg>
+      <span class="logo-nombre">Centinela Wi-Fi</span>
+    </a>
+    <span class="pill-estado" id="pill-armado"><span class="dot"></span><span id="pill-armado-txt">Desarmada</span></span>
+    <nav class="main" aria-label="Navegación principal">
+      <a href="#/">Inicio</a>
+      <a href="#/registro">Registro</a>
+      <a href="#/guia">Montaje</a>
+      <a href="#/admin">Ajustes</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <!-- ═══════════ INICIO ═══════════ -->
+    <div data-view="home">
+      <section class="bloque">
+        <p class="eyebrow">Vigilancia de tu casa por Wi-Fi</p>
+        <h1 class="titulo">Tu casa, vigilada sin cámaras</h1>
+        <p class="sub">Centinela detecta a las personas por cómo su cuerpo altera la señal Wi-Fi: a oscuras, a través de paredes y sin grabar imágenes. Todo se queda en tu dispositivo.</p>
+      </section>
+
+      <section class="bloque" aria-label="Estado del sistema">
+        <div class="card estado-card">
+          <div class="radar-caja"><canvas id="radar" width="460" height="460" aria-hidden="true"></canvas></div>
+          <div>
+            <span class="chip sim" id="chip-fuente"><span class="dot"></span><span id="chip-fuente-txt">Simulación · sin sensor real</span></span>
+            <h2 id="estado-texto" aria-live="polite">Casa en calma</h2>
+            <p class="estado-sub" id="estado-sub">Vigilancia desarmada. Ármala para recibir la alarma si alguien entra.</p>
+            <div class="estado-acciones">
+              <button class="btn btn-ok" id="btn-armar" aria-pressed="false">🛡️ Armar vigilancia</button>
+              <button class="btn btn-ghost" id="btn-probar">🚨 Probar alarma</button>
+            </div>
+            <p class="estado-sub" id="aviso-sim" style="margin-top:14px;font-size:13px">⚠️ Ahora mismo ves una <strong>Simulación</strong> de demostración. Para vigilar de verdad necesitas un sensor de ~10&nbsp;€: te lo explico en <a href="#/guia">Montaje</a>.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="bloque" aria-label="Zonas de la casa">
+        <h2 style="font-size:19px;margin-bottom:12px">Zonas</h2>
+        <div class="grid g3" id="zonas-grid"></div>
+        <canvas id="spark" width="1200" height="128" aria-label="Gráfica de actividad de los últimos minutos" role="img"></canvas>
+      </section>
+
+      <section class="bloque" aria-label="Actividad reciente">
+        <h2 style="font-size:19px;margin-bottom:12px">Actividad reciente</h2>
+        <ul class="feed" id="feed-home"></ul>
+        <div class="vacio" id="feed-home-vacio">Sin actividad todavía. El registro completo está en la pestaña «Registro».</div>
+      </section>
+
+      <section class="bloque">
+        <div class="grid g3">
+          <div class="card"><h3 style="font-size:16px;margin-bottom:6px">👁️ Sin cámaras</h3><p style="color:var(--soft);font-size:14px">Detecta presencia y movimiento sin grabar ni una imagen. Nadie puede «ver» tu casa, ni siquiera tú.</p></div>
+          <div class="card"><h3 style="font-size:16px;margin-bottom:6px">📵 Sin nube</h3><p style="color:var(--soft);font-size:14px">Todo funciona en local: el registro vive en este dispositivo. No hay cuentas, servidores ni cuotas.</p></div>
+          <div class="card"><h3 style="font-size:16px;margin-bottom:6px">🔌 Sensor de 10 €</h3><p style="color:var(--soft);font-size:14px">Con una placa ESP32 y firmware libre, tu Wi-Fi se convierte en un radar. <a href="#/guia">Guía de montaje →</a></p></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ═══════════ REGISTRO ═══════════ -->
+    <div data-view="registro">
+      <section class="bloque">
+        <p class="eyebrow">Historial</p>
+        <h1 class="titulo" style="font-size:clamp(24px,5vw,32px)">Registro de actividad</h1>
+        <p class="sub">Cada movimiento, alarma y cambio del sistema queda apuntado aquí, solo en este dispositivo.</p>
+      </section>
+      <section class="bloque">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+          <button class="btn btn-ghost btn-mini" id="btn-export">⬇️ Exportar CSV</button>
+          <button class="btn btn-ghost btn-mini" id="btn-borrar">🗑️ Borrar registro</button>
+          <span id="borrar-confirmar" style="display:none;gap:8px;align-items:center">
+            <span style="font-size:13.5px;color:var(--warn);font-weight:700">¿Seguro?</span>
+            <button class="btn btn-alarm btn-mini" id="btn-borrar-si">Sí, borrar</button>
+            <button class="btn btn-ghost btn-mini" id="btn-borrar-no">Cancelar</button>
+          </span>
+        </div>
+        <ul class="feed" id="feed-full"></ul>
+        <div class="vacio" id="feed-full-vacio">Aún no hay eventos. Arma la vigilancia o pulsa «Probar alarma» en Inicio.</div>
+      </section>
+    </div>
+
+    <!-- ═══════════ GUÍA DE MONTAJE ═══════════ -->
+    <div data-view="guia">
+      <section class="bloque">
+        <p class="eyebrow">De simulación a vigilancia real</p>
+        <h1 class="titulo" style="font-size:clamp(24px,5vw,32px)">Monta tu sensor en una tarde</h1>
+        <p class="sub">Un router normal no «cuenta» lo que le pasa a su señal. La pieza que falta es una placa <strong>ESP32</strong> (~10&nbsp;€) que sí lee las microvariaciones de la señal Wi-Fi (el CSI) y se las manda a esta app.</p>
+      </section>
+
+      <section class="bloque">
+        <div class="card">
+          <div class="paso"><span class="num">1</span><div>
+            <h3>Compra el material (10–25 €)</h3>
+            <ul>
+              <li><strong>Placa ESP32</strong> (modelo S3 o C6 recomendado): 8–12 € en Amazon o AliExpress. Con una vale; con 2-3 cubres varias plantas.</li>
+              <li><strong>Cable USB</strong> y un cargador de móvil viejo para alimentarla.</li>
+              <li>Un ordenador cualquiera (o una Raspberry Pi) donde correr el «buzón» de mensajes (broker MQTT). Vale el PC de casa.</li>
+            </ul>
+          </div></div>
+          <div class="paso"><span class="num">2</span><div>
+            <h3>Graba el firmware libre ESPectre</h3>
+            <p>ESPectre es un proyecto de código abierto que convierte la ESP32 en un detector de movimiento por Wi-Fi (análisis CSI). Descárgalo de <code>github.com/francescopace/espectre</code> y sigue su README: se graba desde el navegador en unos minutos y se configura con tu red Wi-Fi.</p>
+            <p style="margin-top:6px">Alternativa avanzada: <code>github.com/ruvnet/RuView</code> (malla de varios nodos, constantes vitales, caídas). Más potente y más laborioso.</p>
+          </div></div>
+          <div class="paso"><span class="num">3</span><div>
+            <h3>Arranca el buzón de mensajes (broker MQTT)</h3>
+            <p>Instala <strong>Mosquitto</strong> (gratis) en tu PC o Raspberry y activa los WebSockets añadiendo a su configuración:</p>
+            <ul>
+              <li><code>listener 1883</code> — para los sensores</li>
+              <li><code>listener 9001</code> + <code>protocol websockets</code> — para esta app</li>
+              <li><code>allow_anonymous true</code> (o crea usuario y contraseña)</li>
+            </ul>
+            <p style="margin-top:6px">Si ya usas <strong>Home Assistant</strong>, su add-on «Mosquitto broker» sirve tal cual.</p>
+          </div></div>
+          <div class="paso"><span class="num">4</span><div>
+            <h3>Apunta el sensor al buzón</h3>
+            <p>En la configuración de ESPectre indica la IP de tu broker y un topic tipo <code>centinela/salon</code> (una palabra por habitación: así la app pinta cada zona). El sensor publicará el nivel de movimiento varias veces por segundo.</p>
+          </div></div>
+          <div class="paso"><span class="num">5</span><div>
+            <h3>Conecta esta app</h3>
+            <p>Entra en <a href="#/admin">Ajustes</a>, pon la dirección <code>ws://IP-de-tu-broker:9001</code> y el topic <code>centinela/#</code>, y pulsa «Guardar y conectar». El chip de Inicio pasará de «Simulación» a <strong>«Sensor real conectado»</strong> y el radar empezará a pintar tu casa de verdad.</p>
+          </div></div>
+        </div>
+
+        <div class="nota"><b>Honestidad ante todo:</b> sin el sensor, esta app muestra una simulación (y lo dice en pantalla). Ningún programa puede leer el CSI del Wi-Fi desde el navegador: hace falta ese hardware de ~10&nbsp;€. La detección por Wi-Fi ve <strong>movimiento y presencia</strong>, no identifica <em>quién</em> es.</div>
+
+        <h2 style="font-size:19px;margin:22px 0 4px">Qué opción elegir</h2>
+        <div style="overflow-x:auto"><table class="tabla">
+          <thead><tr><th scope="col">Opción</th><th scope="col">Coste</th><th scope="col">Qué detecta</th><th scope="col">Dificultad</th></tr></thead>
+          <tbody>
+            <tr><td>Simulación (esta app sola)</td><td>0 €</td><td>Nada real — demostración</td><td>Ninguna</td></tr>
+            <tr><td>1× ESP32 + ESPectre</td><td>~10 €</td><td>Movimiento y presencia en una zona</td><td>Baja</td></tr>
+            <tr><td>3× ESP32 en malla</td><td>~30 €</td><td>Varias habitaciones, más fiable</td><td>Media</td></tr>
+            <tr><td>RuView (malla avanzada)</td><td>~54 €</td><td>Presencia, pose, respiración, caídas</td><td>Alta</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+    </div>
+
+    <!-- ═══════════ CÓMO FUNCIONA ═══════════ -->
+    <div data-view="tecnologia">
+      <section class="bloque">
+        <p class="eyebrow">La ciencia detrás</p>
+        <h1 class="titulo" style="font-size:clamp(24px,5vw,32px)">Cómo «ve» el Wi-Fi</h1>
+      </section>
+      <section class="bloque"><div class="card prosa">
+        <p>Las ondas Wi-Fi rebotan sin parar por toda tu casa: paredes, muebles… y cuerpos. Cuando una persona se mueve —incluso al respirar— altera de forma medible cómo llegan esas ondas al receptor.</p>
+        <h3>CSI: la huella de la señal</h3>
+        <p>Esa «huella» detallada se llama <strong>CSI</strong> (Channel State Information, información del estado del canal): decenas de subportadoras de la señal cuya fase y amplitud cambian con cada movimiento. Un router normal no la expone, pero una placa ESP32 con firmware libre sí puede leerla y resumirla en un <strong>nivel de movimiento de 0 a 100</strong>.</p>
+        <h3>Del nivel a la alarma</h3>
+        <p>Centinela recibe ese nivel varias veces por segundo. Si la vigilancia está armada y el nivel supera tu umbral de sensibilidad de forma sostenida, salta la alarma: sirena, aviso en pantalla y anotación en el registro. Sin cámaras, sin micrófonos y sin sacar un solo dato de casa.</p>
+        <h3>Qué puede y qué no puede</h3>
+        <p><strong>Puede:</strong> detectar presencia y movimiento a través de paredes y a oscuras, estimar en qué zona ocurre y vigilar 24/7 con un consumo mínimo. <strong>No puede:</strong> identificar personas, distinguir a tu gato de un humano con total fiabilidad (ajusta la sensibilidad) ni funcionar sin el sensor. Por eso esta app es honesta: sin sensor, muestra una simulación etiquetada como tal.</p>
+      </div></section>
+    </div>
+
+    <!-- ═══════════ AJUSTES / ADMIN ═══════════ -->
+    <div data-view="admin">
+      <section class="bloque">
+        <p class="eyebrow">Panel del dueño</p>
+        <h1 class="titulo" style="font-size:clamp(24px,5vw,32px)">Ajustes</h1>
+      </section>
+
+      <section class="bloque" id="admin-gate">
+        <div class="card" style="max-width:430px">
+          <h2 style="font-size:17px;margin-bottom:10px">Acceso privado</h2>
+          <div class="field">
+            <label for="admin-pass">Clave del dueño</label>
+            <input type="password" id="admin-pass" autocomplete="current-password" placeholder="Tu clave">
+            <span class="ayuda">La clave inicial está en la caja CONFIG, arriba del código. Cámbiala en cuanto entres.</span>
+          </div>
+          <button class="btn btn-ok" id="btn-admin-entrar">Entrar</button>
+          <p class="msg-err" id="admin-err">Clave incorrecta. Prueba otra vez.</p>
+        </div>
+      </section>
+
+      <section class="bloque" id="admin-panel" style="display:none">
+        <div class="grid g2">
+          <div class="card">
+            <h2 style="font-size:17px;margin-bottom:4px">📡 Sensor real (MQTT)</h2>
+            <p style="color:var(--mut);font-size:13px;margin-bottom:14px">Estado: <strong id="mqtt-estado">sin configurar — usando simulación</strong></p>
+            <div class="field">
+              <label for="cfg-url">Dirección del broker (WebSocket)</label>
+              <input type="text" id="cfg-url" inputmode="url" placeholder="ws://192.168.1.50:9001">
+              <span class="ayuda">La IP del ordenador donde corre Mosquitto, puerto WebSocket (paso 3 de la guía).</span>
+            </div>
+            <div class="field"><label for="cfg-topic">Topic de los sensores</label><input type="text" id="cfg-topic" placeholder="centinela/#"></div>
+            <div class="grid g2">
+              <div class="field"><label for="cfg-user">Usuario (opcional)</label><input type="text" id="cfg-user" autocomplete="off"></div>
+              <div class="field"><label for="cfg-mqpass">Contraseña (opcional)</label><input type="password" id="cfg-mqpass" autocomplete="off"></div>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+              <button class="btn btn-ok btn-mini" id="btn-mqtt-conectar">Guardar y conectar</button>
+              <button class="btn btn-ghost btn-mini" id="btn-mqtt-desconectar">Desconectar (volver a simulación)</button>
+            </div>
+            <p class="msg-ok" id="mqtt-msg"></p>
+          </div>
+
+          <div class="card">
+            <h2 style="font-size:17px;margin-bottom:14px">🚨 Alarma y avisos</h2>
+            <div class="field">
+              <label for="cfg-sens">Sensibilidad · umbral de movimiento: <strong id="cfg-sens-val">60</strong></label>
+              <input type="range" id="cfg-sens" min="20" max="95" step="5" value="60" style="accent-color:var(--ok)">
+              <span class="ayuda">Más bajo = salta antes (puede dar falsas alarmas con mascotas). Más alto = solo movimientos claros.</span>
+            </div>
+            <label class="switch" for="cfg-sirena"><input type="checkbox" id="cfg-sirena" checked><span><b>Sirena sonora</b><small>Suena en este dispositivo cuando salta la alarma.</small></span></label>
+            <label class="switch" for="cfg-notif" style="border-bottom:none"><input type="checkbox" id="cfg-notif"><span><b>Notificaciones del navegador</b><small>Aviso aunque la app esté en segundo plano (requiere permiso).</small></span></label>
+            <p class="msg-ok" id="notif-msg"></p>
+          </div>
+
+          <div class="card">
+            <h2 style="font-size:17px;margin-bottom:14px">🔑 Cambiar clave del dueño</h2>
+            <div class="field"><label for="cfg-pass1">Nueva clave</label><input type="password" id="cfg-pass1" autocomplete="new-password"></div>
+            <div class="field"><label for="cfg-pass2">Repítela</label><input type="password" id="cfg-pass2" autocomplete="new-password"></div>
+            <button class="btn btn-ghost btn-mini" id="btn-pass-guardar">Guardar clave</button>
+            <p class="msg-ok" id="pass-msg"></p>
+            <p class="msg-err" id="pass-err">Las claves no coinciden o están vacías.</p>
+          </div>
+
+          <div class="card">
+            <h2 style="font-size:17px;margin-bottom:14px">📱 App e instalación</h2>
+            <p style="color:var(--soft);font-size:14px;margin-bottom:12px">Instala Centinela en la pantalla de inicio para abrirla como una app a pantalla completa.</p>
+            <button class="btn btn-ghost btn-mini" id="btn-instalar">➕ Instalar app</button>
+            <p class="msg-ok" id="instalar-msg"></p>
+            <p style="color:var(--mut);font-size:12.5px;margin-top:12px">La instalación requiere abrir la app desde una dirección https (o un servidor local). Desde un archivo suelto funciona igual, pero como página web.</p>
+            <hr style="border:none;border-top:1px solid var(--line);margin:16px 0">
+            <button class="btn btn-ghost btn-mini" id="btn-admin-salir">Cerrar sesión del panel</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ═══════════ LEGAL ═══════════ -->
+    <div data-view="legal">
+      <section class="bloque">
+        <p class="eyebrow">Privacidad y uso responsable</p>
+        <h1 class="titulo" style="font-size:clamp(24px,5vw,32px)">Aviso legal y privacidad</h1>
+      </section>
+      <section class="bloque"><div class="card prosa">
+        <h3>Tus datos no salen de aquí</h3>
+        <p>Esta app no tiene servidor, ni cuentas, ni cookies de seguimiento, y no recoge datos personales. El registro de actividad se guarda únicamente en el almacenamiento local de este dispositivo y puedes borrarlo cuando quieras desde «Registro».</p>
+        <h3>Uso responsable y consentimiento</h3>
+        <p>Centinela está pensada para vigilar <strong>tu propia vivienda</strong>. Si en la casa viven o trabajan otras personas (familiares, empleados de hogar, inquilinos), la ley española y el RGPD exigen <strong>informarlas y contar con su consentimiento</strong> antes de monitorizar su presencia. No la uses jamás para vigilar espacios ajenos ni a personas sin su conocimiento: además de ilegal, va contra el propósito de esta herramienta.</p>
+        <h3>Limitación de responsabilidad</h3>
+        <p>La detección por Wi-Fi es una ayuda, no un sistema de seguridad certificado: pueden darse falsas alarmas o detecciones perdidas. El titular de la vivienda es responsable del uso que haga de la herramienta.</p>
+        <h3>Titular</h3>
+        <p>[NOMBRE DEL TITULAR] · [DIRECCIÓN] · [EMAIL DE CONTACTO] — completa estos datos si publicas la app en internet.</p>
+      </div></section>
+    </div>
+
+  </div>
+</main>
+
+<div id="alarma-capa">
+  <div id="alarma-banner" role="alert">
+    <div class="wrap">
+      <strong>🚨 ALARMA</strong>
+      <p id="alarma-detalle">Movimiento detectado.</p>
+      <button class="btn btn-alarm" id="btn-silenciar">🔇 Silenciar</button>
+    </div>
+  </div>
+</div>
+
+<footer class="site">
+  <div class="wrap">
+    <a href="#/tecnologia">Cómo funciona</a>
+    <a href="#/legal">Privacidad y aviso legal</a>
+    <a href="#/admin">Panel del dueño</a>
+    <span class="firma" id="firma"></span>
+  </div>
+</footer>
+
+<script type="application/json" id="acceptance-tests">
+[
+  {"name":"La portada muestra el estado, el radar y avisa de que es simulación",
+   "steps":[{"expect":"Tu casa, vigilada sin cámaras"},{"expectVisible":"#estado-texto"},{"expect":"Simulación"},{"expectVisible":"#btn-armar"}]},
+  {"name":"Se puede armar y desarmar la vigilancia",
+   "steps":[{"clickText":"Armar"},{"expect":"Vigilancia armada"},{"clickText":"Desarmar"},{"expect":"desarmada"}]},
+  {"name":"La prueba de alarma dispara el aviso y se puede silenciar",
+   "steps":[{"click":"#btn-probar"},{"expectVisible":"#alarma-banner"},{"expect":"Prueba de alarma"},{"click":"#btn-silenciar"},{"expectGone":"#alarma-banner"}]},
+  {"name":"Los eventos quedan en el registro y hay exportación CSV",
+   "steps":[{"click":"#btn-probar"},{"click":"#btn-silenciar"},{"goto":"#/registro"},{"expect":"Prueba de alarma"},{"expectVisible":"#btn-export"}]},
+  {"name":"El registro se puede borrar con confirmación en dos pasos",
+   "steps":[{"click":"#btn-probar"},{"click":"#btn-silenciar"},{"goto":"#/registro"},{"click":"#btn-borrar"},{"expect":"¿Seguro?"},{"click":"#btn-borrar-si"},{"expect":"Aún no hay eventos"}]},
+  {"name":"El panel del dueño rechaza una clave incorrecta",
+   "steps":[{"goto":"#/admin"},{"fill":{"sel":"#admin-pass","value":"clave-mala"}},{"click":"#btn-admin-entrar"},{"expect":"incorrecta"}]},
+  {"name":"El panel del dueño abre con la clave correcta y muestra los ajustes",
+   "steps":[{"goto":"#/admin"},{"fill":{"sel":"#admin-pass","value":"centinela123"}},{"click":"#btn-admin-entrar"},{"expectVisible":"#admin-panel"},{"expect":"Sensor real"}]},
+  {"name":"La guía de montaje explica el sensor ESP32 y ESPectre",
+   "steps":[{"goto":"#/guia"},{"expect":"ESP32"},{"expect":"ESPectre"},{"expect":"Mosquitto"}]},
+  {"name":"Cómo funciona explica el CSI y la página legal pide consentimiento",
+   "steps":[{"goto":"#/tecnologia"},{"expect":"CSI"},{"goto":"#/legal"},{"expect":"consentimiento"}]}
+]
+</script>
+
+<script>
+"use strict";
+/* ═══════════ Utilidades ═══════════ */
+const $ = (s) => document.querySelector(s);
+const LS = {
+  get(k, def) { try { const v = localStorage.getItem(k); return v === null ? def : JSON.parse(v); } catch { return def; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+const ahora = () => new Date();
+const horaCorta = (d) => new Date(d).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
+const fechaCorta = (d) => new Date(d).toLocaleDateString("es-ES", { day: "2-digit", month: "short" });
+
+/* ═══════════ Estado global ═══════════ */
+const cfg = Object.assign({}, CONFIG, LS.get("cw_cfg", {}));
+const S = {
+  armado: LS.get("cw_armado", false),
+  fuente: "sim",                    // "sim" | "mqtt"
+  zonas: new Map(),                 // nombre -> {nivel, ultimoMov, calienteHasta}
+  eventos: LS.get("cw_eventos", []),
+  historial: [],                    // muestras para la sparkline
+  alarma: null,                     // {detalle, esPrueba}
+  ultimaAlarmaZona: new Map(),      // cooldown alarma por zona
+  ultimoLogZona: new Map(),         // cooldown log movimiento por zona
+  adminOk: false
+};
+
+function guardarCfg() { LS.set("cw_cfg", { MQTT_URL: cfg.MQTT_URL, MQTT_USER: cfg.MQTT_USER, MQTT_PASS: cfg.MQTT_PASS, MQTT_TOPIC: cfg.MQTT_TOPIC, SENSIBILIDAD: cfg.SENSIBILIDAD, SIRENA: cfg.SIRENA, NOTIF: cfg.NOTIF, ADMIN_PASSWORD: cfg.ADMIN_PASSWORD }); }
+if (cfg.SIRENA === undefined) cfg.SIRENA = true;
+if (cfg.NOTIF === undefined) cfg.NOTIF = false;
+
+/* ═══════════ Eventos / registro ═══════════ */
+function registrar(tipo, zona, nivel, msg) {
+  S.eventos.unshift({ t: Date.now(), tipo, zona: zona || "", nivel: Math.round(nivel || 0), msg });
+  if (S.eventos.length > 400) S.eventos.length = 400;
+  LS.set("cw_eventos", S.eventos);
+  pintarFeeds();
+}
+function iconoDe(tipo) { return tipo === "alarma" ? ["🚨", "alarma"] : tipo === "movimiento" ? ["👣", "mov"] : ["⚙️", "sys"]; }
+function pintarFeeds() {
+  const li = (e) => {
+    const [ico, cls] = iconoDe(e.tipo);
+    return `<li><span class="ico ${cls}" aria-hidden="true">${ico}</span><div><div>${e.msg}${e.zona ? ` · <strong>${e.zona}</strong>` : ""}${e.nivel ? ` <span style="color:var(--mut)">(nivel ${e.nivel})</span>` : ""}</div><div class="cuando">${fechaCorta(e.t)} · ${horaCorta(e.t)}</div></div></li>`;
+  };
+  const feedH = $("#feed-home"), feedF = $("#feed-full");
+  if (feedH) { feedH.innerHTML = S.eventos.slice(0, 6).map(li).join(""); $("#feed-home-vacio").style.display = S.eventos.length ? "none" : "block"; }
+  if (feedF) { feedF.innerHTML = S.eventos.slice(0, 120).map(li).join(""); $("#feed-full-vacio").style.display = S.eventos.length ? "none" : "block"; }
+}
+
+/* ═══════════ Zonas y detección ═══════════ */
+function tocarZona(nombre, nivel) {
+  let z = S.zonas.get(nombre);
+  if (!z) { z = { nivel: 0, ultimoMov: 0, calienteHasta: 0 }; S.zonas.set(nombre, z); pintarZonas(); }
+  z.nivel = Math.max(0, Math.min(100, nivel));
+  const hot = z.nivel >= cfg.SENSIBILIDAD;
+  const t = Date.now();
+  if (hot) {
+    z.ultimoMov = t;
+    z.calienteHasta = t + 4000;
+    const ultimoLog = S.ultimoLogZona.get(nombre) || 0;
+    if (t - ultimoLog > 45000) { S.ultimoLogZona.set(nombre, t); registrar("movimiento", nombre, z.nivel, "Movimiento detectado"); }
+    if (S.armado) {
+      const ultimaAlarma = S.ultimaAlarmaZona.get(nombre) || 0;
+      if (t - ultimaAlarma > 30000) { S.ultimaAlarmaZona.set(nombre, t); dispararAlarma(`Movimiento en ${nombre} (nivel ${Math.round(z.nivel)})`, false, nombre, z.nivel); }
+    }
+  }
+}
+function nivelMaximo() { let m = 0; S.zonas.forEach((z) => { if (z.nivel > m) m = z.nivel; }); return m; }
+
+function pintarZonas() {
+  const grid = $("#zonas-grid");
+  if (!grid) return;
+  const partes = [];
+  S.zonas.forEach((z, nombre) => {
+    const hot = Date.now() < z.calienteHasta;
+    partes.push(`<div class="zona ${hot ? "movimiento" : ""}" data-zona="${nombre}">
+      <h3>${nombre} <span class="nivel-num">${Math.round(z.nivel)}</span></h3>
+      <div class="barra"><i style="width:${Math.round(z.nivel)}%"></i></div>
+      <div class="ultimo">${z.ultimoMov ? "Último movimiento: " + horaCorta(z.ultimoMov) : "Sin movimiento aún"}</div>
+    </div>`);
+  });
+  grid.innerHTML = partes.join("");
+}
+function refrescarZonas() {
+  S.zonas.forEach((z, nombre) => {
+    const el = document.querySelector(`.zona[data-zona="${nombre}"]`);
+    if (!el) return;
+    el.classList.toggle("movimiento", Date.now() < z.calienteHasta);
+    const num = el.querySelector(".nivel-num"), barra = el.querySelector(".barra i"), ult = el.querySelector(".ultimo");
+    if (num) num.textContent = Math.round(z.nivel);
+    if (barra) barra.style.width = Math.round(z.nivel) + "%";
+    if (ult && z.ultimoMov) ult.textContent = "Último movimiento: " + horaCorta(z.ultimoMov);
+  });
+}
+
+/* ═══════════ Estado en pantalla ═══════════ */
+function pintarEstado() {
+  const max = nivelMaximo();
+  const hayMov = [...S.zonas.values()].some((z) => Date.now() < z.calienteHasta);
+  const txt = $("#estado-texto"), sub = $("#estado-sub");
+  if (S.alarma) { txt.textContent = "🚨 ALARMA activa"; sub.textContent = S.alarma.detalle + " Silénciala abajo cuando lo compruebes."; }
+  else if (hayMov) {
+    const zonasHot = [...S.zonas.entries()].filter(([, z]) => Date.now() < z.calienteHasta).map(([n]) => n);
+    txt.textContent = "Movimiento: " + zonasHot.join(", ");
+    sub.textContent = S.armado ? "Vigilancia armada: si se sostiene, saltará la alarma." : "Vigilancia desarmada: solo lo anoto en el registro.";
+  } else { txt.textContent = "Casa en calma"; sub.textContent = S.armado ? "Vigilancia armada. Cualquier movimiento disparará la alarma." : "Vigilancia desarmada. Ármala para recibir la alarma si alguien entra."; }
+
+  const pill = $("#pill-armado");
+  pill.classList.toggle("on", S.armado);
+  $("#pill-armado-txt").textContent = S.armado ? "Vigilancia armada" : "Desarmada";
+  const btn = $("#btn-armar");
+  btn.textContent = S.armado ? "🔓 Desarmar" : "🛡️ Armar vigilancia";
+  btn.setAttribute("aria-pressed", String(S.armado));
+  btn.classList.toggle("btn-ok", !S.armado);
+  btn.classList.toggle("btn-ghost", S.armado);
+
+  const chip = $("#chip-fuente"), chipTxt = $("#chip-fuente-txt");
+  if (S.fuente === "mqtt") { chip.className = "chip real"; chipTxt.textContent = "Sensor real conectado"; $("#aviso-sim").style.display = "none"; }
+  else { chip.className = "chip sim"; chipTxt.textContent = "Simulación · sin sensor real"; $("#aviso-sim").style.display = ""; }
+
+  S.historial.push(max);
+  if (S.historial.length > 140) S.historial.shift();
+}
+
+/* ═══════════ Alarma y sirena ═══════════ */
+let audioCtx = null, sirenaNodos = null, sirenaTimer = null, alarmaAutoTimer = null;
+function sonarSirena(seg) {
+  if (!cfg.SIRENA) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+    pararSirena();
+    const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+    osc.type = "sawtooth"; osc.frequency.value = 700;
+    gain.gain.value = 0.14;
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    const t0 = audioCtx.currentTime;
+    for (let i = 0; i < seg; i++) { osc.frequency.setValueAtTime(650, t0 + i); osc.frequency.linearRampToValueAtTime(1000, t0 + i + 0.5); osc.frequency.linearRampToValueAtTime(650, t0 + i + 1); }
+    osc.start();
+    sirenaNodos = { osc, gain };
+    sirenaTimer = setTimeout(pararSirena, seg * 1000);
+  } catch {}
+}
+function pararSirena() {
+  if (sirenaTimer) { clearTimeout(sirenaTimer); sirenaTimer = null; }
+  if (sirenaNodos) { try { sirenaNodos.osc.stop(); sirenaNodos.osc.disconnect(); sirenaNodos.gain.disconnect(); } catch {} sirenaNodos = null; }
+}
+function notificar(titulo, cuerpo) {
+  try {
+    if (!cfg.NOTIF || typeof Notification === "undefined" || Notification.permission !== "granted") return;
+    new Notification(titulo, { body: cuerpo, tag: "centinela" });
+  } catch {}
+}
+function dispararAlarma(detalle, esPrueba, zona, nivel) {
+  S.alarma = { detalle, esPrueba };
+  $("#alarma-detalle").textContent = detalle;
+  $("#alarma-banner").classList.add("activa");
+  registrar("alarma", zona, nivel, esPrueba ? "Prueba de alarma" : "🚨 ALARMA: " + detalle);
+  sonarSirena(esPrueba ? 4 : (cfg.DURACION_SIRENA_S || 20));
+  notificar("🚨 " + cfg.APP_NAME, detalle);
+  if (alarmaAutoTimer) clearTimeout(alarmaAutoTimer);
+  if (esPrueba) alarmaAutoTimer = setTimeout(silenciarAlarma, 15000);
+  pintarEstado();
+}
+function silenciarAlarma() {
+  if (alarmaAutoTimer) { clearTimeout(alarmaAutoTimer); alarmaAutoTimer = null; }
+  if (!S.alarma) return;
+  S.alarma = null;
+  pararSirena();
+  $("#alarma-banner").classList.remove("activa");
+  pintarEstado();
+}
+
+/* ═══════════ Simulación (sin sensor) ═══════════ */
+const ZONAS_SIM = ["Salón", "Entrada", "Pasillo"];
+let simBurst = null; // {zona, ticksRestantes, pico}
+function tickSim() {
+  if (S.fuente !== "sim") return;
+  for (const nombre of ZONAS_SIM) {
+    let nivel = 4 + Math.random() * 12; // ruido de fondo
+    if (simBurst && simBurst.zona === nombre && simBurst.ticksRestantes > 0) {
+      nivel = simBurst.pico * (0.75 + Math.random() * 0.25);
+      simBurst.ticksRestantes--;
+      if (simBurst.ticksRestantes <= 0) simBurst = null;
+    }
+    tocarZona(nombre, nivel);
+  }
+  // De vez en cuando, alguien "pasa" por una zona (solo teatro de demostración)
+  if (!simBurst && Math.random() < 0.012) {
+    simBurst = { zona: ZONAS_SIM[Math.floor(Math.random() * ZONAS_SIM.length)], ticksRestantes: 5 + Math.floor(Math.random() * 8), pico: 55 + Math.random() * 40 };
+  }
+}
+
+/* ═══════════ Cliente MQTT sobre WebSocket (mínimo, MQTT 3.1.1, QoS 0) ═══════════ */
+const MQTT = {
+  ws: null, buf: new Uint8Array(0), pingTimer: null, quiero: false,
+  estado(txt, ok) {
+    const el = $("#mqtt-estado"); if (el) el.textContent = txt;
+    const chipCambia = (S.fuente === "mqtt") !== !!ok;
+    S.fuente = ok ? "mqtt" : "sim";
+    if (chipCambia) pintarEstado();
+  },
+  conectar() {
+    this.desconectar(false);
+    if (!cfg.MQTT_URL || !/^wss?:\/\//.test(cfg.MQTT_URL)) { this.estado("dirección no válida — usando simulación", false); return; }
+    this.quiero = true;
+    this.estado("conectando con " + cfg.MQTT_URL + "…", false);
+    let ws;
+    try { ws = new WebSocket(cfg.MQTT_URL, "mqtt"); } catch { this.estado("no se pudo abrir la conexión — usando simulación", false); return; }
+    ws.binaryType = "arraybuffer";
+    this.ws = ws;
+    ws.onopen = () => { try { ws.send(this.pkConnect()); } catch {} };
+    ws.onmessage = (ev) => { try { this.alRecibir(new Uint8Array(ev.data)); } catch {} };
+    ws.onerror = () => { this.estado("error de conexión con el broker — usando simulación", false); };
+    ws.onclose = () => {
+      if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null; }
+      if (this.quiero) { this.estado("desconectado — reintento en 15 s (simulación mientras tanto)", false); setTimeout(() => { if (this.quiero) this.conectar(); }, 15000); }
+    };
+  },
+  desconectar(anotar) {
+    this.quiero = false;
+    if (this.pingTimer) { clearInterval(this.pingTimer); this.pingTimer = null; }
+    if (this.ws) { try { this.ws.close(); } catch {} this.ws = null; }
+    this.buf = new Uint8Array(0);
+    if (anotar) { this.estado("sin conectar — usando simulación", false); registrar("sistema", "", 0, "Sensor desconectado: vuelta a la simulación"); }
+  },
+  // — construcción de paquetes —
+  str(s) { const b = new TextEncoder().encode(s); const r = new Uint8Array(2 + b.length); r[0] = b.length >> 8; r[1] = b.length & 255; r.set(b, 2); return r; },
+  varlen(n) { const out = []; do { let d = n % 128; n = Math.floor(n / 128); if (n > 0) d |= 128; out.push(d); } while (n > 0); return Uint8Array.from(out); },
+  pk(tipo, cuerpo) { const rl = this.varlen(cuerpo.length); const r = new Uint8Array(1 + rl.length + cuerpo.length); r[0] = tipo; r.set(rl, 1); r.set(cuerpo, 1 + rl.length); return r; },
+  cat(arrs) { const total = arrs.reduce((a, b) => a + b.length, 0); const r = new Uint8Array(total); let o = 0; for (const a of arrs) { r.set(a, o); o += a.length; } return r; },
+  pkConnect() {
+    const id = "centinela_" + Math.random().toString(36).slice(2, 10);
+    let flags = 0x02; // clean session
+    const partes = [this.str("MQTT"), Uint8Array.from([4]), null, Uint8Array.from([0, 60]), this.str(id)];
+    if (cfg.MQTT_USER) { flags |= 0x80; partes.push(this.str(cfg.MQTT_USER)); }
+    if (cfg.MQTT_PASS) { flags |= 0x40; partes.push(this.str(cfg.MQTT_PASS)); }
+    partes[2] = Uint8Array.from([flags]);
+    return this.pk(0x10, this.cat(partes));
+  },
+  pkSubscribe() { const cuerpo = this.cat([Uint8Array.from([0, 1]), this.str(cfg.MQTT_TOPIC || "#"), Uint8Array.from([0])]); return this.pk(0x82, cuerpo); },
+  // — lectura —
+  alRecibir(bytes) {
+    this.buf = this.cat([this.buf, bytes]);
+    for (;;) {
+      if (this.buf.length < 2) return;
+      let rl = 0, mult = 1, i = 1;
+      for (;;) {
+        if (i >= this.buf.length) return; // paquete incompleto
+        const d = this.buf[i]; rl += (d & 127) * mult; mult *= 128; i++;
+        if ((d & 128) === 0) break;
+        if (i > 5) { this.buf = new Uint8Array(0); return; }
+      }
+      const total = i + rl;
+      if (this.buf.length < total) return;
+      this.procesar(this.buf[0] >> 4, this.buf.slice(i, total));
+      this.buf = this.buf.slice(total);
+    }
+  },
+  procesar(tipo, cuerpo) {
+    if (tipo === 2) { // CONNACK
+      if (cuerpo[1] === 0) {
+        this.estado("✅ conectado — escuchando " + (cfg.MQTT_TOPIC || "#"), true);
+        registrar("sistema", "", 0, "Sensor real conectado (" + cfg.MQTT_URL + ")");
+        try { this.ws.send(this.pkSubscribe()); } catch {}
+        this.pingTimer = setInterval(() => { try { if (this.ws && this.ws.readyState === 1) this.ws.send(Uint8Array.from([0xC0, 0])); } catch {} }, 25000);
+      } else this.estado("el broker rechazó la conexión (código " + cuerpo[1] + ")", false);
+    } else if (tipo === 3) { // PUBLISH
+      const tl = (cuerpo[0] << 8) | cuerpo[1];
+      const topic = new TextDecoder().decode(cuerpo.slice(2, 2 + tl));
+      const payload = new TextDecoder().decode(cuerpo.slice(2 + tl));
+      this.medida(topic, payload);
+    }
+  },
+  medida(topic, payload) {
+    let nivel = null;
+    const txt = payload.trim();
+    try {
+      const j = JSON.parse(txt);
+      if (typeof j === "number") nivel = j;
+      else if (j && typeof j === "object") {
+        for (const k of ["movement", "motion", "level", "nivel", "variance", "value", "presence"]) {
+          if (typeof j[k] === "number") { nivel = j[k]; break; }
+          if (typeof j[k] === "boolean") { nivel = j[k] ? 100 : 0; break; }
+        }
+      }
+    } catch { const n = parseFloat(txt); if (!isNaN(n)) nivel = n; }
+    if (nivel === null) return;
+    if (nivel <= 1 && nivel >= 0) nivel *= 100; // señales normalizadas 0-1
+    const partes = topic.split("/").filter(Boolean);
+    let zona = partes.length >= 2 ? partes[1] : (partes[0] || "Sensor");
+    zona = zona.charAt(0).toUpperCase() + zona.slice(1);
+    tocarZona(zona, nivel);
+  }
+};
+
+/* ═══════════ Radar y sparkline ═══════════ */
+const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+function dibujarRadar() {
+  const c = $("#radar"); if (!c) return;
+  const ctx = c.getContext("2d"); if (!ctx) return;
+  const W = c.width, H = c.height, cx = W / 2, cy = H / 2, R = W / 2 - 8;
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = "rgba(56,224,123,.28)"; ctx.lineWidth = 2;
+  for (let i = 1; i <= 3; i++) { ctx.beginPath(); ctx.arc(cx, cy, (R * i) / 3, 0, Math.PI * 2); ctx.stroke(); }
+  ctx.beginPath(); ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy); ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R);
+  ctx.strokeStyle = "rgba(56,224,123,.15)"; ctx.stroke();
+  // barrido
+  const ang = reduceMotion ? -Math.PI / 3 : (performance.now() / 1400) % (Math.PI * 2);
+  const grad = ctx.createConicGradient ? ctx.createConicGradient(ang, cx, cy) : null;
+  if (grad) {
+    grad.addColorStop(0, "rgba(56,224,123,.4)"); grad.addColorStop(0.12, "rgba(56,224,123,.05)"); grad.addColorStop(0.2, "rgba(56,224,123,0)"); grad.addColorStop(1, "rgba(56,224,123,0)");
+    ctx.fillStyle = grad; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + R * Math.cos(ang), cy + R * Math.sin(ang));
+  ctx.strokeStyle = "rgba(56,224,123,.8)"; ctx.lineWidth = 2.5; ctx.stroke();
+  // blips: una posición fija por zona
+  let idx = 0;
+  S.zonas.forEach((z, nombre) => {
+    const a = (idx * 2.1 + 0.7) % (Math.PI * 2); idx++;
+    const dist = R * (0.35 + 0.18 * (idx % 3));
+    const x = cx + dist * Math.cos(a), y = cy + dist * Math.sin(a);
+    const hot = Date.now() < z.calienteHasta;
+    ctx.beginPath(); ctx.arc(x, y, hot ? 9 : 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = hot ? "rgba(255,84,104,.95)" : "rgba(86,200,240,.8)";
+    ctx.fill();
+    if (hot) { ctx.beginPath(); ctx.arc(x, y, 15, 0, Math.PI * 2); ctx.strokeStyle = "rgba(255,84,104,.5)"; ctx.lineWidth = 2; ctx.stroke(); }
+  });
+  ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fillStyle = "#38e07b"; ctx.fill();
+}
+function dibujarSpark() {
+  const c = $("#spark"); if (!c) return;
+  const ctx = c.getContext("2d"); if (!ctx) return;
+  const W = c.width, H = c.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = "rgba(148,175,255,.2)"; ctx.lineWidth = 1;
+  const yUmbral = H - (cfg.SENSIBILIDAD / 100) * (H - 10) - 5;
+  ctx.setLineDash([5, 5]); ctx.beginPath(); ctx.moveTo(0, yUmbral); ctx.lineTo(W, yUmbral); ctx.stroke(); ctx.setLineDash([]);
+  if (S.historial.length < 2) return;
+  ctx.beginPath();
+  const paso = W / 139;
+  S.historial.forEach((v, i) => {
+    const x = i * paso, y = H - (v / 100) * (H - 10) - 5;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = "#38e07b"; ctx.lineWidth = 2.5; ctx.stroke();
+}
+const vistaHome = document.querySelector('[data-view="home"]');
+function animar() { if (!document.hidden && vistaHome.classList.contains("activa")) { try { dibujarRadar(); } catch {} } requestAnimationFrame(animar); }
+
+/* ═══════════ Router ═══════════ */
+const VISTAS = { "": "home", "#/": "home", "#/registro": "registro", "#/guia": "guia", "#/tecnologia": "tecnologia", "#/admin": "admin", "#/legal": "legal" };
+function render() {
+  const vista = VISTAS[location.hash] || "home";
+  document.querySelectorAll("[data-view]").forEach((el) => el.classList.toggle("activa", el.dataset.view === vista));
+  document.querySelectorAll("nav.main a").forEach((a) => {
+    if (a.getAttribute("href") === (location.hash || "#/")) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  });
+  if (vista === "admin") { $("#admin-gate").style.display = S.adminOk ? "none" : ""; $("#admin-panel").style.display = S.adminOk ? "" : "none"; }
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", render);
+
+/* ═══════════ Interacciones ═══════════ */
+$("#btn-armar").addEventListener("click", () => {
+  S.armado = !S.armado;
+  LS.set("cw_armado", S.armado);
+  registrar("sistema", "", 0, S.armado ? "Vigilancia armada" : "Vigilancia desarmada");
+  if (!S.armado) silenciarAlarma();
+  pintarEstado();
+});
+$("#btn-probar").addEventListener("click", () => { dispararAlarma("Esto es una prueba: así avisará Centinela.", true, "", 0); });
+$("#btn-silenciar").addEventListener("click", silenciarAlarma);
+
+/* Registro */
+$("#btn-export").addEventListener("click", () => {
+  try {
+    const filas = [["fecha", "hora", "tipo", "zona", "nivel", "detalle"]];
+    S.eventos.slice().reverse().forEach((e) => {
+      const d = new Date(e.t);
+      filas.push([d.toLocaleDateString("es-ES"), d.toLocaleTimeString("es-ES"), e.tipo, e.zona, e.nivel, (e.msg || "").replace(/;/g, ",")]);
+    });
+    const csv = "﻿" + filas.map((f) => f.join(";")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = "centinela-registro.csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  } catch {}
+});
+$("#btn-borrar").addEventListener("click", () => { $("#borrar-confirmar").style.display = "inline-flex"; $("#btn-borrar").style.display = "none"; });
+$("#btn-borrar-no").addEventListener("click", () => { $("#borrar-confirmar").style.display = "none"; $("#btn-borrar").style.display = ""; });
+$("#btn-borrar-si").addEventListener("click", () => {
+  S.eventos = []; LS.set("cw_eventos", S.eventos);
+  $("#borrar-confirmar").style.display = "none"; $("#btn-borrar").style.display = "";
+  pintarFeeds();
+});
+
+/* Admin: puerta */
+function intentarEntrar() {
+  const clave = $("#admin-pass").value;
+  if (clave && clave === cfg.ADMIN_PASSWORD) {
+    S.adminOk = true; $("#admin-err").classList.remove("ver"); $("#admin-pass").value = "";
+    cargarFormAdmin(); render();
+  } else { $("#admin-err").classList.add("ver"); }
+}
+$("#btn-admin-entrar").addEventListener("click", intentarEntrar);
+$("#admin-pass").addEventListener("keydown", (e) => { if (e.key === "Enter") intentarEntrar(); });
+$("#btn-admin-salir").addEventListener("click", () => { S.adminOk = false; render(); });
+
+function cargarFormAdmin() {
+  $("#cfg-url").value = cfg.MQTT_URL || "";
+  $("#cfg-topic").value = cfg.MQTT_TOPIC || "";
+  $("#cfg-user").value = cfg.MQTT_USER || "";
+  $("#cfg-mqpass").value = cfg.MQTT_PASS || "";
+  $("#cfg-sens").value = cfg.SENSIBILIDAD; $("#cfg-sens-val").textContent = cfg.SENSIBILIDAD;
+  $("#cfg-sirena").checked = !!cfg.SIRENA;
+  $("#cfg-notif").checked = !!cfg.NOTIF;
+}
+$("#cfg-sens").addEventListener("input", () => { cfg.SENSIBILIDAD = +$("#cfg-sens").value; $("#cfg-sens-val").textContent = cfg.SENSIBILIDAD; guardarCfg(); });
+$("#cfg-sirena").addEventListener("change", () => { cfg.SIRENA = $("#cfg-sirena").checked; guardarCfg(); });
+$("#cfg-notif").addEventListener("change", () => {
+  cfg.NOTIF = $("#cfg-notif").checked; guardarCfg();
+  const msg = $("#notif-msg");
+  if (cfg.NOTIF && typeof Notification !== "undefined") {
+    if (Notification.permission === "granted") { msg.textContent = "Avisos activados ✓"; msg.classList.add("ver"); }
+    else Notification.requestPermission().then((p) => { msg.textContent = p === "granted" ? "Avisos activados ✓" : "El navegador no dio permiso; la sirena seguirá sonando igualmente."; msg.classList.add("ver"); }).catch(() => {});
+  } else { msg.textContent = cfg.NOTIF ? "Este navegador no soporta notificaciones." : "Avisos desactivados."; msg.classList.add("ver"); }
+});
+$("#btn-mqtt-conectar").addEventListener("click", () => {
+  cfg.MQTT_URL = $("#cfg-url").value.trim();
+  cfg.MQTT_TOPIC = $("#cfg-topic").value.trim() || "centinela/#";
+  cfg.MQTT_USER = $("#cfg-user").value.trim();
+  cfg.MQTT_PASS = $("#cfg-mqpass").value;
+  guardarCfg();
+  const msg = $("#mqtt-msg"); msg.textContent = "Guardado. Conectando…"; msg.classList.add("ver");
+  MQTT.conectar();
+});
+$("#btn-mqtt-desconectar").addEventListener("click", () => { MQTT.desconectar(true); const msg = $("#mqtt-msg"); msg.textContent = "Desconectado: la app vuelve a la simulación."; msg.classList.add("ver"); });
+
+$("#btn-pass-guardar").addEventListener("click", () => {
+  const p1 = $("#cfg-pass1").value, p2 = $("#cfg-pass2").value;
+  const okEl = $("#pass-msg"), errEl = $("#pass-err");
+  if (p1 && p1 === p2) { cfg.ADMIN_PASSWORD = p1; guardarCfg(); okEl.textContent = "Clave cambiada ✓"; okEl.classList.add("ver"); errEl.classList.remove("ver"); $("#cfg-pass1").value = ""; $("#cfg-pass2").value = ""; }
+  else { errEl.classList.add("ver"); okEl.classList.remove("ver"); }
+});
+
+/* Instalación PWA */
+let deferredPrompt = null;
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); deferredPrompt = e; });
+$("#btn-instalar").addEventListener("click", async () => {
+  const msg = $("#instalar-msg"); msg.classList.add("ver");
+  if (deferredPrompt) {
+    try { deferredPrompt.prompt(); const r = await deferredPrompt.userChoice; msg.textContent = r && r.outcome === "accepted" ? "¡Instalada! Búscala en tu pantalla de inicio." : "Instalación cancelada."; } catch { msg.textContent = "No se pudo abrir el diálogo de instalación."; }
+    deferredPrompt = null;
+  } else {
+    msg.textContent = location.protocol === "file:" ? "Abre la app desde una dirección https (o el menú del navegador → «Añadir a pantalla de inicio»)." : "Usa el menú del navegador → «Instalar app» / «Añadir a pantalla de inicio».";
+  }
+});
+
+/* ═══════════ Manifest PWA embebido ═══════════ */
+try {
+  const svgIcono = document.querySelector(".logo svg").outerHTML.replace('viewBox', 'xmlns="http://www.w3.org/2000/svg" viewBox');
+  const iconoURI = "data:image/svg+xml," + encodeURIComponent(svgIcono);
+  const favicon = document.createElement("link"); favicon.rel = "icon"; favicon.href = iconoURI; document.head.appendChild(favicon);
+  const apple = document.createElement("link"); apple.rel = "apple-touch-icon"; apple.href = iconoURI; document.head.appendChild(apple);
+  const manifest = { name: cfg.APP_NAME, short_name: "Centinela", start_url: ".", display: "standalone", background_color: "#0a101e", theme_color: "#0a101e", icons: [{ src: iconoURI, sizes: "any", type: "image/svg+xml", purpose: "any" }] };
+  const ml = document.createElement("link"); ml.rel = "manifest"; ml.href = "data:application/manifest+json," + encodeURIComponent(JSON.stringify(manifest)); document.head.appendChild(ml);
+} catch {}
+
+/* ═══════════ Arranque ═══════════ */
+document.title = cfg.APP_NAME + " · Vigila tu casa con la señal Wi-Fi";
+const logoNombre = document.querySelector(".logo-nombre"); if (logoNombre) logoNombre.textContent = cfg.APP_NAME;
+$("#firma").innerHTML = "Diseñado por " + (cfg.STUDIO_URL ? `<a href="${cfg.STUDIO_URL}" rel="noopener">${cfg.STUDIO_BRAND}</a>` : cfg.STUDIO_BRAND) + " · por " + cfg.STUDIO_AUTHOR;
+
+ZONAS_SIM.forEach((z) => tocarZona(z, 0));
+pintarZonas();
+pintarFeeds();
+pintarEstado();
+render();
+setInterval(() => { if (document.hidden) return; tickSim(); refrescarZonas(); pintarEstado(); try { dibujarSpark(); } catch {} }, 700);
+animar();
+if (cfg.MQTT_URL) MQTT.conectar();
+</script>
+</body>
+</html>
