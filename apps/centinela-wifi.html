@@ -37,8 +37,8 @@ const CONFIG = {
 
 <style>
   :root{
-    --bg:#0a101e; --panel:#111a2d; --panel-2:#0d1526; --line:rgba(148,175,255,.14);
-    --ink:#e9effb; --soft:#a7b3cf; --mut:#7787a8;
+    --bg:#0a101e; --panel:#111a2d; --panel-2:#0d1526; --line:rgba(148,175,255,.22);
+    --ink:#e9effb; --soft:#a7b3cf; --mut:#8393b5;
     --ok:#38e07b; --ok-deep:#0c3f24; --cyan:#56c8f0; --warn:#ffc857; --alarm:#ff5468;
     --radius:16px; --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Ubuntu,sans-serif;
     --shadow:0 1px 2px rgba(0,0,0,.35),0 10px 34px rgba(0,0,0,.35);
@@ -143,7 +143,6 @@ const CONFIG = {
   .field{display:grid;gap:6px;margin-bottom:14px}
   .field label{font-size:13.5px;font-weight:700;color:var(--soft)}
   .field input,.field select{background:var(--panel-2);border:1px solid var(--line);border-radius:11px;color:var(--ink);font-size:15px;padding:12px 13px;width:100%;font-family:var(--sans)}
-  .field input:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(86,200,240,.35)}
   .field .ayuda{font-size:12.5px;color:var(--mut)}
   .msg-err{color:#ffb3bc;font-size:14px;font-weight:600;margin-top:10px;display:none}
   .msg-err.ver{display:block}
@@ -167,7 +166,7 @@ const CONFIG = {
   .tabla th,.tabla td{text-align:left;padding:10px 10px;border-bottom:1px solid var(--line);color:var(--soft)}
   .tabla th{color:var(--ink);font-size:13px}
   .prosa p{color:var(--soft);margin-bottom:12px}
-  .prosa h3{margin:20px 0 8px;font-size:17px}
+  .prosa h2{margin:20px 0 8px;font-size:17px}
   .prosa strong{color:var(--ink)}
 
   footer.site{border-top:1px solid var(--line);padding:24px 0 34px;color:var(--mut);font-size:13px}
@@ -274,6 +273,7 @@ const CONFIG = {
       </section>
 
       <section class="bloque">
+        <h2 style="font-size:19px;margin-bottom:12px">Los 5 pasos</h2>
         <div class="card">
           <div class="paso"><span class="num">1</span><div>
             <h3>Compra el material (10–25 €)</h3>
@@ -331,11 +331,11 @@ const CONFIG = {
       </section>
       <section class="bloque"><div class="card prosa">
         <p>Las ondas Wi-Fi rebotan sin parar por toda tu casa: paredes, muebles… y cuerpos. Cuando una persona se mueve —incluso al respirar— altera de forma medible cómo llegan esas ondas al receptor.</p>
-        <h3>CSI: la huella de la señal</h3>
+        <h2>CSI: la huella de la señal</h2>
         <p>Esa «huella» detallada se llama <strong>CSI</strong> (Channel State Information, información del estado del canal): decenas de subportadoras de la señal cuya fase y amplitud cambian con cada movimiento. Un router normal no la expone, pero una placa ESP32 con firmware libre sí puede leerla y resumirla en un <strong>nivel de movimiento de 0 a 100</strong>.</p>
-        <h3>Del nivel a la alarma</h3>
+        <h2>Del nivel a la alarma</h2>
         <p>Centinela recibe ese nivel varias veces por segundo. Si la vigilancia está armada y el nivel supera tu umbral de sensibilidad de forma sostenida, salta la alarma: sirena, aviso en pantalla y anotación en el registro. Sin cámaras, sin micrófonos y sin sacar un solo dato de casa.</p>
-        <h3>Qué puede y qué no puede</h3>
+        <h2>Qué puede y qué no puede</h2>
         <p><strong>Puede:</strong> detectar presencia y movimiento a través de paredes y a oscuras, estimar en qué zona ocurre y vigilar 24/7 con un consumo mínimo. <strong>No puede:</strong> identificar personas, distinguir a tu gato de un humano con total fiabilidad (ajusta la sensibilidad) ni funcionar sin el sensor. Por eso esta app es honesta: sin sensor, muestra una simulación etiquetada como tal.</p>
       </div></section>
     </div>
@@ -356,7 +356,7 @@ const CONFIG = {
             <span class="ayuda">La clave inicial está en la caja CONFIG, arriba del código. Cámbiala en cuanto entres.</span>
           </div>
           <button class="btn btn-ok" id="btn-admin-entrar">Entrar</button>
-          <p class="msg-err" id="admin-err">Clave incorrecta. Prueba otra vez.</p>
+          <p class="msg-err" id="admin-err" role="alert">Clave incorrecta. Prueba otra vez.</p>
         </div>
       </section>
 
@@ -379,7 +379,7 @@ const CONFIG = {
               <button class="btn btn-ok btn-mini" id="btn-mqtt-conectar">Guardar y conectar</button>
               <button class="btn btn-ghost btn-mini" id="btn-mqtt-desconectar">Desconectar (volver a simulación)</button>
             </div>
-            <p class="msg-ok" id="mqtt-msg"></p>
+            <p class="msg-ok" id="mqtt-msg" role="status" aria-live="polite"></p>
           </div>
 
           <div class="card">
@@ -391,7 +391,7 @@ const CONFIG = {
             </div>
             <label class="switch" for="cfg-sirena"><input type="checkbox" id="cfg-sirena" checked><span><b>Sirena sonora</b><small>Suena en este dispositivo cuando salta la alarma.</small></span></label>
             <label class="switch" for="cfg-notif" style="border-bottom:none"><input type="checkbox" id="cfg-notif"><span><b>Notificaciones del navegador</b><small>Aviso aunque la app esté en segundo plano (requiere permiso).</small></span></label>
-            <p class="msg-ok" id="notif-msg"></p>
+            <p class="msg-ok" id="notif-msg" role="status" aria-live="polite"></p>
           </div>
 
           <div class="card">
@@ -399,15 +399,15 @@ const CONFIG = {
             <div class="field"><label for="cfg-pass1">Nueva clave</label><input type="password" id="cfg-pass1" autocomplete="new-password"></div>
             <div class="field"><label for="cfg-pass2">Repítela</label><input type="password" id="cfg-pass2" autocomplete="new-password"></div>
             <button class="btn btn-ghost btn-mini" id="btn-pass-guardar">Guardar clave</button>
-            <p class="msg-ok" id="pass-msg"></p>
-            <p class="msg-err" id="pass-err">Las claves no coinciden o están vacías.</p>
+            <p class="msg-ok" id="pass-msg" role="status" aria-live="polite"></p>
+            <p class="msg-err" id="pass-err" role="alert">Las claves no coinciden o están vacías.</p>
           </div>
 
           <div class="card">
             <h2 style="font-size:17px;margin-bottom:14px">📱 App e instalación</h2>
             <p style="color:var(--soft);font-size:14px;margin-bottom:12px">Instala Centinela en la pantalla de inicio para abrirla como una app a pantalla completa.</p>
             <button class="btn btn-ghost btn-mini" id="btn-instalar">➕ Instalar app</button>
-            <p class="msg-ok" id="instalar-msg"></p>
+            <p class="msg-ok" id="instalar-msg" role="status" aria-live="polite"></p>
             <p style="color:var(--mut);font-size:12.5px;margin-top:12px">La instalación requiere abrir la app desde una dirección https (o un servidor local). Desde un archivo suelto funciona igual, pero como página web.</p>
             <hr style="border:none;border-top:1px solid var(--line);margin:16px 0">
             <button class="btn btn-ghost btn-mini" id="btn-admin-salir">Cerrar sesión del panel</button>
@@ -423,13 +423,13 @@ const CONFIG = {
         <h1 class="titulo" style="font-size:clamp(24px,5vw,32px)">Aviso legal y privacidad</h1>
       </section>
       <section class="bloque"><div class="card prosa">
-        <h3>Tus datos no salen de aquí</h3>
+        <h2>Tus datos no salen de aquí</h2>
         <p>Esta app no tiene servidor, ni cuentas, ni cookies de seguimiento, y no recoge datos personales. El registro de actividad se guarda únicamente en el almacenamiento local de este dispositivo y puedes borrarlo cuando quieras desde «Registro».</p>
-        <h3>Uso responsable y consentimiento</h3>
+        <h2>Uso responsable y consentimiento</h2>
         <p>Centinela está pensada para vigilar <strong>tu propia vivienda</strong>. Si en la casa viven o trabajan otras personas (familiares, empleados de hogar, inquilinos), la ley española y el RGPD exigen <strong>informarlas y contar con su consentimiento</strong> antes de monitorizar su presencia. No la uses jamás para vigilar espacios ajenos ni a personas sin su conocimiento: además de ilegal, va contra el propósito de esta herramienta.</p>
-        <h3>Limitación de responsabilidad</h3>
+        <h2>Limitación de responsabilidad</h2>
         <p>La detección por Wi-Fi es una ayuda, no un sistema de seguridad certificado: pueden darse falsas alarmas o detecciones perdidas. El titular de la vivienda es responsable del uso que haga de la herramienta.</p>
-        <h3>Titular</h3>
+        <h2>Titular</h2>
         <p>[NOMBRE DEL TITULAR] · [DIRECCIÓN] · [EMAIL DE CONTACTO] — completa estos datos si publicas la app en internet.</p>
       </div></section>
     </div>
@@ -830,7 +830,7 @@ function animar() { if (!document.hidden && vistaHome.classList.contains("activa
 
 /* ═══════════ Router ═══════════ */
 const VISTAS = { "": "home", "#/": "home", "#/registro": "registro", "#/guia": "guia", "#/tecnologia": "tecnologia", "#/admin": "admin", "#/legal": "legal" };
-function render() {
+function render(enfocar) {
   const vista = VISTAS[location.hash] || "home";
   document.querySelectorAll("[data-view]").forEach((el) => el.classList.toggle("activa", el.dataset.view === vista));
   document.querySelectorAll("nav.main a").forEach((a) => {
@@ -839,8 +839,12 @@ function render() {
   });
   if (vista === "admin") { $("#admin-gate").style.display = S.adminOk ? "none" : ""; $("#admin-panel").style.display = S.adminOk ? "" : "none"; }
   window.scrollTo(0, 0);
+  if (enfocar === true) {
+    const h1 = document.querySelector("[data-view].activa h1");
+    if (h1) { h1.setAttribute("tabindex", "-1"); try { h1.focus({ preventScroll: true }); } catch {} }
+  }
 }
-window.addEventListener("hashchange", render);
+window.addEventListener("hashchange", () => render(true));
 
 /* ═══════════ Interacciones ═══════════ */
 $("#btn-armar").addEventListener("click", () => {
@@ -852,6 +856,7 @@ $("#btn-armar").addEventListener("click", () => {
 });
 $("#btn-probar").addEventListener("click", () => { dispararAlarma("Esto es una prueba: así avisará Centinela.", true, "", 0); });
 $("#btn-silenciar").addEventListener("click", silenciarAlarma);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && S.alarma) silenciarAlarma(); });
 
 /* Registro */
 $("#btn-export").addEventListener("click", () => {
@@ -869,12 +874,13 @@ $("#btn-export").addEventListener("click", () => {
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   } catch {}
 });
-$("#btn-borrar").addEventListener("click", () => { $("#borrar-confirmar").style.display = "inline-flex"; $("#btn-borrar").style.display = "none"; });
-$("#btn-borrar-no").addEventListener("click", () => { $("#borrar-confirmar").style.display = "none"; $("#btn-borrar").style.display = ""; });
+$("#btn-borrar").addEventListener("click", () => { $("#borrar-confirmar").style.display = "inline-flex"; $("#btn-borrar").style.display = "none"; try { $("#btn-borrar-si").focus(); } catch {} });
+$("#btn-borrar-no").addEventListener("click", () => { $("#borrar-confirmar").style.display = "none"; $("#btn-borrar").style.display = ""; try { $("#btn-borrar").focus(); } catch {} });
 $("#btn-borrar-si").addEventListener("click", () => {
   S.eventos = []; LS.set("cw_eventos", S.eventos);
   $("#borrar-confirmar").style.display = "none"; $("#btn-borrar").style.display = "";
   pintarFeeds();
+  try { $("#btn-borrar").focus(); } catch {}
 });
 
 /* Admin: puerta */
