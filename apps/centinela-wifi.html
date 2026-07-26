@@ -18,6 +18,11 @@
 const CONFIG = {
   APP_NAME: "Centinela Wi-Fi",          // nombre de la app (cámbialo si quieres)
   ADMIN_PASSWORD: "centinela123",       // ⚠️ CAMBIA esta clave del panel del dueño
+  /* PROTECCIÓN BÁSICA DE DEMOSTRACIÓN: esta app no tiene servidor, así que la comprobación
+     de la clave ocurre en el navegador y NO protege frente a quien abra el código fuente.
+     Sirve para que nadie toque los ajustes desde el móvil del dueño; no la uses como
+     seguridad real ni reutilices aquí una contraseña que emplees en otros sitios.
+     Al cambiarla desde el panel, se guarda solo su hash SHA-256, nunca en claro. */
 
   // ── Sensor real (opcional): broker MQTT con WebSockets ──
   // Si lo rellenas, la app se conecta sola al arrancar. Si no, funciona en simulación.
@@ -490,24 +495,61 @@ const LS = {
 const ahora = () => new Date();
 const horaCorta = (d) => new Date(d).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 const fechaCorta = (d) => new Date(d).toLocaleDateString("es-ES", { day: "2-digit", month: "short" });
+// Escapa TODO dato que provenga de la red (topic MQTT) o de localStorage antes de meterlo en HTML.
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"'`]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;", "`": "&#96;" }[c]));
 
 /* ═══════════ Estado global ═══════════ */
-const cfg = Object.assign({}, CONFIG, LS.get("cw_cfg", {}));
+// Merge de la config por LISTA BLANCA: localStorage NO puede inyectar claves nuevas (p. ej. STUDIO_*).
+const CLAVES_CFG = ["MQTT_URL", "MQTT_USER", "MQTT_PASS", "MQTT_TOPIC", "SENSIBILIDAD", "SIRENA", "NOTIF", "ADMIN_HASH"];
+const cfg = Object.assign({}, CONFIG);
+(() => {
+  const g = LS.get("cw_cfg", {});
+  if (g && typeof g === "object" && !Array.isArray(g)) for (const k of CLAVES_CFG) if (k in g) cfg[k] = g[k];
+  if (!Number.isFinite(+cfg.SENSIBILIDAD) || cfg.SENSIBILIDAD < 5 || cfg.SENSIBILIDAD > 100) cfg.SENSIBILIDAD = CONFIG.SENSIBILIDAD;
+  else cfg.SENSIBILIDAD = +cfg.SENSIBILIDAD;
+  if (typeof cfg.MQTT_URL !== "string" || !/^wss?:\/\/[^\s"'<>\\]+$/.test(cfg.MQTT_URL)) cfg.MQTT_URL = "";
+  if (typeof cfg.MQTT_TOPIC !== "string" || !cfg.MQTT_TOPIC || cfg.MQTT_TOPIC.length > 128) cfg.MQTT_TOPIC = CONFIG.MQTT_TOPIC;
+  if (typeof cfg.MQTT_USER !== "string" || cfg.MQTT_USER.length > 128) cfg.MQTT_USER = "";
+  if (typeof cfg.MQTT_PASS !== "string" || cfg.MQTT_PASS.length > 128) cfg.MQTT_PASS = "";
+  if (cfg.SIRENA === undefined) cfg.SIRENA = true; else cfg.SIRENA = !!cfg.SIRENA;
+  if (cfg.NOTIF === undefined) cfg.NOTIF = false; else cfg.NOTIF = !!cfg.NOTIF;
+})();
+// Los eventos rehidratados de localStorage se validan campo a campo (evita XSS persistente y "app en blanco").
+function eventosGuardados() {
+  const v = LS.get("cw_eventos", []);
+  if (!Array.isArray(v)) return [];
+  return v.filter((e) => e && typeof e === "object").slice(0, 400).map((e) => ({
+    t: Number.isFinite(+e.t) ? +e.t : Date.now(),
+    tipo: ["alarma", "movimiento", "sistema"].includes(e.tipo) ? e.tipo : "sistema",
+    zona: String(e.zona == null ? "" : e.zona).slice(0, 40),
+    nivel: Number.isFinite(+e.nivel) ? Math.round(+e.nivel) : 0,
+    msg: String(e.msg == null ? "" : e.msg).slice(0, 200)
+  }));
+}
 const S = {
-  armado: LS.get("cw_armado", false),
+  armado: LS.get("cw_armado", false) === true,
   fuente: "sim",                    // "sim" | "mqtt"
-  zonas: new Map(),                 // nombre -> {nivel, ultimoMov, calienteHasta}
-  eventos: LS.get("cw_eventos", []),
+  zonas: new Map(),                 // nombre -> {nivel, ultimoMov, calienteHasta, el}
+  eventos: eventosGuardados(),
   historial: [],                    // muestras para la sparkline
   alarma: null,                     // {detalle, esPrueba}
   ultimaAlarmaZona: new Map(),      // cooldown alarma por zona
   ultimoLogZona: new Map(),         // cooldown log movimiento por zona
+  ultimaMedida: 0,                  // ts de la última medida MQTT (vigilante de silencio)
   adminOk: false
 };
 
-function guardarCfg() { LS.set("cw_cfg", { MQTT_URL: cfg.MQTT_URL, MQTT_USER: cfg.MQTT_USER, MQTT_PASS: cfg.MQTT_PASS, MQTT_TOPIC: cfg.MQTT_TOPIC, SENSIBILIDAD: cfg.SENSIBILIDAD, SIRENA: cfg.SIRENA, NOTIF: cfg.NOTIF, ADMIN_PASSWORD: cfg.ADMIN_PASSWORD }); }
-if (cfg.SIRENA === undefined) cfg.SIRENA = true;
-if (cfg.NOTIF === undefined) cfg.NOTIF = false;
+// La clave del dueño se guarda SOLO como hash SHA-256; nunca en claro (hallazgo de seguridad 8).
+function guardarCfg() { LS.set("cw_cfg", { MQTT_URL: cfg.MQTT_URL, MQTT_USER: cfg.MQTT_USER, MQTT_PASS: cfg.MQTT_PASS, MQTT_TOPIC: cfg.MQTT_TOPIC, SENSIBILIDAD: cfg.SENSIBILIDAD, SIRENA: cfg.SIRENA, NOTIF: cfg.NOTIF, ADMIN_HASH: cfg.ADMIN_HASH }); }
+async function hashClave(txt) {
+  try {
+    if (window.crypto && crypto.subtle) {
+      const h = await crypto.subtle.digest("SHA-256", new TextEncoder().encode("centinela::" + txt));
+      return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, "0")).join("");
+    }
+  } catch {}
+  return "plano:" + txt;
+}
 
 /* ═══════════ Eventos / registro ═══════════ */
 function registrar(tipo, zona, nivel, msg) {
@@ -520,7 +562,8 @@ function iconoDe(tipo) { return tipo === "alarma" ? ["🚨", "alarma"] : tipo ==
 function pintarFeeds() {
   const li = (e) => {
     const [ico, cls] = iconoDe(e.tipo);
-    return `<li><span class="ico ${cls}" aria-hidden="true">${ico}</span><div><div>${e.msg}${e.zona ? ` · <strong>${e.zona}</strong>` : ""}${e.nivel ? ` <span style="color:var(--mut)">(nivel ${e.nivel})</span>` : ""}</div><div class="cuando">${fechaCorta(e.t)} · ${horaCorta(e.t)}</div></div></li>`;
+    const nivel = Number.isFinite(+e.nivel) ? Math.round(+e.nivel) : 0;
+    return `<li><span class="ico ${cls}" aria-hidden="true">${ico}</span><div><div>${esc(e.msg)}${e.zona ? ` · <strong>${esc(e.zona)}</strong>` : ""}${nivel ? ` <span style="color:var(--mut)">(nivel ${nivel})</span>` : ""}</div><div class="cuando">${esc(fechaCorta(e.t))} · ${esc(horaCorta(e.t))}</div></div></li>`;
   };
   const feedH = $("#feed-home"), feedF = $("#feed-full");
   if (feedH) { feedH.innerHTML = S.eventos.slice(0, 6).map(li).join(""); $("#feed-home-vacio").style.display = S.eventos.length ? "none" : "block"; }
@@ -528,9 +571,16 @@ function pintarFeeds() {
 }
 
 /* ═══════════ Zonas y detección ═══════════ */
+const MAX_ZONAS = 24;
+let zonasPendienteRepintar = false;
 function tocarZona(nombre, nivel) {
+  if (!Number.isFinite(nivel)) return;
   let z = S.zonas.get(nombre);
-  if (!z) { z = { nivel: 0, ultimoMov: 0, calienteHasta: 0 }; S.zonas.set(nombre, z); pintarZonas(); }
+  if (!z) {
+    if (S.zonas.size >= MAX_ZONAS) return;   // tope: evita el DoS por inundación de topics
+    z = { nivel: 0, ultimoMov: 0, calienteHasta: 0, el: null }; S.zonas.set(nombre, z);
+    zonasPendienteRepintar = true;           // el grid se repinta una vez en el próximo tick, no en cada alta
+  }
   z.nivel = Math.max(0, Math.min(100, nivel));
   const hot = z.nivel >= cfg.SENSIBILIDAD;
   const t = Date.now();
@@ -547,28 +597,39 @@ function tocarZona(nombre, nivel) {
 }
 function nivelMaximo() { let m = 0; S.zonas.forEach((z) => { if (z.nivel > m) m = z.nivel; }); return m; }
 
+// Construcción por DOM (textContent) en vez de innerHTML: el nombre de zona (topic MQTT) nunca se interpreta como HTML.
 function pintarZonas() {
   const grid = $("#zonas-grid");
   if (!grid) return;
-  const partes = [];
+  zonasPendienteRepintar = false;
+  grid.textContent = "";
   S.zonas.forEach((z, nombre) => {
-    const hot = Date.now() < z.calienteHasta;
-    partes.push(`<div class="zona ${hot ? "movimiento" : ""}" data-zona="${nombre}">
-      <h3>${nombre} <span class="nivel-num">${Math.round(z.nivel)}</span></h3>
-      <div class="barra"><i style="width:${Math.round(z.nivel)}%"></i></div>
-      <div class="ultimo">${z.ultimoMov ? "Último movimiento: " + horaCorta(z.ultimoMov) : "Sin movimiento aún"}</div>
-    </div>`);
+    const nivel = Math.round(Number.isFinite(z.nivel) ? z.nivel : 0);
+    const div = document.createElement("div");
+    div.className = "zona" + (Date.now() < z.calienteHasta ? " movimiento" : "");
+    div.dataset.zona = nombre;                 // atributo seguro: sin comillas que romper
+    const h3 = document.createElement("h3");
+    h3.textContent = nombre + " ";
+    const num = document.createElement("span"); num.className = "nivel-num"; num.textContent = nivel; h3.appendChild(num);
+    const barra = document.createElement("div"); barra.className = "barra";
+    const i = document.createElement("i"); i.style.width = nivel + "%"; barra.appendChild(i);
+    const ult = document.createElement("div"); ult.className = "ultimo";
+    ult.textContent = z.ultimoMov ? "Último movimiento: " + horaCorta(z.ultimoMov) : "Sin movimiento aún";
+    div.append(h3, barra, ult);
+    z.el = div;                                // guarda el nodo: refrescarZonas no necesita selector (mata la inyección CSS)
+    grid.appendChild(div);
   });
-  grid.innerHTML = partes.join("");
 }
 function refrescarZonas() {
-  S.zonas.forEach((z, nombre) => {
-    const el = document.querySelector(`.zona[data-zona="${nombre}"]`);
-    if (!el) return;
+  if (zonasPendienteRepintar) pintarZonas();
+  S.zonas.forEach((z) => {
+    const el = z.el;
+    if (!el || !el.isConnected) return;
     el.classList.toggle("movimiento", Date.now() < z.calienteHasta);
+    const nivel = Math.round(Number.isFinite(z.nivel) ? z.nivel : 0);
     const num = el.querySelector(".nivel-num"), barra = el.querySelector(".barra i"), ult = el.querySelector(".ultimo");
-    if (num) num.textContent = Math.round(z.nivel);
-    if (barra) barra.style.width = Math.round(z.nivel) + "%";
+    if (num) num.textContent = nivel;
+    if (barra) barra.style.width = nivel + "%";
     if (ult && z.ultimoMov) ult.textContent = "Último movimiento: " + horaCorta(z.ultimoMov);
   });
 }
@@ -671,7 +732,9 @@ function tickSim() {
   }
 }
 
-/* ═══════════ Cliente MQTT sobre WebSocket (mínimo, MQTT 3.1.1, QoS 0) ═══════════ */
+/* ═══════════ Cliente MQTT sobre WebSocket (mínimo, MQTT 3.1.1) ═══════════ */
+const MQTT_MAX_PAQUETE = 64 * 1024;    // ningún mensaje legítimo del sensor se acerca a esto
+const MQTT_MAX_BUFFER = 256 * 1024;
 const MQTT = {
   ws: null, buf: new Uint8Array(0), pingTimer: null, quiero: false,
   estado(txt, ok) {
@@ -705,7 +768,7 @@ const MQTT = {
     if (anotar) { this.estado("sin conectar — usando simulación", false); registrar("sistema", "", 0, "Sensor desconectado: vuelta a la simulación"); }
   },
   // — construcción de paquetes —
-  str(s) { const b = new TextEncoder().encode(s); const r = new Uint8Array(2 + b.length); r[0] = b.length >> 8; r[1] = b.length & 255; r.set(b, 2); return r; },
+  str(s) { const b = new TextEncoder().encode(s); if (b.length > 65535) throw new Error("cadena MQTT demasiado larga"); const r = new Uint8Array(2 + b.length); r[0] = b.length >> 8; r[1] = b.length & 255; r.set(b, 2); return r; },
   varlen(n) { const out = []; do { let d = n % 128; n = Math.floor(n / 128); if (n > 0) d |= 128; out.push(d); } while (n > 0); return Uint8Array.from(out); },
   pk(tipo, cuerpo) { const rl = this.varlen(cuerpo.length); const r = new Uint8Array(1 + rl.length + cuerpo.length); r[0] = tipo; r.set(rl, 1); r.set(cuerpo, 1 + rl.length); return r; },
   cat(arrs) { const total = arrs.reduce((a, b) => a + b.length, 0); const r = new Uint8Array(total); let o = 0; for (const a of arrs) { r.set(a, o); o += a.length; } return r; },
@@ -719,42 +782,59 @@ const MQTT = {
     return this.pk(0x10, this.cat(partes));
   },
   pkSubscribe() { const cuerpo = this.cat([Uint8Array.from([0, 1]), this.str(cfg.MQTT_TOPIC || "#"), Uint8Array.from([0])]); return this.pk(0x82, cuerpo); },
-  // — lectura —
+  abortar(motivo) {                          // vacía el buffer y cierra; onclose reconecta a los 15 s
+    this.buf = new Uint8Array(0);
+    this.estado(motivo + " — reconectando (simulación mientras tanto)", false);
+    try { if (this.ws) this.ws.close(); } catch {}
+  },
+  // — lectura — parser blindado contra buffer creciente y longitudes mentirosas (hallazgo de seguridad 3)
   alRecibir(bytes) {
+    if (this.buf.length + bytes.length > MQTT_MAX_BUFFER) return this.abortar("datos malformados del broker");
     this.buf = this.cat([this.buf, bytes]);
     for (;;) {
       if (this.buf.length < 2) return;
       let rl = 0, mult = 1, i = 1;
       for (;;) {
-        if (i >= this.buf.length) return; // paquete incompleto
+        if (i >= this.buf.length) return; // paquete incompleto: espera más bytes
         const d = this.buf[i]; rl += (d & 127) * mult; mult *= 128; i++;
         if ((d & 128) === 0) break;
-        if (i > 5) { this.buf = new Uint8Array(0); return; }
+        if (i > 4) return this.abortar("longitud MQTT inválida");   // MQTT 3.1.1: máx. 4 bytes de varint
       }
+      if (rl > MQTT_MAX_PAQUETE) return this.abortar("paquete MQTT demasiado grande");
       const total = i + rl;
       if (this.buf.length < total) return;
-      this.procesar(this.buf[0] >> 4, this.buf.slice(i, total));
+      this.procesar(this.buf[0], this.buf.slice(i, total));
       this.buf = this.buf.slice(total);
     }
   },
-  procesar(tipo, cuerpo) {
+  procesar(b0, cuerpo) {
+    const tipo = b0 >> 4, qos = (b0 >> 1) & 3;
     if (tipo === 2) { // CONNACK
+      if (cuerpo.length < 2) return;
       if (cuerpo[1] === 0) {
         this.estado("✅ conectado — escuchando " + (cfg.MQTT_TOPIC || "#"), true);
-        registrar("sistema", "", 0, "Sensor real conectado (" + cfg.MQTT_URL + ")");
+        S.ultimaMedida = Date.now();
+        registrar("sistema", "", 0, "Sensor real conectado (" + esc(cfg.MQTT_URL) + ")");
         try { this.ws.send(this.pkSubscribe()); } catch {}
         this.pingTimer = setInterval(() => { try { if (this.ws && this.ws.readyState === 1) this.ws.send(Uint8Array.from([0xC0, 0])); } catch {} }, 25000);
       } else this.estado("el broker rechazó la conexión (código " + cuerpo[1] + ")", false);
     } else if (tipo === 3) { // PUBLISH
+      if (cuerpo.length < 2) return;
       const tl = (cuerpo[0] << 8) | cuerpo[1];
-      const topic = new TextDecoder().decode(cuerpo.slice(2, 2 + tl));
-      const payload = new TextDecoder().decode(cuerpo.slice(2 + tl));
-      this.medida(topic, payload);
+      let off = 2 + tl;
+      if (off > cuerpo.length) return;                                  // longitud de topic mentirosa: descarta
+      const topic = new TextDecoder().decode(cuerpo.slice(2, off));
+      if (qos > 0) {                                                     // QoS≥1: saltar el packet id y confirmar
+        if (off + 2 > cuerpo.length) return;
+        const id = [cuerpo[off], cuerpo[off + 1]]; off += 2;
+        if (qos === 1) { try { this.ws.send(this.pk(0x40, Uint8Array.from(id))); } catch {} }   // PUBACK
+      }
+      this.medida(topic, new TextDecoder().decode(cuerpo.slice(off)));
     }
   },
   medida(topic, payload) {
     let nivel = null;
-    const txt = payload.trim();
+    const txt = String(payload).slice(0, 512).trim();
     try {
       const j = JSON.parse(txt);
       if (typeof j === "number") nivel = j;
@@ -765,10 +845,13 @@ const MQTT = {
         }
       }
     } catch { const n = parseFloat(txt); if (!isNaN(n)) nivel = n; }
-    if (nivel === null) return;
-    if (nivel <= 1 && nivel >= 0) nivel *= 100; // señales normalizadas 0-1
+    if (typeof nivel !== "number" || !Number.isFinite(nivel)) return;
+    if (nivel > 0 && nivel < 1) nivel *= 100;   // solo se reescala lo que es claramente 0-1 (un "1" entero es un 1 real)
+    S.ultimaMedida = Date.now();
+    // Nombre de zona por LISTA BLANCA de caracteres y con tope de longitud: nunca puede contener HTML/comillas.
     const partes = topic.split("/").filter(Boolean);
-    let zona = partes.length >= 2 ? partes[1] : (partes[0] || "Sensor");
+    let zona = (partes.length >= 2 ? partes[1] : (partes[0] || "Sensor"));
+    zona = zona.replace(/[^\p{L}\p{N} _.\-]/gu, "").trim().slice(0, 24) || "Sensor";
     zona = zona.charAt(0).toUpperCase() + zona.slice(1);
     tocarZona(zona, nivel);
   }
@@ -859,14 +942,21 @@ $("#btn-silenciar").addEventListener("click", silenciarAlarma);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && S.alarma) silenciarAlarma(); });
 
 /* Registro */
+// Cada celda se neutraliza contra inyección de fórmulas (Excel/Sheets/LibreOffice) y se entrecomilla (RFC 4180).
+function celdaCSV(v) {
+  let s = String(v == null ? "" : v);
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  s = s.replace(/[\r\n]+/g, " ");
+  return '"' + s.replace(/"/g, '""') + '"';
+}
 $("#btn-export").addEventListener("click", () => {
   try {
     const filas = [["fecha", "hora", "tipo", "zona", "nivel", "detalle"]];
     S.eventos.slice().reverse().forEach((e) => {
       const d = new Date(e.t);
-      filas.push([d.toLocaleDateString("es-ES"), d.toLocaleTimeString("es-ES"), e.tipo, e.zona, e.nivel, (e.msg || "").replace(/;/g, ",")]);
+      filas.push([d.toLocaleDateString("es-ES"), d.toLocaleTimeString("es-ES"), e.tipo, e.zona, e.nivel, e.msg || ""]);
     });
-    const csv = "﻿" + filas.map((f) => f.join(";")).join("\n");
+    const csv = "﻿" + filas.map((f) => f.map(celdaCSV).join(";")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url; a.download = "centinela-registro.csv";
@@ -883,13 +973,20 @@ $("#btn-borrar-si").addEventListener("click", () => {
   try { $("#btn-borrar").focus(); } catch {}
 });
 
-/* Admin: puerta */
-function intentarEntrar() {
+/* Admin: puerta — compara por HASH, la clave nunca se guarda en claro; con freno de intentos */
+let intentosAdmin = 0;
+async function intentarEntrar() {
+  const err = $("#admin-err");
+  if (intentosAdmin >= 5) { err.textContent = "Demasiados intentos. Espera un momento."; err.classList.add("ver"); return; }
   const clave = $("#admin-pass").value;
-  if (clave && clave === cfg.ADMIN_PASSWORD) {
-    S.adminOk = true; $("#admin-err").classList.remove("ver"); $("#admin-pass").value = "";
+  const esperado = cfg.ADMIN_HASH || await hashClave(CONFIG.ADMIN_PASSWORD);
+  if (clave && (await hashClave(clave)) === esperado) {
+    intentosAdmin = 0; S.adminOk = true; err.classList.remove("ver"); $("#admin-pass").value = "";
     cargarFormAdmin(); render();
-  } else { $("#admin-err").classList.add("ver"); }
+  } else {
+    intentosAdmin++; setTimeout(() => { intentosAdmin = Math.max(0, intentosAdmin - 1); }, 60000);
+    err.textContent = "Clave incorrecta. Prueba otra vez."; err.classList.add("ver");
+  }
 }
 $("#btn-admin-entrar").addEventListener("click", intentarEntrar);
 $("#admin-pass").addEventListener("keydown", (e) => { if (e.key === "Enter") intentarEntrar(); });
@@ -915,20 +1012,25 @@ $("#cfg-notif").addEventListener("change", () => {
   } else { msg.textContent = cfg.NOTIF ? "Este navegador no soporta notificaciones." : "Avisos desactivados."; msg.classList.add("ver"); }
 });
 $("#btn-mqtt-conectar").addEventListener("click", () => {
-  cfg.MQTT_URL = $("#cfg-url").value.trim();
-  cfg.MQTT_TOPIC = $("#cfg-topic").value.trim() || "centinela/#";
-  cfg.MQTT_USER = $("#cfg-user").value.trim();
-  cfg.MQTT_PASS = $("#cfg-mqpass").value;
+  const url = $("#cfg-url").value.trim();
+  const msg = $("#mqtt-msg"); msg.classList.add("ver");
+  if (url && !/^wss?:\/\/[^\s"'<>\\]+$/.test(url)) { msg.textContent = "La dirección no es válida. Debe empezar por ws:// o wss:// y no contener espacios ni comillas."; return; }
+  cfg.MQTT_URL = url;
+  cfg.MQTT_TOPIC = ($("#cfg-topic").value.trim() || "centinela/#").slice(0, 128);
+  cfg.MQTT_USER = $("#cfg-user").value.trim().slice(0, 128);
+  cfg.MQTT_PASS = $("#cfg-mqpass").value.slice(0, 128);
   guardarCfg();
-  const msg = $("#mqtt-msg"); msg.textContent = "Guardado. Conectando…"; msg.classList.add("ver");
+  msg.textContent = /^ws:\/\//.test(url)
+    ? "Guardado. Conectando… ⚠️ Con ws:// el usuario y la contraseña del broker viajan sin cifrar por tu red local; usa wss:// si tu broker lo permite."
+    : "Guardado. Conectando…";
   MQTT.conectar();
 });
 $("#btn-mqtt-desconectar").addEventListener("click", () => { MQTT.desconectar(true); const msg = $("#mqtt-msg"); msg.textContent = "Desconectado: la app vuelve a la simulación."; msg.classList.add("ver"); });
 
-$("#btn-pass-guardar").addEventListener("click", () => {
+$("#btn-pass-guardar").addEventListener("click", async () => {
   const p1 = $("#cfg-pass1").value, p2 = $("#cfg-pass2").value;
   const okEl = $("#pass-msg"), errEl = $("#pass-err");
-  if (p1 && p1 === p2) { cfg.ADMIN_PASSWORD = p1; guardarCfg(); okEl.textContent = "Clave cambiada ✓"; okEl.classList.add("ver"); errEl.classList.remove("ver"); $("#cfg-pass1").value = ""; $("#cfg-pass2").value = ""; }
+  if (p1 && p1 === p2) { cfg.ADMIN_HASH = await hashClave(p1); guardarCfg(); okEl.textContent = "Clave cambiada ✓"; okEl.classList.add("ver"); errEl.classList.remove("ver"); $("#cfg-pass1").value = ""; $("#cfg-pass2").value = ""; }
   else { errEl.classList.add("ver"); okEl.classList.remove("ver"); }
 });
 
@@ -958,14 +1060,29 @@ try {
 /* ═══════════ Arranque ═══════════ */
 document.title = cfg.APP_NAME + " · Vigila tu casa con la señal Wi-Fi";
 const logoNombre = document.querySelector(".logo-nombre"); if (logoNombre) logoNombre.textContent = cfg.APP_NAME;
-$("#firma").innerHTML = "Diseñado por " + (cfg.STUDIO_URL ? `<a href="${cfg.STUDIO_URL}" rel="noopener">${cfg.STUDIO_BRAND}</a>` : cfg.STUDIO_BRAND) + " · por " + cfg.STUDIO_AUTHOR;
+// Firma sin innerHTML: los textos del estudio se insertan como texto y el enlace solo si es http(s).
+(() => {
+  const fir = $("#firma"); if (!fir) return;
+  fir.textContent = "Diseñado por ";
+  if (/^https?:\/\//i.test(String(CONFIG.STUDIO_URL || ""))) {
+    const a = document.createElement("a");
+    a.href = CONFIG.STUDIO_URL; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = String(CONFIG.STUDIO_BRAND);
+    fir.appendChild(a);
+  } else fir.appendChild(document.createTextNode(String(CONFIG.STUDIO_BRAND)));
+  fir.appendChild(document.createTextNode(" · por " + String(CONFIG.STUDIO_AUTHOR)));
+})();
 
-ZONAS_SIM.forEach((z) => tocarZona(z, 0));
-pintarZonas();
-pintarFeeds();
-pintarEstado();
+// El router se monta SIEMPRE, aunque un dato corrupto reviente el pintado (la app nunca queda en blanco).
+try { ZONAS_SIM.forEach((z) => tocarZona(z, 0)); pintarZonas(); pintarFeeds(); pintarEstado(); } catch (e) { console.error(e); }
 render();
-setInterval(() => { if (document.hidden) return; tickSim(); refrescarZonas(); pintarEstado(); try { dibujarSpark(); } catch {} }, 700);
+setInterval(() => {
+  if (document.hidden) return;
+  try {
+    tickSim(); refrescarZonas(); pintarEstado(); dibujarSpark();
+    // Vigilante de silencio: si dice "sensor real" pero no llega ninguna medida en 60 s, avisa (no mentir "conectado").
+    if (S.fuente === "mqtt" && S.ultimaMedida && Date.now() - S.ultimaMedida > 60000) { MQTT.estado("conectado, pero el sensor no envía datos (¿apagado?)", true); S.ultimaMedida = Date.now(); }
+  } catch (e) { console.error(e); }
+}, 700);
 animar();
 if (cfg.MQTT_URL) MQTT.conectar();
 </script>
