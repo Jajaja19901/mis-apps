@@ -29,7 +29,7 @@ const CONFIG = {
   MQTT_URL: "",                         // ej. "ws://192.168.1.50:9001"
   MQTT_USER: "",                        // usuario del broker (si tiene)
   MQTT_PASS: "",                        // contraseña del broker (si tiene)
-  MQTT_TOPIC: "centinela/#",            // topic al que publican tus sensores
+  MQTT_TOPIC: "home/espectre/#",        // topic de tus sensores (el que trae ESPectre de fábrica)
 
   SENSIBILIDAD: 60,                     // umbral de movimiento 0-100 (más bajo = más sensible)
   DURACION_SIRENA_S: 20,                // segundos que suena la sirena
@@ -309,21 +309,34 @@ const CONFIG = {
           </div></div>
           <div class="paso"><span class="num">4</span><div>
             <h3>Apunta el sensor al buzón</h3>
-            <p>En la configuración de ESPectre indica la IP de tu broker y un topic tipo <code>centinela/salon</code> (una palabra por habitación: así la app pinta cada zona). El sensor publicará el nivel de movimiento varias veces por segundo.</p>
+            <p>En la configuración de ESPectre indica la IP de tu broker. ESPectre publica de fábrica en <code>home/espectre/node1</code>: el último tramo (<code>node1</code>) es el nombre que verás como zona, así que ponle el de la habitación (<code>home/espectre/salon</code>). Si tienes varias placas, una por habitación.</p>
           </div></div>
           <div class="paso"><span class="num">5</span><div>
             <h3>Conecta esta app</h3>
-            <p>Entra en <a href="#/admin">Ajustes</a>, pon la dirección <code>ws://IP-de-tu-broker:9001</code> y el topic <code>centinela/#</code>, y pulsa «Guardar y conectar». El chip de Inicio pasará de «Simulación» a <strong>«Sensor real conectado»</strong> y el radar empezará a pintar tu casa de verdad.</p>
+            <p>Entra en <a href="#/admin">Ajustes</a>, pon la dirección <code>ws://IP-de-tu-broker:9001</code> y el topic <code>home/espectre/#</code>, y pulsa «Guardar y conectar». El chip de Inicio pasará de «Simulación» a <strong>«Sensor real conectado»</strong> y el radar empezará a pintar tu casa de verdad.</p>
           </div></div>
         </div>
 
         <div class="nota"><b>Honestidad ante todo:</b> sin el sensor, esta app muestra una simulación (y lo dice en pantalla). Ningún programa puede leer el CSI del Wi-Fi desde el navegador: hace falta ese hardware de ~10&nbsp;€. La detección por Wi-Fi ve <strong>movimiento y presencia</strong>, no identifica <em>quién</em> es.</div>
+
+        <h2 style="font-size:19px;margin:22px 0 10px">¿Puedo usar mi móvil como sensor?</h2>
+        <div class="card prosa">
+          <p><strong>Como detector, no.</strong> Y conviene explicarlo bien, porque es la pregunta que hace todo el mundo.</p>
+          <h3>Compartir Wi-Fi no es detectar</h3>
+          <p>El «compartir Wi-Fi» del móvil solo reparte tu conexión a otros aparatos. No mide nada. Detectar personas exige leer los datos finos de la señal (el CSI), y <strong>ni Android ni el iPhone se los dan a una app</strong>. Desde el navegador, donde vive esta app, es imposible del todo.</p>
+          <h3>Y aunque pudiera: un detector tiene que estar quieto</h3>
+          <p>Quizá pienses en el radar de un barco, que funciona en movimiento. Pero un radar y esto no son lo mismo. El radar <em>grita y escucha su propio eco</em>: mide distancia y dirección, y como sabe su rumbo y velocidad puede restar su propio movimiento. Este sensor no mide ni distancia ni dirección: solo nota que la señal de la habitación es <em>un pelín</em> distinta a como era hace un segundo. Es como vigilar las sombras de una habitación: si tú estás quieto, cazas la sombra que se mueve; si te mueves tú, se mueven todas a la vez y ya no distingues nada.</p>
+          <h3>Para qué SÍ sirve tu móvil</h3>
+          <p>Para lo importante del día a día: <strong>ver esta app y recibir la alarma</strong> estés donde estés. Ese es su papel.</p>
+          <div class="nota"><b>Un matiz útil:</b> la placa sí necesita conectarse a una red Wi-Fi de 2,4 GHz para trabajar. Normalmente será tu router. En teoría podría conectarse al «compartir Wi-Fi» de un móvil viejo dejado fijo y enchufado, pero es mala idea: gasta batería, el hotspot se apaga solo y si mueves el móvil se estropea la medición. <strong>Usa tu router.</strong></div>
+        </div>
 
         <h2 style="font-size:19px;margin:22px 0 4px">Qué opción elegir</h2>
         <div style="overflow-x:auto"><table class="tabla">
           <thead><tr><th scope="col">Opción</th><th scope="col">Coste</th><th scope="col">Qué detecta</th><th scope="col">Dificultad</th></tr></thead>
           <tbody>
             <tr><td>Simulación (esta app sola)</td><td>0 €</td><td>Nada real — demostración</td><td>Ninguna</td></tr>
+            <tr><td>Solo tu móvil</td><td>0 €</td><td>Nada — no puede leer la señal</td><td>Descartada</td></tr>
             <tr><td>1× ESP32 + ESPectre</td><td>~10 €</td><td>Movimiento y presencia en una zona</td><td>Baja</td></tr>
             <tr><td>3× ESP32 en malla</td><td>~30 €</td><td>Varias habitaciones, más fiable</td><td>Media</td></tr>
             <tr><td>RuView (malla avanzada)</td><td>~54 €</td><td>Presencia, pose, respiración, caídas</td><td>Alta</td></tr>
@@ -379,7 +392,7 @@ const CONFIG = {
               <input type="text" id="cfg-url" inputmode="url" placeholder="ws://192.168.1.50:9001">
               <span class="ayuda">La IP del ordenador donde corre Mosquitto, puerto WebSocket (paso 3 de la guía).</span>
             </div>
-            <div class="field"><label for="cfg-topic">Topic de los sensores</label><input type="text" id="cfg-topic" placeholder="centinela/#"></div>
+            <div class="field"><label for="cfg-topic">Topic de los sensores</label><input type="text" id="cfg-topic" placeholder="home/espectre/#"></div>
             <div class="grid g2">
               <div class="field"><label for="cfg-user">Usuario (opcional)</label><input type="text" id="cfg-user" autocomplete="off"></div>
               <div class="field"><label for="cfg-mqpass">Contraseña (opcional)</label><input type="password" id="cfg-mqpass" autocomplete="off"></div>
@@ -485,6 +498,8 @@ const CONFIG = {
    "steps":[{"goto":"#/guia"},{"expect":"ESP32"},{"expect":"ESPectre"},{"expect":"Mosquitto"}]},
   {"name":"Cómo funciona explica el CSI y la página legal pide consentimiento",
    "steps":[{"goto":"#/tecnologia"},{"expect":"CSI"},{"goto":"#/legal"},{"expect":"consentimiento"}]},
+  {"name":"La guía responde si se puede usar el móvil como sensor",
+   "steps":[{"goto":"#/guia"},{"expect":"¿Puedo usar mi móvil como sensor?"},{"expect":"Compartir Wi-Fi no es detectar"},{"expect":"recibir la alarma"}]},
   {"name":"Con un sensor configurado que no responde, la portada lo dice y no finge estar conectada",
    "steps":[{"goto":"#/admin"},{"fill":{"sel":"#admin-pass","value":"centinela123"}},{"click":"#btn-admin-entrar"},
             {"fill":{"sel":"#cfg-url","value":"ws://127.0.0.1:9/nada"}},{"click":"#btn-mqtt-conectar"},{"wait":600},
@@ -851,25 +866,47 @@ const MQTT = {
       this.medida(topic, new TextDecoder().decode(cuerpo.slice(off)));
     }
   },
+  // Traduce el mensaje del sensor a un nivel 0-100. Entiende el formato real de ESPectre
+  // ({"movement":0.0234,"threshold":1.0,"state":"idle"}), números sueltos y otros campos comunes.
   medida(topic, payload) {
-    let nivel = null;
+    let nivel = null, movimiento = null, umbral = null, estado = null;
     const txt = String(payload).slice(0, 512).trim();
     try {
       const j = JSON.parse(txt);
       if (typeof j === "number") nivel = j;
       else if (j && typeof j === "object") {
-        for (const k of ["movement", "motion", "level", "nivel", "variance", "value", "presence"]) {
-          if (typeof j[k] === "number") { nivel = j[k]; break; }
-          if (typeof j[k] === "boolean") { nivel = j[k] ? 100 : 0; break; }
+        if (typeof j.movement === "number") movimiento = j.movement;
+        if (typeof j.threshold === "number" && j.threshold > 0) umbral = j.threshold;
+        if (typeof j.state === "string") estado = j.state.toLowerCase();
+        if (movimiento === null) {
+          for (const k of ["motion", "level", "nivel", "variance", "value", "presence", "occupancy"]) {
+            if (typeof j[k] === "number") { movimiento = j[k]; break; }
+            if (typeof j[k] === "boolean") { nivel = j[k] ? 100 : 0; break; }
+          }
         }
       }
     } catch { const n = parseFloat(txt); if (!isNaN(n)) nivel = n; }
+
+    if (movimiento !== null && Number.isFinite(movimiento)) {
+      // Con umbral propio del sensor: lo escalamos para que "movimiento = umbral" caiga justo en TU sensibilidad.
+      // Así la alarma salta exactamente cuando el sensor dice que hay movimiento, sea cual sea su escala.
+      if (umbral) nivel = Math.min(100, (movimiento / umbral) * cfg.SENSIBILIDAD);
+      else nivel = movimiento > 0 && movimiento < 1 ? movimiento * 100 : movimiento;
+    } else if (typeof nivel === "number" && nivel > 0 && nivel < 1) {
+      nivel *= 100;                              // número suelto en escala 0-1 (0.42 → 42)
+    }
+    // Si el sensor manda su propio veredicto en palabras, ese manda sobre el número.
+    if (estado) {
+      if (/motion|active|detected|occupied|present|movimiento/.test(estado)) nivel = Math.max(Number.isFinite(nivel) ? nivel : 0, cfg.SENSIBILIDAD);
+      else if (/idle|clear|none|empty|vacant|quiet/.test(estado) && movimiento === null) nivel = 0;
+    }
     if (typeof nivel !== "number" || !Number.isFinite(nivel)) return;
-    if (nivel > 0 && nivel < 1) nivel *= 100;   // solo se reescala lo que es claramente 0-1 (un "1" entero es un 1 real)
     S.ultimaMedida = Date.now();
-    // Nombre de zona por LISTA BLANCA de caracteres y con tope de longitud: nunca puede contener HTML/comillas.
+    // Nombre de zona: el ÚLTIMO tramo del topic (home/espectre/node1 → "Node1", centinela/salon → "Salon"),
+    // saltando sufijos genéricos. Lista blanca de caracteres: nunca puede contener HTML ni comillas.
     const partes = topic.split("/").filter(Boolean);
-    let zona = (partes.length >= 2 ? partes[1] : (partes[0] || "Sensor"));
+    let zona = partes[partes.length - 1] || "Sensor";
+    if (/^(state|status|movement|motion|level|value|sensor|data|json)$/i.test(zona) && partes.length > 1) zona = partes[partes.length - 2];
     zona = zona.replace(/[^\p{L}\p{N} _.\-]/gu, "").trim().slice(0, 24) || "Sensor";
     zona = zona.charAt(0).toUpperCase() + zona.slice(1);
     tocarZona(zona, nivel);
@@ -1035,7 +1072,7 @@ $("#btn-mqtt-conectar").addEventListener("click", () => {
   const msg = $("#mqtt-msg"); msg.classList.add("ver");
   if (url && !/^wss?:\/\/[^\s"'<>\\]+$/.test(url)) { msg.textContent = "La dirección no es válida. Debe empezar por ws:// o wss:// y no contener espacios ni comillas."; return; }
   cfg.MQTT_URL = url;
-  cfg.MQTT_TOPIC = ($("#cfg-topic").value.trim() || "centinela/#").slice(0, 128);
+  cfg.MQTT_TOPIC = ($("#cfg-topic").value.trim() || "home/espectre/#").slice(0, 128);
   cfg.MQTT_USER = $("#cfg-user").value.trim().slice(0, 128);
   cfg.MQTT_PASS = $("#cfg-mqpass").value.slice(0, 128);
   guardarCfg();
