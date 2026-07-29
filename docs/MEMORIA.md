@@ -3,6 +3,12 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-07-29 — Web mejorada para JUCIL (asociación Guardia Civil)
+- Qué se hizo: `apps/jucil.html`, web/embudo completa a partir del PDF de servicios de PREAM 2024 + referencia jucil.es. Un solo HTML autocontenido: 11 pantallas, embudo de afiliación en 3 pasos con RGPD, panel de gestión #/admin (noticias/medios/ventajas/leads + export CSV + logo + ajustes), PWA, política de privacidad. Pipeline completo de los 10 agentes. Verificador ✅ APTO (19/19); QA ✅ 56/56 criterios; revisores aplicados (0 XSS, 115 KB, WCAG AA con 7 bloqueantes corregidos).
+- Archivos tocados: `apps/jucil.html` (nuevo), `docs/MEMORIA.md`.
+- Pendiente / siguiente paso: el usuario valora enriquecer visualmente la demo (FAQ, galería, "quiénes somos"). Fase 2 (área privada real + foro + nube) presupuestada aparte. Presupuestos generados en scratchpad (no en repo): implantación 20.000 € base + IGIC = 21.400 € (Nº 2026-JUCIL-03), recurrentes a cargo de JUCIL.
+- Datos a confirmar con el cliente: teléfono/WhatsApp/dirección, titular legal + NIF + nº registro + email RGPD (política), logotipo oficial (hoy emblema SVG recreado), contenidos reales, cuota y trámite tras el alta. ADMIN_PASSWORD provisional "jucil-2026".
+
 ## 2026-07-19 — Vídeo demo en la portada de Incuba tu Negocio
 - Qué se hizo: vídeo demo del producto (32s, MP4 1080p): la app peluqueria-aurora navegada de verdad (Playwright) dentro de un móvil flotante, narrador es-ES (Piper davefx via sherpa-onnx), música y efectos generados con numpy, rótulos y subtítulos (Remotion). Integrado en la PORTADA de apps/incuba-tu-negocio.html (tras el subtítulo, antes de la incubadora). Verificador: ✅ APTO.
 - Archivos tocados: apps/incuba-tu-negocio.html, apps/incuba-demo.mp4 (nuevo), apps/incuba-demo-poster.jpg (nuevo). Fuentes del vídeo en scratchpad de la sesión (video-incuba/).
