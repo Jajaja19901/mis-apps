@@ -4,8 +4,8 @@
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
 ## 2026-07-29 — Web mejorada para JUCIL (asociación Guardia Civil)
-- Qué se hizo: `apps/jucil.html`, web/embudo completa a partir del PDF de servicios de PREAM 2024 + referencia jucil.es. Un solo HTML autocontenido: 11 pantallas, embudo de afiliación en 3 pasos con RGPD, panel de gestión #/admin (noticias/medios/ventajas/leads + export CSV + logo + ajustes), PWA, política de privacidad. Pipeline completo de los 10 agentes. Verificador ✅ APTO (19/19); QA ✅ 56/56 criterios; revisores aplicados (0 XSS, 115 KB, WCAG AA con 7 bloqueantes corregidos).
-- Archivos tocados: `apps/jucil.html` (nuevo), `docs/MEMORIA.md`.
+- Qué se hizo: `apps/jucil.html`, web/embudo completa a partir del PDF de servicios de PREAM 2024 + referencia jucil.es. Un solo HTML autocontenido: 11 pantallas, embudo de afiliación en 3 pasos con RGPD, panel de gestión #/admin (noticias/medios/ventajas/leads + export CSV + logo + ajustes), PWA, política de privacidad. Pipeline completo de los 10 agentes. Verificador ✅ APTO (19/19); QA ✅ 56/56 criterios; revisores aplicados (0 XSS, 115 KB, WCAG AA con 7 bloqueantes corregidos). ADEMÁS `apps/jucil-area-privada.html` (Fase 2): área privada de afiliados (login demo 12345/socio2026), avisos, documentos/nube, foro con temas+respuestas, panel gestor #/admin (jucil-2026). Verificador ✅ APTO (7/7). Avisa de que en producción requiere servidor+BBDD.
+- Archivos tocados: `apps/jucil.html` (nuevo), `apps/jucil-area-privada.html` (nuevo), `docs/MEMORIA.md`.
 - Pendiente / siguiente paso: el usuario valora enriquecer visualmente la demo (FAQ, galería, "quiénes somos"). Fase 2 (área privada real + foro + nube) presupuestada aparte. Presupuestos generados en scratchpad (no en repo): implantación 20.000 € base + IGIC = 21.400 € (Nº 2026-JUCIL-03), recurrentes a cargo de JUCIL.
 - Datos a confirmar con el cliente: teléfono/WhatsApp/dirección, titular legal + NIF + nº registro + email RGPD (política), logotipo oficial (hoy emblema SVG recreado), contenidos reales, cuota y trámite tras el alta. ADMIN_PASSWORD provisional "jucil-2026".
 
