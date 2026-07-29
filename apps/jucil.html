@@ -1163,7 +1163,110 @@ function adminBodyHTML() {
     '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">' +
     '<button id="btnBorrarDemo" class="btn btn-outline btn-sm">Borrar contenidos de ejemplo</button>' +
     '<button id="btnExportJson" class="btn btn-outline btn-sm">Descargar copia de seguridad (JSON)</button>' +
-    '<button id="btnBorrarTodo" class="btn btn-danger btn-sm">Borrar TODOS los datos</button></div></div>';
+    '<button id="btnBorrarTodo" class="btn btn-danger btn-sm">Borrar TODOS los datos</button></div>' +
+    '<h3 style="margin:22px 0 6px">Importar contenido</h3>' +
+    '<p class="nota">Carga aquí, de golpe, el contenido migrado de la web actual. Acepta el archivo de exportación de WordPress (.xml) o un CSV de noticias, y un CSV de afiliados. En la versión publicada, esto mismo carga cientos de noticias o miles de afiliados en segundos.</p>' +
+    '<div class="card" style="margin-top:10px">' +
+    '<div class="field"><label for="impNoticias"><b>Noticias</b> — exportación de WordPress (.xml) o CSV (columnas: titulo, resumen, cuerpo, categoria, fecha)</label>' +
+    '<input type="file" id="impNoticias" accept=".xml,.csv,text/xml,text/csv" aria-label="Importar noticias"></div>' +
+    '<div class="field" style="margin-bottom:0"><label for="impAfiliados"><b>Afiliados</b> — CSV (columnas: num, clave, nombre, empleo, provincia)</label>' +
+    '<input type="file" id="impAfiliados" accept=".csv,text/csv" aria-label="Importar afiliados"></div>' +
+    '<div id="importMsg" class="msg-ok" hidden></div></div></div>';
+}
+
+/* ============================ importación de contenido ============================ */
+function parseCSV(texto) {
+  const filas = [];
+  let campo = "", fila = [], enComillas = false;
+  const s = String(texto).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (enComillas) {
+      if (c === '"') { if (s[i + 1] === '"') { campo += '"'; i++; } else enComillas = false; }
+      else campo += c;
+    } else {
+      if (c === '"') enComillas = true;
+      else if (c === "," || c === ";") { fila.push(campo); campo = ""; }
+      else if (c === "\n") { fila.push(campo); filas.push(fila); fila = []; campo = ""; }
+      else campo += c;
+    }
+  }
+  if (campo !== "" || fila.length) { fila.push(campo); filas.push(fila); }
+  return filas.filter(f => f.some(x => String(x).trim() !== ""));
+}
+function importarNoticias(file) {
+  const lector = new FileReader();
+  lector.onerror = () => setMsg("#importMsg", "No se ha podido leer el archivo.");
+  lector.onload = () => {
+    let nuevos = [];
+    const txt = String(lector.result || "");
+    try {
+      if (/\.xml$/i.test(file.name) || /<rss|<\?xml/i.test(txt.slice(0, 200))) {
+        const dom = new DOMParser().parseFromString(txt, "text/xml");
+        const items = dom.getElementsByTagName("item");
+        for (let i = 0; i < items.length; i++) {
+          const it = items[i];
+          const g = (tag) => { const el = it.getElementsByTagName(tag)[0]; return el ? el.textContent : ""; };
+          const tipo = g("wp:post_type");
+          if (tipo && tipo !== "post") continue;
+          const titulo = lim(g("title"), 200);
+          const cuerpo = lim(String(g("content:encoded") || g("description") || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " "), 6000);
+          if (titulo.length < 3) continue;
+          const cats = it.getElementsByTagName("category");
+          let categoria = "Actualidad";
+          for (let j = 0; j < cats.length; j++) { const d = cats[j].getAttribute("domain"); if (d === "category") { categoria = cats[j].textContent || categoria; break; } }
+          nuevos.push({ id: uid("n"), titulo: titulo, resumen: lim(cuerpo, 200), cuerpo: cuerpo, categoria: ["Comunicado","Actualidad","Servicios","Contencioso","Prensa"].includes(categoria) ? categoria : "Actualidad", fecha: "", publicada: true, demo: false, creado: nowISO(), actualizado: nowISO() });
+        }
+      } else {
+        const filas = parseCSV(txt);
+        if (!filas.length) { setMsg("#importMsg", "El CSV está vacío."); return; }
+        const cab = filas[0].map(x => norm(x).trim());
+        const idx = (n) => cab.indexOf(n);
+        const iT = idx("titulo"), iR = idx("resumen"), iC = idx("cuerpo"), iCat = idx("categoria"), iF = idx("fecha");
+        if (iT < 0) { setMsg("#importMsg", 'El CSV de noticias necesita una columna "titulo".'); return; }
+        for (let r = 1; r < filas.length; r++) {
+          const f = filas[r];
+          const titulo = lim(f[iT] || "", 200);
+          if (titulo.length < 3) continue;
+          const cuerpo = lim((iC >= 0 ? f[iC] : "") || (iR >= 0 ? f[iR] : "") || titulo, 6000);
+          nuevos.push({ id: uid("n"), titulo: titulo, resumen: lim((iR >= 0 ? f[iR] : "") || cuerpo, 200), cuerpo: cuerpo, categoria: (iCat >= 0 && ["Comunicado","Actualidad","Servicios","Contencioso","Prensa"].includes(f[iCat]) ? f[iCat] : "Actualidad"), fecha: iF >= 0 ? lim(f[iF], 10) : "", publicada: true, demo: false, creado: nowISO(), actualizado: nowISO() });
+        }
+      }
+    } catch (e) { setMsg("#importMsg", "El archivo no tiene un formato reconocible."); return; }
+    if (!nuevos.length) { setMsg("#importMsg", "No se han encontrado noticias en el archivo."); return; }
+    const arr = getNoticias().concat(nuevos);
+    if (!store.set(K.noticias, arr)) { setMsg("#importMsg", "No se han podido guardar (almacenamiento lleno)."); return; }
+    refrescarAdmin();
+    setMsg("#importMsg", nuevos.length + " noticia(s) importada(s) correctamente.");
+  };
+  try { lector.readAsText(file); } catch (e) { setMsg("#importMsg", "No se ha podido leer el archivo."); }
+}
+function importarAfiliados(file) {
+  const lector = new FileReader();
+  lector.onerror = () => setMsg("#importMsg", "No se ha podido leer el archivo.");
+  lector.onload = () => {
+    let nuevos = [];
+    try {
+      const filas = parseCSV(String(lector.result || ""));
+      if (!filas.length) { setMsg("#importMsg", "El CSV está vacío."); return; }
+      const cab = filas[0].map(x => norm(x).trim());
+      const idx = (n) => cab.indexOf(n);
+      const iN = idx("num"), iC = idx("clave"), iNom = idx("nombre"), iE = idx("empleo"), iP = idx("provincia");
+      if (iN < 0 || iNom < 0) { setMsg("#importMsg", 'El CSV de afiliados necesita al menos las columnas "num" y "nombre".'); return; }
+      for (let r = 1; r < filas.length; r++) {
+        const f = filas[r];
+        const num = lim(f[iN] || "", 20);
+        if (!num) continue;
+        nuevos.push({ num: num, clave: lim(iC >= 0 ? f[iC] : "", 60), nombre: lim(f[iNom] || "", 120), empleo: lim(iE >= 0 ? f[iE] : "", 60), provincia: lim(iP >= 0 ? f[iP] : "", 60), alta: nowISO(), demo: false });
+      }
+    } catch (e) { setMsg("#importMsg", "El archivo no tiene un formato reconocible."); return; }
+    if (!nuevos.length) { setMsg("#importMsg", "No se han encontrado afiliados en el archivo."); return; }
+    const arr = getAfil().concat(nuevos);
+    if (!store.set(K.afil, arr)) { setMsg("#importMsg", "No se han podido guardar (almacenamiento lleno)."); return; }
+    refrescarAdmin();
+    setMsg("#importMsg", nuevos.length + " afiliado(s) importado(s) correctamente.");
+  };
+  try { lector.readAsText(file); } catch (e) { setMsg("#importMsg", "No se ha podido leer el archivo."); }
 }
 
 function leadCard(l) {
@@ -1765,6 +1868,8 @@ document.addEventListener("change", (e) => {
   if (t.id === "filtroCategoria") { catNoticias = t.value === "Todas las categorías" ? "" : t.value; const l = $("#listaNoticias"); if (l) l.innerHTML = listaNoticiasHTML(); return; }
   if (t.id === "filtroLeads") { filtroLeadsVal = t.value; refrescarAdmin(); return; }
   if (t.id === "inputLogo") { procesarLogo(t.files && t.files[0]); return; }
+  if (t.id === "impNoticias") { if (t.files && t.files[0]) importarNoticias(t.files[0]); return; }
+  if (t.id === "impAfiliados") { if (t.files && t.files[0]) importarAfiliados(t.files[0]); return; }
   if (t.classList && t.classList.contains("lead-estado")) {
     const id = t.getAttribute("data-id");
     const arr = getLeads();
