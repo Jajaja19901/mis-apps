@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'; manifest-src blob:">
 <title>JUCIL — Únete a JUCIL y fortalece la Guardia Civil</title>
 <meta name="description" content="Asociación profesional mayoritaria de la Guardia Civil. Equiparación salarial, jubilación digna y defensa de tus derechos. Afíliate en menos de 2 minutos.">
 <meta name="robots" content="noindex">
@@ -21,7 +22,7 @@
 :root{
   --verde-900:#0B2E17;--verde-800:#0F3D1F;--verde-700:#14532D;--verde-600:#1B6B3A;
   --verde-vivo:#00A200;--dorado:#C9A227;--dorado-claro:#E5C55B;--dorado-osc:#A88418;
-  --tinta:#1C2420;--tinta-suave:#49544E;--fondo:#F6F8F5;--panel:#FFFFFF;--linea:#D8DFD9;
+  --tinta:#1C2420;--tinta-suave:#49544E;--fondo:#F6F8F5;--panel:#FFFFFF;--linea:#D8DFD9;--linea-fuerte:#6E7A72;
   --error:#B3261E;--error-bg:#FBEDEC;--ok:#1B6B3A;--ok-bg:#E7F0E9;
   --sombra:0 1px 3px rgba(11,46,23,.08);--sombra-2:0 8px 28px rgba(11,46,23,.16);
   --serif:Georgia,"Times New Roman",serif;
@@ -34,8 +35,9 @@ img,svg{max-width:100%;display:block}
 a{color:var(--verde-600)}
 h1,h2,h3{font-family:var(--serif);color:var(--verde-900);line-height:1.25}
 h1{font-size:28px}h2{font-size:22px}h3{font-size:18px}
-main:focus,h1:focus{outline:none}
-:focus-visible{outline:2px solid var(--dorado);outline-offset:2px;border-radius:4px}
+main:focus{outline:none}
+main:focus-visible,h1:focus-visible{outline:2px solid var(--verde-700);outline-offset:4px;border-radius:4px}
+:focus-visible{outline:2px solid var(--verde-700);outline-offset:2px;border-radius:4px}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}html{scroll-behavior:auto}}
 #skip{position:absolute;left:-9999px;top:8px;background:var(--dorado);color:#143018;padding:10px 16px;border-radius:8px;z-index:60;font-weight:600;text-decoration:none}
 #skip:focus{left:8px}
@@ -95,8 +97,9 @@ a.card:hover{box-shadow:var(--sombra-2);border-color:var(--verde-600)}
 /* ---------- formularios ---------- */
 .field{margin-bottom:16px}
 .field label{display:block;font-weight:600;font-size:14.5px;margin-bottom:6px}
-.field input[type=text],.field input[type=email],.field input[type=tel],.field input[type=password],.field input[type=date],.field select,.field textarea{width:100%;padding:11px 12px;border:1.5px solid var(--linea);border-radius:8px;font-family:var(--sans);font-size:15.5px;background:#fff;color:var(--tinta)}
+.field input[type=text],.field input[type=email],.field input[type=tel],.field input[type=password],.field input[type=date],.field select,.field textarea{width:100%;padding:11px 12px;border:1.5px solid var(--linea-fuerte);border-radius:8px;font-family:var(--sans);font-size:15.5px;background:#fff;color:var(--tinta)}
 .field textarea{min-height:110px;resize:vertical}
+.field input::placeholder,.field textarea::placeholder{color:#5B6660;opacity:1}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--verde-600);outline:none;box-shadow:0 0 0 3px rgba(27,107,58,.15)}
 .field.invalid input,.field.invalid select,.field.invalid textarea{border-color:var(--error)}
 .check{display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;font-size:14.5px}
@@ -119,6 +122,7 @@ fieldset{border:none}
 legend{font-weight:600;font-size:14.5px;margin-bottom:8px}
 .radio{display:flex;gap:10px;align-items:center;padding:10px 12px;border:1.5px solid var(--linea);border-radius:8px;margin-bottom:8px;cursor:pointer;font-size:15px}
 .radio input{width:18px;height:18px;accent-color:var(--verde-600)}
+.radio:has(input:checked),.radio:focus-within{border-color:var(--verde-600);box-shadow:0 0 0 2px rgba(27,107,58,.2)}
 dl.resumen{margin:12px 0}
 dl.resumen div{display:flex;gap:8px;padding:5px 0;border-bottom:1px dashed var(--linea);font-size:14.5px}
 dl.resumen dt{font-weight:600;min-width:150px}
@@ -480,6 +484,7 @@ const $ = (s, r) => (r || document).querySelector(s);
 const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+const lim = (v, n) => String(v == null ? "" : v).trim().slice(0, n);
 const uid = (p) => (p || "x") + "_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const nowISO = () => new Date().toISOString();
 function fmtFecha(v) {
@@ -496,10 +501,11 @@ const store = {
   },
   set(k, v) {
     MEM[k] = v;
-    try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {}
+    try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; }
   },
   del(k) { delete MEM[k]; try { localStorage.removeItem(k); } catch (e) {} }
 };
+const arrOk = (v) => Array.isArray(v) ? v : [];
 const K = { meta: "jucil_v1_meta", noticias: "jucil_v1_noticias", leads: "jucil_v1_leads", medios: "jucil_v1_medios", ventajas: "jucil_v1_ventajas", ajustes: "jucil_v1_ajustes", logo: "jucil_v1_logo" };
 
 /* ============================ semilla inicial ============================ */
@@ -532,11 +538,11 @@ function seed() {
 }
 
 /* ============================ acceso a datos ============================ */
-const getNoticias = () => store.get(K.noticias, []);
-const getMedios = () => store.get(K.medios, []);
-const getVentajas = () => store.get(K.ventajas, []);
-const getLeads = () => store.get(K.leads, []);
-const getAjustes = () => store.get(K.ajustes, {});
+const getNoticias = () => arrOk(store.get(K.noticias, [])).filter(n => n && typeof n === "object");
+const getMedios = () => arrOk(store.get(K.medios, [])).filter(m => m && typeof m === "object");
+const getVentajas = () => arrOk(store.get(K.ventajas, [])).filter(v => v && typeof v === "object");
+const getLeads = () => arrOk(store.get(K.leads, [])).filter(l => l && typeof l === "object");
+const getAjustes = () => { const a = store.get(K.ajustes, {}); return (a && typeof a === "object" && !Array.isArray(a)) ? a : {}; };
 function cfg() {
   const a = getAjustes() || {};
   return {
@@ -554,7 +560,8 @@ const noticiasPublicas = () => ordenar(getNoticias().filter(n => n.publicada));
 
 /* ============================ emblema / logo ============================ */
 const EMBLEMA = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Emblema de JUCIL"><defs><radialGradient id="jl-g" cx="50%" cy="40%" r="68%"><stop offset="0%" stop-color="#2FA84F"/><stop offset="55%" stop-color="#14532D"/><stop offset="100%" stop-color="#07220F"/></radialGradient><linearGradient id="jl-r" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#E5C55B"/><stop offset="50%" stop-color="#C9A227"/><stop offset="100%" stop-color="#8C6D14"/></linearGradient><path id="jl-at" d="M 21 60 A 39 39 0 0 1 99 60"/><path id="jl-ab" d="M 24 70 A 38 38 0 0 0 96 70"/></defs><circle cx="60" cy="60" r="58" fill="url(#jl-r)"/><circle cx="60" cy="60" r="52" fill="#07220F"/><circle cx="60" cy="60" r="49.5" fill="url(#jl-g)" stroke="#C9A227" stroke-width="1.2"/><path d="M60 34c-3 0-5 2.4-5 5.4 0 2 .9 3.6 2.3 4.6l-6.8 4.4c-1.2.8-1.5 2.1-.9 3.2l3.1 5.4c.5.9 1.6 1.4 2.6 1.1l4.7-1.3 4.7 1.3c1 .3 2.1-.2 2.6-1.1l3.1-5.4c.6-1.1.3-2.4-.9-3.2L62.7 44c1.4-1 2.3-2.6 2.3-4.6 0-3-2-5.4-5-5.4z" fill="#74D98C" opacity=".22"/><text font-family="Georgia, serif" font-size="12.5" font-weight="700" fill="#E5C55B" letter-spacing="3"><textPath href="#jl-at" startOffset="50%" text-anchor="middle">JUSTICIA</textPath></text><text x="60" y="67" font-family="Georgia, serif" font-size="25" font-weight="700" fill="#FFFFFF" letter-spacing="1.5" text-anchor="middle">JUCIL</text><g><rect x="46" y="72.5" width="28" height="1.5" fill="#C60B1E"/><rect x="46" y="74" width="28" height="2" fill="#FFC400"/><rect x="46" y="76" width="28" height="1.5" fill="#C60B1E"/></g><text font-family="Georgia, serif" font-size="8.5" font-weight="700" fill="#E5C55B" letter-spacing="1.8"><textPath href="#jl-ab" startOffset="50%" text-anchor="middle">GUARDIA CIVIL</textPath></text></svg>';
-const getLogo = () => store.get(K.logo, "");
+const LOGO_OK = /^data:image\/(png|jpeg|svg\+xml|webp);/i;
+const getLogo = () => { const l = store.get(K.logo, ""); return (typeof l === "string" && LOGO_OK.test(l)) ? l : ""; };
 function marcaHTML() {
   const l = getLogo();
   if (l) return '<img src="' + esc(l) + '" alt="Logotipo de JUCIL" style="width:100%;height:100%;object-fit:contain">';
@@ -583,24 +590,23 @@ let deferredPrompt = null;
 let pendingConfirm = null;
 
 /* ============================ trozos de vista ============================ */
-const ICONOS = {
-  balanza: '⚖️', escudo: '🛡️', banco: '�, ', birrete: '🎓', salud: '❤️', megafono: '📢'
-};
-function icono(k) { return { balanza: "⚖️", escudo: "🛡️", banco: "🏦", birrete: "🎓", salud: "➕", megafono: "📢" }[k] || "•"; }
+function icono(k) { const e = { balanza: "⚖️", escudo: "🛡️", banco: "🏦", birrete: "🎓", salud: "➕", megafono: "📢" }[k] || "•"; return '<span aria-hidden="true">' + e + "</span>"; }
 function franjaCTA(titulo, frase, textoBtn, id) {
   return '<div class="franja"><div class="wrap"><h2>' + esc(titulo) + '</h2><p>' + esc(frase) + '</p><a ' + (id ? 'id="' + id + '" ' : '') + 'class="btn btn-primary" href="#/asociate">' + esc(textoBtn) + '</a></div></div>';
 }
-function cardNoticia(n) {
+function cardNoticia(n, nivel) {
+  const H = nivel === 2 ? "h2" : "h3";
   return '<a class="card card-noticia" href="#/noticia/' + esc(n.id) + '">' +
     '<div style="margin-bottom:8px"><span class="badge">' + esc(n.categoria) + '</span>' +
     (n.demo ? '<span class="badge demo">EJEMPLO</span>' : (n.fecha ? '<span class="nota">' + esc(fmtFecha(n.fecha)) + '</span>' : "")) + '</div>' +
-    '<h3>' + esc(n.titulo) + '</h3><p>' + esc(n.resumen || "") + '</p></a>';
+    '<' + H + '>' + esc(n.titulo) + '</' + H + '><p>' + esc(n.resumen || "") + '</p></a>';
 }
-function cardMedio(m) {
+function cardMedio(m, nivel) {
+  const H = nivel === 2 ? "h2" : "h3";
   const enlace = (m.url && /^https?:\/\//.test(m.url)) ? '<a href="' + esc(m.url) + '" target="_blank" rel="noopener noreferrer">Ver publicación</a>' : "";
   return '<div class="card"><div style="margin-bottom:8px"><span class="badge">' + esc(m.tipo) + '</span>' +
     (m.demo ? '<span class="badge demo">EJEMPLO</span>' : (m.fecha ? '<span class="nota">' + esc(fmtFecha(m.fecha)) + '</span>' : "")) + '</div>' +
-    '<h3>' + esc(m.titulo) + '</h3><p>' + esc(m.medio) + '</p>' + enlace + '</div>';
+    '<' + H + '>' + esc(m.titulo) + '</' + H + '><p>' + esc(m.medio) + '</p>' + enlace + '</div>';
 }
 
 /* ============================ vistas públicas ============================ */
@@ -623,7 +629,7 @@ function vHome() {
     '<div class="stat"><b>Origen Jusapol</b><span>la asociación nació del movimiento Jusapol</span></div>' +
     '</div></section>' +
     '<section class="seccion"><div class="wrap"><h2>Por qué afiliarte a JUCIL</h2>' +
-    '<div class="grid c3">' + vents.map(v => '<div class="card"><h3>' + icono(v.icono) + ' ' + esc(v.titulo) + '</h3><p>' + esc(v.texto.split(". ")[0]) + '.</p></div>').join("") + '</div>' +
+    '<div class="grid c3">' + vents.map(v => '<div class="card"><h3>' + icono(v.icono) + ' ' + esc(v.titulo) + '</h3><p>' + esc(String(v.texto || "").split(". ")[0]) + '.</p></div>').join("") + '</div>' +
     '<div class="centrado"><a class="mas-enlace" href="#/ventajas">Ver todas las ventajas</a></div>' +
     '</div></section>' +
     '<section class="seccion alt"><div class="wrap"><h2>Últimas noticias</h2>' +
@@ -648,7 +654,7 @@ function listaNoticiasHTML() {
   if (catNoticias) arr = arr.filter(n => n.categoria === catNoticias);
   if (!total) return '<div class="vacio" id="noticiasVacio"><p><b>Todavía no hay noticias publicadas.</b></p><p class="nota">En cuanto la asociación publique un comunicado, aparecerá aquí.</p></div>';
   if (!arr.length) return '<div class="vacio" id="noticiasVacio"><p><b>Ningún resultado para esta búsqueda.</b></p><p class="nota">Prueba con otra palabra o quita el filtro de categoría.</p></div>';
-  return '<div class="grid c3">' + arr.map(cardNoticia).join("") + '</div>';
+  return '<div class="grid c3">' + arr.map(n => cardNoticia(n, 2)).join("") + '</div>';
 }
 function vNoticias() {
   const cats = ["Comunicado", "Actualidad", "Servicios", "Contencioso", "Prensa"];
@@ -682,7 +688,7 @@ function vMedios() {
   const meds = ordenar(getMedios());
   return '<div class="seccion"><div class="wrap"><h1 tabindex="-1">JUCIL en los medios</h1>' +
     '<p class="sub">Recopilamos las apariciones de JUCIL en prensa, radio y televisión. Si eres periodista, escríbenos y te atenderemos con la mayor rapidez posible.</p>' +
-    (meds.length ? '<div class="grid c2" id="listaMedios">' + meds.map(cardMedio).join("") + '</div>'
+    (meds.length ? '<div class="grid c2" id="listaMedios">' + meds.map(m => cardMedio(m, 2)).join("") + '</div>'
       : '<div class="vacio" id="mediosVacio">Todavía no hay apariciones registradas. Vuelve pronto: la asociación actualiza este apartado con sus intervenciones en prensa, radio y televisión.</div>') +
     '<div class="card" style="margin-top:22px"><h3>¿Eres periodista y quieres contactar con JUCIL?</h3>' +
     '<p style="margin:6px 0 12px">Atendemos a los medios desde el correo oficial de comunicación.</p>' +
@@ -695,7 +701,7 @@ function vVentajas() {
   const vents = getVentajas().filter(v => v.visible);
   return '<div class="seccion"><div class="wrap"><h1 tabindex="-1">Ventajas de afiliarte a JUCIL</h1>' +
     '<p class="sub">Estas son las ventajas de formar parte de JUCIL. La asociación mantiene y actualiza sus condiciones.</p>' +
-    '<div class="grid c2" id="listaVentajas">' + vents.map(v => '<div class="card"><h3>' + icono(v.icono) + ' ' + esc(v.titulo) + '</h3><p>' + esc(v.texto) + '</p></div>').join("") + '</div>' +
+    '<div class="grid c2" id="listaVentajas">' + vents.map(v => '<div class="card"><h2 style="font-size:18px">' + icono(v.icono) + ' ' + esc(v.titulo) + '</h2><p>' + esc(v.texto) + '</p></div>').join("") + '</div>' +
     '<p class="nota" style="margin-top:16px">Los servicios descritos están sujetos a las condiciones vigentes de la asociación en cada momento.</p>' +
     '<p style="margin-top:10px"><a id="linkContencioso" href="#/contencioso">Más información sobre el contencioso oficiales</a></p>' +
     '</div></div>' +
@@ -743,9 +749,9 @@ function vAsociate() {
     '<div id="err2" class="alert-error" role="alert" hidden></div></section>' +
     /* paso 3 */
     '<section id="step3" hidden><h2 style="font-size:19px;margin-bottom:12px">Tus datos</h2>' +
-    '<div class="field"><label for="nombre">Nombre y apellidos</label><input type="text" id="nombre" placeholder="Nombre y apellidos" autocomplete="name"></div>' +
-    '<div class="field"><label for="email">Correo electrónico</label><input type="email" id="email" placeholder="tu@correo.com" autocomplete="email"></div>' +
-    '<div class="field"><label for="telefono">Teléfono</label><input type="tel" id="telefono" placeholder="600 000 000" autocomplete="tel"></div>' +
+    '<div class="field"><label for="nombre">Nombre y apellidos</label><input type="text" id="nombre" maxlength="120" placeholder="Nombre y apellidos" autocomplete="name"></div>' +
+    '<div class="field"><label for="email">Correo electrónico</label><input type="email" id="email" maxlength="120" placeholder="tu@correo.com" autocomplete="email"></div>' +
+    '<div class="field"><label for="telefono">Teléfono</label><input type="tel" id="telefono" maxlength="20" placeholder="600 000 000" autocomplete="tel"></div>' +
     '<div class="field"><label for="mensaje">Cuéntanos algo más (opcional)</label><textarea id="mensaje" maxlength="600" placeholder="Escribe aquí cualquier información adicional que quieras compartir con la asociación."></textarea></div>' +
     '<div class="hp" aria-hidden="true"><input type="text" id="hp_web" tabindex="-1" autocomplete="off"></div>' +
     '<label class="check"><input type="checkbox" id="consent"><span>He leído y acepto la <a href="#/privacidad">política de privacidad</a> y el aviso legal.</span></label>' +
@@ -763,14 +769,14 @@ function vContacto() {
   return '<div class="seccion"><div class="wrap"><h1 tabindex="-1">Contacto</h1>' +
     '<p class="sub">¿Tienes una consulta, eres periodista o quieres más información antes de afiliarte? Escríbenos y te responderemos lo antes posible.</p>' +
     '<div class="grid c2" style="align-items:start">' +
-    '<div class="card"><h3>Datos de contacto</h3>' +
+    '<div class="card"><h2 style="font-size:18px">Datos de contacto</h2>' +
     '<p style="margin-top:8px"><b>Correo:</b> <a id="emailPrensa" href="mailto:' + esc(c.email) + '" target="_blank" rel="noopener noreferrer">' + esc(c.email) + '</a></p>' +
     '<p><b>Teléfono:</b> ' + tel + '</p>' +
     (c.direccion ? '<p><b>Dirección:</b> ' + esc(c.direccion) + '</p>' : "") +
     '<p style="margin-top:12px"><a id="contactoCta" class="btn btn-outline btn-sm" href="#/asociate">Quiero afiliarme</a></p></div>' +
     '<div class="tarjeta-form"><form id="formContacto" novalidate>' +
-    '<div class="field"><label for="c-nombre">Nombre y apellidos</label><input type="text" id="c-nombre" placeholder="Nombre y apellidos" autocomplete="name"></div>' +
-    '<div class="field"><label for="c-email">Correo electrónico</label><input type="email" id="c-email" placeholder="tu@correo.com" autocomplete="email"></div>' +
+    '<div class="field"><label for="c-nombre">Nombre y apellidos</label><input type="text" id="c-nombre" maxlength="120" placeholder="Nombre y apellidos" autocomplete="name"></div>' +
+    '<div class="field"><label for="c-email">Correo electrónico</label><input type="email" id="c-email" maxlength="120" placeholder="tu@correo.com" autocomplete="email"></div>' +
     '<div class="field"><label for="c-asunto">Asunto</label><select id="c-asunto"><option>Prensa y medios</option><option>Afiliación</option><option>Asesoría jurídica</option><option selected>Otro</option></select></div>' +
     '<div class="field"><label for="c-mensaje">Mensaje</label><textarea id="c-mensaje" maxlength="600" placeholder="Cuéntanos en qué podemos ayudarte (mínimo 10 caracteres)."></textarea></div>' +
     '<div class="hp" aria-hidden="true"><input type="text" id="hp_web2" tabindex="-1" autocomplete="off"></div>' +
@@ -824,14 +830,14 @@ function vPrivacidad() {
     H("Cookies") +
     "<p>En esta web <b>no utilizamos cookies</b> ni herramientas de analítica o rastreo de terceros. La información que ves, si procede, se guarda en el almacenamiento local de tu propio navegador (localStorage), no en cookies ni en ningún servidor externo.</p>" +
     H("Condiciones de esta demo") +
-    "<p>Este sitio es una propuesta de web para JUCIL, construida como demostración. Las solicitudes de afiliación y los mensajes de contacto que envíes se guardan únicamente en el almacenamiento local de este navegador y dispositivo, para que la directiva pueda verlos en el panel de gestión durante la fase de propuesta; no se envían automáticamente por correo ni quedan registrados en ningún servidor. Si esta web se publica de forma definitiva, este apartado se actualizará para reflejar el funcionamiento real del envío de solicitudes.</p>" +
+    "<p>Este sitio es una propuesta de web para JUCIL, construida como demostración. Las solicitudes de afiliación y los mensajes de contacto que envíes se guardan únicamente en el almacenamiento local de este navegador y dispositivo, para que la directiva pueda verlos en el panel de gestión durante la fase de propuesta; no se envían automáticamente por correo ni quedan registrados en ningún servidor. Mientras esta demo se use como archivo local (abriéndola con doble clic en lugar de publicada en una dirección https), otras páginas locales abiertas en el mismo navegador podrían acceder a esos datos: publicar la web en su dominio con https resuelve esta limitación. Si esta web se publica de forma definitiva, este apartado se actualizará para reflejar el funcionamiento real del envío de solicitudes.</p>" +
     '<p class="nota">Última actualización de este documento: [FECHA]</p>' +
     '<div style="display:flex;gap:12px;margin-top:20px"><button id="privVolver" class="btn btn-outline" data-back>Volver</button><a id="privCta" class="btn btn-primary" href="#/asociate">Quiero afiliarme</a></div>' +
     "</div></div>";
 }
 
 function v404() {
-  return '<div class="seccion"><div class="wrap centrado"><div style="width:90px;height:90px;margin:0 auto 14px;opacity:.4">' + EMBLEMA + '</div>' +
+  return '<div class="seccion"><div class="wrap centrado"><div aria-hidden="true" style="width:90px;height:90px;margin:0 auto 14px;opacity:.4">' + EMBLEMA + '</div>' +
     '<h1 tabindex="-1">Página no encontrada</h1>' +
     '<p class="sub" style="margin:10px auto 20px">La página que buscas no existe o se ha movido. Comprueba la dirección o vuelve a la portada.</p>' +
     '<button class="btn btn-primary" data-nav="#/">Volver a la portada</button></div></div>';
@@ -854,7 +860,7 @@ function vAdmin() {
   return '<div class="seccion" style="padding-top:28px"><div class="wrap"><div id="adminPanel">' +
     '<div class="admin-cab"><h1 tabindex="-1" style="font-size:26px">Panel de administración</h1><button id="btnLogout" class="btn btn-outline btn-sm">Salir</button></div>' +
     '<div class="tabs" role="tablist" aria-label="Secciones del panel">' +
-    tabs.map(t => '<button id="' + t[1] + '" role="tab" aria-selected="' + (adminTab === t[0] ? "true" : "false") + '" data-tab="' + t[0] + '">' + t[2] + "</button>").join("") +
+    tabs.map(t => '<button id="' + t[1] + '" role="tab" aria-selected="' + (adminTab === t[0] ? "true" : "false") + '" aria-controls="pan' + t[0].charAt(0).toUpperCase() + t[0].slice(1) + '" data-tab="' + t[0] + '">' + t[2] + "</button>").join("") +
     '</div><div id="adminBody">' + adminBodyHTML() + "</div>" +
     "</div></div></div>";
 }
@@ -865,14 +871,14 @@ function adminBodyHTML() {
     const nuevas = leads.filter(l => l.estado === "nueva").length;
     const contactos = leads.filter(l => l.tipo === "contacto").length;
     const ult = leads.slice(0, 5);
-    return '<div id="panResumen" role="tabpanel"><p class="nota">Aquí tienes un vistazo rápido de la actividad de la web.</p>' +
+    return '<div id="panResumen" role="tabpanel" aria-labelledby="tabResumen"><p class="nota">Aquí tienes un vistazo rápido de la actividad de la web.</p>' +
       '<div class="contadores">' +
       '<div class="contador"><b>' + leads.length + "</b><span>Solicitudes totales</span></div>" +
       '<div class="contador"><b>' + nuevas + "</b><span>Solicitudes nuevas</span></div>" +
       '<div class="contador"><b>' + contactos + "</b><span>Mensajes de contacto</span></div>" +
       '<div class="contador"><b>' + noticiasPublicas().length + "</b><span>Noticias publicadas</span></div>" +
       '<div class="contador"><b>' + getMedios().length + "</b><span>Apariciones en medios</span></div></div>" +
-      "<h3>Últimas solicitudes</h3>" +
+      "<h2 style=\"font-size:18px\">Últimas solicitudes</h2>" +
       (ult.length ? ult.map(leadCard).join("") : '<div class="vacio" style="margin-top:10px">Todavía no hay solicitudes.</div>') +
       '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">' +
       '<button class="btn btn-outline btn-sm" data-tab="leads">Ver solicitudes</button>' +
@@ -883,7 +889,7 @@ function adminBodyHTML() {
     let arr = leads;
     if (filtroLeadsVal !== "todas") arr = arr.filter(l => l.tipo === filtroLeadsVal);
     if (buscaLeads) { const q = norm(buscaLeads); arr = arr.filter(l => norm(l.nombre + " " + l.email + " " + l.telefono).includes(q)); }
-    return '<div id="panLeads" role="tabpanel">' +
+    return '<div id="panLeads" role="tabpanel" aria-labelledby="tabLeads">' +
       '<div class="toolbar"><select id="filtroLeads" aria-label="Filtrar solicitudes">' +
       '<option value="todas"' + (filtroLeadsVal === "todas" ? " selected" : "") + '>Todas</option>' +
       '<option value="afiliacion"' + (filtroLeadsVal === "afiliacion" ? " selected" : "") + '>Afiliación</option>' +
@@ -897,8 +903,8 @@ function adminBodyHTML() {
   if (adminTab === "noticias") {
     const arr = ordenar(getNoticias());
     const n = editandoNoticia ? getNoticias().find(x => x.id === editandoNoticia) : null;
-    return '<div id="panNoticias" role="tabpanel">' +
-      '<div class="admin-cab"><h3>Noticias</h3><button id="btnNuevaNoticia" class="btn btn-primary btn-sm">Nueva noticia</button></div>' +
+    return '<div id="panNoticias" role="tabpanel" aria-labelledby="tabNoticias">' +
+      '<div class="admin-cab"><h2 style="font-size:18px">Noticias</h2><button id="btnNuevaNoticia" class="btn btn-primary btn-sm">Nueva noticia</button></div>' +
       '<div id="noticiaMsg" class="msg-ok" hidden></div>' +
       '<form id="formNoticia" novalidate class="card" style="margin:12px 0"' + (n || editandoNoticia === "nueva" ? "" : " hidden") + '>' +
       '<input type="hidden" id="n-id" value="' + esc(n ? n.id : "") + '">' +
@@ -918,8 +924,8 @@ function adminBodyHTML() {
   if (adminTab === "medios") {
     const arr = ordenar(getMedios());
     const m = editandoMedio ? getMedios().find(x => x.id === editandoMedio) : null;
-    return '<div id="panMedios" role="tabpanel">' +
-      '<div class="admin-cab"><h3>Apariciones en medios</h3><button id="btnNuevoMedio" class="btn btn-primary btn-sm">Nueva aparición</button></div>' +
+    return '<div id="panMedios" role="tabpanel" aria-labelledby="tabMedios">' +
+      '<div class="admin-cab"><h2 style="font-size:18px">Apariciones en medios</h2><button id="btnNuevoMedio" class="btn btn-primary btn-sm">Nueva aparición</button></div>' +
       '<div id="medioMsg" class="msg-ok" hidden></div>' +
       '<form id="formMedio" novalidate class="card" style="margin:12px 0"' + (m || editandoMedio === "nuevo" ? "" : " hidden") + '>' +
       '<input type="hidden" id="m-id" value="' + esc(m ? m.id : "") + '">' +
@@ -938,7 +944,7 @@ function adminBodyHTML() {
   if (adminTab === "ventajas") {
     const arr = getVentajas();
     const v = editandoVentaja ? arr.find(x => x.id === editandoVentaja) : null;
-    return '<div id="panVentajas" role="tabpanel">' +
+    return '<div id="panVentajas" role="tabpanel" aria-labelledby="tabVentajas">' +
       '<p class="nota">Estas son las 6 ventajas fijas que se muestran en la web. Puedes editar el título y el texto de cada una, y ocultar las que no quieras mostrar todavía. Los servicios y sus condiciones los define la asociación; edítalos desde el panel.</p>' +
       '<div id="ventajaMsg" class="msg-ok" hidden></div>' +
       (v ? '<form id="formVentaja" novalidate class="card" style="margin:12px 0">' +
@@ -953,7 +959,7 @@ function adminBodyHTML() {
   }
   if (adminTab === "marca") {
     const hay = !!getLogo();
-    return '<div id="panMarca" role="tabpanel"><h3>Marca</h3>' +
+    return '<div id="panMarca" role="tabpanel" aria-labelledby="tabMarca"><h2 style="font-size:18px">Marca</h2>' +
       '<p style="margin:10px 0 4px"><b>Sube el logotipo oficial de JUCIL (PNG, JPG, SVG o WEBP, máx. 2 MB).</b></p>' +
       '<p class="nota">Mientras no subas un logo, se mostrará el emblema de JUCIL generado para esta demo.</p>' +
       '<div class="logo-prev" id="logoPreview" aria-label="Vista previa del logo actual">' + marcaHTML() + "</div>" +
@@ -963,7 +969,7 @@ function adminBodyHTML() {
   }
   if (adminTab === "ajustes") {
     const a = getAjustes();
-    return '<div id="panAjustes" role="tabpanel"><h3>Ajustes</h3>' +
+    return '<div id="panAjustes" role="tabpanel" aria-labelledby="tabAjustes"><h2 style="font-size:18px">Ajustes</h2>' +
       '<p class="nota">Cambia aquí los datos de contacto y los textos clave de la web. Si dejas un campo vacío, no se mostrará en la web: nunca se inventa un dato.</p>' +
       '<div id="ajustesMsg" class="msg-ok" hidden></div>' +
       '<form id="formAjustes" novalidate class="card" style="margin-top:12px">' +
@@ -977,7 +983,7 @@ function adminBodyHTML() {
       '<button type="submit" id="btnGuardarAjustes" class="btn btn-primary btn-sm">Guardar ajustes</button></form></div>';
   }
   /* datos */
-  return '<div id="panDatos" role="tabpanel"><h3>Datos</h3>' +
+  return '<div id="panDatos" role="tabpanel" aria-labelledby="tabDatos"><h2 style="font-size:18px">Datos</h2>' +
     '<div class="aviso-caja">Los datos de esta demo (noticias, medios, solicitudes, mensajes…) se guardan solo en este navegador y en este dispositivo. Si cambias de ordenador o borras el historial del navegador, se pierden. Exporta el CSV o la copia de seguridad a menudo para no perder nada.</div>' +
     '<div id="datosMsg" class="msg-ok" hidden></div>' +
     '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">' +
@@ -1022,31 +1028,42 @@ const TITULOS = {
   "#/area-privada": "Área privada de afiliados — JUCIL",
   "#/admin": "Acceso del administrador — JUCIL"
 };
+let huboPrimerRender = false;
 function render() {
   const view = $("#view");
   if (!view) return;
   let h = location.hash || "#/";
   if (h === "#" || h === "") h = "#/";
   let html, titulo = TITULOS[h] || "JUCIL — Asociación Profesional Justicia Guardia Civil";
-  if (h === "#/") html = vHome();
-  else if (h === "#/noticias") html = vNoticias();
-  else if (h.indexOf("#/noticia/") === 0) { const id = h.slice(10); const n = getNoticias().find(x => x.id === id); titulo = (n ? n.titulo + " — JUCIL" : "Noticia no encontrada — JUCIL"); html = vNoticiaDetalle(id); }
-  else if (h === "#/medios") html = vMedios();
-  else if (h === "#/ventajas") html = vVentajas();
-  else if (h === "#/contencioso") html = vContencioso();
-  else if (h === "#/asociate") html = vAsociate();
-  else if (h === "#/contacto") html = vContacto();
-  else if (h === "#/privacidad") html = vPrivacidad();
-  else if (h === "#/area-privada") html = vArea();
-  else if (h === "#/admin") { titulo = ADMIN_SESSION ? "Panel de administración — JUCIL" : TITULOS["#/admin"]; html = vAdmin(); }
-  else { titulo = "Página no encontrada — JUCIL"; html = v404(); }
-  view.innerHTML = html;
+  try {
+    if (h === "#/") html = vHome();
+    else if (h === "#/noticias") html = vNoticias();
+    else if (h.indexOf("#/noticia/") === 0) { const id = h.slice(10); const n = getNoticias().find(x => x.id === id && x.publicada); titulo = (n ? n.titulo + " — JUCIL" : "Noticia no encontrada — JUCIL"); html = vNoticiaDetalle(id); }
+    else if (h === "#/medios") html = vMedios();
+    else if (h === "#/ventajas") html = vVentajas();
+    else if (h === "#/contencioso") html = vContencioso();
+    else if (h === "#/asociate") html = vAsociate();
+    else if (h === "#/contacto") html = vContacto();
+    else if (h === "#/privacidad") html = vPrivacidad();
+    else if (h === "#/area-privada") html = vArea();
+    else if (h === "#/admin") { titulo = ADMIN_SESSION ? "Panel de administración — JUCIL" : TITULOS["#/admin"]; html = vAdmin(); }
+    else { titulo = "Página no encontrada — JUCIL"; html = v404(); }
+    view.innerHTML = html;
+  } catch (e) {
+    titulo = "No hemos podido mostrar esta página — JUCIL";
+    view.innerHTML = '<div class="seccion"><div class="wrap centrado"><h1 tabindex="-1">No hemos podido mostrar esta página</h1>' +
+      '<p class="sub" style="margin:10px auto 20px">Los datos guardados en este navegador parecen dañados. Puedes restaurar los datos de la demo sin perder esta página.</p>' +
+      '<button class="btn btn-primary" id="btnReinicioSeguro">Restaurar los datos de la demo</button></div></div>';
+  }
   document.title = titulo;
   cerrarMenu();
   marcarNavActiva(h);
   try { window.scrollTo(0, 0); } catch (e) {}
-  const h1 = view.querySelector("h1");
-  if (h1) { try { h1.focus({ preventScroll: true }); } catch (e) { try { h1.focus(); } catch (e2) {} } }
+  if (huboPrimerRender) {
+    const h1 = view.querySelector("h1");
+    if (h1) { try { h1.focus({ preventScroll: true }); } catch (e) { try { h1.focus(); } catch (e2) {} } }
+  }
+  huboPrimerRender = true;
 }
 function marcarNavActiva(h) {
   const mapa = { "#/": "navInicio", "#/noticias": "navNoticias", "#/medios": "navMedios", "#/ventajas": "navVentajas", "#/contacto": "navContacto" };
@@ -1099,21 +1116,25 @@ function enviarAfiliacion() {
   const email = ($("#email") ? $("#email").value : "").trim();
   const telefono = ($("#telefono") ? $("#telefono").value : "").trim();
   if (nombre.length < 3) { mostrarError("#err3", "Escribe tu nombre y apellidos."); return; }
-  if (!emailOk(email)) { mostrarError("#err3", "Revisa tu correo electrónico."); return; }
+  if (nombre.length > 120) { mostrarError("#err3", "El nombre es demasiado largo (máximo 120 caracteres)."); return; }
+  if (!emailOk(email) || email.length > 120) { mostrarError("#err3", "Revisa tu correo electrónico."); return; }
   if (!telOk(telefono)) { mostrarError("#err3", "Escribe un teléfono de 9 dígitos."); return; }
   if (!$("#consent") || !$("#consent").checked) { mostrarError("#err3", "Debes aceptar la política de privacidad para enviar la solicitud."); return; }
   limpiarError("#err3");
   const sit = document.querySelector('input[name="situacion"]:checked');
   const datos = {
-    id: uid("l"), tipo: "afiliacion", fecha: nowISO(), nombre: nombre, email: email, telefono: telefono,
+    id: uid("l"), tipo: "afiliacion", fecha: nowISO(), nombre: lim(nombre, 120), email: lim(email, 120), telefono: lim(telefono, 20),
     situacion: sit ? sit.value : "", empleo: $("#empleo") ? $("#empleo").value : "", provincia: $("#provincia") ? $("#provincia").value : "",
-    unidad: ($("#unidad") ? $("#unidad").value : "").trim(), asunto: "", mensaje: ($("#mensaje") ? $("#mensaje").value : "").trim().slice(0, 600),
+    unidad: lim($("#unidad") ? $("#unidad").value : "", 80), asunto: "", mensaje: lim($("#mensaje") ? $("#mensaje").value : "", 600),
     boletin: !!($("#boletin") && $("#boletin").checked), consentimiento: true,
     consentTexto: "He leído y acepto la política de privacidad y el aviso legal.",
     estado: "nueva", origen: "web-demo"
   };
   const esBot = $("#hp_web") && $("#hp_web").value;
-  if (!esBot) { const arr = getLeads(); arr.unshift(datos); store.set(K.leads, arr); }
+  if (!esBot) {
+    const arr = getLeads(); arr.unshift(datos);
+    if (!store.set(K.leads, arr)) { mostrarError("#err3", "No hemos podido guardar tu solicitud en este dispositivo. Escríbenos a " + cfg().email + "."); return; }
+  }
   const form = $("#formAfiliacion");
   if (form) form.hidden = true;
   const bar = $("#stepBar"); if (bar) bar.hidden = true;
@@ -1144,15 +1165,16 @@ function enviarContacto() {
   const email = ($("#c-email") ? $("#c-email").value : "").trim();
   const mensaje = ($("#c-mensaje") ? $("#c-mensaje").value : "").trim();
   if (nombre.length < 3) { mostrarError("#errContacto", "Escribe tu nombre."); return; }
-  if (!emailOk(email)) { mostrarError("#errContacto", "Revisa tu correo electrónico."); return; }
+  if (nombre.length > 120) { mostrarError("#errContacto", "El nombre es demasiado largo (máximo 120 caracteres)."); return; }
+  if (!emailOk(email) || email.length > 120) { mostrarError("#errContacto", "Revisa tu correo electrónico."); return; }
   if (mensaje.length < 10) { mostrarError("#errContacto", "Escribe tu mensaje (mínimo 10 caracteres)."); return; }
   if (!$("#c-consent") || !$("#c-consent").checked) { mostrarError("#errContacto", "Debes aceptar la política de privacidad para enviar el mensaje."); return; }
   limpiarError("#errContacto");
   const esBot = $("#hp_web2") && $("#hp_web2").value;
   if (!esBot) {
     const arr = getLeads();
-    arr.unshift({ id: uid("l"), tipo: "contacto", fecha: nowISO(), nombre: nombre, email: email, telefono: "", situacion: "", empleo: "", provincia: "", unidad: "", asunto: $("#c-asunto") ? $("#c-asunto").value : "Otro", mensaje: mensaje.slice(0, 600), boletin: false, consentimiento: true, consentTexto: "He leído y acepto la política de privacidad y el aviso legal.", estado: "nueva", origen: "web-demo" });
-    store.set(K.leads, arr);
+    arr.unshift({ id: uid("l"), tipo: "contacto", fecha: nowISO(), nombre: lim(nombre, 120), email: lim(email, 120), telefono: "", situacion: "", empleo: "", provincia: "", unidad: "", asunto: $("#c-asunto") ? $("#c-asunto").value : "Otro", mensaje: lim(mensaje, 600), boletin: false, consentimiento: true, consentTexto: "He leído y acepto la política de privacidad y el aviso legal.", estado: "nueva", origen: "web-demo" });
+    if (!store.set(K.leads, arr)) { mostrarError("#errContacto", "No hemos podido guardar tu mensaje en este dispositivo. Escríbenos a " + cfg().email + "."); return; }
   }
   const f = $("#formContacto"); if (f) f.hidden = true;
   const ok = $("#contactoOk");
@@ -1188,8 +1210,8 @@ function loginAdmin() {
   }
 }
 function guardarNoticia() {
-  const titulo = ($("#n-titulo") ? $("#n-titulo").value : "").trim();
-  const cuerpo = ($("#n-cuerpo") ? $("#n-cuerpo").value : "").trim();
+  const titulo = lim($("#n-titulo") ? $("#n-titulo").value : "", 200);
+  const cuerpo = lim($("#n-cuerpo") ? $("#n-cuerpo").value : "", 6000);
   if (titulo.length < 5) { mostrarError("#errNoticia", "Escribe un título de al menos 5 caracteres."); return; }
   if (cuerpo.length < 20) { mostrarError("#errNoticia", "Escribe un cuerpo de al menos 20 caracteres."); return; }
   const id = $("#n-id") ? $("#n-id").value : "";
@@ -1207,9 +1229,9 @@ function guardarNoticia() {
   setMsg("#noticiaMsg", "Noticia guardada");
 }
 function guardarMedio() {
-  const medio = ($("#m-medio") ? $("#m-medio").value : "").trim();
-  const titulo = ($("#m-titulo") ? $("#m-titulo").value : "").trim();
-  const url = ($("#m-url") ? $("#m-url").value : "").trim();
+  const medio = lim($("#m-medio") ? $("#m-medio").value : "", 200);
+  const titulo = lim($("#m-titulo") ? $("#m-titulo").value : "", 200);
+  const url = lim($("#m-url") ? $("#m-url").value : "", 500);
   if (!medio) { mostrarError("#errMedio", "Escribe el nombre del medio."); return; }
   if (!titulo) { mostrarError("#errMedio", "Escribe el titular de la aparición."); return; }
   if (url && !/^https?:\/\//.test(url)) { mostrarError("#errMedio", "El enlace debe empezar por http:// o https://."); return; }
@@ -1296,14 +1318,35 @@ function guardarLogo(dataUrl) {
   const quitar = $("#btnQuitarLogo"); if (quitar) quitar.disabled = false;
   setMsg("#logoMsg", "Logo actualizado");
 }
+let modalDisparador = null;
+function focosDe(overlay) {
+  return $$('button, [href], input:not([type=hidden]), select, textarea', overlay).filter(el => !el.disabled && el.offsetParent !== null);
+}
+function abrirModal(overlay, primerFoco) {
+  modalDisparador = (document.activeElement && document.activeElement !== document.body) ? document.activeElement : null;
+  overlay.hidden = false;
+  const f = primerFoco || focosDe(overlay)[0];
+  if (f) { try { f.focus(); } catch (e) {} }
+}
+function cerrarModal(overlay) {
+  overlay.hidden = true;
+  if (modalDisparador) { try { modalDisparador.focus(); } catch (e) {} modalDisparador = null; }
+}
+function trampaFoco(overlay, e) {
+  if (e.key !== "Tab") return;
+  const f = focosDe(overlay);
+  if (!f.length) return;
+  const primero = f[0], ultimo = f[f.length - 1];
+  if (e.shiftKey && document.activeElement === primero) { e.preventDefault(); ultimo.focus(); }
+  else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primero.focus(); }
+}
 function abrirConfirm(texto, fn) {
   pendingConfirm = fn;
   const m = $("#confirmOverlay");
   $("#confirmTexto").textContent = texto;
-  m.hidden = false;
-  try { $("#confirmOk").focus(); } catch (e) {}
+  abrirModal(m, $("#confirmCancel"));
 }
-function cerrarConfirm() { const m = $("#confirmOverlay"); if (m) m.hidden = true; pendingConfirm = null; }
+function cerrarConfirm() { const m = $("#confirmOverlay"); if (m && !m.hidden) cerrarModal(m); pendingConfirm = null; }
 
 /* ============================ eventos (delegación) ============================ */
 document.addEventListener("click", (e) => {
@@ -1311,11 +1354,13 @@ document.addEventListener("click", (e) => {
   const cerca = (sel) => t.closest ? t.closest(sel) : null;
 
   if (cerca("#skip")) { e.preventDefault(); const v = $("#view"); if (v) { try { v.focus(); } catch (er) {} } return; }
+  if (cerca("#btnReinicioSeguro")) { Object.keys(K).forEach(k => store.del(K[k])); seed(); pintarMarca(); render(); return; }
   if (cerca("#navToggle")) {
     const m = $("#navMenu"), b = $("#navToggle");
     const abierto = m.classList.toggle("open");
     b.setAttribute("aria-expanded", abierto ? "true" : "false");
     b.setAttribute("aria-label", abierto ? "Cerrar menú" : "Abrir menú");
+    if (abierto) { const primer = m.querySelector("a"); if (primer) { try { primer.focus(); } catch (er) {} } }
     return;
   }
   const nav = cerca("[data-nav]");
@@ -1323,10 +1368,10 @@ document.addEventListener("click", (e) => {
   if (cerca("[data-back]")) { e.preventDefault(); location.hash = "#/"; return; }
   if (cerca("#btnInstall")) {
     if (deferredPrompt) { try { deferredPrompt.prompt(); } catch (er) {} deferredPrompt = null; }
-    const m = $("#installOverlay"); if (m) { m.hidden = false; try { $("#installClose").focus(); } catch (er) {} }
+    const m = $("#installOverlay"); if (m) abrirModal(m, $("#installClose"));
     return;
   }
-  if (cerca("#installClose")) { const m = $("#installOverlay"); if (m) m.hidden = true; return; }
+  if (cerca("#installClose")) { const m = $("#installOverlay"); if (m) cerrarModal(m); return; }
   if (cerca("#confirmCancel")) { cerrarConfirm(); return; }
   if (cerca("#confirmOk")) { const fn = pendingConfirm; cerrarConfirm(); if (fn) { try { fn(); } catch (er) {} } return; }
 
@@ -1336,8 +1381,9 @@ document.addEventListener("click", (e) => {
   if (cerca("#btnVolver1")) { wizardIr(1); return; }
   if (cerca("#btnVolver2")) { wizardIr(2); return; }
 
-  /* admin */
+  /* admin — defensa en profundidad: ninguna acción del panel actúa sin sesión */
   if (cerca("#btnLogout")) { ADMIN_SESSION = false; adminTab = "resumen"; render(); return; }
+  if (cerca("#adminPanel") && !ADMIN_SESSION) return;
   const tabBtn = cerca("[data-tab]");
   if (tabBtn && ADMIN_SESSION) { adminTab = tabBtn.getAttribute("data-tab"); editandoNoticia = ""; editandoMedio = ""; editandoVentaja = ""; refrescarAdmin(); return; }
   if (cerca("#btnNuevaNoticia")) { editandoNoticia = "nueva"; refrescarAdmin(); const f = $("#formNoticia"); if (f) f.hidden = false; try { $("#n-titulo").focus(); } catch (er) {} return; }
@@ -1443,33 +1489,43 @@ document.addEventListener("submit", (e) => {
     return;
   }
   if (f.id === "formAjustes") {
+    const em = lim($("#s-email") ? $("#s-email").value : "", 120);
+    if (em && !emailOk(em)) { setMsg("#ajustesMsg", "Revisa el correo de contacto."); return; }
     store.set(K.ajustes, {
-      email: ($("#s-email") ? $("#s-email").value : "").trim(),
-      telefono: ($("#s-telefono") ? $("#s-telefono").value : "").trim(),
-      whatsapp: ($("#s-whatsapp") ? $("#s-whatsapp").value : "").trim(),
-      direccion: ($("#s-direccion") ? $("#s-direccion").value : "").trim(),
-      claim: ($("#s-claim") ? $("#s-claim").value : "").trim(),
-      subclaim: ($("#s-subclaim") ? $("#s-subclaim").value : "").trim(),
-      contencioso: ($("#s-contencioso") ? $("#s-contencioso").value : "").trim()
+      email: em,
+      telefono: lim($("#s-telefono") ? $("#s-telefono").value : "", 30),
+      whatsapp: lim($("#s-whatsapp") ? $("#s-whatsapp").value : "", 30),
+      direccion: lim($("#s-direccion") ? $("#s-direccion").value : "", 200),
+      claim: lim($("#s-claim") ? $("#s-claim").value : "", 200),
+      subclaim: lim($("#s-subclaim") ? $("#s-subclaim").value : "", 300),
+      contencioso: lim($("#s-contencioso") ? $("#s-contencioso").value : "", 6000)
     });
     setMsg("#ajustesMsg", "Ajustes guardados");
     return;
   }
 });
 
+let tNoticias = 0, tLeads = 0;
+function repintarLeads() {
+  const cont = $("#tablaLeads");
+  if (!cont) return;
+  let arr = getLeads();
+  if (filtroLeadsVal !== "todas") arr = arr.filter(l => l.tipo === filtroLeadsVal);
+  if (buscaLeads) { const q = norm(buscaLeads); arr = arr.filter(l => norm(l.nombre + " " + l.email + " " + l.telefono).includes(q)); }
+  cont.innerHTML = arr.length ? arr.map(leadCard).join("") : '<div class="vacio">Todavía no hay solicitudes.</div>';
+  const c = $("#leadsCount"); if (c) c.textContent = arr.length + " solicitudes";
+}
 document.addEventListener("input", (e) => {
   const t = e.target;
-  if (t && t.id === "buscadorNoticias") { buscaNoticias = t.value; const l = $("#listaNoticias"); if (l) l.innerHTML = listaNoticiasHTML(); }
+  if (t && t.id === "buscadorNoticias") {
+    buscaNoticias = t.value;
+    clearTimeout(tNoticias);
+    tNoticias = setTimeout(() => { const l = $("#listaNoticias"); if (l) l.innerHTML = listaNoticiasHTML(); }, 250);
+  }
   if (t && t.id === "buscarLeads") {
     buscaLeads = t.value;
-    const cont = $("#tablaLeads");
-    if (cont) {
-      let arr = getLeads();
-      if (filtroLeadsVal !== "todas") arr = arr.filter(l => l.tipo === filtroLeadsVal);
-      if (buscaLeads) { const q = norm(buscaLeads); arr = arr.filter(l => norm(l.nombre + " " + l.email + " " + l.telefono).includes(q)); }
-      cont.innerHTML = arr.length ? arr.map(leadCard).join("") : '<div class="vacio">Todavía no hay solicitudes.</div>';
-      const c = $("#leadsCount"); if (c) c.textContent = arr.length + " solicitudes";
-    }
+    clearTimeout(tLeads);
+    tLeads = setTimeout(repintarLeads, 250);
   }
 });
 
@@ -1489,12 +1545,15 @@ document.addEventListener("change", (e) => {
 });
 
 document.addEventListener("keydown", (e) => {
+  const im = $("#installOverlay"), cm = $("#confirmOverlay");
+  const abierto = (im && !im.hidden) ? im : (cm && !cm.hidden) ? cm : null;
   if (e.key === "Escape") {
-    const im = $("#installOverlay"), cm = $("#confirmOverlay");
-    if (im && !im.hidden) im.hidden = true;
+    if (im && !im.hidden) cerrarModal(im);
     if (cm && !cm.hidden) cerrarConfirm();
     cerrarMenu();
+    return;
   }
+  if (abierto) trampaFoco(abierto, e);
 });
 
 /* ============================ PWA ============================ */
