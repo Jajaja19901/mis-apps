@@ -165,6 +165,21 @@ footer a{color:#E5C55B}
 pre#csvPreview{background:var(--verde-900);color:#CDE7D2;border-radius:8px;padding:14px;font-size:11.5px;overflow-x:auto;margin-top:10px;max-height:240px}
 .logo-prev{width:96px;height:96px;border:1px solid var(--linea);border-radius:12px;padding:8px;background:#fff;margin:12px 0}
 .vacio{border:1.5px dashed var(--linea);border-radius:12px;padding:30px 18px;text-align:center;color:var(--tinta-suave);background:var(--panel)}
+.subnav{display:flex;flex-wrap:wrap;gap:4px;align-items:center;background:var(--panel);border:1px solid var(--linea);border-radius:10px;padding:6px;margin-bottom:18px}
+.subnav a{text-decoration:none;color:var(--verde-700);font-weight:600;font-size:14px;padding:8px 12px;border-radius:8px}
+.subnav a:hover{background:var(--ok-bg)}
+.subnav a[aria-current="page"]{background:var(--verde-700);color:#fff}
+.subnav-salir{margin-left:auto;background:none;border:1px solid var(--linea-fuerte);color:var(--tinta-suave);font-weight:600;font-size:13.5px;padding:7px 12px;border-radius:8px;cursor:pointer;font-family:var(--sans)}
+.doc-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--linea)}
+.doc-row:last-child{border-bottom:none}
+.doc-ico{width:40px;height:40px;flex:0 0 40px;border-radius:8px;background:var(--ok-bg);display:flex;align-items:center;justify-content:center;font-size:18px}
+.hilo{display:block;text-decoration:none;color:inherit;background:var(--panel);border:1px solid var(--linea);border-radius:10px;padding:14px;margin-bottom:10px}
+.hilo:hover h3{color:var(--verde-600)}
+.hilo-meta{font-size:12.5px;color:var(--tinta-suave);margin-top:3px}
+.mensaje{background:var(--panel);border:1px solid var(--linea);border-radius:10px;padding:14px;margin-bottom:10px}
+.mensaje .autor{font-weight:700;font-size:14px}
+.mensaje .fecha{font-size:12px;color:var(--tinta-suave);font-weight:400}
+.mensaje .cuerpo{margin-top:6px;font-size:14.5px}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
 .toolbar input,.toolbar select{padding:10px 12px;border:1.5px solid var(--linea);border-radius:8px;font-size:14.5px;flex:1;min-width:160px;background:#fff}
 /* ---------- escritorio ---------- */
@@ -393,14 +408,47 @@ pre#csvPreview{background:var(--verde-900);color:#CDE7D2;border-radius:8px;paddi
     { "click": "#tabLeads" },
     { "expect": "Luis Prueba Contacto" }
   ]},
-  { "name": "CA-28 El área privada de socios avisa de que no está operativa", "steps": [
+  { "name": "Área privada: acceso incorrecto no entra", "steps": [
     { "goto": "#/area-privada" },
-    { "fill": { "sel": "#area-user", "value": "usuario-prueba" } },
-    { "fill": { "sel": "#area-pass", "value": "clave-prueba" } },
+    { "fill": { "sel": "#area-user", "value": "00000" } },
+    { "fill": { "sel": "#area-pass", "value": "malo" } },
     { "submit": "#formArea" },
-    { "expect": "no está operativa" },
-    { "expectGone": "#adminPanel" },
-    { "expectVisible": "#areaCta" }
+    { "expect": "no son correctos" },
+    { "expectGone": "#panelAfiliado" }
+  ]},
+  { "name": "Área privada: el afiliado entra, ve documentos y foro", "steps": [
+    { "goto": "#/area-privada" },
+    { "fill": { "sel": "#area-user", "value": "12345" } },
+    { "fill": { "sel": "#area-pass", "value": "socio2026" } },
+    { "submit": "#formArea" },
+    { "expect": "Bienvenido" },
+    { "expectVisible": "#panelAfiliado" },
+    { "goto": "#/documentos" },
+    { "expect": "Documentos y circulares" },
+    { "goto": "#/foro" },
+    { "expect": "Foro de afiliados" }
+  ]},
+  { "name": "Área privada: el afiliado publica en el foro", "steps": [
+    { "goto": "#/area-privada" },
+    { "fill": { "sel": "#area-user", "value": "12345" } },
+    { "fill": { "sel": "#area-pass", "value": "socio2026" } },
+    { "submit": "#formArea" },
+    { "goto": "#/foro/h1" },
+    { "expect": "Responder" },
+    { "fill": { "sel": "#nuevoMensaje", "value": "Mensaje de prueba en el foro de afiliados." } },
+    { "submit": "#formMensaje" },
+    { "expect": "Mensaje de prueba en el foro" }
+  ]},
+  { "name": "Gestor: publica un aviso del área privada", "steps": [
+    { "goto": "#/admin" },
+    { "fill": { "sel": "#adm-pass", "value": "jucil-2026" } },
+    { "submit": "#adminLoginForm" },
+    { "click": "#tabAvisos" },
+    { "click": "#btnNuevoAviso" },
+    { "fill": { "sel": "#av-titulo", "value": "Aviso de prueba del gestor" } },
+    { "fill": { "sel": "#av-cuerpo", "value": "Cuerpo del aviso de prueba publicado desde el panel de gestion." } },
+    { "submit": "#formAviso" },
+    { "expect": "Aviso guardado" }
   ]},
   { "name": "CA-5/48 La política de privacidad está enlazada en el pie", "steps": [
     { "goto": "#/" },
@@ -474,6 +522,7 @@ const CONFIG = {
   WEB: "https://jucil.es",
   AFILIADOS: "+15.000",
   ADMIN_PASSWORD: "jucil-2026",       // si la cambias, cambia también los tests embebidos
+  AFILIADO_DEMO: { num: "12345", clave: "socio2026", nombre: "Afiliado de ejemplo", empleo: "Guardia Civil", provincia: "Madrid" },
   STUDIO_BRAND: "Incuba tu Negocio",
   STUDIO_AUTHOR: "Jaime M. M.",
   STUDIO_URL: ""
@@ -491,6 +540,7 @@ function fmtFecha(v) {
   if (!v) return "";
   try { const d = new Date(v); if (isNaN(d)) return ""; return d.toLocaleDateString("es-ES", { day: "2-digit", month: "2-digit", year: "numeric" }); } catch (e) { return ""; }
 }
+const fmt = fmtFecha;
 
 /* ================== almacenamiento seguro (localStorage) ================== */
 const MEM = {};
@@ -506,7 +556,7 @@ const store = {
   del(k) { delete MEM[k]; try { localStorage.removeItem(k); } catch (e) {} }
 };
 const arrOk = (v) => Array.isArray(v) ? v : [];
-const K = { meta: "jucil_v1_meta", noticias: "jucil_v1_noticias", leads: "jucil_v1_leads", medios: "jucil_v1_medios", ventajas: "jucil_v1_ventajas", ajustes: "jucil_v1_ajustes", logo: "jucil_v1_logo" };
+const K = { meta: "jucil_v1_meta", noticias: "jucil_v1_noticias", leads: "jucil_v1_leads", medios: "jucil_v1_medios", ventajas: "jucil_v1_ventajas", ajustes: "jucil_v1_ajustes", logo: "jucil_v1_logo", afil: "jucil_v1_afil", avisos: "jucil_v1_avisos", docs: "jucil_v1_docs", hilos: "jucil_v1_hilos", msgs: "jucil_v1_msgs" };
 
 /* ============================ semilla inicial ============================ */
 const AVISO_DEMO = "Contenido de ejemplo de la demo. La asociación puede sustituirlo desde el panel de gestión.";
@@ -534,6 +584,23 @@ function seed() {
   ]);
   store.set(K.leads, []);
   store.set(K.ajustes, { email: "", telefono: "", whatsapp: "", direccion: "", claim: "", subclaim: "", contencioso: "" });
+  store.set(K.afil, [{ num: CONFIG.AFILIADO_DEMO.num, clave: CONFIG.AFILIADO_DEMO.clave, nombre: CONFIG.AFILIADO_DEMO.nombre, empleo: CONFIG.AFILIADO_DEMO.empleo, provincia: CONFIG.AFILIADO_DEMO.provincia, alta: t, demo: true }]);
+  store.set(K.avisos, [
+    { id: "av1", titulo: "Bienvenida al área privada de afiliados", cuerpo: AVISO_DEMO + "\n\nDesde aquí los afiliados acceden a las circulares, los documentos internos y el foro de la asociación.", fecha: "", demo: true, creado: t },
+    { id: "av2", titulo: "Novedades para afiliados", cuerpo: AVISO_DEMO + "\n\nLa asociación publicará en este apartado las novedades verificadas de interés para sus afiliados.", fecha: "", demo: true, creado: t }
+  ]);
+  store.set(K.docs, [
+    { id: "d1", nombre: "Estatutos de la asociación (ejemplo)", categoria: "Documentación", demo: true, creado: t },
+    { id: "d2", nombre: "Circular informativa de ejemplo", categoria: "Circulares", demo: true, creado: t },
+    { id: "d3", nombre: "Formulario de ejemplo para afiliados", categoria: "Formularios", demo: true, creado: t }
+  ]);
+  store.set(K.hilos, [
+    { id: "h1", titulo: "Dudas sobre el área privada", autor: "Afiliado de ejemplo", demo: true, creado: t },
+    { id: "h2", titulo: "Sugerencias para la asociación", autor: "Afiliado de ejemplo", demo: true, creado: t }
+  ]);
+  store.set(K.msgs, [
+    { id: "ms1", hilo: "h1", autor: "Afiliado de ejemplo", cuerpo: "Contenido de ejemplo de la demo: así se verá un mensaje en el foro de afiliados.", creado: t, demo: true }
+  ]);
   store.set(K.meta, { seeded: true, version: 1, creado: t });
 }
 
@@ -543,6 +610,11 @@ const getMedios = () => arrOk(store.get(K.medios, [])).filter(m => m && typeof m
 const getVentajas = () => arrOk(store.get(K.ventajas, [])).filter(v => v && typeof v === "object");
 const getLeads = () => arrOk(store.get(K.leads, [])).filter(l => l && typeof l === "object");
 const getAjustes = () => { const a = store.get(K.ajustes, {}); return (a && typeof a === "object" && !Array.isArray(a)) ? a : {}; };
+const getAfil = () => arrOk(store.get(K.afil, [])).filter(x => x && typeof x === "object");
+const getAvisos = () => arrOk(store.get(K.avisos, [])).filter(x => x && typeof x === "object").sort((a, b) => String(b.fecha || b.creado || "").localeCompare(String(a.fecha || a.creado || "")));
+const getDocs = () => arrOk(store.get(K.docs, [])).filter(x => x && typeof x === "object");
+const getHilos = () => arrOk(store.get(K.hilos, [])).filter(x => x && typeof x === "object").sort((a, b) => String(b.creado || "").localeCompare(String(a.creado || "")));
+const getMsgs = () => arrOk(store.get(K.msgs, [])).filter(x => x && typeof x === "object");
 function cfg() {
   const a = getAjustes() || {};
   return {
@@ -583,7 +655,8 @@ function pintarMarca() {
 let ADMIN_SESSION = false;
 let adminTab = "resumen";
 let adminFails = 0, adminLockHasta = 0;
-let editandoNoticia = "", editandoMedio = "", editandoVentaja = "";
+let editandoNoticia = "", editandoMedio = "", editandoVentaja = "", editandoAviso = "", editandoDoc = "";
+let AFIL_SESSION = null;
 let buscaNoticias = "", catNoticias = "";
 let filtroLeadsVal = "todas", buscaLeads = "";
 let deferredPrompt = null;
@@ -787,15 +860,78 @@ function vContacto() {
     '</div></div></div>';
 }
 
+function subnavAfil(activo) {
+  const it = [["#/area-privada", "Inicio"], ["#/documentos", "Documentos"], ["#/foro", "Foro"], ["#/perfil", "Mi perfil"]];
+  return '<nav class="subnav" aria-label="Área privada">' +
+    it.map(x => '<a href="' + x[0] + '"' + (activo === x[0] ? ' aria-current="page"' : '') + '>' + x[1] + '</a>').join("") +
+    '<button id="btnSalirAfil" class="subnav-salir">Salir</button></nav>';
+}
 function vArea() {
-  return '<div class="seccion"><div class="wrap"><h1 tabindex="-1">Área privada de afiliados</h1>' +
-    '<p class="sub">Esta es la zona reservada a los afiliados de JUCIL. En esta demo el acceso está simulado: cualquier usuario y contraseña que escribas mostrará el aviso de abajo, sin conectarse a ningún sistema real ni guardar tus datos.</p>' +
-    '<div class="tarjeta-form" style="max-width:420px"><form id="formArea" novalidate>' +
-    '<div class="field"><label for="area-user">Usuario o número de afiliado</label><input type="text" id="area-user" autocomplete="off"></div>' +
-    '<div class="field"><label for="area-pass">Contraseña</label><input type="password" id="area-pass" autocomplete="off"></div>' +
-    '<button type="submit" id="btnArea" class="btn btn-primary">Entrar</button></form>' +
-    '<div id="areaAviso" class="aviso-caja" role="status" hidden style="margin-top:16px">El área privada de afiliados no está operativa en esta demo: necesita servidor y base de datos. Si eres afiliado y necesitas acceso, escribe a comunicaciones@jucil.es.<div style="margin-top:12px"><a id="areaCta" class="btn btn-primary btn-sm" href="#/asociate">Quiero afiliarme</a></div></div>' +
-    '</div></div></div>';
+  if (!AFIL_SESSION) {
+    return '<div class="seccion"><div class="wrap"><h1 tabindex="-1">Área privada de afiliados</h1>' +
+      '<p class="sub">Zona reservada a los afiliados de JUCIL: avisos, documentos, circulares y foro de la asociación.</p>' +
+      '<div class="tarjeta-form" style="max-width:440px">' +
+      '<div class="aviso-caja" style="margin-top:0">Demostración: entra con el afiliado de ejemplo <b>nº ' + esc(CONFIG.AFILIADO_DEMO.num) + '</b> y clave <b>' + esc(CONFIG.AFILIADO_DEMO.clave) + '</b>. En la versión publicada, cada afiliado tendría sus credenciales guardadas de forma segura en un servidor.</div>' +
+      '<form id="formArea" novalidate>' +
+      '<div class="field"><label for="area-user">Número de afiliado</label><input type="text" id="area-user" maxlength="20" autocomplete="off"></div>' +
+      '<div class="field"><label for="area-pass">Contraseña</label><input type="password" id="area-pass" maxlength="60" autocomplete="off"></div>' +
+      '<button type="submit" id="btnArea" class="btn btn-primary">Entrar</button>' +
+      '<div id="errArea" class="alert-error" role="alert" hidden></div></form>' +
+      '<p class="nota" style="margin-top:14px">¿Aún no eres afiliado? <a href="#/asociate">Asóciate</a> o escribe a <a href="mailto:' + esc(cfg().email) + '" target="_blank" rel="noopener noreferrer">' + esc(cfg().email) + '</a>.</p>' +
+      '</div></div></div>';
+  }
+  const a = AFIL_SESSION, avs = getAvisos();
+  return '<div id="panelAfiliado" class="seccion"><div class="wrap">' + subnavAfil("#/area-privada") +
+    '<h1 tabindex="-1">Bienvenido, ' + esc(a.nombre) + '</h1>' +
+    '<p class="sub">Afiliado nº ' + esc(a.num) + ' · ' + esc(a.empleo || "") + (a.provincia ? " · " + esc(a.provincia) : "") + '</p>' +
+    '<div class="grid c3" style="margin-bottom:8px"><a class="btn btn-outline" href="#/documentos">Documentos y circulares</a><a class="btn btn-outline" href="#/foro">Foro de afiliados</a><a class="btn btn-outline" href="#/perfil">Mi perfil</a></div>' +
+    '<h2 style="margin:18px 0 10px">Últimos avisos</h2>' +
+    (avs.length ? avs.slice(0, 4).map(av => '<div class="card"><div style="margin-bottom:4px">' + (av.demo ? '<span class="badge demo">EJEMPLO</span>' : (av.fecha ? '<span class="nota">' + esc(fmt(av.fecha)) + '</span>' : '')) + '</div><h3>' + esc(av.titulo) + '</h3><p style="color:var(--tinta-suave);font-size:14.5px;margin-top:4px">' + esc(String(av.cuerpo || "").split("\n")[0]) + '</p></div>').join("") : '<div class="vacio">Todavía no hay avisos.</div>') +
+    '</div></div>';
+}
+function vDocumentos() {
+  const docs = getDocs();
+  return '<div id="panelAfiliado" class="seccion"><div class="wrap">' + subnavAfil("#/documentos") +
+    '<h1 tabindex="-1">Documentos y circulares</h1>' +
+    '<p class="sub">La nube documental de la asociación. En la demo, la descarga está simulada.</p>' +
+    '<div class="card">' +
+    (docs.length ? docs.map(d => '<div class="doc-row"><div style="display:flex;gap:12px;align-items:center"><div class="doc-ico" aria-hidden="true">📄</div><div><div style="font-weight:600">' + esc(d.nombre) + (d.demo ? ' <span class="badge demo">EJEMPLO</span>' : '') + '</div><div class="nota">' + esc(d.categoria || "Documento") + '</div></div></div><button class="btn btn-outline btn-sm doc-desc" data-id="' + esc(d.id) + '">Descargar</button></div>').join("") : '<div class="vacio">Todavía no hay documentos publicados.</div>') +
+    '</div><div id="docMsg" class="msg-ok" hidden></div></div></div>';
+}
+function vForo() {
+  const hilos = getHilos(), msgs = getMsgs();
+  return '<div id="panelAfiliado" class="seccion"><div class="wrap">' + subnavAfil("#/foro") +
+    '<h1 tabindex="-1">Foro de afiliados</h1>' +
+    '<p class="sub">Espacio de participación de los afiliados de JUCIL.</p>' +
+    '<div class="card"><h3 style="margin-bottom:8px">Abrir un tema nuevo</h3><form id="formHilo" novalidate>' +
+    '<div class="field"><label for="h-titulo">Título del tema</label><input type="text" id="h-titulo" maxlength="120"></div>' +
+    '<button type="submit" class="btn btn-primary btn-sm">Crear tema</button>' +
+    '<div id="errHilo" class="alert-error" role="alert" hidden></div></form></div>' +
+    (hilos.length ? hilos.map(h => { const n = msgs.filter(m => m.hilo === h.id).length; return '<a class="hilo" href="#/foro/' + esc(h.id) + '"><h3>' + esc(h.titulo) + (h.demo ? ' <span class="badge demo">EJEMPLO</span>' : '') + '</h3><div class="hilo-meta">Por ' + esc(h.autor || "Afiliado") + ' · ' + n + ' mensaje' + (n === 1 ? "" : "s") + '</div></a>'; }).join("") : '<div class="vacio">Todavía no hay temas. ¡Abre el primero!</div>') +
+    '</div></div>';
+}
+function vHilo(id) {
+  const h = getHilos().find(x => x.id === id);
+  if (!h) return '<div class="seccion"><div class="wrap">' + subnavAfil("#/foro") + '<h1 tabindex="-1">No hemos encontrado ese tema</h1><p class="sub" style="margin:8px 0 16px">Puede que se haya borrado.</p><a class="btn btn-outline" href="#/foro">Volver al foro</a></div></div>';
+  const msgs = getMsgs().filter(m => m.hilo === id).sort((a, b) => String(a.creado).localeCompare(String(b.creado)));
+  return '<div id="panelAfiliado" class="seccion"><div class="wrap">' + subnavAfil("#/foro") +
+    '<a href="#/foro">← Volver al foro</a>' +
+    '<h1 tabindex="-1" style="margin:10px 0 4px">' + esc(h.titulo) + '</h1>' +
+    '<p class="sub" style="margin-bottom:14px">Abierto por ' + esc(h.autor || "Afiliado") + '</p>' +
+    (msgs.length ? msgs.map(m => '<div class="mensaje"><div class="autor">' + esc(m.autor || "Afiliado") + ' <span class="fecha">' + esc(fmt(m.creado)) + '</span></div><div class="cuerpo">' + esc(m.cuerpo) + '</div></div>').join("") : '<div class="vacio">Sé el primero en responder.</div>') +
+    '<div class="card" style="margin-top:14px"><h3 style="margin-bottom:8px">Responder</h3><form id="formMensaje" novalidate>' +
+    '<div class="field"><label for="nuevoMensaje">Tu mensaje</label><textarea id="nuevoMensaje" maxlength="1500" placeholder="Escribe tu respuesta (mínimo 3 caracteres)."></textarea></div>' +
+    '<button type="submit" class="btn btn-primary btn-sm">Publicar respuesta</button>' +
+    '<div id="errMensaje" class="alert-error" role="alert" hidden></div></form></div>' +
+    '</div></div>';
+}
+function vPerfil() {
+  const a = AFIL_SESSION;
+  return '<div id="panelAfiliado" class="seccion"><div class="wrap">' + subnavAfil("#/perfil") +
+    '<h1 tabindex="-1">Mi perfil</h1>' +
+    '<div class="card"><p><b>Número de afiliado:</b> ' + esc(a.num) + '</p><p><b>Nombre:</b> ' + esc(a.nombre) + '</p><p><b>Empleo o escala:</b> ' + esc(a.empleo || "—") + '</p><p><b>Provincia:</b> ' + esc(a.provincia || "—") + '</p></div>' +
+    '<div class="aviso-caja">En la versión publicada, el afiliado podría actualizar sus datos y descargar su justificante desde aquí; en la demo los datos son de ejemplo.</div>' +
+    '<a class="btn btn-outline" href="#/area-privada">Volver al inicio del área</a></div></div>';
 }
 
 function vPrivacidad() {
@@ -856,7 +992,7 @@ function vAdmin() {
       '<p class="nota" style="margin-top:6px">🔎 <b>Esto es una demo.</b> Entra con la contraseña <b>' + esc(CONFIG.ADMIN_PASSWORD) + '</b> y prueba el panel del dueño.</p>' +
       "</div></div></div>";
   }
-  const tabs = [["resumen", "tabResumen", "Resumen"], ["leads", "tabLeads", "Solicitudes"], ["noticias", "tabNoticias", "Noticias"], ["medios", "tabMedios", "Medios"], ["ventajas", "tabVentajas", "Ventajas"], ["marca", "tabMarca", "Marca"], ["ajustes", "tabAjustes", "Ajustes"], ["datos", "tabDatos", "Datos"]];
+  const tabs = [["resumen", "tabResumen", "Resumen"], ["leads", "tabLeads", "Solicitudes"], ["noticias", "tabNoticias", "Noticias"], ["medios", "tabMedios", "Medios"], ["ventajas", "tabVentajas", "Ventajas"], ["avisos", "tabAvisos", "Avisos"], ["docs", "tabDocs", "Documentos"], ["foro", "tabForo", "Foro"], ["afil", "tabAfil", "Afiliados"], ["marca", "tabMarca", "Marca"], ["ajustes", "tabAjustes", "Ajustes"], ["datos", "tabDatos", "Datos"]];
   return '<div class="seccion" style="padding-top:28px"><div class="wrap"><div id="adminPanel">' +
     '<div class="admin-cab"><h1 tabindex="-1" style="font-size:26px">Panel de administración</h1><button id="btnLogout" class="btn btn-outline btn-sm">Salir</button></div>' +
     '<div class="tabs" role="tablist" aria-label="Secciones del panel">' +
@@ -957,6 +1093,44 @@ function adminBodyHTML() {
       arr.map(x => '<div class="item-admin"><div><div class="tit">' + icono(x.icono) + " " + esc(x.titulo) + '</div><div class="sub2">' + (x.visible ? "Visible" : "Oculta") + '</div></div><div class="item-acciones"><button class="btn btn-outline btn-sm ventaja-edit" data-id="' + esc(x.id) + '">Editar</button></div></div>').join("") +
       "</div></div>";
   }
+  if (adminTab === "avisos") {
+    const avs = getAvisos(), a = editandoAviso ? avs.find(x => x.id === editandoAviso) : null;
+    return '<div id="panAvisos" role="tabpanel" aria-labelledby="tabAvisos"><div class="admin-cab"><h2 style="font-size:18px">Avisos del área privada</h2><button id="btnNuevoAviso" class="btn btn-primary btn-sm">Nuevo aviso</button></div>' +
+      '<div id="avisoMsg" class="msg-ok" hidden></div>' +
+      '<form id="formAviso" novalidate class="card" style="margin:12px 0"' + (a || editandoAviso === "nuevo" ? "" : " hidden") + '><input type="hidden" id="av-id" value="' + esc(a ? a.id : "") + '">' +
+      '<div class="field"><label for="av-titulo">Título</label><input type="text" id="av-titulo" maxlength="140" value="' + esc(a ? a.titulo : "") + '"></div>' +
+      '<div class="field"><label for="av-cuerpo">Cuerpo</label><textarea id="av-cuerpo" maxlength="4000">' + esc(a ? a.cuerpo : "") + '</textarea></div>' +
+      '<div class="botonera"><button type="button" id="btnCancelarAviso" class="btn btn-outline btn-sm">Cancelar</button><button type="submit" class="btn btn-primary btn-sm">Guardar</button></div>' +
+      '<div id="errAviso" class="alert-error" role="alert" hidden></div></form>' +
+      (avs.length ? avs.map(av => '<div class="item-admin"><div class="tit">' + esc(av.titulo) + (av.demo ? ' <span class="badge demo">EJEMPLO</span>' : '') + '</div><div class="item-acciones"><button class="btn btn-outline btn-sm aviso-edit" data-id="' + esc(av.id) + '">Editar</button><button class="btn btn-danger btn-sm aviso-del" data-id="' + esc(av.id) + '">Borrar</button></div></div>').join("") : '<div class="vacio">No hay avisos.</div>') +
+      '</div>';
+  }
+  if (adminTab === "docs") {
+    const docs = getDocs(), d = editandoDoc ? docs.find(x => x.id === editandoDoc) : null;
+    return '<div id="panDocs" role="tabpanel" aria-labelledby="tabDocs"><div class="admin-cab"><h2 style="font-size:18px">Documentos (nube)</h2><button id="btnNuevoDoc" class="btn btn-primary btn-sm">Nuevo documento</button></div>' +
+      '<div id="docAdmMsg" class="msg-ok" hidden></div>' +
+      '<form id="formDoc" novalidate class="card" style="margin:12px 0"' + (d || editandoDoc === "nuevo" ? "" : " hidden") + '><input type="hidden" id="doc-id" value="' + esc(d ? d.id : "") + '">' +
+      '<div class="field"><label for="doc-nombre">Nombre del documento</label><input type="text" id="doc-nombre" maxlength="140" value="' + esc(d ? d.nombre : "") + '"></div>' +
+      '<div class="field"><label for="doc-cat">Categoría</label><select id="doc-cat">' + ["Circulares", "Documentación", "Formularios", "Actas", "Otros"].map(c => '<option' + (d && d.categoria === c ? " selected" : "") + '>' + c + '</option>').join("") + '</select></div>' +
+      '<div class="botonera"><button type="button" id="btnCancelarDoc" class="btn btn-outline btn-sm">Cancelar</button><button type="submit" class="btn btn-primary btn-sm">Guardar</button></div>' +
+      '<div id="errDoc" class="alert-error" role="alert" hidden></div></form>' +
+      (docs.length ? docs.map(d2 => '<div class="item-admin"><div class="tit">' + esc(d2.nombre) + ' <span class="sub2">' + esc(d2.categoria || "") + '</span></div><div class="item-acciones"><button class="btn btn-danger btn-sm doc-del" data-id="' + esc(d2.id) + '">Borrar</button></div></div>').join("") : '<div class="vacio">No hay documentos.</div>') +
+      '</div>';
+  }
+  if (adminTab === "foro") {
+    const hilos = getHilos(), msgs = getMsgs();
+    return '<div id="panForo" role="tabpanel" aria-labelledby="tabForo"><h2 style="font-size:18px">Moderar foro</h2>' +
+      '<p class="nota" style="margin:6px 0 12px">Puedes borrar temas del foro de afiliados (con sus mensajes).</p>' +
+      (hilos.length ? hilos.map(h => '<div class="item-admin"><div class="tit">' + esc(h.titulo) + ' <span class="sub2">' + msgs.filter(m => m.hilo === h.id).length + ' mensajes</span></div><div class="item-acciones"><button class="btn btn-danger btn-sm hilo-del" data-id="' + esc(h.id) + '">Borrar tema</button></div></div>').join("") : '<div class="vacio">No hay temas.</div>') +
+      '</div>';
+  }
+  if (adminTab === "afil") {
+    const afs = getAfil();
+    return '<div id="panAfil" role="tabpanel" aria-labelledby="tabAfil"><h2 style="font-size:18px">Afiliados con acceso</h2>' +
+      '<div class="aviso-caja">En la demo hay un afiliado de ejemplo (nº ' + esc(CONFIG.AFILIADO_DEMO.num) + '). En la versión publicada, la asociación daría de alta a los afiliados y sus credenciales se guardarían cifradas en el servidor.</div>' +
+      afs.map(a => '<div class="item-admin"><div class="tit">' + esc(a.nombre) + ' <span class="sub2">nº ' + esc(a.num) + ' · ' + esc(a.empleo || "") + '</span></div>' + (a.demo ? '<span class="badge demo">EJEMPLO</span>' : '') + '</div>').join("") +
+      '</div>';
+  }
   if (adminTab === "marca") {
     const hay = !!getLogo();
     return '<div id="panMarca" role="tabpanel" aria-labelledby="tabMarca"><h2 style="font-size:18px">Marca</h2>' +
@@ -1026,6 +1200,9 @@ const TITULOS = {
   "#/contacto": "Contacto — JUCIL",
   "#/privacidad": "Política de privacidad y aviso legal — JUCIL",
   "#/area-privada": "Área privada de afiliados — JUCIL",
+  "#/documentos": "Documentos — Área privada JUCIL",
+  "#/foro": "Foro de afiliados — JUCIL",
+  "#/perfil": "Mi perfil — Área privada JUCIL",
   "#/admin": "Acceso del administrador — JUCIL"
 };
 let huboPrimerRender = false;
@@ -1046,6 +1223,10 @@ function render() {
     else if (h === "#/contacto") html = vContacto();
     else if (h === "#/privacidad") html = vPrivacidad();
     else if (h === "#/area-privada") html = vArea();
+    else if (h === "#/documentos") { if (!AFIL_SESSION) { html = vArea(); titulo = TITULOS["#/area-privada"]; } else html = vDocumentos(); }
+    else if (h === "#/foro") { if (!AFIL_SESSION) { html = vArea(); titulo = TITULOS["#/area-privada"]; } else html = vForo(); }
+    else if (h.indexOf("#/foro/") === 0) { if (!AFIL_SESSION) { html = vArea(); titulo = TITULOS["#/area-privada"]; } else { const hi = getHilos().find(x => x.id === h.slice(7)); titulo = (hi ? hi.titulo + " — Foro JUCIL" : "Tema no encontrado — JUCIL"); html = vHilo(h.slice(7)); } }
+    else if (h === "#/perfil") { if (!AFIL_SESSION) { html = vArea(); titulo = TITULOS["#/area-privada"]; } else html = vPerfil(); }
     else if (h === "#/admin") { titulo = ADMIN_SESSION ? "Panel de administración — JUCIL" : TITULOS["#/admin"]; html = vAdmin(); }
     else { titulo = "Página no encontrada — JUCIL"; html = v404(); }
     view.innerHTML = html;
@@ -1453,6 +1634,20 @@ document.addEventListener("click", (e) => {
     setMsg("#logoMsg", "Logo actualizado");
     return;
   }
+  /* área privada del afiliado */
+  if (cerca("#btnSalirAfil")) { AFIL_SESSION = null; location.hash = "#/area-privada"; render(); return; }
+  if (cerca(".doc-desc")) { setMsg("#docMsg", "Descarga simulada: en la versión publicada se descargaría el archivo real desde el servidor."); return; }
+  /* gestor: avisos */
+  if (cerca("#btnNuevoAviso")) { editandoAviso = "nuevo"; refrescarAdmin(); return; }
+  if (cerca("#btnCancelarAviso")) { editandoAviso = ""; refrescarAdmin(); return; }
+  const ave = cerca(".aviso-edit"); if (ave) { editandoAviso = ave.getAttribute("data-id"); refrescarAdmin(); return; }
+  const avd = cerca(".aviso-del"); if (avd) { const id = avd.getAttribute("data-id"); abrirConfirm("¿Seguro que quieres borrar este aviso? Esta acción no se puede deshacer.", () => { store.set(K.avisos, getAvisos().filter(x => x.id !== id)); editandoAviso = ""; refrescarAdmin(); }); return; }
+  /* gestor: documentos */
+  if (cerca("#btnNuevoDoc")) { editandoDoc = "nuevo"; refrescarAdmin(); return; }
+  if (cerca("#btnCancelarDoc")) { editandoDoc = ""; refrescarAdmin(); return; }
+  const dce = cerca(".doc-del"); if (dce) { const id = dce.getAttribute("data-id"); abrirConfirm("¿Seguro que quieres borrar este documento? Esta acción no se puede deshacer.", () => { store.set(K.docs, getDocs().filter(x => x.id !== id)); refrescarAdmin(); }); return; }
+  /* gestor: foro */
+  const hde = cerca(".hilo-del"); if (hde) { const id = hde.getAttribute("data-id"); abrirConfirm("¿Seguro que quieres borrar este tema del foro y sus mensajes? Esta acción no se puede deshacer.", () => { store.set(K.hilos, getHilos().filter(x => x.id !== id)); store.set(K.msgs, getMsgs().filter(m => m.hilo !== id)); refrescarAdmin(); }); return; }
 });
 
 document.addEventListener("submit", (e) => {
@@ -1462,11 +1657,46 @@ document.addEventListener("submit", (e) => {
   if (f.id === "formAfiliacion") { enviarAfiliacion(); return; }
   if (f.id === "formContacto") { enviarContacto(); return; }
   if (f.id === "formArea") {
-    const av = $("#areaAviso");
-    if (av) { av.hidden = false; try { av.focus && av.setAttribute("tabindex", "-1"); av.focus({ preventScroll: true }); } catch (er) {} }
-    const u = $("#area-user"), p = $("#area-pass");
-    if (u) u.value = ""; if (p) p.value = "";
-    return;
+    const num = lim($("#area-user") ? $("#area-user").value : "", 20);
+    const cl = $("#area-pass") ? $("#area-pass").value : "";
+    const a = getAfil().find(x => String(x.num) === num && String(x.clave) === cl);
+    if (!a) { mostrarError("#errArea", "El número de afiliado o la contraseña no son correctos."); return; }
+    limpiarError("#errArea");
+    AFIL_SESSION = a; location.hash = "#/area-privada"; render(); return;
+  }
+  if (f.id === "formHilo") {
+    if (!AFIL_SESSION) return;
+    const tit = lim($("#h-titulo") ? $("#h-titulo").value : "", 120);
+    if (tit.length < 4) { mostrarError("#errHilo", "Escribe un título de al menos 4 caracteres."); return; }
+    const id = uid("h"); const arr = getHilos(); arr.unshift({ id: id, titulo: tit, autor: AFIL_SESSION.nombre, creado: nowISO() });
+    if (!store.set(K.hilos, arr)) { mostrarError("#errHilo", "No se ha podido guardar."); return; }
+    location.hash = "#/foro/" + id; render(); return;
+  }
+  if (f.id === "formMensaje") {
+    if (!AFIL_SESSION) return;
+    const cuerpo = lim($("#nuevoMensaje") ? $("#nuevoMensaje").value : "", 1500);
+    if (cuerpo.length < 3) { mostrarError("#errMensaje", "Escribe un mensaje."); return; }
+    const hilo = location.hash.slice(7);
+    const arr = getMsgs(); arr.push({ id: uid("ms"), hilo: hilo, autor: AFIL_SESSION.nombre, cuerpo: cuerpo, creado: nowISO() });
+    if (!store.set(K.msgs, arr)) { mostrarError("#errMensaje", "No se ha podido guardar."); return; }
+    render(); return;
+  }
+  if (f.id === "formAviso") {
+    const tit = lim($("#av-titulo") ? $("#av-titulo").value : "", 140), cu = lim($("#av-cuerpo") ? $("#av-cuerpo").value : "", 4000);
+    if (tit.length < 4) { mostrarError("#errAviso", "Escribe un título de al menos 4 caracteres."); return; }
+    if (cu.length < 10) { mostrarError("#errAviso", "Escribe un cuerpo de al menos 10 caracteres."); return; }
+    const id = $("#av-id") ? $("#av-id").value : ""; const arr = getAvisos();
+    if (id) { const a = arr.find(x => x.id === id); if (a) { a.titulo = tit; a.cuerpo = cu; a.demo = false; } }
+    else arr.unshift({ id: uid("av"), titulo: tit, cuerpo: cu, fecha: "", demo: false, creado: nowISO() });
+    store.set(K.avisos, arr); editandoAviso = ""; refrescarAdmin(); setMsg("#avisoMsg", "Aviso guardado"); return;
+  }
+  if (f.id === "formDoc") {
+    const nom = lim($("#doc-nombre") ? $("#doc-nombre").value : "", 140);
+    if (nom.length < 3) { mostrarError("#errDoc", "Escribe el nombre del documento."); return; }
+    const id = $("#doc-id") ? $("#doc-id").value : ""; const arr = getDocs();
+    if (id) { const d = arr.find(x => x.id === id); if (d) { d.nombre = nom; d.categoria = $("#doc-cat") ? $("#doc-cat").value : "Otros"; } }
+    else arr.unshift({ id: uid("d"), nombre: nom, categoria: $("#doc-cat") ? $("#doc-cat").value : "Otros", demo: false, creado: nowISO() });
+    store.set(K.docs, arr); editandoDoc = ""; refrescarAdmin(); setMsg("#docAdmMsg", "Documento guardado"); return;
   }
   if (f.id === "adminLoginForm") { loginAdmin(); return; }
   if (f.id === "formNoticia") { guardarNoticia(); return; }
