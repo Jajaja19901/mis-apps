@@ -6,6 +6,8 @@
 ## 2026-07-30 (2) — Control Acceso + Vigía en la incubadora; menú web/app en TODO
 - Qué se hizo: MH Collective renombrada a **Control Acceso** sin rastro de MH (emblema CA, códigos CA-, contraseña "controlacceso", tests 49/49 ✅; archivos → `control-acceso.html` y `control-acceso-web.html`). Webs básicas nuevas: `inmobiliaria-web.html` y `vigia-web.html`. Incubadora: 14 tarjetas (+" Control Acceso" y "Vigía IA"), TODAS con el menú "¿Web 250€ o App 650€?" (28 demos, 6,1MB). Huevo del enjambre ahora multicolor (verde→cian→violeta, la muestra aprobada); móvil sin tocar. Tarjetas de bares renombradas ("Bar · Pedidos por QR" vs "Restaurante · Reservas") — son productos distintos, no copias; no había blobs duplicados.
 - Ojo: un reinicio del worker deshizo archivos locales a mitad de sesión; se recuperó del remoto (por eso conviene commit+push pronto).
+- Carga agilizada: los 29 blobs embebidos ahora van en gzip+base64 y se descomprimen al abrir cada demo (DecompressionStream nativo) → la página pasa de 6,1MB a 2,75MB y pinta en ~0,8s. Apertura de demos asíncrona (appHtml con caché); galería y buildstage adaptados.
+- Arreglado (aviso del usuario): la portada de Control Acceso cargaba `icon-512.png` "del servidor" y en apps/ ese archivo es el icono de VIGÍA → robaba el ojo. Eliminada esa carga (logo del dueño → emblema CA), blob y miniatura re-embebidos. Icono de la tarjeta cambiado a ticket (el anterior parecía cámara). Tests 49/49 ✅.
 - Pendiente: nombre definitivo de AFTERS (se queda por ahora).
 
 ## 2026-07-30 — 3 apps nuevas anonimizadas como demos + 2 webs básicas
