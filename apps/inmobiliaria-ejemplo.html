@@ -1793,16 +1793,17 @@
 
   // NAV
   function show(id){
-    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
     const target = document.getElementById(id);
-    if (target) target.classList.add('active');
+    if (!target || !target.classList.contains('section')) return; // solo pestañas reales
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    target.classList.add('active');
     document.querySelectorAll('.nav-btn').forEach(b=>{
       b.classList.toggle('active', b.dataset.target === id);
     });
     window.scrollTo({top:0, behavior:'smooth'});
     if (id === 'trivial') startTrivial();
   }
-  document.querySelectorAll('[data-target]').forEach(el => el.addEventListener('click', () => show(el.dataset.target)));
+  document.querySelectorAll('.nav-btn[data-target]').forEach(el => el.addEventListener('click', () => show(el.dataset.target)));
   document.querySelectorAll('[data-go]').forEach(el => el.addEventListener('click', () => show(el.dataset.go)));
 
   // FORMAT
