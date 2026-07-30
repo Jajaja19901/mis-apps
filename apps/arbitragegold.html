@@ -80,7 +80,7 @@ header#header{position:fixed;top:0;left:0;right:0;min-height:var(--header-h);z-i
 body{padding-top:var(--header-h)}
 
 /* ===== Main ===== */
-main#view{order:3;flex:1;padding-bottom:calc(var(--nav-h) + 12px)}
+main#view{order:3;flex:1;padding-bottom:24px}
 @media(min-width:768px){main#view{padding-bottom:24px}}
 
 /* ===== Nav (misma lista, reposicionada por CSS) ===== */
@@ -99,7 +99,10 @@ nav#mainNav{order:4;position:fixed;left:0;right:0;bottom:0;z-index:80;background
 }
 
 /* ===== Footer ===== */
-footer#siteFooter{order:5;background:var(--bg-elevated);border-top:1px solid var(--border);padding:28px 16px 24px}
+/* En móvil la barra de navegación es fija abajo: el pie reserva su alto para que su último
+   enlace (la firma del estudio) nunca quede debajo de la barra. */
+footer#siteFooter{order:5;background:var(--bg-elevated);border-top:1px solid var(--border);padding:28px 16px calc(var(--nav-h) + 24px)}
+@media(min-width:768px){footer#siteFooter{padding-bottom:24px}}
 .footer-inner{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
 .footer-links{display:flex;flex-wrap:wrap;gap:14px 22px;justify-content:center}
 .footer-links a{color:var(--text-muted);font-size:13px;min-height:44px;display:inline-flex;align-items:center}
@@ -119,7 +122,9 @@ footer#siteFooter{order:5;background:var(--bg-elevated);border-top:1px solid var
 .btn-ghost{background:transparent;color:var(--gold-bright);border-color:var(--gold-dark)}
 .btn-danger{background:var(--red);color:#2a0b0c}
 .btn-danger:hover{opacity:.9}
-.btn-sm{min-height:36px;padding:6px 14px;font-size:13px}
+/* 44px también en los botones pequeños de tabla ("Operar", "Cerrar posición") y en el de
+   instalar: son objetivos táctiles reales en móvil. */
+.btn-sm{min-height:44px;padding:8px 14px;font-size:13px}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
 .btn-block{width:100%}
 a.btn{text-decoration:none}
@@ -132,7 +137,7 @@ a.btn{text-decoration:none}
 .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,175,55,.2);outline:none}
 .field textarea{min-height:88px;resize:vertical}
 .checkbox-field{display:flex;align-items:flex-start;gap:10px;margin-bottom:16px}
-.checkbox-field input{width:20px;height:20px;min-height:0;flex:none;margin-top:2px}
+.checkbox-field input{width:24px;height:24px;min-height:0;flex:none;margin-top:2px}
 .checkbox-field label{font-size:13.5px;color:var(--text-muted);font-weight:400}
 .error-msg{background:var(--red-bg);color:#ffb3b6;border:1px solid #5c2226;border-radius:var(--radius-sm);padding:10px 12px;font-size:13.5px;margin-bottom:14px;font-weight:600}
 .error-msg:empty{display:none}
@@ -177,7 +182,9 @@ td.num,th.num{font-family:var(--font-mono);text-align:right}
 .alert-banner h3{margin:0 0 8px;color:var(--gold-bright)}
 .alert-item{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--border-soft);font-size:13.5px}
 .alert-item:first-child{border-top:none}
-.level{font-weight:700;font-size:11.5px;padding:2px 8px;border-radius:999px}
+/* align-self:center evita que la píldora de nivel se estire (y se deforme en óvalo) cuando
+   el texto de la alerta ocupa dos líneas. */
+.level{font-weight:700;font-size:11.5px;padding:2px 8px;border-radius:999px;align-self:center;white-space:nowrap;height:fit-content}
 .level-Alta{background:var(--red-bg);color:#ffb3b6}
 .level-Media{background:var(--amber-bg);color:#ffdca0}
 .level-Baja{background:var(--bg-card);color:var(--text-muted)}
@@ -211,8 +218,11 @@ td.num,th.num{font-family:var(--font-mono);text-align:right}
 .confirm-actions{display:flex;gap:10px;flex-wrap:wrap}
 
 /* ===== Tabs (admin) ===== */
-.tablist{display:flex;gap:6px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto}
-.tab{background:transparent;border:none;color:var(--text-muted);padding:12px 16px;font-weight:700;font-size:13.5px;cursor:pointer;border-bottom:3px solid transparent;min-height:44px;white-space:nowrap}
+/* En móvil las 4 pestañas se reparten en dos filas: si se dejan en una sola tira con scroll
+   horizontal, "Ajustes" queda fuera de pantalla y el dueño no la encuentra. */
+.tablist{display:flex;flex-wrap:wrap;gap:2px 6px;border-bottom:1px solid var(--border);margin-bottom:18px;overflow-x:auto}
+.tab{flex:1 1 40%;background:transparent;border:none;color:var(--text-muted);padding:12px 10px;font-weight:700;font-size:13.5px;cursor:pointer;border-bottom:3px solid transparent;min-height:44px;white-space:nowrap}
+@media(min-width:600px){.tab{flex:0 0 auto;padding:12px 16px}}
 .tab[aria-selected="true"]{color:var(--gold-bright);border-bottom-color:var(--gold)}
 .tabpanel[hidden]{display:none}
 
@@ -852,7 +862,25 @@ function r2(v){ return Math.round(v*100)/100; }
 function r3(v){ return Math.round(v*1000)/1000; }
 function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
 function fmtUSD(v){ return "$"+new Intl.NumberFormat("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2}).format(v); }
+// Importes con signo explícito ("+$12,00" / "−$12,00"): el signo va SIEMPRE delante del
+// símbolo de moneda y nunca se confía solo en el color (accesibilidad).
+function fmtSignedUSD(v){ return (v>=0?"+":"−")+fmtUSD(Math.abs(v)); }
 function fmtQty(v){ return new Intl.NumberFormat("es-ES",{minimumFractionDigits:0,maximumFractionDigits:3}).format(v); }
+// Etiqueta legible del perfil elegido en el formulario de acceso (el valor guardado es el
+// código interno: "curioso" | "trader" | "pro").
+function profileLabel(v){
+  if(v==="curioso") return TEXTS.PROFILE_CURIOSO;
+  if(v==="trader")  return TEXTS.PROFILE_TRADER;
+  if(v==="pro")     return TEXTS.PROFILE_PRO;
+  return v || "—";
+}
+// Icono decorativo de los estados vacíos (aria-hidden: el mensaje ya va en texto).
+function emptyIcon(){
+  return '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+    + 'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">'
+    + '<rect x="3" y="4" width="18" height="16" rx="2"></rect>'
+    + '<path d="M3 9h18"></path><path d="M8 13h5"></path><path d="M8 16.5h8"></path></svg>';
+}
 function fmtPct(v){ return (v>=0?"+":"")+v.toFixed(2)+"%"; }
 function fmtDate(iso){
   try{ const d=new Date(iso); return d.toLocaleString("es-ES",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit"}); }catch(e){ return iso; }
@@ -1260,7 +1288,7 @@ function renderArbitraje(){
       +'<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px">'
         +'<h2 style="margin:0">'+esc(TEXTS.ROUTES_TITLE)+'</h2>'
         +'<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-muted);min-height:44px">'
-          +'<input type="checkbox" id="arbOnlyOps" style="width:20px;height:20px"> '+esc(TEXTS.ONLY_OPS_LABEL)
+          +'<input type="checkbox" id="arbOnlyOps" style="width:24px;height:24px"> '+esc(TEXTS.ONLY_OPS_LABEL)
         +'</label>'
       +'</div>'
       +'<p id="arbRoutesCount" class="hint"></p>'
@@ -1352,8 +1380,8 @@ function renderWalletBarContent(){
   return '<div class="kpi-grid">'
     +'<div class="kpi"><div class="kpi-label">'+esc(TEXTS.WALLET_CASH)+'</div><div class="kpi-value">'+esc(fmtUSD(STATE.wallet.cash))+'</div></div>'
     +'<div class="kpi"><div class="kpi-label">'+esc(TEXTS.WALLET_LOCKED)+'</div><div class="kpi-value">'+esc(fmtUSD(STATE.wallet.locked))+'</div></div>'
-    +'<div class="kpi"><div class="kpi-label">'+esc(TEXTS.WALLET_UNREALIZED)+'</div><div class="kpi-value '+(unrealized>=0?'pnl-up':'pnl-down')+'">'+esc(fmtUSD(unrealized))+'</div></div>'
-    +'<div class="kpi"><div class="kpi-label">'+esc(TEXTS.WALLET_REALIZED)+'</div><div class="kpi-value '+(STATE.wallet.realized>=0?'pnl-up':'pnl-down')+'">'+esc(fmtUSD(STATE.wallet.realized))+'</div></div>'
+    +'<div class="kpi"><div class="kpi-label">'+esc(TEXTS.WALLET_UNREALIZED)+'</div><div class="kpi-value '+(unrealized>=0?'pnl-up':'pnl-down')+'">'+esc(fmtSignedUSD(unrealized))+'</div></div>'
+    +'<div class="kpi"><div class="kpi-label">'+esc(TEXTS.WALLET_REALIZED)+'</div><div class="kpi-value '+(STATE.wallet.realized>=0?'pnl-up':'pnl-down')+'">'+esc(fmtSignedUSD(STATE.wallet.realized))+'</div></div>'
     +'<div class="kpi"><div class="kpi-label">'+esc(TEXTS.WALLET_EQUITY)+'</div><div class="kpi-value">'+esc(fmtUSD(equity))+'</div></div>'
     +'<div class="kpi"><div class="kpi-label">'+esc(TEXTS.POSITIONS_OPEN_PREFIX.replace(" (",""))+'</div><div class="kpi-value" id="posCountValue">'+esc(TEXTS.POSITIONS_OPEN_PREFIX+STATE.positions.length+")")+'</div></div>'
     +'</div>';
@@ -1417,7 +1445,7 @@ function renderSimulador(){
       +'<div id="posTableWrap">'
       +(STATE.positions.length
         ? renderTable([{label:TEXTS.TH_MARKET},{label:TEXTS.TH_SIDE},{label:TEXTS.TH_QTY,num:true},{label:TEXTS.TH_ENTRY,num:true},{label:TEXTS.TH_CURRENT,num:true},{label:TEXTS.TH_PNL,num:true},{label:TEXTS.TH_ACTION}], renderPosRows(), TEXTS.POS_TABLE_CAPTION,"posTable",true)
-        : '<div class="empty-state" id="posEmptyState">'+esc(TEXTS.NO_POSITIONS)+'</div>')
+        : '<div class="empty-state" id="posEmptyState">'+emptyIcon()+'<p>'+esc(TEXTS.NO_POSITIONS)+'</p></div>')
       +'</div>'
     +'</section>'
     +'<section class="block">'
@@ -1484,7 +1512,7 @@ function renderHistorial(){
         +'<p id="histCount" class="hint"></p>'
         +'<div id="histTableWrap">'+renderTable([{label:TEXTS.TH_DATE},{label:TEXTS.TH_TYPE},{label:TEXTS.TH_MARKETS},{label:TEXTS.TH_SIDE},{label:TEXTS.TH_QTY,num:true},{label:TEXTS.TH_PRICE,num:true},{label:TEXTS.TH_RESULT,num:true}], renderHistRows("all"), TEXTS.HIST_TABLE_CAPTION,"histTable",true)+'</div>'
         )
-      : ('<div class="empty-state"><p>'+esc(TEXTS.HIST_EMPTY)+'</p>'
+      : ('<div class="empty-state">'+emptyIcon()+'<p>'+esc(TEXTS.HIST_EMPTY)+'</p>'
           +'<a id="hist-empty-cta" class="btn btn-primary" href="#/simulador">'+esc(TEXTS.HIST_EMPTY_CTA)+'</a></div>')
     )
   +'</div>';
@@ -1585,7 +1613,7 @@ function adminKpis(){
   return '<div class="kpi-grid">'
     +'<div class="kpi"><div class="kpi-label">'+esc(TEXTS.KPI_OPS)+'</div><div class="kpi-value">'+ops+'</div></div>'
     +'<div class="kpi"><div class="kpi-label">'+esc(TEXTS.KPI_VOLUME)+'</div><div class="kpi-value">'+esc(fmtUSD(volume))+'</div></div>'
-    +'<div class="kpi"><div class="kpi-label">'+esc(TEXTS.KPI_REALIZED)+'</div><div class="kpi-value '+(STATE.wallet.realized>=0?'pnl-up':'pnl-down')+'">'+esc(fmtUSD(STATE.wallet.realized))+'</div></div>'
+    +'<div class="kpi"><div class="kpi-label">'+esc(TEXTS.KPI_REALIZED)+'</div><div class="kpi-value '+(STATE.wallet.realized>=0?'pnl-up':'pnl-down')+'">'+esc(fmtSignedUSD(STATE.wallet.realized))+'</div></div>'
     +'<div class="kpi"><div class="kpi-label">'+esc(TEXTS.KPI_OPEN_POS)+'</div><div class="kpi-value">'+openPos+'</div></div>'
     +'<div class="kpi"><div class="kpi-label">'+esc(TEXTS.KPI_LEADS)+'</div><div class="kpi-value">'+leads+'</div></div>'
     +'<div class="kpi"><div class="kpi-label">'+esc(TEXTS.KPI_ALERTS)+'</div><div class="kpi-value">'+alertsNow+'</div></div>'
@@ -1595,19 +1623,19 @@ function adminKpis(){
 function adminOpsRows(){ return renderHistRows("all"); }
 function renderAdminOpsPane(){
   if(!STATE.trades.length){
-    return '<div class="empty-state">'+esc(TEXTS.NO_OPS_ADMIN)+'</div>';
+    return '<div class="empty-state">'+emptyIcon()+'<p>'+esc(TEXTS.NO_OPS_ADMIN)+'</p></div>';
   }
   return renderButton("btnExportOps",TEXTS.BTN_EXPORT,"btn-secondary")
     +'<div style="margin-top:12px">'+renderTable([{label:TEXTS.TH_DATE},{label:TEXTS.TH_TYPE},{label:TEXTS.TH_MARKETS},{label:TEXTS.TH_SIDE},{label:TEXTS.TH_QTY,num:true},{label:TEXTS.TH_PRICE,num:true},{label:TEXTS.TH_RESULT,num:true}], adminOpsRows(), TEXTS.HIST_TABLE_CAPTION,"adminOpsTable",true)+'</div>';
 }
 function adminLeadRows(){
   return STATE.leads.map(l=>(
-    '<tr><td>'+esc(fmtDate(l.ts))+'</td><td>'+esc(l.nombre)+'</td><td>'+esc(l.email)+'</td><td>'+esc(l.perfil)+'</td><td>'+esc(l.mensaje||"—")+'</td><td>Sí</td></tr>'
+    '<tr><td>'+esc(fmtDate(l.ts))+'</td><td>'+esc(l.nombre)+'</td><td>'+esc(l.email)+'</td><td>'+esc(profileLabel(l.perfil))+'</td><td>'+esc(l.mensaje||"—")+'</td><td>Sí</td></tr>'
   )).join("");
 }
 function renderAdminLeadsPane(){
   if(!STATE.leads.length){
-    return '<div class="empty-state">'+esc(TEXTS.NO_LEADS_ADMIN)+'</div>';
+    return '<div class="empty-state">'+emptyIcon()+'<p>'+esc(TEXTS.NO_LEADS_ADMIN)+'</p></div>';
   }
   return renderButton("btnExportLeads",TEXTS.BTN_EXPORT,"btn-secondary")
     +'<div style="margin-top:12px">'+renderTable([{label:TEXTS.TH_DATE},{label:TEXTS.TH_LEAD_NAME},{label:TEXTS.TH_LEAD_EMAIL},{label:TEXTS.TH_LEAD_PROFILE},{label:TEXTS.TH_LEAD_MSG},{label:TEXTS.TH_LEAD_CONSENT}], adminLeadRows(), "Solicitudes de acceso","adminLeadsTable",true)+'</div>';
@@ -1699,6 +1727,13 @@ function updateNavCurrent(path){
   const activeId = map[path];
   if(activeId) document.getElementById(activeId).setAttribute("aria-current","page");
 }
+// ¿ha interactuado ya la persona con la página? Solo entonces movemos el foco al contenido al
+// cambiar de pantalla. Durante el arranque (que dispara route() dos veces: carga + hashchange
+// inicial) NO se toca el foco, para que el primer tabulador llegue a "Saltar al contenido".
+let USER_INTERACTED = false;
+["pointerdown","keydown","touchstart"].forEach(function(ev){
+  window.addEventListener(ev, function(){ USER_INTERACTED = true; }, { passive:true });
+});
 function route(){
   // El enlace "Saltar al contenido" usa href="#view" (ancla real, no una ruta de la
   // app: las rutas siempre empiezan por "/"). Si el hash no es una ruta, no repintamos
@@ -1715,7 +1750,10 @@ function route(){
   view.innerHTML = renderFn();
   document.title = (VIEW_TITLES[path] || TEXTS.META_TITLE) + " · " + CONFIG.BUSINESS_NAME;
   updateNavCurrent(VIEWS[path] ? path : "/");
-  view.focus({preventScroll:true});
+  // Al CAMBIAR de pantalla movemos el foco al contenido (lector de pantalla). En el primer
+  // pintado NO lo movemos: si no, el primer tabulador se saltaría el enlace "Saltar al
+  // contenido" y la barra superior.
+  if(USER_INTERACTED) view.focus({preventScroll:true});
   window.scrollTo(0,0);
   afterRouteHooks(path);
 }
@@ -1765,7 +1803,7 @@ function refreshCurrentViewData(){
     if(wrap){
       wrap.innerHTML = STATE.positions.length
         ? renderTable([{label:TEXTS.TH_MARKET},{label:TEXTS.TH_SIDE},{label:TEXTS.TH_QTY,num:true},{label:TEXTS.TH_ENTRY,num:true},{label:TEXTS.TH_CURRENT,num:true},{label:TEXTS.TH_PNL,num:true},{label:TEXTS.TH_ACTION}], renderPosRows(), TEXTS.POS_TABLE_CAPTION,"posTable",true)
-        : '<div class="empty-state" id="posEmptyState">'+esc(TEXTS.NO_POSITIONS)+'</div>';
+        : '<div class="empty-state" id="posEmptyState">'+emptyIcon()+'<p>'+esc(TEXTS.NO_POSITIONS)+'</p></div>';
     }
     const title = document.getElementById("posTableTitle");
     if(title) title.textContent = TEXTS.POSITIONS_OPEN_PREFIX + STATE.positions.length + ")";
@@ -2043,7 +2081,7 @@ function handleSubmit(e){
     STATE.leads.unshift({ id:uid("l"), ts:new Date().toISOString(), nombre:nombre, email:email, perfil:perfilSel.value, mensaje:mensaje, consent:true });
     persist();
     const wrap = document.getElementById("accesoFormWrap");
-    wrap.innerHTML = '<div class="success-msg"><h2 style="margin-top:0">'+esc(TEXTS.ACCESO_OK_TITLE)+'</h2>'
+    wrap.innerHTML = '<div class="success-msg" id="accesoOk"><h2 style="margin-top:0">'+esc(TEXTS.ACCESO_OK_TITLE)+'</h2>'
       +'<p>'+esc(TEXTS.ACCESO_OK_BODY_PREFIX)+esc(nombre)+esc(TEXTS.ACCESO_OK_BODY_SUFFIX)+'</p>'
       +'<a id="accesoOkCta" class="btn btn-primary" href="#/arbitraje">'+esc(TEXTS.ACCESO_OK_CTA)+'</a></div>';
     return;
@@ -2158,7 +2196,7 @@ function exportTradesCsv(){
 }
 function exportLeadsCsv(){
   const header = ["fecha","nombre","email","perfil","mensaje","consentimiento"];
-  const rows = STATE.leads.map(l=>[fmtDate(l.ts), l.nombre, l.email, l.perfil, l.mensaje||"", "Sí"]);
+  const rows = STATE.leads.map(l=>[fmtDate(l.ts), l.nombre, l.email, profileLabel(l.perfil), l.mensaje||"", "Sí"]);
   downloadCsv("solicitudes", header, rows);
 }
 
