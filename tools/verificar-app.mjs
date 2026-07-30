@@ -110,23 +110,33 @@ async function load() {
 
 // ===== Tests de aceptación por app (DSL embebido en <script type="application/json" id="acceptance-tests">) =====
 // Pasos disponibles: goto, reload, wait, click, clickText, fill{sel,value}, check, submit,
-//                    expect (texto que debe aparecer), expectHash, expectVisible, expectGone.
+//                    expect (texto que debe aparecer), expectHash, expectVisible, expectGone,
+//                    copyText{sel,as} (guarda el texto de un elemento en una variable, luego "$NOMBRE"),
+//                    showGate (vuelve a mostrar la portada de acceso; la app debe definir window.mostrarGate).
+let testVars = {};
+function subVars(x) {
+  if (typeof x === "string") { for (const [k, val] of Object.entries(testVars)) x = x.split("$" + k).join(val); return x; }
+  if (x && typeof x === "object") { const o = Array.isArray(x) ? [] : {}; for (const k of Object.keys(x)) o[k] = subVars(x[k]); return o; }
+  return x;
+}
 async function runStep(step) {
   const k = Object.keys(step)[0];
-  const v = step[k];
+  const v = subVars(step[k]);
   switch (k) {
     case "goto": await page.evaluate((h) => { location.hash = h; }, v); await sleep(280); return { ok: true };
     case "reload": await load(); return { ok: true };
     case "wait": await sleep(Math.min(+v || 200, 3000)); return { ok: true };
     case "click": { const ok = await page.evaluate((s) => { const e = document.querySelector(s); if (!e) return false; e.click(); return true; }, v); await sleep(220); return { ok, msg: ok ? "" : "no existe el selector " + v }; }
     case "clickText": { const ok = await page.evaluate((t) => { const els = [...document.querySelectorAll('a,button,[role=button],input[type=submit],[data-action]')].filter((x) => x.offsetParent !== null && (x.innerText || x.value || "").includes(t)); if (!els.length) return false; els.sort((a, b) => (a.innerText || a.value || "").length - (b.innerText || b.value || "").length); els[0].click(); return true; }, v); await sleep(220); return { ok, msg: ok ? "" : 'no hay elemento visible con el texto "' + v + '"' }; }
-    case "fill": { const ok = await page.evaluate((o) => { const e = document.querySelector(o.sel); if (!e) return false; e.value = o.value; e.dispatchEvent(new Event("input", { bubbles: true })); return true; }, v); return { ok, msg: ok ? "" : "no existe el campo " + (v && v.sel) }; }
+    case "fill": { const ok = await page.evaluate((o) => { const e = document.querySelector(o.sel); if (!e) return false; e.value = o.value; e.dispatchEvent(new Event("input", { bubbles: true })); e.dispatchEvent(new Event("change", { bubbles: true })); return true; }, v); return { ok, msg: ok ? "" : "no existe el campo " + (v && v.sel) }; }
     case "check": { const ok = await page.evaluate((s) => { const e = document.querySelector(s); if (!e) return false; e.checked = true; e.dispatchEvent(new Event("change", { bubbles: true })); return true; }, v); return { ok, msg: ok ? "" : "no existe el checkbox " + v }; }
     case "submit": { const ok = await page.evaluate((s) => { const e = document.querySelector(s); if (!e) return false; if (e.requestSubmit) e.requestSubmit(); else e.dispatchEvent(new Event("submit", { cancelable: true, bubbles: true })); return true; }, v); await sleep(320); return { ok, msg: ok ? "" : "no existe el formulario " + v }; }
     case "expect": { const ok = await page.evaluate((t) => document.body.innerText.includes(t), v); return { ok, msg: ok ? "" : 'no aparece el texto "' + v + '"' }; }
     case "expectHash": { const cur = await page.evaluate(() => location.hash); return { ok: cur === v, msg: cur === v ? "" : 'el hash es "' + cur + '" y se esperaba "' + v + '"' }; }
     case "expectVisible": { const ok = await page.evaluate((s) => { const e = document.querySelector(s); return !!(e && e.offsetParent !== null); }, v); return { ok, msg: ok ? "" : "no está visible " + v }; }
     case "expectGone": { const ok = await page.evaluate((s) => { const e = document.querySelector(s); return !(e && e.offsetParent !== null); }, v); return { ok, msg: ok ? "" : "sigue visible " + v }; }
+    case "copyText": { const txt = await page.evaluate((s) => { const e = document.querySelector(s); return e ? (e.innerText || e.value || "").trim() : null; }, v.sel); if (txt === null) return { ok: false, msg: "no existe el elemento " + v.sel }; testVars[v.as || "TEXTO"] = txt; return { ok: true }; }
+    case "showGate": { const ok = await page.evaluate(() => { if (typeof mostrarGate !== "function") return false; mostrarGate(); return true; }); await sleep(280); return { ok, msg: ok ? "" : "la app no define window.mostrarGate()" }; }
     default: return { ok: false, msg: "paso no reconocido: " + k };
   }
 }
@@ -140,6 +150,7 @@ async function runAcceptanceTests() {
   if (!tests.length) { warnings.push("Bloque #acceptance-tests presente pero sin tests."); return; }
   let passed = 0;
   for (const t of tests) {
+    testVars = {};
     await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} });
     await load();
     let fail = null;

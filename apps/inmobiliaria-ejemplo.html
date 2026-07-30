@@ -1,0 +1,3072 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Inmobiliaria Ejemplo · Demo</title>
+
+<!-- SEO -->
+<meta name="description" content="Calculadora de hipoteca, simulador de gastos, ayudas para jóvenes y valoración de tu vivienda. App de demostración." />
+<meta name="keywords" content="inmobiliaria, calculadora hipoteca, valoración vivienda, hipoteca joven, comprar piso, vender casa, demo" />
+<meta name="author" content="Inmobiliaria Ejemplo (demo)" />
+<meta name="robots" content="index, follow" />
+<meta name="theme-color" content="#0c2340" />
+
+<!-- Open Graph (WhatsApp, Facebook, LinkedIn, Telegram...) -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Inmobiliaria Ejemplo · Demo" />
+<meta property="og:description" content="Calculadora de hipoteca, simulador de gastos, ayudas joven y valoración gratuita de tu vivienda. ¿Hablamos?" />
+<meta property="og:locale" content="es_ES" />
+<meta property="og:site_name" content="Inmobiliaria Ejemplo" />
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Inmobiliaria Ejemplo · Demo" />
+<meta name="twitter:description" content="Calculadora de hipoteca, simulador de gastos, ayudas joven y valoración de tu vivienda. Demo." />
+
+<!-- Favicon embebido (demo autocontenida) -->
+<link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230c2340'/><path d='M50 22 20 48h9v28h17V60h8v16h17V48h9z' fill='%23dc1c2e'/></svg>" />
+<link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230c2340'/><path d='M50 22 20 48h9v28h17V60h8v16h17V48h9z' fill='%23dc1c2e'/></svg>" />
+
+<!-- Apple Web App configs -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Inmobiliaria Ejemplo" />
+<meta name="application-name" content="Inmobiliaria Ejemplo" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --crema:#f5f1e8; --crema-2:#ece6d6;
+    --azul:#0c2340; --azul-2:#15315a; --azul-soft:#1d3a66;
+    --rojo:#b3132c; --rojo-2:#8a0d22;
+    --verde:#18a558; --verde-bg:#e8f7ef; --whatsapp:#25d366;
+    --gris:#6b7280; --gris-2:#d6d2c4;
+    --blanco:#fff;
+    --radius:18px; --radius-sm:12px;
+    --shadow:0 10px 30px rgba(12,35,64,.08), 0 2px 6px rgba(12,35,64,.05);
+    --shadow-deep:0 20px 50px rgba(12,35,64,.15);
+    --ff-display:'Playfair Display', serif;
+    --ff-body:'Manrope', sans-serif;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{background:var(--crema); font-family:var(--ff-body); color:var(--azul); -webkit-font-smoothing:antialiased;}
+
+  /* ============ HEADER ESTILO TARJETA DE PRESENTACIÓN ============ */
+  .header-card{
+    background:var(--azul);
+    color:#fff;
+    padding:30px 20px;
+    position:relative;
+    overflow:hidden;
+  }
+  .header-card::before{
+    content:""; position:absolute;
+    left:-100px; top:50%; transform:translateY(-50%);
+    width:380px; height:380px;
+    border:2px solid rgba(255,255,255,.15);
+    border-radius:50%;
+  }
+  .header-card::after{
+    content:""; position:absolute;
+    left:-60px; top:20px;
+    width:160px; height:160px;
+    border-top:3px solid var(--rojo);
+    border-radius:50%;
+    transform:rotate(-45deg);
+    opacity:.6;
+  }
+  .header-inner{
+    max-width:1100px; margin:0 auto;
+    display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:30px;
+    position:relative; z-index:2;
+  }
+  .brand-block{ display:flex; flex-direction:column; gap:4px;}
+  .brand-logo-wrap{
+    display:flex; align-items:center; gap:6px;
+  }
+  .pin-logo{
+    display:inline-block; width:26px; height:34px;
+    background:radial-gradient(circle at 13px 13px, #fff 0 5px, rgba(0,0,0,0) 5px), linear-gradient(180deg, var(--rojo), #a01020);
+    clip-path:path('M13 0 A13 13 0 0 1 26 13 C26 22 13 34 13 34 C13 34 0 22 0 13 A13 13 0 0 1 13 0 Z');
+    flex-shrink:0;
+  }
+  .brand-text{
+    font-family:var(--ff-body);
+    font-weight:800; font-size:38px; letter-spacing:-1.5px;
+    color:#fff; line-height:.9;
+  }
+  .brand-axis{ font-size:18px; font-weight:700; color:#fff; margin-top:6px; letter-spacing:.5px;}
+
+  .agent-photo-wrap{
+    justify-self:center;
+    width:160px; height:160px;
+    border-radius:50%;
+    overflow:hidden;
+    border:5px solid #fff;
+    box-shadow:0 12px 30px rgba(0,0,0,.3);
+    background:#fff;
+  }
+  .agent-photo-wrap img{ width:100%; height:100%; object-fit:cover; object-position:center top;}
+
+  .agent-info{ text-align:right;}
+  .agent-name{
+    font-family:var(--ff-display);
+    font-size:30px; font-weight:800; color:#fff; line-height:1; letter-spacing:-.5px;
+  }
+  .agent-role{ color:rgba(255,255,255,.75); font-size:13px; margin-top:4px; letter-spacing:.5px;}
+  .agent-phone{
+    font-family:var(--ff-display);
+    font-size:24px; font-weight:700; color:#fff;
+    margin-top:12px; letter-spacing:1px;
+    display:inline-flex; align-items:center; gap:8px;
+  }
+  .agent-mail{ color:rgba(255,255,255,.75); font-size:13px; margin-top:4px;}
+  .agent-web{ color:rgba(255,255,255,.6); font-size:12px; margin-top:2px;}
+
+  .header-stripes-bottom{
+    display:flex; gap:0;
+  }
+  .stripe-red{ flex:1; height:5px; background:var(--rojo);}
+  .stripe-black{ height:24px; background:#000; display:flex; align-items:center; justify-content:center;}
+  .mls-tiny{ font-size:10px; color:rgba(255,255,255,.5); letter-spacing:.5px;}
+
+  /* NAV */
+  .nav{ background:var(--azul-2); padding:14px 20px; position:sticky; top:0; z-index:50; box-shadow:0 4px 20px rgba(0,0,0,.15);}
+  .nav-inner{ max-width:1200px; margin:0 auto; display:flex; flex-wrap:wrap; gap:8px; justify-content:center;}
+  .nav-btn{ background:rgba(255,255,255,.08); color:#fff; border:none; padding:10px 18px; border-radius:999px; font-family:var(--ff-body); font-weight:700; font-size:13px; cursor:pointer; transition:.2s; display:inline-flex; align-items:center; gap:6px; letter-spacing:.5px;}
+  .nav-btn:hover{ background:rgba(255,255,255,.18);}
+  .nav-btn.active{ background:var(--rojo); box-shadow:0 4px 12px rgba(179,19,44,.4);}
+
+  /* SECTIONS */
+  .section{ display:none; animation:fadeIn .4s;}
+  .section.active{ display:block;}
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;}}
+
+  /* HERO */
+  .hero{ text-align:center; padding:48px 20px 24px; max-width:900px; margin:0 auto;}
+  .hero-pill{ display:inline-flex; align-items:center; gap:8px; background:var(--rojo); color:#fff; padding:8px 20px; border-radius:999px; font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase;}
+  .hero-pill.azul{ background:var(--azul);}
+  .hero h1{ font-family:var(--ff-display); font-size:clamp(28px,4.5vw,46px); font-weight:800; margin-top:18px; line-height:1.1; color:var(--azul);}
+  .hero h1 .accent{ color:var(--rojo);}
+  .hero p.subtitle{ margin-top:14px; color:var(--gris); font-size:16px;}
+
+  /* TOOLS HOME */
+  .tools-grid{ max-width:1100px; margin:30px auto 60px; padding:0 20px; display:grid; grid-template-columns:repeat(3,1fr); gap:20px;}
+  @media (max-width:900px){ .tools-grid{ grid-template-columns:1fr 1fr;}}
+  @media (max-width:600px){ .tools-grid{ grid-template-columns:1fr;}}
+  .tool-card{ background:#fff; border-radius:var(--radius); padding:32px 20px; text-align:center; box-shadow:var(--shadow); cursor:pointer; transition:.25s; border:2px solid transparent; position:relative;}
+  .tool-card:hover{ transform:translateY(-6px); box-shadow:var(--shadow-deep); border-color:var(--rojo);}
+  .tool-card .tag{ position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:var(--rojo); color:#fff; padding:4px 14px; border-radius:999px; font-size:10px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase;}
+  .tool-card .emoji{ font-size:46px; margin-bottom:10px; line-height:1;}
+  .tool-card h3{ color:var(--azul); font-size:18px; margin-bottom:6px;}
+  .tool-card p{ color:var(--gris); font-size:13px; line-height:1.4;}
+  .tool-card.has-border-top{ border-top:4px solid var(--rojo);}
+  .tool-card.border-azul{ border-top:4px solid var(--azul);}
+
+  /* CARDS */
+  .card{ background:#fff; border-radius:var(--radius); padding:28px; box-shadow:var(--shadow); border:1px solid rgba(12,35,64,.04);}
+  .card-title{ display:flex; align-items:center; gap:10px; font-size:18px; font-weight:800; color:var(--azul); margin-bottom:20px;}
+  .card-title .icon{ width:30px; height:30px; display:inline-flex; align-items:center; justify-content:center; font-size:18px;}
+
+  /* INPUTS */
+  .field{ margin-bottom:18px;}
+  .field label{ display:block; font-size:11px; font-weight:800; color:var(--azul); letter-spacing:1.2px; margin-bottom:8px; text-transform:uppercase;}
+  .field input[type=number], .field select, .field input[type=text], .field input[type=email]{ width:100%; padding:14px 16px; border:1.5px solid var(--gris-2); border-radius:var(--radius-sm); font-family:var(--ff-body); font-size:16px; font-weight:600; color:var(--azul); background:#fff; transition:.2s; appearance:none; -webkit-appearance:none;}
+  .field select{ background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%230c2340' d='M6 8L0 0h12z'/></svg>"); background-repeat:no-repeat; background-position:right 16px center; padding-right:42px; cursor:pointer;}
+  .field input:focus, .field select:focus{ outline:none; border-color:var(--azul); box-shadow:0 0 0 3px rgba(12,35,64,.08);}
+
+  .slider-row{ display:flex; align-items:center; gap:14px;}
+  .slider-row input[type=range]{ flex:1; -webkit-appearance:none; appearance:none; height:6px; border-radius:99px; background:linear-gradient(to right, var(--rojo) var(--p,80%), var(--gris-2) var(--p,80%)); outline:none;}
+  .slider-row input[type=range]::-webkit-slider-thumb{ -webkit-appearance:none; appearance:none; width:22px; height:22px; border-radius:50%; background:var(--rojo); border:3px solid #fff; box-shadow:0 2px 6px rgba(179,19,44,.4); cursor:pointer;}
+  .slider-row input[type=range]::-moz-range-thumb{ width:22px; height:22px; border-radius:50%; background:var(--rojo); border:3px solid #fff; box-shadow:0 2px 6px rgba(179,19,44,.4); cursor:pointer;}
+  .slider-val{ color:var(--rojo); font-weight:800; font-size:16px; min-width:70px; text-align:right;}
+
+  .alert-ok{ background:var(--verde-bg); border-left:4px solid var(--verde); padding:12px 14px; border-radius:8px; color:#0e6b3a; font-weight:700; font-size:14px; margin-top:6px; display:flex; align-items:center; gap:8px;}
+  .alert-info{ background:#e8f0fa; border-left:4px solid var(--azul); padding:12px 14px; border-radius:8px; color:var(--azul); font-weight:700; font-size:14px; margin-top:6px; display:flex; align-items:center; gap:8px; line-height:1.4;}
+  .alert-warn{ background:#fef3e8; border-left:4px solid #d97706; padding:12px 14px; border-radius:8px; color:#9a5708; font-weight:700; font-size:14px; margin-top:6px; display:flex; align-items:center; gap:8px;}
+
+  /* INFO TIP (cajita de consejo de la asesora) */
+  .info-tip{
+    margin-top:16px;
+    background:#fffdf5;
+    border:1.5px dashed var(--gris-2);
+    border-left:4px solid #d4a017;
+    border-radius:12px;
+    padding:14px 18px;
+  }
+  .info-tip strong{ display:block; color:var(--azul); font-size:14px; margin-bottom:6px;}
+  .info-tip p{ color:#555; font-size:13px; line-height:1.55; margin:0;}
+  .info-tip strong strong{ color:var(--rojo); display:inline;}
+
+  /* CALC HIPOTECA */
+  .calc-wrap{ max-width:1200px; margin:20px auto 40px; padding:0 20px; display:grid; grid-template-columns:1fr 1fr; gap:24px;}
+  @media (max-width:960px){
+    .calc-wrap{ grid-template-columns:1fr;}
+    .header-inner{ grid-template-columns:1fr; text-align:center; gap:20px;}
+    .agent-info{ text-align:center;}
+    .agent-photo-wrap{ margin:0 auto;}
+    .brand-block{ align-items:center;}
+  }
+
+  .result-card{ background:linear-gradient(160deg, var(--azul) 0%, var(--azul-2) 100%); color:#fff; border-radius:var(--radius); padding:28px; box-shadow:var(--shadow-deep); text-align:center; position:relative; overflow:hidden;}
+  .result-card::before{ content:""; position:absolute; top:-30px; right:-30px; width:140px; height:140px; border-radius:50%; background:rgba(255,255,255,.04);}
+  .result-label{ font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; opacity:.8;}
+  .result-big{ font-family:var(--ff-display); font-size:54px; font-weight:800; line-height:1; margin-top:6px; letter-spacing:-1px;}
+  .result-big small{font-size:24px; font-weight:600; opacity:.85;}
+  .result-sub{ font-size:13px; opacity:.75; margin-top:8px;}
+  .result-grid{ margin-top:22px; display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .result-mini{ background:rgba(255,255,255,.08); border-radius:12px; padding:14px 12px; text-align:center;}
+  .result-mini .lbl{ font-size:10px; letter-spacing:1.5px; font-weight:700; opacity:.7; text-transform:uppercase;}
+  .result-mini .val{ font-size:18px; font-weight:800; margin-top:6px; font-family:var(--ff-display);}
+
+  .savings{ margin-top:18px;}
+  .savings-title{ display:flex; align-items:center; gap:10px; font-weight:800; font-size:16px; color:var(--azul); margin-bottom:12px;}
+  .savings-row{ display:flex; align-items:center; gap:14px; background:#fff; border-radius:var(--radius-sm); padding:14px 16px; margin-bottom:10px; box-shadow:var(--shadow); border-left:4px solid var(--rojo);}
+  .savings-row .ico{ font-size:22px; flex-shrink:0;}
+  .savings-row .body{ flex:1;}
+  .savings-row .head{ font-weight:700; color:var(--azul); font-size:14px;}
+  .savings-row .big{ font-family:var(--ff-display); font-weight:800; color:var(--rojo); font-size:22px; line-height:1.1;}
+  .savings-row .note{ font-size:12px; color:var(--gris); margin-top:2px;}
+  .savings-total{ background:linear-gradient(160deg, var(--azul) 0%, var(--azul-2) 100%); color:#fff; border-radius:var(--radius-sm); padding:18px; display:flex; align-items:center; gap:14px; box-shadow:var(--shadow-deep); border-left:none;}
+  .savings-total .ico{font-size:26px;}
+  .savings-total .head{ font-size:11px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; opacity:.8;}
+  .savings-total .big{ font-family:var(--ff-display); color:#fff; font-size:30px; font-weight:800;}
+  .savings-total .note{ font-size:12px; opacity:.7; color:#fff;}
+
+  /* ===== BLOQUE CONTACTO (WhatsApp + Email) ===== */
+  .contact-block{
+    margin-top:24px;
+    background:#fff;
+    border-radius:var(--radius);
+    padding:24px;
+    box-shadow:var(--shadow);
+    border-top:4px solid var(--whatsapp);
+    text-align:center;
+  }
+  .contact-block h3{
+    font-family:var(--ff-display); color:var(--azul);
+    font-size:22px; margin-bottom:6px;
+  }
+  .contact-block p{ color:var(--gris); font-size:14px; margin-bottom:18px;}
+  .contact-buttons{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center;}
+  .btn-wa{
+    flex:1; min-width:180px;
+    background:var(--whatsapp); color:#fff;
+    padding:14px 22px; border-radius:999px;
+    font-weight:800; font-size:15px; text-decoration:none;
+    display:inline-flex; align-items:center; justify-content:center; gap:10px;
+    transition:.2s; box-shadow:0 8px 20px rgba(37,211,102,.3);
+    border:none; cursor:pointer; font-family:var(--ff-body);
+  }
+  .btn-wa:hover{ transform:translateY(-2px); box-shadow:0 12px 26px rgba(37,211,102,.4); background:#1ebe57;}
+  .btn-email{
+    flex:1; min-width:180px;
+    background:var(--azul); color:#fff;
+    padding:14px 22px; border-radius:999px;
+    font-weight:800; font-size:15px; text-decoration:none;
+    display:inline-flex; align-items:center; justify-content:center; gap:10px;
+    transition:.2s; box-shadow:0 8px 20px rgba(12,35,64,.3);
+    border:none; cursor:pointer; font-family:var(--ff-body);
+  }
+  .btn-email:hover{ transform:translateY(-2px); box-shadow:0 12px 26px rgba(12,35,64,.4); background:var(--azul-2);}
+  .contact-mini{
+    margin-top:14px; font-size:12px; color:var(--gris);
+  }
+
+  /* GASTOS */
+  .sim-section{ max-width:1200px; margin:30px auto 40px; padding:0 20px;}
+  .sim-grid{ display:grid; grid-template-columns:1fr 1fr; gap:24px;}
+  @media (max-width:960px){ .sim-grid{ grid-template-columns:1fr;}}
+  .desglose-list{ margin-top:8px;}
+  .desglose-item{ display:flex; justify-content:space-between; align-items:center; padding:14px 0; border-bottom:1px solid #eee;}
+  .desglose-item:last-of-type{ border-bottom:none;}
+  .desglose-item .lbl{ color:var(--azul); font-weight:600; font-size:15px;}
+  .desglose-item .lbl small{ color:var(--gris); font-weight:500;}
+  .desglose-item .val{ color:var(--azul); font-weight:800; font-size:17px; font-family:var(--ff-display);}
+  .total-row{ display:flex; justify-content:space-between; align-items:center; padding:18px 0 8px; border-top:2px solid var(--rojo); margin-top:8px;}
+  .total-row .lbl{ color:var(--azul); font-weight:800; font-size:18px; letter-spacing:1px;}
+  .total-row .val{ color:var(--rojo); font-weight:800; font-size:24px; font-family:var(--ff-display);}
+  .total-final{ margin-top:18px; background:linear-gradient(160deg, var(--azul) 0%, var(--azul-2) 100%); color:#fff; border-radius:var(--radius); padding:24px; text-align:center; box-shadow:var(--shadow-deep);}
+  .total-final .lbl{ font-size:11px; font-weight:700; letter-spacing:2px; text-transform:uppercase; opacity:.85;}
+  .total-final .big{ font-family:var(--ff-display); font-size:46px; font-weight:800; margin-top:4px; letter-spacing:-1px;}
+  .total-final .pct{ font-size:13px; opacity:.75; margin-top:4px;}
+
+  /* CTA */
+  .cta{ display:inline-flex; align-items:center; gap:10px; background:var(--rojo); color:#fff; padding:14px 30px; border-radius:999px; font-weight:700; font-size:15px; text-decoration:none; border:none; cursor:pointer; box-shadow:0 8px 20px rgba(179,19,44,.3); transition:.2s; font-family:var(--ff-body);}
+  .cta:hover{ transform:translateY(-2px); box-shadow:0 12px 26px rgba(179,19,44,.4);}
+  .cta.outline{ background:transparent; color:var(--azul); border:2px solid var(--azul); box-shadow:none;}
+  .cta.azul{ background:var(--azul); box-shadow:0 8px 20px rgba(12,35,64,.3);}
+  .cta-wrap{ text-align:center; margin:30px 0;}
+
+  /* FOOTER */
+  .footer{ background:var(--azul); color:#fff; text-align:center; padding:26px 20px; font-size:13px; margin-top:40px; position:relative;}
+  .footer .line{ margin-bottom:4px;}
+  .footer .line.small{ opacity:.7; font-size:12px;}
+  .footer::before{ content:""; position:absolute; top:0; left:0; right:0; height:5px; background:var(--rojo); opacity:.85;}
+
+  /* JOVEN */
+  .joven-block{ max-width:900px; margin:30px auto; padding:0 20px;}
+  .joven-hero{ background:linear-gradient(135deg, var(--azul) 0%, var(--azul-2) 100%); border-radius:var(--radius); padding:40px 28px; color:#fff; text-align:center; box-shadow:var(--shadow-deep); position:relative; overflow:hidden;}
+  .joven-hero::before{ content:"⭐"; position:absolute; top:20px; right:30px; font-size:80px; opacity:.1;}
+  .joven-hero h2{ font-family:var(--ff-display); font-size:36px; margin-bottom:10px;}
+  .joven-hero p{ opacity:.9; margin-bottom:20px; max-width:600px; margin-left:auto; margin-right:auto;}
+  .joven-feat{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:30px;}
+  @media (max-width:700px){ .joven-feat{ grid-template-columns:1fr;}}
+  .joven-feat .item{ background:rgba(255,255,255,.08); padding:18px; border-radius:14px; text-align:center;}
+  .joven-feat .item .num{ font-family:var(--ff-display); font-size:34px; font-weight:800; color:#fff;}
+  .joven-feat .item .lbl{ font-size:12px; opacity:.8; margin-top:4px;}
+
+  .info-card{ background:#fff; border-radius:var(--radius); padding:28px; margin-top:24px; box-shadow:var(--shadow); border-top:4px solid var(--rojo);}
+  .info-card h3{ font-family:var(--ff-display); font-size:24px; color:var(--azul); margin-bottom:12px;}
+  .info-card ul{ padding-left:0; list-style:none;}
+  .info-card li{ padding:10px 0 10px 28px; position:relative; color:#333; line-height:1.5; border-bottom:1px solid #eee;}
+  .info-card li:last-child{ border-bottom:none;}
+  .info-card li::before{ content:"✓"; position:absolute; left:0; top:10px; color:var(--verde); font-weight:800; font-size:18px;}
+  .info-card li strong{ color:var(--azul);}
+
+  /* GUÍA */
+  .guia-grid{ max-width:1100px; margin:30px auto; padding:0 20px; display:grid; grid-template-columns:repeat(2,1fr); gap:20px;}
+  @media (max-width:700px){ .guia-grid{ grid-template-columns:1fr;}}
+  .guia-card{ background:#fff; border-radius:var(--radius); padding:24px; box-shadow:var(--shadow); border-left:4px solid var(--azul);}
+  .guia-card .num{ display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:50%; background:var(--rojo); color:#fff; font-weight:800; font-family:var(--ff-display); margin-bottom:10px;}
+  .guia-card h3{ font-family:var(--ff-display); color:var(--azul); margin-bottom:8px; font-size:20px;}
+  .guia-card p{ color:#555; line-height:1.5; font-size:14px;}
+
+  /* BLOG */
+  .blog-filters{
+    max-width:1100px; margin:30px auto 18px; padding:0 20px;
+    display:flex; flex-wrap:wrap; gap:8px; justify-content:center;
+  }
+  .blog-filter{
+    background:#fff; color:var(--azul);
+    border:1.5px solid var(--gris-2);
+    padding:8px 16px; border-radius:999px;
+    font-family:var(--ff-body); font-weight:700; font-size:13px;
+    cursor:pointer; transition:.2s;
+  }
+  .blog-filter:hover{ border-color:var(--azul); background:var(--crema);}
+  .blog-filter.active{
+    background:var(--azul); color:#fff; border-color:var(--azul);
+    box-shadow:0 4px 12px rgba(12,35,64,.25);
+  }
+  .blog-grid{ max-width:1100px; margin:20px auto 40px; padding:0 20px; display:grid; grid-template-columns:repeat(3,1fr); gap:20px;}
+  @media (max-width:900px){ .blog-grid{ grid-template-columns:1fr 1fr;}}
+  @media (max-width:600px){ .blog-grid{ grid-template-columns:1fr;}}
+  .blog-card{ background:#fff; border-radius:var(--radius); overflow:hidden; box-shadow:var(--shadow); cursor:pointer; transition:.25s; display:flex; flex-direction:column;}
+  .blog-card:hover{ transform:translateY(-4px); box-shadow:var(--shadow-deep);}
+  .blog-card.hidden{ display:none;}
+  .blog-card .img{ height:140px; background:linear-gradient(135deg, var(--azul), var(--azul-2)); display:flex; align-items:center; justify-content:center; font-size:60px; position:relative;}
+  .blog-card.cat-hipotecas .img{ background:linear-gradient(135deg, var(--azul), var(--azul-2));}
+  .blog-card.cat-fiscal .img{ background:linear-gradient(135deg, var(--rojo), var(--rojo-2));}
+  .blog-card.cat-venta .img{ background:linear-gradient(135deg, #d4a017, #b8860b);}
+  .blog-card.cat-compra .img{ background:linear-gradient(135deg, #2c7a3d, #1a5e2b);}
+  .blog-card.cat-documentacion .img{ background:linear-gradient(135deg, #6b4ea3, #4c357a);}
+  .blog-card.cat-inversion .img{ background:linear-gradient(135deg, #c2693a, #9a4e25);}
+  .blog-card .read-time{
+    position:absolute; top:10px; right:10px;
+    background:rgba(0,0,0,.4); color:#fff;
+    padding:3px 10px; border-radius:99px;
+    font-size:11px; font-weight:700;
+    backdrop-filter:blur(4px);
+  }
+  .blog-card .body{ padding:18px; flex:1; display:flex; flex-direction:column;}
+  .blog-card .cat{ font-size:11px; color:var(--rojo); font-weight:800; letter-spacing:1.5px; text-transform:uppercase;}
+  .blog-card h4{ color:var(--azul); margin:6px 0 8px; font-size:16px; line-height:1.3;}
+  .blog-card p{ color:#666; font-size:13px; line-height:1.4; flex:1;}
+  .blog-card .leer-mas{
+    margin-top:12px; color:var(--rojo); font-weight:800; font-size:13px;
+    display:flex; align-items:center; gap:4px;
+  }
+
+  /* Modal Artículo */
+  .article-modal-body h3{
+    color:var(--azul); font-size:17px; font-weight:800;
+    margin:22px 0 10px;
+    padding-bottom:6px; border-bottom:2px solid var(--crema-2);
+  }
+  .article-modal-body h3:first-child{ margin-top:0;}
+  .article-modal-body p{
+    color:#333; line-height:1.65; font-size:15px; margin-bottom:12px;
+  }
+  .article-modal-body ul, .article-modal-body ol{
+    padding-left:22px; margin-bottom:14px;
+  }
+  .article-modal-body li{
+    color:#333; line-height:1.6; font-size:15px; margin-bottom:6px;
+  }
+  .article-modal-body strong{ color:var(--azul);}
+  .article-modal-body em{ color:var(--rojo); font-style:normal; font-weight:700;}
+  .article-data-box{
+    background:var(--crema); padding:14px 18px; border-radius:12px;
+    margin:14px 0; border-left:4px solid var(--rojo);
+  }
+  .article-data-box strong{ color:var(--azul);}
+  .article-cta{
+    margin-top:28px; padding:20px; background:#e8f7ef;
+    border-radius:12px; text-align:center; border-left:4px solid var(--whatsapp);
+  }
+  .article-cta p{
+    color:var(--azul); font-weight:600; font-size:14px;
+    margin-bottom:12px;
+  }
+  .article-cta a{
+    display:inline-flex; align-items:center; gap:8px;
+    background:var(--whatsapp); color:#fff;
+    padding:11px 22px; border-radius:99px;
+    text-decoration:none; font-weight:800; font-size:14px;
+    transition:.2s;
+  }
+  .article-cta a:hover{ background:#1ebe57; transform:translateY(-2px);}
+
+  /* TRIVIAL */
+  .game-selector{
+    max-width:600px; margin:30px auto 20px; padding:0 20px;
+    display:grid; grid-template-columns:1fr 1fr; gap:10px;
+  }
+  .game-tab{
+    background:#fff; color:var(--azul);
+    border:2px solid var(--gris-2);
+    padding:14px 16px; border-radius:14px;
+    font-family:var(--ff-body); font-weight:800; font-size:13px;
+    cursor:pointer; transition:.2s;
+    letter-spacing:.3px;
+  }
+  .game-tab:hover{ border-color:var(--azul);}
+  .game-tab.active{ background:var(--azul); color:#fff; border-color:var(--azul); box-shadow:0 8px 20px rgba(12,35,64,.25);}
+  .game-tab[data-game="precio"].active{ background:var(--rojo); border-color:var(--rojo); box-shadow:0 8px 20px rgba(179,19,44,.3);}
+
+  .game-wrap{ display:none;}
+  .game-wrap.active{ display:block; animation:fadeIn .4s;}
+
+  /* Tarjeta vivienda en juego de precios */
+  .vivienda-card{
+    background:linear-gradient(160deg, var(--azul) 0%, var(--azul-2) 100%);
+    color:#fff; border-radius:var(--radius);
+    padding:24px 20px; margin-bottom:20px;
+    box-shadow:var(--shadow-deep);
+    text-align:center; position:relative; overflow:hidden;
+  }
+  .vivienda-card::before{
+    content:""; position:absolute; top:-30px; right:-30px;
+    width:140px; height:140px; border-radius:50%;
+    background:rgba(255,255,255,.04);
+  }
+  .vivienda-emoji{
+    font-size:60px; line-height:1; margin-bottom:8px;
+    position:relative; z-index:1;
+  }
+  .vivienda-zona{
+    font-family:var(--ff-display); font-size:22px; font-weight:800;
+    margin-bottom:6px; position:relative; z-index:1;
+  }
+  .vivienda-detalles{
+    font-size:14px; opacity:.9; line-height:1.5;
+    position:relative; z-index:1;
+  }
+  .vivienda-detalles .pill{
+    display:inline-block;
+    background:rgba(255,255,255,.12);
+    padding:3px 10px; border-radius:99px;
+    margin:3px 4px; font-size:12px; font-weight:600;
+  }
+
+  .price-feedback{
+    background:var(--verde-bg); border:2px solid var(--verde);
+    border-radius:12px; padding:14px 16px;
+    color:#0e6b3a; font-weight:700; font-size:14px;
+    margin-top:14px; text-align:center;
+    animation:fadeIn .3s;
+  }
+  .price-feedback.wrong{
+    background:#fde8ec; border-color:var(--rojo); color:var(--rojo);
+  }
+  .price-feedback.close{
+    background:#fff7e6; border-color:#d97706; color:#9a5708;
+  }
+  .price-feedback strong{ font-size:16px; display:block; margin-bottom:4px;}
+  .price-feedback small{ display:block; font-size:12px; margin-top:6px; opacity:.85; font-weight:500;}
+
+  .trivial-wrap{ max-width:700px; margin:0 auto 30px; padding:0 20px;}
+  .trivial-card{ background:#fff; border-radius:var(--radius); padding:30px; box-shadow:var(--shadow); border-top:4px solid var(--rojo);}
+  .trivial-progress{ display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; font-weight:700; color:var(--azul);}
+  .trivial-bar{ height:6px; background:#eee; border-radius:99px; overflow:hidden; margin-bottom:24px;}
+  .trivial-bar-fill{ height:100%; background:var(--rojo); transition:width .3s;}
+  .trivial-q{ font-family:var(--ff-display); font-size:22px; color:var(--azul); margin-bottom:20px; line-height:1.3;}
+  .trivial-options{ display:grid; gap:10px;}
+  .trivial-opt{ background:#fff; border:2px solid var(--gris-2); border-radius:12px; padding:14px 18px; text-align:left; cursor:pointer; transition:.2s; font-family:var(--ff-body); font-weight:600; color:var(--azul); font-size:15px;}
+  .trivial-opt:hover{ border-color:var(--azul); background:#f8f7f1;}
+  .trivial-opt.correct{ background:var(--verde-bg); border-color:var(--verde); color:#0e6b3a;}
+  .trivial-opt.wrong{ background:#fde8ec; border-color:var(--rojo); color:var(--rojo);}
+  .trivial-timer{ display:inline-flex; align-items:center; gap:6px; background:var(--azul); color:#fff; padding:6px 14px; border-radius:99px; font-size:13px; font-weight:700;}
+  .trivial-result{ text-align:center; padding:30px;}
+  .trivial-result .score{ font-family:var(--ff-display); font-size:60px; font-weight:800; color:var(--rojo);}
+
+  /* VALORACIÓN */
+  .val-grid{ max-width:1100px; margin:30px auto; padding:0 20px; display:grid; grid-template-columns:1fr 1fr; gap:24px;}
+  @media (max-width:900px){ .val-grid{ grid-template-columns:1fr;}}
+  .val-result-card{ background:linear-gradient(160deg, var(--azul) 0%, var(--azul-2) 100%); color:#fff; border-radius:var(--radius); padding:30px; box-shadow:var(--shadow-deep); text-align:center;}
+  .val-result-card .big{ font-family:var(--ff-display); font-size:42px; font-weight:800; margin:10px 0;}
+  .val-range{ background:rgba(255,255,255,.08); padding:14px; border-radius:12px; margin-top:14px; display:flex; justify-content:space-around;}
+  .val-range div .lbl{ font-size:10px; opacity:.7; letter-spacing:1.5px; text-transform:uppercase;}
+  .val-range div .v{ font-weight:800; font-family:var(--ff-display); font-size:20px;}
+
+  /* VALORACIÓN - estilo Noemí (vender + comprar) */
+  .val-selector{
+    max-width:600px; margin:30px auto 20px; padding:0 20px;
+    display:grid; grid-template-columns:1fr 1fr; gap:10px;
+  }
+  .val-tab{
+    background:#fff; color:var(--azul);
+    border:2px solid var(--gris-2);
+    padding:14px 20px; border-radius:14px;
+    font-family:var(--ff-body); font-weight:800; font-size:14px;
+    cursor:pointer; transition:.2s;
+    letter-spacing:.5px;
+  }
+  .val-tab:hover{ border-color:var(--azul);}
+  .val-tab.active{ background:var(--azul); color:#fff; border-color:var(--azul); box-shadow:0 8px 20px rgba(12,35,64,.25);}
+  .val-tab[data-form="comprar"].active{ background:var(--rojo); border-color:var(--rojo); box-shadow:0 8px 20px rgba(179,19,44,.3);}
+
+  .val-form-wrap{ display:none; max-width:780px; margin:0 auto 40px; padding:0 20px;}
+  .val-form-wrap.active{ display:block; animation:fadeIn .4s;}
+
+  .val-form-card{
+    background:#fff; border-radius:var(--radius);
+    padding:30px 28px; box-shadow:var(--shadow);
+    border-top:5px solid var(--rojo);
+  }
+  #form-comprar .val-form-card{ border-top-color:var(--azul);}
+
+  .val-form-title{ text-align:center; margin-bottom:24px;}
+  .val-form-title .vbadge{
+    display:inline-block;
+    background:var(--rojo); color:#fff;
+    padding:6px 16px; border-radius:999px;
+    font-size:11px; font-weight:800;
+    letter-spacing:1.5px; text-transform:uppercase;
+    margin-bottom:10px;
+  }
+  .val-form-title .vbadge.azul{ background:var(--azul);}
+  .val-form-title .vbadge.red{ background:var(--rojo);}
+  .val-form-title h2{
+    font-family:var(--ff-display); color:var(--azul);
+    font-size:clamp(24px,3.5vw,32px); line-height:1.1;
+  }
+  .val-form-title h2 .accent{ color:var(--rojo);}
+  .val-form-title p{ color:var(--gris); font-size:14px; margin-top:8px;}
+
+  .form-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:14px;
+  }
+  @media (max-width:600px){ .form-grid{ grid-template-columns:1fr;}}
+
+  .val-form-card .field input[type=text],
+  .val-form-card .field select,
+  .val-form-card .field textarea{
+    width:100%; padding:13px 16px;
+    border:1.5px solid var(--gris-2); border-radius:14px;
+    font-family:var(--ff-body); font-size:15px; font-weight:600;
+    color:var(--azul); background:var(--crema);
+    transition:.2s; appearance:none; -webkit-appearance:none;
+    resize:vertical;
+  }
+  .val-form-card .field textarea{ font-weight:500; min-height:80px;}
+  .val-form-card .field input:focus,
+  .val-form-card .field select:focus,
+  .val-form-card .field textarea:focus{
+    outline:none; border-color:var(--azul); background:#fff;
+    box-shadow:0 0 0 3px rgba(12,35,64,.08);
+  }
+
+  /* CHIPS (botones tipo píldora) */
+  .chip-group{ display:flex; flex-wrap:wrap; gap:8px;}
+  .chip{
+    background:var(--crema); color:var(--azul);
+    border:1.5px solid var(--gris-2);
+    padding:10px 18px; border-radius:999px;
+    font-family:var(--ff-body); font-weight:600; font-size:14px;
+    cursor:pointer; transition:.2s;
+  }
+  .chip:hover{ border-color:var(--azul); background:#fff;}
+  .chip.active{
+    background:var(--azul); color:#fff; border-color:var(--azul);
+    box-shadow:0 4px 12px rgba(12,35,64,.25);
+  }
+  .chip-group.urgencia .chip{ font-size:13px;}
+
+  /* TARJETAS DE ESTADO */
+  .estado-grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:10px;
+  }
+  .estado-card{
+    background:var(--crema); border:1.5px solid var(--gris-2);
+    border-radius:14px; padding:18px 14px;
+    cursor:pointer; transition:.2s;
+    text-align:center; font-family:var(--ff-body);
+  }
+  .estado-card:hover{ border-color:var(--azul); background:#fff;}
+  .estado-card.active{
+    background:#fff; border-color:var(--rojo); border-width:2.5px;
+    box-shadow:0 8px 20px rgba(179,19,44,.15);
+  }
+  .estado-ico{ font-size:26px; margin-bottom:4px;}
+  .estado-name{ color:var(--azul); font-weight:800; font-size:14px;}
+  .estado-sub{ color:var(--gris); font-size:11px; margin-top:2px;}
+
+  /* SLIDER BIG */
+  .slider-big{ text-align:center; padding:8px 0;}
+  .slider-big-val{
+    font-family:var(--ff-display); font-size:32px; font-weight:800;
+    margin-bottom:10px;
+  }
+  .slider-big-val.red{ color:var(--rojo);}
+  .slider-big-val.azul{ color:var(--azul);}
+  .slider-big input[type=range]{
+    width:100%; -webkit-appearance:none; appearance:none;
+    height:6px; border-radius:99px;
+    background:linear-gradient(to right, var(--rojo) var(--p,50%), var(--gris-2) var(--p,50%));
+    outline:none;
+  }
+  #cPresup{
+    background:linear-gradient(to right, var(--azul) var(--p,30%), var(--gris-2) var(--p,30%)) !important;
+  }
+  .slider-big input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none;
+    width:24px; height:24px; border-radius:50%;
+    background:var(--rojo); border:3px solid #fff;
+    box-shadow:0 4px 10px rgba(179,19,44,.4); cursor:pointer;
+  }
+  #cPresup::-webkit-slider-thumb{ background:var(--azul); box-shadow:0 4px 10px rgba(12,35,64,.4);}
+  .slider-big input[type=range]::-moz-range-thumb{
+    width:24px; height:24px; border-radius:50%;
+    background:var(--rojo); border:3px solid #fff;
+    box-shadow:0 4px 10px rgba(179,19,44,.4); cursor:pointer;
+  }
+  #cPresup::-moz-range-thumb{ background:var(--azul); box-shadow:0 4px 10px rgba(12,35,64,.4);}
+
+  /* BOTONES DEL FORMULARIO */
+  .form-actions{ margin-top:24px; text-align:center;}
+  .btn-wa-big{
+    width:100%; background:var(--whatsapp); color:#fff;
+    padding:16px 24px; border-radius:14px; border:none;
+    font-family:var(--ff-body); font-weight:800; font-size:16px;
+    cursor:pointer; transition:.2s;
+    box-shadow:0 8px 20px rgba(37,211,102,.3);
+  }
+  .btn-wa-big:hover{ transform:translateY(-2px); background:#1ebe57; box-shadow:0 12px 26px rgba(37,211,102,.4);}
+  .btn-email-big{
+    width:100%; background:var(--azul); color:#fff;
+    padding:16px 24px; border-radius:14px; border:none;
+    font-family:var(--ff-body); font-weight:800; font-size:16px;
+    cursor:pointer; transition:.2s;
+    box-shadow:0 8px 20px rgba(12,35,64,.3);
+  }
+  .btn-email-big:hover{ transform:translateY(-2px); background:var(--azul-2); box-shadow:0 12px 26px rgba(12,35,64,.4);}
+  .o-tambien{
+    color:var(--gris); font-size:12px;
+    margin:12px 0; text-transform:lowercase;
+  }
+
+  /* CHECKBOX PRIVACIDAD */
+  .privacy-check{
+    margin:18px 0 4px;
+    padding:14px 16px;
+    background:var(--crema);
+    border-radius:12px;
+  }
+  .check-row{
+    display:flex; align-items:flex-start; gap:10px;
+    cursor:pointer;
+    font-size:14px; color:#444;
+  }
+  .check-row input[type=checkbox]{
+    position:absolute; opacity:0; pointer-events:none;
+  }
+  .check-box{
+    width:20px; height:20px; flex-shrink:0;
+    border:2px solid var(--gris-2);
+    border-radius:5px; background:#fff;
+    transition:.15s;
+    position:relative; margin-top:1px;
+  }
+  .check-row input[type=checkbox]:checked + .check-box{
+    background:var(--azul); border-color:var(--azul);
+  }
+  .check-row input[type=checkbox]:checked + .check-box::after{
+    content:""; position:absolute;
+    left:5px; top:1px; width:6px; height:11px;
+    border:solid #fff; border-width:0 2.5px 2.5px 0;
+    transform:rotate(45deg);
+  }
+  .check-text{ line-height:1.4;}
+  .privacy-link{
+    color:var(--rojo); text-decoration:underline; font-weight:700;
+    cursor:pointer;
+  }
+  .privacy-link:hover{ color:var(--rojo-2);}
+
+  /* MODAL LEGAL */
+  .modal-overlay{
+    display:none; position:fixed; inset:0;
+    background:rgba(12,35,64,.7);
+    z-index:9999;
+    justify-content:center; align-items:center;
+    padding:20px;
+    animation:fadeIn .2s;
+  }
+  .modal-overlay.active{ display:flex;}
+  .modal-box{
+    background:#fff; border-radius:var(--radius);
+    max-width:680px; width:100%; max-height:85vh;
+    overflow-y:auto;
+    box-shadow:var(--shadow-deep);
+    position:relative;
+  }
+  .modal-header{
+    padding:24px 28px 16px;
+    border-bottom:1px solid #eee;
+    position:sticky; top:0; background:#fff; z-index:2;
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+  }
+  .modal-header h2{
+    font-family:var(--ff-display); color:var(--azul);
+    font-size:22px;
+  }
+  .modal-close{
+    background:var(--crema); border:none;
+    width:36px; height:36px; border-radius:50%;
+    font-size:18px; cursor:pointer; color:var(--azul);
+    flex-shrink:0; transition:.2s;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .modal-close:hover{ background:var(--rojo); color:#fff;}
+  .modal-body{ padding:24px 28px 32px;}
+  .modal-body h3{
+    color:var(--azul); font-size:15px; font-weight:800;
+    margin:18px 0 8px;
+    letter-spacing:.3px;
+    padding-bottom:6px; border-bottom:2px solid var(--crema-2);
+  }
+  .modal-body h3:first-child{ margin-top:0;}
+  .modal-body p{
+    color:#444; line-height:1.6; font-size:14px;
+    margin-bottom:10px;
+  }
+  .modal-body ul{
+    padding-left:20px; margin-bottom:10px;
+  }
+  .modal-body li{
+    color:#444; line-height:1.6; font-size:14px;
+    margin-bottom:4px;
+  }
+  .modal-body strong{ color:var(--azul);}
+  .modal-body .data-block{
+    background:var(--crema); padding:14px 16px;
+    border-radius:10px; margin:10px 0;
+    font-size:13.5px; color:var(--azul);
+  }
+  .modal-body .data-block strong{ display:inline-block; min-width:130px;}
+  .modal-body small{ color:var(--gris); font-size:12px;}
+
+  /* CURIOSIDADES */
+  .curio-wrap{ max-width:900px; margin:30px auto; padding:0 20px; display:grid; gap:18px;}
+  .curio-card{
+    background:#fff; border-radius:var(--radius);
+    padding:22px 24px; box-shadow:var(--shadow);
+    display:flex; gap:18px; align-items:flex-start;
+    border-left:5px solid var(--rojo);
+    transition:.25s;
+  }
+  .curio-card:nth-child(2){ border-left-color:#d4a017;}
+  .curio-card:nth-child(3){ border-left-color:var(--verde);}
+  .curio-card:nth-child(4){ border-left-color:var(--azul);}
+  .curio-card:nth-child(5){ border-left-color:#6b4ea3;}
+  .curio-card:hover{ transform:translateX(4px); box-shadow:var(--shadow-deep);}
+  .curio-icon{
+    width:54px; height:54px; flex-shrink:0;
+    background:linear-gradient(135deg, var(--crema-2), var(--crema));
+    border-radius:14px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:28px;
+  }
+  .curio-body h3{
+    font-family:var(--ff-display);
+    color:var(--azul); font-size:18px;
+    margin-bottom:6px; line-height:1.3;
+  }
+  .curio-body p{
+    color:#444; font-size:14px; line-height:1.55;
+  }
+  .curio-intro{
+    text-align:center; max-width:700px;
+    margin:10px auto 20px; padding:0 20px;
+    color:var(--gris); font-size:15px; line-height:1.5;
+  }
+
+  /* AYUDAS JOVEN - tarjetas */
+  .ayudas-grid{
+    max-width:900px; margin:30px auto; padding:0 20px;
+    display:grid; gap:18px;
+  }
+  .ayuda-card{
+    background:#fff; border-radius:var(--radius);
+    padding:24px; box-shadow:var(--shadow);
+    border-top:4px solid var(--rojo);
+    transition:.25s;
+  }
+  .ayuda-card:nth-child(2){ border-top-color:#d4a017;}
+  .ayuda-card:nth-child(3){ border-top-color:var(--verde);}
+  .ayuda-card:nth-child(4){ border-top-color:var(--azul);}
+  .ayuda-card:nth-child(5){ border-top-color:#6b4ea3;}
+  .ayuda-card:hover{ transform:translateY(-4px); box-shadow:var(--shadow-deep);}
+  .ayuda-head{
+    display:flex; align-items:center; gap:14px;
+    margin-bottom:14px;
+  }
+  .ayuda-num{
+    width:42px; height:42px; flex-shrink:0;
+    background:var(--azul); color:#fff;
+    border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-family:var(--ff-display); font-weight:800; font-size:18px;
+  }
+  .ayuda-card:nth-child(2) .ayuda-num{ background:#d4a017;}
+  .ayuda-card:nth-child(3) .ayuda-num{ background:var(--verde);}
+  .ayuda-card:nth-child(4) .ayuda-num{ background:var(--rojo);}
+  .ayuda-card:nth-child(5) .ayuda-num{ background:#6b4ea3;}
+  .ayuda-titulo{
+    font-family:var(--ff-display); color:var(--azul);
+    font-size:20px; line-height:1.2;
+  }
+  .ayuda-card p.ayuda-desc{
+    color:#444; font-size:14px; line-height:1.55; margin-bottom:14px;
+  }
+  .ayuda-detalle{
+    background:var(--crema); padding:12px 14px; border-radius:10px;
+    margin-bottom:14px; font-size:13px; color:var(--azul);
+  }
+  .ayuda-detalle strong{ color:var(--azul);}
+  .ayuda-detalle .dato{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:4px 0;
+  }
+  .ayuda-detalle .dato + .dato{ border-top:1px solid rgba(12,35,64,.08);}
+  .ayuda-detalle .lbl-dato{ color:var(--gris); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.8px;}
+  .ayuda-detalle .val-dato{ font-weight:700; color:var(--azul);}
+  .ayuda-aviso{
+    background:#fef3e8; color:#9a5708;
+    padding:10px 14px; border-radius:8px;
+    border-left:3px solid #d97706;
+    font-size:13px; font-weight:600;
+    margin-bottom:14px;
+  }
+  .ayuda-links{
+    display:flex; flex-wrap:wrap; gap:8px;
+  }
+  .ayuda-link{
+    display:inline-flex; align-items:center; gap:6px;
+    background:var(--azul); color:#fff;
+    padding:9px 16px; border-radius:999px;
+    font-size:13px; font-weight:700;
+    text-decoration:none; transition:.2s;
+  }
+  .ayuda-link:hover{ background:var(--azul-2); transform:translateY(-1px);}
+  .ayuda-link.outline{
+    background:transparent; color:var(--azul);
+    border:1.5px solid var(--azul);
+  }
+  .ayuda-link.outline:hover{ background:var(--azul); color:#fff;}
+</style>
+</head>
+<body>
+
+<!-- HEADER ESTILO TARJETA DE PRESENTACIÓN -->
+<header class="header-card">
+  <div class="header-inner">
+    <div class="brand-block">
+      <div class="brand-logo-wrap">
+        <span class="pin-logo"></span>
+        <span class="brand-text">INMOBILIARIA</span>
+      </div>
+      <span class="brand-axis">Ejemplo</span>
+    </div>
+    <div class="agent-photo-wrap">
+      <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%230c2340'/><circle cx='50' cy='38' r='16' fill='%23dfe7f2'/><path d='M20 92c2-21 15-30 30-30s28 9 30 30z' fill='%23dfe7f2'/></svg>" alt="Asesora inmobiliaria (demo)" />
+    </div>
+    <div class="agent-info">
+      <div class="agent-name">Tu Asesora</div>
+      <div class="agent-role">Asesora inmobiliaria</div>
+      <div class="agent-phone">📞 600 000 000</div>
+      <div class="agent-mail">correo@ejemplo.com</div>
+      <div class="agent-web">App de demostración</div>
+    </div>
+  </div>
+</header>
+<div class="stripe-red"></div>
+<div class="stripe-black">
+  <span class="mls-tiny">Demo · Aplicación de ejemplo — datos no reales</span>
+</div>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-inner">
+    <button class="nav-btn active" data-target="inicio">🏠 INICIO</button>
+    <button class="nav-btn" data-target="valoracion">📋 VALORACIÓN</button>
+    <button class="nav-btn" data-target="hipoteca">🏦 HIPOTECA</button>
+    <button class="nav-btn" data-target="gastos">📄 GASTOS</button>
+    <button class="nav-btn" data-target="guia">📖 GUÍA</button>
+    <button class="nav-btn" data-target="blog">📝 BLOG</button>
+    <button class="nav-btn" data-target="trivial">🎯 TRIVIAL</button>
+    <button class="nav-btn" data-target="curiosidades">💡 CURIOSIDADES</button>
+    <button class="nav-btn" data-target="joven">⭐ AYUDAS JOVEN</button>
+  </div>
+</nav>
+
+<!-- INICIO -->
+<div class="section active" id="inicio">
+  <section class="hero">
+    <span class="hero-pill">Herramientas gratuitas</span>
+    <h1>¿En qué puedo <span class="accent">ayudarte</span>?</h1>
+    <p class="subtitle">Elige la herramienta que necesitas. Sin compromiso.</p>
+  </section>
+  <div class="tools-grid">
+    <div class="tool-card has-border-top" data-go="joven">
+      <span class="tag">Nuevo</span>
+      <div class="emoji">⭐</div>
+      <h3>Ayudas Joven</h3>
+      <p>5 ayudas oficiales para comprar tu primera vivienda en Canarias</p>
+    </div>
+    <div class="tool-card has-border-top" data-go="valoracion">
+      <div class="emoji">🏡🔑</div>
+      <h3>Compra / Venta</h3>
+      <p>Vender tu casa o encontrar la tuya</p>
+    </div>
+    <div class="tool-card has-border-top" data-go="hipoteca">
+      <div class="emoji">🏦🧾</div>
+      <h3>Calculadoras</h3>
+      <p>Hipoteca y gastos de compraventa</p>
+    </div>
+    <div class="tool-card border-azul" data-go="guia">
+      <div class="emoji">📋✏️</div>
+      <h3>Guía e Información</h3>
+      <p>Consejos, guía del agente y más</p>
+    </div>
+    <div class="tool-card border-azul" data-go="trivial">
+      <div class="emoji">🎯</div>
+      <h3>Trivial Inmobiliario</h3>
+      <p>10 preguntas con 15 segundos por respuesta</p>
+    </div>
+    <div class="tool-card border-azul" data-go="blog">
+      <div class="emoji">📝</div>
+      <h3>Blog de Consejos</h3>
+      <p>Hipotecas, impuestos y errores frecuentes</p>
+    </div>
+    <div class="tool-card border-azul" data-go="curiosidades">
+      <div class="emoji">💡</div>
+      <h3>Curiosidades y Consejos</h3>
+      <p>Lo que debes saber antes de comprar</p>
+    </div>
+  </div>
+</div>
+
+<!-- VALORACIÓN (Vender + Comprar) -->
+<div class="section" id="valoracion">
+  <section class="hero">
+    <span class="hero-pill azul">📋 Valoración gratuita</span>
+    <h1>¿Quieres <span class="accent">vender o comprar</span>?</h1>
+    <p class="subtitle">Rellena el formulario y te contactaremos</p>
+  </section>
+
+  <!-- SELECTOR VENDER / COMPRAR -->
+  <div class="val-selector">
+    <button type="button" class="val-tab active" data-form="vender">🏠 VENDER</button>
+    <button type="button" class="val-tab" data-form="comprar">🔑 COMPRAR</button>
+  </div>
+
+  <!-- FORMULARIO VENDER -->
+  <div class="val-form-wrap active" id="form-vender">
+    <div class="val-form-card">
+      <div class="val-form-title">
+        <span class="vbadge red">🏠 Vender</span>
+        <h2>Valora tu propiedad <span class="accent">gratis</span></h2>
+        <p>Rellena el formulario y te contactaremos con la valoración real</p>
+      </div>
+
+      <div class="form-grid">
+        <div class="field"><label>Nombre *</label><input type="text" id="vNombre" placeholder="Tu nombre" /></div>
+        <div class="field"><label>Teléfono *</label><input type="text" id="vTel" placeholder="612 345 678" /></div>
+      </div>
+
+      <div class="field">
+        <label>Tipo de inmueble *</label>
+        <div class="chip-group" data-target="vTipo">
+          <button type="button" class="chip" data-val="Piso">🏢 Piso</button>
+          <button type="button" class="chip" data-val="Casa">🏡 Casa</button>
+          <button type="button" class="chip" data-val="Ático">🏙 Ático</button>
+          <button type="button" class="chip" data-val="Local">🏪 Local</button>
+          <button type="button" class="chip" data-val="Terreno">🏗 Terreno</button>
+        </div>
+        <input type="hidden" id="vTipo" />
+      </div>
+
+      <div class="form-grid">
+        <div class="field">
+          <label>Provincia *</label>
+          <select id="vProvincia">
+            <option value="">Selecciona...</option>
+            <option>Las Palmas</option>
+            <option>Santa Cruz de Tenerife</option>
+            <option>Madrid</option>
+            <option>Barcelona</option>
+            <option>Valencia</option>
+            <option>Sevilla</option>
+            <option>Málaga</option>
+            <option>Otra</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Localidad *</label>
+          <input type="text" id="vLocalidad" placeholder="Ej. Tu ciudad" />
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="field"><label>Calle *</label><input type="text" id="vCalle" placeholder="Nombre de la calle" /></div>
+        <div class="field"><label>Número *</label><input type="text" id="vNumero" placeholder="Nº" /></div>
+      </div>
+
+      <div class="form-grid">
+        <div class="field"><label>Piso</label><input type="text" id="vPiso" placeholder="Ej. 3" /></div>
+        <div class="field"><label>Puerta</label><input type="text" id="vPuerta" placeholder="Ej. A" /></div>
+      </div>
+
+      <div class="field">
+        <label>Metros cuadrados</label>
+        <div class="slider-big">
+          <div class="slider-big-val red"><span id="vM2Val">90</span> m²</div>
+          <input type="range" id="vM2" min="20" max="500" value="90" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Habitaciones *</label>
+        <div class="chip-group" data-target="vHab">
+          <button type="button" class="chip" data-val="1">1</button>
+          <button type="button" class="chip" data-val="2">2</button>
+          <button type="button" class="chip" data-val="3">3</button>
+          <button type="button" class="chip" data-val="4">4</button>
+          <button type="button" class="chip" data-val="+4">+4</button>
+          <button type="button" class="chip" data-val="Estudio">Estudio</button>
+        </div>
+        <input type="hidden" id="vHab" />
+      </div>
+
+      <div class="field">
+        <label>Estado *</label>
+        <div class="estado-grid" data-target="vEstado">
+          <button type="button" class="estado-card" data-val="A estrenar">
+            <div class="estado-ico">✨</div>
+            <div class="estado-name">A estrenar</div>
+            <div class="estado-sub">Nueva o sin usar</div>
+          </button>
+          <button type="button" class="estado-card" data-val="Buen estado">
+            <div class="estado-ico">👍</div>
+            <div class="estado-name">Buen estado</div>
+            <div class="estado-sub">Sin obras</div>
+          </button>
+          <button type="button" class="estado-card" data-val="Para reformar">
+            <div class="estado-ico">🔨</div>
+            <div class="estado-name">Para reformar</div>
+            <div class="estado-sub">Necesita obras</div>
+          </button>
+          <button type="button" class="estado-card" data-val="En construcción">
+            <div class="estado-ico">🏗</div>
+            <div class="estado-name">En construcción</div>
+            <div class="estado-sub">Obra nueva</div>
+          </button>
+        </div>
+        <input type="hidden" id="vEstado" />
+      </div>
+
+      <div class="field">
+        <label>⏰ Urgencia de venta *</label>
+        <div class="chip-group urgencia" data-target="vUrgencia">
+          <button type="button" class="chip" data-val="Urgente (menos de 3 meses)">🔴 Urgente (&lt;3 meses)</button>
+          <button type="button" class="chip" data-val="Normal (3-6 meses)">🟡 Normal (3-6 meses)</button>
+          <button type="button" class="chip" data-val="Sin prisa">🟢 Sin prisa</button>
+        </div>
+        <input type="hidden" id="vUrgencia" />
+      </div>
+
+      <div class="field">
+        <label>Notas (opcional)</label>
+        <textarea id="vNotas" placeholder="Terraza, garaje, ascensor, motivo de la venta..." rows="3"></textarea>
+      </div>
+
+      <div class="privacy-check">
+        <label class="check-row">
+          <input type="checkbox" id="vPrivacidad" />
+          <span class="check-box"></span>
+          <span class="check-text">Acepto la <a href="#" class="privacy-link" onclick="openPrivacy(event)">política de protección de datos</a>.</span>
+        </label>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-wa-big" onclick="sendVenderWA()">
+          💬 Enviar por WhatsApp
+        </button>
+        <div class="o-tambien">o también</div>
+        <button class="btn-email-big" onclick="sendVenderEmail()">
+          ✉️ Enviar por email
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FORMULARIO COMPRAR -->
+  <div class="val-form-wrap" id="form-comprar">
+    <div class="val-form-card">
+      <div class="val-form-title">
+        <span class="vbadge azul">🔑 Comprar</span>
+        <h2>Encuentra <span class="accent">tu casa</span></h2>
+        <p>Cuéntame qué buscas y te enviaré los mejores inmuebles disponibles</p>
+      </div>
+
+      <div class="form-grid">
+        <div class="field"><label>Nombre *</label><input type="text" id="cNombre" placeholder="Tu nombre" /></div>
+        <div class="field"><label>Teléfono *</label><input type="text" id="cTel" placeholder="612 345 678" /></div>
+      </div>
+
+      <div class="field">
+        <label>Tipo de inmueble *</label>
+        <div class="chip-group" data-target="cTipo">
+          <button type="button" class="chip" data-val="Piso">🏢 Piso</button>
+          <button type="button" class="chip" data-val="Casa">🏡 Casa</button>
+          <button type="button" class="chip" data-val="Ático">🏙 Ático</button>
+          <button type="button" class="chip" data-val="Local">🏪 Local</button>
+          <button type="button" class="chip" data-val="Cualquiera">🏘 Cualquiera</button>
+        </div>
+        <input type="hidden" id="cTipo" />
+      </div>
+
+      <div class="form-grid">
+        <div class="field">
+          <label>Provincia *</label>
+          <select id="cProvincia">
+            <option value="">Selecciona...</option>
+            <option>Las Palmas</option>
+            <option>Santa Cruz de Tenerife</option>
+            <option>Madrid</option>
+            <option>Barcelona</option>
+            <option>Valencia</option>
+            <option>Sevilla</option>
+            <option>Málaga</option>
+            <option>Otra</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Localidad *</label>
+          <input type="text" id="cLocalidad" placeholder="Ej. Tu ciudad" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Presupuesto máximo</label>
+        <div class="slider-big">
+          <div class="slider-big-val azul"><span id="cPresupVal">300.000</span> €</div>
+          <input type="range" id="cPresup" min="50000" max="1000000" step="10000" value="300000" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Habitaciones *</label>
+        <div class="chip-group" data-target="cHab">
+          <button type="button" class="chip" data-val="1">1</button>
+          <button type="button" class="chip" data-val="2">2</button>
+          <button type="button" class="chip" data-val="3">3</button>
+          <button type="button" class="chip" data-val="4">4</button>
+          <button type="button" class="chip" data-val="+4">+4</button>
+          <button type="button" class="chip" data-val="Indiferente">Indiferente</button>
+        </div>
+        <input type="hidden" id="cHab" />
+      </div>
+
+      <div class="field">
+        <label>⏰ Urgencia de compra *</label>
+        <div class="chip-group urgencia" data-target="cUrgencia">
+          <button type="button" class="chip" data-val="Urgente (menos de 3 meses)">🔴 Urgente (&lt;3 meses)</button>
+          <button type="button" class="chip" data-val="Normal (3-6 meses)">🟡 Normal (3-6 meses)</button>
+          <button type="button" class="chip" data-val="Sin prisa">🟢 Sin prisa</button>
+        </div>
+        <input type="hidden" id="cUrgencia" />
+      </div>
+
+      <div class="field">
+        <label>Notas (opcional)</label>
+        <textarea id="cNotas" placeholder="Zona preferida, características importantes, situación actual..." rows="3"></textarea>
+      </div>
+
+      <div class="privacy-check">
+        <label class="check-row">
+          <input type="checkbox" id="cPrivacidad" />
+          <span class="check-box"></span>
+          <span class="check-text">Acepto la <a href="#" class="privacy-link" onclick="openPrivacy(event)">política de protección de datos</a>.</span>
+        </label>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-wa-big" onclick="sendComprarWA()">
+          💬 Enviar por WhatsApp
+        </button>
+        <div class="o-tambien">o también</div>
+        <button class="btn-email-big" onclick="sendComprarEmail()">
+          ✉️ Enviar por email
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HIPOTECA -->
+<div class="section" id="hipoteca">
+  <section class="hero">
+    <span class="hero-pill">🏛 Calculadora</span>
+    <h1>¿Cuánto pagarás <span class="accent">de hipoteca</span>?</h1>
+    <p class="subtitle">Calcula tu cuota mensual, intereses totales y cuánto necesitas ahorrar</p>
+  </section>
+  <section class="calc-wrap">
+    <div class="card">
+      <div class="card-title"><span class="icon">🔢</span> Datos del préstamo</div>
+      <div class="field"><label for="precio">Precio del inmueble (€)</label><input type="number" id="precio" value="200000" /></div>
+      <div class="field"><label for="aportacion">Aportación propia (€)</label><input type="number" id="aportacion" value="40000" /></div>
+      <div class="field">
+        <label for="plazo">Plazo (años)</label>
+        <div class="slider-row">
+          <input type="range" id="plazo" min="5" max="30" value="25" />
+          <span class="slider-val" id="plazoVal">25 años</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="comunidad">Comunidad autónoma</label>
+        <select id="comunidad">
+          <option value="canarias" selected>Canarias — ITP 6.5%</option>
+          <option value="andalucia">Andalucía — ITP 7%</option>
+          <option value="madrid">Madrid — ITP 6%</option>
+          <option value="cataluna">Cataluña — ITP 10%</option>
+          <option value="valencia">C. Valenciana — ITP 10%</option>
+          <option value="baleares">Baleares — ITP 8%</option>
+          <option value="galicia">Galicia — ITP 8%</option>
+          <option value="paisvasco">País Vasco — ITP 4%</option>
+          <option value="navarra">Navarra — ITP 6%</option>
+          <option value="aragon">Aragón — ITP 8%</option>
+          <option value="asturias">Asturias — ITP 8%</option>
+          <option value="cantabria">Cantabria — ITP 10%</option>
+          <option value="castillaleon">Castilla y León — ITP 8%</option>
+          <option value="castillamancha">Castilla-La Mancha — ITP 9%</option>
+          <option value="extremadura">Extremadura — ITP 8%</option>
+          <option value="murcia">Murcia — ITP 8%</option>
+          <option value="rioja">La Rioja — ITP 7%</option>
+        </select>
+      </div>
+      <div id="aportAlert" class="alert-ok">✓ Aportación suficiente (20%)</div>
+    </div>
+    <div>
+      <div class="result-card">
+        <div class="result-label">Cuota mensual estimada</div>
+        <div class="result-big"><span id="cuotaMensual">801€</span><small>/mes</small></div>
+        <div class="result-sub">Capital: <span id="capitalSub">160.000€</span> · <span id="plazoSub">25 años</span></div>
+        <div class="result-grid">
+          <div class="result-mini"><div class="lbl">Capital</div><div class="val" id="capitalVal">160.000€</div></div>
+          <div class="result-mini"><div class="lbl">Intereses</div><div class="val" id="interesesVal">80.299€</div></div>
+          <div class="result-mini"><div class="lbl">Total pagar</div><div class="val" id="totalVal">240.299€</div></div>
+          <div class="result-mini"><div class="lbl">Ingresos mín.</div><div class="val" id="ingresosVal">2.289€</div></div>
+        </div>
+      </div>
+      <div class="savings">
+        <div class="savings-title">💼 Ahorro total necesario</div>
+        <div class="savings-row">
+          <div class="ico">💳</div>
+          <div class="body"><div class="head">Entrada (lo que aportas)</div><div class="big" id="ahorroEntrada">40.000€</div><div class="note">Lo que el banco no financia</div></div>
+        </div>
+        <div class="savings-row">
+          <div class="ico">📋</div>
+          <div class="body"><div class="head">Impuestos y gastos</div><div class="big" id="ahorroGastos">14.800€</div><div class="note">ITP/IVA + notaría + registro</div></div>
+        </div>
+        <div class="savings-row">
+          <div class="ico">🔒</div>
+          <div class="body"><div class="head">Colchón de seguridad</div><div class="big" id="ahorroColchon">2.403€</div><div class="note">3 meses de cuota + imprevistos</div></div>
+        </div>
+        <div class="savings-total">
+          <div class="ico">🏆</div>
+          <div class="body"><div class="head">Total necesario</div><div class="big" id="ahorroTotal">57.203€</div><div class="note">Antes de firmar nada</div></div>
+        </div>
+        <div class="info-tip">
+          <strong>💡 ¿Cuánto necesitas tener ahorrado de verdad?</strong>
+          <p>Lo normal es <strong>entre un 5% y un 10% de entrada</strong> + un <strong>10% extra para gastos</strong> (impuestos, notaría, registro, gestoría). En viviendas de precio alto se acepta un 5% de entrada porque la cantidad ya es relevante; en viviendas medias el banco suele pedir el 10%.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BLOQUE CONTACTO HIPOTECA -->
+  <div style="max-width:1200px; margin:0 auto; padding:0 20px;">
+    <div class="contact-block">
+      <h3>¿Hablamos de tu hipoteca?</h3>
+      <p>Envíame estos números y te respondo en menos de 24h con las mejores opciones reales del mercado.</p>
+      <div class="contact-buttons">
+        <button class="btn-wa" onclick="sendHipotecaWhatsApp()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+          Enviar por WhatsApp
+        </button>
+        <button class="btn-email" onclick="sendHipotecaEmail()">
+          ✉️ Enviar por Email
+        </button>
+      </div>
+      <div class="contact-mini">📞 600 000 000 · correo@ejemplo.com</div>
+    </div>
+  </div>
+
+  <div class="cta-wrap"><button class="cta" data-go="inicio">← Volver al inicio</button></div>
+</div>
+
+<!-- GASTOS -->
+<div class="section" id="gastos">
+  <section class="hero">
+    <span class="hero-pill azul">📄 Simulador</span>
+    <h1>Simulador de <span class="accent">Gastos Reales</span></h1>
+    <p class="subtitle">Impuestos, notaría y registro detallados</p>
+  </section>
+  <section class="sim-section">
+    <div class="sim-grid">
+      <div class="card">
+        <div class="card-title"><span class="icon">⚙️</span> Tu operación</div>
+        <div class="field">
+          <label for="tipoVivienda">Tipo de vivienda</label>
+          <select id="tipoVivienda">
+            <option value="segunda" selected>Segunda mano (ITP)</option>
+            <option value="nueva">Nueva construcción (IVA 10%)</option>
+          </select>
+        </div>
+        <div class="field"><label for="precioSim">Precio de compra (€)</label><input type="number" id="precioSim" value="200000" /></div>
+        <div class="field">
+          <label for="conHipoteca">¿Con hipoteca?</label>
+          <select id="conHipoteca">
+            <option value="si" selected>Sí, con hipoteca</option>
+            <option value="no">No, al contado</option>
+          </select>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="icon">📋</span> Desglose</div>
+        <div class="desglose-list">
+          <div class="desglose-item"><div class="lbl"><span id="impuestoNombre">ITP</span> <small id="impuestoPct">(6.5%)</small></div><div class="val" id="impuestoVal">13.000€</div></div>
+          <div class="desglose-item"><div class="lbl">Notaría <small>(arancel oficial)</small></div><div class="val" id="notariaVal">600€</div></div>
+          <div class="desglose-item"><div class="lbl">Registro <small>(arancel oficial)</small></div><div class="val" id="registroVal">400€</div></div>
+          <div class="desglose-item"><div class="lbl">Gestoría <small>(fijo)</small></div><div class="val" id="gestoriaVal">350€</div></div>
+          <div class="desglose-item"><div class="lbl">Tasación <small>(fijo)</small></div><div class="val" id="tasacionVal">450€</div></div>
+        </div>
+        <div class="total-row"><div class="lbl">TOTAL GASTOS</div><div class="val" id="totalGastos">14.800€</div></div>
+        <div class="total-final">
+          <div class="lbl">Total gastos estimados</div>
+          <div class="big" id="totalGastosFinal">14.800€</div>
+          <div class="pct" id="totalGastosPct">≈ 7% del precio</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BLOQUE CONTACTO GASTOS -->
+    <div class="contact-block">
+      <h3>¿Quieres que te ayude con la compra?</h3>
+      <p>Te paso el desglose por WhatsApp con todos los números calculados y te explico cómo ahorrar en algunas partidas.</p>
+      <div class="contact-buttons">
+        <button class="btn-wa" onclick="sendGastosWhatsApp()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+          Enviar por WhatsApp
+        </button>
+        <button class="btn-email" onclick="sendGastosEmail()">
+          ✉️ Enviar por Email
+        </button>
+      </div>
+      <div class="contact-mini">📞 600 000 000 · correo@ejemplo.com</div>
+    </div>
+
+  </section>
+  <div class="cta-wrap"><button class="cta" data-go="inicio">← Volver al inicio</button></div>
+</div>
+
+<!-- AYUDAS JOVEN -->
+<div class="section" id="joven">
+  <section class="hero">
+    <span class="hero-pill">⭐ Ayudas para jóvenes</span>
+    <h1>5 ayudas para <span class="accent">comprar tu casa</span></h1>
+    <p class="subtitle">Programas oficiales para jóvenes compradores en Canarias</p>
+  </section>
+
+  <div class="joven-block">
+    <!-- Hero destacado del 95% -->
+    <div class="joven-hero">
+      <h2>Hasta el 95% de financiación</h2>
+      <p>Solo necesitas el 5% de entrada + gastos. El Gobierno de Canarias avala el resto para que el banco te apruebe la hipoteca completa.</p>
+      <div class="joven-feat">
+        <div class="item"><div class="num">95%</div><div class="lbl">Financiación máxima</div></div>
+        <div class="item"><div class="num">18-40</div><div class="lbl">Años de edad</div></div>
+        <div class="item"><div class="num">5%</div><div class="lbl">Entrada que pones tú</div></div>
+      </div>
+    </div>
+
+    <!-- 4 AYUDAS EN TARJETAS -->
+    <div class="ayudas-grid">
+
+      <!-- AYUDA 1 -->
+      <div class="ayuda-card">
+        <div class="ayuda-head">
+          <div class="ayuda-num">1</div>
+          <div class="ayuda-titulo">🏦 Hipoteca Joven Canaria (95%)</div>
+        </div>
+        <p class="ayuda-desc">El Gobierno de Canarias avala el 15% que normalmente exige el banco como entrada. Tú solo pones el 5% + los gastos.</p>
+        <div class="ayuda-detalle">
+          <div class="dato"><span class="lbl-dato">Edad</span><span class="val-dato">18 - 40 años</span></div>
+          <div class="dato"><span class="lbl-dato">Sin límite</span><span class="val-dato">Familias monoparentales o numerosas</span></div>
+          <div class="dato"><span class="lbl-dato">Trámite</span><span class="val-dato">En el banco adherido</span></div>
+        </div>
+        <div class="ayuda-links">
+          <a href="https://www.hipotecajovencanaria.com/" target="_blank" rel="noopener" class="ayuda-link">🌐 Web oficial del programa</a>
+          <a href="https://www3.gobiernodecanarias.org/vivienda/" target="_blank" rel="noopener" class="ayuda-link outline">ICAVI — Vivienda</a>
+        </div>
+      </div>
+
+      <!-- AYUDA 2 -->
+      <div class="ayuda-card">
+        <div class="ayuda-head">
+          <div class="ayuda-num">2</div>
+          <div class="ayuda-titulo">💰 Subvención directa (hasta 11.000€)</div>
+        </div>
+        <p class="ayuda-desc">Dinero a fondo perdido que te ingresan para compensar el gasto de la compra. Hasta 11.000€ que no tienes que devolver.</p>
+        <div class="ayuda-detalle">
+          <div class="dato"><span class="lbl-dato">Edad</span><span class="val-dato">Hasta 35 años</span></div>
+          <div class="dato"><span class="lbl-dato">Importe máximo</span><span class="val-dato">11.000€ a fondo perdido</span></div>
+          <div class="dato"><span class="lbl-dato">Trámite</span><span class="val-dato">Sede electrónica online</span></div>
+        </div>
+        <div class="ayuda-aviso">⚠ Convocatoria 2026 cerrada definitivamente el 18 de mayo. Pendiente de nueva convocatoria 2027.</div>
+        <div class="ayuda-links">
+          <a href="https://www3.gobiernodecanarias.org/vivienda/" target="_blank" rel="noopener" class="ayuda-link">📄 Instituto Canario de la Vivienda</a>
+          <a href="https://sede.gobiernodecanarias.org/sede/" target="_blank" rel="noopener" class="ayuda-link outline">🖥 Sede electrónica</a>
+        </div>
+      </div>
+
+      <!-- AYUDA 3 -->
+      <div class="ayuda-card">
+        <div class="ayuda-head">
+          <div class="ayuda-num">3</div>
+          <div class="ayuda-titulo">📉 Descuento ITP al 4% / IGIC al 0%</div>
+        </div>
+        <p class="ayuda-desc">El impuesto baja del 6,5% al 4% en segunda mano (ahorro miles de €). En obra nueva, el IGIC puede pasar del 7% al 0%.</p>
+        <div class="ayuda-detalle">
+          <div class="dato"><span class="lbl-dato">Edad</span><span class="val-dato">Hasta 35 años</span></div>
+          <div class="dato"><span class="lbl-dato">Condición</span><span class="val-dato">Primera vivienda habitual</span></div>
+          <div class="dato"><span class="lbl-dato">Trámite</span><span class="val-dato">Al firmar en el notario</span></div>
+        </div>
+        <div class="ayuda-links">
+          <a href="https://www3.gobiernodecanarias.org/tributos/atc/" target="_blank" rel="noopener" class="ayuda-link">🏛 Agencia Tributaria Canaria</a>
+        </div>
+      </div>
+
+      <!-- AYUDA 4 -->
+      <div class="ayuda-card">
+        <div class="ayuda-head">
+          <div class="ayuda-num">4</div>
+          <div class="ayuda-titulo">🇪🇸 Aval ICO estatal (100% financiación)</div>
+        </div>
+        <p class="ayuda-desc">El Estado avala hasta el 20% del préstamo para que el banco te dé una hipoteca del 100%. Alternativa nacional al programa canario. <strong>Activo hasta 2027</strong> — todavía estás a tiempo.</p>
+        <div class="ayuda-detalle">
+          <div class="dato"><span class="lbl-dato">Edad</span><span class="val-dato">Hasta 35 años</span></div>
+          <div class="dato"><span class="lbl-dato">También para</span><span class="val-dato">Familias con menores a cargo</span></div>
+          <div class="dato"><span class="lbl-dato">Bancos</span><span class="val-dato">CaixaBank, Santander, BBVA, Cajamar, Cajasiete…</span></div>
+        </div>
+        <div class="ayuda-links">
+          <a href="https://www.ico.es" target="_blank" rel="noopener" class="ayuda-link">🏦 Web oficial del ICO</a>
+        </div>
+      </div>
+
+      <!-- AYUDA 5 -->
+      <div class="ayuda-card">
+        <div class="ayuda-head">
+          <div class="ayuda-num">5</div>
+          <div class="ayuda-titulo">🏘️ Plan Estatal Vivienda 2026-2030 (hasta 15.000€)</div>
+        </div>
+        <p class="ayuda-desc">Nueva ayuda estatal a fondo perdido del Plan Vivienda 2026-2030 (Real Decreto 326/2026, BOE 23 abril 2026). Subvención directa de hasta 15.000€ para jóvenes que compren su primera vivienda en municipios pequeños.</p>
+        <div class="ayuda-detalle">
+          <div class="dato"><span class="lbl-dato">Edad</span><span class="val-dato">Hasta 35 años</span></div>
+          <div class="dato"><span class="lbl-dato">Importe máximo</span><span class="val-dato">15.000€ (máx. 20% del precio)</span></div>
+          <div class="dato"><span class="lbl-dato">Municipios</span><span class="val-dato">≤10.000 hab. (o ≤20.000 con despoblación)</span></div>
+          <div class="dato"><span class="lbl-dato">Ingresos máx.</span><span class="val-dato">≈37.800€-42.000€ (5× IPREM)</span></div>
+          <div class="dato"><span class="lbl-dato">Condición</span><span class="val-dato">Primera vivienda habitual</span></div>
+        </div>
+        <div class="ayuda-aviso">⚠ Pendiente publicación de convocatoria específica de Canarias. Las CCAA gestionan la asignación.</div>
+        <div class="ayuda-links">
+          <a href="https://www.mivau.gob.es/vivienda/info-plan-estatal-de-vivienda-2026-2030" target="_blank" rel="noopener" class="ayuda-link">🏛 Ministerio de Vivienda</a>
+          <a href="https://www.boe.es/diario_boe/txt.php?id=BOE-A-2026-8872" target="_blank" rel="noopener" class="ayuda-link outline">📜 Texto oficial BOE</a>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- INFO CARD: cómo te ayudo -->
+    <div class="info-card" style="margin-top:30px;">
+      <h3>¿Cómo te ayudo yo?</h3>
+      <ul>
+        <li>Te explico paso a paso <strong>qué ayudas te corresponden</strong> según tu situación.</li>
+        <li>Te acompaño en la <strong>negociación con varios bancos</strong> para conseguir el mejor TIN.</li>
+        <li>Reviso toda la <strong>documentación y plazos</strong> para que no pierdas ninguna subvención.</li>
+        <li>Te ayudo a <strong>encontrar la vivienda</strong> que encaje con tu presupuesto y tus ayudas.</li>
+      </ul>
+    </div>
+
+    <div class="contact-block" style="margin-top:24px;">
+      <h3>¿Cumples los requisitos?</h3>
+      <p>Cuéntame tu situación y te confirmo a qué ayudas puedes acceder y cómo solicitarlas.</p>
+      <div class="contact-buttons">
+        <button class="btn-wa" onclick="sendJovenWhatsApp()">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg>
+          Consultar por WhatsApp
+        </button>
+        <a href="mailto:correo@ejemplo.com?subject=Ayudas%20Jovenes%20Canarias" class="btn-email">
+          ✉️ Enviar por Email
+        </a>
+      </div>
+      <div class="contact-mini">📞 600 000 000 · correo@ejemplo.com</div>
+    </div>
+  </div>
+</div>
+
+<!-- GUÍA -->
+<div class="section" id="guia">
+  <section class="hero">
+    <span class="hero-pill azul">📖 Guía</span>
+    <h1>¿Por qué necesitas un <span class="accent">agente inmobiliario</span>?</h1>
+    <p class="subtitle">10 razones respaldadas por datos reales</p>
+  </section>
+  <div class="guia-grid">
+    <div class="guia-card"><div class="num">1</div><h3>Precio de venta hasta un 20% más alto</h3><p>Los inmuebles vendidos con asesor profesional se venden por hasta un 20% más que los particulares. El agente conoce el precio real de mercado y negocia con argumentos sólidos.</p></div>
+    <div class="guia-card"><div class="num">2</div><h3>Evitas errores legales que cuestan miles de euros</h3><p>Un contrato de arras mal redactado o una carga en el Registro no detectada puede costarte entre 3.000€ y 30.000€. El agente revisa cada documento antes de que firmes.</p></div>
+    <div class="guia-card"><div class="num">3</div><h3>Acceso a la red de compradores cualificados</h3><p>Una buena agencia dispone de una amplia red de compradores activos. Tu inmueble aparece en múltiples canales y en la base de datos de miles de agentes con compradores preaprobados.</p></div>
+    <div class="guia-card"><div class="num">4</div><h3>Negociación profesional en tu nombre</h3><p>Un agente negocia desde la razón y los datos, sin implicación emocional, logrando mejores condiciones en precio, plazos y condiciones de entrega.</p></div>
+    <div class="guia-card"><div class="num">5</div><h3>Selección de compradores serios y solventes</h3><p>El agente filtra previamente la solvencia y seriedad de cada interesado. Solo recibirás visitas con posibilidades reales de cierre.</p></div>
+    <div class="guia-card"><div class="num">6</div><h3>Gestión completa de la documentación</h3><p>Son más de 12 documentos obligatorios. El agente los gestiona todos, evitando que la venta caiga en el último momento por un papel que faltaba.</p></div>
+    <div class="guia-card"><div class="num">7</div><h3>Fotografía y marketing profesional</h3><p>El 90% de los compradores filtra online. Un reportaje profesional genera entre 3 y 5 veces más solicitudes de visita que un anuncio particular.</p></div>
+    <div class="guia-card"><div class="num">8</div><h3>Protección frente a fraudes y estafas</h3><p>El agente verifica la identidad de todas las partes y la situación registral antes de que pongas un euro sobre la mesa.</p></div>
+    <div class="guia-card"><div class="num">9</div><h3>Coordinación con bancos, notarías y gestorías</h3><p>El agente actúa como director de orquesta del proceso, asegurando que todos los pasos ocurran en el orden y plazo correctos.</p></div>
+    <div class="guia-card"><div class="num">10</div><h3>Respaldo legal y ético de una agencia profesional</h3><p>Las agencias profesionales operan con un estricto código ético. Tienes garantías institucionales de transparencia en cada paso.</p></div>
+  </div>
+  <div class="cta-wrap"><a href="https://wa.me/34600000000" target="_blank" class="cta">📱 ¿Quieres trabajar conmigo? Pregúntame</a></div>
+</div>
+
+<!-- BLOG -->
+<div class="section" id="blog">
+  <section class="hero">
+    <span class="hero-pill">📝 Blog</span>
+    <h1>Consejos para <span class="accent">comprar y vender</span></h1>
+    <p class="subtitle">13 artículos prácticos sobre hipotecas, impuestos y errores frecuentes</p>
+  </section>
+
+  <!-- Filtros por categoría -->
+  <div class="blog-filters">
+    <button type="button" class="blog-filter active" data-cat="todas">Todas</button>
+    <button type="button" class="blog-filter" data-cat="hipotecas">🏦 Hipotecas</button>
+    <button type="button" class="blog-filter" data-cat="fiscal">💸 Fiscal</button>
+    <button type="button" class="blog-filter" data-cat="venta">🏷 Venta</button>
+    <button type="button" class="blog-filter" data-cat="compra">🔑 Compra</button>
+    <button type="button" class="blog-filter" data-cat="documentacion">📑 Documentación</button>
+    <button type="button" class="blog-filter" data-cat="inversion">💰 Inversión</button>
+  </div>
+
+  <div class="blog-grid" id="blogGrid">
+    <!-- Las tarjetas se inyectan por JS -->
+  </div>
+</div>
+
+<!-- TRIVIAL + ADIVINA EL PRECIO -->
+<div class="section" id="trivial">
+  <section class="hero">
+    <span class="hero-pill">🎮 Juegos</span>
+    <h1>Pon a prueba tu <span class="accent">conocimiento</span></h1>
+    <p class="subtitle">Dos juegos para aprender mientras te diviertes</p>
+  </section>
+
+  <!-- SELECTOR DE JUEGO -->
+  <div class="game-selector">
+    <button type="button" class="game-tab active" data-game="trivial">📚 Trivial Inmobiliario</button>
+    <button type="button" class="game-tab" data-game="precio">💰 ¿Adivina el precio?</button>
+  </div>
+
+  <!-- JUEGO 1: TRIVIAL -->
+  <div class="game-wrap active" id="game-trivial">
+    <div class="trivial-wrap">
+      <div class="trivial-card" id="trivialCard">
+        <div class="trivial-progress"><span>Pregunta <span id="qNum">1</span>/20</span><span class="trivial-timer">⏱ <span id="timer">15</span>s</span></div>
+        <div class="trivial-bar"><div class="trivial-bar-fill" id="barFill" style="width:5%"></div></div>
+        <div class="trivial-q" id="trivialQ">Cargando…</div>
+        <div class="trivial-options" id="trivialOpts"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- JUEGO 2: ADIVINA EL PRECIO -->
+  <div class="game-wrap" id="game-precio">
+    <div class="trivial-wrap">
+      <div class="trivial-card" id="precioCard">
+        <div class="trivial-progress"><span>Vivienda <span id="pNum">1</span>/10</span><span class="trivial-timer">💎 <span id="pScore">0</span> pts</span></div>
+        <div class="trivial-bar"><div class="trivial-bar-fill" id="pBarFill" style="width:10%"></div></div>
+        <div class="vivienda-card" id="viviendaCard">Cargando…</div>
+        <div class="trivial-q" id="precioQ">¿Cuánto crees que vale?</div>
+        <div class="trivial-options" id="precioOpts"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CURIOSIDADES -->
+<div class="section" id="curiosidades">
+  <section class="hero">
+    <span class="hero-pill azul">💡 Curiosidades y Consejos</span>
+    <h1>Antes de <span class="accent">comprar o vender</span></h1>
+    <p class="subtitle">Cosas importantes que debes saber para que la operación salga bien</p>
+  </section>
+
+  <p class="curio-intro">Esto es información que muchos clientes desconocen y luego se llevan sorpresas. Léelo antes de firmar nada — te puede ahorrar tiempo, dinero y disgustos.</p>
+
+  <div class="curio-wrap">
+
+    <div class="curio-card">
+      <div class="curio-icon">💰</div>
+      <div class="curio-body">
+        <h3>Nada de pagos en efectivo</h3>
+        <p>Por normativa de prevención del blanqueo de capitales, no se aceptan pagos en efectivo. Todos los pagos deberán realizarse mediante métodos bancarios autorizados y trazables (transferencia, cheque bancario o ingreso).</p>
+      </div>
+    </div>
+
+    <div class="curio-card">
+      <div class="curio-icon">🔍</div>
+      <div class="curio-body">
+        <h3>Conoce el estado legal y económico de la vivienda</h3>
+        <p>Es importante que el comprador conozca el estado legal y económico de la propiedad antes de formalizar cualquier operación. Algunas viviendas pueden arrastrar cargas, embargos, deudas de comunidad, suministros o impuestos pendientes.</p>
+      </div>
+    </div>
+
+    <div class="curio-card">
+      <div class="curio-icon">🏠</div>
+      <div class="curio-body">
+        <h3>Verifica que esté al corriente de pagos</h3>
+        <p>Antes de realizar cualquier reserva o señal, recomendamos verificar que la vivienda se encuentra al corriente de pagos de comunidad, IBI, basura, agua y demás obligaciones asociadas al inmueble.</p>
+      </div>
+    </div>
+
+    <div class="curio-card">
+      <div class="curio-icon">📋</div>
+      <div class="curio-body">
+        <h3>Todo justificado y documentado</h3>
+        <p>Por seguridad jurídica y transparencia, todas las operaciones económicas deberán quedar debidamente justificadas y documentadas. No se aceptarán acuerdos o pagos fuera de los medios legalmente establecidos.</p>
+      </div>
+    </div>
+
+    <div class="curio-card">
+      <div class="curio-icon">💡</div>
+      <div class="curio-body">
+        <h3>Cuenta con los gastos extra</h3>
+        <p>La adquisición de una propiedad conlleva gastos adicionales que el comprador debe tener en cuenta, tales como impuestos, notaría, registro, gestoría, posibles reformas y costes derivados de regularizaciones pendientes.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="cta-wrap">
+    <a href="https://wa.me/34600000000" target="_blank" class="cta">📱 ¿Tienes dudas? Pregúntame</a>
+  </div>
+</div>
+
+<!-- MODAL POLÍTICA DE PRIVACIDAD -->
+<div class="modal-overlay" id="privacyModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2>📜 Política de Protección de Datos</h2>
+      <button type="button" class="modal-close" onclick="closePrivacy()" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <p>De conformidad con el <strong>Reglamento General de Protección de Datos (UE) 2016/679 (RGPD)</strong> y la <strong>Ley Orgánica 3/2018 de Protección de Datos Personales y garantía de los derechos digitales (LOPDGDD)</strong>, se informa al usuario de los siguientes aspectos relacionados con el tratamiento de sus datos personales.</p>
+
+      <h3>1. Responsable del tratamiento</h3>
+      <div class="data-block">
+        <strong>Titular:</strong> [Nombre del titular — pendiente]<br>
+        <strong>Actividad:</strong> Asesoría inmobiliaria<br>
+        <strong>NIF:</strong> [Pendiente de completar por la titular]<br>
+        <strong>Domicilio:</strong> [Dirección del negocio — pendiente]<br>
+        <strong>Email:</strong> correo@ejemplo.com<br>
+        <strong>Teléfono:</strong> 600 000 000
+      </div>
+
+      <h3>2. Datos que se recogen</h3>
+      <p>A través de los formularios de esta web, el usuario puede facilitar voluntariamente los siguientes datos personales:</p>
+      <ul>
+        <li>Datos identificativos: nombre y apellidos.</li>
+        <li>Datos de contacto: teléfono y/o dirección de correo electrónico.</li>
+        <li>Datos del inmueble: tipo, ubicación, superficie, estado, presupuesto o características relacionadas con la operación inmobiliaria.</li>
+        <li>Cualquier otro dato que el usuario decida incluir voluntariamente en el campo de observaciones.</li>
+      </ul>
+
+      <h3>3. Finalidad del tratamiento</h3>
+      <p>Los datos facilitados se utilizan exclusivamente para las siguientes finalidades:</p>
+      <ul>
+        <li>Atender la solicitud, consulta o petición de información realizada por el usuario.</li>
+        <li>Prestar los servicios de intermediación, valoración o asesoramiento inmobiliario solicitados.</li>
+        <li>Mantener el contacto necesario para la correcta gestión de la operación.</li>
+      </ul>
+      <p>Los datos <strong>no se utilizan para envío de comunicaciones comerciales</strong> ajenas a la consulta realizada, ni para elaboración de perfiles.</p>
+
+      <h3>4. Base jurídica</h3>
+      <p>La base legal para el tratamiento de los datos es el <strong>consentimiento expreso</strong> otorgado por el usuario al marcar la casilla de aceptación y enviar el formulario (art. 6.1.a RGPD), así como la aplicación de medidas precontractuales a petición del interesado (art. 6.1.b RGPD).</p>
+
+      <h3>5. Conservación de los datos</h3>
+      <p>Los datos personales se conservarán mientras se mantenga la relación profesional con el usuario y, posteriormente, durante los plazos legalmente exigidos para atender posibles responsabilidades derivadas del tratamiento. El usuario puede solicitar su supresión en cualquier momento.</p>
+
+      <h3>6. Destinatarios y cesiones</h3>
+      <p>Los datos personales <strong>no serán cedidos a terceros</strong>, salvo obligación legal o cuando resulte estrictamente necesario para la prestación del servicio solicitado (por ejemplo, gestoría, notaría o entidad bancaria en el marco de una operación inmobiliaria), siempre con el conocimiento previo del usuario.</p>
+
+      <h3>7. Derechos del usuario</h3>
+      <p>El usuario puede ejercer en cualquier momento los siguientes derechos sobre sus datos personales:</p>
+      <ul>
+        <li><strong>Acceso:</strong> conocer qué datos personales se están tratando.</li>
+        <li><strong>Rectificación:</strong> solicitar la corrección de datos inexactos o incompletos.</li>
+        <li><strong>Supresión:</strong> solicitar la eliminación de los datos cuando ya no sean necesarios.</li>
+        <li><strong>Oposición:</strong> oponerse al tratamiento por motivos relacionados con su situación particular.</li>
+        <li><strong>Limitación:</strong> solicitar la restricción del tratamiento en determinados supuestos.</li>
+        <li><strong>Portabilidad:</strong> recibir los datos en un formato estructurado o solicitar su transmisión a otro responsable.</li>
+        <li><strong>Retirada del consentimiento:</strong> en cualquier momento, sin efectos retroactivos.</li>
+      </ul>
+      <p>Para ejercer cualquiera de estos derechos, el usuario puede dirigirse por escrito al email <strong>correo@ejemplo.com</strong> o a la dirección postal indicada en el apartado 1, adjuntando copia de un documento identificativo.</p>
+
+      <h3>8. Reclamación ante la autoridad de control</h3>
+      <p>El usuario tiene derecho a presentar una reclamación ante la <strong>Agencia Española de Protección de Datos (AEPD)</strong> si considera que el tratamiento de sus datos no se ajusta a la normativa vigente. Más información en <strong>www.aepd.es</strong>.</p>
+
+      <h3>9. Seguridad de los datos</h3>
+      <p>La titular adopta las medidas técnicas y organizativas necesarias para garantizar la seguridad, confidencialidad e integridad de los datos personales, evitando su alteración, pérdida, tratamiento o acceso no autorizado.</p>
+
+      <h3>10. Modificaciones</h3>
+      <p>La presente política puede actualizarse cuando sea necesario para adecuarla a cambios legislativos o de la actividad profesional. Se recomienda al usuario revisarla periódicamente.</p>
+
+      <p><small>Última actualización: mayo 2026.</small></p>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL ARTÍCULO BLOG -->
+<div class="modal-overlay" id="articleModal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h2 id="articleTitle">Título del artículo</h2>
+      <button type="button" class="modal-close" onclick="closeArticle()" aria-label="Cerrar">✕</button>
+    </div>
+    <div class="modal-body article-modal-body" id="articleBody">
+      <!-- Contenido inyectado por JS -->
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="line"><strong>Inmobiliaria Ejemplo</strong> | App de demostración | 600 000 000 | correo@ejemplo.com</div>
+  <div class="line small">Datos y contacto de ejemplo — esta app es una demo</div>
+  <div class="line small">Diseñado por Incuba tu Negocio · por Jaime M. M.</div>
+  <div class="line small" style="margin-top:10px;">
+    <a href="#" onclick="openPrivacy(event)" style="color:rgba(255,255,255,.85); text-decoration:underline;">Política de Protección de Datos</a>
+  </div>
+</footer>
+
+<script>
+  // CONSTANTES DE CONTACTO
+  const PHONE_WA = '34600000000'; // formato internacional sin +
+  const EMAIL = 'correo@ejemplo.com';
+
+  // NAV
+  function show(id){
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    const target = document.getElementById(id);
+    if (target) target.classList.add('active');
+    document.querySelectorAll('.nav-btn').forEach(b=>{
+      b.classList.toggle('active', b.dataset.target === id);
+    });
+    window.scrollTo({top:0, behavior:'smooth'});
+    if (id === 'trivial') startTrivial();
+  }
+  document.querySelectorAll('[data-target]').forEach(el => el.addEventListener('click', () => show(el.dataset.target)));
+  document.querySelectorAll('[data-go]').forEach(el => el.addEventListener('click', () => show(el.dataset.go)));
+
+  // FORMAT
+  const fmt = (n) => {
+    if(!isFinite(n) || isNaN(n)) n = 0;
+    return Math.round(n).toLocaleString('es-ES') + '€';
+  };
+
+  // SYNC PRECIOS entre las dos herramientas
+  const precioInput = document.getElementById('precio');
+  const precioSimInput = document.getElementById('precioSim');
+  precioInput.addEventListener('input', ()=>{ precioSimInput.value = precioInput.value; recalcAll(); });
+  precioSimInput.addEventListener('input', ()=>{ precioInput.value = precioSimInput.value; recalcAll(); });
+
+  ['aportacion','plazo','comunidad','tipoVivienda','conHipoteca'].forEach(id=>{
+    const el = document.getElementById(id);
+    if (el) {
+      const ev = (el.tagName === 'SELECT') ? 'change' : 'input';
+      el.addEventListener(ev, recalcAll);
+    }
+  });
+
+  // ============ HIPOTECA (sistema francés, TIN 3,75%) ============
+  function calcHipoteca(){
+    const precio = parseFloat(document.getElementById('precio').value) || 0;
+    const aport  = parseFloat(document.getElementById('aportacion').value) || 0;
+    const plazo  = parseInt(document.getElementById('plazo').value) || 25;
+    const TIN    = 3.75/100;
+
+    const slider = document.getElementById('plazo');
+    const p = ((plazo-5)/(30-5))*100;
+    slider.style.setProperty('--p', p+'%');
+    document.getElementById('plazoVal').textContent = plazo+' años';
+
+    const capital = Math.max(precio - aport, 0);
+    const n = plazo*12;
+    const i = TIN/12;
+    let cuota = 0;
+    if (capital > 0 && i > 0) cuota = capital * (i * Math.pow(1+i,n)) / (Math.pow(1+i,n)-1);
+    else if (capital > 0) cuota = capital/n;
+    const totalPagar = cuota * n;
+    const intereses = totalPagar - capital;
+    const ingresosMin = cuota / 0.35;  // ratio endeudamiento 35%
+
+    // Sistema de aportación realista según el mercado actual (palabras de tu asesora):
+    // - En viviendas de precio alto (1M+€), un 5% ya es una cantidad relevante
+    // - En viviendas medias (~270k€) se suele pedir un 10%
+    // - Lo normal del mercado: entre 5% y 10% + un 10% extra para gastos
+    const alert = document.getElementById('aportAlert');
+    const pct = precio > 0 ? aport/precio*100 : 0;
+    const pctRound = Math.round(pct);
+
+    if (precio > 0 && pct >= 10) {
+      alert.className = 'alert-ok';
+      alert.innerHTML = '✓ Aportación correcta ('+pctRound+'%) — La mayoría de bancos lo aprueban';
+    } else if (precio > 0 && pct >= 5) {
+      alert.className = 'alert-info';
+      alert.innerHTML = '💡 Aportación posible ('+pctRound+'%) — Habitual en viviendas de precio alto. En precios medios el banco puede pedir un 10%';
+    } else if (precio > 0) {
+      alert.className = 'alert-warn';
+      alert.innerHTML = '⚠ Aportación muy baja ('+pctRound+'%) — Te recomiendo aval ICO o Hipoteca Joven';
+    } else {
+      alert.className = 'alert-info';
+      alert.innerHTML = '💡 Introduce el precio para ver tu situación';
+    }
+
+    document.getElementById('cuotaMensual').textContent = fmt(cuota).replace('€','')+'€';
+    document.getElementById('capitalSub').textContent   = fmt(capital);
+    document.getElementById('plazoSub').textContent     = plazo+' años';
+    document.getElementById('capitalVal').textContent   = fmt(capital);
+    document.getElementById('interesesVal').textContent = fmt(intereses);
+    document.getElementById('totalVal').textContent     = fmt(totalPagar);
+    document.getElementById('ingresosVal').textContent  = fmt(ingresosMin);
+
+    return { cuota, capital, intereses, totalPagar, ingresosMin, plazo };
+  }
+
+  // ============ GASTOS (FÓRMULAS OFICIALES + REALIDAD DE MERCADO) ============
+
+  /**
+   * Calcula los HONORARIOS NOTARIALES totales que el cliente paga en la práctica.
+   *
+   * Fórmula = (Arancel oficial RD 1426/1989 por tramos + Copias estimadas) × IVA 21%
+   *
+   * El arancel puro del RD está congelado desde 1989, por lo que en la realidad
+   * el notario también factura copias autorizadas, papel timbrado y siempre IVA.
+   * Aplicamos un suelo realista de mercado (≈ 600 €) que es lo que cobran las
+   * notarías españolas hoy en escrituras pequeñas.
+   *
+   * @param {number} precio - Precio de compra del inmueble en euros
+   * @returns {number} Coste total real de notaría (con IVA incluido)
+   */
+  function calcularNotariaOficial(precio) {
+    if (!precio || precio <= 0) return 0;
+
+    // Aranceles RD 1426/1989: escala REGRESIVA por tramos acumulativos
+    const tramos = [
+      { limite: 6010.12,    pct: 0.0060 },  // Hasta 6.010,12 €
+      { limite: 30050.61,   pct: 0.0030 },  // De 6.010,13 a 30.050,61 €
+      { limite: 60101.21,   pct: 0.0015 },  // De 30.050,62 a 60.101,21 €
+      { limite: 150253.03,  pct: 0.0010 },  // De 60.101,22 a 150.253,03 €
+      { limite: 6010121.04, pct: 0.0005 },  // De 150.253,04 a 6.010.121,04 €
+      { limite: Infinity,   pct: 0.0003 }   // Exceso sobre 6.010.121,04 €
+    ];
+
+    let arancel = 0;
+    let baseRestante = precio;
+    let limiteAnterior = 0;
+
+    for (const tramo of tramos) {
+      if (baseRestante <= 0) break;
+      const anchoTramo = tramo.limite - limiteAnterior;
+      const porcionEnTramo = Math.min(baseRestante, anchoTramo);
+      arancel += porcionEnTramo * tramo.pct;
+      baseRestante -= porcionEnTramo;
+      limiteAnterior = tramo.limite;
+    }
+
+    // Copias autorizadas + papel timbrado (suplido estimado realista)
+    const copias = 80;
+
+    // IVA 21% obligatorio sobre los honorarios notariales
+    const totalConIVA = (arancel + copias) * 1.21;
+
+    // Suelo realista de mercado: las notarías españolas no bajan de ~600€
+    // en escrituras de compraventa, aunque el arancel puro sea inferior.
+    return Math.max(totalConIVA, 600);
+  }
+
+  /**
+   * Calcula los HONORARIOS DEL REGISTRO DE LA PROPIEDAD que el cliente paga.
+   *
+   * Fórmula = Arancel oficial RD 1427/1989 por tramos × IVA 21%
+   *
+   * El registro no suele cobrar copias adicionales como el notario, pero sí
+   * aplica IVA del 21%. Suelo realista de mercado: ≈ 400 €.
+   *
+   * @param {number} precio - Precio de compra del inmueble en euros
+   * @returns {number} Coste total real de registro (con IVA incluido)
+   */
+  function calcularRegistroOficial(precio) {
+    if (!precio || precio <= 0) return 0;
+
+    // Aranceles RD 1427/1989: escala REGRESIVA por tramos acumulativos
+    const tramos = [
+      { limite: 6010.12,    pct: 0.0020 },  // Hasta 6.010,12 €
+      { limite: 30050.61,   pct: 0.0010 },  // De 6.010,13 a 30.050,61 €
+      { limite: 60101.21,   pct: 0.0005 },  // De 30.050,62 a 60.101,21 €
+      { limite: 150253.03,  pct: 0.0003 },  // De 60.101,22 a 150.253,03 €
+      { limite: 6010121.04, pct: 0.0002 },  // De 150.253,04 a 6.010.121,04 €
+      { limite: Infinity,   pct: 0.0001 }   // Exceso sobre 6.010.121,04 €
+    ];
+
+    let arancel = 0;
+    let baseRestante = precio;
+    let limiteAnterior = 0;
+
+    for (const tramo of tramos) {
+      if (baseRestante <= 0) break;
+      const anchoTramo = tramo.limite - limiteAnterior;
+      const porcionEnTramo = Math.min(baseRestante, anchoTramo);
+      arancel += porcionEnTramo * tramo.pct;
+      baseRestante -= porcionEnTramo;
+      limiteAnterior = tramo.limite;
+    }
+
+    // IVA 21% obligatorio
+    const totalConIVA = arancel * 1.21;
+
+    // Suelo realista de mercado: ≈ 400 €
+    return Math.max(totalConIVA, 400);
+  }
+
+  /**
+   * Calcula todos los gastos asociados a la compraventa.
+   * Usa los aranceles oficiales (con IVA y suelo de mercado) para notaría y registro,
+   * y el ITP correcto según tipo de vivienda y Canarias por defecto al 6,5%.
+   */
+  function calcGastos(){
+    const precio = parseFloat(document.getElementById('precioSim').value) || 0;
+    const tipo   = document.getElementById('tipoVivienda').value;
+    const hipo   = document.getElementById('conHipoteca').value;
+
+    // Canarias segunda mano → 6,5% ITP real | Obra nueva → 11% (10% IVA + 1% AJD)
+    let pctImp, impNombre;
+    if (tipo === 'segunda') { pctImp = 6.5; impNombre = 'ITP'; }
+    else { pctImp = 11; impNombre = 'IVA+AJD'; }
+
+    const impuesto = precio * pctImp / 100;
+    const notaria  = calcularNotariaOficial(precio);    // RD 1426/1989 + IVA + suelo
+    const registro = calcularRegistroOficial(precio);   // RD 1427/1989 + IVA + suelo
+    const gestoria = hipo === 'si' ? 350 : 250;
+    const tasacion = hipo === 'si' ? 450 : 0;
+    const total = impuesto + notaria + registro + gestoria + tasacion;
+    const pctTotal = precio > 0 ? Math.round(total / precio * 100) : 0;
+
+    // UI - actualización sincronizada con el cálculo
+    document.getElementById('impuestoNombre').textContent = impNombre;
+    document.getElementById('impuestoPct').textContent = '(' + pctImp + '%)';
+    document.getElementById('impuestoVal').textContent = fmt(impuesto);
+    document.getElementById('notariaVal').textContent  = fmt(notaria);
+    document.getElementById('registroVal').textContent = fmt(registro);
+    document.getElementById('gestoriaVal').textContent = fmt(gestoria);
+    document.getElementById('tasacionVal').textContent = fmt(tasacion);
+    document.getElementById('totalGastos').textContent = fmt(total);
+    document.getElementById('totalGastosFinal').textContent = fmt(total);
+    document.getElementById('totalGastosPct').textContent = '≈ ' + pctTotal + '% del precio';
+
+    return { total, impuesto, notaria, registro, gestoria, tasacion, pctImp, impNombre, pctTotal };
+  }
+
+  function recalcAll(){
+    const hip = calcHipoteca();
+    const gastos = calcGastos();
+    const aport = parseFloat(document.getElementById('aportacion').value) || 0;
+    const colchon = hip.cuota * 3;
+    const totalNecesario = aport + gastos.total + colchon;
+
+    document.getElementById('ahorroEntrada').textContent = fmt(aport);
+    document.getElementById('ahorroGastos').textContent  = fmt(gastos.total);
+    document.getElementById('ahorroColchon').textContent = fmt(colchon);
+    document.getElementById('ahorroTotal').textContent   = fmt(totalNecesario);
+  }
+
+  // ============ BLOG ============
+  const articulos = [
+    {
+      id: 1, cat: 'hipotecas', catLabel: 'Hipotecas', emoji: '🏦', time: '3 min',
+      titulo: 'TIN vs TAE: el error que cuesta 20.000€',
+      gancho: 'La cifra que mira el 90% de la gente es la equivocada. Aprende a leer la oferta del banco como un profesional.',
+      contenido: `
+        <h3>¿Qué es el TIN?</h3>
+        <p>El <strong>TIN</strong> (Tipo de Interés Nominal) es el porcentaje de interés puro que cobra el banco por prestarte el dinero. No incluye comisiones, seguros ni vinculaciones. Por eso suele verse más bajo y más atractivo que la cifra real que vas a pagar.</p>
+
+        <h3>¿Qué es la TAE?</h3>
+        <p>La <strong>TAE</strong> (Tasa Anual Equivalente) sí incluye el TIN más todas las comisiones, seguros vinculados y costes obligatorios. Es el indicador real del coste y el único que sirve para comparar entre bancos.</p>
+
+        <h3>Por qué importa tanto</h3>
+        <p>Dos hipotecas con el mismo TIN del 3% pueden tener TAEs muy diferentes. Si una te obliga a contratar seguro de vida, hogar y plan de pensiones, la TAE puede dispararse al <strong>4,2%</strong>. Otra sin tantas ataduras puede quedarse en el <strong>3,4%</strong>.</p>
+        <div class="article-data-box">
+          Sobre un préstamo de <strong>200.000€ a 25 años</strong>, esa diferencia supone <strong>más de 20.000€ de tu bolsillo</strong> en intereses extra.
+        </div>
+
+        <h3>Tres claves que debes recordar</h3>
+        <ul>
+          <li>Compara siempre por <strong>TAE</strong>, nunca por TIN.</li>
+          <li>Pide el <strong>FEIN</strong> (Ficha Europea de Información Normalizada): es obligatorio que el banco te lo entregue al menos 10 días antes de firmar.</li>
+          <li>Los seguros vinculados muchas veces pueden anularse o cambiarse pasado el primer año.</li>
+        </ul>
+      `
+    },
+    {
+      id: 2, cat: 'documentacion', catLabel: 'Documentación', emoji: '📄', time: '4 min',
+      titulo: 'Los 7 documentos que DEBES pedir antes de firmar',
+      gancho: 'Comprar sin estos papeles es jugar a la lotería con tus ahorros. Esta es la lista que un profesional revisa siempre.',
+      contenido: `
+        <p>Si el vendedor o el agente te dicen <em>"no hace falta"</em> o <em>"ya te lo doy luego"</em>, desconfía. Estos son los 7 documentos imprescindibles:</p>
+
+        <h3>1. Nota simple del Registro de la Propiedad</h3>
+        <p>Cuesta menos de 10€ y es el documento más importante. Confirma quién es el dueño real y si hay <strong>hipotecas, embargos o cargas ocultas</strong>.</p>
+
+        <h3>2. Últimos recibos del IBI</h3>
+        <p>Prueban que el vendedor está al día con el Ayuntamiento.</p>
+
+        <h3>3. Certificado de la comunidad de propietarios</h3>
+        <p>Acredita que no hay deudas pendientes con la comunidad. <strong>Si las hay, las hereda el comprador.</strong></p>
+
+        <h3>4. Certificado de eficiencia energética</h3>
+        <p>Obligatorio desde 2013. Sin él la venta puede ser nula.</p>
+
+        <h3>5. Cédula de habitabilidad</h3>
+        <p>Confirma que la vivienda cumple los requisitos mínimos para ser habitada.</p>
+
+        <h3>6. Últimas actas de la comunidad</h3>
+        <p>Te permiten saber si hay <strong>obras o derramas previstas</strong> que vas a tener que pagar tú.</p>
+
+        <h3>7. Licencia de primera ocupación (obra nueva)</h3>
+        <p>Garantiza que el Ayuntamiento ha validado la legalidad del edificio.</p>
+      `
+    },
+    {
+      id: 3, cat: 'fiscal', catLabel: 'Fiscal', emoji: '💸', time: '4 min',
+      titulo: 'Cuánto pagas de IRPF al vender tu vivienda',
+      gancho: 'Y cómo no pagar (legalmente). Tramos actualizados a 2026 y las dos exenciones que poca gente conoce.',
+      contenido: `
+        <h3>¿Qué es la ganancia patrimonial?</h3>
+        <p>La diferencia entre lo que pagaste al comprar (más gastos e inversiones documentadas) y lo que ingresas al vender. Sobre esa diferencia tributas en el IRPF.</p>
+
+        <h3>Tramos vigentes en 2026</h3>
+        <p>Hacienda aplica un cobro <strong>progresivo</strong>: cada tramo de tu ganancia tributa al porcentaje que le corresponde.</p>
+        <ul>
+          <li>Hasta 6.000€ → <strong>19%</strong></li>
+          <li>De 6.000€ a 50.000€ → <strong>21%</strong></li>
+          <li>De 50.000€ a 200.000€ → <strong>23%</strong></li>
+          <li>De 200.000€ a 300.000€ → <strong>28%</strong></li>
+          <li>Más de 300.000€ → <strong>30%</strong></li>
+        </ul>
+
+        <h3>Cómo NO pagar (legalmente)</h3>
+
+        <p><strong>Exención por reinversión.</strong> Si vendes tu vivienda habitual y compras otra vivienda habitual en un plazo máximo de <strong>2 años</strong>, quedas exento del IRPF en la parte reinvertida. Si reinviertes todo el importe, no pagas nada.</p>
+
+        <p><strong>Exención para mayores de 65 años.</strong> Si tienes más de 65 y vendes tu vivienda habitual, estás <strong>exento totalmente</strong> independientemente del importe. Es una de las pocas ventajas fiscales reales para mayores.</p>
+
+        <div class="article-data-box">
+          <strong>Truco poco conocido:</strong> los gastos de notaría, registro y reformas con factura del momento de la compra suman al precio de adquisición y reducen la ganancia. <strong>Guarda todas las facturas desde el día uno.</strong>
+        </div>
+      `
+    },
+    {
+      id: 4, cat: 'venta', catLabel: 'Venta', emoji: '⚠️', time: '3 min',
+      titulo: 'Los 5 errores más caros al vender sin agente',
+      gancho: 'Cada uno te puede costar miles de euros o meses de tiempo perdido. Aprende a evitarlos.',
+      contenido: `
+        <h3>Error 1 — Poner el precio sin datos reales</h3>
+        <p>Pedir lo que pagaste, lo que necesitas o lo que dice el vecino no sirve. El mercado lo marca lo que compradores reales han pagado por viviendas similares en los últimos 6 meses. <strong>Equivocarte aquí condena la operación desde el día uno.</strong></p>
+
+        <h3>Error 2 — Fotos hechas con el móvil sin orden</h3>
+        <p>El 90% de los compradores filtra primero por foto en los portales. Sin un reportaje profesional con luz natural y composición cuidada, tu anuncio pasa desapercibido. <strong>Un reportaje profesional puede generar 5 veces más visitas.</strong></p>
+
+        <h3>Error 3 — No filtrar a los compradores</h3>
+        <p>Enseñar la casa a cualquiera que llame es perder horas. Los profesionales verificamos solvencia e intención real antes de abrir la puerta.</p>
+
+        <h3>Error 4 — Negociar con emociones</h3>
+        <p>Los compradores experimentados detectan al vendedor implicado emocionalmente y lo usan para conseguir rebajas de miles de euros. <strong>Un intermediario quita la presión personal.</strong></p>
+
+        <h3>Error 5 — Descubrir que falta documentación a última hora</h3>
+        <p>Llegar al notario sin certificado energético, sin nota simple actualizada o con deuda de comunidad puede hundir la venta o forzar rebajas inesperadas.</p>
+      `
+    },
+    {
+      id: 5, cat: 'hipotecas', catLabel: 'Hipotecas', emoji: '⬇️', time: '3 min',
+      titulo: 'Cláusulas suelo: qué son y cómo detectarlas',
+      gancho: 'Millones de personas pagaron de más durante años sin saberlo. Revisa tu hipoteca con esta guía.',
+      contenido: `
+        <h3>¿Qué son?</h3>
+        <p>Una cláusula suelo es un <strong>límite mínimo</strong> al tipo de interés de una hipoteca variable. Aunque el Euríbor baje a 0 o sea negativo, tú nunca pagarás por debajo de ese mínimo pactado.</p>
+
+        <h3>¿Son legales?</h3>
+        <p>El Tribunal de Justicia de la UE las declaró <strong>abusivas en 2016</strong> cuando se aplicaron sin transparencia. Tienes derecho a reclamar todo lo pagado de más desde la firma, no solo desde 2013 como decían los bancos al principio.</p>
+
+        <h3>Cómo detectarlas en tu hipoteca</h3>
+        <p>Busca en la escritura cláusulas con expresiones como:</p>
+        <ul>
+          <li>"Tipo mínimo de interés"</li>
+          <li>"Tipo nominal anual no inferior a..."</li>
+          <li>"Suelo del..."</li>
+          <li>Cualquier porcentaje fijo que aparezca como límite inferior</li>
+        </ul>
+
+        <h3>Qué hacer si tienes una</h3>
+        <ol>
+          <li>Reúne la escritura completa y todos los recibos pagados</li>
+          <li>Reclama primero por escrito al banco</li>
+          <li>Si te dicen que no en 30 días, puedes ir a la vía judicial o al Banco de España</li>
+          <li>Hay despachos que <strong>trabajan a éxito</strong> (cobran solo si recuperas dinero)</li>
+        </ol>
+      `
+    },
+    {
+      id: 6, cat: 'venta', catLabel: 'Venta', emoji: '✨', time: '3 min',
+      titulo: 'Home staging: cómo vender entre un 6% y 11% más caro',
+      gancho: 'No es decorar a tu gusto. Es prepararla para que cualquier comprador se identifique. Los 5 principios que más rinden.',
+      contenido: `
+        <h3>¿Qué es el home staging?</h3>
+        <p>Es preparar y presentar tu vivienda para que guste al mayor número posible de compradores. <strong>No es decorar a tu gusto</strong>: es lo contrario, hacer que cualquier persona que entre pueda imaginarse viviendo allí.</p>
+
+        <h3>Los 5 principios que más rinden</h3>
+
+        <p><strong>1. Despersonalizar.</strong> Retira fotos familiares, recuerdos, religión, política y todo lo muy personal. El comprador no debe sentirse de visita en tu casa.</p>
+
+        <p><strong>2. Limpieza profunda.</strong> Una limpieza a fondo profesional cuesta entre 150 y 300€ y puede rentabilizar <em>10 veces</em> ese gasto. Incluye ventanas, juntas, azulejos y rincones.</p>
+
+        <p><strong>3. Maximizar la luz.</strong> Cortinas abiertas, bombillas blancas potentes, espejos para multiplicar la luz natural. <strong>Las casas oscuras se venden más baratas y más despacio.</strong></p>
+
+        <p><strong>4. Neutralizar olores.</strong> Sin tabaco, sin mascotas, sin comida. Ventilar antes de cada visita y usar aromas neutros si hace falta.</p>
+
+        <p><strong>5. Pequeñas reparaciones visibles.</strong> Una persiana rota, una mancha de humedad o un grifo que gotea le dice al comprador "esta casa está descuidada" y pedirá rebaja.</p>
+
+        <div class="article-data-box">
+          <strong>Lo que dice el dato:</strong> las viviendas preparadas con home staging se venden entre un <strong>6% y un 11% más caras</strong> y en <strong>la mitad de tiempo</strong> que las que no lo aplican.
+        </div>
+      `
+    },
+    {
+      id: 7, cat: 'compra', catLabel: 'Compra', emoji: '🔑', time: '4 min',
+      titulo: 'Arras: la diferencia entre perder la señal o perder la casa',
+      gancho: 'Tres tipos de arras, tres efectos muy distintos. Firmar el equivocado puede atarte de pies y manos.',
+      contenido: `
+        <h3>Tres tipos de arras, tres efectos muy distintos</h3>
+
+        <p><strong>Arras penitenciales.</strong> Las más habituales. Cualquiera puede arrepentirse: si te arrepientes tú, pierdes la señal entregada. Si se arrepiente el vendedor, te devuelve el doble. Es la opción <em>más equilibrada</em>.</p>
+
+        <p><strong>Arras confirmatorias.</strong> Son una señal en cuenta del precio. Si una parte no cumple, la otra puede obligarla a comprar/vender por vía judicial o pedir indemnización. <strong>No permiten arrepentirse.</strong></p>
+
+        <p><strong>Arras penales.</strong> Si una parte incumple, paga la cantidad pactada como penalización. La otra parte puede elegir entre cobrar esa penalización o exigir el cumplimiento.</p>
+
+        <h3>El error típico</h3>
+        <p>Firmar arras "sin más" cuando el contrato no especifica el tipo. Por defecto, el Código Civil suele interpretarlas como <strong>confirmatorias</strong>, y eso te puede dejar atado.</p>
+
+        <h3>Lo que el contrato debe incluir sí o sí</h3>
+        <ul>
+          <li>Tipo de arras (penitenciales, confirmatorias o penales)</li>
+          <li>Importe entregado</li>
+          <li>Plazo máximo para firmar la escritura</li>
+          <li>Quién paga qué gastos</li>
+          <li>Estado de cargas conocidas en ese momento</li>
+          <li>Inventario si la venta incluye muebles</li>
+        </ul>
+
+        <div class="article-data-box">
+          <strong>Nunca firmes arras sin que un profesional las revise.</strong> La cantidad en juego justifica de sobra la consulta.
+        </div>
+      `
+    },
+    {
+      id: 8, cat: 'documentacion', catLabel: 'Documentación', emoji: '🧓', time: '5 min',
+      titulo: 'Vender la casa de un familiar fallecido: pasos sin perderse',
+      gancho: 'Es una situación dolorosa y administrativamente compleja. Este es el camino que hay que seguir.',
+      contenido: `
+        <h3>Paso 1 — Aceptar la herencia ante notario</h3>
+        <p>Sin escritura de aceptación de herencia no puedes vender nada. Necesitas:</p>
+        <ul>
+          <li>Certificado de defunción</li>
+          <li>Certificado de últimas voluntades (disponible 15 días después del fallecimiento)</li>
+          <li>Testamento (o declaración de herederos si no hay testamento)</li>
+        </ul>
+
+        <h3>Paso 2 — Liquidar el Impuesto de Sucesiones</h3>
+        <p>Plazo: <strong>6 meses</strong> desde el fallecimiento, prorrogables otros 6. En Canarias hay bonificaciones muy importantes para hijos y cónyuges, en muchos casos el impuesto queda en cantidades simbólicas.</p>
+
+        <h3>Paso 3 — Liquidar la plusvalía municipal</h3>
+        <p>Si la vivienda está en suelo urbano, hay que pagar al Ayuntamiento. Plazo: <strong>6 meses</strong> desde la muerte.</p>
+
+        <h3>Paso 4 — Inscribir la vivienda a nombre de los herederos en el Registro</h3>
+        <p>Sin esto, no puedes poner el inmueble a la venta legalmente.</p>
+
+        <h3>Paso 5 — Vender</h3>
+        <p>Una vez inscrita, ya se puede sacar al mercado. <strong>Si hay varios herederos, todos deben firmar la venta</strong> (o uno con poderes notariales del resto).</p>
+
+        <div class="article-data-box">
+          <strong>El error más común:</strong> intentar vender antes de tener la herencia aceptada y registrada. Pierdes compradores y arras.
+        </div>
+      `
+    },
+    {
+      id: 9, cat: 'inversion', catLabel: 'Inversión', emoji: '💰', time: '4 min',
+      titulo: 'Comprar para alquilar: rentabilidad real 2026',
+      gancho: 'Datos actualizados por zonas, gastos ocultos y dónde están las mejores oportunidades hoy.',
+      contenido: `
+        <h3>¿Sigue siendo buen negocio?</h3>
+        <p>En 2026, muchas capitales medias ofrecen una <strong>rentabilidad bruta superior al 7%</strong>, por encima de la media nacional (6,91%). Es mejor que la mayoría de productos financieros sin riesgo, pero requiere gestión.</p>
+
+        <h3>Las zonas más rentables ahora mismo</h3>
+        <ul>
+          <li><strong>Zonas en desarrollo:</strong> ROI en torno al 10%, el más alto de la ciudad.</li>
+          <li><strong>Barrios en expansión:</strong> ROI en torno al 8%, buena entrada y demanda creciente.</li>
+          <li><strong>Zonas consolidadas:</strong> ROI en torno al 6%, mercado estable con inquilinos solventes.</li>
+          <li><strong>Casco histórico:</strong> ROI en torno al 6%, encanto y ubicación estratégica.</li>
+        </ul>
+
+        <h3>Lo que poca gente calcula</h3>
+        <p>La rentabilidad bruta engaña. Hay que restar:</p>
+        <ul>
+          <li>IBI anual</li>
+          <li>Comunidad</li>
+          <li>Seguro de hogar e impago</li>
+          <li>Reparaciones (5% del alquiler anual de media)</li>
+          <li>Impuestos por el alquiler (entre 19% y 47% según tus ingresos)</li>
+          <li>Periodos sin inquilino</li>
+        </ul>
+        <p>Después de todo eso, la rentabilidad <strong>neta real</strong> suele quedarse entre el <strong>3% y el 4,5%</strong>. Sigue siendo interesante, pero hay que tener los números claros antes de comprar.</p>
+
+        <div class="article-data-box">
+          <strong>Tipo de inmueble que más rinde:</strong> pisos de 2 dormitorios entre 50 y 75 m² en zonas céntricas o bien comunicadas. Los grandes pisos rentan menos en proporción y los estudios tienen mucha rotación.
+        </div>
+      `
+    },
+    {
+      id: 10, cat: 'hipotecas', catLabel: 'Hipotecas', emoji: '🏘️', time: '4 min',
+      titulo: 'Hipoteca fija, variable o mixta: cuál te conviene en 2026',
+      gancho: 'Con el Euríbor estabilizado y las fijas en mínimos, la decisión ya no es tan obvia como antes.',
+      contenido: `
+        <h3>El contexto actual</h3>
+        <p>El <strong>Euríbor a 12 meses</strong> se ha estabilizado en torno al 2,2% en 2026, después de la montaña rusa de 2022-2024. Las previsiones apuntan a que se mantendrá en una banda del <strong>2% al 2,5%</strong> durante 2026-2027.</p>
+
+        <h3>Hipoteca FIJA</h3>
+        <p>El tipo de interés <strong>no cambia nunca</strong> durante toda la vida del préstamo. Tu cuota será la misma el primer mes y el último.</p>
+        <p>Rango habitual actual: entre el <strong>2,3% y el 2,9% TIN</strong> según banco y vinculaciones.</p>
+        <p><strong>Ideal para:</strong> quien busca cuotas estables y seguridad a largo plazo. Quien valora dormir tranquilo por encima de ahorrar unos pocos euros.</p>
+
+        <h3>Hipoteca VARIABLE</h3>
+        <p>El tipo de interés es <strong>Euríbor + diferencial fijo</strong> (por ejemplo, Euríbor + 0,60%). Se revisa cada 6 o 12 meses.</p>
+        <p>Rango habitual: <strong>Euríbor + 0,49% a 0,75%</strong>.</p>
+        <p><strong>Ideal para:</strong> quien tiene un perfil financiero estable, capacidad para asumir subidas y cree que el Euríbor va a bajar más.</p>
+
+        <h3>Hipoteca MIXTA</h3>
+        <p>Combina ambas: <strong>tipo fijo</strong> los primeros 3-10 años, luego se convierte en variable.</p>
+        <p>En 2026 son las más competitivas: tramos fijos iniciales desde el <strong>1,3% al 2,1% TIN</strong>, luego Euríbor + 0,30% a 0,70%.</p>
+        <p><strong>Ideal para:</strong> quien planea amortizar antes del cambio a variable, o quien quiere las cuotas más bajas posibles los primeros años (por ejemplo, mientras la familia crece).</p>
+
+        <div class="article-data-box">
+          <strong>Mi recomendación para la mayoría:</strong> en 2026 la <strong>hipoteca fija</strong> sigue siendo la más sensata. Los tipos están en niveles históricamente bajos, la diferencia con la variable es mínima, y te garantizas una cuota estable durante 25-30 años. <strong>La mixta es una buena opción</strong> si tu plan es amortizar pronto.
+        </div>
+      `
+    },
+    {
+      id: 11, cat: 'compra', catLabel: 'Compra', emoji: '🤝', time: '4 min',
+      titulo: 'Cómo negociar el precio de una vivienda: tácticas que funcionan',
+      gancho: 'Lo que separa a quien consigue un 5-10% de rebaja del que paga el precio de salida no es la suerte.',
+      contenido: `
+        <h3>Regla número uno: no te enamores en público</h3>
+        <p>Si el vendedor o el agente notan que has caído, pierdes margen de negociación. Mantén el gesto neutro, di que tienes otras opciones que ver, no respondas el mismo día.</p>
+
+        <h3>Investiga el precio real de la zona</h3>
+        <p>Antes de negociar, mira en idealista/Fotocasa qué pisos similares hay en venta y, sobre todo, busca <strong>cuáles se han vendido en los últimos 6 meses y a qué precio</strong>. El precio de salida no es el precio de venta.</p>
+
+        <h3>Detecta señales de venta urgente</h3>
+        <p>Si el anuncio lleva muchos meses publicado, ha bajado de precio, hay herencia, divorcio o traslado laboral del vendedor… son situaciones que <strong>te dan ventaja real</strong>.</p>
+
+        <h3>Tácticas concretas que funcionan</h3>
+        <ul>
+          <li><strong>La oferta firme con plazo corto.</strong> "Te ofrezco X euros y firmamos arras en 7 días." Las ofertas con plazo presionan más que las indefinidas.</li>
+          <li><strong>La rebaja justificada.</strong> "El piso necesita 12.000€ de reformas que he presupuestado. Mi oferta refleja eso." Suena profesional y razonable.</li>
+          <li><strong>Pedir extras en lugar de precio.</strong> Si no bajan el precio, negocia que dejen muebles, electrodomésticos o que paguen el certificado energético.</li>
+          <li><strong>El silencio.</strong> Lanza tu oferta y calla. El primero que habla pierde.</li>
+        </ul>
+
+        <h3>Lo que NO debes hacer</h3>
+        <ul>
+          <li>Negociar por mensajes largos de WhatsApp — pierde fuerza.</li>
+          <li>Insultar el inmueble o al vendedor para "rebajar".</li>
+          <li>Empezar con una oferta ridícula que te cierre la negociación.</li>
+          <li>Decir cuánto te aprueba el banco.</li>
+        </ul>
+
+        <div class="article-data-box">
+          <strong>Margen realista de negociación:</strong> en mercados normales, entre <strong>5% y 10%</strong>. En propiedades sobrevaloradas o con mucho tiempo en el mercado, hasta el 15%.
+        </div>
+      `
+    },
+    {
+      id: 12, cat: 'venta', catLabel: 'Venta', emoji: '📅', time: '4 min',
+      titulo: 'Vender una vivienda con inquilino dentro: lo que dice la ley',
+      gancho: 'Sí, se puede vender. Pero hay reglas claras que debes seguir o te puedes encontrar con un retracto y perder la operación.',
+      contenido: `
+        <h3>¿Se puede vender una vivienda alquilada?</h3>
+        <p>Sí, totalmente. <strong>El contrato de alquiler no impide la venta</strong>, pero la ley protege al inquilino con derechos que el vendedor tiene que respetar.</p>
+
+        <h3>El derecho de tanteo y retracto</h3>
+        <p>Es el derecho más importante. La Ley de Arrendamientos Urbanos (LAU) reconoce al inquilino dos derechos:</p>
+
+        <p><strong>Derecho de tanteo.</strong> Antes de vender a un tercero, debes ofrecer la vivienda al inquilino en las mismas condiciones (precio, plazo, etc.). El inquilino tiene <strong>30 días naturales</strong> para decidir si la compra.</p>
+
+        <p><strong>Derecho de retracto.</strong> Si vendes sin notificarle, el inquilino puede <strong>"quitarte" la venta</strong> al comprador tercero subrogándose en sus condiciones. Tiene 30 días desde que se entera.</p>
+
+        <h3>Cómo notificar correctamente</h3>
+        <p>Un WhatsApp o un email no valen. La notificación debe ser <strong>fehaciente</strong>:</p>
+        <ul>
+          <li><strong>Burofax</strong> con acuse de recibo y certificación de texto, o</li>
+          <li><strong>Acta notarial</strong></li>
+        </ul>
+
+        <h3>¿Y si en el contrato renunciamos al tanteo?</h3>
+        <p>Es legal pactar la renuncia al derecho de adquisición preferente, pero <strong>debe estar expresamente escrita</strong> en el contrato. Aun así, debes avisar al inquilino con <strong>30 días</strong> de antelación de tu intención de vender.</p>
+
+        <h3>¿Qué pasa con el contrato cuando vendes?</h3>
+        <p>El nuevo propietario <strong>se subroga</strong> en el contrato existente. Es decir, el inquilino sigue con las mismas condiciones (renta, plazo, actualización) hasta el final del contrato.</p>
+
+        <div class="article-data-box">
+          <strong>Atención:</strong> el inquilino tiene derecho a la inviolabilidad de su domicilio. <strong>No puedes obligarle a enseñar la vivienda</strong> sin su consentimiento. Lo habitual es pactar horarios cómodos para él.
+        </div>
+      `
+    },
+    {
+      id: 13, cat: 'fiscal', catLabel: 'Fiscal', emoji: '📊', time: '4 min',
+      titulo: 'ITP en Canarias: lo que muchos descubren tarde',
+      gancho: 'La fórmula parece sencilla, pero hay 3 detalles que pueden hacer que pagues más (o muchísimo menos) de lo que crees.',
+      contenido: `
+        <h3>La fórmula básica</h3>
+        <p>El cálculo del Impuesto sobre Transmisiones Patrimoniales (ITP) responde a una fórmula sencilla:</p>
+        <div class="article-data-box">
+          <strong>ITP = Precio de compra × porcentaje del impuesto</strong>
+        </div>
+        <p>En Canarias, el tipo general aplicable a las viviendas de segunda mano es del <strong>6,5%</strong>.</p>
+
+        <h3>Ejemplos prácticos</h3>
+        <ul>
+          <li>Vivienda de <strong>100.000 €</strong> → ITP: <strong>6.500 €</strong></li>
+          <li>Vivienda de <strong>200.000 €</strong> → ITP: <strong>13.000 €</strong></li>
+          <li>Vivienda de <strong>300.000 €</strong> → ITP: <strong>19.500 €</strong></li>
+        </ul>
+
+        <h3>1. Hacienda no siempre cobra sobre el precio que pagas</h3>
+        <p>Este es el punto que más sorpresas genera. La Agencia Tributaria Canaria toma como base imponible el <strong>mayor valor</strong> entre el precio escriturado y el <strong>valor de referencia catastral</strong>.</p>
+        <p>Es decir, si compras una vivienda por 150.000 € pero el valor de referencia catastral es de 180.000 €, Hacienda te liquidará el ITP sobre los <strong>180.000 €</strong>.</p>
+        <p>Puedes consultar este valor de forma gratuita antes de comprar en la sede electrónica del Catastro (<em>sedecatastro.gob.es</em>).</p>
+
+        <h3>2. Existen tipos reducidos importantes</h3>
+        <p>El 6,5% es el tipo general, pero la normativa contempla bonificaciones significativas en varios supuestos:</p>
+        <ul>
+          <li><strong>Jóvenes de hasta 35 años</strong> en primera vivienda habitual: tipo reducido del <strong>4%</strong>.</li>
+          <li><strong>Familias numerosas:</strong> tipos reducidos según categoría.</li>
+          <li><strong>Personas con discapacidad:</strong> reducciones específicas.</li>
+          <li><strong>Vivienda Protegida (VPO):</strong> tipos reducidos o exenciones.</li>
+          <li><strong>Vivienda habitual</strong> según valor: bonificaciones autonómicas.</li>
+        </ul>
+        <p>Si encajas en alguno de estos supuestos, el ahorro puede ser de <strong>miles de euros</strong>.</p>
+
+        <h3>3. Si la vivienda es nueva, no se paga ITP</h3>
+        <p>Las viviendas de obra nueva en Canarias quedan fuera del ITP. En su lugar tributan por:</p>
+        <ul>
+          <li><strong>IGIC al 7%</strong> (equivalente al IVA del resto de España).</li>
+          <li><strong>AJD</strong> (Actos Jurídicos Documentados), aproximadamente un 1%.</li>
+        </ul>
+
+        <div class="article-data-box">
+          <strong>Recomendación profesional:</strong> antes de firmar arras o cerrar una operación, comprueba el valor de referencia catastral de la vivienda y verifica si encajas en algún tipo reducido. La diferencia entre pagar <strong>19.500 €</strong> o <strong>12.000 €</strong> por una misma vivienda puede depender únicamente de cumplir requisitos que ya tienes.
+        </div>
+      `
+    }
+  ];
+
+  // Pintar tarjetas
+  function renderBlog(cat = 'todas'){
+    const grid = document.getElementById('blogGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    const filtrados = cat === 'todas' ? articulos : articulos.filter(a => a.cat === cat);
+    filtrados.forEach(a => {
+      const card = document.createElement('div');
+      card.className = `blog-card cat-${a.cat}`;
+      card.innerHTML = `
+        <div class="img">${a.emoji}<div class="read-time">⏱ ${a.time}</div></div>
+        <div class="body">
+          <div class="cat">${a.catLabel}</div>
+          <h4>${a.titulo}</h4>
+          <p>${a.gancho}</p>
+          <div class="leer-mas">Leer artículo →</div>
+        </div>`;
+      card.addEventListener('click', () => openArticle(a.id));
+      grid.appendChild(card);
+    });
+  }
+
+  // Filtros
+  document.querySelectorAll('.blog-filter').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      document.querySelectorAll('.blog-filter').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderBlog(btn.dataset.cat);
+    });
+  });
+
+  // Modal artículo
+  function openArticle(id){
+    const art = articulos.find(a => a.id === id);
+    if (!art) return;
+    document.getElementById('articleTitle').textContent = art.titulo;
+    document.getElementById('articleBody').innerHTML = art.contenido + `
+      <div class="article-cta">
+        <p>¿Tienes dudas sobre esto o quieres asesoramiento personalizado?</p>
+        <a href="https://wa.me/${PHONE_WA}?text=${encodeURIComponent('¡Hola! 👋 He leído tu artículo \"' + art.titulo + '\" y tengo dudas. ¿Podemos hablar?')}" target="_blank">
+          💬 Pregúntame por WhatsApp
+        </a>
+      </div>`;
+    document.getElementById('articleModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+    document.querySelector('#articleModal .modal-box').scrollTop = 0;
+  }
+  function closeArticle(){
+    document.getElementById('articleModal').classList.remove('active');
+    document.body.style.overflow = '';
+  }
+  const articleModal = document.getElementById('articleModal');
+  if (articleModal) {
+    articleModal.addEventListener('click', (e) => {
+      if (e.target === articleModal) closeArticle();
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeArticle();
+  });
+
+  // Init blog
+  renderBlog('todas');
+
+  // ============ MODAL PRIVACIDAD ============
+  function openPrivacy(e){
+    if (e) e.preventDefault();
+    document.getElementById('privacyModal').classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+  function closePrivacy(){
+    document.getElementById('privacyModal').classList.remove('active');
+    document.body.style.overflow = '';
+  }
+  // Cerrar clicando fuera
+  const privacyModal = document.getElementById('privacyModal');
+  if (privacyModal) {
+    privacyModal.addEventListener('click', (e) => {
+      if (e.target === privacyModal) closePrivacy();
+    });
+  }
+  // Cerrar con ESC
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closePrivacy();
+  });
+
+  // ============ VALORACIÓN (Vender + Comprar) ============
+
+  // Tabs Vender/Comprar
+  document.querySelectorAll('.val-tab').forEach(tab => {
+    tab.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      document.querySelectorAll('.val-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelectorAll('.val-form-wrap').forEach(w => w.classList.remove('active'));
+      document.getElementById('form-' + tab.dataset.form).classList.add('active');
+      return false;
+    });
+  });
+
+  // Chips (botones tipo píldora) - single select
+  document.querySelectorAll('.chip-group').forEach(group => {
+    const targetId = group.dataset.target;
+    group.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        group.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        if (targetId) document.getElementById(targetId).value = chip.dataset.val;
+        return false;
+      });
+    });
+  });
+
+  // Estado cards
+  document.querySelectorAll('.estado-grid').forEach(group => {
+    const targetId = group.dataset.target;
+    group.querySelectorAll('.estado-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        group.querySelectorAll('.estado-card').forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        if (targetId) document.getElementById(targetId).value = card.dataset.val;
+        return false;
+      });
+    });
+  });
+
+  // Slider m² (Vender)
+  const vM2 = document.getElementById('vM2');
+  if (vM2) {
+    const updateM2 = () => {
+      document.getElementById('vM2Val').textContent = vM2.value;
+      const p = ((vM2.value - 20) / (500 - 20)) * 100;
+      vM2.style.background = `linear-gradient(to right, var(--rojo) ${p}%, var(--gris-2) ${p}%)`;
+    };
+    vM2.addEventListener('input', updateM2);
+    updateM2();
+  }
+
+  // Slider presupuesto (Comprar)
+  const cPresup = document.getElementById('cPresup');
+  if (cPresup) {
+    const updateP = () => {
+      document.getElementById('cPresupVal').textContent = parseInt(cPresup.value).toLocaleString('es-ES');
+      const p = ((cPresup.value - 50000) / (1000000 - 50000)) * 100;
+      cPresup.style.background = `linear-gradient(to right, var(--azul) ${p}%, var(--gris-2) ${p}%)`;
+    };
+    cPresup.addEventListener('input', updateP);
+    updateP();
+  }
+
+  // Validación simple
+  function validarFormulario(campos, privacidadId) {
+    for (const c of campos) {
+      const el = document.getElementById(c.id);
+      const val = el.value.trim();
+      if (!val) {
+        alert(`⚠ Falta completar: ${c.label}`);
+        el.focus();
+        return false;
+      }
+    }
+    // Validar checkbox de privacidad
+    if (privacidadId) {
+      const check = document.getElementById(privacidadId);
+      if (check && !check.checked) {
+        alert('⚠ Debes aceptar la política de protección de datos para continuar.');
+        check.focus();
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // ENVÍO VENDER
+  function sendVenderWA() {
+    const requeridos = [
+      {id:'vNombre', label:'Nombre'},
+      {id:'vTel', label:'Teléfono'},
+      {id:'vTipo', label:'Tipo de inmueble'},
+      {id:'vProvincia', label:'Provincia'},
+      {id:'vLocalidad', label:'Localidad'},
+      {id:'vCalle', label:'Calle'},
+      {id:'vNumero', label:'Número'},
+      {id:'vHab', label:'Habitaciones'},
+      {id:'vEstado', label:'Estado'},
+      {id:'vUrgencia', label:'Urgencia de venta'}
+    ];
+    if (!validarFormulario(requeridos, 'vPrivacidad')) return;
+
+    const data = {
+      nombre: document.getElementById('vNombre').value,
+      tel: document.getElementById('vTel').value,
+      tipo: document.getElementById('vTipo').value,
+      provincia: document.getElementById('vProvincia').value,
+      localidad: document.getElementById('vLocalidad').value,
+      calle: document.getElementById('vCalle').value,
+      numero: document.getElementById('vNumero').value,
+      piso: document.getElementById('vPiso').value || '-',
+      puerta: document.getElementById('vPuerta').value || '-',
+      m2: document.getElementById('vM2').value,
+      hab: document.getElementById('vHab').value,
+      estado: document.getElementById('vEstado').value,
+      urgencia: document.getElementById('vUrgencia').value,
+      notas: document.getElementById('vNotas').value || '-'
+    };
+
+    const msg = `¡Hola! 👋\n\nQuiero *VENDER* mi propiedad. Estos son mis datos:\n\n👤 *Contacto*\n• Nombre: ${data.nombre}\n• Teléfono: ${data.tel}\n\n🏠 *Propiedad*\n• Tipo: ${data.tipo}\n• Dirección: ${data.calle}, ${data.numero}, ${data.piso}-${data.puerta}\n• ${data.localidad} (${data.provincia})\n• Superficie: ${data.m2} m²\n• Habitaciones: ${data.hab}\n• Estado: ${data.estado}\n\n⏰ *Urgencia:* ${data.urgencia}\n\n📝 *Notas:* ${data.notas}\n\n¿Cuándo podemos hablar?`;
+    const url = `https://wa.me/${PHONE_WA}?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+  }
+
+  function sendVenderEmail() {
+    const requeridos = [
+      {id:'vNombre', label:'Nombre'},
+      {id:'vTel', label:'Teléfono'},
+      {id:'vTipo', label:'Tipo de inmueble'},
+      {id:'vProvincia', label:'Provincia'},
+      {id:'vLocalidad', label:'Localidad'},
+      {id:'vCalle', label:'Calle'},
+      {id:'vNumero', label:'Número'},
+      {id:'vHab', label:'Habitaciones'},
+      {id:'vEstado', label:'Estado'},
+      {id:'vUrgencia', label:'Urgencia de venta'}
+    ];
+    if (!validarFormulario(requeridos, 'vPrivacidad')) return;
+
+    const data = {
+      nombre: document.getElementById('vNombre').value,
+      tel: document.getElementById('vTel').value,
+      tipo: document.getElementById('vTipo').value,
+      provincia: document.getElementById('vProvincia').value,
+      localidad: document.getElementById('vLocalidad').value,
+      calle: document.getElementById('vCalle').value,
+      numero: document.getElementById('vNumero').value,
+      piso: document.getElementById('vPiso').value || '-',
+      puerta: document.getElementById('vPuerta').value || '-',
+      m2: document.getElementById('vM2').value,
+      hab: document.getElementById('vHab').value,
+      estado: document.getElementById('vEstado').value,
+      urgencia: document.getElementById('vUrgencia').value,
+      notas: document.getElementById('vNotas').value || '-'
+    };
+
+    const subject = `Solicitud de valoración - ${data.nombre}`;
+    const body = `Hola,\n\nQuiero VENDER mi propiedad. Estos son mis datos:\n\nCONTACTO\n- Nombre: ${data.nombre}\n- Teléfono: ${data.tel}\n\nPROPIEDAD\n- Tipo: ${data.tipo}\n- Dirección: ${data.calle}, ${data.numero}, ${data.piso}-${data.puerta}\n- ${data.localidad} (${data.provincia})\n- Superficie: ${data.m2} m²\n- Habitaciones: ${data.hab}\n- Estado: ${data.estado}\n\nURGENCIA: ${data.urgencia}\n\nNOTAS: ${data.notas}\n\n¿Cuándo podemos hablar?\n\nGracias.`;
+    window.location.href = `mailto:${EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
+  // ENVÍO COMPRAR
+  function sendComprarWA() {
+    const requeridos = [
+      {id:'cNombre', label:'Nombre'},
+      {id:'cTel', label:'Teléfono'},
+      {id:'cTipo', label:'Tipo de inmueble'},
+      {id:'cProvincia', label:'Provincia'},
+      {id:'cLocalidad', label:'Localidad'},
+      {id:'cHab', label:'Habitaciones'},
+      {id:'cUrgencia', label:'Urgencia de compra'}
+    ];
+    if (!validarFormulario(requeridos, 'cPrivacidad')) return;
+
+    const data = {
+      nombre: document.getElementById('cNombre').value,
+      tel: document.getElementById('cTel').value,
+      tipo: document.getElementById('cTipo').value,
+      provincia: document.getElementById('cProvincia').value,
+      localidad: document.getElementById('cLocalidad').value,
+      presup: parseInt(document.getElementById('cPresup').value).toLocaleString('es-ES'),
+      hab: document.getElementById('cHab').value,
+      urgencia: document.getElementById('cUrgencia').value,
+      notas: document.getElementById('cNotas').value || '-'
+    };
+
+    const msg = `¡Hola! 👋\n\nQuiero *COMPRAR* una propiedad. Estos son mis criterios:\n\n👤 *Contacto*\n• Nombre: ${data.nombre}\n• Teléfono: ${data.tel}\n\n🔑 *Busco*\n• Tipo: ${data.tipo}\n• Zona: ${data.localidad} (${data.provincia})\n• Presupuesto máximo: ${data.presup} €\n• Habitaciones: ${data.hab}\n\n⏰ *Urgencia:* ${data.urgencia}\n\n📝 *Notas:* ${data.notas}\n\n¿Tienes algo que encaje?`;
+    const url = `https://wa.me/${PHONE_WA}?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+  }
+
+  function sendComprarEmail() {
+    const requeridos = [
+      {id:'cNombre', label:'Nombre'},
+      {id:'cTel', label:'Teléfono'},
+      {id:'cTipo', label:'Tipo de inmueble'},
+      {id:'cProvincia', label:'Provincia'},
+      {id:'cLocalidad', label:'Localidad'},
+      {id:'cHab', label:'Habitaciones'},
+      {id:'cUrgencia', label:'Urgencia de compra'}
+    ];
+    if (!validarFormulario(requeridos, 'cPrivacidad')) return;
+
+    const data = {
+      nombre: document.getElementById('cNombre').value,
+      tel: document.getElementById('cTel').value,
+      tipo: document.getElementById('cTipo').value,
+      provincia: document.getElementById('cProvincia').value,
+      localidad: document.getElementById('cLocalidad').value,
+      presup: parseInt(document.getElementById('cPresup').value).toLocaleString('es-ES'),
+      hab: document.getElementById('cHab').value,
+      urgencia: document.getElementById('cUrgencia').value,
+      notas: document.getElementById('cNotas').value || '-'
+    };
+
+    const subject = `Búsqueda de inmueble - ${data.nombre}`;
+    const body = `Hola,\n\nQuiero COMPRAR una propiedad. Estos son mis criterios:\n\nCONTACTO\n- Nombre: ${data.nombre}\n- Teléfono: ${data.tel}\n\nBUSCO\n- Tipo: ${data.tipo}\n- Zona: ${data.localidad} (${data.provincia})\n- Presupuesto máximo: ${data.presup} €\n- Habitaciones: ${data.hab}\n\nURGENCIA: ${data.urgencia}\n\nNOTAS: ${data.notas}\n\n¿Tienes algo que encaje?\n\nGracias.`;
+    window.location.href = `mailto:${EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
+  // ============ ENVÍO POR WHATSAPP / EMAIL ============
+
+  function sendHipotecaWhatsApp(){
+    const precio = parseFloat(document.getElementById('precio').value) || 0;
+    const aport = parseFloat(document.getElementById('aportacion').value) || 0;
+    const plazo = document.getElementById('plazo').value;
+    const com = document.getElementById('comunidad').options[document.getElementById('comunidad').selectedIndex].text;
+    const cuota = document.getElementById('cuotaMensual').textContent;
+    const capital = document.getElementById('capitalVal').textContent;
+    const intereses = document.getElementById('interesesVal').textContent;
+    const totalPagar = document.getElementById('totalVal').textContent;
+    const ingresos = document.getElementById('ingresosVal').textContent;
+    const ahorroTotal = document.getElementById('ahorroTotal').textContent;
+
+    const msg = `¡Hola! 👋\n\nHe simulado mi hipoteca en tu web y me gustaría que la revisaras:\n\n🏠 *DATOS*\n• Precio: ${fmt(precio)}\n• Aportación: ${fmt(aport)}\n• Plazo: ${plazo} años\n• Comunidad: ${com}\n\n💰 *RESULTADO*\n• Cuota mensual: ${cuota}\n• Capital prestado: ${capital}\n• Intereses totales: ${intereses}\n• Total a pagar: ${totalPagar}\n• Ingresos mínimos: ${ingresos}\n• Ahorro total necesario: ${ahorroTotal}\n\n¿Podemos hablar?`;
+
+    const url = `https://wa.me/${PHONE_WA}?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+  }
+
+  function sendHipotecaEmail(){
+    const precio = parseFloat(document.getElementById('precio').value) || 0;
+    const aport = parseFloat(document.getElementById('aportacion').value) || 0;
+    const plazo = document.getElementById('plazo').value;
+    const com = document.getElementById('comunidad').options[document.getElementById('comunidad').selectedIndex].text;
+    const cuota = document.getElementById('cuotaMensual').textContent;
+    const capital = document.getElementById('capitalVal').textContent;
+    const intereses = document.getElementById('interesesVal').textContent;
+    const totalPagar = document.getElementById('totalVal').textContent;
+    const ingresos = document.getElementById('ingresosVal').textContent;
+    const ahorroTotal = document.getElementById('ahorroTotal').textContent;
+
+    const subject = 'Simulación de hipoteca';
+    const body = `Hola,\n\nHe simulado mi hipoteca en tu web y me gustaría que la revisaras:\n\nDATOS DE LA OPERACIÓN\n- Precio del inmueble: ${fmt(precio)}\n- Aportación propia: ${fmt(aport)}\n- Plazo: ${plazo} años\n- Comunidad autónoma: ${com}\n\nRESULTADOS\n- Cuota mensual estimada: ${cuota}\n- Capital prestado: ${capital}\n- Intereses totales: ${intereses}\n- Total a pagar: ${totalPagar}\n- Ingresos mínimos: ${ingresos}\n- Ahorro total necesario: ${ahorroTotal}\n\n¿Cuándo podríamos hablar?\n\nGracias.`;
+
+    const url = `mailto:${EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = url;
+  }
+
+  function sendGastosWhatsApp(){
+    const precio = parseFloat(document.getElementById('precioSim').value) || 0;
+    const tipo = document.getElementById('tipoVivienda').options[document.getElementById('tipoVivienda').selectedIndex].text;
+    const hipo = document.getElementById('conHipoteca').options[document.getElementById('conHipoteca').selectedIndex].text;
+    const impNombre = document.getElementById('impuestoNombre').textContent;
+    const impPct = document.getElementById('impuestoPct').textContent;
+    const imp = document.getElementById('impuestoVal').textContent;
+    const not = document.getElementById('notariaVal').textContent;
+    const reg = document.getElementById('registroVal').textContent;
+    const ges = document.getElementById('gestoriaVal').textContent;
+    const tas = document.getElementById('tasacionVal').textContent;
+    const total = document.getElementById('totalGastosFinal').textContent;
+    const pct = document.getElementById('totalGastosPct').textContent;
+
+    const msg = `¡Hola! 👋\n\nHe simulado los gastos de compra en tu web:\n\n🏠 *OPERACIÓN*\n• Tipo de vivienda: ${tipo}\n• Precio de compra: ${fmt(precio)}\n• Financiación: ${hipo}\n\n📋 *DESGLOSE*\n• ${impNombre} ${impPct}: ${imp}\n• Notaría (0.3%): ${not}\n• Registro (0.2%): ${reg}\n• Gestoría: ${ges}\n• Tasación: ${tas}\n\n💰 *TOTAL: ${total}* (${pct})\n\n¿Podemos hablar?`;
+
+    const url = `https://wa.me/${PHONE_WA}?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+  }
+
+  function sendGastosEmail(){
+    const precio = parseFloat(document.getElementById('precioSim').value) || 0;
+    const tipo = document.getElementById('tipoVivienda').options[document.getElementById('tipoVivienda').selectedIndex].text;
+    const hipo = document.getElementById('conHipoteca').options[document.getElementById('conHipoteca').selectedIndex].text;
+    const impNombre = document.getElementById('impuestoNombre').textContent;
+    const impPct = document.getElementById('impuestoPct').textContent;
+    const imp = document.getElementById('impuestoVal').textContent;
+    const not = document.getElementById('notariaVal').textContent;
+    const reg = document.getElementById('registroVal').textContent;
+    const ges = document.getElementById('gestoriaVal').textContent;
+    const tas = document.getElementById('tasacionVal').textContent;
+    const total = document.getElementById('totalGastosFinal').textContent;
+    const pct = document.getElementById('totalGastosPct').textContent;
+
+    const subject = 'Simulación de gastos de compraventa';
+    const body = `Hola,\n\nHe simulado los gastos de compra en tu web:\n\nDATOS DE LA OPERACIÓN\n- Tipo de vivienda: ${tipo}\n- Precio de compra: ${fmt(precio)}\n- Financiación: ${hipo}\n\nDESGLOSE DE GASTOS\n- ${impNombre} ${impPct}: ${imp}\n- Notaría (0.3%): ${not}\n- Registro (0.2%): ${reg}\n- Gestoría: ${ges}\n- Tasación: ${tas}\n\nTOTAL: ${total} (${pct})\n\n¿Cuándo podemos hablar?\n\nGracias.`;
+
+    const url = `mailto:${EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = url;
+  }
+
+  function sendJovenWhatsApp(){
+    const msg = `¡Hola! 👋\n\nMe gustaría información sobre las *ayudas para jóvenes compradores en Canarias*.\n\nQuiero saber a qué ayudas puedo acceder (Hipoteca Joven 95%, subvención 11.000€, descuento ITP, aval ICO...) y cómo solicitarlas.\n\n¿Podemos hablar?`;
+    const url = `https://wa.me/${PHONE_WA}?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
+  }
+
+  // ============ SELECTOR DE JUEGOS ============
+  document.querySelectorAll('.game-tab').forEach(tab => {
+    tab.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      document.querySelectorAll('.game-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelectorAll('.game-wrap').forEach(w => w.classList.remove('active'));
+      document.getElementById('game-' + tab.dataset.game).classList.add('active');
+      if (tab.dataset.game === 'trivial') startTrivial();
+      if (tab.dataset.game === 'precio')  startPrecio();
+      return false;
+    });
+  });
+
+  // ============ TRIVIAL (20 PREGUNTAS) ============
+  const trivialQs = [
+    { q: "¿Cuál es el ITP general en Canarias para una vivienda de segunda mano?", opts:["4%","6,5%","10%","12%"], a:1 },
+    { q: "¿Qué porcentaje de aportación propia es lo más habitual hoy en el mercado?", opts:["1-3%","Entre 5% y 10%","Siempre el 20% mínimo","30% o más"], a:1 },
+    { q: "¿Qué impuesto se paga al comprar obra nueva en Canarias?", opts:["ITP","IGIC + AJD","IVA + AJD","Nada"], a:2 },
+    { q: "¿Qué es el sistema francés en una hipoteca?", opts:["Cuotas crecientes","Cuotas constantes","Cuotas decrecientes","Solo intereses"], a:1 },
+    { q: "¿Hasta qué edad puedes acceder a la Hipoteca Joven en Canarias (original)?", opts:["30 años","35 años","40 años","No hay límite"], a:1 },
+    { q: "¿Qué documento certifica las cargas de un inmueble?", opts:["Cédula habitabilidad","Nota simple","IBI","Certificado energético"], a:1 },
+    { q: "¿Qué porcentaje aproximado del precio suponen los gastos en Canarias?", opts:["2-3%","5-6%","7-8%","12-15%"], a:2 },
+    { q: "¿Qué son las arras penitenciales?", opts:["Una multa","Una señal que permite desistir","El precio final","Una hipoteca"], a:1 },
+    { q: "¿Quién paga el AJD en obra nueva en Canarias?", opts:["El comprador","El vendedor","El banco","Se reparte"], a:0 },
+    { q: "¿Cuál es el ratio máximo de endeudamiento recomendado?", opts:["20%","35%","50%","70%"], a:1 },
+    { q: "¿Qué TIN fijo usa por defecto la calculadora de hipoteca de esta web?", opts:["2,5%","3,75%","4,5%","5%"], a:1 },
+    { q: "¿Qué porcentaje de tus ingresos pueden ir como máximo a la cuota?", opts:["25%","35%","50%","70%"], a:1 },
+    { q: "¿Cuál es la rentabilidad bruta media del alquiler en una capital media en 2026?", opts:["4,5%","5,8%","7,22%","9,1%"], a:2 },
+    { q: "¿Cuántos días tiene el inquilino para ejercer el derecho de tanteo si quieres vender?", opts:["15 días","30 días naturales","60 días","90 días"], a:1 },
+    { q: "¿En qué porcentaje puede subir el precio una vivienda con home staging?", opts:["1-3%","6-11%","15-20%","Más del 25%"], a:1 },
+    { q: "¿Cuál es el plazo máximo para reinvertir en otra vivienda habitual y librarte del IRPF?", opts:["1 año","2 años","5 años","Sin plazo"], a:1 },
+    { q: "¿Cuánto cuesta una nota simple en el Registro de la Propiedad?", opts:["Es gratis","Menos de 10€","Unos 50€","Más de 100€"], a:1 },
+    { q: "¿Cuál es la edad máxima ampliada para la Hipoteca Joven en Canarias?", opts:["30 años","35 años","40 años","Sin límite"], a:2 },
+    { q: "¿Qué documento es obligatorio desde 2013 y sin él la venta puede ser nula?", opts:["IBI","Cédula habitabilidad","Certificado eficiencia energética","Plano catastral"], a:2 },
+    { q: "¿A qué porcentaje baja el ITP en Canarias para jóvenes ≤35 en primera vivienda?", opts:["0%","2%","4%","5%"], a:2 }
+  ];
+  let tIdx = 0, tScore = 0, tTimer = null;
+
+  function startTrivial(){
+    tIdx = 0; tScore = 0;
+    document.getElementById('trivialCard').innerHTML = `
+      <div class="trivial-progress"><span>Pregunta <span id="qNum">1</span>/${trivialQs.length}</span><span class="trivial-timer">⏱ <span id="timer">15</span>s</span></div>
+      <div class="trivial-bar"><div class="trivial-bar-fill" id="barFill" style="width:${100/trivialQs.length}%"></div></div>
+      <div class="trivial-q" id="trivialQ">Cargando…</div>
+      <div class="trivial-options" id="trivialOpts"></div>`;
+    renderTrivialQ();
+  }
+  function renderTrivialQ(){
+    if (tIdx >= trivialQs.length) return endTrivial();
+    const Q = trivialQs[tIdx];
+    document.getElementById('qNum').textContent = tIdx+1;
+    document.getElementById('barFill').style.width = ((tIdx+1)/trivialQs.length*100)+'%';
+    document.getElementById('trivialQ').textContent = Q.q;
+    const optsBox = document.getElementById('trivialOpts');
+    optsBox.innerHTML = '';
+    Q.opts.forEach((o,i)=>{
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'trivial-opt'; b.textContent = o;
+      b.onclick = ()=> answer(i);
+      optsBox.appendChild(b);
+    });
+    let s = 15;
+    document.getElementById('timer').textContent = s;
+    clearInterval(tTimer);
+    tTimer = setInterval(()=>{
+      s--; document.getElementById('timer').textContent = s;
+      if (s<=0){ clearInterval(tTimer); answer(-1); }
+    }, 1000);
+  }
+  function answer(idx){
+    clearInterval(tTimer);
+    const Q = trivialQs[tIdx];
+    const buttons = document.querySelectorAll('#trivialOpts .trivial-opt');
+    buttons.forEach((b,i)=>{
+      b.disabled = true;
+      if (i === Q.a) b.classList.add('correct');
+      else if (i === idx) b.classList.add('wrong');
+    });
+    if (idx === Q.a) tScore++;
+    setTimeout(()=>{ tIdx++; renderTrivialQ(); }, 1400);
+  }
+  function endTrivial(){
+    const pct = (tScore/trivialQs.length)*100;
+    const msg = pct >= 80 ? "¡Eres un crack! 🏆" : pct >= 50 ? "Buen nivel 👏" : "Hay que repasar 📚";
+    document.getElementById('trivialCard').innerHTML = `
+      <div class="trivial-result">
+        <div class="score">${tScore}/${trivialQs.length}</div>
+        <h3 style="font-family:'Playfair Display',serif; color:#0c2340; margin:14px 0;">${msg}</h3>
+        <p style="color:#555; margin-bottom:24px;">¿Quieres que te explique las respuestas o resolver cualquier duda inmobiliaria?</p>
+        <a href="https://wa.me/${PHONE_WA}" target="_blank" class="btn-wa" style="display:inline-flex;">
+          💬 Hablar con tu asesora
+        </a>
+        <br><br>
+        <button type="button" class="cta outline" id="btnRetry">↻ Repetir</button>
+      </div>`;
+    document.getElementById('btnRetry').addEventListener('click', startTrivial);
+  }
+
+  // ============ ¿ADIVINA EL PRECIO? ============
+  const viviendas = [
+    { emoji:'🏢', zona:'Zona Centro', detalles:['65 m²','2 hab','Planta 3ª','Ascensor','Buen estado'], precio:195000 },
+    { emoji:'🏡', zona:'Pueblo del interior', detalles:['Casa adosada','130 m²','4 hab','Jardín 50 m²','Garaje'], precio:285000 },
+    { emoji:'🏙️', zona:'Paseo Marítimo', detalles:['Ático','80 m²','2 hab','Terraza 25 m²','Vistas al mar'], precio:320000 },
+    { emoji:'🏢', zona:'Barrio Norte', detalles:['90 m²','3 hab','Planta 5ª','A reformar'], precio:135000 },
+    { emoji:'🏠', zona:'Casco Antiguo', detalles:['Estudio','35 m²','Reformado','Balcón','Centro histórico'], precio:125000 },
+    { emoji:'🏡', zona:'Zona Alta residencial', detalles:['Chalet','200 m²','4 hab','Piscina','Parcela 600 m²'], precio:580000 },
+    { emoji:'🏢', zona:'Barrio Sur', detalles:['75 m²','3 hab','Comunidad con piscina','Plaza garaje'], precio:165000 },
+    { emoji:'🏙️', zona:'Calle Mayor', detalles:['Ático dúplex','110 m²','3 hab','Terraza 40 m²'], precio:410000 },
+    { emoji:'🏢', zona:'Barrio del Puerto', detalles:['55 m²','2 hab','Planta baja','Sin ascensor'], precio:95000 },
+    { emoji:'🏡', zona:'Zona rural cercana', detalles:['Casa terrera','90 m²','3 hab','Patio interior'], precio:175000 }
+  ];
+  let pIdx = 0, pScore = 0;
+
+  function fmtPrice(n){
+    return Math.round(n).toLocaleString('es-ES') + ' €';
+  }
+
+  function startPrecio(){
+    pIdx = 0; pScore = 0;
+    document.getElementById('precioCard').innerHTML = `
+      <div class="trivial-progress"><span>Vivienda <span id="pNum">1</span>/${viviendas.length}</span><span class="trivial-timer">💎 <span id="pScore">0</span> pts</span></div>
+      <div class="trivial-bar"><div class="trivial-bar-fill" id="pBarFill" style="width:${100/viviendas.length}%"></div></div>
+      <div class="vivienda-card" id="viviendaCard">Cargando…</div>
+      <div class="trivial-q" id="precioQ">¿Cuánto crees que vale?</div>
+      <div class="trivial-options" id="precioOpts"></div>`;
+    renderPrecio();
+  }
+
+  function renderPrecio(){
+    if (pIdx >= viviendas.length) return endPrecio();
+    const V = viviendas[pIdx];
+
+    document.getElementById('pNum').textContent = pIdx+1;
+    document.getElementById('pScore').textContent = pScore;
+    document.getElementById('pBarFill').style.width = ((pIdx+1)/viviendas.length*100)+'%';
+
+    document.getElementById('viviendaCard').innerHTML = `
+      <div class="vivienda-emoji">${V.emoji}</div>
+      <div class="vivienda-zona">${V.zona}</div>
+      <div class="vivienda-detalles">${V.detalles.map(d => `<span class="pill">${d}</span>`).join('')}</div>`;
+
+    document.getElementById('precioQ').textContent = '¿Cuánto crees que vale?';
+
+    const opciones = generarOpcionesPrecio(V.precio);
+    const optsBox = document.getElementById('precioOpts');
+    optsBox.innerHTML = '';
+    opciones.forEach(precio => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'trivial-opt';
+      b.textContent = fmtPrice(precio);
+      b.onclick = () => answerPrecio(precio, V.precio);
+      optsBox.appendChild(b);
+    });
+  }
+
+  function generarOpcionesPrecio(real){
+    const opciones = new Set([real]);
+    const bajo = Math.round((real * (0.70 + Math.random()*0.15)) / 5000) * 5000;
+    opciones.add(bajo);
+    const alto = Math.round((real * (1.20 + Math.random()*0.20)) / 5000) * 5000;
+    opciones.add(alto);
+    const extra = Math.random() > 0.5
+      ? Math.round((real * (0.50 + Math.random()*0.15)) / 5000) * 5000
+      : Math.round((real * (1.45 + Math.random()*0.25)) / 5000) * 5000;
+    opciones.add(extra);
+    while (opciones.size < 4) {
+      opciones.add(Math.round((real * (Math.random()*0.8 + 0.4)) / 5000) * 5000);
+    }
+    return Array.from(opciones).slice(0, 4).sort(() => Math.random() - 0.5);
+  }
+
+  function answerPrecio(elegido, real){
+    const buttons = document.querySelectorAll('#precioOpts .trivial-opt');
+    let puntos = 0, clase = 'wrong', titulo = '', subtitulo = '';
+
+    if (elegido === real) {
+      puntos = 10; clase = 'correct';
+      titulo = '🎯 ¡Exacto! +10 puntos';
+      subtitulo = `Has acertado el precio real: ${fmtPrice(real)}`;
+    } else {
+      const diff = Math.abs(elegido - real);
+      const diffPct = diff / real;
+      if (diffPct <= 0.10) {
+        puntos = 5; clase = 'close';
+        titulo = '🔥 ¡Muy cerca! +5 puntos';
+        subtitulo = `Te has quedado a ${fmtPrice(diff)} del precio real (${fmtPrice(real)})`;
+      } else {
+        puntos = 0; clase = 'wrong';
+        titulo = '❌ Lejos';
+        subtitulo = `El precio real era ${fmtPrice(real)} (te has quedado a ${fmtPrice(diff)})`;
+      }
+    }
+
+    pScore += puntos;
+
+    buttons.forEach(b => {
+      b.disabled = true;
+      const valor = parseInt(b.textContent.replace(/\D/g, ''));
+      if (valor === real) b.classList.add('correct');
+      else if (valor === elegido) b.classList.add(clase);
+    });
+
+    const feedback = document.createElement('div');
+    feedback.className = `price-feedback ${clase}`;
+    feedback.innerHTML = `<strong>${titulo}</strong>${subtitulo}`;
+    document.getElementById('precioOpts').appendChild(feedback);
+
+    document.getElementById('pScore').textContent = pScore;
+
+    setTimeout(() => { pIdx++; renderPrecio(); }, 2400);
+  }
+
+  function endPrecio(){
+    const max = viviendas.length * 10;
+    const pct = (pScore/max)*100;
+    let msg, emoji;
+    if (pct >= 80)      { msg = "¡Eres tasador profesional!"; emoji = "🏆"; }
+    else if (pct >= 60) { msg = "Tienes buen ojo para el mercado"; emoji = "🎯"; }
+    else if (pct >= 40) { msg = "Conoces el mercado pero hay que afinar"; emoji = "📊"; }
+    else                { msg = "El mercado canario es traicionero"; emoji = "🔍"; }
+
+    document.getElementById('precioCard').innerHTML = `
+      <div class="trivial-result">
+        <div class="score">${pScore}<span style="font-size:24px; color:#888;">/${max}</span></div>
+        <h3 style="font-family:'Playfair Display',serif; color:#0c2340; margin:14px 0;">${emoji} ${msg}</h3>
+        <p style="color:#555; margin-bottom:18px;">¿Quieres saber lo que vale tu casa de verdad?<br>Te hago una valoración profesional <strong>gratuita</strong>.</p>
+        <a href="https://wa.me/${PHONE_WA}?text=${encodeURIComponent('¡Hola! 👋 He jugado a Adivina el Precio en tu web y me gustaría que valoraras mi vivienda profesionalmente. ¿Cuándo podemos hablar?')}" target="_blank" class="btn-wa" style="display:inline-flex;">
+          💬 Pedir valoración gratis
+        </a>
+        <br><br>
+        <button type="button" class="cta outline" id="btnRetryPrecio">↻ Jugar otra vez</button>
+      </div>`;
+    document.getElementById('btnRetryPrecio').addEventListener('click', startPrecio);
+  }
+
+  // INIT
+  recalcAll();
+</script>
+
+
+</body>
+</html>

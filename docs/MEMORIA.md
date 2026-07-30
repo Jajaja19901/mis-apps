@@ -3,6 +3,11 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-07-30 — 3 apps nuevas anonimizadas como demos + 2 webs básicas
+- Qué se hizo: subidas al repo como demos estándar las 3 apps que pasó el usuario: `apps/mh-collective.html` (fiestas: entradas QR + cashless; quitadas claves Firebase reales), `apps/afters.html` (GPS social de grupos; quitadas claves Firebase reales, emails y dirección → arranca en "MODO DEMO"), `apps/inmobiliaria-ejemplo.html` (ex Jennyfer/REMAX: quitados nombre, marca, foto, teléfono, email, dirección y zonas de Las Palmas → "Inmobiliaria Ejemplo"). Webs básicas nuevas: `apps/webs-basicas/mh-collective-web.html` y `afters-web.html` (la inmobiliaria NO lleva web, a petición del usuario). Mejoras ligeras: favicon/manifest embebidos, brillo animado en portada MH, título con degradado en AFTERS, pin genérico en inmobiliaria. Verificador ampliado (`tools/verificar-app.mjs`): pasos `copyText`/`showGate` + `fill` dispara `change` → MH pasa 49/49 tests. Todo ✅ APTO.
+- Pendiente: el usuario dirá los nombres definitivos de MH Collective y AFTERS (por ahora se quedan); logopedia-laura tiene 1 test en rojo de ANTES (navegación a la app de adultos, no es de este trabajo).
+- Datos a confirmar: ninguno.
+
 ## 2026-07-22 — Rescate de apps al repositorio + incubadora con 20 demos
 - Qué se hizo: extraídas del archivo grande y guardadas como archivos propios las 7 apps que faltaban (cafetería, camarero-digital "La Tasca", floristería, fontanero, huerta, restaurante, veterinario) + las 10 webs básicas nuevas (apps/webs-basicas/). La incubadora COMPLETA del repo sustituida por la versión nueva: sin las 3 copias del bar, menú "¿Web básica 250€ o App completa 650€?" en las 10 tarjetas, 20 demos, 2,68MB (antes 3,38).
 - Archivos tocados: apps/*.html (7 nuevos), apps/webs-basicas/ (10 nuevos), apps/incuba-tu-negocio-COMPLETA.html (actualizada), docs/MEMORIA.md.
