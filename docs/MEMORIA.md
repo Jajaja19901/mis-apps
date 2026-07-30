@@ -3,6 +3,12 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-07-30 — Vídeos promo de 30 s para Vigía IA y Afters
+- Qué se hizo: dos vídeos publicitarios de 30 s (1080p, H.264 + música AAC) hechos con Remotion (animación vectorial programada): personajes humanos articulados que muestran el funcionamiento real de cada app. VIGÍA: calle de día con personas/coche detectados y contados (cajas verdes/azules, matrícula), cae la noche, intruso con capucha entra en la zona vigilada → alarma roja → notificación al móvil con clip de evidencia → cierre con logo. Música de espía europeo (síntesis numpy, sting sincronizado con la intrusión). AFTERS: mapa nocturno con 4 amigos en tiempo real, punto de encuentro "BAR LUNA", chat, y secuencia SOS (Sara mantiene pulsado el botón → pulsos rojos → el grupo converge → "TODOS JUNTOS ✓"). Música club 124 bpm con breakdown en el SOS. Diseñados para verse SIN sonido (autoplay silenciado en webs): todo va con rótulos.
+- Archivos tocados: apps/vigia-promo.mp4, apps/afters-promo.mp4, apps/vigia-promo-poster.jpg, apps/afters-promo-poster.jpg (nuevos). Fuentes Remotion en scratchpad de la sesión (promo-videos/). La app Afters NO está en este repo (el usuario la pasó por archivo subido); Vigía es apps/vigia-ia.html.
+- Pendiente / siguiente paso: el usuario debe incrustarlos en las webs de cada app (snippet de <video> entregado en chat). Si quiere voz en off o formato vertical 9:16 para stories, la plantilla Remotion se reutiliza.
+- Datos a confirmar: nombres de los amigos del vídeo Afters (LUCÍA, MARCO, SARA, DANI) y el local "BAR LUNA" son ficticios de la animación; matrícula "4821 KLM" también.
+
 ## 2026-07-19 — Vídeo demo en la portada de Incuba tu Negocio
 - Qué se hizo: vídeo demo del producto (32s, MP4 1080p): la app peluqueria-aurora navegada de verdad (Playwright) dentro de un móvil flotante, narrador es-ES (Piper davefx via sherpa-onnx), música y efectos generados con numpy, rótulos y subtítulos (Remotion). Integrado en la PORTADA de apps/incuba-tu-negocio.html (tras el subtítulo, antes de la incubadora). Verificador: ✅ APTO.
 - Archivos tocados: apps/incuba-tu-negocio.html, apps/incuba-demo.mp4 (nuevo), apps/incuba-demo-poster.jpg (nuevo). Fuentes del vídeo en scratchpad de la sesión (video-incuba/).
