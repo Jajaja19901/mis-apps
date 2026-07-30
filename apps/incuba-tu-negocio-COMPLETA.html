@@ -2391,6 +2391,7 @@ route();
   function close(){ reqGen++; if(ovPushed){ ovPushed=false; try{ history.back(); return; }catch(e){} } doClose(); }
   window.addEventListener('popstate',function(){ if(ov && ov.style.display!=='none'){ ovPushed=false; doClose(); } });
   function chooserQR(){
+    var ya=document.getElementById('qrPick'); if(ya) ya.remove();
     var bk=document.createElement('div'); bk.id='qrPick';
     bk.style.cssText='position:fixed;inset:0;z-index:99998;background:rgba(4,8,16,.9);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto;font-family:Inter,system-ui,sans-serif';
     document.body.appendChild(bk);
@@ -2437,7 +2438,7 @@ route();
       card('<div style="text-align:center"><div style="font-size:46px">✅</div><h3 style="margin:6px 0 4px;font-size:20px">¡Recibido, '+(nom||'')+'!</h3><p style="margin:0 0 16px;color:#9fb0c8;font-size:14px">Te contactamos en menos de 24 h para montar tu app. Si quieres, escríbenos ya:</p>'+waBtn+'<button id="qrFin" style="margin-top:12px;width:100%;background:none;border:1px solid #2a3a55;color:#9fb0c8;border-radius:12px;padding:10px;cursor:pointer;font-family:inherit">Cerrar</button></div>');
       bk.querySelector('#qrFin').onclick=quita;
     }
-    bk.addEventListener('click',function(e){ if(e.target===bk) quita(); });
+    var _t0=Date.now(); bk.addEventListener('click',function(e){ if(Date.now()-_t0<=400){ e.stopPropagation(); e.preventDefault(); return; } if(e.target===bk) quita(); }, true);
     vistaPlanes();
   }
   document.addEventListener('click',function(e){ var a=e.target&&e.target.closest?e.target.closest('a[href]'):null; if(!a) return; var href=a.getAttribute('href')||''; if(href.indexOf('restaurante-qr-ejemplo.html')!==-1){ e.preventDefault(); chooserQR(); return; } for(var key in APPS){ if(href.indexOf(key)!==-1){ e.preventDefault(); (function(kk){ var g=++reqGen; appHtml(kk, function(h){ if(h&&g===reqGen) open(h); }); })(key); return; } } }, true);
@@ -2458,7 +2459,7 @@ route();
       +'</div>'
       +'<button id="awX" style="margin-top:12px;width:100%;background:none;border:1px solid #2a3a55;color:#9fb0c8;border-radius:12px;padding:10px;cursor:pointer;font-family:inherit">Cerrar</button></div>';
     bk.querySelector('#awX').onclick=quita;
-    bk.addEventListener('click',function(e){ if(e.target===bk) quita(); });
+    var _t0=Date.now(); bk.addEventListener('click',function(e){ if(Date.now()-_t0<=400){ e.stopPropagation(); e.preventDefault(); return; } if(e.target===bk) quita(); }, true);
     bk.querySelector('#awWeb').onclick=function(){ quita(); var g=++reqGen; appHtml(DUO[k], function(h){ if(h&&g===reqGen) open(h); }); };
     bk.querySelector('#awApp').onclick=function(){ quita(); var g=++reqGen; appHtml(k, function(h){ if(h&&g===reqGen) open(h); }); };
   }
