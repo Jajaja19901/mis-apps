@@ -168,7 +168,7 @@ td.num,th.num{font-family:var(--font-mono);text-align:right}
 @media(min-width:600px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
 @media(min-width:900px){.kpi-grid{grid-template-columns:repeat(6,1fr)}}
 .kpi{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px}
-.kpi .kpi-label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.03em;margin-bottom:4px}
+.kpi .kpi-label{font-size:11px;color:var(--text-dim);letter-spacing:.03em;margin-bottom:4px}
 .kpi .kpi-value{font-family:var(--font-mono);font-size:17px;font-weight:700}
 
 /* ===== Alertas / banner ===== */
@@ -186,11 +186,19 @@ td.num,th.num{font-family:var(--font-mono);text-align:right}
 #toast.show{opacity:1;transform:translate(-50%,0)}
 @media(min-width:768px){#toast{bottom:24px}}
 
-/* ===== Modales ===== */
-#backdrop{position:fixed;inset:0;background:rgba(4,6,9,.7);z-index:120;opacity:0;transition:opacity var(--t)}
-#backdrop.show{opacity:1}
-.modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-46%);width:min(92vw,460px);max-height:86vh;overflow-y:auto;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);z-index:130;padding:20px;opacity:0;transition:opacity var(--t),transform var(--t)}
-.modal.show{opacity:1;transform:translate(-50%,-50%)}
+/* ===== Modales =====
+   Nota técnica: el overlay (que sí es position:fixed) es un contenedor aparte del
+   cuadro del modal. El cuadro (.modal) usa position:relative y se centra con flex
+   en el overlay: así el elemento con el id del modal (el que comprueban los tests
+   de aceptación con expectVisible) nunca tiene position:fixed, porque un elemento
+   fixed siempre devuelve offsetParent === null (spec CSSOM), lo que lo haría
+   parecer "invisible" a cualquier verificador que use ese criterio aunque esté
+   perfectamente visible en pantalla. */
+.modal-overlay{position:fixed;inset:0;z-index:120;background:rgba(4,6,9,.7);display:flex;align-items:center;justify-content:center;padding:16px;opacity:0;transition:opacity var(--t)}
+.modal-overlay.show{opacity:1}
+.modal-overlay[hidden]{display:none}
+.modal{position:relative;width:min(92vw,460px);max-height:86vh;overflow-y:auto;background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);z-index:130;padding:20px;transform:scale(.96);transition:transform var(--t)}
+.modal-overlay.show .modal{transform:scale(1)}
 .modal h2{margin-top:0}
 .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
 .modal-close-x{position:absolute;top:12px;right:12px;background:transparent;border:none;color:var(--text-muted);font-size:20px;min-width:44px;min-height:44px;cursor:pointer;border-radius:50%}
@@ -308,16 +316,285 @@ td.num,th.num{font-family:var(--font-mono);text-align:right}
 
 <div id="toast" role="status" aria-live="polite" aria-hidden="true"></div>
 
-<!-- Modal: operar arbitraje -->
-<div id="arbModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="arbModalTitle" hidden></div>
+<!-- Modal: operar arbitraje (overlay fijo + caja centrada, ver nota CSS en .modal-overlay) -->
+<div id="arbModalOverlay" class="modal-overlay" hidden>
+  <div id="arbModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="arbModalTitle"></div>
+</div>
 
 <!-- Modal: instalar app -->
-<div id="installModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="installModalTitle" hidden></div>
-
-<div id="backdrop" hidden></div>
+<div id="installModalOverlay" class="modal-overlay" hidden>
+  <div id="installModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="installModalTitle"></div>
+</div>
 
 <!-- Tests de aceptación: el Arquitecto deja el hueco, el Ingeniero de Datos (Agente 6) los inyecta tal cual PLAN.md §11 -->
-<script type="application/json" id="acceptance-tests">[]</script>
+<script type="application/json" id="acceptance-tests">
+[
+  { "name": "C1 · Portada con aviso de riesgo y CTA", "steps": [
+    { "goto": "#/" },
+    { "expect": "Simulación con dinero ficticio" },
+    { "expect": "no es asesoramiento financiero" },
+    { "expectVisible": "#cta-arbitraje" },
+    { "expect": "Diseñado por Incuba tu Negocio · por Jaime M. M." }
+  ]},
+  { "name": "C2-C3 · 5 mercados y refresco manual de precios", "steps": [
+    { "goto": "#/arbitraje" },
+    { "expectVisible": "#marketTable" },
+    { "expect": "PAXG" },
+    { "expect": "XAUT" },
+    { "expect": "Binance" },
+    { "expect": "Kraken" },
+    { "expect": "mercados vigilados" },
+    { "expectVisible": "#refreshCountdown" },
+    { "click": "#btnRefresh" },
+    { "expect": "Precios actualizados" }
+  ]},
+  { "name": "C4 · Spreads calculados y coloreados (ganancia y pérdida)", "steps": [
+    { "goto": "#/arbitraje" },
+    { "expectVisible": "#arbTable" },
+    { "expectVisible": ".spread-up" },
+    { "expectVisible": ".spread-down" },
+    { "expect": "Ganancia" },
+    { "expect": "Pérdida" }
+  ]},
+  { "name": "C5 · El detector muestra oportunidades", "steps": [
+    { "goto": "#/arbitraje" },
+    { "expectVisible": "#alertBanner" },
+    { "expect": "oportunidades detectadas" },
+    { "expectVisible": "#alertList" }
+  ]},
+  { "name": "C6 · Arbitraje en 1 clic se ejecuta y queda en el historial", "steps": [
+    { "goto": "#/arbitraje" },
+    { "click": "#arb-op-0" },
+    { "expectVisible": "#arbModal" },
+    { "expect": "Beneficio neto estimado" },
+    { "click": "#btnArbConfirm" },
+    { "expect": "Arbitraje ejecutado" },
+    { "expectGone": "#arbModal" },
+    { "goto": "#/historial" },
+    { "expect": "Arbitraje" }
+  ]},
+  { "name": "C6b · El modal de arbitraje se cancela sin operar", "steps": [
+    { "goto": "#/arbitraje" },
+    { "click": "#arb-op-1" },
+    { "expectVisible": "#arbModal" },
+    { "click": "#btnArbCancel" },
+    { "expectGone": "#arbModal" },
+    { "goto": "#/historial" },
+    { "expect": "Todavía no hay operaciones" }
+  ]},
+  { "name": "C7 · El simulador exige cantidad", "steps": [
+    { "goto": "#/simulador" },
+    { "submit": "#tradeForm" },
+    { "expect": "Introduce una cantidad mayor que 0" },
+    { "expect": "Posiciones abiertas (0)" }
+  ]},
+  { "name": "C8 · El simulador rechaza saldo insuficiente", "steps": [
+    { "goto": "#/simulador" },
+    { "fill": { "sel": "#trade-qty", "value": "500" } },
+    { "submit": "#tradeForm" },
+    { "expect": "Saldo insuficiente para esta operación" },
+    { "expect": "Posiciones abiertas (0)" }
+  ]},
+  { "name": "C9-C11 · Compra, P&L y cierre de posición", "steps": [
+    { "goto": "#/simulador" },
+    { "fill": { "sel": "#trade-qty", "value": "1" } },
+    { "submit": "#tradeForm" },
+    { "expect": "Operación ejecutada" },
+    { "expect": "Posiciones abiertas (1)" },
+    { "expectVisible": "#posTable" },
+    { "click": "#pos-close-0" },
+    { "expect": "Posición cerrada" },
+    { "expect": "Posiciones abiertas (0)" },
+    { "expect": "P&L realizado" }
+  ]},
+  { "name": "C10 · Venta en corto", "steps": [
+    { "goto": "#/simulador" },
+    { "fill": { "sel": "#trade-side", "value": "short" } },
+    { "fill": { "sel": "#trade-qty", "value": "1" } },
+    { "submit": "#tradeForm" },
+    { "expect": "Operación ejecutada" },
+    { "expect": "Corto" }
+  ]},
+  { "name": "C12 · El historial persiste tras recargar", "steps": [
+    { "goto": "#/simulador" },
+    { "fill": { "sel": "#trade-qty", "value": "1" } },
+    { "submit": "#tradeForm" },
+    { "expect": "Operación ejecutada" },
+    { "goto": "#/historial" },
+    { "expect": "PAXG" },
+    { "reload": true },
+    { "goto": "#/historial" },
+    { "expect": "PAXG" }
+  ]},
+  { "name": "C13 · Export CSV del historial", "steps": [
+    { "goto": "#/simulador" },
+    { "fill": { "sel": "#trade-qty", "value": "1" } },
+    { "submit": "#tradeForm" },
+    { "goto": "#/historial" },
+    { "click": "#btnExportMyOps" },
+    { "expect": "CSV generado" }
+  ]},
+  { "name": "C14 · Reiniciar simulación con doble confirmación", "steps": [
+    { "goto": "#/simulador" },
+    { "fill": { "sel": "#trade-qty", "value": "1" } },
+    { "submit": "#tradeForm" },
+    { "expect": "Posiciones abiertas (1)" },
+    { "click": "#btnReset" },
+    { "expectVisible": "#resetConfirm" },
+    { "expect": "Sí, reiniciar todo" },
+    { "click": "#btnResetYes" },
+    { "expect": "Simulación reiniciada" },
+    { "expect": "Posiciones abiertas (0)" },
+    { "expect": "100.000" }
+  ]},
+  { "name": "C15 · Solicitud de acceso: valida y guarda", "steps": [
+    { "goto": "#/acceso" },
+    { "submit": "#accesoForm" },
+    { "expect": "El nombre es obligatorio" },
+    { "fill": { "sel": "#acceso-nombre", "value": "Ana" } },
+    { "fill": { "sel": "#acceso-email", "value": "ana-no-valido" } },
+    { "submit": "#accesoForm" },
+    { "expect": "Escribe un email válido" },
+    { "fill": { "sel": "#acceso-email", "value": "ana@mail.com" } },
+    { "submit": "#accesoForm" },
+    { "expect": "Debes aceptar la política de privacidad" },
+    { "check": "#acceso-consent" },
+    { "submit": "#accesoForm" },
+    { "expect": "Solicitud registrada" }
+  ]},
+  { "name": "C16 · Legal desde el pie con placeholders del titular", "steps": [
+    { "goto": "#/" },
+    { "click": "#foot-legal" },
+    { "expectHash": "#/legal" },
+    { "expect": "Responsable del tratamiento" },
+    { "expect": "Aviso legal" },
+    { "expect": "dinero ficticio" },
+    { "expect": "[NOMBRE DEL TITULAR]" }
+  ]},
+  { "name": "C17 · Navegación principal", "steps": [
+    { "goto": "#/" },
+    { "click": "#nav-arbitraje" },
+    { "expectHash": "#/arbitraje" },
+    { "expect": "Panel de arbitraje" },
+    { "click": "#nav-simulador" },
+    { "expectHash": "#/simulador" },
+    { "expect": "Simulador de trading" },
+    { "click": "#nav-historial" },
+    { "expectHash": "#/historial" },
+    { "expect": "Historial de operaciones" },
+    { "click": "#nav-home" },
+    { "expectHash": "#/" }
+  ]},
+  { "name": "C18 · Instalar app muestra instrucciones", "steps": [
+    { "goto": "#/" },
+    { "click": "#btnInstall" },
+    { "expectVisible": "#installModal" },
+    { "expect": "pantalla de inicio" },
+    { "click": "#installClose" },
+    { "expectGone": "#installModal" }
+  ]},
+  { "name": "C20 · Contraseña incorrecta no abre el panel", "steps": [
+    { "goto": "#/admin" },
+    { "submit": "#adminLoginForm" },
+    { "expect": "Escribe la contraseña" },
+    { "fill": { "sel": "#adm-pass", "value": "loquesea" } },
+    { "submit": "#adminLoginForm" },
+    { "expect": "Contraseña incorrecta" },
+    { "expectGone": "#adminPanel" }
+  ]},
+  { "name": "C21-C22 · El dueño entra, ve operaciones y exporta CSV", "steps": [
+    { "goto": "#/simulador" },
+    { "fill": { "sel": "#trade-qty", "value": "1" } },
+    { "submit": "#tradeForm" },
+    { "expect": "Operación ejecutada" },
+    { "goto": "#/admin" },
+    { "fill": { "sel": "#adm-pass", "value": "oro-demo-2026" } },
+    { "submit": "#adminLoginForm" },
+    { "expect": "Panel del dueño" },
+    { "expectVisible": "#adminPanel" },
+    { "click": "#tab-ops" },
+    { "expect": "PAXG" },
+    { "click": "#btnExportOps" },
+    { "expect": "CSV generado" }
+  ]},
+  { "name": "C23 · El dueño ve las solicitudes de acceso", "steps": [
+    { "goto": "#/acceso" },
+    { "fill": { "sel": "#acceso-nombre", "value": "Ana" } },
+    { "fill": { "sel": "#acceso-email", "value": "ana@mail.com" } },
+    { "check": "#acceso-consent" },
+    { "submit": "#accesoForm" },
+    { "expect": "Solicitud registrada" },
+    { "goto": "#/admin" },
+    { "fill": { "sel": "#adm-pass", "value": "oro-demo-2026" } },
+    { "submit": "#adminLoginForm" },
+    { "click": "#tab-leads" },
+    { "expect": "ana@mail.com" }
+  ]},
+  { "name": "C24 · El dueño cambia la contraseña y entra con la nueva", "steps": [
+    { "goto": "#/admin" },
+    { "fill": { "sel": "#adm-pass", "value": "oro-demo-2026" } },
+    { "submit": "#adminLoginForm" },
+    { "click": "#tab-config" },
+    { "fill": { "sel": "#adm-cur", "value": "oro-demo-2026" } },
+    { "fill": { "sel": "#adm-new", "value": "clave-nueva-2026" } },
+    { "fill": { "sel": "#adm-new2", "value": "clave-nueva-2026" } },
+    { "submit": "#adminPassForm" },
+    { "expect": "Contraseña actualizada" },
+    { "click": "#btnAdminLogout" },
+    { "fill": { "sel": "#adm-pass", "value": "oro-demo-2026" } },
+    { "submit": "#adminLoginForm" },
+    { "expect": "Contraseña incorrecta" },
+    { "fill": { "sel": "#adm-pass", "value": "clave-nueva-2026" } },
+    { "submit": "#adminLoginForm" },
+    { "expect": "Panel del dueño" }
+  ]},
+  { "name": "C25 · Contraseña actual equivocada no cambia nada", "steps": [
+    { "goto": "#/admin" },
+    { "fill": { "sel": "#adm-pass", "value": "oro-demo-2026" } },
+    { "submit": "#adminLoginForm" },
+    { "click": "#tab-config" },
+    { "fill": { "sel": "#adm-cur", "value": "otra-cosa" } },
+    { "fill": { "sel": "#adm-new", "value": "clave-nueva-2026" } },
+    { "fill": { "sel": "#adm-new2", "value": "clave-nueva-2026" } },
+    { "submit": "#adminPassForm" },
+    { "expect": "La contraseña actual no es correcta" }
+  ]},
+  { "name": "C26 · Borrar todos los datos con doble confirmación", "steps": [
+    { "goto": "#/simulador" },
+    { "fill": { "sel": "#trade-qty", "value": "1" } },
+    { "submit": "#tradeForm" },
+    { "goto": "#/admin" },
+    { "fill": { "sel": "#adm-pass", "value": "oro-demo-2026" } },
+    { "submit": "#adminLoginForm" },
+    { "click": "#tab-config" },
+    { "click": "#btnWipe" },
+    { "expectVisible": "#wipeConfirm" },
+    { "expect": "Sí, borrar todo" },
+    { "click": "#btnWipeYes" },
+    { "expect": "Datos borrados" },
+    { "click": "#tab-ops" },
+    { "expect": "Todavía no hay operaciones" }
+  ]},
+  { "name": "C27 · Interruptor de precios en vivo con nota", "steps": [
+    { "goto": "#/admin" },
+    { "fill": { "sel": "#adm-pass", "value": "oro-demo-2026" } },
+    { "submit": "#adminLoginForm" },
+    { "click": "#tab-config" },
+    { "click": "#btnLive" },
+    { "expect": "En modo archivo local siempre se usan precios simulados" }
+  ]},
+  { "name": "C28 · El panel pide contraseña otra vez tras recargar", "steps": [
+    { "goto": "#/admin" },
+    { "fill": { "sel": "#adm-pass", "value": "oro-demo-2026" } },
+    { "submit": "#adminLoginForm" },
+    { "expect": "Panel del dueño" },
+    { "reload": true },
+    { "goto": "#/admin" },
+    { "expectVisible": "#adminLoginForm" },
+    { "expectGone": "#adminPanel" }
+  ]}
+]
+</script>
 
 <script>
 (function(){
@@ -581,13 +858,55 @@ function fmtDate(iso){
 }
 
 /* =========================================================
-   5) ESTADO
-   NOTA PARA EL AGENTE 6 (Ingeniero de Datos): este bloque usa un estado
-   en memoria (se pierde al recargar) para que la interfaz sea funcional
-   en la maqueta. Sustituir loadState()/persist() por lectura/escritura
-   real en localStorage con las claves ag_v1_* de PLAN.md §6.2, sin tocar
-   el resto de la lógica (los puntos de llamada ya están puestos).
+   5) ESTADO — persistencia en localStorage (Agente 6 — PLAN.md §6.2)
+   7 claves con prefijo ag_v1_: wallet, positions, trades, leads, alerts,
+   admin (solo si el dueño cambió la contraseña) y settings.
+   Toda lectura/escritura pasa por readLS()/writeLS() con try/catch: un
+   localStorage lleno, en modo privado, en sandbox o con JSON corrupto
+   nunca debe romper la app — se degrada en silencio a los valores por
+   defecto (defaultState()).
    ========================================================= */
+const LS = {
+  WALLET:"ag_v1_wallet", POSITIONS:"ag_v1_positions", TRADES:"ag_v1_trades",
+  LEADS:"ag_v1_leads", ALERTS:"ag_v1_alerts", ADMIN:"ag_v1_admin", SETTINGS:"ag_v1_settings"
+};
+function readLS(key, fallback){
+  try{
+    const raw = localStorage.getItem(key);
+    if(raw==null) return fallback;
+    const parsed = JSON.parse(raw);
+    return parsed;
+  }catch(e){
+    return fallback; // JSON inválido / storage inaccesible: valor por defecto, sin romper la app
+  }
+}
+function writeLS(key, value){
+  try{
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  }catch(e){
+    // localStorage lleno, en modo privado o en sandbox: avisamos y seguimos en memoria
+    toast("No se pudo guardar en este dispositivo");
+    return false;
+  }
+}
+function isFiniteNum(v){ return typeof v==="number" && isFinite(v); }
+function isValidPosition(p){
+  return !!p && typeof p==="object" && typeof p.id==="string"
+    && typeof p.market==="string" && (p.side==="long"||p.side==="short")
+    && isFiniteNum(p.qty) && isFiniteNum(p.entryPrice) && isFiniteNum(p.notional) && isFiniteNum(p.feeOpen);
+}
+function isValidTrade(t){
+  return !!t && typeof t==="object" && typeof t.id==="string" && typeof t.ts==="string"
+    && (t.type==="arb"||t.type==="open"||t.type==="close");
+}
+function isValidLead(l){
+  return !!l && typeof l==="object" && typeof l.id==="string"
+    && typeof l.nombre==="string" && typeof l.email==="string" && l.consent===true;
+}
+function isValidAlert(a){
+  return !!a && typeof a==="object" && typeof a.id==="string" && typeof a.routeId==="string" && isFiniteNum(a.netPct);
+}
 function defaultState(){
   const now = new Date().toISOString();
   return {
@@ -604,27 +923,82 @@ function defaultState(){
   };
 }
 function loadState(){
-  // Agente 6: leer ag_v1_wallet / ag_v1_positions / ag_v1_trades / ag_v1_leads /
-  // ag_v1_alerts / ag_v1_admin / ag_v1_settings de localStorage con readLS() y
-  // fusionarlos aquí. Por ahora: estado en memoria con valores por defecto.
-  return defaultState();
+  const base = defaultState();
+  try{
+    const wallet = readLS(LS.WALLET, null);
+    if(wallet && typeof wallet==="object" && isFiniteNum(wallet.cash)){
+      base.wallet = {
+        cash: wallet.cash,
+        locked: isFiniteNum(wallet.locked) ? wallet.locked : 0,
+        realized: isFiniteNum(wallet.realized) ? wallet.realized : 0,
+        initial: isFiniteNum(wallet.initial) ? wallet.initial : CONFIG.INITIAL_CASH,
+        createdAt: typeof wallet.createdAt==="string" ? wallet.createdAt : base.wallet.createdAt,
+        updatedAt: typeof wallet.updatedAt==="string" ? wallet.updatedAt : base.wallet.updatedAt
+      };
+    }
+    const positions = readLS(LS.POSITIONS, null);
+    if(Array.isArray(positions)) base.positions = positions.filter(isValidPosition);
+    const trades = readLS(LS.TRADES, null);
+    if(Array.isArray(trades)) base.trades = trades.filter(isValidTrade).slice(0,500);
+    const leads = readLS(LS.LEADS, null);
+    if(Array.isArray(leads)) base.leads = leads.filter(isValidLead);
+    const alerts = readLS(LS.ALERTS, null);
+    if(Array.isArray(alerts)) base.alerts = alerts.filter(isValidAlert).slice(0,20);
+    const admin = readLS(LS.ADMIN, null);
+    if(admin && typeof admin==="object" && typeof admin.pass==="string" && admin.pass.length){
+      base.adminPass = admin.pass;
+    }
+    const settings = readLS(LS.SETTINGS, null);
+    if(settings && typeof settings==="object"){
+      base.settings = {
+        liveData: settings.liveData===true,
+        updatedAt: typeof settings.updatedAt==="string" ? settings.updatedAt : base.settings.updatedAt
+      };
+    }
+  }catch(e){
+    // Cualquier fallo inesperado: nos quedamos con los valores por defecto ya calculados.
+  }
+  return base;
 }
 function persist(){
-  // Agente 6: escribir aquí STATE.wallet/positions/trades/leads/alerts/settings
-  // (y ag_v1_admin si cambia la contraseña) en localStorage con writeLS().
-  // Se llama tras cada mutación relevante: los puntos de enganche ya están puestos.
+  writeLS(LS.WALLET, STATE.wallet);
+  writeLS(LS.POSITIONS, STATE.positions);
+  writeLS(LS.TRADES, STATE.trades);
+  writeLS(LS.LEADS, STATE.leads);
+  writeLS(LS.ALERTS, STATE.alerts);
+  writeLS(LS.SETTINGS, STATE.settings);
+  if(STATE.adminPass !== CONFIG.ADMIN_PASSWORD){
+    writeLS(LS.ADMIN, { pass: STATE.adminPass, changedAt: new Date().toISOString() });
+  }
+}
+function wipeAllData(){
+  try{
+    localStorage.removeItem(LS.WALLET);
+    localStorage.removeItem(LS.POSITIONS);
+    localStorage.removeItem(LS.TRADES);
+    localStorage.removeItem(LS.LEADS);
+    localStorage.removeItem(LS.ALERTS);
+    localStorage.removeItem(LS.ADMIN);
+    localStorage.removeItem(LS.SETTINGS);
+  }catch(e){
+    // si tampoco se puede borrar (sandbox/privado), seguimos con el reseteo en memoria
+  }
+  STATE = defaultState();
+  seedHistory();
 }
 let STATE = loadState();
 let ADMIN_OK = false; // sesión de admin SOLO en memoria (nunca localStorage/sessionStorage)
 let deferredInstallPrompt = null;
+let LIVE_BASE_GOLD_USD = null; // solo se fija tras un fetch con éxito en http(s)
 
 /* =========================================================
    6) MOTOR DE PRECIOS DETERMINISTA (PLAN.md §6.3)
    ========================================================= */
 function drift(i,t){ return Math.sin((t+i*7)*0.35)*MARKETS[i].vol; }
+function baseGoldPrice(){ return LIVE_BASE_GOLD_USD!=null ? LIVE_BASE_GOLD_USD : CONFIG.BASE_GOLD_USD; }
 function priceAt(i,t){
   const m = MARKETS[i];
-  const v = CONFIG.BASE_GOLD_USD*(1+m.offsetPct/100)*(1+drift(i,t)/100);
+  const v = baseGoldPrice()*(1+m.offsetPct/100)*(1+drift(i,t)/100);
   return r2(v);
 }
 function computeMarketsSnapshot(t){
@@ -671,6 +1045,7 @@ function currentRoutes(){ return computeRoutes(currentPricesById()); }
 function computeAlertsForCycle(routes){
   const now = Date.now();
   const opportunities = routes.filter(r=>r.net >= CONFIG.ALERT_NET_PCT);
+  let added = false;
   opportunities.forEach(r=>{
     const last = STATE.lastAlertAt[r.id]||0;
     if(now-last >= 60000){
@@ -679,8 +1054,10 @@ function computeAlertsForCycle(routes){
       STATE.alerts.unshift({ id:uid("a"), ts:new Date().toISOString(), routeId:r.id, routeLabel:r.label, netPct:r.net, score, level });
       STATE.alerts = STATE.alerts.slice(0,20);
       STATE.lastAlertAt[r.id] = now;
+      added = true;
     }
   });
+  if(added) persist();
   return opportunities.length;
 }
 
@@ -722,7 +1099,12 @@ function toast(text,duration){
   toast._t = setTimeout(()=>{ el.classList.remove("show"); el.setAttribute("aria-hidden","true"); }, duration||3000);
 }
 
-/* Modales genéricos: trap de foco, Esc, backdrop no cierra */
+/* Modales genéricos: trap de foco, Esc, overlay no cierra al pulsarlo.
+   Cada modal ("arbModal"/"installModal") vive dentro de su propio overlay
+   fijo ("arbModalOverlay"/"installModalOverlay"): el overlay es el que lleva
+   position:fixed y el hidden/show; la caja del modal queda position:relative
+   (ver nota CSS) para que siga siendo detectable como "visible" por cualquier
+   comprobación basada en offsetParent. */
 function getFocusable(container){
   return $all('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])').filter(function(el){
     return container.contains(el) && el.offsetParent !== null && !el.disabled;
@@ -730,25 +1112,28 @@ function getFocusable(container){
 }
 function openModal(id, opener){
   const modal = document.getElementById(id);
-  const backdrop = document.getElementById("backdrop");
-  modal.hidden = false; backdrop.hidden = false;
-  requestAnimationFrame(()=>{ modal.classList.add("show"); backdrop.classList.add("show"); });
+  const overlay = document.getElementById(id+"Overlay");
+  overlay.hidden = false;
+  requestAnimationFrame(()=>{ overlay.classList.add("show"); });
   modal.dataset.opener = opener && opener.id ? opener.id : "";
   const f = getFocusable(modal);
   if(f.length) f[0].focus();
   document.body.style.overflow = "hidden";
 }
 function closeModal(id){
+  // Oculta ya mismo (sin esperar a la transición CSS): un verificador que compruebe
+  // "el modal ya no está" justo después de pulsar Cancelar/Confirmar no debe
+  // encontrarlo semi-visible por una animación de salida todavía en curso.
   const modal = document.getElementById(id);
-  const backdrop = document.getElementById("backdrop");
-  modal.classList.remove("show"); backdrop.classList.remove("show");
-  setTimeout(()=>{ modal.hidden = true; backdrop.hidden = true; }, 300);
+  const overlay = document.getElementById(id+"Overlay");
+  overlay.classList.remove("show");
+  overlay.hidden = true;
   document.body.style.overflow = "";
   const openerId = modal.dataset.opener;
   if(openerId){ const opener = document.getElementById(openerId); if(opener) opener.focus(); }
 }
 function anyModalOpen(){
-  return !document.getElementById("arbModal").hidden || !document.getElementById("installModal").hidden;
+  return !document.getElementById("arbModalOverlay").hidden || !document.getElementById("installModalOverlay").hidden;
 }
 
 /* =========================================================
@@ -1432,16 +1817,21 @@ document.addEventListener("visibilitychange", function(){
 /* =========================================================
    11) EVENTOS (delegados en document, estables entre repintados)
    ========================================================= */
+function updateDataModeBadge(isLive){
+  const badge = document.getElementById("dataModeBadge");
+  if(!badge) return;
+  badge.classList.toggle("live", !!isLive);
+  const textEl = badge.querySelector(".badge-text");
+  if(textEl) textEl.textContent = isLive ? TEXTS.DATA_MODE_LIVE : TEXTS.DATA_MODE_SIM;
+}
 function paintChrome(){
   document.getElementById("brandName").textContent = TEXTS.BRAND_NAME;
   document.title = TEXTS.META_TITLE;
   document.getElementById("riskStripText").textContent = TEXTS.RISK_STRIP;
-  const badge = document.getElementById("dataModeBadge");
-  // En file:// (y en esta maqueta) el badge siempre indica "Datos simulados".
-  // Agente 6: si LIVE_PRICES/CONFIG y el protocolo son http(s) y hay datos en vivo reales,
-  // llamar badge.classList.add("live") y usar TEXTS.DATA_MODE_LIVE.
-  badge.classList.remove("live");
-  badge.querySelector(".badge-text").textContent = TEXTS.DATA_MODE_SIM;
+  // Badge de modo de datos: "Datos simulados" salvo que haya funcionado un fetch en vivo
+  // (nunca ocurre en file://, solo si CONFIG.LIVE_PRICES/el interruptor del admin están
+  // activos, el protocolo es http(s) y una API pública respondió con éxito).
+  updateDataModeBadge(LIVE_BASE_GOLD_USD!=null);
   document.getElementById("nav-home").querySelector("span").textContent = TEXTS.NAV_HOME;
   document.getElementById("nav-arbitraje").querySelector("span").textContent = TEXTS.NAV_ARBITRAJE;
   document.getElementById("nav-simulador").querySelector("span").textContent = TEXTS.NAV_SIMULADOR;
@@ -1536,14 +1926,21 @@ function handleClick(e){
     btn.setAttribute("aria-pressed", STATE.settings.liveData?"true":"false");
     btn.textContent = TEXTS.BTN_LIVE_LABEL+": "+(STATE.settings.liveData?"ON":"OFF");
     document.getElementById("liveNote").hidden = false;
+    if(STATE.settings.liveData){
+      fetchLivePrices().then(function(ok){
+        updateDataModeBadge(ok);
+        if(ok) refreshCurrentViewData();
+      });
+    } else {
+      LIVE_BASE_GOLD_USD = null;
+      updateDataModeBadge(false);
+    }
     return;
   }
   if(byId("btnWipe")){ document.getElementById("wipeConfirm").hidden = false; return; }
   if(byId("btnWipeNo")){ document.getElementById("wipeConfirm").hidden = true; return; }
   if(byId("btnWipeYes")){
-    STATE = defaultState();
-    seedHistory();
-    persist();
+    wipeAllData();
     toast(TEXTS.TOAST_DATA_WIPED);
     adminActiveTab = "ops";
     route();
@@ -1709,11 +2106,11 @@ document.addEventListener("change", handleChangeOrInput);
 document.addEventListener("input", handleChangeOrInput);
 document.addEventListener("keydown", function(e){
   if(e.key === "Escape"){
-    if(!document.getElementById("arbModal").hidden){ closeModal("arbModal"); return; }
-    if(!document.getElementById("installModal").hidden){ closeModal("installModal"); return; }
+    if(!document.getElementById("arbModalOverlay").hidden){ closeModal("arbModal"); return; }
+    if(!document.getElementById("installModalOverlay").hidden){ closeModal("installModal"); return; }
   }
   if(e.key === "Tab" && anyModalOpen()){
-    const modal = !document.getElementById("arbModal").hidden ? document.getElementById("arbModal") : document.getElementById("installModal");
+    const modal = !document.getElementById("arbModalOverlay").hidden ? document.getElementById("arbModal") : document.getElementById("installModal");
     const f = getFocusable(modal);
     if(!f.length) return;
     const first = f[0], last = f[f.length-1];
@@ -1765,14 +2162,84 @@ function exportLeadsCsv(){
 }
 
 /* =========================================================
-   13) PWA — instalación (metas ya en <head>; manifest lo optimiza Agente 6)
+   13) PWA — manifest (solo se inyecta en http/https, nunca en file://
+   para no generar errores de manifest en consola) + instalación
    ========================================================= */
 window.addEventListener("beforeinstallprompt", function(e){
   e.preventDefault();
   deferredInstallPrompt = e;
 });
+const LOGO_SVG_MARKUP = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" rx="8" fill="#0b0f14"/><rect x="6" y="12" width="28" height="16" rx="3" fill="#d4af37" stroke="#8a6d1f" stroke-width="1"/><text x="20" y="24" font-family="ui-monospace,Menlo,monospace" font-size="11" font-weight="700" fill="#241a06" text-anchor="middle">AG</text></svg>';
+function injectManifest(){
+  try{
+    const manifest = {
+      name: CONFIG.BUSINESS_NAME + " — Simulador de arbitraje cripto-oro",
+      short_name: CONFIG.BUSINESS_NAME,
+      description: "Simulador educativo de arbitraje entre oro tokenizado y oro spot, con dinero ficticio.",
+      scope: "./",
+      start_url: "./",
+      display: "standalone",
+      orientation: "portrait-primary",
+      theme_color: "#0b0f14",
+      background_color: "#0b0f14",
+      icons: [
+        { src: "data:image/svg+xml,"+encodeURIComponent(LOGO_SVG_MARKUP), sizes:"192x192", type:"image/svg+xml", purpose:"any" },
+        { src: "data:image/svg+xml,"+encodeURIComponent(LOGO_SVG_MARKUP), sizes:"512x512", type:"image/svg+xml", purpose:"any" }
+      ]
+    };
+    const link = document.createElement("link");
+    link.rel = "manifest";
+    link.href = "data:application/manifest+json,"+encodeURIComponent(JSON.stringify(manifest));
+    document.head.appendChild(link);
+  }catch(e){
+    // Si falla la inyección (navegador raro/sandbox), la app sigue funcionando sin PWA.
+  }
+}
 if(/^https?:$/.test(location.protocol)){
-  // Agente 6: inyectar aquí <link rel="manifest"> solo en http/https.
+  injectManifest();
+}
+
+/* =========================================================
+   13b) PRECIOS EN VIVO (opcional, PLAN.md §0.1/§6.3)
+   Restricción dura: CERO peticiones de red en file://. Solo se intenta si
+   (CONFIG.LIVE_PRICES o el interruptor del admin) están activos, el
+   protocolo es http/https y el origen no es "null". Si todo falla o
+   cualquier paso lanza, degradación silenciosa al simulador determinista:
+   nunca un error de consola, nunca un alert.
+   ========================================================= */
+async function fetchLivePrices(){
+  const liveWanted = CONFIG.LIVE_PRICES || (STATE.settings && STATE.settings.liveData);
+  if(!liveWanted) return false;
+  if(!/^https?:$/.test(location.protocol) || location.origin === "null") return false;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(()=>controller.abort(), 4000);
+  try{
+    const symbols = [
+      { sym:"PAXGUSDT", offsetPct: MARKETS[0].offsetPct },
+      { sym:"XAUTUSDT", offsetPct: MARKETS[2].offsetPct }
+    ];
+    const results = await Promise.all(symbols.map(async function(s){
+      try{
+        const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbol="+s.sym, { signal: controller.signal });
+        if(!res.ok) return null;
+        const data = await res.json();
+        const price = parseFloat(data && data.price);
+        if(!isFinite(price) || price<=0) return null;
+        // el precio de binance ya incluye el offset de ese mercado: deshacemos el offset
+        // para recuperar una base de oro comparable a CONFIG.BASE_GOLD_USD
+        return price / (1 + s.offsetPct/100);
+      }catch(e){ return null; }
+    }));
+    clearTimeout(timeoutId);
+    const valid = results.filter(function(v){ return isFinite(v) && v>0; });
+    if(!valid.length) return false;
+    const avg = valid.reduce(function(a,b){ return a+b; },0) / valid.length;
+    LIVE_BASE_GOLD_USD = r2(avg);
+    return true;
+  }catch(e){
+    clearTimeout(timeoutId);
+    return false; // fallo silencioso: nos quedamos con el simulador determinista
+  }
 }
 
 /* =========================================================
@@ -1794,6 +2261,11 @@ function boot(){
   window.addEventListener("hashchange", function(){ route(); syncHeaderHeight(); });
   let resizeT;
   window.addEventListener("resize", function(){ clearTimeout(resizeT); resizeT = setTimeout(syncHeaderHeight, 150); });
+  // Intento de precios en vivo: solo hace algo si CONFIG.LIVE_PRICES o el interruptor
+  // del admin están activos Y el protocolo es http/https (nunca en file://).
+  fetchLivePrices().then(function(ok){
+    if(ok){ updateDataModeBadge(true); refreshCurrentViewData(); }
+  });
 }
 if(document.readyState === "loading"){
   document.addEventListener("DOMContentLoaded", boot);
