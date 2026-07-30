@@ -3,6 +3,11 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-07-30 (3) — Sin contraseñas, sin parpadeos, botones vivos
+- Qué se hizo (petición del usuario): (1) CONTRASEÑAS FUERA: Vigía ya no pide PIN nunca y borra el que hubiera guardado (el usuario se quedó fuera del suyo); Control Acceso sin contraseña de portada (entra directo; PIN dueño 1234 se queda). (2) ANTI-PARPADEO: Vigía reescribía clases/estilos de 7 elementos del visor ~30 veces/segundo (vid_sinSenal/vid_componer) + contadores y monitor cada 250ms → ahora todo escribe SOLO si cambia: de 220 mutaciones/10s a 0. Brillo de portada CA ahora solo transform. Las otras 13 apps ya estaban a 0. (3) BOTONES: los CTA sin enlace de las 14 webs básicas ahora avisan "✅ Esto es una demo — en tu web real este botón abre tu WhatsApp/app"; los "Pedir" de las apps ya funcionaban (navegan al carrito/carta).
+- Tests: Vigía 10/10 (test del PIN adaptado a "ajustes abren directo"), Control Acceso 49/49, webs ✅ APTO. Incubadora re-embebida (16 blobs), 2,76MB, 14/14 menús, 0 errores JS.
+- Pendiente: nombre definitivo de AFTERS.
+
 ## 2026-07-30 (2) — Control Acceso + Vigía en la incubadora; menú web/app en TODO
 - Qué se hizo: MH Collective renombrada a **Control Acceso** sin rastro de MH (emblema CA, códigos CA-, contraseña "controlacceso", tests 49/49 ✅; archivos → `control-acceso.html` y `control-acceso-web.html`). Webs básicas nuevas: `inmobiliaria-web.html` y `vigia-web.html`. Incubadora: 14 tarjetas (+" Control Acceso" y "Vigía IA"), TODAS con el menú "¿Web 250€ o App 650€?" (28 demos, 6,1MB). Huevo del enjambre ahora multicolor (verde→cian→violeta, la muestra aprobada); móvil sin tocar. Tarjetas de bares renombradas ("Bar · Pedidos por QR" vs "Restaurante · Reservas") — son productos distintos, no copias; no había blobs duplicados.
 - Ojo: un reinicio del worker deshizo archivos locales a mitad de sesión; se recuperó del remoto (por eso conviene commit+push pronto).

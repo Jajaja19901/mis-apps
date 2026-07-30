@@ -67,5 +67,27 @@
   <a class="btn">💬 Pedir cita ahora</a>
 </div>
 <footer>© 2026 Patitas · Sin cookies de seguimiento<br>Diseñado por Incuba tu Negocio · por Jaime M. M.</footer>
+
+<script>
+/* Botones de demo: en la web real irían a WhatsApp / a la app. Aquí avisan. */
+document.addEventListener('click', function (e) {
+  var a = e.target && e.target.closest ? e.target.closest('a.btn:not([href])') : null;
+  if (!a) return;
+  e.preventDefault();
+  var av = document.getElementById('demo-aviso');
+  if (!av) {
+    av = document.createElement('div'); av.id = 'demo-aviso';
+    av.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#0d1526;color:#27e6a6;font-family:monospace;font-size:12.5px;letter-spacing:.05em;padding:12px 18px;border-radius:999px;border:1px solid #27e6a6;z-index:9999;max-width:88%;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.45);transition:opacity .3s;opacity:0;pointer-events:none';
+    document.body.appendChild(av);
+  }
+  var txt = (a.innerText || '').toLowerCase();
+  av.textContent = /probar|demo/.test(txt)
+    ? '✅ Esto es una demo — en tu web real este botón abre tu app'
+    : '✅ Esto es una demo — en tu web real este botón abre tu WhatsApp';
+  requestAnimationFrame(function () { av.style.opacity = '1'; });
+  clearTimeout(av.__t);
+  av.__t = setTimeout(function () { av.style.opacity = '0'; }, 2600);
+}, true);
+</script>
 </body>
 </html>

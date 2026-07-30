@@ -5593,14 +5593,12 @@ function vid_detener() {
     v.tipoFuente = null; v.fuenteEl = null; v.listoTs = 0;
     v.sabRef = null; v.sabRecalibHasta = 0; v.sabCambioDesde = 0;
 
-    if (vid_el.canvasPriv) vid_el.canvasPriv.classList.add('oculto');
-    if (vid_el.rec) vid_el.rec.classList.add('oculto');
-    if (vid_el.expandir) vid_el.expandir.classList.add('oculto');
-    if (vid_el.plegar) vid_el.plegar.classList.add('oculto');
-    const vbc = document.getElementById('vid-btnCamara');
-    if (vbc) vbc.classList.remove('oculto');
-    const vbd = document.getElementById('vid-btnDemo');
-    if (vbd) vbd.classList.remove('oculto');
+    vid_clase(vid_el.canvasPriv, 'oculto', true);
+    vid_clase(vid_el.rec, 'oculto', true);
+    vid_clase(vid_el.expandir, 'oculto', true);
+    vid_clase(vid_el.plegar, 'oculto', true);
+    vid_clase(document.getElementById('vid-btnCamara'), 'oculto', false);
+    vid_clase(document.getElementById('vid-btnDemo'), 'oculto', false);
     vid_mostrarEstado();
   } catch (e) {
     console.warn('[vid] al detener:', e && e.message);
@@ -5708,15 +5706,12 @@ function vid_componer() {
   estado.video.w = dims.w; estado.video.h = dims.h;
   if (cnv.width !== dims.w || cnv.height !== dims.h) { cnv.width = dims.w; cnv.height = dims.h; }
   // El visor adopta la forma real del vídeo (evita recortar arriba/abajo).
-  if (vid_el.visor) vid_el.visor.classList.add('vid-activo');
-  if (vid_el.expandir) vid_el.expandir.classList.remove('oculto');
-  if (vid_el.plegar) vid_el.plegar.classList.remove('oculto');
-  const vqv = document.getElementById('vid-btnQueVe');
-  if (vqv) vqv.classList.remove('oculto');   // 🧠 preguntar a la IA qué ve (si está configurada)
-  const vbc = document.getElementById('vid-btnCamara');
-  if (vbc && !vbc.classList.contains('oculto')) vbc.classList.add('oculto');
-  const vbd = document.getElementById('vid-btnDemo');
-  if (vbd && !vbd.classList.contains('oculto')) vbd.classList.add('oculto');
+  vid_clase(vid_el.visor, 'vid-activo', true);
+  vid_clase(vid_el.expandir, 'oculto', false);
+  vid_clase(vid_el.plegar, 'oculto', false);
+  vid_clase(document.getElementById('vid-btnQueVe'), 'oculto', false);   // 🧠 preguntar a la IA qué ve
+  vid_clase(document.getElementById('vid-btnCamara'), 'oculto', true);
+  vid_clase(document.getElementById('vid-btnDemo'), 'oculto', true);
 
   const el = v.fuenteEl;
   try {
@@ -5739,7 +5734,7 @@ function vid_componer() {
   }
 
   vid_estampaFecha(ctx, cnv);
-  if (vid_el.rec) vid_el.rec.classList.toggle('oculto', !estado.video.grabando);
+  vid_clase(vid_el.rec, 'oculto', !estado.video.grabando);
 
   vid_componerPrivacidad(ctx, cnv, dims);
 }
@@ -5750,7 +5745,7 @@ function vid_componerPrivacidad(ctx, cnv, dims) {
   const v = estado.vid;
   const priv = vid_el.canvasPriv;
   if (!priv) return;
-  if (!estado.cfg.privacidad) { priv.classList.add('oculto'); return; }
+  if (!estado.cfg.privacidad) { vid_clase(priv, 'oculto', true); return; }
 
   if (priv.width !== cnv.width || priv.height !== cnv.height) { priv.width = cnv.width; priv.height = cnv.height; }
   const pctx = priv.getContext('2d');
@@ -5804,10 +5799,18 @@ function vid_estampaFecha(ctx, cnv) {
 }
 
 /* Pantalla "SIN SEÑAL" + reloj cuando no hay fuente. */
+function vid_clase(el, cls, poner) {
+  // Escribe la clase SOLO si cambia: evita invalidar estilos ~30 veces/segundo
+  // (era la causa del parpadeo del visor).
+  if (!el) return;
+  const tiene = el.classList.contains(cls);
+  if (poner && !tiene) el.classList.add(cls);
+  else if (!poner && tiene) el.classList.remove(cls);
+}
 function vid_sinSenal(ctx, cnv) {
   try {
     // Sin fuente: vuelve al marco 16:9 de reposo (quita la forma del vídeo).
-    if (vid_el.visor) vid_el.visor.classList.remove('vid-activo');
+    vid_clase(vid_el.visor, 'vid-activo', false);
     if (cnv.width < 320 || cnv.height < 180) { cnv.width = 640; cnv.height = 360; }
     ctx.fillStyle = '#0b0f14';
     ctx.fillRect(0, 0, cnv.width, cnv.height);
@@ -5820,14 +5823,12 @@ function vid_sinSenal(ctx, cnv) {
     ctx.fillText('SIN SEÑAL', 10, 20);
     ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
     ctx.fillText(nuc_fechaHora(), 10, 36);
-    if (vid_el.canvasPriv) vid_el.canvasPriv.classList.add('oculto');
-    if (vid_el.rec) vid_el.rec.classList.add('oculto');
-    if (vid_el.expandir) vid_el.expandir.classList.add('oculto');
-    if (vid_el.plegar) vid_el.plegar.classList.add('oculto');
-    const vbc = document.getElementById('vid-btnCamara');
-    if (vbc) vbc.classList.remove('oculto');
-    const vbd = document.getElementById('vid-btnDemo');
-    if (vbd) vbd.classList.remove('oculto');
+    vid_clase(vid_el.canvasPriv, 'oculto', true);
+    vid_clase(vid_el.rec, 'oculto', true);
+    vid_clase(vid_el.expandir, 'oculto', true);
+    vid_clase(vid_el.plegar, 'oculto', true);
+    vid_clase(document.getElementById('vid-btnCamara'), 'oculto', false);
+    vid_clase(document.getElementById('vid-btnDemo'), 'oculto', false);
   } catch (e) { /* ignorar */ }
 }
 
@@ -6268,8 +6269,10 @@ function ui_actualizarMonitor() {
   const set = (id, txt, cls) => {
     const el = document.getElementById(id);
     if (!el) return;
-    el.textContent = txt;
-    el.className = cls || '';
+    // Solo escribe si cambia: sin repintados periódicos cuando el valor es el mismo.
+    if (el.textContent !== txt) el.textContent = txt;
+    const c = cls || '';
+    if (el.className !== c) el.className = c;
   };
 
   // Fluidez: ms por frame de animación. ≤22 fluido, ≤45 aceptable, más = tirones.
@@ -6302,32 +6305,36 @@ function ui_actualizarMonitor() {
 }
 
 /* Actualiza las tarjetas de datos en directo (personas, aforo, entradas...) */
+function ui_texto(el, txt) {
+  // Escribe el texto SOLO si cambia (evita repintados periódicos innecesarios).
+  if (el && el.textContent !== txt) el.textContent = txt;
+}
 function ui_actualizarContadores() {
   const refs = estado.uiRefs;
   if (!refs || !refs.datoPersonas) return;
 
   const personas = (estado.tracks || []).filter((t) => t && NUC_PERSONA.indexOf(t.clase) !== -1).length;
-  refs.datoPersonas.textContent = String(personas);
+  ui_texto(refs.datoPersonas, String(personas));
 
   const max = (estado.cfg && estado.cfg.aforoMax) || 0;
   let dentro = personas;
   if (typeof stats_aforoActual === 'function') {
     try { dentro = stats_aforoActual(); } catch (e) { dentro = personas; }
   }
-  if (refs.datoAforo) refs.datoAforo.textContent = dentro + '/' + max;
+  ui_texto(refs.datoAforo, dentro + '/' + max);
 
   let datosHoy = null;
   if (typeof stats_datosHoy === 'function') {
     try { datosHoy = stats_datosHoy(); } catch (e) { datosHoy = null; }
   }
   if (datosHoy) {
-    if (refs.datoEntradas) refs.datoEntradas.textContent = String(datosHoy.entradas || 0);
-    if (refs.datoSalidas) refs.datoSalidas.textContent = String(datosHoy.salidas || 0);
-    if (refs.datoAlertas) refs.datoAlertas.textContent = String((datosHoy.alertas && datosHoy.alertas.total) || 0);
+    ui_texto(refs.datoEntradas, String(datosHoy.entradas || 0));
+    ui_texto(refs.datoSalidas, String(datosHoy.salidas || 0));
+    ui_texto(refs.datoAlertas, String((datosHoy.alertas && datosHoy.alertas.total) || 0));
     if (refs.datoVehiculos && datosHoy.vehiculos) {
       let totalVeh = 0;
       for (const k in datosHoy.vehiculos) { if (Object.prototype.hasOwnProperty.call(datosHoy.vehiculos, k)) totalVeh += (datosHoy.vehiculos[k] || 0); }
-      refs.datoVehiculos.textContent = String(totalVeh);
+      ui_texto(refs.datoVehiculos, String(totalVeh));
     }
   }
 }
@@ -6363,31 +6370,32 @@ function ui_actualizarEstadoHeader() {
   const m = estado.modelos || {};
   const v = estado.video || {};
 
-  refs.estadoPunto.classList.remove('ui-punto-verde', 'ui-punto-ambar', 'ui-punto-rojo');
+  const puntoAntes = refs.estadoPunto.className;
 
   if (m.error) {
-    refs.estadoPunto.classList.add('ui-punto-rojo');
-    refs.estadoTxt.textContent = 'Error al cargar modelos de IA';
+    var puntoNuevo = 'ui-punto ui-punto-rojo';
+    ui_texto(refs.estadoTxt, 'Error al cargar modelos de IA');
   } else if (!m.cocoListo) {
-    refs.estadoPunto.classList.add('ui-punto-ambar');
-    refs.estadoTxt.textContent = 'Cargando modelos de IA…';
+    var puntoNuevo = 'ui-punto ui-punto-ambar';
+    ui_texto(refs.estadoTxt, 'Cargando modelos de IA…');
   } else if (!v.listo) {
-    refs.estadoPunto.classList.add('ui-punto-ambar');
-    refs.estadoTxt.textContent = 'Esperando fuente de vídeo…';
+    var puntoNuevo = 'ui-punto ui-punto-ambar';
+    ui_texto(refs.estadoTxt, 'Esperando fuente de vídeo…');
   } else {
     // Vídeo en vivo: enseña QUÉ motor está detectando y si está cargando o cayó.
     const me = ui_motorEstado();
     if (me.nivel === 'cargando') {
-      refs.estadoPunto.classList.add('ui-punto-ambar');
-      refs.estadoTxt.textContent = me.etiqueta;
+      var puntoNuevo = 'ui-punto ui-punto-ambar';
+      ui_texto(refs.estadoTxt, me.etiqueta);
     } else if (me.nivel === 'fallo') {
-      refs.estadoPunto.classList.add('ui-punto-ambar');
-      refs.estadoTxt.textContent = me.etiqueta;
+      var puntoNuevo = 'ui-punto ui-punto-ambar';
+      ui_texto(refs.estadoTxt, me.etiqueta);
     } else {
-      refs.estadoPunto.classList.add('ui-punto-verde');
-      refs.estadoTxt.textContent = 'En vivo · ' + me.etiqueta;
+      var puntoNuevo = 'ui-punto ui-punto-verde';
+      ui_texto(refs.estadoTxt, 'En vivo · ' + me.etiqueta);
     }
   }
+  if (typeof puntoNuevo === 'string' && puntoAntes !== puntoNuevo) refs.estadoPunto.className = puntoNuevo;
 }
 
 /* Actualiza número, palabra y reloj de la pantalla pública de aforo */
@@ -9216,10 +9224,11 @@ function cfg_cerrarModal(velo) {
  * ==========================================================================*/
 function cfg_pinPedir(motivo) {
   return new Promise(function (resolve) {
-    if (estado.ui.pinOk) { resolve(true); return; }
-    const hash = nuc_cargar('pin', null);
-    if (hash === null) cfg_pinFlujoCrear(motivo, resolve);
-    else cfg_pinFlujoComprobar(motivo, hash, resolve);
+    // PIN DESACTIVADO (versión demo): nunca se pide y se borra cualquier PIN que
+    // hubiera guardado (si el dueño lo puso y lo olvidó, al abrir queda desbloqueado).
+    try { nuc_borrar('pin'); } catch (e) {}
+    estado.ui.pinOk = true;
+    resolve(true);
   });
 }
 
@@ -9300,6 +9309,9 @@ function cfg_pinFlujoComprobar(motivo, hashGuardado, resolve) {
 }
 
 function cfg_pinCambiar() {
+  // PIN desactivado en la versión demo: se avisa en vez de crear uno nuevo.
+  cfg_avisar('El PIN está desactivado en esta versión: la app abre siempre sin contraseña.', 'info');
+  return;
   const hashActual = nuc_cargar('pin', null);
   if (hashActual === null) {
     cfg_pinFlujoCrear('el PIN de acceso', function () {});
@@ -19225,7 +19237,7 @@ if (document.readyState === 'loading') {
   ]
  },
  {
-  "name": "PIN: crear PIN de 4 dígitos y abrir el panel de ajustes",
+  "name": "Ajustes abren directamente (PIN desactivado en la demo)",
   "steps": [
    {
     "click": "#ui-modoSuper"
@@ -19238,24 +19250,6 @@ if (document.readyState === 'loading') {
    },
    {
     "click": "#ui-btnAjustes"
-   },
-   {
-    "wait": 400
-   },
-   {
-    "fill": {
-     "sel": "#cfg-pinNuevo1",
-     "value": "1234"
-    }
-   },
-   {
-    "fill": {
-     "sel": "#cfg-pinNuevo2",
-     "value": "1234"
-    }
-   },
-   {
-    "clickText": "Crear PIN"
    },
    {
     "wait": 500
