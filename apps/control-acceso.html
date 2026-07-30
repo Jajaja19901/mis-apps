@@ -434,7 +434,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <div id="modalRoot"></div>
 <div id="toastRoot"></div>
 <footer>
-<p>Uso interno. Los datos se almacenan solo en este dispositivo.</p>
+<p>Uso interno. Los datos se almacenan solo en este dispositivo. · <a href="#" onclick="return mostrarLegal(event)" style="color:inherit;text-decoration:underline">Política de privacidad</a></p>
 <p>Diseñado por <a href="#">Incuba tu Negocio · por Jaime M. M.</a></p>
 </footer>
 <script type="application/json" id="acceptance-tests">
@@ -13505,7 +13505,7 @@ function enlaceEntrada(p, unaVez) {
 // HTML de la "entrada bonita" que ve el invitado al abrir su enlace.
 function htmlTicketPublico(d, unaVez, yaVisto) {
   if (!d || !d.c) return '<div class="ticket-pub"><div class="ticket-card"><h2>Entrada no válida</h2><p class="nota">Pídele al organizador que te reenvíe tu entrada.</p></div></div>';
-  var studioFoot = esc(CONFIG.STUDIO_BRAND) + ' · por ' + esc(CONFIG.STUDIO_AUTHOR);
+  var studioFoot = esc(CONFIG.STUDIO_BRAND) + ' · por ' + esc(CONFIG.STUDIO_AUTHOR) + ' · <a href="#" onclick="return mostrarLegal(event)" style="color:inherit;text-decoration:underline">Privacidad</a>';
   if (unaVez && yaVisto) {
     return '<div class="ticket-pub"><div class="ticket-card ticket-usado">' +
       '<div class="ticket-ev">' + esc(d.ev) + '</div>' +
@@ -16721,6 +16721,27 @@ function _emblemaCA() {
     '<rect x="42" y="115" width="116" height="27" rx="2" fill="#ffffff"/>' +
     '<text x="100" y="134" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" fill="#000000" text-anchor="middle" letter-spacing="0.5">Acceso</text></svg>';
 }
+
+/* ===== PRIVACIDAD / AVISO LEGAL (RGPD) — obligatorio al recoger datos de invitados ===== */
+function mostrarLegal(ev) {
+  if (ev && ev.preventDefault) ev.preventDefault();
+  var ya = document.getElementById('ca-legal'); if (ya) { ya.remove(); return false; }
+  var d = document.createElement('div'); d.id = 'ca-legal';
+  d.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(5,5,10,.92);overflow:auto;padding:22px;font-size:.9rem;line-height:1.55;color:var(--text)';
+  d.innerHTML =
+    '<div style="max-width:640px;margin:0 auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 18px">' +
+    '<h2 style="margin:0 0 10px">Política de privacidad y aviso legal</h2>' +
+    '<p style="color:var(--text-dim)">Plantilla para el organizador del evento — completa los datos entre corchetes antes de usar la app con invitados reales.</p>' +
+    '<p><b>Responsable:</b> [CAMBIAR: nombre o razón social del organizador] · NIF [CAMBIAR] · contacto: [CAMBIAR: email o teléfono].</p>' +
+    '<p><b>Datos que se tratan:</b> nombre y apellido de los invitados y, si se facilitan, teléfono y email; además de los accesos, consumos y pagos del evento.</p>' +
+    '<p><b>Finalidad y base legal:</b> gestionar el acceso, las entradas y la barra del evento (ejecución de la relación con el asistente e interés legítimo del organizador).</p>' +
+    '<p><b>Dónde se guardan:</b> en este dispositivo (almacenamiento local del navegador). Si el organizador conecta su propia nube (Firebase), también en ese proyecto, bajo su responsabilidad.</p>' +
+    '<p><b>Conservación y derechos:</b> los datos pueden borrarse desde el panel del organizador tras el evento. Para ejercer los derechos de acceso, rectificación o supresión, contacta con el organizador en los datos de arriba.</p>' +
+    '<button type="button" onclick="document.getElementById(\'ca-legal\').remove()" style="margin-top:12px;min-height:46px;width:100%;border:0;border-radius:10px;background:var(--neon-verde);color:#04221a;font-weight:800;font-size:1rem;cursor:pointer">Cerrar</button>' +
+    '</div>';
+  document.body.appendChild(d);
+  return false;
+}
 function mostrarGate() {
   var gate = document.getElementById('accesoGate');
   if (!gate) return;
@@ -16735,7 +16756,7 @@ function mostrarGate() {
         '<p class="gate-err" id="gate-err" data-testid="gate-err"></p>' +
         '<button type="submit" class="gate-btn" data-testid="gate-entrar">Entrar</button>' +
       '</form>' +
-      '<div class="gate-foot">' + esc(CONFIG.STUDIO_BRAND) + ' · por ' + esc(CONFIG.STUDIO_AUTHOR) + '</div>' +
+      '<div class="gate-foot">' + esc(CONFIG.STUDIO_BRAND) + ' · por ' + esc(CONFIG.STUDIO_AUTHOR) + ' · <a href="#" onclick="return mostrarLegal(event)" style="color:inherit;text-decoration:underline">Privacidad</a></div>' +
     '</div>';
   gate.classList.add('on');
   gate.setAttribute('aria-hidden', 'false');

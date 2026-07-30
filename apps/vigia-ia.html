@@ -5597,8 +5597,8 @@ function vid_detener() {
     vid_clase(vid_el.rec, 'oculto', true);
     vid_clase(vid_el.expandir, 'oculto', true);
     vid_clase(vid_el.plegar, 'oculto', true);
-    vid_clase(document.getElementById('vid-btnCamara'), 'oculto', false);
-    vid_clase(document.getElementById('vid-btnDemo'), 'oculto', false);
+    vid_clase(vid_btn('vid-btnCamara'), 'oculto', false);
+    vid_clase(vid_btn('vid-btnDemo'), 'oculto', false);
     vid_mostrarEstado();
   } catch (e) {
     console.warn('[vid] al detener:', e && e.message);
@@ -5709,9 +5709,9 @@ function vid_componer() {
   vid_clase(vid_el.visor, 'vid-activo', true);
   vid_clase(vid_el.expandir, 'oculto', false);
   vid_clase(vid_el.plegar, 'oculto', false);
-  vid_clase(document.getElementById('vid-btnQueVe'), 'oculto', false);   // 🧠 preguntar a la IA qué ve
-  vid_clase(document.getElementById('vid-btnCamara'), 'oculto', true);
-  vid_clase(document.getElementById('vid-btnDemo'), 'oculto', true);
+  vid_clase(vid_btn('vid-btnQueVe'), 'oculto', false);   // 🧠 preguntar a la IA qué ve
+  vid_clase(vid_btn('vid-btnCamara'), 'oculto', true);
+  vid_clase(vid_btn('vid-btnDemo'), 'oculto', true);
 
   const el = v.fuenteEl;
   try {
@@ -5799,6 +5799,13 @@ function vid_estampaFecha(ctx, cnv) {
 }
 
 /* Pantalla "SIN SEÑAL" + reloj cuando no hay fuente. */
+var _vidBtnCache = {};
+function vid_btn(id) {
+  // Botones estáticos del visor: se buscan una vez y se cachean.
+  var b = _vidBtnCache[id];
+  if (!b) { b = document.getElementById(id); if (b) _vidBtnCache[id] = b; }
+  return b;
+}
 function vid_clase(el, cls, poner) {
   // Escribe la clase SOLO si cambia: evita invalidar estilos ~30 veces/segundo
   // (era la causa del parpadeo del visor).
@@ -5809,6 +5816,10 @@ function vid_clase(el, cls, poner) {
 }
 function vid_sinSenal(ctx, cnv) {
   try {
+    // En reposo solo cambia el reloj (1s): repintar a 30fps era gasto inútil.
+    var _k = Math.floor(Date.now() / 1000) + 'x' + cnv.width + 'x' + cnv.height;
+    if (vid_sinSenal._k === _k) return;
+    vid_sinSenal._k = _k;
     // Sin fuente: vuelve al marco 16:9 de reposo (quita la forma del vídeo).
     vid_clase(vid_el.visor, 'vid-activo', false);
     if (cnv.width < 320 || cnv.height < 180) { cnv.width = 640; cnv.height = 360; }
@@ -5827,8 +5838,8 @@ function vid_sinSenal(ctx, cnv) {
     vid_clase(vid_el.rec, 'oculto', true);
     vid_clase(vid_el.expandir, 'oculto', true);
     vid_clase(vid_el.plegar, 'oculto', true);
-    vid_clase(document.getElementById('vid-btnCamara'), 'oculto', false);
-    vid_clase(document.getElementById('vid-btnDemo'), 'oculto', false);
+    vid_clase(vid_btn('vid-btnCamara'), 'oculto', false);
+    vid_clase(vid_btn('vid-btnDemo'), 'oculto', false);
   } catch (e) { /* ignorar */ }
 }
 
@@ -8945,8 +8956,6 @@ const CFGA_UNIDADES = {
   ruidoNivel: ' / 100',
   sabotajeSens: ' / 100',
 };
-const CFGA_PIN_MAX_FALLOS = 5;
-const CFGA_PIN_BLOQUEO_MS = 30000;
 
 /* --- Utilidades internas ----------------------------------------------------*/
 function cfg_avisar(msg, nivel) {
@@ -9232,98 +9241,10 @@ function cfg_pinPedir(motivo) {
   });
 }
 
-function cfg_pinFlujoCrear(motivo, resolve) {
-  const cuerpo = document.createElement('div');
-  cuerpo.innerHTML =
-    '<p class="etiqueta">' + (motivo ? 'Crea un PIN de 4 dígitos para proteger ' + cfg_escapar(motivo) + '.' : 'Crea un PIN de 4 dígitos para proteger los ajustes.') + '</p>' +
-    '<div class="campo"><label for="cfg-pinNuevo1">PIN (4 dígitos)</label>' +
-    '<input type="password" inputmode="numeric" maxlength="4" id="cfg-pinNuevo1" autocomplete="off"></div>' +
-    '<div class="campo"><label for="cfg-pinNuevo2">Repite el PIN</label>' +
-    '<input type="password" inputmode="numeric" maxlength="4" id="cfg-pinNuevo2" autocomplete="off"></div>' +
-    '<p id="cfg-pinError" class="etiqueta oculto"></p>';
-
-  cfg_modal('Crear PIN de acceso', cuerpo, [
-    { texto: 'Cancelar', clase: 'btn-fantasma', accion: function (cerrar) { cerrar(); resolve(false); } },
-    {
-      texto: 'Crear PIN', clase: 'btn-primario', accion: async function (cerrar) {
-        const p1 = document.getElementById('cfg-pinNuevo1');
-        const p2 = document.getElementById('cfg-pinNuevo2');
-        const err = document.getElementById('cfg-pinError');
-        const v1 = p1 ? p1.value.trim() : '';
-        const v2 = p2 ? p2.value.trim() : '';
-        if (!/^\d{4}$/.test(v1) || v1 !== v2) {
-          if (err) { err.textContent = 'Introduce el mismo PIN de 4 dígitos en ambos campos.'; err.classList.remove('oculto'); }
-          return;
-        }
-        const hash = await nuc_hashTexto(v1);
-        nuc_guardar('pin', hash);
-        estado.ui.pinOk = true;
-        cerrar();
-        resolve(true);
-      },
-    },
-  ]);
-}
-
-function cfg_pinFlujoComprobar(motivo, hashGuardado, resolve) {
-  const cuerpo = document.createElement('div');
-  cuerpo.innerHTML =
-    '<p class="etiqueta">' + (motivo ? 'Introduce el PIN para ' + cfg_escapar(motivo) + '.' : 'Introduce el PIN.') + '</p>' +
-    '<div class="campo"><label for="cfg-pinIntento">PIN</label>' +
-    '<input type="password" inputmode="numeric" maxlength="4" id="cfg-pinIntento" autocomplete="off"></div>' +
-    '<p id="cfg-pinError" class="etiqueta oculto"></p>';
-
-  cfg_modal('PIN de acceso', cuerpo, [
-    { texto: 'Cancelar', clase: 'btn-fantasma', accion: function (cerrar) { cerrar(); resolve(false); } },
-    {
-      texto: 'Entrar', clase: 'btn-primario', accion: async function (cerrar) {
-        const err = document.getElementById('cfg-pinError');
-        const ahora = Date.now();
-        if (estado.cfgUI.pinBloqueadoHasta && ahora < estado.cfgUI.pinBloqueadoHasta) {
-          const seg = Math.ceil((estado.cfgUI.pinBloqueadoHasta - ahora) / 1000);
-          if (err) { err.textContent = 'Demasiados intentos. Espera ' + seg + ' s.'; err.classList.remove('oculto'); }
-          return;
-        }
-        const input = document.getElementById('cfg-pinIntento');
-        const v = input ? input.value.trim() : '';
-        const hash = await nuc_hashTexto(v);
-        if (hash === hashGuardado) {
-          estado.cfgUI.pinFallos = 0;
-          estado.ui.pinOk = true;
-          cerrar();
-          resolve(true);
-        } else {
-          estado.cfgUI.pinFallos = (estado.cfgUI.pinFallos || 0) + 1;
-          if (estado.cfgUI.pinFallos >= CFGA_PIN_MAX_FALLOS) {
-            estado.cfgUI.pinBloqueadoHasta = Date.now() + CFGA_PIN_BLOQUEO_MS;
-            estado.cfgUI.pinFallos = 0;
-            if (err) { err.textContent = 'PIN incorrecto 5 veces. Bloqueado 30 s.'; err.classList.remove('oculto'); }
-          } else if (err) {
-            err.textContent = 'PIN incorrecto.'; err.classList.remove('oculto');
-          }
-          if (input) input.value = '';
-        }
-      },
-    },
-  ]);
-}
-
+/* (Flujos de crear/comprobar PIN eliminados: PIN desactivado en la demo.) */
 function cfg_pinCambiar() {
-  // PIN desactivado en la versión demo: se avisa en vez de crear uno nuevo.
+  // PIN desactivado en la versión demo.
   cfg_avisar('El PIN está desactivado en esta versión: la app abre siempre sin contraseña.', 'info');
-  return;
-  const hashActual = nuc_cargar('pin', null);
-  if (hashActual === null) {
-    cfg_pinFlujoCrear('el PIN de acceso', function () {});
-    return;
-  }
-  cfg_pinFlujoComprobar('confirmar el PIN actual', hashActual, function (ok) {
-    if (ok) {
-      cfg_pinFlujoCrear('el nuevo PIN', function (creado) {
-        if (creado) cfg_avisar('PIN actualizado.', 'info');
-      });
-    }
-  });
 }
 
 /* ============================================================================
