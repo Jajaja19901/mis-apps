@@ -2251,30 +2251,60 @@ async function fetchLivePrices(){
   if(!liveWanted) return false;
   if(!/^https?:$/.test(location.protocol) || location.origin === "null") return false;
   const controller = new AbortController();
-  const timeoutId = setTimeout(()=>controller.abort(), 4000);
+  const timeoutId = setTimeout(()=>controller.abort(), 5000);
   try{
-    const symbols = [
-      { sym:"PAXGUSDT", offsetPct: MARKETS[0].offsetPct },
-      { sym:"XAUTUSDT", offsetPct: MARKETS[2].offsetPct }
-    ];
-    const results = await Promise.all(symbols.map(async function(s){
-      try{
-        const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbol="+s.sym, { signal: controller.signal });
-        if(!res.ok) return null;
+    // Intenta Binance primero (sin API key, endponts públicos)
+    const binancePrices = {};
+    try{
+      const res = await fetch("https://api.binance.com/api/v3/ticker/price?symbols=%5B%22PAXGUSDT%22,%22XAUTUSDT%22%5D", { signal: controller.signal });
+      if(res.ok){
         const data = await res.json();
-        const price = parseFloat(data && data.price);
-        if(!isFinite(price) || price<=0) return null;
-        // el precio de binance ya incluye el offset de ese mercado: deshacemos el offset
-        // para recuperar una base de oro comparable a CONFIG.BASE_GOLD_USD
-        return price / (1 + s.offsetPct/100);
-      }catch(e){ return null; }
-    }));
+        if(Array.isArray(data)){
+          data.forEach(function(item){
+            const price = parseFloat(item && item.price);
+            if(isFinite(price) && price>0){
+              binancePrices[item.symbol] = price;
+            }
+          });
+        }
+      }
+    }catch(e){}
+
+    // Intenta Kraken como fallback (soporta CORS)
+    const krakenPrices = {};
+    try{
+      const res = await fetch("https://api.kraken.com/0/public/Ticker?pair=PAXGUSD,XAUTUSD", { signal: controller.signal });
+      if(res.ok){
+        const data = await res.json();
+        if(data.result){
+          Object.keys(data.result).forEach(function(pair){
+            const item = data.result[pair];
+            const price = parseFloat(item && item.c && item.c[0]);
+            if(isFinite(price) && price>0){
+              krakenPrices[pair.split(',')[0]] = price; // normaliza nombre
+            }
+          });
+        }
+      }
+    }catch(e){}
+
     clearTimeout(timeoutId);
-    const valid = results.filter(function(v){ return isFinite(v) && v>0; });
-    if(!valid.length) return false;
-    const avg = valid.reduce(function(a,b){ return a+b; },0) / valid.length;
-    LIVE_BASE_GOLD_USD = r2(avg);
-    return true;
+
+    // Calcula promedio ponderado de precios disponibles
+    const prices = [];
+    if(binancePrices.PAXGUSDT) prices.push(binancePrices.PAXGUSDT);
+    if(binancePrices.XAUTUSDT) prices.push(binancePrices.XAUTUSDT);
+    if(krakenPrices.PAXGUSD) prices.push(krakenPrices.PAXGUSD);
+    if(krakenPrices.XAUTUSD) prices.push(krakenPrices.XAUTUSD);
+
+    if(!prices.length) return false; // sin datos, seguimos con simulado
+
+    const avg = prices.reduce(function(a,b){ return a+b; },0) / prices.length;
+    if(isFinite(avg) && avg>0){
+      LIVE_BASE_GOLD_USD = r2(avg);
+      return true;
+    }
+    return false;
   }catch(e){
     clearTimeout(timeoutId);
     return false; // fallo silencioso: nos quedamos con el simulador determinista
