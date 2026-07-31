@@ -3,6 +3,23 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-07-31 — Fase 1: APIs reales en vivo, detector automático, monitoreo
+
+- **Qué se hizo**: App arbitraje mejorada a Opción B: APIs reales (Binance + Kraken REST), detector automático profesional con spreads reales, monitoreo en background cada 3s, histórico de spreads.
+- **Funcionalidades nuevas**:
+  - Binance 24hr ticker: bid/ask + volumen real
+  - Kraken REST Ticker: bid/ask + volumen real
+  - Detector automático: calcula spreads reales, resta comisiones maker/taker diferenciadas (Binance 0.1%, Kraken 0.16-0.26%), filtro de volumen >$10k, slippage simulado 0.05%
+  - Monitoreo en background: cada 3s, sin bloquear UI, auto-detecta oportunidades
+  - P&L realista: after-fees, after-slippage
+  - Fallback automático: si APIs fallan → simulador determinista
+  - En `file://` sigue siendo 100% simulación (sin cambios)
+  - Tests de aceptación: compatibles (usan simulador como fallback)
+- **Archivos**: `apps/arbitragegold.html` (mejorado, 194 líneas +), `PLAN.md` sin cambios.
+- **Commit**: "Mejora app arbitraje: APIs reales en vivo + detector automático + monitoreo"
+- **Próximos pasos**: Verificación automática, luego agregar WebSocket (Fase 2) y heat maps (Fase 3).
+- **Dinero real**: La app sigue siendo simulación. Dinero real requiere backend + API keys del usuario + auditoría de seguridad (otra fase futura).
+
 ## 2026-07-30 — App completa de arbitraje cripto-oro: 10 agentes, ✅ APTO
 - Qué se hizo: Pipeline de 10 agentes (Arquitecto → Marca → UX → Copy → Frontend → Datos → Seg/Perf/A11y → QA). Diseño de app: 30 criterios de aceptación, 8 rutas, motor de precios determinista, localStorage, PWA, 25 tests embebidos. Deliverable: `apps/arbitragegold.html` (116 KB, 1 archivo autocontenido).
 - Agentes: 1) Plano 924 líneas, 30 criterios, 5 flujos. 2) Paleta dorado/gris azulado, WCAG AA. 3) Wireframes + UX. 4) 100+ strings contrato. 5) HTML/CSS/JS router + 8 vistas. 6) localStorage `ag_v1_*`, PWA, precios vivos (fallback), 25 tests. 7) Seguridad: 0 XSS/inyección, 6 avisos (no bloqueantes). 8) Rendimiento: 114 KB, <2s, 0 librerías. 9) A11y: 3 fallos contraste (corregidos), WCAG AA ✅. 10) QA: verificador automático APTO, 30 criterios testados, 9 defectos encontrados+corregidos.
