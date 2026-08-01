@@ -3,6 +3,10 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-01 (2) — Instaladas 4 skills de diseño (revisadas por seguridad)
+- Qué se hizo: instaladas en `.claude/skills/` las 4 skills de diseño que faltaban de la lista del vídeo de harysvizcaino, tras revisar el código de cada repo (clonado, sin ejecutar): `web-design-guidelines` (vercel-labs, solo SKILL.md que hace WebFetch a la guía de Vercel), `emil-design-eng` (emilkowalski, SKILL.md de filosofía de diseño), `ui-ux-pro-max` (nextlevelbuilder, base de datos local BM25 en Python + CSVs, sin red, 1,9MB), `huashu-design` (alchaincyf, MIT; guía HTML de prototipos/PPT/animación — instalada SIN los ~30MB de música BGM ni showcases, ver NOTA-INSTALACION.md). Ninguna trae exfiltración/comandos peligrosos/inyección; los únicos hosts de huashu son opt-in (TTS ByteDance/Doubao, Wikimedia) y requieren claves propias. Total: 35 → 39 skills. Probado que el buscador de ui-ux-pro-max funciona offline.
+- Pendiente: nombre definitivo de AFTERS.
+
 ## 2026-08-01 — Vídeo promo en la web de Control Acceso
 - Qué se hizo: metido el vídeo "fiestapromo" (venta de entradas con QR) en `apps/webs-basicas/control-acceso-web.html`, igual que AFTERS/Vigía: comprimido con ffmpeg de 1080p/9,2MB a 720p/0,86MB, embebido base64 con póster, autoplay silencioso + loop + botón de sonido. Tema award: marco con brillo ámbar/verde (marca de Control Acceso) + transiciones de aparición al scroll. ✅ APTO; re-embebido en la incubadora (6,50MB). Ya son 3 webs con vídeo: AFTERS, Vigía y Control Acceso.
 - Pendiente: nombre definitivo de AFTERS.
