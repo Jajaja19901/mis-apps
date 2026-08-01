@@ -3,6 +3,10 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-01 — Vídeo promo en la web de Control Acceso
+- Qué se hizo: metido el vídeo "fiestapromo" (venta de entradas con QR) en `apps/webs-basicas/control-acceso-web.html`, igual que AFTERS/Vigía: comprimido con ffmpeg de 1080p/9,2MB a 720p/0,86MB, embebido base64 con póster, autoplay silencioso + loop + botón de sonido. Tema award: marco con brillo ámbar/verde (marca de Control Acceso) + transiciones de aparición al scroll. ✅ APTO; re-embebido en la incubadora (6,50MB). Ya son 3 webs con vídeo: AFTERS, Vigía y Control Acceso.
+- Pendiente: nombre definitivo de AFTERS.
+
 ## 2026-07-30 (5) — Vídeos promo en las webs de AFTERS y Vigía + arreglos pendientes
 - Qué se hizo: metidos los 2 vídeos promo que pasó el usuario (afterspromo→afters-web, vigiapromo→vigia-web, sin confundirlos). Comprimidos con ffmpeg (imageio-ffmpeg) de 1080p/~10MB a 720p/~1MB, embebidos como base64 con póster + autoplay silencioso + loop + botón de sonido. Tema "award": marco de pantalla con brillo animado (rosa/cian en AFTERS, cian/ámbar tipo monitor REC en Vigía) y transiciones de aparición al hacer scroll (IntersectionObserver, respeta reduce-motion). Probado en navegador real y dentro del visor de la incubadora. NOTA: el Chromium de pruebas no decodifica H.264 (por eso el vídeo sale 0x0 en las capturas), pero los navegadores reales sí; el póster JPEG es el respaldo donde no haya códec.
 - Además (arreglos que quedaban de la revisión): política de privacidad/aviso legal en Control Acceso (recoge datos de invitados) con enlace en el pie y en la portada; comparador de niveles del bar reconectado (botón "📊 Comparar niveles" en el menú de la tarjeta del Camarero, solo ahí); Vigía optimizada (botones del visor cacheados, lienzo SIN SEÑAL repinta solo al cambiar el segundo) y ~90 líneas de código muerto del PIN eliminadas.
