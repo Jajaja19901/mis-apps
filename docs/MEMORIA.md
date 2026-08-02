@@ -3,6 +3,17 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-02 — Instaladas las 81 skills de seguridad de Trail of Bits (revisadas)
+- Qué se hizo: instalado el marketplace oficial `github.com/trailofbits/skills` (firma de seguridad real) en `.claude/skills/` en formato plano, tras auditar TODO el repo clonado sin ejecutarlo. Son **81 skills** (el post decía ~75), no solo las 4 que ya teníamos. Cubren: auditoría de contratos blockchain (Solana, Cairo, Cosmos, Substrate, TON, Algorand), fuzzing (libfuzzer, AFL++, atheris, cargo-fuzz…), análisis estático (CodeQL, Semgrep, YARA), criptografía (constant-time, ProVerif), revisión de C/C++/Rust/Python, cadena de suministro, etc. El usuario las quiere todas porque trabaja con cripto.
+- Seguridad: revisados los 85 scripts y los 4 hooks. **Cero código malicioso** (ni exfiltración, ni robo de credenciales/tokens, ni comandos destructivos, ni inyección en los SKILL.md). Los `rm -rf` de los hooks solo borran clones temporales propios con `session_id` validado.
+- Hooks (se ejecutan solos) → cableados en `.claude/settings.json` (nuevo), con scripts vendorizados en `.claude/hooks-trailofbits/`:
+  - `gh-cli`: sugiere usar `gh` en vez de curl/WebFetch a GitHub. **Inerte aquí** (no hay `gh` instalado).
+  - `skill-improver`: hook de bucle; inerte salvo que se use esa skill.
+  - `fp-check`: comprobación de completitud en cada Stop (prompt); devuelve {ok:true} si la conversación no es de fp-check → inofensivo.
+  - ⚠️ **`modern-python`**: como SÍ hay `uv` instalado, en **sesiones NUEVAS** bloquea `python`/`pip` a secas y obliga a `uv run python …`. Es a propósito (a petición del usuario, "con todo"). PARA DESACTIVARLO: borra el bloque `modern-python` de `.claude/settings.json`. Para el trabajo de vídeo con python usar `uv run --with imageio-ffmpeg,pillow python …`.
+- Total skills: 39 → **116** (81 nuevas; se sobreescribieron 4 que ya estaban: semgrep, insecure-defaults, second-opinion, ask-questions-if-underspecified). Peso `.claude/skills` ≈ 18MB (texto/svg/scripts, nada pesado).
+- Pendiente: nombre definitivo de AFTERS.
+
 ## 2026-08-01 (2) — Instaladas 4 skills de diseño (revisadas por seguridad)
 - Qué se hizo: instaladas en `.claude/skills/` las 4 skills de diseño que faltaban de la lista del vídeo de harysvizcaino, tras revisar el código de cada repo (clonado, sin ejecutar): `web-design-guidelines` (vercel-labs, solo SKILL.md que hace WebFetch a la guía de Vercel), `emil-design-eng` (emilkowalski, SKILL.md de filosofía de diseño), `ui-ux-pro-max` (nextlevelbuilder, base de datos local BM25 en Python + CSVs, sin red, 1,9MB), `huashu-design` (alchaincyf, MIT; guía HTML de prototipos/PPT/animación — instalada SIN los ~30MB de música BGM ni showcases, ver NOTA-INSTALACION.md). Ninguna trae exfiltración/comandos peligrosos/inyección; los únicos hosts de huashu son opt-in (TTS ByteDance/Doubao, Wikimedia) y requieren claves propias. Total: 35 → 39 skills. Probado que el buscador de ui-ux-pro-max funciona offline.
 - Pendiente: nombre definitivo de AFTERS.
