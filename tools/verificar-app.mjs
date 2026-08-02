@@ -104,7 +104,17 @@ function ctxOf(frame) {
 }
 
 async function load() {
-  await page.goto(fileUrl, { waitUntil: "networkidle0", timeout: 30000 });
+  // Timeout amplio: la incubadora "todo-en-uno" pesa varios MB (demos embebidas)
+  // y el parseo inicial puede pasar de 30s en headless. Configurable con VERIF_TIMEOUT.
+  const navTimeout = parseInt(process.env.VERIF_TIMEOUT || "120000", 10);
+  try {
+    await page.goto(fileUrl, { waitUntil: "networkidle0", timeout: navTimeout });
+  } catch (e) {
+    // Reintento tolerante: con todo inline puede no llegar nunca a "networkidle0";
+    // basta con que el DOM esté cargado y damos un margen para que corran los scripts.
+    await page.goto(fileUrl, { waitUntil: "domcontentloaded", timeout: navTimeout });
+    await sleep(1500);
+  }
   await sleep(300);
 }
 
