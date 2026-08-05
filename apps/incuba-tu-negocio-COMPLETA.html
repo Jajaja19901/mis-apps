@@ -2754,10 +2754,16 @@ function frame(ts){
   var vm=window.__vidMix||0; vm+=((window.__vidVis?1:0)-vm)*Math.min(1,dt*3); window.__vidMix=vm;
   if(vm<.97){ draw(.09,.24*aShown*(1-vm)); draw(.045,.40*aShown*(1-vm)); } draw(0,1.18*aShown);
 }
-raf=requestAnimationFrame(frame);
-document.addEventListener("visibilitychange",function(){
-  if(document.hidden){ if(raf){cancelAnimationFrame(raf);raf=null;} }
-  else if(!raf){ t0=null;tPrev=0;raf=requestAnimationFrame(frame); } });
+var _heroVis=true;
+function _swarmGo(){ if(!raf && !document.hidden && _heroVis){ t0=null;tPrev=0;raf=requestAnimationFrame(frame); } }
+function _swarmStop(){ if(raf){cancelAnimationFrame(raf);raf=null;} }
+document.addEventListener("visibilitychange",function(){ if(document.hidden){ _swarmStop(); } else { _swarmGo(); } });
+/* pausa el enjambre cuando el héroe no está a la vista (ahorra CPU/GPU al bajar) */
+if("IntersectionObserver" in window && cv){
+  new IntersectionObserver(function(es){ var vis=false; es.forEach(function(x){ if(x.isIntersecting) vis=true; }); _heroVis=vis; if(vis){ _swarmGo(); } else { _swarmStop(); } },{threshold:0}).observe(cv);
+}
+/* arranca tras la carga (queda tapado por el velo "INCUBANDO"), no durante el parseo */
+if(document.readyState==="complete"){ setTimeout(_swarmGo,250); } else { addEventListener("load",function(){ setTimeout(_swarmGo,250); }); }
 })();
 </script>
 
