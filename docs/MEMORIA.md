@@ -3,6 +3,16 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-06 (3) — Rediseñadas AFTERS, Vigía y Control (las 3 con vídeo), distintas entre sí
+- Problema (queja del usuario): las 3 webs con vídeo compartían el MISMO molde "award" (cinta → héroe con titular degradado → vídeo en marco con brillo + reveals → rejilla features 2x2 → pasos → CTA). Se veían iguales pese a ser apps de conceptos distintos.
+- Solución: 3 diseñadores `ingeniero-frontend` en paralelo, cada uno con el concepto real de su app:
+  - AFTERS = mapa social nocturno (retícula de calles, minimapa con pines convergiendo, vídeo enmarcado como MÓVIL con overlay de mapa "EN VIVO", features como chinchetas, pasos sobre una ruta).
+  - Vigía = sala de control / HUD de vigilancia IA (monospace, scanlines, radar SVG, vídeo como FEED DE CÁMARA "REC · CAM 01" con retícula, módulos "MOD-0N ● ONLINE/ALERTA", log de eventos).
+  - Control = acceso VIP/QR (negro + oro champán, vídeo como TÓTEM lector de QR "ESCANEANDO→AUTORIZADO", entradas tipo ticket troquelado con precios, pasos-checkpoint, sello circular de aforo).
+- Truco anti-corrupción del vídeo: extraje vídeo+póster a sidecars con marcadores `@@ASSET0@@`/`@@ASSET1@@` (esqueletos ~11KB), el agente rediseñó sin tocar el MB de base64, y re-inflé con script (scratchpad/inflate-vid.mjs). El inflado valida que cada marcador aparezca exactamente 1 vez.
+- Conservado: contenido real, cinta, los 3 scripts (reveal/sonido/aviso demo) y sus enganches de clase (.screen/.sound/.btn/.reveal), firma del pie. Sin errores de consola. Re-embebidas en la incubadora (5,61 MB), ✅ APTO.
+- Pendiente: nombre definitivo de AFTERS.
+
 ## 2026-08-06 (2) — Rediseñadas las 11 webs básicas, cada una con identidad propia
 - Problema (queja del usuario): todas las webs `-web.html` eran la MISMA plantilla recoloreada (cinta → héroe centrado serif → botón verde WhatsApp → lista de servicios con emoji → CTA → pie). "Se ven todas iguales". Se instalaron skills de diseño para esto y no se aprovechaban.
 - Solución: rediseñada CADA web con un mundo visual distinto, delegando en subagentes `ingeniero-frontend` en paralelo (2 tandas: 4 + 7), cada uno con brief de estilo específico. Conservado SIEMPRE: contenido real (textos/precios/horarios), la cinta superior exacta, los botones `.btn` sin href + el `<script>` de aviso demo (verbatim), y la firma del pie.
