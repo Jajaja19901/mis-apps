@@ -3,6 +3,14 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-06 (4) — AFTERS/Vigía/Control: quitados parpadeos + transición "award" fiable
+- Queja del usuario: las 3 con vídeo "se cortan, muchos parpadeos". Causa: los subagentes metieron demasiadas animaciones infinitas (AFTERS 10, Vigía 7, Control 5) + texturas full-screen que tililan (scanlines en Vigía con mix-blend-mode:overlay; rejilla de calles fija en AFTERS), y el `reveal` al scroll NO se disparaba dentro del visor (iframe) → secciones ocultas = "se corta".
+- Arreglo (capa de calma, en los esqueletos, re-inflado): quitadas scanlines full-screen (Vigía), atenuada la rejilla de AFTERS (opacity .28), parpadeos duros `steps(1)` → suaves ease, `*{animation-duration}` ralentizado dentro de `@media (prefers-reduced-motion: no-preference)` (¡importante: NO pisar reduce-motion!), fuera pulso de alarma de fondo.
+- Transición "award" FIABLE (reemplaza el reveal frágil): detecta si está en iframe → hace CASCADA de entrada escalonada (no depende del scroll, que es lo que fallaba en el visor); standalone → cascada de lo visible + IntersectionObserver para el resto; salvavidas `setTimeout(showAll,2200)` para que NADA quede oculto; curva premium cubic-bezier(.16,1,.3,1) y el marco del vídeo entra con leve zoom (scale .968→1). Respeta reduce-motion.
+- Probado con navegador: 0 elementos ocultos tanto standalone como DENTRO DE IFRAME, sin errores de consola. Re-embebido, incubadora ✅ APTO.
+- Nota: el reveal reescrito vive en los 3 archivos; si se tocan, mantener la rama `inIframe` (cascada) o volverá a cortarse en el visor.
+- Pendiente: nombre definitivo de AFTERS.
+
 ## 2026-08-06 (3) — Rediseñadas AFTERS, Vigía y Control (las 3 con vídeo), distintas entre sí
 - Problema (queja del usuario): las 3 webs con vídeo compartían el MISMO molde "award" (cinta → héroe con titular degradado → vídeo en marco con brillo + reveals → rejilla features 2x2 → pasos → CTA). Se veían iguales pese a ser apps de conceptos distintos.
 - Solución: 3 diseñadores `ingeniero-frontend` en paralelo, cada uno con el concepto real de su app:
