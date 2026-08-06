@@ -3,6 +3,11 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-06 (7) — AFTERS/Vigía/Control: vídeo a demanda (fin del temblor al scroll en móvil)
+- El usuario seguía viendo "toda la página tiembla al hacer scroll" SOLO en las 3 con vídeo, pese a haber quitado TODAS las animaciones, backdrop-filter, fondos fixed, mix-blend, sticky header y haber aislado el vídeo en capa. Conclusión: era el **vídeo reproduciéndose** lo que repinta toda la página al desplazar en su móvil (jank de compositing de <video> en scroll, no reproducible en headless de escritorio).
+- Arreglo definitivo: **quitado `autoplay`**. El vídeo arranca PARADO mostrando su póster (imagen fija = cero repintado al hacer scroll). Añadido botón ▶ (`.playbtn`) centrado; al tocarlo reproduce. Además IntersectionObserver lo pausa al salir de vista. Verificado: parado al inicio, botón presente, reproduce al pulsar, sin errores de consola.
+- Historial del caso (por si reaparece): (a) animaciones→none incl. pseudo-elementos; (b) transición reveal disparada en window.load+rAF para verse tras el spinner del visor; (c) backdrop-filter/fixed/blend fuera; (d) header static; (e) vídeo sin autoplay = LA que lo resolvió. Todo en `@media no-preference` donde aplica, respetando reduce-motion.
+
 ## 2026-08-06 (6) — AFTERS/Vigía/Control: parpadeo CERO + transición visible en el visor
 - El usuario seguía viendo parpadeo y NO veía la transición. Diagnóstico real (reproducido conduciendo el visor de la incubadora con Puppeteer): (1) la cascada de reveal se completaba DURANTE la carga/spinner, así que cuando el visor mostraba la web, la transición ya había pasado → "no la veo"; (2) quedaban animaciones en bucle (incluidas en pseudo-elementos ::before/::after, que `*` no cubre) → parpadeo.
 - Arreglo: `*,*::before,*::after{animation:none !important}` dentro de `@media (prefers-reduced-motion: no-preference)` → 0 animaciones en bucle (confirmado document.getAnimations()==0 en el visor). Reveal reescrito para arrancar en `window.load`+rAF (así se ve DESPUÉS del spinner) con cascada escalonada 140+i*130ms y salvavidas a 4s. Medido en el visor: reveals suben 1→13 gradualmente = transición visible.
