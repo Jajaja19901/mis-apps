@@ -203,7 +203,7 @@
   }
   .status-swap .s1,.status-swap .s2{animation-timing-function:ease-in-out !important} /* el texto cambia con fundido, no de golpe */
   @media (prefers-reduced-motion: no-preference){
-    *{animation-duration:5s !important}                     /* LED, escaneo y cambios, más lentos */
+    *,*::before,*::after{animation:none !important}                 /* sin animaciones en bucle: cero parpadeo */
   }
 </style>
 </head>
@@ -435,16 +435,12 @@
   if(!els.length) return;
   var reduce = matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   function showAll(){ els.forEach(function(e){ e.classList.add('in'); }); }
-  if(reduce || !('IntersectionObserver' in window)){ showAll(); return; }
-  var inIframe=false; try{ inIframe = window.self !== window.top; }catch(e){ inIframe=true; }
-  if(inIframe){ /* dentro del visor: cascada de entrada elegante (fiable, no depende del scroll) */
-    els.forEach(function(e,i){ setTimeout(function(){ e.classList.add('in'); }, 90 + Math.min(i,12)*105); }); return; }
-  /* standalone: cascada de lo visible al cargar + revelado al hacer scroll */
-  var vh=innerHeight, k=0;
-  els.forEach(function(e){ if(e.getBoundingClientRect().top < vh*0.9){ (function(el,d){ setTimeout(function(){ el.classList.add('in'); }, 70 + d*95); })(e, Math.min(k,6)); k++; } });
-  var io = new IntersectionObserver(function(es){ es.forEach(function(x){ if(x.isIntersecting){ x.target.classList.add('in'); io.unobserve(x.target); } }); }, { threshold:0.12, rootMargin:'0px 0px -6% 0px' });
-  els.forEach(function(e){ if(!e.classList.contains('in')) io.observe(e); });
-  setTimeout(showAll, 2200); /* salvavidas: nada se queda oculto */
+  if(reduce){ showAll(); return; }
+  function run(){ els.forEach(function(e,i){ setTimeout(function(){ e.classList.add('in'); }, 140 + Math.min(i,14)*130); }); }
+  /* arranca cuando la pagina esta pintada (asi la transicion se ve tras el spinner del visor) */
+  if(document.readyState === 'complete'){ requestAnimationFrame(function(){ requestAnimationFrame(run); }); }
+  else { window.addEventListener('load', function(){ requestAnimationFrame(function(){ requestAnimationFrame(run); }); }); }
+  setTimeout(showAll, 4000); /* salvavidas: nada se queda oculto */
 })();
 /* Botón de sonido del vídeo */
 document.querySelectorAll('.sound').forEach(function(btn){

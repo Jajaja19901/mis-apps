@@ -3,6 +3,12 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-06 (6) — AFTERS/Vigía/Control: parpadeo CERO + transición visible en el visor
+- El usuario seguía viendo parpadeo y NO veía la transición. Diagnóstico real (reproducido conduciendo el visor de la incubadora con Puppeteer): (1) la cascada de reveal se completaba DURANTE la carga/spinner, así que cuando el visor mostraba la web, la transición ya había pasado → "no la veo"; (2) quedaban animaciones en bucle (incluidas en pseudo-elementos ::before/::after, que `*` no cubre) → parpadeo.
+- Arreglo: `*,*::before,*::after{animation:none !important}` dentro de `@media (prefers-reduced-motion: no-preference)` → 0 animaciones en bucle (confirmado document.getAnimations()==0 en el visor). Reveal reescrito para arrancar en `window.load`+rAF (así se ve DESPUÉS del spinner) con cascada escalonada 140+i*130ms y salvavidas a 4s. Medido en el visor: reveals suben 1→13 gradualmente = transición visible.
+- Nota: la única animación que sigue = el vídeo reproduciéndose (intencional). Todo lo demás, estático + entrada en cascada.
+- El vídeo/las webs no cambian de aspecto, solo dejan de tener movimiento de fondo. Re-embebido, sin errores de consola.
+
 ## 2026-08-06 (5) — Revisión "que funcione perfecto": apps autocontenidas + demo AFTERS
 - Revisión funcional de los 37 HTML (apps/ + webs-basicas/). Todo carga y funciona. Hallazgo: varias apps NO eran autocontenidas (pedían cosas de internet), rompiendo la regla de oro.
 - Arreglos autocontención (commit 8d0511e): quitadas las etiquetas Google Fonts de 6 apps (afters, incuba-tu-negocio, inmobiliaria-ejemplo, logopedia-infantil, logopedia-playstore-ninos, pio) — las font-family ya tenían respaldo del sistema. Neutralizado enlace externo real que quedaba en inmobiliaria-ejemplo (hipotecajovencanaria.com, sin anonimizar).
