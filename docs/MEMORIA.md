@@ -3,6 +3,14 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-06 — Revisión + optimización de carga/fluidez de la incubadora
+- Revisión a fondo de `apps/incuba-tu-negocio-COMPLETA.html` (verificador + chequeo de consistencia en navegador). Único bug real: **ID duplicado `ig`** (el logo `logoMark()` se pinta en cabecera y pie con el mismo `id` de degradado SVG) → arreglado dando id único (`ig1`, `ig2`…). Los avisos "Incubar/email" del verificador son falsos positivos (enlaces reales href/#hash/mailto).
+- **Fluidez**: medido con navegador (móvil, CPU x4). El lastre NO era compilar APPS (lo comprobé vaciando los blobs: la tarea larga seguía). Era el **enjambre WebGL** (`frame`, la animación del huevo): arrancaba durante el parseo y **corría para siempre aunque el héroe no se viera**. Arreglado: arranca 250ms tras `load` (tapado por el velo "INCUBANDO") + `IntersectionObserver` sobre el canvas lo pausa fuera de vista y lo reanuda al volver. El huevo se ve idéntico (confirmado por captura).
+- **Peso**: el 61% de la página eran los 3 vídeos (720p). Recomprimidos a **540p** (CRF30, audio 56k mono) con el ffmpeg de imageio: AFTERS 1,1M→776K, Vigía 836K→644K, Control 864K→672K. Re-embebidos con `regenerar-completa.mjs`. **Página 6,2 MB → 5,57 MB**. Fotograma 540p comprobado: nítido. Nota: los vídeos ya estaban muy comprimidos, por eso el ahorro fue ~0,6MB y no más.
+- Además: `tools/verificar-app.mjs` ahora tiene timeout de navegación configurable (`VERIF_TIMEOUT`, 120s) con reintento tolerante, para la incubadora grande.
+- OJO entorno: tras un reinicio de contenedor, el hook `modern-python` (instalado el 08-02) ya estaba activo y bloquea `python`/`pip` a secas (usar `uv run python` o binarios directos). El ffmpeg de imageio-ffmpeg sobrevive en dist-packages.
+- Todo verificado ✅ APTO. Pendiente: nombre definitivo de AFTERS.
+
 ## 2026-08-02 — Instaladas las 81 skills de seguridad de Trail of Bits (revisadas)
 - Qué se hizo: instalado el marketplace oficial `github.com/trailofbits/skills` (firma de seguridad real) en `.claude/skills/` en formato plano, tras auditar TODO el repo clonado sin ejecutarlo. Son **81 skills** (el post decía ~75), no solo las 4 que ya teníamos. Cubren: auditoría de contratos blockchain (Solana, Cairo, Cosmos, Substrate, TON, Algorand), fuzzing (libfuzzer, AFL++, atheris, cargo-fuzz…), análisis estático (CodeQL, Semgrep, YARA), criptografía (constant-time, ProVerif), revisión de C/C++/Rust/Python, cadena de suministro, etc. El usuario las quiere todas porque trabaja con cripto.
 - Seguridad: revisados los 85 scripts y los 4 hooks. **Cero código malicioso** (ni exfiltración, ni robo de credenciales/tokens, ni comandos destructivos, ni inyección en los SKILL.md). Los `rm -rf` de los hooks solo borran clones temporales propios con `session_id` validado.
