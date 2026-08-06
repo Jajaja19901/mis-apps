@@ -7,109 +7,102 @@
 <meta name="description" content="Control Acceso — entradas con QR, listas de invitados y aforo controlado para tu próximo evento. Reserva tu entrada por WhatsApp.">
 <style>
   :root{
-    --bg:#07070a; --surface:#131318; --surface2:#0d0d11; --border:#28282e;
-    --gold:#d9b571; --gold-deep:#a67f2e; --verde:#23e39c;
-    --tinta:#f5f1e6; --suave:#96959d; --ribbon-bg:#0a0e16;
+    --bg:#0f0f23; --bg-deep:#08081a; --primary:#1e1b4b; --secondary:#312e81;
+    --surface:#15142e; --surface2:#0f0e24; --border:rgba(67,56,202,.4); --border-soft:rgba(67,56,202,.2);
+    --gold:#ca8a04; --gold-light:#eab90c; --tinta:#f8fafc; --suave:#a9a6d0;
+    --verde:#22c55e; --rojo:#ef4444; --ribbon-bg:#0a0a1e;
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html{background:var(--bg)}
-  body{background:var(--bg);color:var(--tinta);font-family:Arial,Helvetica,sans-serif;line-height:1.6;overflow-x:hidden;
-    background-image:radial-gradient(rgba(255,255,255,.025) 1px,transparent 1px);background-size:26px 26px}
+  body{background:var(--bg);color:var(--tinta);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    line-height:1.6;overflow-x:hidden;
+    background-image:radial-gradient(rgba(255,255,255,.022) 1px,transparent 1px);background-size:26px 26px}
   a{color:inherit}
-  h1,h2{font-family:Georgia,'Times New Roman',serif;font-weight:700;color:var(--tinta)}
+  h1,h2{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-weight:800;color:var(--tinta);letter-spacing:.005em}
   :focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 
   /* ---------- cinta ---------- */
-  .ribbon{background:var(--ribbon-bg) repeating-linear-gradient(135deg,rgba(255,255,255,.03) 0 8px,transparent 8px 16px);
-    color:var(--verde);font-family:'Courier New',monospace;font-size:11px;letter-spacing:.14em;text-align:center;
+  .ribbon{background:var(--ribbon-bg);border-bottom:1px solid var(--border-soft);
+    color:var(--gold-light);font-family:'Courier New',monospace;font-size:11px;letter-spacing:.14em;text-align:center;
     padding:7px 10px;text-transform:uppercase}
 
   /* ---------- header: credencial de acceso ---------- */
-  header{padding:14px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);
-    position:sticky;top:0;background:rgba(7,7,10,.85);backdrop-filter:blur(10px);z-index:50}
-  .badge{width:36px;height:42px;flex-shrink:0;position:relative;border-radius:6px 6px 11px 11px;
-    background:linear-gradient(160deg,#1d1d22,#0a0a0d);border:1px solid var(--gold);
+  header{padding:16px 20px;display:flex;align-items:center;gap:13px;border-bottom:1px solid var(--border-soft);
+    background:var(--bg)}
+  .badge{width:38px;height:44px;flex-shrink:0;position:relative;border-radius:6px 6px 12px 12px;
+    background:linear-gradient(160deg,var(--primary),var(--bg-deep));border:1px solid var(--gold);
     display:flex;align-items:center;justify-content:center}
   .badge::before{content:"";position:absolute;top:-4px;left:50%;transform:translateX(-50%);
-    width:13px;height:5px;border-radius:3px;background:var(--border)}
-  .badge b{font-family:Georgia,serif;font-size:13px;color:var(--gold);letter-spacing:.02em}
+    width:14px;height:5px;border-radius:3px;background:var(--secondary)}
+  .badge b{font-family:system-ui,sans-serif;font-size:13px;font-weight:800;color:var(--gold);letter-spacing:.03em}
   .badge i{position:absolute;bottom:3px;right:3px;width:6px;height:6px;border-radius:50%;
     background:var(--verde);box-shadow:0 0 6px var(--verde)}
-  header .nom{font-size:clamp(16px,4.4vw,19px);font-weight:700;letter-spacing:.05em;font-family:Georgia,serif}
+  header .nom{font-size:clamp(16px,4.4vw,19px);font-weight:800;letter-spacing:.06em;text-transform:uppercase}
 
   /* ---------- hero ---------- */
-  .hero{position:relative;overflow:hidden;padding:50px 22px 28px;text-align:center;
-    background:radial-gradient(560px 320px at 50% -12%,#161619,var(--bg))}
+  .hero{position:relative;overflow:hidden;padding:52px 22px 30px;text-align:center;
+    background:radial-gradient(620px 340px at 50% -14%,var(--secondary) 0%,transparent 62%),
+      radial-gradient(420px 260px at 100% 0%,rgba(202,138,4,.10) 0%,transparent 60%),var(--bg)}
   .qr-watermark{position:absolute;top:-18px;right:-26px;width:clamp(170px,42vw,300px);height:auto;
-    color:var(--gold);opacity:.07;z-index:0;pointer-events:none}
+    color:var(--gold);opacity:.06;z-index:0;pointer-events:none}
   .hero-inner{position:relative;z-index:1}
   .mini{display:inline-block;font-family:'Courier New',monospace;font-size:11px;letter-spacing:.24em;
-    text-transform:uppercase;color:var(--gold);border:1px solid rgba(217,181,113,.35);border-radius:999px;
-    padding:5px 12px}
-  h1{font-size:clamp(30px,7.6vw,46px);line-height:1.12;margin:16px auto 12px;max-width:520px}
-  h1 em{font-style:italic;color:var(--gold)}
+    text-transform:uppercase;color:var(--gold);border:1px solid rgba(202,138,4,.4);border-radius:999px;
+    padding:6px 13px}
+  h1{font-size:clamp(30px,7.6vw,46px);line-height:1.14;margin:18px auto 12px;max-width:520px;font-weight:800}
+  h1 em{font-style:normal;color:var(--gold);text-shadow:0 0 26px rgba(202,138,4,.35)}
   .hero-inner>p{color:var(--suave);max-width:430px;margin:0 auto 26px;font-size:16px}
-  .btn{display:inline-block;background:var(--gold);color:#1a1200;border-radius:10px;padding:15px 30px;
-    text-decoration:none;font-family:Arial,sans-serif;font-weight:800;font-size:15px;border:0;cursor:pointer;
-    transition:transform .18s ease,box-shadow .18s ease;letter-spacing:.02em}
-  .btn:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(217,181,113,.3)}
-  .btn.wa{background:#25d366;color:#06210f}
-  .nota{display:block;margin-top:10px;font-family:'Courier New',monospace;font-size:11.5px;color:#6d6d78}
+  .btn{display:inline-block;background:var(--gold);color:var(--bg-deep);border-radius:10px;padding:16px 32px;
+    text-decoration:none;font-family:system-ui,sans-serif;font-weight:800;font-size:15px;border:0;cursor:pointer;
+    transition:transform .18s ease,box-shadow .18s ease;letter-spacing:.03em;min-height:44px}
+  .btn:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(202,138,4,.32)}
+  .btn:focus-visible{outline-offset:4px}
+  .btn.wa{background:var(--gold);color:var(--bg-deep)}
+  .nota{display:block;margin-top:11px;font-family:'Courier New',monospace;font-size:11.5px;color:#66647f}
 
   /* ---------- perforación (línea de troquelado) ---------- */
-  .perforation{position:relative;height:1px;border-top:2px dashed rgba(217,181,113,.28);margin:0 22px}
+  .perforation{position:relative;height:1px;border-top:2px dashed rgba(202,138,4,.3);margin:0 22px}
   .perforation::before,.perforation::after{content:"";position:absolute;top:-9px;width:18px;height:18px;
     border-radius:50%;background:var(--bg)}
   .perforation::before{left:-9px}
   .perforation::after{right:-9px}
 
   /* ---------- kiosco / punto de acceso (vídeo) ---------- */
-  .kiosk-wrap{max-width:640px;margin:26px auto 6px;padding:0 18px}
-  .kiosk{position:relative;border-radius:20px;padding:10px;background:linear-gradient(160deg,#111114,#08080a);
-    border:1px solid var(--border);box-shadow:0 26px 60px -28px rgba(0,0,0,.85),0 0 0 1px rgba(217,181,113,.08);
-    animation:kioskfloat 7s ease-in-out infinite}
+  .kiosk-wrap{max-width:640px;margin:28px auto 6px;padding:0 18px}
+  .kiosk{position:relative;border-radius:20px;padding:10px;background:linear-gradient(160deg,var(--surface),var(--bg-deep));
+    border:1px solid var(--border);box-shadow:0 26px 60px -28px rgba(0,0,0,.85),0 0 0 1px rgba(202,138,4,.1)}
   .kiosk-bar{display:flex;align-items:center;gap:8px;padding:6px 8px 10px}
-  .cam-dot{width:8px;height:8px;border-radius:50%;background:#2b2b30;box-shadow:inset 0 0 0 1px rgba(255,255,255,.1);flex-shrink:0}
+  .cam-dot{width:8px;height:8px;border-radius:50%;background:var(--secondary);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);flex-shrink:0}
   .kiosk-label{flex:1;font-family:'Courier New',monospace;font-size:10.5px;letter-spacing:.1em;
     text-transform:uppercase;color:var(--suave);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .led{display:flex;align-items:center;gap:5px;font-family:'Courier New',monospace;font-size:10px;
     letter-spacing:.07em;color:var(--verde);text-transform:uppercase;flex-shrink:0}
-  .led i{width:6px;height:6px;border-radius:50%;background:var(--verde);box-shadow:0 0 6px var(--verde);
-    animation:ledpulse 1.8s ease-in-out infinite}
+  .led i{width:6px;height:6px;border-radius:50%;background:var(--verde);box-shadow:0 0 7px var(--verde)}
   .kiosk-screen{position:relative;border-radius:13px;overflow:hidden;background:#000}
   .promo{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;background:#000}
-  .corner{position:absolute;width:20px;height:20px;border-color:var(--gold);opacity:.85;pointer-events:none}
+  .corner{position:absolute;width:20px;height:20px;border-color:var(--gold);opacity:.9;pointer-events:none}
   .corner.tl{top:8px;left:8px;border-top:2px solid;border-left:2px solid;border-top-left-radius:6px}
   .corner.tr{top:8px;right:8px;border-top:2px solid;border-right:2px solid;border-top-right-radius:6px}
   .corner.bl{bottom:8px;left:8px;border-bottom:2px solid;border-left:2px solid;border-bottom-left-radius:6px}
   .corner.br{bottom:8px;right:8px;border-bottom:2px solid;border-right:2px solid;border-bottom-right-radius:6px}
-  .scan-line{position:absolute;left:10%;right:10%;height:2px;top:12%;
-    background:linear-gradient(90deg,transparent,var(--verde),transparent);box-shadow:0 0 10px var(--verde);
-    animation:scan 3.2s ease-in-out infinite}
-  .kiosk-chip{position:absolute;z-index:2;left:34px;top:10px;background:rgba(5,5,8,.72);color:var(--gold);
+  .kiosk-chip{position:absolute;z-index:2;left:34px;top:10px;background:rgba(5,5,15,.78);color:var(--gold);
     font-family:'Courier New',monospace;font-size:11px;letter-spacing:.08em;padding:6px 11px;border-radius:999px;
-    border:1px solid rgba(217,181,113,.4)}
+    border:1px solid rgba(202,138,4,.45)}
   .sound{position:absolute;z-index:2;right:34px;bottom:10px;width:44px;height:44px;border-radius:50%;
-    border:1px solid rgba(255,255,255,.2);background:rgba(5,5,8,.72);color:#fff;font-size:18px;cursor:pointer;
+    border:1px solid rgba(255,255,255,.2);background:rgba(5,5,15,.78);color:#fff;font-size:18px;cursor:pointer;
     display:flex;align-items:center;justify-content:center;transition:transform .15s ease}
   .sound:hover{transform:scale(1.08)}
-  .kiosk-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 8px 6px;flex-wrap:wrap}
-  .status-swap{position:relative;height:18px;min-width:170px}
-  .status-swap span{position:absolute;left:0;top:0;display:flex;align-items:center;gap:6px;white-space:nowrap;
-    font-family:'Courier New',monospace;font-size:11.5px;letter-spacing:.04em}
-  .status-swap .s1{color:var(--suave);animation:swap1 4.5s steps(1) infinite}
-  .status-swap .s2{color:var(--verde);opacity:0;animation:swap2 4.5s steps(1) infinite}
-  .qr-mini{width:20px;height:20px;color:var(--gold);opacity:.8;flex-shrink:0}
-  @keyframes kioskfloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-  @keyframes ledpulse{0%,100%{opacity:1}50%{opacity:.3}}
-  @keyframes scan{0%{top:12%}50%{top:88%}100%{top:12%}}
-  @keyframes swap1{0%,58%{opacity:1}62%,100%{opacity:0}}
-  @keyframes swap2{0%,58%{opacity:0}62%,100%{opacity:1}}
+  .kiosk-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 8px 6px;flex-wrap:wrap}
+  .scan-flow{display:flex;align-items:center;gap:7px;flex-wrap:wrap;font-family:'Courier New',monospace;font-size:11px;letter-spacing:.03em}
+  .flow-step{color:var(--suave);white-space:nowrap}
+  .flow-step.flow-ok{color:var(--verde)}
+  .flow-arrow{color:var(--gold);opacity:.7}
+  .qr-mini{width:20px;height:20px;color:var(--gold);opacity:.85;flex-shrink:0}
 
   /* ---------- secciones ---------- */
   main{display:block}
-  section{padding:38px 22px;max-width:660px;margin:0 auto}
-  h2{font-size:clamp(21px,5vw,25px);margin-bottom:6px}
+  section{padding:40px 22px;max-width:660px;margin:0 auto}
+  h2{font-size:clamp(21px,5vw,26px);margin-bottom:6px;text-transform:uppercase;letter-spacing:.03em}
   .sub2{font-family:'Courier New',monospace;font-size:12px;letter-spacing:.03em;color:var(--suave);margin-bottom:20px}
 
   /* ---------- entradas: fila con cabecera + QR ---------- */
@@ -119,60 +112,65 @@
   /* ---------- tickets troquelados ---------- */
   .ticket-list{display:flex;flex-direction:column;gap:16px;margin-top:16px}
   .ticket{position:relative;display:flex;align-items:stretch;overflow:visible;border-radius:14px;
-    background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid var(--border)}
-  .ticket-main{flex:1;min-width:0;padding:15px 16px;display:flex;flex-direction:column;justify-content:center;gap:4px}
-  .ticket-name{font-family:Georgia,serif;font-size:16px;color:var(--tinta)}
+    background:linear-gradient(135deg,var(--surface),var(--surface2));border:1px solid var(--border-soft);
+    transition:border-color .2s ease,transform .2s ease}
+  .ticket:hover{transform:translateY(-2px);border-color:var(--border)}
+  .ticket-main{flex:1;min-width:0;padding:16px 16px;display:flex;flex-direction:column;justify-content:center;gap:4px}
+  .ticket-name{font-size:16px;font-weight:700;color:var(--tinta)}
   .ticket-desc{font-size:12.5px;color:var(--suave)}
-  .ticket-stub{position:relative;min-width:78px;display:flex;align-items:center;justify-content:center;
-    padding:10px 12px;border-left:2px dashed rgba(217,181,113,.4)}
+  .ticket-stub{position:relative;min-width:80px;display:flex;align-items:center;justify-content:center;
+    padding:10px 12px;border-left:2px dashed rgba(202,138,4,.4)}
   .ticket-stub::before,.ticket-stub::after{content:"";position:absolute;left:-8px;width:16px;height:16px;
-    border-radius:50%;background:var(--bg);border:1px solid var(--border)}
+    border-radius:50%;background:var(--bg);border:1px solid var(--border-soft)}
   .ticket-stub::before{top:-8px}
   .ticket-stub::after{bottom:-8px}
   .ticket-price{font-family:'Courier New',monospace;font-weight:700;font-size:18px;color:var(--gold)}
-  .ticket-vip{border-color:var(--gold);background:linear-gradient(135deg,#1c1608,#131318)}
-  .ticket-vip .ticket-price{color:var(--gold)}
+  .ticket-vip{border-color:var(--rojo);background:linear-gradient(135deg,#1f0e10,var(--surface2))}
+  .ticket-vip .ticket-stub{border-left-color:rgba(239,68,68,.45)}
+  .ticket-vip .ticket-price{color:var(--rojo)}
+  .ticket-vip:hover{border-color:var(--rojo)}
   .vip-stamp{position:absolute;z-index:2;top:-12px;right:14px;width:52px;height:52px;border-radius:50%;
-    border:2px solid var(--gold);display:flex;align-items:center;justify-content:center;color:var(--gold);
-    font-family:Georgia,serif;font-weight:700;font-size:12px;letter-spacing:.03em;transform:rotate(-9deg);
-    background:var(--bg);opacity:.92}
-  .vip-stamp::before{content:"";position:absolute;inset:4px;border:1px solid var(--gold);border-radius:50%;opacity:.55}
+    border:2px solid var(--rojo);display:flex;align-items:center;justify-content:center;color:var(--rojo);
+    font-weight:800;font-size:12px;letter-spacing:.03em;transform:rotate(-9deg);
+    background:var(--bg);opacity:.94}
+  .vip-stamp::before{content:"";position:absolute;inset:4px;border:1px solid var(--rojo);border-radius:50%;opacity:.55}
 
   /* ---------- cómo funciona: checkpoints ---------- */
   .checkpoints{list-style:none}
   .checkpoints li{position:relative;display:flex;gap:16px;padding-bottom:28px}
   .checkpoints li:last-child{padding-bottom:0}
   .checkpoints li:not(:last-child)::before{content:"";position:absolute;left:16px;top:34px;bottom:-2px;
-    border-left:2px dashed rgba(217,181,113,.3)}
-  .cp-num{flex-shrink:0;width:34px;height:34px;border-radius:50%;background:var(--gold);color:#1a1200;
+    border-left:2px dashed rgba(202,138,4,.3)}
+  .cp-num{flex-shrink:0;width:34px;height:34px;border-radius:50%;background:var(--gold);color:var(--bg-deep);
     font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center;position:relative;z-index:1}
   .cp-final{background:var(--verde);color:#062018}
   .cp-final svg{width:16px;height:16px}
-  .cp-body b{display:block;font-family:Georgia,serif;font-size:15.5px;color:var(--tinta);margin-bottom:3px}
+  .cp-body b{display:block;font-size:15.5px;font-weight:700;color:var(--tinta);margin-bottom:3px}
   .cp-body p{font-size:13.5px;color:var(--suave)}
-  .band-mini{width:56px;height:auto;color:var(--gold);opacity:.85;margin-top:8px}
+  .band-mini{width:56px;height:auto;color:var(--gold);opacity:.9;margin-top:8px}
 
   /* ---------- la próxima: detalles de pase ---------- */
   .pass-details{display:grid;grid-template-columns:1fr;gap:14px;margin-top:14px}
   .detail{background:var(--surface);border:1px dashed var(--border);border-radius:12px;padding:16px 18px}
   .detail-label{display:block;font-family:'Courier New',monospace;font-size:11px;letter-spacing:.12em;
     text-transform:uppercase;color:var(--gold);margin-bottom:6px}
-  .detail-value{display:block;font-family:Georgia,serif;font-size:15px;color:var(--tinta);line-height:1.5}
+  .detail-value{display:block;font-size:15px;color:var(--tinta);line-height:1.5}
 
   /* ---------- CTA final: sello de aforo ---------- */
-  .cta-final{text-align:center;background:linear-gradient(160deg,#151107,#101014);border:1px solid #3a2f14;
-    border-radius:20px;padding:34px 20px 36px;margin:8px 22px 46px}
-  .stamp-svg{width:clamp(112px,28vw,140px);height:auto;color:var(--verde);opacity:.92;display:block;
+  .cta-final{text-align:center;background:linear-gradient(160deg,#141026,var(--bg-deep));border:1px solid var(--border-soft);
+    border-radius:20px;padding:36px 20px 38px;margin:8px 22px 46px;
+    box-shadow:0 0 0 1px rgba(202,138,4,.06),0 30px 60px -30px rgba(0,0,0,.8)}
+  .stamp-svg{width:clamp(112px,28vw,140px);height:auto;color:var(--verde);opacity:.95;display:block;
     margin:0 auto 12px;transform:rotate(-6deg)}
   .stamp-svg circle{fill:none;stroke:currentColor;stroke-width:2}
   .stamp-svg .ring-thin{stroke-width:1}
-  .stamp-svg .arc-text{font-family:Arial,sans-serif;font-size:9px;font-weight:700;letter-spacing:3px;fill:currentColor}
-  .stamp-svg .num{text-anchor:middle;font-family:Georgia,serif;font-size:23px;font-weight:700;fill:currentColor}
-  .stamp-svg .sub{text-anchor:middle;font-family:Arial,sans-serif;font-size:8px;letter-spacing:2px;fill:currentColor}
+  .stamp-svg .arc-text{font-family:system-ui,sans-serif;font-size:9px;font-weight:700;letter-spacing:3px;fill:currentColor}
+  .stamp-svg .num{text-anchor:middle;font-family:system-ui,sans-serif;font-size:23px;font-weight:800;fill:currentColor}
+  .stamp-svg .sub{text-anchor:middle;font-family:system-ui,sans-serif;font-size:8px;letter-spacing:2px;fill:currentColor}
   .cta-final h2{color:var(--gold)}
   .cta-final p{color:var(--suave);margin:8px 0 20px;font-size:15px}
 
-  footer{border-top:1px solid var(--border);padding:22px;text-align:center;font-size:12px;color:#6d6d78}
+  footer{border-top:1px solid var(--border-soft);padding:22px;text-align:center;font-size:12px;color:#66647f}
 
   .reveal{opacity:0;transform:translateY(26px);
     transition:opacity .7s cubic-bezier(.22,1,.36,1),transform .7s cubic-bezier(.22,1,.36,1)}
@@ -183,40 +181,47 @@
     .pass-details{grid-template-columns:1fr 1fr}
   }
   @media (min-width:720px){
-    section{padding:46px 22px}
+    section{padding:48px 22px}
     .ticket-name{font-size:17px}
+  }
+  @media (min-width:1024px){
+    section{max-width:760px}
+    .kiosk-wrap{max-width:760px}
+    .ticket-list{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+    .ticket-vip{grid-column:1 / -1}
+    .cta-final{max-width:760px;margin-left:auto;margin-right:auto}
+  }
+  @media (min-width:1440px){
+    section{max-width:880px}
+    .kiosk-wrap{max-width:880px}
+    .cta-final{max-width:880px}
+    h1{max-width:640px}
   }
 
   @media (prefers-reduced-motion: reduce){
     *{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition:none !important}
     .reveal{opacity:1;transform:none}
-    .status-swap .s1{opacity:0}
-    .status-swap .s2{opacity:1}
-    .scan-line{display:none}
   }
-  /* ===== CALMA anti-parpadeo (retoque) ===== */
-  /* ===== TRANSICIÓN AWARD: entrada elegante y fiable ===== */
+  /* ===== CALMA anti-parpadeo: sin animaciones en bucle, fondos oscuros estaticos ===== */
   @media (prefers-reduced-motion: no-preference){
     .reveal{transition-duration:.85s !important;transition-timing-function:cubic-bezier(.16,1,.3,1) !important}
     .screen.reveal{transform:translateY(30px) scale(.968)}
     .screen.reveal.in{transform:none}
   }
-  .status-swap .s1,.status-swap .s2{animation-timing-function:ease-in-out !important} /* el texto cambia con fundido, no de golpe */
   @media (prefers-reduced-motion: no-preference){
-    *,*::before,*::after{animation:none !important}                 /* sin animaciones en bucle: cero parpadeo */
+    *,*::before,*::after{animation:none !important}                 /* sin animaciones en bucle: cero parpadeo, fondo estatico */
   }
   /* ===== ANTI-PARPADEO MOVIL: fuera desenfoques y fondos fijos que tilan al hacer scroll ===== */
-  header{background:var(--bg) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important}
+  header{background:var(--bg) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;position:static !important}
   body::before,body::after,.ambient{position:absolute !important}
   .grid-overlay,.screen-overlay{mix-blend-mode:normal !important}
   /* ===== ANTI-TIRITONA AL HACER SCROLL (movil) ===== */
   html{scroll-behavior:auto !important}
-  header{position:static !important}                 /* cabecera no pegajosa: no repinta al desplazar */
   .promo,.screen-frame,.kiosk,.mapwidget,.glass{transform:translateZ(0);will-change:auto}
   /* control pausa/play del video (autoplay inteligente): pequeno, esquina inf-izq, SIEMPRE accesible por teclado */
-  .playbtn{position:absolute;left:12px;bottom:12px;z-index:8;width:42px;height:42px;border-radius:50%;border:0;cursor:pointer;background:rgba(0,0,0,.5);color:#fff;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;opacity:.55;box-shadow:0 4px 16px rgba(0,0,0,.45);transition:transform .15s ease,opacity .2s ease,background-color .15s ease}
-  .playbtn:hover,.playbtn:focus-visible{opacity:1;transform:scale(1.07);background:rgba(0,0,0,.72);outline:none}
-  .playbtn:focus-visible{box-shadow:0 0 0 3px rgba(255,255,255,.6)}
+  .playbtn{position:absolute;left:12px;bottom:12px;z-index:8;width:42px;height:42px;border-radius:50%;border:0;cursor:pointer;background:rgba(8,8,26,.6);color:var(--gold);font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;opacity:.6;box-shadow:0 4px 16px rgba(0,0,0,.45),0 0 0 1px rgba(202,138,4,.25);transition:transform .15s ease,opacity .2s ease,background-color .15s ease}
+  .playbtn:hover,.playbtn:focus-visible{opacity:1;transform:scale(1.07);background:rgba(8,8,26,.82);outline:none}
+  .playbtn:focus-visible{box-shadow:0 0 0 3px rgba(202,138,4,.6)}
   .playbtn span{pointer-events:none}
   .playbtn .i-play{margin-left:2px;display:none}
   .playbtn .i-pause{display:inline}          /* modo auto (por defecto): icono de pausa */
@@ -337,14 +342,14 @@
         <span class="corner tr" aria-hidden="true"></span>
         <span class="corner bl" aria-hidden="true"></span>
         <span class="corner br" aria-hidden="true"></span>
-        <span class="scan-line" aria-hidden="true"></span>
         <span class="kiosk-chip">🎟 Así funciona</span>
         <button class="sound" type="button" aria-label="Activar sonido">🔇</button>
       </div>
       <div class="kiosk-foot">
-        <span class="status-swap" aria-hidden="true">
-          <span class="s1">🔍 Escaneando QR…</span>
-          <span class="s2">✔ Acceso autorizado</span>
+        <span class="scan-flow" aria-hidden="true">
+          <span class="flow-step">🔍 Escaneando QR…</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step flow-ok">✔ Acceso autorizado</span>
         </span>
         <svg class="qr-mini" aria-hidden="true" viewBox="0 0 21 21"><use href="#icon-qr"></use></svg>
       </div>
@@ -457,10 +462,24 @@
   var reduce = matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   function showAll(){ els.forEach(function(e){ e.classList.add('in'); }); }
   if(reduce){ showAll(); return; }
-  function run(){ els.forEach(function(e,i){ setTimeout(function(){ e.classList.add('in'); }, 140 + Math.min(i,14)*130); }); }
-  /* arranca cuando la pagina esta pintada (asi la transicion se ve tras el spinner del visor) */
-  if(document.readyState === 'complete'){ requestAnimationFrame(function(){ requestAnimationFrame(run); }); }
-  else { window.addEventListener('load', function(){ requestAnimationFrame(function(){ requestAnimationFrame(run); }); }); }
+  var inIframe=false; try{ inIframe = window.self !== window.top; }catch(e){ inIframe=true; }
+  function cascade(list){ list.forEach(function(e,i){ setTimeout(function(){ e.classList.add('in'); }, Math.min(i,9)*85); }); }
+  if(inIframe){
+    /* dentro del visor (iframe): no hay scroll -> cascada de todo al cargar */
+    var run=function(){ cascade(els); };
+    if(document.readyState==='complete'){ requestAnimationFrame(function(){ requestAnimationFrame(run); }); }
+    else { window.addEventListener('load', function(){ requestAnimationFrame(function(){ requestAnimationFrame(run); }); }); }
+    setTimeout(showAll, 2200); return;
+  }
+  /* standalone: cada elemento aparece al entrar en pantalla, en pequenas olas (efecto award) */
+  if('IntersectionObserver' in window){
+    var q=[], busy=false;
+    var io=new IntersectionObserver(function(en){
+      en.forEach(function(x){ if(x.isIntersecting){ q.push(x.target); io.unobserve(x.target); } });
+      if(!busy && q.length){ busy=true; requestAnimationFrame(function(){ var b=q.slice(); q=[]; busy=false; cascade(b); }); }
+    }, {threshold:0.14, rootMargin:'0px 0px -8% 0px'});
+    els.forEach(function(e){ io.observe(e); });
+  } else { showAll(); }
   setTimeout(showAll, 4000); /* salvavidas: nada se queda oculto */
 })();
 /* Botón de sonido del vídeo */
@@ -528,5 +547,14 @@ document.addEventListener('click', function (e) {
   });
 })();
 </script>
+<style>
+/* --- Transiciones award (curva premium + cascada), sin pisar reduce-motion --- */
+@media (prefers-reduced-motion: no-preference){
+  .reveal{opacity:0;transform:translateY(32px) scale(.992);transition:opacity .72s cubic-bezier(.16,1,.3,1),transform .72s cubic-bezier(.16,1,.3,1)}
+  .reveal.in{opacity:1;transform:none}
+  .screen.reveal{transform:translateY(38px) scale(.96)}
+  .screen.reveal.in{transform:none}
+}
+</style>
 </body>
 </html>

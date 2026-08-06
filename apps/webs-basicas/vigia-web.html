@@ -22,53 +22,58 @@
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html{scroll-behavior:smooth}
-  body{background:var(--bg);color:var(--tinta);font-family:var(--mono);line-height:1.6;overflow-x:hidden;position:relative}
+  body{
+    background-color:var(--bg);
+    /* rejilla + viñeta de sala de control: estáticas, sin fixed, sin blur */
+    background-image:
+      radial-gradient(ellipse 900px 480px at 50% -8%, rgba(0,234,255,.07), transparent 62%),
+      linear-gradient(rgba(0,234,255,.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,234,255,.045) 1px, transparent 1px);
+    background-size:auto, 36px 36px, 36px 36px;
+    color:var(--tinta);font-family:var(--mono);line-height:1.6;overflow-x:hidden
+  }
   a{color:inherit}
   a:focus-visible,button:focus-visible{outline:2px solid var(--cian);outline-offset:2px}
 
-  /* textura de sala de control: scanlines + viñeta fijas a toda la pantalla */
-  body::before{content:"";position:fixed;inset:0;z-index:9996;pointer-events:none;
-    background:repeating-linear-gradient(to bottom, rgba(255,255,255,.025) 0 1px, transparent 1px 3px);
-    mix-blend-mode:overlay}
-  body::after{content:"";position:fixed;inset:0;z-index:9995;pointer-events:none;
-    background:radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.55) 100%)}
+  /* marco HUD reutilizable: esquinas ESTÁTICAS (sin barrido, sin parpadeo) */
+  .hud{position:relative}
+  .hud::before,.hud::after{content:"";position:absolute;width:11px;height:11px;pointer-events:none}
+  .hud::before{top:-1px;left:-1px;border-top:1px solid var(--corner-color,var(--cian));border-left:1px solid var(--corner-color,var(--cian))}
+  .hud::after{bottom:-1px;right:-1px;border-bottom:1px solid var(--corner-color,var(--cian));border-right:1px solid var(--corner-color,var(--cian))}
+  .alert{--corner-color:var(--ambar)}
 
-  .ribbon{background:#081511;color:var(--verde);font-size:10.5px;letter-spacing:.1em;text-align:center;padding:7px 10px;text-transform:uppercase;border-bottom:1px solid var(--borde)}
+  .ribbon{background:#081511;color:var(--verde);font-size:10.5px;letter-spacing:.12em;text-align:center;padding:7px 10px;text-transform:uppercase;border-bottom:1px solid var(--borde)}
 
-  header{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--borde);position:sticky;top:0;background:rgba(3,6,10,.85);backdrop-filter:blur(10px);z-index:60}
+  header{padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--borde);position:sticky;top:0;background:var(--bg);z-index:60}
   .brand{display:flex;align-items:center;gap:10px;min-width:0}
   .brand-badge{width:32px;height:32px;flex-shrink:0;border-radius:7px;border:1px solid var(--cian);background:rgba(0,234,255,.07);box-shadow:0 0 14px rgba(0,234,255,.22) inset;display:flex;align-items:center;justify-content:center}
   .ojo{width:18px;height:18px}
   header b{font-size:17px;letter-spacing:.06em;white-space:nowrap}
   header b em{font-style:normal;color:var(--cian)}
   .sys-status{display:none;align-items:center;gap:6px;font-size:10px;letter-spacing:.12em;color:var(--verde);white-space:nowrap}
-  .sys-status i{width:6px;height:6px;border-radius:50%;background:var(--verde);box-shadow:0 0 6px var(--verde);animation:blink 1.7s steps(1) infinite;flex-shrink:0}
+  .sys-status i{width:6px;height:6px;border-radius:50%;background:var(--verde);box-shadow:0 0 6px var(--verde);flex-shrink:0}
   @media (min-width:480px){ .sys-status{display:flex} }
-  @keyframes blink{50%{opacity:.2}}
 
   /* HERO */
-  .hero{padding:50px 20px 26px;text-align:center;position:relative;overflow:hidden;background:var(--bg)}
+  .hero{padding:46px 20px 26px;text-align:center;position:relative;overflow:hidden}
   .hero>*:not(.radar){position:relative;z-index:1}
-  .radar{position:absolute;top:-30px;left:50%;transform:translateX(-50%);width:230px;height:230px;z-index:0;opacity:.5;pointer-events:none}
+  .radar{position:absolute;top:-30px;left:50%;transform:translateX(-50%);width:230px;height:230px;z-index:0;opacity:.45;pointer-events:none}
   .radar svg{width:100%;height:100%;display:block}
-  .radar-sweep{position:absolute;inset:0;border-radius:50%;
-    background:conic-gradient(from 0deg, rgba(0,234,255,.55), transparent 24%, transparent 100%);
-    animation:radarspin 4.5s linear infinite}
-  @keyframes radarspin{to{transform:rotate(360deg)}}
   .hero .mini{display:inline-block;font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--verde);border:1px solid #12331f;background:rgba(57,255,143,.06);border-radius:3px;padding:6px 12px}
   .hero h1{font-size:clamp(30px,7.5vw,48px);line-height:1.1;margin:16px auto 14px;max-width:540px;font-weight:800;letter-spacing:-.4px;text-shadow:0 0 20px rgba(0,234,255,.2)}
   .hero h1 span{color:var(--verde);text-shadow:0 0 18px rgba(57,255,143,.5)}
   .hero p{color:var(--suave);max-width:440px;margin:0 auto 26px;font-size:14.5px}
   .btns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
-  .btn{display:inline-block;background:transparent;color:var(--cian);border:1px solid var(--cian);border-radius:2px;
-    padding:14px 26px;text-decoration:none;font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase;
-    font-family:var(--mono);cursor:pointer;
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:transparent;color:var(--cian);border:1px solid var(--cian);border-radius:2px;
+    padding:15px 26px;text-decoration:none;font-weight:700;font-size:13px;letter-spacing:.06em;text-transform:uppercase;
+    font-family:var(--mono);cursor:pointer;min-height:44px;
     clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px);
     transition:transform .18s ease,box-shadow .18s ease,background-color .18s ease,color .18s ease}
+  .btn svg{flex-shrink:0}
   .btn:hover{background:var(--cian);color:#03181d;transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,234,255,.32)}
   .btn.wa{background:rgba(37,211,102,.08);color:#3ee87f;border-color:#25d366}
   .btn.wa:hover{background:#25d366;color:#04160c;box-shadow:0 10px 28px rgba(37,211,102,.32)}
-  .nota{display:block;margin-top:12px;font-size:10.5px;color:#4d6459;letter-spacing:.02em}
+  .nota{display:block;margin-top:12px;font-size:10.5px;color:var(--suave);letter-spacing:.02em}
 
   /* PANTALLA — feed de cámara de seguridad */
   .screen{max-width:700px;margin:24px auto 8px;padding:0 18px}
@@ -78,25 +83,24 @@
   .screen-overlay{position:absolute;inset:0;z-index:2;pointer-events:none;
     background:repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0 2px, rgba(0,0,0,.14) 3px 4px),
                linear-gradient(to bottom, rgba(0,0,0,.4), transparent 20%, transparent 78%, rgba(0,0,0,.45))}
-  .reticle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:64px;height:64px;z-index:2;opacity:.32;pointer-events:none}
+  .reticle{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:64px;height:64px;z-index:2;opacity:.3;pointer-events:none}
   .corner{position:absolute;width:16px;height:16px;z-index:3;pointer-events:none;opacity:.85}
   .corner.tl{top:8px;left:8px;border-top:2px solid var(--cian);border-left:2px solid var(--cian)}
   .corner.tr{top:8px;right:8px;border-top:2px solid var(--cian);border-right:2px solid var(--cian)}
   .corner.bl{bottom:8px;left:8px;border-bottom:2px solid var(--cian);border-left:2px solid var(--cian)}
-  .scanbeam{position:absolute;left:0;right:0;top:0;height:2px;z-index:3;pointer-events:none;
-    background:linear-gradient(90deg,transparent,rgba(0,234,255,.85),transparent);
-    box-shadow:0 0 10px rgba(0,234,255,.55);animation:scanbeam 4.5s linear infinite}
-  @keyframes scanbeam{0%{top:0}100%{top:100%}}
   .screen-chip{position:absolute;z-index:3;left:10px;top:10px;background:rgba(2,3,7,.72);color:var(--rojo);
     font-size:10.5px;letter-spacing:.1em;padding:5px 10px;border-radius:3px;border:1px solid rgba(255,90,90,.4);
     display:inline-flex;align-items:center;gap:6px}
-  .screen-chip::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--rojo);box-shadow:0 0 6px var(--rojo);animation:blink 1.4s steps(1) infinite;flex-shrink:0}
+  .screen-chip::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--rojo);box-shadow:0 0 6px var(--rojo);flex-shrink:0}
   .screen-chip.clock{left:auto;right:10px;color:var(--cian);border-color:rgba(0,234,255,.35)}
   .screen-chip.clock::before{display:none}
   .sound{position:absolute;z-index:4;right:10px;bottom:10px;width:44px;height:44px;border-radius:50%;
-    border:1px solid rgba(0,234,255,.4);background:rgba(2,3,7,.72);color:var(--cian);font-size:17px;cursor:pointer;
+    border:1px solid rgba(0,234,255,.4);background:rgba(2,3,7,.72);color:var(--cian);cursor:pointer;
     display:flex;align-items:center;justify-content:center;transition:transform .15s ease,background-color .15s ease}
   .sound:hover{transform:scale(1.08);background:rgba(0,234,255,.14)}
+  .sound .i-unmute{display:none}
+  .sound.unmuted .i-mute{display:none}
+  .sound.unmuted .i-unmute{display:inline-flex}
 
   section{padding:42px 20px;max-width:640px;margin:0 auto}
   h2{font-size:22px;margin-bottom:6px;text-align:center;font-weight:800;letter-spacing:-.2px}
@@ -109,16 +113,17 @@
   .feat>div:hover{transform:translateY(-2px);box-shadow:0 12px 26px -16px rgba(0,234,255,.45)}
   .feat>div.alert{border-left-color:var(--ambar)}
   .feat-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px;margin-bottom:10px;font-size:9px;letter-spacing:.07em}
-  .feat-code{color:#4c6459}
+  .feat-code{color:var(--suave)}
   .feat-dot{color:var(--verde);display:flex;align-items:center;gap:5px}
   .feat>div.alert .feat-dot{color:var(--ambar)}
-  .feat-dot::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;box-shadow:0 0 5px currentColor;animation:blink 1.8s steps(1) infinite;flex-shrink:0}
-  .feat .ico{font-size:22px;display:block;margin-bottom:6px}
+  .feat-dot::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;box-shadow:0 0 5px currentColor;flex-shrink:0}
+  .feat .ico{display:flex;margin-bottom:6px;color:var(--cian)}
+  .feat>div.alert .ico{color:var(--ambar)}
   .feat b{display:block;margin:2px 0 5px;font-size:13px}
   .feat p{font-size:11.8px;color:var(--suave);line-height:1.5}
 
   /* log de eventos — cómo funciona */
-  .log{border:1px solid var(--borde);border-radius:7px;overflow:hidden;background:rgba(255,255,255,.012)}
+  .log{border:1px solid var(--borde);border-radius:7px;overflow:hidden;background:var(--panel2)}
   .paso{display:flex;gap:14px;align-items:flex-start;padding:15px 15px;border-bottom:1px solid var(--borde);transition:background-color .2s ease}
   .paso:last-child{border-bottom:0}
   .paso:hover{background:rgba(0,234,255,.045)}
@@ -132,15 +137,14 @@
   .priv svg{flex-shrink:0;width:17px;height:17px;margin-top:2px;color:var(--verde)}
   .priv b{color:var(--verde);display:block;margin-bottom:2px}
 
-  .cta-final{position:relative;text-align:center;background:linear-gradient(160deg,#081513,#0d0a05);border:1px solid #26362c;border-radius:10px;padding:36px 20px 32px;margin:12px 18px 44px;overflow:hidden;animation:alarm 2.8s ease-in-out infinite}
-  .cta-final h2{color:var(--cian);text-shadow:0 0 16px rgba(0,234,255,.3)}
-  .cta-final h2::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ambar);box-shadow:0 0 10px var(--ambar);margin-right:9px;vertical-align:middle;animation:blink 1.5s steps(1) infinite}
+  .cta-final{position:relative;text-align:center;background:linear-gradient(160deg,#081513,#0d0a05);border:1px solid #26362c;border-radius:10px;padding:36px 20px 32px;margin:12px 18px 44px}
+  .cta-final h2{color:var(--cian);text-shadow:0 0 16px rgba(0,234,255,.3);display:flex;align-items:center;justify-content:center;gap:9px}
+  .cta-final h2::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ambar);box-shadow:0 0 10px var(--ambar);flex-shrink:0}
   .cta-final p{color:var(--suave);margin:8px 0 20px;font-size:14px}
-  @keyframes alarm{0%,100%{box-shadow:inset 0 0 0 rgba(255,178,36,0)}50%{box-shadow:inset 0 0 40px rgba(255,178,36,.12)}}
 
-  footer{border-top:1px solid var(--borde);padding:24px 20px;text-align:center;font-size:11px;color:#4d6459;line-height:1.8}
+  footer{border-top:1px solid var(--borde);padding:24px 20px;text-align:center;font-size:11px;color:var(--suave);line-height:1.8}
 
-  .reveal{opacity:0;transform:translateY(24px);transition:opacity .7s cubic-bezier(.22,1,.36,1),transform .7s cubic-bezier(.22,1,.36,1)}
+  .reveal{opacity:0;transform:translateY(20px);transition:opacity .5s ease,transform .5s ease}
   .reveal.in{opacity:1;transform:none}
 
   @media (min-width:700px){
@@ -150,7 +154,7 @@
     .hero p{max-width:520px}
   }
   @media (min-width:1100px){
-    .hero{padding-top:70px}
+    .hero{padding-top:66px}
     section{max-width:1020px}
   }
 
@@ -158,39 +162,18 @@
     *{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;scroll-behavior:auto !important}
     .reveal{opacity:1;transform:none}
   }
-  /* ===== CALMA anti-parpadeo (retoque) ===== */
-  /* ===== TRANSICIÓN AWARD: entrada elegante y fiable ===== */
-  @media (prefers-reduced-motion: no-preference){
-    .reveal{transition-duration:.85s !important;transition-timing-function:cubic-bezier(.16,1,.3,1) !important}
-    .screen.reveal{transform:translateY(30px) scale(.968)}
-    .screen.reveal.in{transform:none}
-  }
-  body::before{content:none !important}                             /* fuera scanlines a pantalla completa */
-  @keyframes blink{0%,100%{opacity:1}50%{opacity:.62}}              /* parpadeo SUAVE, no duro */
-  .sys-status i,.screen-chip::before,.feat-dot::before,.cta-final h2::before{animation-timing-function:ease-in-out !important}
-  .cta-final{animation:none !important}                             /* sin pulso de alarma de fondo */
-  @media (prefers-reduced-motion: no-preference){
-    *,*::before,*::after{animation:none !important}                 /* sin animaciones en bucle: cero parpadeo */
-  }
-  /* ===== ANTI-PARPADEO MOVIL: fuera desenfoques y fondos fijos que tilan al hacer scroll ===== */
-  header{background:var(--bg) !important;backdrop-filter:none !important;-webkit-backdrop-filter:none !important}
-  body::before,body::after,.ambient{position:absolute !important}
-  .grid-overlay,.screen-overlay{mix-blend-mode:normal !important}
-  /* ===== ANTI-TIRITONA AL HACER SCROLL (movil) ===== */
-  html{scroll-behavior:auto !important}
-  header{position:static !important}                 /* cabecera no pegajosa: no repinta al desplazar */
-  .promo,.screen-frame,.kiosk,.mapwidget,.glass{transform:translateZ(0);will-change:auto}
-  /* control pausa/play del video (autoplay inteligente): pequeno, esquina inf-izq, SIEMPRE accesible por teclado */
-  .playbtn{position:absolute;left:12px;bottom:12px;z-index:8;width:42px;height:42px;border-radius:50%;border:0;cursor:pointer;background:rgba(0,0,0,.5);color:#fff;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;opacity:.55;box-shadow:0 4px 16px rgba(0,0,0,.45);transition:transform .15s ease,opacity .2s ease,background-color .15s ease}
-  .playbtn:hover,.playbtn:focus-visible{opacity:1;transform:scale(1.07);background:rgba(0,0,0,.72);outline:none}
-  .playbtn:focus-visible{box-shadow:0 0 0 3px rgba(255,255,255,.6)}
+
+  /* control pausa/play del vídeo (autoplay inteligente): esquina inf-izq, siempre accesible por teclado */
+  .playbtn{position:absolute;left:12px;bottom:12px;z-index:8;width:44px;height:44px;border-radius:50%;border:1px solid rgba(0,234,255,.4);cursor:pointer;background:rgba(2,3,7,.72);color:var(--cian);font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;opacity:.75;transition:transform .15s ease,opacity .2s ease,background-color .15s ease}
+  .playbtn:hover,.playbtn:focus-visible{opacity:1;transform:scale(1.07);background:rgba(0,234,255,.16);outline:none}
+  .playbtn:focus-visible{box-shadow:0 0 0 3px rgba(0,234,255,.5)}
   .playbtn span{pointer-events:none}
   .playbtn .i-play{margin-left:2px;display:none}
   .playbtn .i-pause{display:inline}          /* modo auto (por defecto): icono de pausa */
-  .off .playbtn{opacity:.9}
-  .off .playbtn .i-play{display:inline}       /* el usuario lo apago: icono de play */
+  .off .playbtn{opacity:.95}
+  .off .playbtn .i-play{display:inline}       /* el usuario lo apagó: icono de play */
   .off .playbtn .i-pause{display:none}
-  /* boton de sonido visible salvo que el usuario haya apagado el video */
+  /* botón de sonido visible salvo que el usuario haya apagado el vídeo */
   .sound{transition:opacity .2s ease}
   .off .sound{opacity:0;pointer-events:none}
 </style>
@@ -215,13 +198,19 @@
       <circle cx="100" cy="100" r="32" fill="none" stroke="rgba(0,234,255,.12)" stroke-width="1"/>
       <line x1="100" y1="6" x2="100" y2="194" stroke="rgba(0,234,255,.08)" stroke-width="1"/>
       <line x1="6" y1="100" x2="194" y2="100" stroke="rgba(0,234,255,.08)" stroke-width="1"/>
+      <line x1="100" y1="6" x2="100" y2="16" stroke="rgba(0,234,255,.4)" stroke-width="1.5"/>
+      <line x1="100" y1="184" x2="100" y2="194" stroke="rgba(0,234,255,.4)" stroke-width="1.5"/>
+      <line x1="6" y1="100" x2="16" y2="100" stroke="rgba(0,234,255,.4)" stroke-width="1.5"/>
+      <line x1="184" y1="100" x2="194" y2="100" stroke="rgba(0,234,255,.4)" stroke-width="1.5"/>
     </svg>
-    <span class="radar-sweep"></span>
   </div>
   <span class="mini">Videovigilancia inteligente</span>
   <h1>Tu negocio, vigilado <span>por una IA</span></h1>
   <p>Convierte cualquier móvil u ordenador con cámara en un vigilante inteligente: cuenta personas y vehículos, vigila zonas y te avisa al momento. Sin servidor y sin cuotas.</p>
-  <div class="btns"><a class="btn">👁 Probar la demo</a><a class="btn wa">💬 Escríbenos</a></div>
+  <div class="btns">
+    <button type="button" class="btn"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/></svg>Probar la demo</button>
+    <button type="button" class="btn wa"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"/></svg>Escríbenos</button>
+  </div>
   <span class="nota">(aquí va el WhatsApp real del negocio)</span>
 </div>
 
@@ -241,10 +230,12 @@
     <span class="corner tl" aria-hidden="true"></span>
     <span class="corner tr" aria-hidden="true"></span>
     <span class="corner bl" aria-hidden="true"></span>
-    <span class="scanbeam" aria-hidden="true"></span>
     <span class="screen-chip">REC · CAM 01</span>
     <span class="screen-chip clock" id="camClock" aria-hidden="true">--:--:--</span>
-    <button class="sound" type="button" aria-label="Activar sonido">🔇</button>
+    <button class="sound" type="button" aria-label="Activar sonido">
+      <span class="i-mute" aria-hidden="true"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5Z"/><path d="M16 10.5l4 4M20 10.5l-4 4"/></svg></span>
+      <span class="i-unmute" aria-hidden="true"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5Z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.8a7.5 7.5 0 0 1 0 10.4"/></svg></span>
+    </button>
   </div>
 </div>
 
@@ -253,19 +244,35 @@
   <h2 class="reveal">Qué vigila por ti</h2>
   <p class="sub2 reveal">Todo pasa en tu navegador, nada sale de tu dispositivo</p>
   <div class="feat">
-    <div class="reveal"><div class="feat-head"><span class="feat-code">MOD-01</span><span class="feat-dot">ONLINE</span></div><span class="ico">🧍</span><b>Cuenta personas</b><p>Sabe cuánta gente entra, sale y cuánto se queda</p></div>
-    <div class="reveal"><div class="feat-head"><span class="feat-code">MOD-02</span><span class="feat-dot">ONLINE</span></div><span class="ico">🚗</span><b>Cuenta vehículos</b><p>Coches y motos que pasan o aparcan en tu zona</p></div>
-    <div class="reveal alert"><div class="feat-head"><span class="feat-code">MOD-03</span><span class="feat-dot">ALERTA</span></div><span class="ico">🚨</span><b>Zonas y alertas</b><p>Marca zonas prohibidas y suena la alarma si alguien entra</p></div>
-    <div class="reveal"><div class="feat-head"><span class="feat-code">MOD-04</span><span class="feat-dot">ONLINE</span></div><span class="ico">📸</span><b>Evidencia</b><p>Capturas y registro de cada evento, con hora y día</p></div>
+    <div class="hud reveal">
+      <div class="feat-head"><span class="feat-code">MOD-01</span><span class="feat-dot">ONLINE</span></div>
+      <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7.5" r="3.5"/><path d="M4.5 20.5c1.4-4 4-6 7.5-6s6.1 2 7.5 6"/></svg></span>
+      <b>Cuenta personas</b><p>Sabe cuánta gente entra, sale y cuánto se queda</p>
+    </div>
+    <div class="hud reveal">
+      <div class="feat-head"><span class="feat-code">MOD-02</span><span class="feat-dot">ONLINE</span></div>
+      <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16.5v-3l1.6-4.2A2 2 0 0 1 7.5 8h9a2 2 0 0 1 1.9 1.3L20 13.5v3"/><path d="M4 16.5h16M6.5 16.5v2M17.5 16.5v2"/><circle cx="7.5" cy="16.5" r="1.4"/><circle cx="16.5" cy="16.5" r="1.4"/></svg></span>
+      <b>Cuenta vehículos</b><p>Coches y motos que pasan o aparcan en tu zona</p>
+    </div>
+    <div class="hud reveal alert">
+      <div class="feat-head"><span class="feat-code">MOD-03</span><span class="feat-dot">ALERTA</span></div>
+      <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 22 20H2Z"/><path d="M12 10v4"/><circle cx="12" cy="17" r=".6" fill="currentColor" stroke="none"/></svg></span>
+      <b>Zonas y alertas</b><p>Marca zonas prohibidas y suena la alarma si alguien entra</p>
+    </div>
+    <div class="hud reveal">
+      <div class="feat-head"><span class="feat-code">MOD-04</span><span class="feat-dot">ONLINE</span></div>
+      <span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h2l1-1.6h7L16.5 7h2A1.5 1.5 0 0 1 20 8.5v9A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5Z"/><circle cx="12" cy="13" r="3.4"/></svg></span>
+      <b>Evidencia</b><p>Capturas y registro de cada evento, con hora y día</p>
+    </div>
   </div>
 </section>
 
 <section class="como">
   <h2 class="reveal">Cómo funciona</h2>
-  <div class="log">
-    <div class="paso reveal"><span class="n">1</span><span><b>Abre la app</b><p>En el móvil o el ordenador que hará de cámara.</p></span></div>
-    <div class="paso reveal"><span class="n">2</span><span><b>Apunta y marca zonas</b><p>Coloca la cámara y dibuja qué zonas vigilar.</p></span></div>
-    <div class="paso reveal"><span class="n">3</span><span><b>Recibe alertas</b><p>Suena, vibra y guarda evidencia cuando algo pasa.</p></span></div>
+  <div class="log hud reveal">
+    <div class="paso"><span class="n">1</span><span><b>Abre la app</b><p>En el móvil o el ordenador que hará de cámara.</p></span></div>
+    <div class="paso"><span class="n">2</span><span><b>Apunta y marca zonas</b><p>Coloca la cámara y dibuja qué zonas vigilar.</p></span></div>
+    <div class="paso"><span class="n">3</span><span><b>Recibe alertas</b><p>Suena, vibra y guarda evidencia cuando algo pasa.</p></span></div>
   </div>
   <div class="priv reveal">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
@@ -273,26 +280,40 @@
   </div>
 </section>
 
-<div class="cta-final reveal">
+<div class="cta-final hud reveal">
   <h2>Ponle un vigía a tu negocio</h2>
   <p>Pruébala gratis con la cámara de tu móvil. Se monta en dos minutos.</p>
-  <a class="btn">👁 Probar la demo</a>
+  <button type="button" class="btn"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6.5 10-6.5S22 12 22 12s-3.5 6.5-10 6.5S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/></svg>Probar la demo</button>
 </div>
 
 <footer>© 2026 Vigía IA · Ejemplo de web básica — datos no reales · Sin cookies de seguimiento<br>Diseñado por Incuba tu Negocio · por Jaime M. M.</footer>
 
 <script>
-/* Aparición al hacer scroll (tema award, con respeto a reduce-motion) */
+/* Aparición al hacer scroll (sutil, respeta reduce-motion) */
 (function(){
   var els = [].slice.call(document.querySelectorAll('.reveal'));
   if(!els.length) return;
   var reduce = matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   function showAll(){ els.forEach(function(e){ e.classList.add('in'); }); }
   if(reduce){ showAll(); return; }
-  function run(){ els.forEach(function(e,i){ setTimeout(function(){ e.classList.add('in'); }, 140 + Math.min(i,14)*130); }); }
-  /* arranca cuando la pagina esta pintada (asi la transicion se ve tras el spinner del visor) */
-  if(document.readyState === 'complete'){ requestAnimationFrame(function(){ requestAnimationFrame(run); }); }
-  else { window.addEventListener('load', function(){ requestAnimationFrame(function(){ requestAnimationFrame(run); }); }); }
+  var inIframe=false; try{ inIframe = window.self !== window.top; }catch(e){ inIframe=true; }
+  function cascade(list){ list.forEach(function(e,i){ setTimeout(function(){ e.classList.add('in'); }, Math.min(i,9)*85); }); }
+  if(inIframe){
+    /* dentro del visor (iframe): no hay scroll -> cascada de todo al cargar */
+    var run=function(){ cascade(els); };
+    if(document.readyState==='complete'){ requestAnimationFrame(function(){ requestAnimationFrame(run); }); }
+    else { window.addEventListener('load', function(){ requestAnimationFrame(function(){ requestAnimationFrame(run); }); }); }
+    setTimeout(showAll, 2200); return;
+  }
+  /* standalone: cada elemento aparece al entrar en pantalla, en pequenas olas (efecto award) */
+  if('IntersectionObserver' in window){
+    var q=[], busy=false;
+    var io=new IntersectionObserver(function(en){
+      en.forEach(function(x){ if(x.isIntersecting){ q.push(x.target); io.unobserve(x.target); } });
+      if(!busy && q.length){ busy=true; requestAnimationFrame(function(){ var b=q.slice(); q=[]; busy=false; cascade(b); }); }
+    }, {threshold:0.14, rootMargin:'0px 0px -8% 0px'});
+    els.forEach(function(e){ io.observe(e); });
+  } else { showAll(); }
   setTimeout(showAll, 4000); /* salvavidas: nada se queda oculto */
 })();
 /* Botón de sonido del vídeo */
@@ -301,14 +322,14 @@ document.querySelectorAll('.sound').forEach(function(btn){
   btn.addEventListener('click', function(){
     v.muted = !v.muted;
     if(!v.muted){ var pr = v.play(); if(pr && pr.catch) pr.catch(function(){}); }
-    btn.textContent = v.muted ? '🔇' : '🔊';
+    btn.classList.toggle('unmuted', !v.muted);
     btn.setAttribute('aria-label', v.muted ? 'Activar sonido' : 'Silenciar');
   });
 });
 /* Botones de demo: en la web real irían a WhatsApp / a la app. Aquí avisan. */
 document.addEventListener('click', function (e) {
-  var a = e.target && e.target.closest ? e.target.closest('a.btn:not([href])') : null;
-  if (!a) return;
+  var b = e.target && e.target.closest ? e.target.closest('.btn:not([href])') : null;
+  if (!b) return;
   e.preventDefault();
   var av = document.getElementById('demo-aviso');
   if (!av) {
@@ -316,7 +337,7 @@ document.addEventListener('click', function (e) {
     av.style.cssText = 'position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#0d1526;color:#27e6a6;font-family:monospace;font-size:12.5px;letter-spacing:.05em;padding:12px 18px;border-radius:999px;border:1px solid #27e6a6;z-index:9999;max-width:88%;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.45);transition:opacity .3s;opacity:0;pointer-events:none';
     document.body.appendChild(av);
   }
-  var txt = (a.innerText || '').toLowerCase();
+  var txt = (b.innerText || '').toLowerCase();
   av.textContent = /probar|demo|vídeo|ver/.test(txt)
     ? '✅ Esto es una demo — en tu web real este botón abre tu app'
     : '✅ Esto es una demo — en tu web real este botón abre tu WhatsApp';
@@ -375,5 +396,14 @@ document.addEventListener('click', function (e) {
   });
 })();
 </script>
+<style>
+/* --- Transiciones award (curva premium + cascada), sin pisar reduce-motion --- */
+@media (prefers-reduced-motion: no-preference){
+  .reveal{opacity:0;transform:translateY(32px) scale(.992);transition:opacity .72s cubic-bezier(.16,1,.3,1),transform .72s cubic-bezier(.16,1,.3,1)}
+  .reveal.in{opacity:1;transform:none}
+  .screen.reveal{transform:translateY(38px) scale(.96)}
+  .screen.reveal.in{transform:none}
+}
+</style>
 </body>
 </html>
