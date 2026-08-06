@@ -3,6 +3,12 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-06 (8) — AFTERS/Vigía/Control: autoplay INTELIGENTE (se reproduce solo, sin temblor)
+- El usuario pidió recuperar el autoplay pero SIN el temblor: "no hay manera de que se reproduzca de forma automática y no afecte a la página?". Sí la hay: el temblor solo ocurría MIENTRAS haces scroll con el vídeo reproduciéndose.
+- Solución: **autoplay inteligente**. El vídeo se reproduce solo cuando está a la vista (IntersectionObserver ≥50%) Y quieto; un listener global de `scroll` **pausa todos los vídeos al desplazar** (dispara `v-scroll`) y los reanuda 200 ms después de parar (`v-still`). Así nunca hay `<video>` repintando durante el scroll = cero temblor, pero sí se ve en movimiento cuando el usuario se detiene a mirarlo. También pausa al salir de vista y con la pestaña en background (`visibilitychange`).
+- Botón de pausa pequeño y SIEMPRE accesible por teclado (`.playbtn`, esquina inf-izq): icono ⏸ por defecto (modo auto), ▶ si el usuario lo apaga (`.off`, que además oculta el botón de sonido). Respeta la elección manual: si lo apagas, no vuelve a arrancar solo.
+- Probado con navegador móvil simulado: reproduce al entrar en vista ✓, se pausa al hacer scroll ✓, reanuda al parar ✓, botón `<button>` con aria-label correcto ✓, apagado manual funciona ✓, 0 errores de consola. Re-inflado + re-embebido, incubadora 5,43 MB, ✅ APTO.
+
 ## 2026-08-06 (7) — AFTERS/Vigía/Control: vídeo a demanda (fin del temblor al scroll en móvil)
 - El usuario seguía viendo "toda la página tiembla al hacer scroll" SOLO en las 3 con vídeo, pese a haber quitado TODAS las animaciones, backdrop-filter, fondos fixed, mix-blend, sticky header y haber aislado el vídeo en capa. Conclusión: era el **vídeo reproduciéndose** lo que repinta toda la página al desplazar en su móvil (jank de compositing de <video> en scroll, no reproducible en headless de escritorio).
 - Arreglo definitivo: **quitado `autoplay`**. El vídeo arranca PARADO mostrando su póster (imagen fija = cero repintado al hacer scroll). Añadido botón ▶ (`.playbtn`) centrado; al tocarlo reproduce. Además IntersectionObserver lo pausa al salir de vista. Verificado: parado al inicio, botón presente, reproduce al pulsar, sin errores de consola.

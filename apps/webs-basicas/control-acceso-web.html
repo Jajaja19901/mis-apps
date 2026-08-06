@@ -213,21 +213,19 @@
   html{scroll-behavior:auto !important}
   header{position:static !important}                 /* cabecera no pegajosa: no repinta al desplazar */
   .promo,.screen-frame,.kiosk,.mapwidget,.glass{transform:translateZ(0);will-change:auto}
-  /* boton play/pausa (video a demanda: sin autoplay = poster fijo, sin temblor). Accesible por teclado. */
-  .playbtn{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:8;width:64px;height:64px;border-radius:50%;border:0;cursor:pointer;background:rgba(0,0,0,.55);color:#fff;font-size:24px;line-height:1;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 24px rgba(0,0,0,.5);transition:transform .15s ease,opacity .2s ease,background-color .15s ease}
-  .playbtn:hover{transform:translate(-50%,-50%) scale(1.07);background:rgba(0,0,0,.72)}
-  .playbtn:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(255,255,255,.65)}
+  /* control pausa/play del video (autoplay inteligente): pequeno, esquina inf-izq, SIEMPRE accesible por teclado */
+  .playbtn{position:absolute;left:12px;bottom:12px;z-index:8;width:42px;height:42px;border-radius:50%;border:0;cursor:pointer;background:rgba(0,0,0,.5);color:#fff;font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center;opacity:.55;box-shadow:0 4px 16px rgba(0,0,0,.45);transition:transform .15s ease,opacity .2s ease,background-color .15s ease}
+  .playbtn:hover,.playbtn:focus-visible{opacity:1;transform:scale(1.07);background:rgba(0,0,0,.72);outline:none}
+  .playbtn:focus-visible{box-shadow:0 0 0 3px rgba(255,255,255,.6)}
   .playbtn span{pointer-events:none}
-  .playbtn .i-play{margin-left:3px}
-  .playbtn .i-pause{display:none}
-  /* reproduciendo: boton pequeno de pausa abajo-izq, discreto pero SIEMPRE accesible con teclado */
-  .playing .playbtn{left:12px;top:auto;bottom:12px;transform:none;width:44px;height:44px;font-size:16px;background:rgba(0,0,0,.5);opacity:.5}
-  .playing .playbtn:hover,.playing .playbtn:focus-visible{opacity:1;transform:scale(1.06)}
-  .playing .playbtn .i-play{display:none}
-  .playing .playbtn .i-pause{display:inline}
-  /* el boton de sonido solo aparece cuando el video se reproduce */
-  .sound{opacity:0;pointer-events:none;transition:opacity .2s ease}
-  .playing .sound{opacity:1;pointer-events:auto}
+  .playbtn .i-play{margin-left:2px;display:none}
+  .playbtn .i-pause{display:inline}          /* modo auto (por defecto): icono de pausa */
+  .off .playbtn{opacity:.9}
+  .off .playbtn .i-play{display:inline}       /* el usuario lo apago: icono de play */
+  .off .playbtn .i-pause{display:none}
+  /* boton de sonido visible salvo que el usuario haya apagado el video */
+  .sound{transition:opacity .2s ease}
+  .off .sound{opacity:0;pointer-events:none}
 </style>
 </head>
 <body>
@@ -496,25 +494,37 @@ document.addEventListener('click', function (e) {
 }, true);
 </script>
 <script>
-/* Video a demanda: sin autoplay (poster fijo = sin temblor). Boton play/pausa accesible por teclado; pausa al salir de vista. */
+/* Autoplay inteligente: el video se reproduce solo cuando esta a la vista y quieto; se PAUSA mientras haces scroll (evita el temblor en movil) y al salir de vista. Boton de pausa accesible por teclado. */
 (function(){
   var vids=[].slice.call(document.querySelectorAll('video.promo'));
+  var scrolling=false, st;
+  window.addEventListener('scroll', function(){
+    scrolling=true;
+    document.dispatchEvent(new Event('v-scroll'));
+    clearTimeout(st); st=setTimeout(function(){ scrolling=false; document.dispatchEvent(new Event('v-still')); }, 200);
+  }, {passive:true});
   vids.forEach(function(v){
-    try{ v.pause(); }catch(e){}
+    try{ v.muted=true; v.pause(); }catch(e){}
     var box=v.parentElement; if(!box) return;
     if(getComputedStyle(box).position==='static'){ box.style.position='relative'; }
     var btn=document.createElement('button');
-    btn.type='button'; btn.className='playbtn'; btn.setAttribute('aria-label','Reproducir vídeo');
+    btn.type='button'; btn.className='playbtn'; btn.setAttribute('aria-label','Pausar vídeo');
     btn.innerHTML='<span class="i-play">&#9654;</span><span class="i-pause">&#9208;</span>';
     box.appendChild(btn);
-    function toggle(){ if(v.paused){ var p=v.play(); if(p&&p.catch){ p.catch(function(){}); } } else { v.pause(); } }
-    btn.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); toggle(); });
-    v.addEventListener('click',toggle);
-    v.addEventListener('play',function(){ box.classList.add('playing'); btn.setAttribute('aria-label','Pausar vídeo'); });
-    v.addEventListener('pause',function(){ box.classList.remove('playing'); btn.setAttribute('aria-label','Reproducir vídeo'); });
+    var inView=false, userOff=false;
+    function want(){ return inView && !scrolling && !userOff && !document.hidden; }
+    function sync(){ try{ if(want()){ if(v.paused){ var p=v.play(); if(p&&p.catch){ p.catch(function(){}); } } } else if(!v.paused){ v.pause(); } }catch(e){} }
+    document.addEventListener('v-scroll', function(){ if(!v.paused){ try{ v.pause(); }catch(e){} } });
+    document.addEventListener('v-still', sync);
+    document.addEventListener('visibilitychange', sync);
     if('IntersectionObserver' in window){
-      new IntersectionObserver(function(es){ es.forEach(function(x){ if(!x.isIntersecting && !v.paused){ try{ v.pause(); }catch(e){} } }); },{threshold:0.4}).observe(v);
-    }
+      new IntersectionObserver(function(es){ es.forEach(function(x){ inView = x.isIntersecting && x.intersectionRatio>=0.5; }); sync(); }, {threshold:[0,0.5,1]}).observe(v);
+    } else { inView=true; sync(); }
+    btn.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation();
+      userOff=!userOff; box.classList.toggle('off', userOff);
+      btn.setAttribute('aria-label', userOff?'Reproducir vídeo':'Pausar vídeo'); sync(); });
+    v.addEventListener('play', function(){ box.classList.add('playing'); });
+    v.addEventListener('pause', function(){ box.classList.remove('playing'); });
   });
 })();
 </script>
