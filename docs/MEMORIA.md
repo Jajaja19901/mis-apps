@@ -3,6 +3,14 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-06 (5) — Revisión "que funcione perfecto": apps autocontenidas + demo AFTERS
+- Revisión funcional de los 37 HTML (apps/ + webs-basicas/). Todo carga y funciona. Hallazgo: varias apps NO eran autocontenidas (pedían cosas de internet), rompiendo la regla de oro.
+- Arreglos autocontención (commit 8d0511e): quitadas las etiquetas Google Fonts de 6 apps (afters, incuba-tu-negocio, inmobiliaria-ejemplo, logopedia-infantil, logopedia-playstore-ninos, pio) — las font-family ya tenían respaldo del sistema. Neutralizado enlace externo real que quedaba en inmobiliaria-ejemplo (hipotecajovencanaria.com, sin anonimizar).
+- Vigía IA: su código es autocontenido (sin CDNs); las llamadas fetch son a la cámara/dispositivo del propio dueño (su función, no rastreo) y las URLs son placeholders (trycloudflare/localhost/192.168). Se deja como está.
+- AFTERS app: `afters.html` es la APP REAL completa (15k líneas) con Firebase + Leaflet + crypto-js desde CDNs → NO puede ser offline sin reescribirla. Decisión del usuario: crear demo simulada. Hecho: `apps/afters-ejemplo.html` (mapa SVG con pines de amigos —Lucía/Marco/Sara/Dani— convergiendo al "Bar Luna", lista de grupo, chat con localStorage, SOS, marcar punto), autocontenida, 4/4 tests de aceptación ✅ APTO.
+- Integración: en `regenerar-completa.mjs`, la clave "afters.html" ahora se embebe desde `apps/afters-ejemplo.html` (fuenteDe). El archivo real `apps/afters.html` se queda INTACTO. Incubadora 5,42 MB, ✅ APTO.
+- Pendiente: nombre definitivo de AFTERS.
+
 ## 2026-08-06 (4) — AFTERS/Vigía/Control: quitados parpadeos + transición "award" fiable
 - Queja del usuario: las 3 con vídeo "se cortan, muchos parpadeos". Causa: los subagentes metieron demasiadas animaciones infinitas (AFTERS 10, Vigía 7, Control 5) + texturas full-screen que tililan (scanlines en Vigía con mix-blend-mode:overlay; rejilla de calles fija en AFTERS), y el `reveal` al scroll NO se disparaba dentro del visor (iframe) → secciones ocultas = "se corta".
 - Arreglo (capa de calma, en los esqueletos, re-inflado): quitadas scanlines full-screen (Vigía), atenuada la rejilla de AFTERS (opacity .28), parpadeos duros `steps(1)` → suaves ease, `*{animation-duration}` ralentizado dentro de `@media (prefers-reduced-motion: no-preference)` (¡importante: NO pisar reduce-motion!), fuera pulso de alarma de fondo.

@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#090b12">
+<title>AFTERS · App (demo)</title>
+<style>
+  :root{--bg:#090b12;--panel:#12141f;--panel2:#181c2c;--borde:#252838;--rosa:#ff1f8f;--cian:#22d3ee;--verde:#38e07d;--ambar:#ffd23f;--tinta:#f2f3f8;--suave:#8b8fa3}
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{background:var(--bg);color:var(--tinta);font-family:Arial,Helvetica,sans-serif;line-height:1.5;overflow:hidden}
+  .app{max-width:460px;margin:0 auto;height:100%;display:flex;flex-direction:column;position:relative;background:var(--bg)}
+  .ribbon{background:#0d1526;color:#27e6a6;font-family:monospace;font-size:10.5px;letter-spacing:.12em;text-align:center;padding:5px 10px;text-transform:uppercase;flex-shrink:0}
+
+  header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--borde);flex-shrink:0;background:rgba(9,11,18,.9)}
+  .pin{width:26px;height:26px;flex-shrink:0}
+  .htitle{min-width:0}
+  .htitle b{display:block;font-size:15px;font-weight:900;letter-spacing:.18em;line-height:1.1}
+  .htitle small{font-size:11px;color:var(--suave)}
+  .live{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-family:monospace;font-size:10px;letter-spacing:.1em;color:var(--cian);border:1px solid rgba(34,211,238,.35);padding:5px 9px;border-radius:999px;background:rgba(34,211,238,.06);white-space:nowrap}
+  .live .d{width:6px;height:6px;border-radius:50%;background:var(--cian);animation:blip 1.8s ease-in-out infinite}
+  @keyframes blip{0%,100%{opacity:1}50%{opacity:.25}}
+
+  main{flex:1;overflow:hidden;position:relative}
+  .screen{position:absolute;inset:0;overflow-y:auto;display:none;-webkit-overflow-scrolling:touch}
+  .screen.on{display:block}
+
+  /* ---- MAPA ---- */
+  #vmap{position:relative;height:100%;background:radial-gradient(120% 90% at 50% 0%,#101528,#070810)}
+  .mapsvg{position:absolute;inset:0;width:100%;height:100%}
+  .street{stroke:rgba(255,255,255,.05);stroke-width:2}
+  .street.big{stroke:rgba(34,211,238,.08);stroke-width:6}
+  .friend{position:absolute;transform:translate(-50%,-50%);transition:left .7s linear,top .7s linear;text-align:center;z-index:3}
+  .friend .av{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#06121f;border:2px solid rgba(255,255,255,.85);box-shadow:0 4px 14px rgba(0,0,0,.5)}
+  .friend .nm{margin-top:3px;font-size:10px;font-family:monospace;background:rgba(5,6,11,.7);padding:2px 6px;border-radius:6px;white-space:nowrap;display:inline-block}
+  .friend.me .av{border-color:var(--cian);box-shadow:0 0 0 4px rgba(34,211,238,.25)}
+  .spot{position:absolute;transform:translate(-50%,-50%);z-index:2;text-align:center}
+  .spot .ring{width:26px;height:26px;border-radius:50%;background:var(--rosa);margin:0 auto;box-shadow:0 0 0 0 rgba(255,31,143,.6);animation:spotpulse 2.2s ease-out infinite}
+  .spot .lbl{margin-top:4px;font-family:monospace;font-size:10.5px;color:var(--rosa);background:rgba(5,6,11,.72);padding:3px 8px;border-radius:6px;border:1px solid rgba(255,31,143,.4);white-space:nowrap}
+  @keyframes spotpulse{0%{box-shadow:0 0 0 0 rgba(255,31,143,.5)}100%{box-shadow:0 0 0 26px rgba(255,31,143,0)}}
+  .mapbar{position:absolute;left:0;right:0;bottom:0;padding:14px 14px calc(14px + env(safe-area-inset-bottom));z-index:5;
+    background:linear-gradient(0deg,rgba(9,11,18,.96),rgba(9,11,18,.6) 70%,transparent)}
+  .status-chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:10px}
+  .chip{flex-shrink:0;font-size:12px;background:var(--panel);border:1px solid var(--borde);border-radius:999px;padding:7px 12px;display:flex;align-items:center;gap:6px;white-space:nowrap}
+  .chip i{width:8px;height:8px;border-radius:50%}
+  .mapbtns{display:flex;gap:10px}
+  .act{flex:1;border:0;border-radius:12px;padding:14px;font-weight:800;font-size:14px;cursor:pointer;color:#fff;min-height:48px}
+  .act.mark{background:linear-gradient(120deg,var(--cian),#0e9bb5);color:#04121a}
+  .act.sos{background:linear-gradient(120deg,#ff3b5c,#ff1f8f);max-width:120px}
+
+  /* ---- GRUPO ---- */
+  .wrap{padding:16px}
+  .sec-h{font-size:13px;color:var(--suave);text-transform:uppercase;letter-spacing:.1em;margin:6px 4px 12px}
+  .member{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--borde);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+  .member .av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;color:#06121f;flex-shrink:0}
+  .member .info{flex:1;min-width:0}
+  .member .info b{display:block;font-size:15px}
+  .member .info small{font-size:12.5px;color:var(--suave)}
+  .member .eta{font-family:monospace;font-size:12px;text-align:right;white-space:nowrap}
+  .st-here{color:var(--verde)} .st-way{color:var(--cian)} .st-off{color:var(--suave)}
+
+  /* ---- CHAT ---- */
+  #vchat{display:none;flex-direction:column}
+  #vchat.on{display:flex}
+  .msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
+  .msg{max-width:80%;padding:9px 13px;border-radius:14px;font-size:14px;word-wrap:break-word;overflow-wrap:anywhere}
+  .msg .who{font-size:11px;font-weight:800;margin-bottom:2px;opacity:.9}
+  .msg.them{align-self:flex-start;background:var(--panel);border:1px solid var(--borde);border-bottom-left-radius:4px}
+  .msg.me{align-self:flex-end;background:linear-gradient(120deg,var(--rosa),#c2127a);border-bottom-right-radius:4px}
+  .chatbar{display:flex;gap:8px;padding:12px 12px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--borde);background:var(--bg)}
+  .chatbar input{flex:1;background:var(--panel);border:1px solid var(--borde);border-radius:999px;padding:12px 16px;color:var(--tinta);font-size:15px;min-width:0}
+  .chatbar input:focus{outline:none;border-color:var(--rosa)}
+  .chatbar button{border:0;background:var(--rosa);color:#fff;border-radius:50%;width:46px;height:46px;flex-shrink:0;font-size:18px;cursor:pointer}
+
+  /* ---- NAV ---- */
+  nav{display:flex;border-top:1px solid var(--borde);flex-shrink:0;background:rgba(9,11,18,.96);padding-bottom:env(safe-area-inset-bottom)}
+  nav button{flex:1;background:none;border:0;color:var(--suave);padding:11px 4px 12px;font-size:11px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;font-family:inherit}
+  nav button .ic{font-size:20px;line-height:1}
+  nav button.on{color:var(--cian)}
+  nav button .badge{position:absolute;transform:translate(14px,-6px);background:var(--rosa);color:#fff;font-size:9px;font-weight:800;border-radius:999px;padding:1px 5px}
+
+  .toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(10px);background:#0d1526;color:#27e6a6;font-family:monospace;font-size:12.5px;padding:12px 18px;border-radius:999px;border:1px solid #27e6a6;z-index:99;max-width:88%;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  footer{font-size:10.5px;color:#5c5f73;text-align:center;padding:14px 10px 20px}
+  footer a{color:#7d8096}
+  @media (prefers-reduced-motion: reduce){*{animation:none !important}.friend{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="ribbon">Ejemplo · App de demostración — datos simulados</div>
+  <header>
+    <svg class="pin" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 8C31 8 16 23 16 42c0 24 34 50 34 50s34-26 34-50C84 23 69 8 50 8zm0 46a12 12 0 1 1 0-24 12 12 0 0 1 0 24z" fill="#38e07d"/></svg>
+    <div class="htitle"><b>AFTERS</b><small id="groupName">Grupo · Finde 🎉</small></div>
+    <span class="live"><span class="d"></span>EN VIVO</span>
+  </header>
+
+  <main>
+    <!-- MAPA -->
+    <section class="screen on" id="vmap" aria-label="Mapa del grupo">
+      <svg class="mapsvg" viewBox="0 0 360 640" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <line class="street big" x1="0" y1="230" x2="360" y2="205"/>
+        <line class="street big" x1="150" y1="0" x2="205" y2="640"/>
+        <line class="street" x1="0" y1="120" x2="360" y2="120"/>
+        <line class="street" x1="0" y1="360" x2="360" y2="360"/>
+        <line class="street" x1="0" y1="500" x2="360" y2="500"/>
+        <line class="street" x1="70" y1="0" x2="70" y2="640"/>
+        <line class="street" x1="290" y1="0" x2="290" y2="640"/>
+      </svg>
+      <div class="spot" id="spot"><div class="ring"></div><div class="lbl" id="spotLbl">📍 Bar Luna</div></div>
+      <div id="pins"></div>
+      <div class="mapbar">
+        <div class="status-chips" id="chips"></div>
+        <div class="mapbtns">
+          <button class="act mark" id="btnMark" type="button">📍 Marcar el punto</button>
+          <button class="act sos" id="btnSos" type="button">🆘 SOS</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- GRUPO -->
+    <section class="screen" id="vgroup" aria-label="Miembros del grupo">
+      <div class="wrap">
+        <div class="sec-h">Tu grupo · <span id="countHere">0</span> ya en el punto</div>
+        <div id="memberList"></div>
+        <footer>© 2026 AFTERS · App de ejemplo — datos simulados, no reales · Sin cookies de seguimiento<br>Diseñado por Incuba tu Negocio · por Jaime M. M.</footer>
+      </div>
+    </section>
+
+    <!-- CHAT -->
+    <section class="screen" id="vchat" aria-label="Chat del grupo">
+      <div class="msgs" id="msgs"></div>
+      <form class="chatbar" id="chatForm">
+        <input id="chatInput" type="text" placeholder="Escribe al grupo…" autocomplete="off" aria-label="Mensaje">
+        <button type="submit" aria-label="Enviar">➤</button>
+      </form>
+    </section>
+  </main>
+
+  <nav>
+    <button class="on" data-screen="vmap" type="button"><span class="ic">🗺️</span>Mapa</button>
+    <button data-screen="vgroup" type="button"><span class="ic">👥</span>Grupo</button>
+    <button data-screen="vchat" type="button" id="navChat"><span class="ic">💬</span>Chat</button>
+  </nav>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ============ CONFIG (el dueño cambia esto en 1 minuto) ============ */
+var CONFIG = {
+  BUSINESS_NAME: "AFTERS",
+  GROUP_NAME: "Finde 🎉",
+  MEETING_POINT: "Bar Luna",
+  STUDIO_BRAND: "Incuba tu Negocio",
+  STUDIO_AUTHOR: "Jaime M. M."
+};
+/* ================================================================= */
+
+(function(){
+  "use strict";
+  var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  document.getElementById("groupName").textContent = "Grupo · " + CONFIG.GROUP_NAME;
+  document.getElementById("spotLbl").textContent = "📍 " + CONFIG.MEETING_POINT;
+
+  // Miembros del grupo (simulado). status: here / way / off
+  var TARGET = { x: 205, y: 300 }; // "el punto" (Bar Luna) en coords del mapa
+  var friends = [
+    { id:"lucia", name:"Lucía", color:"#22d3ee", status:"here", eta:"En el punto",  x:198, y:308 },
+    { id:"marco", name:"Marco", color:"#ffd23f", status:"way",  eta:"a 4 min",      x:300, y:150 },
+    { id:"sara",  name:"Sara",  color:"#ff1f8f", status:"way",  eta:"a 7 min",      x:60,  y:470 },
+    { id:"dani",  name:"Dani",  color:"#8b6bff", status:"way",  eta:"a 11 min",     x:315, y:520 },
+    { id:"me",    name:"Tú",    color:"#38e07d", status:"way",  eta:"a 3 min",      x:150, y:560, me:true }
+  ];
+  var mapW = 360, mapH = 640;
+
+  // ---- pintar pines en el mapa ----
+  var pinsBox = document.getElementById("pins");
+  friends.forEach(function(f){
+    var el = document.createElement("div");
+    el.className = "friend" + (f.me ? " me" : "");
+    el.id = "pin-" + f.id;
+    el.innerHTML = '<div class="av" style="background:'+f.color+'">'+(f.me?"★":f.name[0])+'</div><div class="nm">'+esc(f.name)+'</div>';
+    pinsBox.appendChild(el);
+    f.el = el;
+    placePin(f);
+  });
+  function placePin(f){
+    f.el.style.left = (f.x/mapW*100).toFixed(2) + "%";
+    f.el.style.top  = (f.y/mapH*100).toFixed(2) + "%";
+  }
+  // spot
+  var spotEl = document.getElementById("spot");
+  spotEl.style.left = (TARGET.x/mapW*100)+"%";
+  spotEl.style.top  = (TARGET.y/mapH*100)+"%";
+
+  // ---- movimiento simulado: los "de camino" se acercan al punto ----
+  function step(){
+    friends.forEach(function(f){
+      if(f.status!=="way") return;
+      var dx = TARGET.x - f.x, dy = TARGET.y - f.y;
+      var d = Math.sqrt(dx*dx+dy*dy);
+      if(d < 14){ f.status="here"; f.eta="Acaba de llegar"; announce(f.name + " llegó a " + CONFIG.MEETING_POINT + " 🎉"); }
+      else { f.x += dx/d * (6 + Math.random()*7); f.y += dy/d * (6 + Math.random()*7); }
+      placePin(f);
+    });
+    renderChips(); renderMembers();
+  }
+  if(!reduce){ var mv = setInterval(step, 1600); window.addEventListener("pagehide", function(){ clearInterval(mv); }); }
+
+  // ---- chips de estado ----
+  function renderChips(){
+    var here = friends.filter(function(f){return f.status==="here"}).length;
+    var box = document.getElementById("chips");
+    box.innerHTML =
+      '<span class="chip"><i style="background:#38e07d"></i>'+here+' en el punto</span>'+
+      '<span class="chip"><i style="background:#22d3ee"></i>'+friends.filter(function(f){return f.status==="way"}).length+' de camino</span>'+
+      '<span class="chip">📍 '+esc(CONFIG.MEETING_POINT)+'</span>';
+  }
+
+  // ---- lista de grupo ----
+  function renderMembers(){
+    var box = document.getElementById("memberList");
+    var here = 0;
+    box.innerHTML = friends.map(function(f){
+      if(f.status==="here") here++;
+      var cls = f.status==="here"?"st-here":(f.status==="way"?"st-way":"st-off");
+      var lbl = f.status==="here"?"● En el punto":(f.status==="way"?"● De camino":"○ Sin conexión");
+      return '<div class="member"><div class="av" style="background:'+f.color+'">'+(f.me?"★":esc(f.name[0]))+'</div>'+
+        '<div class="info"><b>'+esc(f.name)+(f.me?' <span style="color:var(--cian);font-size:12px">(tú)</span>':'')+'</b>'+
+        '<small class="'+cls+'">'+lbl+'</small></div>'+
+        '<div class="eta '+cls+'">'+esc(f.eta)+'</div></div>';
+    }).join("");
+    document.getElementById("countHere").textContent = here;
+  }
+
+  renderChips(); renderMembers();
+
+  // ---- navegación entre pantallas ----
+  var navBtns = [].slice.call(document.querySelectorAll("nav button"));
+  navBtns.forEach(function(b){
+    b.addEventListener("click", function(){
+      var id = b.getAttribute("data-screen");
+      navBtns.forEach(function(x){ x.classList.toggle("on", x===b); });
+      ["vmap","vgroup","vchat"].forEach(function(s){
+        document.getElementById(s).classList.toggle("on", s===id);
+      });
+      if(id==="vchat"){ clearChatBadge(); var m=document.getElementById("msgs"); m.scrollTop=m.scrollHeight; }
+    });
+  });
+
+  // ---- SOS y marcar punto ----
+  document.getElementById("btnSos").addEventListener("click", function(){
+    announce("🆘 SOS enviado — todo el grupo ve dónde estás");
+  });
+  document.getElementById("btnMark").addEventListener("click", function(){
+    announce("📍 Punto marcado en " + CONFIG.MEETING_POINT + " — todos ven cómo llegar");
+  });
+
+  // ---- chat ----
+  var CHAT_KEY = "afters_demo_chat_v1";
+  var seed = [
+    { who:"Lucía", me:false, t:"Ya estoy en "+CONFIG.MEETING_POINT+", os guardo sitio 🍻" },
+    { who:"Marco", me:false, t:"Salgo en 5, ¿pedís algo?" },
+    { who:"Tú",    me:true,  t:"Voy de camino, llego enseguida" }
+  ];
+  var incoming = [
+    { who:"Sara",  t:"¿Dónde aparco? 🚗" },
+    { who:"Dani",  t:"Llevo la música 🔊" },
+    { who:"Lucía", t:"La primera ronda la pido yo 🎉" },
+    { who:"Marco", t:"¡Ya casi llego!" }
+  ];
+  var chat = load(CHAT_KEY) || seed.slice();
+  var msgsBox = document.getElementById("msgs");
+  function renderChat(){
+    msgsBox.innerHTML = chat.map(function(m){
+      return '<div class="msg '+(m.me?"me":"them")+'">'+(m.me?"":'<div class="who">'+esc(m.who)+'</div>')+esc(m.t)+'</div>';
+    }).join("");
+    msgsBox.scrollTop = msgsBox.scrollHeight;
+  }
+  renderChat();
+  document.getElementById("chatForm").addEventListener("submit", function(e){
+    e.preventDefault();
+    var inp = document.getElementById("chatInput");
+    var v = inp.value.trim(); if(!v) return;
+    chat.push({ who:"Tú", me:true, t:v }); inp.value="";
+    save(CHAT_KEY, chat); renderChat();
+  });
+  // mensaje entrante simulado de vez en cuando
+  var ic = 0;
+  if(!reduce){
+    var inv = setInterval(function(){
+      if(ic>=incoming.length){ clearInterval(inv); return; }
+      var m = incoming[ic++]; chat.push({ who:m.who, me:false, t:m.t }); save(CHAT_KEY, chat); renderChat();
+      if(!document.getElementById("vchat").classList.contains("on")) chatBadge();
+    }, 6500);
+    window.addEventListener("pagehide", function(){ clearInterval(inv); });
+  }
+  function chatBadge(){
+    var nav = document.getElementById("navChat");
+    if(nav.querySelector(".badge")) return;
+    var b = document.createElement("span"); b.className="badge"; b.textContent="•"; nav.appendChild(b);
+  }
+  function clearChatBadge(){ var b=document.querySelector("#navChat .badge"); if(b) b.remove(); }
+
+  // ---- utilidades ----
+  function announce(msg){
+    var t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(announce._t); announce._t = setTimeout(function(){ t.classList.remove("show"); }, 2800);
+  }
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]; }); }
+  function save(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  function load(k){ try{ var s=localStorage.getItem(k); return s?JSON.parse(s):null; }catch(e){ return null; } }
+})();
+</script>
+
+<script type="application/json" id="acceptance-tests">
+[
+  { "name": "Arranca en el mapa con el punto de encuentro", "steps": [ { "expect": "Bar Luna" }, { "expectVisible": "#btnSos" } ] },
+  { "name": "Cambiar a Grupo muestra a los miembros", "steps": [ { "clickText": "Grupo" }, { "expect": "Lucía" }, { "expect": "De camino" } ] },
+  { "name": "El SOS avisa al grupo", "steps": [ { "click": "#btnSos" }, { "expect": "SOS enviado" } ] },
+  { "name": "Enviar un mensaje al chat", "steps": [ { "clickText": "Chat" }, { "fill": { "sel": "#chatInput", "value": "Llego en 2" } }, { "submit": "#chatForm" }, { "expect": "Llego en 2" } ] }
+]
+</script>
+</body>
+</html>

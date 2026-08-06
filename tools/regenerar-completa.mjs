@@ -19,6 +19,7 @@ const COMPLETA = "apps/incuba-tu-negocio-COMPLETA.html";
 function fuenteDe(key) {
   if (key === "briefing.html") return "briefing.html";
   if (key === "camarero-top.html") return "apps/camarero-digital.html"; // La Tasca (PLAN:"top")
+  if (key === "afters.html") return "apps/afters-ejemplo.html"; // demo autocontenida (la app real usa Firebase/mapas y no va offline)
   if (key.endsWith("-web.html")) return "apps/webs-basicas/" + key;
   return "apps/" + key;
 }
