@@ -180,11 +180,21 @@
   html{scroll-behavior:auto !important}
   header{position:static !important}                 /* cabecera no pegajosa: no repinta al desplazar */
   .promo,.screen-frame,.kiosk,.mapwidget,.glass{transform:translateZ(0);will-change:auto}
-  /* boton de play (video no autoplay -> poster fijo, cero temblor al scroll) */
-  .playbtn{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:8;width:64px;height:64px;border-radius:50%;border:0;cursor:pointer;background:rgba(0,0,0,.55);color:#fff;font-size:24px;line-height:1;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 24px rgba(0,0,0,.5);transition:transform .15s ease,background-color .15s ease}
-  .playbtn:hover{transform:translate(-50%,-50%) scale(1.07);background:rgba(0,0,0,.7)}
-  .playbtn span{margin-left:3px;pointer-events:none}
-  .playing .playbtn{display:none}  /* video en su propia capa */
+  /* boton play/pausa (video a demanda: sin autoplay = poster fijo, sin temblor). Accesible por teclado. */
+  .playbtn{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:8;width:64px;height:64px;border-radius:50%;border:0;cursor:pointer;background:rgba(0,0,0,.55);color:#fff;font-size:24px;line-height:1;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 24px rgba(0,0,0,.5);transition:transform .15s ease,opacity .2s ease,background-color .15s ease}
+  .playbtn:hover{transform:translate(-50%,-50%) scale(1.07);background:rgba(0,0,0,.72)}
+  .playbtn:focus-visible{outline:none;box-shadow:0 0 0 3px rgba(255,255,255,.65)}
+  .playbtn span{pointer-events:none}
+  .playbtn .i-play{margin-left:3px}
+  .playbtn .i-pause{display:none}
+  /* reproduciendo: boton pequeno de pausa abajo-izq, discreto pero SIEMPRE accesible con teclado */
+  .playing .playbtn{left:12px;top:auto;bottom:12px;transform:none;width:44px;height:44px;font-size:16px;background:rgba(0,0,0,.5);opacity:.5}
+  .playing .playbtn:hover,.playing .playbtn:focus-visible{opacity:1;transform:scale(1.06)}
+  .playing .playbtn .i-play{display:none}
+  .playing .playbtn .i-pause{display:inline}
+  /* el boton de sonido solo aparece cuando el video se reproduce */
+  .sound{opacity:0;pointer-events:none;transition:opacity .2s ease}
+  .playing .sound{opacity:1;pointer-events:auto}
 </style>
 </head>
 <body>
@@ -333,24 +343,24 @@ document.addEventListener('click', function (e) {
 </script>
 
 <script>
-/* Video a demanda: sin autoplay (poster fijo = sin temblor al hacer scroll). Play al tocar; pausa al salir de vista. */
+/* Video a demanda: sin autoplay (poster fijo = sin temblor). Boton play/pausa accesible por teclado; pausa al salir de vista. */
 (function(){
   var vids=[].slice.call(document.querySelectorAll('video.promo'));
   vids.forEach(function(v){
-    try{ v.removeAttribute('autoplay'); v.pause(); }catch(e){}
+    try{ v.pause(); }catch(e){}
     var box=v.parentElement; if(!box) return;
     if(getComputedStyle(box).position==='static'){ box.style.position='relative'; }
     var btn=document.createElement('button');
     btn.type='button'; btn.className='playbtn'; btn.setAttribute('aria-label','Reproducir vídeo');
-    btn.innerHTML='<span>&#9654;</span>';
+    btn.innerHTML='<span class="i-play">&#9654;</span><span class="i-pause">&#9208;</span>';
     box.appendChild(btn);
-    function play(){ var p=v.play(); if(p&&p.catch){ p.catch(function(){}); } }
-    btn.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); play(); });
-    v.addEventListener('click',function(){ if(v.paused){ play(); } else { v.pause(); } });
-    v.addEventListener('play',function(){ box.classList.add('playing'); });
-    v.addEventListener('pause',function(){ box.classList.remove('playing'); });
+    function toggle(){ if(v.paused){ var p=v.play(); if(p&&p.catch){ p.catch(function(){}); } } else { v.pause(); } }
+    btn.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); toggle(); });
+    v.addEventListener('click',toggle);
+    v.addEventListener('play',function(){ box.classList.add('playing'); btn.setAttribute('aria-label','Pausar vídeo'); });
+    v.addEventListener('pause',function(){ box.classList.remove('playing'); btn.setAttribute('aria-label','Reproducir vídeo'); });
     if('IntersectionObserver' in window){
-      new IntersectionObserver(function(es){ es.forEach(function(x){ if(!x.isIntersecting){ try{ v.pause(); }catch(e){} } }); },{threshold:0.4}).observe(v);
+      new IntersectionObserver(function(es){ es.forEach(function(x){ if(!x.isIntersecting && !v.paused){ try{ v.pause(); }catch(e){} } }); },{threshold:0.4}).observe(v);
     }
   });
 })();
