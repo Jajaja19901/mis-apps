@@ -5,71 +5,210 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Peluquería Aurora · Web Básica (ejemplo)</title>
 <style>
-  :root{--marron:#6b4331;--marron2:#8a5a42;--crema:#faf5ef;--crema2:#f3eae0;--tinta:#33231a;--suave:#7a6558}
+  :root{
+    --bg:#faf6f1;
+    --ink:#1c1512;
+    --ink-soft:#6d6058;
+    --line:#e3d8c9;
+    --accent:#9c3b2e;
+    --accent-soft:#f1e0d3;
+  }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  body{background:var(--crema);color:var(--tinta);font-family:Georgia,'Times New Roman',serif;line-height:1.6}
-  .ribbon{background:#0d1526;color:#27e6a6;font-family:monospace;font-size:11px;letter-spacing:.14em;text-align:center;padding:7px 10px;text-transform:uppercase}
-  header{padding:16px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #e5d8ca;background:var(--crema)}
-  header .dot{width:10px;height:10px;border-radius:50%;background:var(--marron)}
-  header b{font-size:19px}
-  .hero{padding:52px 22px 40px;text-align:center;background:linear-gradient(180deg,var(--crema),var(--crema2))}
-  .hero .mini{font-family:Arial,sans-serif;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--marron2)}
-  .hero h1{font-size:clamp(30px,7.5vw,44px);line-height:1.12;margin:12px auto 14px;max-width:520px}
-  .hero h1 em{font-style:italic;color:var(--marron)}
-  .hero p{color:var(--suave);max-width:440px;margin:0 auto 24px;font-size:16.5px}
-  .btn{display:inline-block;background:var(--marron);color:#fff;border-radius:999px;padding:15px 30px;text-decoration:none;font-family:Arial,sans-serif;font-weight:700;font-size:15px;border:0;cursor:pointer}
-  .btn.wa{background:#1fA855}
-  .nota{display:block;margin-top:10px;font-family:Arial,sans-serif;font-size:11.5px;color:#a08b7c}
-  section{padding:42px 22px;max-width:640px;margin:0 auto}
-  h2{font-size:24px;margin-bottom:18px;text-align:center}
-  .srv{display:flex;justify-content:space-between;gap:12px;padding:13px 2px;border-bottom:1px dashed #ddcbbb;font-size:16px}
-  .srv small{display:block;color:var(--suave);font-family:Arial,sans-serif;font-size:12.5px}
-  .srv b{white-space:nowrap;color:var(--marron)}
-  .dos{display:grid;grid-template-columns:1fr 1fr;gap:14px;text-align:center;font-family:Arial,sans-serif}
-  .dos>div{background:#fff;border:1px solid #eadfd2;border-radius:14px;padding:18px 12px}
-  .dos .ico{font-size:26px}
-  .dos b{display:block;margin:6px 0 3px;font-size:14px}
-  .dos p{font-size:13px;color:var(--suave)}
-  .cta-final{text-align:center;background:var(--marron);color:#fff;border-radius:20px;padding:34px 20px;margin:10px 22px 40px}
-  .cta-final h2{color:#fff}
-  .cta-final p{opacity:.85;margin-bottom:18px;font-size:15px}
-  .cta-final .btn{background:#fff;color:var(--marron)}
-  footer{border-top:1px solid #e5d8ca;padding:22px;text-align:center;font-family:Arial,sans-serif;font-size:12px;color:#a08b7c}
+  html{-webkit-text-size-adjust:100%}
+  body{background:var(--bg);color:var(--ink);font-family:Georgia,'Times New Roman',serif;line-height:1.6;-webkit-font-smoothing:antialiased}
+  @media (prefers-reduced-motion: reduce){*{transition:none !important}}
+
+  /* cinta superior (texto obligatorio) */
+  .ribbon{background:var(--ink);color:var(--bg);font-family:Arial,Helvetica,sans-serif;font-size:10.5px;letter-spacing:.15em;text-transform:uppercase;text-align:center;padding:9px 12px}
+
+  /* cabecera / masthead editorial */
+  .masthead{max-width:1180px;margin:0 auto;padding:26px 24px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+  .masthead-brand{display:flex;align-items:center;gap:12px}
+  .mark{width:26px;height:26px;color:var(--accent);flex:0 0 auto}
+  .mark circle,.mark line{stroke:currentColor}
+  .masthead-name{font-size:19px;letter-spacing:.01em}
+  .masthead-meta{font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-soft)}
+
+  /* héroe editorial asimétrico */
+  .hero{max-width:1180px;margin:0 auto;padding:56px 24px 60px}
+  .hero-grid{display:grid;gap:36px}
+  .kicker{display:block;font-family:Arial,Helvetica,sans-serif;font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);margin-bottom:20px}
+  .display{font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:clamp(40px,8.6vw,84px);line-height:.99;letter-spacing:-.01em;margin:0 0 24px}
+  .display em{font-style:italic;color:var(--accent)}
+  .lede{font-size:17px;color:var(--ink-soft);max-width:420px;margin:0 0 30px}
+  .hero-aside{display:none}
+
+  .btn{display:inline-flex;align-items:center;gap:10px;background:var(--ink);color:var(--bg);text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-weight:600;font-size:13px;letter-spacing:.09em;text-transform:uppercase;padding:16px 26px;border:1px solid var(--ink);cursor:pointer;min-height:44px;transition:background .2s ease,color .2s ease}
+  .btn:hover{background:transparent;color:var(--ink)}
+  .btn.wa{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.wa:hover{background:transparent;color:var(--accent)}
+  .nota{display:block;margin-top:12px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#a99c8d}
+
+  /* secciones genéricas */
+  section{max-width:1180px;margin:0 auto;padding:0 24px}
+  .section-inner{padding:56px 0;border-top:1px solid var(--line)}
+  .section-head{margin-bottom:34px}
+  .section-head h2{font-size:clamp(26px,4.4vw,36px);font-weight:400;margin:0}
+
+  /* índice de servicios, estilo editorial (sin emojis) */
+  .srv-list{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+  .srv{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 18px;padding:24px 0;border-bottom:1px solid var(--line)}
+  .srv .num{flex:0 0 auto;width:40px;font-style:italic;font-size:20px;color:var(--accent)}
+  .srv-body{flex:1 1 200px;min-width:160px}
+  .srv-name{display:block;font-size:clamp(19px,3vw,23px);margin-bottom:5px}
+  .srv small{display:block;font-family:Arial,Helvetica,sans-serif;font-size:12.5px;color:var(--ink-soft);line-height:1.5}
+  .srv-price{flex:0 0 auto;margin-left:auto;font-family:Arial,Helvetica,sans-serif;font-size:14px;letter-spacing:.02em;color:var(--ink);white-space:nowrap}
+
+  /* ven a vernos: colofón a dos columnas */
+  .info-grid{display:grid;gap:36px}
+  .info-item .num{display:block;font-style:italic;font-size:20px;color:var(--accent);margin-bottom:10px}
+  .info-item b{display:block;font-weight:400;font-size:20px;margin-bottom:10px}
+  .info-item p{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:var(--ink-soft);line-height:1.75}
+
+  /* cta final a toda anchura */
+  .cta-final{background:var(--ink);color:var(--bg);padding:64px 24px}
+  .cta-inner{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+  .cta-final h2{font-family:Georgia,'Times New Roman',serif;font-weight:400;font-size:clamp(30px,6vw,50px);line-height:1.05;margin:0;max-width:520px}
+  .cta-final p{font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#e4d9cc;max-width:380px;margin:0}
+  .cta-final .btn{background:var(--accent);border-color:var(--accent);color:#fff;align-self:flex-start}
+  .cta-final .btn:hover{background:transparent;color:var(--accent-soft);border-color:var(--accent-soft)}
+
+  /* pie / colofón */
+  footer{max-width:1180px;margin:0 auto;padding:40px 24px 48px;border-top:1px solid var(--line);font-family:Arial,Helvetica,sans-serif;font-size:11.5px;color:var(--ink-soft);text-align:center;line-height:1.9}
+
+  /* ===== escritorio / tablet ===== */
+  @media (min-width:640px){
+    .info-grid{grid-template-columns:1fr 1fr}
+    .info-item + .info-item{border-left:1px solid var(--line);padding-left:36px}
+  }
+  @media (min-width:760px){
+    .cta-inner{flex-direction:row;align-items:center;justify-content:space-between;gap:40px}
+    .cta-final .btn{align-self:center}
+  }
+  @media (min-width:900px){
+    .hero-grid{grid-template-columns:1.3fr .7fr;align-items:end}
+    .hero-aside{display:flex;align-items:flex-end;justify-content:flex-end}
+    .ornament{width:180px;height:180px;color:var(--line)}
+    .ornament circle,.ornament line{stroke:currentColor}
+    .srv-price{font-size:15px}
+  }
+  @media (min-width:1200px){
+    .display{font-size:88px}
+  }
 </style>
 </head>
 <body>
+
 <div class="ribbon">Ejemplo · Web Básica — desde 250€ · así arranca tu negocio online</div>
-<header><span class="dot"></span><b>Peluquería Aurora</b></header>
+
+<header class="masthead">
+  <div class="masthead-brand">
+    <svg class="mark" viewBox="0 0 40 40" fill="none" aria-hidden="true" focusable="false">
+      <circle cx="20" cy="20" r="15" stroke-width="1.2"/>
+      <circle cx="20" cy="20" r="6" stroke-width="1.2"/>
+    </svg>
+    <span class="masthead-name">Peluquería Aurora</span>
+  </div>
+  <span class="masthead-meta">Madrid · Chamberí</span>
+</header>
 
 <div class="hero">
-  <span class="mini">Peluquería · Madrid · Barrio de Chamberí</span>
-  <h1>Tu mejor versión, <em>en el corazón de Madrid</em></h1>
-  <p>Cortes, color y tratamientos personalizados con cita previa. Reserva en un minuto por WhatsApp.</p>
-  <a class="btn wa">💬 Reservar por WhatsApp</a>
-  <span class="nota">(aquí va el WhatsApp real del negocio)</span>
+  <div class="hero-grid">
+    <div class="hero-main">
+      <span class="kicker">Peluquería · Madrid · Barrio de Chamberí</span>
+      <h1 class="display">Tu mejor versión,<br><em>en el corazón de Madrid</em></h1>
+      <p class="lede">Cortes, color y tratamientos personalizados con cita previa. Reserva en un minuto por WhatsApp.</p>
+      <a class="btn wa">Reservar por WhatsApp</a>
+      <span class="nota">(aquí va el WhatsApp real del negocio)</span>
+    </div>
+    <div class="hero-aside">
+      <svg class="ornament" viewBox="0 0 120 120" fill="none" aria-hidden="true" focusable="false">
+        <circle cx="60" cy="60" r="46" stroke-width="1"/>
+        <circle cx="60" cy="60" r="30" stroke-width="1"/>
+        <line x1="60" y1="2" x2="60" y2="22" stroke-width="1"/>
+        <line x1="60" y1="98" x2="60" y2="118" stroke-width="1"/>
+        <line x1="2" y1="60" x2="22" y2="60" stroke-width="1"/>
+        <line x1="98" y1="60" x2="118" y2="60" stroke-width="1"/>
+      </svg>
+    </div>
+  </div>
 </div>
 
 <section>
-  <h2>Servicios y precios</h2>
-  <div class="srv"><span>✂️ Corte &amp; peinado<small>Asesoramiento de imagen y corte a medida.</small></span><b>desde 22€</b></div>
-  <div class="srv"><span>🎨 Color &amp; mechas<small>Coloración y balayage sin amoníaco.</small></span><b>desde 45€</b></div>
-  <div class="srv"><span>💧 Tratamientos<small>Hidratación profunda y keratina.</small></span><b>desde 30€</b></div>
-  <div class="srv"><span>💍 Recogidos &amp; eventos<small>Peinados para bodas, con prueba previa.</small></span><b>desde 40€</b></div>
-  <div class="srv"><span>🧔 Barbería<small>Arreglo de barba con toalla caliente.</small></span><b>desde 18€</b></div>
+  <div class="section-inner">
+    <div class="section-head"><h2>Servicios y precios</h2></div>
+    <!-- índice editorial de servicios -->
+    <div class="srv-list">
+      <div class="srv">
+        <span class="num">01</span>
+        <span class="srv-body">
+          <span class="srv-name">Corte &amp; peinado</span>
+          <small>Asesoramiento de imagen y corte a medida.</small>
+        </span>
+        <b class="srv-price">desde 22€</b>
+      </div>
+      <div class="srv">
+        <span class="num">02</span>
+        <span class="srv-body">
+          <span class="srv-name">Color &amp; mechas</span>
+          <small>Coloración y balayage sin amoníaco.</small>
+        </span>
+        <b class="srv-price">desde 45€</b>
+      </div>
+      <div class="srv">
+        <span class="num">03</span>
+        <span class="srv-body">
+          <span class="srv-name">Tratamientos</span>
+          <small>Hidratación profunda y keratina.</small>
+        </span>
+        <b class="srv-price">desde 30€</b>
+      </div>
+      <div class="srv">
+        <span class="num">04</span>
+        <span class="srv-body">
+          <span class="srv-name">Recogidos &amp; eventos</span>
+          <small>Peinados para bodas, con prueba previa.</small>
+        </span>
+        <b class="srv-price">desde 40€</b>
+      </div>
+      <div class="srv">
+        <span class="num">05</span>
+        <span class="srv-body">
+          <span class="srv-name">Barbería</span>
+          <small>Arreglo de barba con toalla caliente.</small>
+        </span>
+        <b class="srv-price">desde 18€</b>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section>
-  <h2>Ven a vernos</h2>
-  <div class="dos">
-    <div><span class="ico">🕐</span><b>Horario</b><p>L–V 10:00–20:00<br>Sáb 10:00–14:00<br>Dom cerrado</p></div>
-    <div><span class="ico">📍</span><b>Dónde</b><p>Calle de Ejemplo 12<br>28010 Madrid<br>(Chamberí)</p></div>
+  <div class="section-inner">
+    <div class="section-head"><h2>Ven a vernos</h2></div>
+    <div class="info-grid">
+      <div class="info-item">
+        <span class="num">I.</span>
+        <b>Horario</b>
+        <p>L–V 10:00–20:00<br>Sáb 10:00–14:00<br>Dom cerrado</p>
+      </div>
+      <div class="info-item">
+        <span class="num">II.</span>
+        <b>Dónde</b>
+        <p>Calle de Ejemplo 12<br>28010 Madrid<br>(Chamberí)</p>
+      </div>
+    </div>
   </div>
 </section>
 
 <div class="cta-final">
-  <h2>¿Te esperamos?</h2>
-  <p>Escríbenos y te confirmamos la cita al momento. Sin esperas: solo con cita.</p>
-  <a class="btn">💬 Pedir cita ahora</a>
+  <div class="cta-inner">
+    <div>
+      <h2>¿Te esperamos?</h2>
+      <p>Escríbenos y te confirmamos la cita al momento. Sin esperas: solo con cita.</p>
+    </div>
+    <a class="btn">Pedir cita ahora</a>
+  </div>
 </div>
 
 <footer>© 2026 Peluquería Aurora · Sin cookies de seguimiento<br>Diseñado por Incuba tu Negocio · por Jaime M. M.</footer>
