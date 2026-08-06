@@ -4,81 +4,150 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Patitas · Web Básica (ejemplo)</title>
+<meta name="description" content="Patitas — clínica veterinaria y peluquería canina. Consulta, vacunación, desparasitación, baño y corte con cita previa.">
 <style>
   :root{
-    --bg:#f2fbf6;
-    --card:#ffffff;
-    --line:#dcefe6;
-    --ink:#1c3d34;
-    --soft:#5f8078;
-    --teal:#17a889;
-    --teal-dark:#0e7a63;
-    --sky:#4fb6e8;
-    --sky-soft:#e8f6fd;
-    --teal-soft:#dff5ee;
-    --coral:#ff8a63;
-    --coral-soft:#ffe9e0;
+    /* Design system: Claymorphism (pet clinic) */
+    --color-primary:#0D9488;
+    --color-primary-600:#0B6F63;   /* variante oscura AA-safe para texto blanco */
+    --color-secondary:#14B8A6;
+    --color-secondary-600:#0C7A6C; /* variante oscura AA-safe para texto blanco */
+    --color-accent:#EA580C;
+    --color-accent-600:#C2460A;    /* variante oscura AA-safe para texto blanco */
+    --color-on-primary:#FFFFFF;
+    --color-background:#F0FDFA;
+    --color-foreground:#134E4A;
+    --color-soft:#3F6E67;
+    --color-muted:#E8F1F4;
+    --color-border:#99F6E4;
+    --color-card:#FFFFFF;
+    --color-ring:#0D9488;
+
+    --tint-1:#CFFBF1;
+    --tint-2:#FFE7D6;
+    --tint-3:#D8F3ED;
+
+    --clay-light:rgba(255,255,255,.9);
+    --clay-light-soft:rgba(255,255,255,.55);
+    --clay-dark:rgba(13,85,75,.20);
+    --clay-dark-strong:rgba(11,65,58,.32);
+
+    --r-xl:40px;
+    --r-lg:32px;
+    --r-md:24px;
+    --r-sm:18px;
+    --r-pill:999px;
+
+    --font-heading:-apple-system,"SF Pro Rounded","Segoe UI Rounded","Segoe UI",Roboto,Verdana,sans-serif;
+    --font-body:-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --font-mono:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
   }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html{-webkit-text-size-adjust:100%}
   body{
-    background:var(--bg);
-    color:var(--ink);
-    font-family:"Segoe UI Rounded","SF Pro Rounded",-apple-system,BlinkMacSystemFont,"Segoe UI",Verdana,sans-serif;
+    background:var(--color-background);
+    color:var(--color-foreground);
+    font-family:var(--font-body);
     line-height:1.6;
     overflow-x:hidden;
   }
+  h1,h2,h3{font-family:var(--font-heading)}
+  img,svg{display:block}
+  a{color:inherit}
+  ::selection{background:var(--color-accent);color:#fff}
+
+  a:focus-visible,
+  .btn:focus-visible,
+  button:focus-visible{
+    outline:3px solid var(--color-ring);
+    outline-offset:3px;
+    border-radius:var(--r-pill);
+  }
+
   @media (prefers-reduced-motion: reduce){
     *{animation:none!important;transition:none!important}
   }
 
+  /* ---------- entrance (una sola vez, sin bucles) ---------- */
+  @media (prefers-reduced-motion: no-preference){
+    @keyframes clayPop{
+      from{opacity:0;transform:scale(.88) translateY(14px)}
+      to{opacity:1;transform:scale(1) translateY(0)}
+    }
+    .hero-text > *,
+    .pet-blob,
+    .card,
+    .visit-card{
+      animation:clayPop .55s cubic-bezier(.34,1.56,.64,1) backwards;
+    }
+    .hero-text > *:nth-child(1){animation-delay:.02s}
+    .hero-text > *:nth-child(2){animation-delay:.08s}
+    .hero-text > *:nth-child(3){animation-delay:.14s}
+    .hero-text > *:nth-child(4){animation-delay:.2s}
+    .hero-text > *:nth-child(5){animation-delay:.26s}
+    .pet-blob{animation-delay:.16s}
+    .cards .card:nth-child(1){animation-delay:.05s}
+    .cards .card:nth-child(2){animation-delay:.12s}
+    .cards .card:nth-child(3){animation-delay:.19s}
+    .cards .card:nth-child(4){animation-delay:.26s}
+    .visit-card:nth-child(1){animation-delay:.05s}
+    .visit-card:nth-child(2){animation-delay:.12s}
+  }
+
+  /* ---------- ribbon demo ---------- */
   .ribbon{
-    background:var(--teal-dark);
-    color:#d7fbef;
-    font-family:ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+    background:var(--color-primary-600);
+    color:var(--color-background);
+    font-family:var(--font-mono);
     font-size:11px;
     letter-spacing:.14em;
     text-align:center;
-    padding:8px 10px;
+    padding:9px 10px;
     text-transform:uppercase;
   }
 
+  /* ---------- header ---------- */
   header{
-    padding:18px 22px;
+    padding:20px 22px;
     display:flex;
     align-items:center;
-    gap:12px;
-    background:var(--bg);
+    gap:14px;
   }
   .brand-badge{
-    width:46px;height:46px;flex:0 0 auto;
-    border-radius:16px;
-    background:linear-gradient(135deg,var(--teal),var(--sky));
+    width:52px;height:52px;flex:0 0 auto;
+    border-radius:20px;
+    background:linear-gradient(150deg,var(--color-primary),var(--color-secondary));
     display:flex;align-items:center;justify-content:center;
-    box-shadow:0 8px 18px rgba(15,120,100,.25);
+    box-shadow:6px 6px 14px var(--clay-dark), -5px -5px 12px var(--clay-light);
   }
   header b{
-    font-size:20px;
+    font-family:var(--font-heading);
+    font-size:21px;
     font-weight:800;
-    color:var(--teal-dark);
+    color:var(--color-foreground);
     letter-spacing:-.01em;
   }
+  header b .dot{color:var(--color-accent-600)}
 
+  /* ---------- icon helper ---------- */
+  .icon{width:24px;height:24px;flex:0 0 auto}
+
+  /* ---------- hero ---------- */
   .hero{
     position:relative;
-    padding:44px 22px 76px;
+    padding:44px 22px 80px;
     background:
-      radial-gradient(circle at 12% 18%, #d6f3e8 0, transparent 55%),
-      radial-gradient(circle at 88% 12%, #ddf0fb 0, transparent 50%),
-      radial-gradient(circle at 80% 90%, #ffe6d9 0, transparent 45%),
+      radial-gradient(circle at 10% 15%, var(--tint-1) 0, transparent 55%),
+      radial-gradient(circle at 90% 10%, var(--tint-3) 0, transparent 50%),
+      radial-gradient(circle at 82% 92%, var(--tint-2) 0, transparent 45%),
       #ffffff;
     overflow:hidden;
   }
   .hero::after{
     content:'';
-    position:absolute;left:0;right:0;bottom:-1px;height:34px;
-    background-image:radial-gradient(circle at 17px -6px, transparent 20px, var(--bg) 21px);
-    background-size:34px 34px;
+    position:absolute;left:0;right:0;bottom:-1px;height:36px;
+    background-image:radial-gradient(circle at 18px -6px, transparent 21px, var(--color-background) 22px);
+    background-size:36px 36px;
     background-repeat:repeat-x;
   }
   .hero-inner{
@@ -86,211 +155,261 @@
     max-width:1080px;
     margin:0 auto;
     display:grid;
-    gap:36px;
+    gap:38px;
     align-items:center;
     text-align:center;
   }
   .hero-text{max-width:520px;margin:0 auto}
-  .mini{
-    display:inline-block;
-    background:var(--card);
-    color:var(--teal-dark);
-    font-size:11.5px;
-    letter-spacing:.16em;
-    text-transform:uppercase;
-    font-weight:800;
-    padding:9px 18px;
-    border-radius:999px;
-    box-shadow:0 6px 16px rgba(15,120,100,.12);
-    margin-bottom:18px;
-  }
-  .hero h1{
-    font-size:clamp(29px,7vw,44px);
-    line-height:1.14;
-    margin:0 0 16px;
-    font-weight:800;
-    color:var(--ink);
-  }
-  .hero h1 em{
-    font-style:normal;
-    color:var(--teal);
-    text-decoration:wavy underline var(--coral);
-    text-underline-offset:6px;
-    text-decoration-thickness:2px;
-  }
-  .hero p{color:var(--soft);margin:0 auto 26px;font-size:16.5px;max-width:440px}
+  .hero-text > *{margin-bottom:18px}
+  .hero-text > *:last-child{margin-bottom:0}
 
-  .btn{
+  .mini{
     display:inline-flex;
     align-items:center;
     gap:8px;
-    background:var(--teal);
+    background:var(--color-card);
+    color:var(--color-primary-600);
+    font-size:11.5px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    font-weight:800;
+    padding:10px 20px;
+    border-radius:var(--r-pill);
+    box-shadow:5px 5px 12px var(--clay-dark), -5px -5px 12px var(--clay-light);
+  }
+  .hero h1{
+    font-size:clamp(30px,7vw,46px);
+    line-height:1.16;
+    font-weight:800;
+    color:var(--color-foreground);
+  }
+  .hero h1 em{
+    font-style:normal;
+    color:var(--color-accent);
+    text-decoration:wavy underline var(--color-accent-600);
+    text-underline-offset:7px;
+    text-decoration-thickness:2.5px;
+  }
+  .hero p{color:var(--color-soft);font-size:16.5px;max-width:440px;margin-left:auto;margin-right:auto}
+  .nota{display:block;font-size:12px;color:var(--color-soft);opacity:.85}
+
+  /* ---------- clay buttons ---------- */
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    background:var(--color-accent-600);
     color:#fff;
-    border-radius:999px;
+    border-radius:var(--r-pill);
     padding:16px 30px;
     text-decoration:none;
     font-weight:800;
     font-size:15.5px;
     border:0;
     cursor:pointer;
-    box-shadow:0 12px 24px rgba(23,168,137,.28);
-    transition:transform .15s ease, box-shadow .15s ease;
-    min-height:44px;
+    min-height:52px;
+    box-shadow:8px 8px 18px var(--clay-dark-strong), -6px -6px 14px var(--clay-light),
+      inset 0 2px 2px rgba(255,255,255,.35), inset 0 -3px 6px rgba(0,0,0,.18);
+    transition:transform .18s cubic-bezier(.34,1.56,.64,1), box-shadow .18s ease;
   }
-  .btn:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 16px 30px rgba(23,168,137,.35)}
-  .btn:active{transform:translateY(0) scale(.97)}
-  .btn.wa{background:linear-gradient(135deg,#27dd72,#17a889);box-shadow:0 12px 24px rgba(39,221,114,.3)}
-  .nota{display:block;margin-top:14px;font-size:12px;color:var(--soft);opacity:.85}
+  .btn:hover{transform:translateY(-3px) scale(1.03)}
+  .btn:active{
+    transform:translateY(1px) scale(.95);
+    box-shadow:inset 5px 5px 10px rgba(0,0,0,.28), inset -3px -3px 8px rgba(255,255,255,.15);
+  }
+  .btn-white{
+    background:#fff;
+    color:var(--color-primary-600);
+    box-shadow:8px 8px 18px rgba(0,0,0,.18), -6px -6px 14px rgba(255,255,255,.35),
+      inset 0 2px 2px rgba(255,255,255,.6), inset 0 -3px 6px rgba(0,0,0,.06);
+  }
 
+  /* ---------- pet blob (mascota hero) ---------- */
   .pet-blob{
     position:relative;
-    width:210px;height:210px;
+    width:220px;height:220px;
     margin:0 auto;
     border-radius:63% 37% 54% 46%/43% 37% 63% 57%;
-    background:linear-gradient(135deg,var(--teal),var(--sky));
+    background:linear-gradient(150deg,var(--color-primary),var(--color-secondary));
     display:flex;align-items:center;justify-content:center;
-    box-shadow:0 20px 40px rgba(15,120,100,.25);
+    box-shadow:14px 14px 30px var(--clay-dark-strong), -10px -10px 24px var(--clay-light);
   }
-  .pet-blob svg{width:82px;height:82px}
-  .pet-blob .float{
+  .pet-blob svg.mark{width:84px;height:84px}
+  .float-badge{
     position:absolute;
-    font-size:26px;
-    filter:drop-shadow(0 4px 6px rgba(0,0,0,.12));
+    width:44px;height:44px;
+    border-radius:16px;
+    background:#fff;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--color-accent-600);
+    box-shadow:5px 5px 12px var(--clay-dark), -5px -5px 10px var(--clay-light);
   }
-  .pet-blob .float.f1{top:-6px;left:-14px;transform:rotate(-18deg)}
-  .pet-blob .float.f2{bottom:6px;right:-18px;transform:rotate(14deg);font-size:22px}
-  .pet-blob .float.f3{bottom:-14px;left:20px;transform:rotate(-8deg);font-size:18px;opacity:.85}
+  .float-badge .icon{width:20px;height:20px}
+  .float-badge.f1{top:-10px;left:-16px;transform:rotate(-12deg)}
+  .float-badge.f2{bottom:2px;right:-18px;transform:rotate(10deg);color:var(--color-primary-600)}
+  .float-badge.f3{bottom:-16px;left:26px;transform:rotate(-6deg);width:36px;height:36px;border-radius:14px}
+  .float-badge.f3 .icon{width:16px;height:16px}
 
   @media (min-width:820px){
     .hero-inner{grid-template-columns:1.1fr .9fr;text-align:left}
     .hero-text{margin:0}
+    .hero-text > *{margin-left:0;margin-right:0}
     .hero p{margin-left:0;margin-right:0}
-    .pet-blob{width:260px;height:260px}
-    .pet-blob svg{width:96px;height:96px}
+    .pet-blob{width:270px;height:270px}
+    .pet-blob svg.mark{width:100px;height:100px}
   }
 
-  section{padding:52px 22px;max-width:900px;margin:0 auto}
-  .section-head{text-align:center;margin-bottom:30px}
+  /* ---------- sections ---------- */
+  section{padding:56px 22px;max-width:1000px;margin:0 auto}
+  .section-head{text-align:center;margin-bottom:34px}
   h2{
     display:inline-block;
-    font-size:25px;
+    font-size:26px;
     font-weight:800;
-    color:var(--ink);
+    color:var(--color-foreground);
   }
   h2::after{
     content:'';
     display:block;
-    width:56px;height:5px;
-    border-radius:999px;
-    background:linear-gradient(90deg,var(--teal),var(--sky));
-    margin:10px auto 0;
+    width:60px;height:6px;
+    border-radius:var(--r-pill);
+    background:linear-gradient(90deg,var(--color-primary),var(--color-secondary));
+    margin:12px auto 0;
   }
 
-  .cards{display:grid;grid-template-columns:1fr;gap:18px}
-  @media (min-width:640px){.cards{grid-template-columns:1fr 1fr}}
+  /* ---------- servicios ---------- */
+  .cards{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+    gap:20px;
+  }
   .card{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:28px;
-    padding:24px 22px;
+    background:var(--color-card);
+    border-radius:var(--r-lg);
+    padding:26px 24px;
     display:flex;
     flex-direction:column;
     gap:10px;
-    box-shadow:0 6px 18px rgba(15,60,50,.06);
-    transition:transform .18s ease, box-shadow .18s ease;
+    box-shadow:10px 10px 22px var(--clay-dark), -8px -8px 18px var(--clay-light),
+      inset 0 1px 0 rgba(255,255,255,.6);
+    transition:transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease;
   }
-  .card:hover{transform:translateY(-4px);box-shadow:0 16px 30px rgba(15,60,50,.12)}
+  .card:hover{
+    transform:translateY(-6px) scale(1.015);
+    box-shadow:14px 14px 28px var(--clay-dark-strong), -8px -8px 18px var(--clay-light),
+      inset 0 1px 0 rgba(255,255,255,.6);
+  }
   .card-icon{
-    width:52px;height:52px;
-    border-radius:18px;
+    width:58px;height:58px;
+    border-radius:22px;
     display:flex;align-items:center;justify-content:center;
-    font-size:26px;
-    background:var(--teal-soft);
+    color:var(--color-primary-600);
+    box-shadow:inset 4px 4px 8px rgba(15,90,80,.16), inset -3px -3px 6px rgba(255,255,255,.75);
   }
-  .card:nth-child(2) .card-icon{background:var(--sky-soft)}
-  .card:nth-child(3) .card-icon{background:var(--coral-soft)}
-  .card:nth-child(4) .card-icon{background:var(--teal-soft)}
-  .card h3{font-size:17px;font-weight:800;color:var(--ink)}
-  .card p{font-size:14px;color:var(--soft)}
+  .card-icon .icon{width:26px;height:26px}
+  .card:nth-child(1) .card-icon{background:var(--tint-1)}
+  .card:nth-child(2) .card-icon{background:var(--tint-3);color:var(--color-primary)}
+  .card:nth-child(3) .card-icon{background:var(--tint-2);color:var(--color-accent-600)}
+  .card:nth-child(4) .card-icon{background:var(--tint-1)}
+  .card h3{font-size:17.5px;font-weight:800;color:var(--color-foreground)}
+  .card p{font-size:14px;color:var(--color-soft)}
   .card .tag{
     align-self:flex-start;
     margin-top:auto;
-    background:var(--coral);
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:var(--color-accent-600);
     color:#fff;
-    font-size:12px;
+    font-size:11.5px;
     font-weight:800;
-    letter-spacing:.03em;
+    letter-spacing:.04em;
     text-transform:uppercase;
-    padding:6px 14px;
-    border-radius:999px;
+    padding:7px 14px;
+    border-radius:var(--r-pill);
   }
+  .card .tag .icon{width:13px;height:13px}
 
-  .dos{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-  .dos>div{
-    background:var(--card);
-    border:1px solid var(--line);
-    border-radius:26px;
-    padding:22px 14px;
+  /* ---------- visítanos ---------- */
+  .visit-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:18px;
+    max-width:640px;
+    margin:0 auto;
+  }
+  .visit-card{
+    background:var(--color-card);
+    border-radius:var(--r-lg);
+    padding:26px 20px;
     text-align:center;
+    box-shadow:9px 9px 20px var(--clay-dark), -7px -7px 16px var(--clay-light),
+      inset 0 1px 0 rgba(255,255,255,.6);
   }
-  .dos .ico{
-    width:48px;height:48px;
-    margin:0 auto 10px;
-    border-radius:16px;
-    background:var(--sky-soft);
-    display:flex;align-items:center;justify-content:center;
-    font-size:22px;
-  }
-  .dos div:first-child .ico{background:var(--teal-soft)}
-  .dos b{display:block;margin-bottom:4px;font-size:14.5px;color:var(--ink)}
-  .dos p{font-size:13px;color:var(--soft)}
+  .visit-card .card-icon{margin:0 auto 12px;background:var(--tint-3);color:var(--color-primary-600)}
+  .visit-card:first-child .card-icon{background:var(--tint-1)}
+  .visit-card b{display:block;margin-bottom:6px;font-size:15px;color:var(--color-foreground);font-family:var(--font-heading)}
+  .visit-card p{font-size:13.5px;color:var(--color-soft)}
 
+  /* ---------- cta final ---------- */
   .cta-final{
     position:relative;
     overflow:hidden;
-    max-width:900px;
-    margin:12px 22px 56px;
-    padding:46px 24px;
-    border-radius:40px;
-    background:linear-gradient(135deg,var(--teal),var(--sky));
+    max-width:1000px;
+    margin:12px 22px 60px;
+    padding:50px 26px;
+    border-radius:var(--r-xl);
+    background:linear-gradient(150deg,var(--color-primary-600),var(--color-secondary-600));
     color:#fff;
     text-align:center;
-    box-shadow:0 24px 44px rgba(15,120,100,.28);
+    box-shadow:16px 16px 34px var(--clay-dark-strong), -10px -10px 24px var(--clay-light);
   }
-  @media (min-width:940px){.cta-final{margin-left:auto;margin-right:auto}}
+  @media (min-width:1044px){.cta-final{margin-left:auto;margin-right:auto}}
   .cta-final .paw-watermark{
     position:absolute;
-    font-size:190px;
-    line-height:1;
-    right:-28px;
+    width:220px;height:220px;
+    right:-30px;
     bottom:-40px;
     opacity:.14;
     transform:rotate(-14deg);
+    color:#fff;
   }
   .cta-final h2{color:#fff;position:relative}
-  .cta-final h2::after{background:var(--coral)}
-  .cta-final p{color:rgba(255,255,255,.9);max-width:420px;margin:0 auto 26px;font-size:15.5px;position:relative}
-  .cta-final .btn{background:#fff;color:var(--teal-dark);box-shadow:0 12px 24px rgba(0,0,0,.15);position:relative}
-  .cta-final .btn:hover{box-shadow:0 16px 30px rgba(0,0,0,.2)}
+  .cta-final h2::after{background:var(--color-accent)}
+  .cta-final p{color:rgba(255,255,255,.94);max-width:420px;margin:0 auto 28px;font-size:15.5px;position:relative}
+  .cta-final .btn{position:relative}
 
+  /* ---------- footer ---------- */
   footer{
-    background:var(--card);
-    border-top:1px solid var(--line);
-    border-radius:32px 32px 0 0;
-    padding:30px 22px;
+    background:var(--color-card);
+    border-radius:var(--r-xl) var(--r-xl) 0 0;
+    box-shadow:0 -10px 24px var(--clay-dark);
+    padding:32px 22px;
     text-align:center;
     font-size:12px;
-    color:var(--soft);
-    line-height:1.8;
+    color:var(--color-soft);
+    line-height:1.9;
   }
 </style>
 </head>
 <body>
 <div class="ribbon">Ejemplo · Web Básica — desde 250€ · así arranca tu negocio online</div>
 
+<!-- sprite de iconos (uso interno con <use>) -->
+<svg style="display:none" aria-hidden="true">
+  <symbol id="icon-paw" viewBox="0 0 24 24"><g fill="currentColor"><path d="M12 14.6c-3.1 0-5.6 2.1-5.6 4.7 0 1.6 1.3 2.5 3 2.1 1-.2 1.7-.6 2.6-.6s1.6.4 2.6.6c1.7.4 3-.5 3-2.1 0-2.6-2.5-4.7-5.6-4.7z"/><circle cx="5.1" cy="10.6" r="2.1"/><circle cx="9.4" cy="6.3" r="2.2"/><circle cx="14.6" cy="6.3" r="2.2"/><circle cx="18.9" cy="10.6" r="2.1"/></g></symbol>
+  <symbol id="icon-chat" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3.2c-4.9 0-8.9 3.4-8.9 7.6 0 2.4 1.3 4.5 3.2 5.9l-.7 3.5a.6.6 0 0 0 .87.66l3.87-2.06c.54.08 1.1.12 1.66.12 4.9 0 8.9-3.4 8.9-7.6s-4-7.6-8.9-7.6z"/></symbol>
+  <symbol id="icon-stetho" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v6a4 4 0 0 0 4 4h1"/><path d="M5 3H3"/><path d="M5 9H3"/><path d="M10 13a4 4 0 0 0 4-4V3"/><path d="M14 3h2"/><path d="M14 9h2"/><circle cx="18" cy="16" r="3"/></symbol>
+  <symbol id="icon-syringe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18.5 2.8l2.7 2.7"/><path d="M17.1 4.2l-9.9 9.9"/><path d="M14.3 7l2.7 2.7"/><path d="M7.6 13.7 4 17.3l-1 4 4-1 3.6-3.6"/><path d="M9.2 11.1l3.7 3.7"/></symbol>
+  <symbol id="icon-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.7-3 8.3-7 10-4-1.7-7-5.3-7-10V6l7-3z"/><path d="M9 12.2l2 2 4-4.2"/></symbol>
+  <symbol id="icon-bath" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16"/><path d="M5 12V7a3 3 0 0 1 3-3h1"/><path d="M4 12v3a4 4 0 0 0 4 4h8a4 4 0 0 0 4-4v-3"/><path d="M6 20v.6"/><path d="M18 20v.6"/><circle cx="11" cy="6" r=".7" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="icon-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5l3.2 2"/></symbol>
+  <symbol id="icon-pin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.4-7-11.2A7 7 0 0 1 19 9.8C19 14.6 12 21 12 21z"/><circle cx="12" cy="9.6" r="2.4"/></symbol>
+</svg>
+
 <header>
   <span class="brand-badge" aria-hidden="true">
-    <svg viewBox="0 0 64 64" width="24" height="24" fill="#fff">
+    <svg viewBox="0 0 64 64" width="26" height="26" fill="#fff">
       <ellipse cx="32" cy="42" rx="14" ry="11"/>
       <circle cx="14" cy="22" r="6"/>
       <circle cx="26" cy="12" r="6.5"/>
@@ -298,29 +417,35 @@
       <circle cx="52" cy="22" r="6"/>
     </svg>
   </span>
-  <b>Patitas</b>
+  <b>Patitas<span class="dot">.</span></b>
 </header>
 
 <div class="hero">
   <div class="hero-inner">
     <div class="hero-text">
-      <span class="mini">Clínica veterinaria · Peluquería canina · [Tu ciudad]</span>
+      <span class="mini">
+        <svg class="icon" aria-hidden="true" style="width:14px;height:14px"><use href="#icon-paw"></use></svg>
+        Clínica veterinaria · Peluquería canina · [Tu ciudad]
+      </span>
       <h1>Cuidamos a tu mascota <em>como tú lo harías</em></h1>
       <p>Consulta, vacunación, cirugía y peluquería canina, con trato cercano y cita previa.</p>
-      <a class="btn wa">💬 Pedir cita</a>
+      <a class="btn btn-wa">
+        <svg class="icon" aria-hidden="true" style="width:19px;height:19px"><use href="#icon-chat"></use></svg>
+        Pedir cita
+      </a>
       <span class="nota">(aquí va el WhatsApp real del negocio)</span>
     </div>
     <div class="pet-blob" aria-hidden="true">
-      <svg viewBox="0 0 64 64" width="82" height="82" fill="#fff">
+      <svg class="mark" viewBox="0 0 64 64" width="84" height="84" fill="#fff">
         <ellipse cx="32" cy="42" rx="15" ry="12"/>
         <circle cx="13" cy="21" r="6.5"/>
         <circle cx="27" cy="10" r="7"/>
         <circle cx="41" cy="10" r="7"/>
         <circle cx="55" cy="21" r="6.5"/>
       </svg>
-      <span class="float f1">🐾</span>
-      <span class="float f2">🐾</span>
-      <span class="float f3">🐾</span>
+      <span class="float-badge f1"><svg class="icon" aria-hidden="true"><use href="#icon-paw"></use></svg></span>
+      <span class="float-badge f2"><svg class="icon" aria-hidden="true"><use href="#icon-paw"></use></svg></span>
+      <span class="float-badge f3"><svg class="icon" aria-hidden="true"><use href="#icon-paw"></use></svg></span>
     </div>
   </div>
 </div>
@@ -330,45 +455,56 @@
   <!-- lista de servicios aquí -->
   <div class="cards">
     <div class="card">
-      <span class="card-icon" aria-hidden="true">🩺</span>
+      <span class="card-icon" aria-hidden="true"><svg class="icon"><use href="#icon-stetho"></use></svg></span>
       <h3>Consulta general</h3>
       <p>Revisión completa con cariño.</p>
-      <span class="tag">cita</span>
+      <span class="tag"><svg class="icon" aria-hidden="true"><use href="#icon-paw"></use></svg>cita</span>
     </div>
     <div class="card">
-      <span class="card-icon" aria-hidden="true">💉</span>
+      <span class="card-icon" aria-hidden="true"><svg class="icon"><use href="#icon-syringe"></use></svg></span>
       <h3>Vacunación</h3>
       <p>Plan de vacunas al día.</p>
-      <span class="tag">cita</span>
+      <span class="tag"><svg class="icon" aria-hidden="true"><use href="#icon-paw"></use></svg>cita</span>
     </div>
     <div class="card">
-      <span class="card-icon" aria-hidden="true">🪱</span>
+      <span class="card-icon" aria-hidden="true"><svg class="icon"><use href="#icon-shield"></use></svg></span>
       <h3>Desparasitación</h3>
       <p>Interna y externa.</p>
-      <span class="tag">cita</span>
+      <span class="tag"><svg class="icon" aria-hidden="true"><use href="#icon-paw"></use></svg>cita</span>
     </div>
     <div class="card">
-      <span class="card-icon" aria-hidden="true">🛁</span>
+      <span class="card-icon" aria-hidden="true"><svg class="icon"><use href="#icon-bath"></use></svg></span>
       <h3>Baño y corte</h3>
       <p>Peluquería canina con paciencia.</p>
-      <span class="tag">cita</span>
+      <span class="tag"><svg class="icon" aria-hidden="true"><use href="#icon-paw"></use></svg>cita</span>
     </div>
   </div>
 </section>
 
 <section>
   <div class="section-head"><h2>Visítanos</h2></div>
-  <div class="dos">
-    <div><span class="ico" aria-hidden="true">🕐</span><b>Horario</b><p>L–V 10:00–14:00<br>16:30–20:00<br>Sáb 10:00–13:00</p></div>
-    <div><span class="ico" aria-hidden="true">📍</span><b>Dónde</b><p>Calle de Ejemplo 8<br>[Tu ciudad]</p></div>
+  <div class="visit-grid">
+    <div class="visit-card">
+      <span class="card-icon" aria-hidden="true"><svg class="icon"><use href="#icon-clock"></use></svg></span>
+      <b>Horario</b>
+      <p>L–V 10:00–14:00<br>16:30–20:00<br>Sáb 10:00–13:00</p>
+    </div>
+    <div class="visit-card">
+      <span class="card-icon" aria-hidden="true"><svg class="icon"><use href="#icon-pin"></use></svg></span>
+      <b>Dónde</b>
+      <p>Calle de Ejemplo 8<br>[Tu ciudad]</p>
+    </div>
   </div>
 </section>
 
 <div class="cta-final">
-  <span class="paw-watermark" aria-hidden="true">🐾</span>
+  <svg class="paw-watermark" aria-hidden="true" viewBox="0 0 24 24"><use href="#icon-paw"></use></svg>
   <h2>Su cita, en un mensaje</h2>
   <p>Cuéntanos qué le pasa o qué necesita y te damos hora enseguida.</p>
-  <a class="btn">💬 Pedir cita ahora</a>
+  <a class="btn btn-white">
+    <svg class="icon" aria-hidden="true" style="width:19px;height:19px"><use href="#icon-chat"></use></svg>
+    Pedir cita ahora
+  </a>
 </div>
 
 <footer>© 2026 Patitas · Sin cookies de seguimiento<br>Diseñado por Incuba tu Negocio · por Jaime M. M.</footer>
