@@ -12,7 +12,8 @@
  *   <script type="application/json" id="acceptance-tests">[{ "name":..., "steps":[...] }]</script>
  * los EJECUTA uno a uno (clic → resultado esperado) y falla si alguno no se cumple.
  * Pasos: goto, reload, wait, click, clickText, fill{sel,value}, check, submit,
- *        expect, expectHash, expectVisible, expectGone.
+ *        expect, expectHash, expectVisible, expectGone, expectNoOverflow,
+ *        setLS{clave:valor} (siembra localStorage; requiere reload después), clearLS.
  *
  * Uso:
  *   npm i puppeteer            # una sola vez (Chromium queda en caché)
@@ -110,7 +111,10 @@ async function load() {
 
 // ===== Tests de aceptación por app (DSL embebido en <script type="application/json" id="acceptance-tests">) =====
 // Pasos disponibles: goto, reload, wait, click, clickText, fill{sel,value}, check, submit,
-//                    expect (texto que debe aparecer), expectHash, expectVisible, expectGone.
+//                    expect (texto que debe aparecer), expectHash, expectVisible, expectGone,
+//                    expectNoOverflow (la página no debe tener scroll horizontal),
+//                    setLS{clave:valor} / clearLS (sembrar o vaciar localStorage; hace falta
+//                    un reload después para que la app lo lea).
 async function runStep(step) {
   const k = Object.keys(step)[0];
   const v = step[k];
@@ -126,6 +130,9 @@ async function runStep(step) {
     case "expect": { const ok = await page.evaluate((t) => document.body.innerText.includes(t), v); return { ok, msg: ok ? "" : 'no aparece el texto "' + v + '"' }; }
     case "expectHash": { const cur = await page.evaluate(() => location.hash); return { ok: cur === v, msg: cur === v ? "" : 'el hash es "' + cur + '" y se esperaba "' + v + '"' }; }
     case "expectVisible": { const ok = await page.evaluate((s) => { const e = document.querySelector(s); return !!(e && e.offsetParent !== null); }, v); return { ok, msg: ok ? "" : "no está visible " + v }; }
+    case "setLS": { await page.evaluate((o) => { Object.keys(o).forEach((k) => { try { localStorage.setItem(k, typeof o[k] === "string" ? o[k] : JSON.stringify(o[k])); } catch (e) {} }); }, v); return { ok: true }; }
+    case "clearLS": { await page.evaluate(() => { try { localStorage.clear(); } catch (e) {} }); return { ok: true }; }
+    case "expectNoOverflow": { const r = await page.evaluate(() => ({ s: document.documentElement.scrollWidth, c: document.documentElement.clientWidth })); return { ok: r.s <= r.c + 1, msg: r.s <= r.c + 1 ? "" : "desborde horizontal: scrollWidth " + r.s + " > clientWidth " + r.c }; }
     case "expectGone": { const ok = await page.evaluate((s) => { const e = document.querySelector(s); return !(e && e.offsetParent !== null); }, v); return { ok, msg: ok ? "" : "sigue visible " + v }; }
     default: return { ok: false, msg: "paso no reconocido: " + k };
   }

@@ -88,7 +88,10 @@ header#header{position:fixed;top:0;left:0;right:0;min-height:var(--header-h);z-i
 body{padding-top:var(--header-h)}
 
 /* ===== Main ===== */
-main#view{order:3;flex:1;padding-bottom:24px}
+/* La barra de navegación es fija abajo en móvil: el contenido reserva su alto o los
+   últimos controles quedan debajo y el toque se lo lleva la barra (pulsar "Cancelar"
+   en la confirmación de una orden acababa navegando a otra pantalla). */
+main#view{order:3;flex:1;padding-bottom:calc(var(--nav-h) + 24px)}
 @media(min-width:768px){main#view{padding-bottom:24px}}
 
 /* ===== Nav (misma lista, reposicionada por CSS) ===== */
@@ -159,6 +162,7 @@ section.block{margin-bottom:28px}
 /* ===== Tablas ===== */
 .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg-card)}
 table{width:100%;border-collapse:collapse;min-width:520px;font-size:13.5px}
+.table-narrow table{min-width:0}
 caption{caption-side:top;text-align:left;padding:10px 12px;font-size:12px;color:var(--text-dim)}
 th,td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border-soft);white-space:nowrap}
 thead th{color:var(--text-muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;background:var(--bg-elevated);position:sticky;top:0}
@@ -659,28 +663,56 @@ td.num,th.num{font-family:var(--font-mono);text-align:right}
     { "expect": "ETH" },
     { "expect": "PAXG" }
   ]},
-  { "name": "C34 · Testnet: aviso de fondos de prueba y formulario de claves", "steps": [
+  { "name": "C34 · Testnet: en archivo local avisa y NO pide las claves", "steps": [
     { "goto": "#/" },
     { "click": "#foot-testnet" },
     { "expectHash": "#/testnet" },
     { "expect": "Fondos de prueba, no dinero" },
     { "expect": "no uses aquí las claves de tu cuenta de verdad" },
-    { "expectVisible": "#tnKeyForm" },
-    { "expectVisible": "#tn-remember" }
+    { "expect": "En modo archivo local no se puede conectar" },
+    { "expectGone": "#tnKeyForm" },
+    { "expectGone": "#tnMeasureForm" },
+    { "expectNoOverflow": true }
   ]},
-  { "name": "C35 · Testnet: no conecta sin las dos claves", "steps": [
-    { "goto": "#/testnet" },
-    { "submit": "#tnKeyForm" },
-    { "expect": "Hacen falta las dos claves" },
-    { "fill": { "sel": "#tn-key", "value": "solo-una" } },
-    { "submit": "#tnKeyForm" },
-    { "expect": "Hacen falta las dos claves" },
-    { "expectGone": "#tnMeasureForm" }
-  ]},
-  { "name": "C36 · Testnet: sin mediciones muestra estado vacío", "steps": [
+  { "name": "C35 · Testnet: sin mediciones no dictamina nada", "steps": [
     { "goto": "#/testnet" },
     { "expect": "Todavía no has medido ninguna ejecución" },
-    { "expect": "Ejecuta alguna orden para tener datos" }
+    { "expect": "Ejecuta alguna orden para tener datos" },
+    { "expectGone": "#tnVerdict" }
+  ]},
+  { "name": "C36 · Testnet: con menos de 5 mediciones se abstiene de juzgar", "steps": [
+    { "clearLS": true },
+    { "setLS": {"ag_v1_tnlog": [{"ts": "2026-08-07T10:00:00.000Z", "symbol": "BTCUSDT", "qty": 0.001, "qtyPedida": 0.001, "parcial": false, "quoted": 60000, "fill": 60006.0, "slipPct": 0.01, "feePct": 0.0, "latency": 120}, {"ts": "2026-08-07T10:00:00.000Z", "symbol": "BTCUSDT", "qty": 0.001, "qtyPedida": 0.001, "parcial": false, "quoted": 60000, "fill": 60012.0, "slipPct": 0.02, "feePct": 0.0, "latency": 120}]} },
+    { "reload": true },
+    { "goto": "#/testnet" },
+    { "expectVisible": "#tnVerdict" },
+    { "expect": "Con menos de 5 no se puede dictaminar nada" }
+  ]},
+  { "name": "C37 · Testnet: el veredicto juzga por el mal caso, no por la media", "steps": [
+    { "clearLS": true },
+    { "setLS": {"ag_v1_tnlog": [{"ts": "2026-08-07T10:00:00.000Z", "symbol": "BTCUSDT", "qty": 0.001, "qtyPedida": 0.001, "parcial": false, "quoted": 60000, "fill": 61200.0, "slipPct": 2.0, "feePct": 0.0, "latency": 120}, {"ts": "2026-08-07T10:00:00.000Z", "symbol": "BTCUSDT", "qty": 0.001, "qtyPedida": 0.001, "parcial": false, "quoted": 60000, "fill": 58800.0, "slipPct": -2.0, "feePct": 0.0, "latency": 120}, {"ts": "2026-08-07T10:00:00.000Z", "symbol": "BTCUSDT", "qty": 0.001, "qtyPedida": 0.001, "parcial": false, "quoted": 60000, "fill": 61200.0, "slipPct": 2.0, "feePct": 0.0, "latency": 120}, {"ts": "2026-08-07T10:00:00.000Z", "symbol": "BTCUSDT", "qty": 0.001, "qtyPedida": 0.001, "parcial": false, "quoted": 60000, "fill": 58800.0, "slipPct": -2.0, "feePct": 0.0, "latency": 120}, {"ts": "2026-08-07T10:00:00.000Z", "symbol": "BTCUSDT", "qty": 0.001, "qtyPedida": 0.001, "parcial": false, "quoted": 60000, "fill": 61200.0, "slipPct": 2.0, "feePct": 0.0, "latency": 120}], "ag_v1_settings": {"liveData": false, "ccy": "USD", "auto": {"on": false, "minNet": 0.25, "ticket": 5000, "maxOpen": 3, "dailyStop": 1500}}} },
+    { "reload": true },
+    { "goto": "#/testnet" },
+    { "expectVisible": "#tnVerdict" },
+    { "expect": "En el mal caso" },
+    { "expect": "operar saldría a pérdida" }
+  ]},
+  { "name": "C38 · Testnet: el deslizamiento a favor no regala margen", "steps": [
+    { "clearLS": true },
+    { "setLS": {"ag_v1_tnlog": [{"ts": "2026-08-07T10:00:00.000Z", "symbol": "BTCUSDT", "qty": 0.001, "qtyPedida": 0.001, "parcial": false, "quoted": 60000, "fill": 59400.0, "slipPct": -1.0, "feePct": 0.0, "latency": 120}, {"ts": "2026-08-07T10:00:00.000Z", "symbol": "BTCUSDT", "qty": 0.001, "qtyPedida": 0.001, "parcial": false, "quoted": 60000, "fill": 59400.0, "slipPct": -1.0, "feePct": 0.0, "latency": 120}, {"ts": "2026-08-07T10:00:00.000Z", "symbol": "BTCUSDT", "qty": 0.001, "qtyPedida": 0.001, "parcial": false, "quoted": 60000, "fill": 59400.0, "slipPct": -1.0, "feePct": 0.0, "latency": 120}, {"ts": "2026-08-07T10:00:00.000Z", "symbol": "BTCUSDT", "qty": 0.001, "qtyPedida": 0.001, "parcial": false, "quoted": 60000, "fill": 59400.0, "slipPct": -1.0, "feePct": 0.0, "latency": 120}, {"ts": "2026-08-07T10:00:00.000Z", "symbol": "BTCUSDT", "qty": 0.001, "qtyPedida": 0.001, "parcial": false, "quoted": 60000, "fill": 59400.0, "slipPct": -1.0, "feePct": 0.0, "latency": 120}], "ag_v1_settings": {"liveData": false, "ccy": "USD", "auto": {"on": false, "minNet": 0.25, "ticket": 5000, "maxOpen": 3, "dailyStop": 1500}}} },
+    { "reload": true },
+    { "goto": "#/testnet" },
+    { "expect": "Deslizamiento medio" },
+    { "expect": "coste de ida y vuelta medido de +0.00%" },
+    { "expect": "te quedarían +0.30%" }
+  ]},
+  { "name": "C39 · Testnet: exporta las mediciones a CSV", "steps": [
+    { "clearLS": true },
+    { "setLS": {"ag_v1_tnlog": [{"ts": "2026-08-07T10:00:00.000Z", "symbol": "BTCUSDT", "qty": 0.001, "qtyPedida": 0.001, "parcial": false, "quoted": 60000, "fill": 60240.0, "slipPct": 0.4, "feePct": 0.1, "latency": 120}]} },
+    { "reload": true },
+    { "goto": "#/testnet" },
+    { "click": "#btnExportTn" },
+    { "expect": "CSV generado" }
   ]},
   { "name": "C28 · El panel pide contraseña otra vez tras recargar", "steps": [
     { "goto": "#/admin" },
@@ -1052,8 +1084,8 @@ const TEXTS = {
   TN_KEY_HINT:"La cadena larga que Binance llama API Key.",
   TN_SECRET_LABEL:"Clave secreta (Secret Key)",
   TN_SECRET_HINT:"Solo se usa aquí, en tu navegador, para firmar las órdenes. No se envía a ningún otro sitio ni aparece en las exportaciones.",
-  TN_REMEMBER_LABEL:"Recordar las claves en este dispositivo",
-  TN_REMEMBER_WARN:"Sin marcar (recomendado), las claves viven solo mientras la pestaña esté abierta y se pierden al cerrarla. Marcándola quedan guardadas en este navegador, donde puede leerlas cualquiera que use el equipo o cualquier extensión instalada.",
+  TN_REMEMBER_LABEL:"Que sobrevivan a recargar la página",
+  TN_REMEMBER_WARN:"Sin marcar, las claves se pierden en cuanto recargues. Marcándola aguantan las recargas, y en ambos casos se borran al cerrar la pestaña: nunca quedan escritas en el disco. Aun así, mientras la pestaña siga abierta pueden leerlas las extensiones que tengas instaladas.",
   TN_BTN_CONNECT:"Conectar",
   TN_BTN_FORGET:"Olvidar las claves",
   TN_CONNECTED:"Conectado a Testnet",
@@ -1075,6 +1107,16 @@ const TEXTS = {
   TN_TH_SLIP:"Deslizamiento", TN_TH_LAT:"Latencia",
   TN_VERDICT_PRE:"Con tu umbral de ", TN_VERDICT_MID:" y un coste de ida y vuelta medido de ",
   TN_VERDICT_POST:", te quedarían ",
+  TN_KPI_FEE:"Comisión media",
+  TN_NO_FUNDS:"Esta cuenta de pruebas no tiene fondos. En testnet.binance.vision puedes pedir saldo ficticio.",
+  TN_NO_TRADE:"Esta clave no tiene permiso para operar (canTrade: false). Genera otra con permiso de trading o no podrás medir nada.",
+  TN_TH_ASSET:"Activo", TN_TH_FREE:"Disponible", TN_TH_LOCKED:"Bloqueado",
+  TN_PARTIAL:"parcial",
+  TN_VERDICT_FEW_PRE:"Llevas ", TN_VERDICT_FEW_POST:" medición(es). Con menos de 5 no se puede dictaminar nada: haz unas cuantas más, a distintas horas, y entonces esta pantalla te dirá si tu margen aguanta.",
+  TN_VERDICT_BAD_CASE_PRE:"En el mal caso (una de cada cuatro ejecuciones o peor) el coste sube a ",
+  TN_VERDICT_BAD_CASE_POST:", y te quedarían ",
+  TN_ERR_NOFILL:"La orden volvió sin llenados: no hubo ejecución que medir. No se ha registrado nada.",
+  TN_ERR_STALE:"El precio de la vista previa ha caducado. Vuelve a calcular para medir contra un precio actual.",
   TN_VERDICT_OK:"El margen aguanta la ejecución real. Sigue midiendo: unas pocas órdenes no son una muestra, y el deslizamiento empeora justo cuando el mercado se mueve.",
   TN_VERDICT_BAD:"La ejecución real se come el margen entero: con estas reglas, operar saldría a pérdida. Sube el umbral, elige pares con más liquidez, o acepta que esa ruta no da.",
   TN_ERR_NOKEYS:"Primero conecta tus claves de Testnet",
@@ -1132,6 +1174,21 @@ function fmtUSD(v){
 // Importes con signo explícito ("+$12,00" / "−$12,00"): el signo va SIEMPRE delante del
 // símbolo de moneda y nunca se confía solo en el color (accesibilidad).
 function fmtSignedUSD(v){ return (v>=0?"+":"−")+fmtUSD(Math.abs(v)); }
+/* Cantidades de cripto: 8 decimales significativos. Con los 3 de fmtQty, el panel de
+   confirmación enseñaba "0,001 BTC" para una orden de 0,00083 —un 20% de diferencia en
+   la cifra que el usuario aprueba— y los saldos de 0,00042 BTC se pintaban como "0". */
+/* Los precios de Testnet se imprimen en su divisa de cotización (USDT) SIN convertir:
+   esta pantalla es el registro de lo que devolvió el exchange, y aplicarle el tipo de
+   cambio de la moneda de lectura hacía que dijera "$410.000" donde Binance cotizó 100. */
+function fmtUSDT(v){
+  if(!isFiniteNum(v)) return "0 USDT";
+  return new Intl.NumberFormat("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2}).format(v)+" USDT";
+}
+function fmtCrypto(v){
+  if(!isFiniteNum(v)) return "0";
+  const s = v.toFixed(8).replace(/0+$/,"").replace(/\.$/,"");
+  return s.length ? s : "0";
+}
 function fmtQty(v){ return new Intl.NumberFormat("es-ES",{minimumFractionDigits:0,maximumFractionDigits:3}).format(v); }
 // Etiqueta legible del perfil elegido en el formulario de acceso (el valor guardado es el
 // código interno: "curioso" | "trader" | "pro").
@@ -1499,9 +1556,9 @@ function renderSelect(id,label,options,extra){
     +'<select id="'+esc(id)+'" name="'+esc(id)+'" '+(extra||"")+'>'+opts+'</select>'
     +'</div>';
 }
-function renderTable(headers,rowsHtml,caption,tableId,captionVisible){
+function renderTable(headers,rowsHtml,caption,tableId,captionVisible,narrow){
   const ths = headers.map(h=>'<th scope="col"'+(h.num?' class="num"':'')+'>'+esc(h.label)+'</th>').join("");
-  return '<div class="table-wrap" tabindex="0">'
+  return '<div class="table-wrap'+(narrow?" table-narrow":"")+'" tabindex="0">'
     +'<table'+(tableId?(' id="'+esc(tableId)+'"'):'')+'>'
     +'<caption'+(captionVisible?'':' class="sr-only"')+'>'+esc(caption)+'</caption>'
     +'<thead><tr>'+ths+'</tr></thead>'
@@ -2296,7 +2353,8 @@ function tnStatsContent(){
   const items = [
     { label:TEXTS.TN_KPI_N,      value:String(s.n) },
     { label:TEXTS.TN_KPI_SLIP,   value:fmtPct(s.avgSlip), cls:(s.avgSlip<=0?"pnl-up":"pnl-down") },
-    { label:TEXTS.TN_KPI_WORST,  value:fmtPct(s.maxSlip), cls:"pnl-down" },
+    { label:TEXTS.TN_KPI_WORST,  value:fmtPct(s.maxSlip), cls:(s.maxSlip>0?"pnl-down":"") },
+    { label:TEXTS.TN_KPI_FEE,    value:fmtPct(s.avgFee),  cls:(s.avgFee>0?"pnl-down":"") },
     { label:TEXTS.TN_KPI_LAT,    value:s.avgLat+" ms" },
     { label:TEXTS.TN_KPI_ROUND,  value:fmtPct(s.costeIdaVuelta), cls:"pnl-down" }
   ];
@@ -2306,13 +2364,23 @@ function tnStatsContent(){
 function tnVerdictContent(){
   const s = tnStats();
   if(!s) return "";
-  // La conclusión que el usuario ha venido a buscar, en una frase.
+  // Con menos de un puñado de mediciones no hay veredicto que dar. Antes sentenciaba en
+  // verde con UNA sola orden, que no es una muestra de nada.
+  if(!s.suficiente){
+    return '<p id="tnVerdict" class="hint">'+esc(TEXTS.TN_VERDICT_FEW_PRE+s.n+TEXTS.TN_VERDICT_FEW_POST)+'</p>';
+  }
+  // El umbral del piloto ya lleva descontado un deslizamiento estimado (CONFIG.SLIPPAGE_PCT):
+  // la medición viene a SUSTITUIR esa estimación, no a sumarse a ella.
   const umbral = autoCfg().minNet;
-  const sobrevive = r3(umbral - s.costeIdaVuelta);
-  const bien = sobrevive > 0;
+  const yaDescontado = CONFIG.SLIPPAGE_PCT;
+  const sobrevive     = r3(umbral - (s.costeIdaVuelta - yaDescontado));
+  const sobreviveMalo = r3(umbral - (s.costeMalo      - yaDescontado));
+  const bien = sobreviveMalo > 0;   // se juzga por el mal caso, no por el bueno
   return '<p id="tnVerdict" class="'+(bien?"pnl-up":"pnl-down")+'" style="font-weight:700">'
     + esc(TEXTS.TN_VERDICT_PRE + fmtPct(umbral) + TEXTS.TN_VERDICT_MID + fmtPct(s.costeIdaVuelta)
         + TEXTS.TN_VERDICT_POST + fmtPct(sobrevive))
+    + '</p><p class="'+(bien?"":"pnl-down")+'" style="font-weight:600">'
+    + esc(TEXTS.TN_VERDICT_BAD_CASE_PRE + fmtPct(s.costeMalo) + TEXTS.TN_VERDICT_BAD_CASE_POST + fmtPct(sobreviveMalo))
     + '</p><p class="hint">'+esc(bien ? TEXTS.TN_VERDICT_OK : TEXTS.TN_VERDICT_BAD)+'</p>';
 }
 function renderTnLogRows(){
@@ -2320,10 +2388,11 @@ function renderTnLogRows(){
     return '<tr>'
       +'<td>'+esc(fmtDate(r.ts))+'</td>'
       +'<td>'+esc(r.symbol)+'</td>'
-      +'<td class="num mono">'+esc(fmtQty(r.qty))+'</td>'
-      +'<td class="num mono">'+esc(fmtUSD(r.quoted))+'</td>'
-      +'<td class="num mono">'+esc(fmtUSD(r.fill))+'</td>'
+      +'<td class="num mono">'+esc(fmtCrypto(r.qty))+(r.parcial?' <span class="tag spread-flat">'+esc(TEXTS.TN_PARTIAL)+'</span>':'')+'</td>'
+      +'<td class="num mono">'+esc(fmtUSDT(r.quoted))+'</td>'
+      +'<td class="num mono">'+esc(fmtUSDT(r.fill))+'</td>'
       +'<td class="num mono '+(r.slipPct<=0?"pnl-up":"pnl-down")+'">'+esc(fmtPct(r.slipPct))+'</td>'
+      +'<td class="num mono">'+esc(fmtPct(isFiniteNum(r.feePct)?r.feePct:0))+'</td>'
       +'<td class="num mono">'+esc(String(r.latency))+' ms</td>'
       +'</tr>';
   }).join("");
@@ -2335,20 +2404,32 @@ function renderTnLog(){
   return renderTable(
     [{label:TEXTS.TH_DATE},{label:TEXTS.TN_TH_PAIR},{label:TEXTS.TH_QTY,num:true},
      {label:TEXTS.TN_TH_QUOTED,num:true},{label:TEXTS.TN_TH_FILL,num:true},
-     {label:TEXTS.TN_TH_SLIP,num:true},{label:TEXTS.TN_TH_LAT,num:true}],
+     {label:TEXTS.TN_TH_SLIP,num:true},{label:TEXTS.TN_KPI_FEE,num:true},{label:TEXTS.TN_TH_LAT,num:true}],
     renderTnLogRows(), TEXTS.TN_LOG_CAPTION, "tnTable", true);
 }
 function renderTnBalances(acc){
-  if(!acc || !acc.balances || !acc.balances.length) return "";
+  if(!acc) return "";
+  // Estado vacío de verdad, como en el resto de la app: una cuenta de pruebas recién
+  // creada no tiene fondos, y dejar el hueco en blanco no se lo explicaba a nadie.
+  if(!acc.balances || !acc.balances.length){
+    return '<div class="empty-state" id="tnNoFunds">'+emptyIcon()+'<p>'+esc(TEXTS.TN_NO_FUNDS)+'</p></div>';
+  }
   const filas = acc.balances.slice(0,8).map(function(b){
-    return '<tr><td>'+esc(b.asset)+'</td><td class="num mono">'+esc(fmtQty(b.free))+'</td></tr>';
+    return '<tr><td>'+esc(b.asset)+'</td><td class="num mono">'+esc(fmtCrypto(b.free))+'</td>'
+         + '<td class="num mono">'+esc(fmtCrypto(b.locked))+'</td></tr>';
   }).join("");
-  return '<h3>'+esc(TEXTS.TN_BALANCES_T)+'</h3>'
-    + renderTable([{label:"Activo"},{label:"Disponible",num:true}], filas, TEXTS.TN_BALANCES_T, "tnBalTable", false);
+  return (acc.canTrade === false
+      ? '<p class="error-msg">'+esc(TEXTS.TN_NO_TRADE)+'</p>' : '')
+    + '<h3>'+esc(TEXTS.TN_BALANCES_T)+'</h3>'
+    + renderTable([{label:TEXTS.TN_TH_ASSET},{label:TEXTS.TN_TH_FREE,num:true},{label:TEXTS.TN_TH_LOCKED,num:true}],
+                  filas, TEXTS.TN_BALANCES_T, "tnBalTable", false, true);
 }
 function renderTestnet(){
   const conectado = testnetHasCreds();
-  const seguro = tnCryptoReady();
+  // netAllowed() además de tnCryptoReady(): en file:// el contexto ES seguro, así que
+  // sin esto se pintaba el formulario, el usuario pegaba sus claves y solo al pulsar
+  // Conectar descubría que ahí no se puede conectar.
+  const seguro = tnCryptoReady() && netAllowed();
   const symOpts = TESTNET_SYMBOLS.map(s=>({value:s,label:s}));
   return '<div class="container view-testnet">'
     +'<h1>'+esc(TEXTS.TN_H1)+'</h1>'
@@ -2359,10 +2440,10 @@ function renderTestnet(){
       +'<h2>'+esc(TEXTS.TN_CONNECT_T)+'</h2>'
       +'<p class="hint">'+esc(TEXTS.TN_CONNECT_HOWTO)+'</p>'
       +(!seguro
-        ? ('<p id="tnInsecure" class="error-msg">'+esc(TEXTS.TN_ERR_INSECURE)+'</p>')
+        ? ('<p id="tnInsecure" class="error-msg">'+esc(netAllowed()?TEXTS.TN_ERR_INSECURE:TEXTS.TN_ERR_FILE)+'</p>')
         : conectado
         ? ('<p id="tnStatus" class="success-msg">'+esc(TEXTS.TN_CONNECTED)+'</p>'
-           +'<div id="tnBalances"></div>'
+           +'<div id="tnBalances">'+renderTnBalances(TN_ACCOUNT)+'</div>'
            +renderButton("btnTnForget",TEXTS.TN_BTN_FORGET,"btn-secondary"))
         : ('<form id="tnKeyForm" novalidate>'
             +renderInput("tn-key",TEXTS.TN_KEY_LABEL,"password","",TEXTS.TN_KEY_HINT,'autocomplete="off" spellcheck="false"',true)
@@ -2386,7 +2467,7 @@ function renderTestnet(){
             +'<p id="tnMeasureError" class="error-msg" role="alert"></p>'
             +renderButton("btnTnMeasure",TEXTS.TN_BTN_MEASURE,"btn-primary btn-block","submit")
           +'</form>'
-          +'<div id="tnConfirm" class="confirm-panel" hidden></div>'
+          +'<div id="tnConfirm" class="confirm-panel" role="group" aria-live="polite" tabindex="-1" hidden></div>'
         +'</section>')
       : "")
     +'<section class="block">'
@@ -2395,7 +2476,10 @@ function renderTestnet(){
       +'<div id="tnVerdictWrap">'+tnVerdictContent()+'</div>'
     +'</section>'
     +'<section class="block">'
-      +'<h2>'+esc(TEXTS.TN_LOG_T)+'</h2>'
+      +'<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:10px">'
+        +'<h2 style="margin:0">'+esc(TEXTS.TN_LOG_T)+'</h2>'
+        +((STATE.tnLog||[]).length ? renderButton("btnExportTn",TEXTS.BTN_EXPORT,"btn-secondary btn-sm") : "")
+      +'</div>'
       +'<div id="tnLogWrap">'+renderTnLog()+'</div>'
     +'</section>'
   +'</div>';
@@ -2674,7 +2758,8 @@ function handleClick(e){
     if(c) c.disabled = true;
     testnetMeasure(prev).then(function(){
       toast(TEXTS.TN_TOAST_MEASURED);
-      route();
+      // Refrescar saldos: lo primero que uno mira tras mandar una orden es cuánto le queda.
+      testnetAccount().then(function(acc){ TN_ACCOUNT = acc; route(); }).catch(function(){ route(); });
     }).catch(function(err){
       const el = document.getElementById("tnMeasureError");
       if(el) el.textContent = String(err && err.message || err);
@@ -2685,6 +2770,7 @@ function handleClick(e){
   }
   if(byId("btnTnForget")){
     TESTNET_CREDS = null;
+    TN_ACCOUNT = null;
     try{ sessionStorage.removeItem(LS.TNKEYS); localStorage.removeItem(LS.TNKEYS); }catch(e){}
     toast(TEXTS.TN_TOAST_FORGOTTEN);
     route();
@@ -2734,6 +2820,7 @@ function handleClick(e){
   if(byId("btnExportMyOps")){ exportTradesCsv(); return; }
   if(byId("btnExportOps")){ exportTradesCsv(); return; }
   if(byId("btnExportLeads")){ exportLeadsCsv(); return; }
+  if(byId("btnExportTn")){ exportTnCsv(); return; }
 
   const faqBtn = t.closest && t.closest('.accordion-trigger');
   if(faqBtn){
@@ -2879,9 +2966,8 @@ function handleSubmit(e){
     TESTNET_CREDS = { key:key, secret:sec };
     // Se comprueban contra el servidor antes de dar nada por bueno.
     testnetAccount().then(function(acc){
+      TN_ACCOUNT = acc;
       route();
-      const box = document.getElementById("tnBalances");
-      if(box) box.innerHTML = renderTnBalances(acc);
       // Al final del todo: si algo hubiese fallado antes, las claves no quedan escritas.
       // sessionStorage y no localStorage: muere al cerrar la pestaña, que es justo lo que
       // promete el texto de la casilla.
@@ -2908,7 +2994,11 @@ function handleSubmit(e){
       const box = document.getElementById("tnConfirm");
       if(box){
         box.hidden = false;
-        box.innerHTML = '<p>'+esc(TEXTS.TN_CONFIRM_PRE+fmtQty(prev.qty)+" "+prev.symbol
+        // Que se vea y que el teclado llegue: antes el panel se abría fuera de pantalla
+        // y el foco se quedaba en el body, así que ni se veía ni se anunciaba.
+        try{ box.scrollIntoView({block:"center", behavior:"smooth"}); }catch(e){ box.scrollIntoView(); }
+        setTimeout(function(){ try{ box.focus(); }catch(e){} }, 60);
+        box.innerHTML = '<p>'+esc(TEXTS.TN_CONFIRM_PRE+fmtCrypto(prev.qty)+" "+prev.symbol
                           +TEXTS.TN_CONFIRM_MID+prev.notional.toFixed(2)+" USDT"+TEXTS.TN_CONFIRM_POST)+'</p>'
           +'<div class="confirm-actions">'
           +renderButton("btnTnConfirm",TEXTS.TN_BTN_CONFIRM,"btn-primary")
@@ -3090,6 +3180,15 @@ function exportTradesCsv(){
     return [fmtDate(t.ts), t.type==="open"?TEXTS.TYPE_OPEN:TEXTS.TYPE_CLOSE, t.market, t.side==="long"?TEXTS.LABEL_LONG:TEXTS.LABEL_SHORT, t.qty, t.price, "", t.fee, t.pnl, t.cashAfter];
   });
   downloadCsv("operaciones", header, rows);
+}
+function exportTnCsv(){
+  const header = ["fecha","par","cantidad_llenada","cantidad_pedida","parcial",
+                  "precio_decidido_usdt","precio_llenado_usdt","deslizamiento_pct","comision_pct","latencia_ms"];
+  const rows = (STATE.tnLog||[]).map(r=>[
+    fmtDate(r.ts), r.symbol, fmtCrypto(r.qty), fmtCrypto(r.qtyPedida||r.qty), r.parcial?"sí":"no",
+    r.quoted, r.fill, r.slipPct, (isFiniteNum(r.feePct)?r.feePct:0), r.latency
+  ]);
+  downloadCsv("ejecuciones-testnet", header, rows);
 }
 function exportLeadsCsv(){
   const header = ["fecha","nombre","email","perfil","mensaje","consentimiento"];
@@ -3476,6 +3575,7 @@ const TN_MAX_QUOTE = 1000;   // techo absoluto por orden, en USDT. Ninguna respu
 let TESTNET_CREDS = null;    // {key, secret} — solo en memoria salvo opt-in explícito
 let TESTNET_INFO  = null;    // filtros de exchangeInfo por símbolo
 let TN_PENDING    = null;    // orden calculada, a la espera de que el usuario confirme
+let TN_ACCOUNT    = null;    // último estado de la cuenta, para repintarlo sin volver a pedirlo
 
 function testnetHasCreds(){ return !!(TESTNET_CREDS && TESTNET_CREDS.key && TESTNET_CREDS.secret); }
 /* Sin contexto seguro no hay WebCrypto: no se puede firmar. Y más importante, no se debe
@@ -3564,7 +3664,9 @@ function roundToStep(qty, step){
   // Por log10 y no contando decimales del texto: un stepSize como "1e-8" dejaba dec=0,
   // redondeaba a entero y tumbaba pares perfectamente válidos.
   const dec = Math.max(0, Math.min(12, -Math.round(Math.log10(step))));
-  return parseFloat((Math.floor(qty/step)*step).toFixed(dec));
+  // El épsilon no es cosmético: Math.floor(2.9/0.1) da 28, no 29, porque la división
+  // sale 28.999999999999996. Sin él se pierde un escalón entero (un 3,4% menos de lo pedido).
+  return parseFloat((Math.floor(qty/step + 1e-9)*step).toFixed(dec));
 }
 
 async function testnetAccount(){
@@ -3604,8 +3706,16 @@ async function testnetPreview(symbol, quoteAmount){
   return { symbol:symbol, qty:qty, quotedAsk:quotedAsk, notional:r2(notional) };
 }
 async function testnetMeasure(prev){
-  const symbol = prev.symbol, qty = prev.qty, quotedAsk = prev.quotedAsk;
+  const symbol = prev.symbol, qty = prev.qty;
   if(TESTNET_SYMBOLS.indexOf(symbol) < 0) throw new Error(TEXTS.TN_ERR_SYMBOL);
+  // El precio de la vista previa caduca: entre calcularla y confirmar pasan los segundos
+  // que el usuario tarda en leer, y esa deriva del mercado NO es deslizamiento de ejecución.
+  if(!isFiniteNum(prev.ts) || (Date.now()-prev.ts) > 15000) throw new Error(TEXTS.TN_ERR_STALE);
+  // Se relee el precio justo antes de firmar: esa es la referencia honesta contra la que
+  // medir el llenado. Si no, el tiempo de lectura del usuario se contaba como deslizamiento.
+  const book = await testnetFetch("/api/v3/ticker/bookTicker", { symbol:symbol }, "GET", false);
+  const quotedAsk = parseFloat(book && book.askPrice);
+  if(!isFiniteNum(quotedAsk) || quotedAsk<=0) throw new Error(TEXTS.TN_ERR_NOPRICE);
   if(!isFiniteNum(qty) || qty<=0 || qty*quotedAsk > TN_MAX_QUOTE) throw new Error(TEXTS.TN_ERR_AMOUNT);
 
   const t0 = Date.now();
@@ -3614,20 +3724,34 @@ async function testnetMeasure(prev){
   const latency = Date.now() - t0;
 
   const fills = (order && order.fills) || [];
-  let notional = 0, filled = 0, comision = 0;
+  let notional = 0, filled = 0, comision = 0, comisionAsset = "";
   fills.forEach(function(x){
     const px = parseFloat(x.price), q = parseFloat(x.qty);
     if(isFiniteNum(px) && isFiniteNum(q)){ notional += px*q; filled += q; }
     const c = parseFloat(x.commission);
-    if(isFiniteNum(c)) comision += c;
+    if(isFiniteNum(c)){ comision += c; if(x.commissionAsset) comisionAsset = x.commissionAsset; }
   });
-  const fillAvg = filled>0 ? notional/filled : quotedAsk;
-  const slipPct = quotedAsk>0 ? ((fillAvg - quotedAsk)/quotedAsk*100) : 0;
+  // Una orden que no se llena NO es una ejecución de coste cero: es que no hubo ejecución.
+  // Antes se caía a quotedAsk y quedaba registrada como el mejor dato posible (0,00%),
+  // justo lo contrario de lo que esta pantalla existe para medir.
+  if(!(filled > 0)) throw new Error(TEXTS.TN_ERR_NOFILL);
+  const fillAvg = notional/filled;
+  const slipPct = ((fillAvg - quotedAsk)/quotedAsk*100);
+  // La comisión también se paga: sin ella el veredicto sale optimista. Viene en el activo
+  // base (BTC) o en el de cotización (USDT) según cómo tenga el usuario su cuenta.
+  let feePct = 0;
+  if(comision > 0 && filled > 0){
+    feePct = comisionAsset && symbol.indexOf(comisionAsset) === 0
+      ? (comision/filled)*100                 // comisión en el activo comprado
+      : (comision/(fillAvg*filled))*100;      // comisión en el de cotización
+  }
 
   const row = {
     ts: new Date().toISOString(), symbol: symbol, side:"BUY",
-    qty: filled || qty, quoted: r2(quotedAsk), fill: r2(fillAvg),
-    slipPct: r3(slipPct), latency: latency, orderId: order && order.orderId
+    qty: filled, qtyPedida: qty, parcial: filled < qty*0.999,
+    quoted: r2(quotedAsk), fill: r2(fillAvg),
+    slipPct: r3(slipPct), feePct: r3(feePct), latency: latency,
+    orderId: order && order.orderId
   };
   STATE.tnLog.unshift(row);
   if(STATE.tnLog.length > 100) STATE.tnLog.length = 100;
@@ -3635,18 +3759,32 @@ async function testnetMeasure(prev){
   return row;
 }
 
+const TN_MIN_MUESTRA = 5;   // por debajo de esto no se dictamina nada
 function tnStats(){
   const rows = STATE.tnLog || [];
   if(!rows.length) return null;
   const slip = rows.map(r=>r.slipPct).filter(isFiniteNum);
+  const fees = rows.map(r=>isFiniteNum(r.feePct)?r.feePct:0);
   const lat  = rows.map(r=>r.latency).filter(isFiniteNum);
-  const avgSlip = slip.length ? slip.reduce((a,b)=>a+b,0)/slip.length : 0;
-  const maxSlip = slip.length ? Math.max.apply(null, slip) : 0;
-  const avgLat  = lat.length  ? Math.round(lat.reduce((a,b)=>a+b,0)/lat.length) : 0;
-  // Un arbitraje tiene DOS patas: el deslizamiento se paga dos veces.
-  const costeIdaVuelta = avgSlip*2;
-  return { n:rows.length, avgSlip:r3(avgSlip), maxSlip:r3(maxSlip), avgLat:avgLat,
-           costeIdaVuelta:r3(costeIdaVuelta) };
+  const media = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0;
+  // Suelo en cero: en una compra a mercado, llenar por debajo del mejor ask es
+  // prácticamente imposible. Si sale negativo es ruido, no una ventaja — y sin este
+  // suelo la pantalla llegaba a afirmar que ejecutar te REGALA margen.
+  const avgSlip = Math.max(0, media(slip));
+  const maxSlip = slip.length ? Math.max(0, Math.max.apply(null, slip)) : 0;
+  const avgFee  = Math.max(0, media(fees));
+  // El riesgo de ejecución se dimensiona por el mal caso, no por la media: con +2% y −2%
+  // la media da 0 y parece que todo va bien, cuando la mitad de las veces te comiste 8
+  // veces tu umbral. Se usa el percentil 75.
+  const ord = slip.slice().sort((a,b)=>a-b);
+  const p75 = ord.length ? Math.max(0, ord[Math.min(ord.length-1, Math.floor(ord.length*0.75))]) : 0;
+  const avgLat = lat.length ? Math.round(media(lat)) : 0;
+  // Un arbitraje tiene DOS patas: deslizamiento y comisión se pagan dos veces.
+  const costeIdaVuelta = (avgSlip + avgFee)*2;
+  const costeMalo      = (p75 + avgFee)*2;
+  return { n:rows.length, avgSlip:r3(avgSlip), maxSlip:r3(maxSlip), avgFee:r3(avgFee),
+           p75:r3(p75), avgLat:avgLat, costeIdaVuelta:r3(costeIdaVuelta),
+           costeMalo:r3(costeMalo), suficiente: rows.length >= TN_MIN_MUESTRA };
 }
 
 /* =========================================================
