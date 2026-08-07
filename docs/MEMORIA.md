@@ -3,6 +3,30 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-07 — Bot de arbitraje de financiación sobre CCXT (`bot/`)
+- Qué se hizo: servidor Node que ejecuta arbitraje de tasa de financiación (delta neutral:
+  largo contado + corto perpetuo). Es el "backend que custodia las claves" que faltaba para
+  poder hablar de dinero real. NO sigue el patrón de `apps/*.html` porque no puede: la razón
+  de existir es precisamente que las claves no estén en el navegador.
+- Por qué esta estrategia y no la de `apps/arbitragegold.html`: la investigación dice que el
+  arbitraje entre exchanges está dominado por instituciones (ventanas de <1 s, retiradas de
+  15-40 min, se necesita 0,3-0,5 % solo para empatar; clientes privados sacan 3-10 % y el
+  minorista 0,2 %). El de financiación da 8-20 % anual y la ventaja es capital y disciplina,
+  no velocidad — ahí un particular sí compite.
+- El número que manda: entrar y salir cuesta ~0,30 %; con financiación de 0,01 % por cobro
+  hacen falta 30 cobros (10 días) solo para cubrirlo. El bot lo enseña antes de abrir y se
+  niega si no sale. Para 100 USD/día hacen falta ~333.000 desplegados.
+- Diseño: dos interruptores independientes (TRADING_MODE testnet/live, ARMED true/false);
+  `live` exige además YES_I_UNDERSTAND_THIS_IS_REAL_MONEY=yes. Config fail-secure (sin valores
+  por defecto, no arranca incompleto, verificado: sale con código 1). Panel solo en 127.0.0.1.
+  Secretos tapados en el registro. Si una pata falla se deshace la otra o se desarma.
+- No cierra por impaciencia: si la financiación se seca pero no se ha cubierto el coste,
+  mantiene. Y no decide sobre una sola lectura, sino sobre media + consistencia del histórico.
+- `npm test`: 24 comprobaciones de la aritmética, sin red ni claves. Sin probar contra el
+  exchange real: eso es lo que toca hacer en testnet y sin armar.
+- Pendiente: que el usuario genere claves en testnet.binance.vision y testnet.binancefuture.com
+  (son cuentas distintas), lo deje una semana sin armar y lea las decisiones.
+
 ## 2026-08-07 — Arbitraje: streaming real, multi-moneda, piloto automático y riesgo de ejecución
 - Qué se hizo: `apps/arbitragegold.html` ampliada con WebSocket a Binance (bookTicker) y Kraken
   (ticker), multi-moneda (USD/PEN/EUR/MXN/COP/ARS con tasas de open.er-api.com), mercados de BTC y

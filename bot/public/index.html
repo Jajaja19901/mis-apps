@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bot de financiación — panel</title>
+<style>
+:root{
+  --bg:#0b0f14; --card:#161d27; --elev:#121821; --border:#232b38;
+  --text:#e8ecf1; --muted:#9aa7b8; --dim:#808d9e;
+  --ok:#2fbf71; --mal:#f0666b; --avi:#e2a53a; --acc:#f0c75e;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.55}
+.wrap{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:clamp(20px,4vw,28px);margin:0 0 4px}
+h2{font-size:16px;margin:28px 0 10px;color:var(--text)}
+p{color:var(--muted);margin:0 0 12px}
+.banner{border-radius:10px;padding:12px 16px;margin:14px 0 20px;font-weight:700}
+.banner.test{background:#0f2a1c;border:1px solid #1c4d31;color:#a8f0c6}
+.banner.real{background:#2c1315;border:1px solid #5c2226;color:#ffb3b6}
+.kpis{display:grid;gap:10px;grid-template-columns:repeat(2,1fr)}
+@media(min-width:700px){.kpis{grid-template-columns:repeat(4,1fr)}}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px}
+.kpi .l{font-size:11px;color:var(--dim);letter-spacing:.03em}
+.kpi .v{font-family:var(--mono);font-size:18px;font-weight:700;margin-top:2px}
+.ok{color:var(--ok)} .mal{color:var(--mal)} .avi{color:var(--avi)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+.tw{overflow-x:auto;border:1px solid var(--border);border-radius:10px;background:var(--card)}
+th,td{padding:9px 11px;text-align:left;border-bottom:1px solid #1a212c;white-space:nowrap}
+th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;background:var(--elev)}
+tbody tr:last-child td{border-bottom:none}
+td.n{font-family:var(--mono);text-align:right}
+.btn{background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:8px;
+  padding:10px 16px;font-weight:700;font-size:14px;cursor:pointer;min-height:44px}
+.btn:hover{border-color:var(--acc)}
+.btn.stop{background:var(--mal);color:#2a0b0c;border-color:transparent}
+.motivos{font-size:12px;color:var(--dim)}
+.vacio{padding:24px;text-align:center;color:var(--muted)}
+.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.pill.si{background:#0f2a1c;color:#a8f0c6}
+.pill.no{background:#2b220e;color:#ffdca0}
+.dec{font-size:12.5px;padding:7px 0;border-top:1px solid #1a212c;display:flex;gap:10px;justify-content:space-between}
+.dec:first-child{border-top:none}
+.dec .t{color:var(--dim);font-family:var(--mono);flex:none}
+code{background:var(--elev);padding:1px 5px;border-radius:4px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Bot de financiación</h1>
+  <p>Compra al contado y vende el perpetuo del mismo activo. El precio te da igual: lo que se cobra es la tasa de financiación.</p>
+
+  <div id="banner" class="banner test">cargando…</div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <h2>Posiciones abiertas</h2>
+  <div id="posiciones"></div>
+
+  <h2>Qué ve el bot ahora mismo</h2>
+  <div id="evaluaciones"></div>
+
+  <h2>Decisiones recientes</h2>
+  <div class="tw" style="padding:12px"><div id="decisiones"></div></div>
+
+  <h2>Control</h2>
+  <div style="display:flex;gap:10px;flex-wrap:wrap">
+    <button class="btn stop" id="btnStop">Desarmar ahora</button>
+    <button class="btn" id="btnGo">Rearmar</button>
+  </div>
+  <p style="margin-top:10px;font-size:12.5px">Desarmar impide abrir posiciones nuevas. <strong>No cierra las que ya están abiertas</strong>: eso se hace a mano desde el exchange.</p>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?"":s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const usdt = v => (Number(v)||0).toFixed(2) + " USDT";
+const pct  = v => (Number(v)>=0?"+":"") + (Number(v)||0).toFixed(4) + " %";
+
+function tabla(cabeceras, filas, vacio){
+  if(!filas.length) return '<div class="tw"><div class="vacio">'+esc(vacio)+'</div></div>';
+  return '<div class="tw"><table><thead><tr>'
+    + cabeceras.map(c=>'<th>'+esc(c)+'</th>').join('')
+    + '</tr></thead><tbody>' + filas.join('') + '</tbody></table></div>';
+}
+
+async function pintar(){
+  let d;
+  try { d = await (await fetch('/api/estado')).json(); }
+  catch { $('#banner').textContent = 'Sin conexión con el bot'; return; }
+
+  const real = d.modo === 'live';
+  const b = $('#banner');
+  b.className = 'banner ' + (real ? 'real' : 'test');
+  b.textContent = real
+    ? '*** DINERO REAL *** — cada orden mueve fondos de verdad'
+    : 'TESTNET — fondos de prueba, esto no vale dinero';
+
+  const parado = !!d.desarmadoPor;
+  $('#kpis').innerHTML = [
+    ['Estado', parado ? 'DESARMADO' : (d.armado ? 'Armado' : 'Sin armar'),
+      parado ? 'mal' : (d.armado ? 'ok' : 'avi')],
+    ['Posiciones', d.posiciones.length + ' / ' + d.riesgo.maxPosiciones, ''],
+    ['Exposición', usdt(d.nocionalTotal) + ' / ' + d.riesgo.maxNocionalTotal, ''],
+    ['Resultado de hoy', usdt(d.resultadoDelDia), d.resultadoDelDia>=0?'ok':'mal'],
+  ].map(([l,v,c])=>'<div class="kpi"><div class="l">'+esc(l)+'</div><div class="v '+c+'">'+esc(v)+'</div></div>').join('')
+   + (parado ? '<div class="kpi" style="grid-column:1/-1"><div class="l">Motivo del desarme</div><div class="v mal" style="font-size:13px">'+esc(d.desarmadoPor)+'</div></div>' : '');
+
+  $('#posiciones').innerHTML = tabla(
+    ['Símbolo','Importe','Abierta','Cobros','Cobrado','Neto si cierro ahora'],
+    d.posiciones.map(p=>{
+      const coste = p.nocional * 0.003;
+      const neto = (p.fundingCobrado||0) - coste;
+      return '<tr><td>'+esc(p.simbolo)+'</td><td class="n">'+esc(usdt(p.nocional))+'</td>'
+        +'<td>'+esc(new Date(p.abiertaEn).toLocaleString('es-ES'))+'</td>'
+        +'<td class="n">'+esc(p.cobrosRecibidos||0)+'</td>'
+        +'<td class="n ok">'+esc(usdt(p.fundingCobrado||0))+'</td>'
+        +'<td class="n '+(neto>=0?'ok':'mal')+'">'+esc(usdt(neto))+'</td></tr>';
+    }),
+    'Ninguna posición abierta.'
+  );
+
+  const ev = (d.ultimoCiclo && d.ultimoCiclo.evaluaciones) || [];
+  $('#evaluaciones').innerHTML = tabla(
+    ['Símbolo','Muestras','Financiación media','Consistencia','APR','Cubre coste en','¿Apto?'],
+    ev.map(e=>{
+      const per = Number.isFinite(e.periodosHastaCubrirCoste)
+        ? e.periodosHastaCubrirCoste.toFixed(0)+' cobros ('+e.diasHastaCubrirCoste.toFixed(1)+' d)'
+        : 'nunca';
+      return '<tr><td>'+esc(e.simbolo)+'</td>'
+        +'<td class="n">'+esc(e.muestras||0)+'</td>'
+        +'<td class="n '+((e.tasaMediaPct||0)>0?'ok':'mal')+'">'+esc(pct(e.tasaMediaPct))+'</td>'
+        +'<td class="n">'+esc(((e.consistencia||0)*100).toFixed(0))+' %</td>'
+        +'<td class="n">'+esc((e.aprPct||0).toFixed(1))+' %</td>'
+        +'<td class="n">'+esc(per)+'</td>'
+        +'<td>'+(e.apto?'<span class="pill si">sí</span>'
+              :'<span class="pill no">no</span><div class="motivos">'+esc((e.motivos||[])[0]||'')+'</div>')+'</td></tr>';
+    }),
+    'El bot aún no ha completado un ciclo.'
+  );
+
+  $('#decisiones').innerHTML = d.decisiones.length
+    ? d.decisiones.map(x=>'<div class="dec"><span>'+esc((x.simbolo?x.simbolo+' — ':'')+(x.detalle||x.tipo))
+        +'</span><span class="t">'+esc(new Date(x.ts).toLocaleTimeString('es-ES'))+'</span></div>').join('')
+    : '<div class="vacio">Todavía no hay decisiones anotadas.</div>';
+}
+
+$('#btnStop').onclick = async () => { await fetch('/api/desarmar',{method:'POST'}); pintar(); };
+$('#btnGo').onclick   = async () => { await fetch('/api/rearmar',{method:'POST'}); pintar(); };
+pintar();
+setInterval(pintar, 5000);
+</script>
+</body>
+</html>
