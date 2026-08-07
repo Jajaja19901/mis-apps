@@ -49,8 +49,8 @@ button{font-family:inherit}
 img,svg{max-width:100%}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 :focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:4px}
-.skip-link{position:absolute;left:8px;top:-60px;background:var(--gold);color:var(--gold-ink);padding:10px 16px;border-radius:var(--radius-sm);z-index:200;font-weight:700;transition:top var(--t-fast)}
-.skip-link:focus{top:8px}
+.skip-link{position:absolute;left:8px;top:8px;background:var(--gold);color:var(--gold-ink);padding:10px 16px;border-radius:var(--radius-sm);z-index:200;font-weight:700;transform:translateY(-200%);transition:transform var(--t-fast)}
+.skip-link:focus{transform:translateY(0)}
 
 /* Contenedor */
 .container{max-width:1080px;margin:0 auto;padding:20px 16px 40px}
@@ -1465,11 +1465,14 @@ function renderMarketRows(){
     +'</tr>'
   )).join("");
 }
-function renderRouteRows(onlyOps){
-  let routes = currentRoutes();
+/* Índice de cada ruta por id: el botón "Operar" lo necesita y así evitamos una
+   búsqueda lineal por fila en cada repintado. */
+const ROUTE_INDEX = ROUTES.reduce(function(acc,r,i){ acc[r.id]=i; return acc; },{});
+function renderRouteRows(onlyOps, routes){
+  routes = routes || currentRoutes();
   if(onlyOps) routes = routes.filter(r=>r.net>0);
   return routes.map((r,i)=>{
-    const origIndex = ROUTES.findIndex(x=>x.id===r.id);
+    const origIndex = ROUTE_INDEX[r.id];
     return '<tr>'
     +'<td>'+esc(r.label)+'</td>'
     +'<td class="num mono">'+esc(fmtPct(r.gross))+'</td>'
@@ -1480,8 +1483,8 @@ function renderRouteRows(onlyOps){
     +'</tr>';
   }).join("");
 }
-function renderAlertBannerContent(){
-  const routes = currentRoutes();
+function renderAlertBannerContent(routes){
+  routes = routes || currentRoutes();
   const n = computeAlertsForCycle(routes);
   const opportunities = routes.filter(r=>r.net>=CONFIG.ALERT_NET_PCT).slice(0,5);
   const title = n>0 ? (n+" "+TEXTS.ALERT_SUFFIX) : TEXTS.ALERT_NONE;
@@ -2147,11 +2150,12 @@ function afterRouteHooks(path){
     document.getElementById("posTableTitle").textContent = TEXTS.POSITIONS_OPEN_PREFIX + STATE.positions.length + ")";
   }
 }
-function updateRoutesCount(){
+function updateRoutesCount(routes){
   const el = document.getElementById("arbRoutesCount");
   if(!el) return;
   const onlyOps = document.getElementById("arbOnlyOps").checked;
-  const rows = onlyOps ? currentRoutes().filter(r=>r.net>0) : currentRoutes();
+  const all = routes || currentRoutes();
+  const rows = onlyOps ? all.filter(r=>r.net>0) : all;
   el.textContent = rows.length + " " + TEXTS.ROUTES_SHOWN_PREFIX;
 }
 function updateHistCount(filter){
@@ -2164,16 +2168,19 @@ function updateHistCount(filter){
 function refreshCurrentViewData(){
   const path = currentPath();
   if(path==="/arbitraje"){
+    // Un único cálculo de rutas por repintado: el banner, la tabla y el contador
+    // comparten el mismo resultado en vez de recalcular el libro tres veces.
+    const routes = currentRoutes();
     const banner = document.getElementById("alertBanner");
-    if(banner) banner.innerHTML = renderAlertBannerContent();
+    if(banner) banner.innerHTML = renderAlertBannerContent(routes);
     const marketTbody = document.querySelector("#marketTable tbody");
     if(marketTbody) marketTbody.innerHTML = renderMarketRows();
     const arbTbody = document.querySelector("#arbTable tbody");
     if(arbTbody){
       const onlyOps = document.getElementById("arbOnlyOps").checked;
-      arbTbody.innerHTML = renderRouteRows(onlyOps);
+      arbTbody.innerHTML = renderRouteRows(onlyOps, routes);
     }
-    updateRoutesCount();
+    updateRoutesCount(routes);
   }
   if(path==="/simulador"){
     const bar = document.getElementById("walletBar");
@@ -2198,8 +2205,10 @@ function refreshCurrentViewData(){
   if(path==="/auto"){
     const k = document.getElementById("autoKpis");
     if(k) k.innerHTML = autoKpisContent();
+    // El gráfico solo se reconstruye cuando hay muestra nueva: rehacer 40 nodos SVG
+    // cada segundo sería trabajo tirado, porque el dibujo no habría cambiado.
     const ch = document.getElementById("spreadChart");
-    if(ch) ch.innerHTML = renderSpreadChart();
+    if(ch && CHART_DIRTY){ ch.innerHTML = renderSpreadChart(); CHART_DIRTY = false; }
     const lg = document.getElementById("autoLogWrap");
     if(lg) lg.innerHTML = renderAutoLogList();
   }
@@ -2225,6 +2234,7 @@ function advanceCycle(){
 }
 let clockInterval = null;
 let sampleCounter = 0;
+let CHART_DIRTY = true;   // hay muestra nueva sin dibujar
 function startClock(){
   if(clockInterval) return;
   clockInterval = setInterval(function(){
@@ -2243,7 +2253,7 @@ function startClock(){
     }
     // Muestreamos la serie de spreads cada 3 s: 40 muestras ≈ 2 minutos de gráfico.
     sampleCounter++;
-    if(sampleCounter % 3 === 0) pushSpreadHistory(currentRoutes());
+    if(sampleCounter % 3 === 0){ pushSpreadHistory(currentRoutes()); CHART_DIRTY = true; }
     autoTick();
   }, 1000);
 }
