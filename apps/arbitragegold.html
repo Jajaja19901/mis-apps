@@ -71,6 +71,8 @@ header#header{position:fixed;top:0;left:0;right:0;min-height:var(--header-h);z-i
 .badge .dot{width:7px;height:7px;border-radius:50%;background:var(--amber);flex:none}
 .badge.live .dot{background:var(--green)}
 #refreshCountdown{font-family:var(--font-mono);font-size:11px;color:var(--text-dim);white-space:nowrap}
+.ccy-select{background:var(--bg-elevated);color:var(--text);border:1px solid var(--border);border-radius:999px;padding:5px 8px;font-size:11px;font-weight:600;font-family:inherit;min-height:32px;cursor:pointer}
+.ccy-select:focus{border-color:var(--gold);outline:none;box-shadow:0 0 0 3px rgba(212,175,55,.2)}
 
 /* ===== Risk strip ===== */
 #riskStrip{order:1;background:linear-gradient(90deg,var(--amber-bg),var(--bg-elevated));border-bottom:1px solid var(--border);padding:8px 16px;text-align:center}
@@ -273,6 +275,8 @@ td.num,th.num{font-family:var(--font-mono);text-align:right}
       <span class="wordmark" id="brandName"></span>
     </a>
     <div class="topbar-right">
+      <label for="ccySelect" class="sr-only">Moneda</label>
+      <select id="ccySelect" class="ccy-select"></select>
       <span id="refreshCountdown"></span>
       <span id="dataModeBadge" class="badge"><span class="dot"></span><span class="badge-text"></span></span>
     </div>
@@ -301,6 +305,10 @@ td.num,th.num{font-family:var(--font-mono);text-align:right}
     </a></li>
     <li><a id="nav-simulador" href="#/simulador" class="nav-link">
       <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12h8M12 8v8"/></svg>
+      <span></span>
+    </a></li>
+    <li><a id="nav-auto" href="#/auto" class="nav-link">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>
       <span></span>
     </a></li>
     <li><a id="nav-historial" href="#/historial" class="nav-link">
@@ -594,6 +602,54 @@ td.num,th.num{font-family:var(--font-mono);text-align:right}
     { "click": "#btnLive" },
     { "expect": "En modo archivo local siempre se usan precios simulados" }
   ]},
+  { "name": "C29 · El piloto se activa y se detiene desde su vista", "steps": [
+    { "goto": "#/auto" },
+    { "expect": "Piloto automático" },
+    { "expect": "nunca contra dinero real" },
+    { "expectVisible": "#btnAutoToggle" },
+    { "expect": "Piloto detenido" },
+    { "click": "#btnAutoToggle" },
+    { "expect": "Piloto activo" },
+    { "click": "#btnAutoToggle" },
+    { "expect": "Piloto detenido" }
+  ]},
+  { "name": "C30 · Las reglas del piloto validan y se guardan", "steps": [
+    { "goto": "#/auto" },
+    { "fill": { "sel": "#auto-minnet", "value": "0" } },
+    { "submit": "#autoCfgForm" },
+    { "expect": "todos los valores tienen que ser mayores que 0" },
+    { "fill": { "sel": "#auto-minnet", "value": "0.8" } },
+    { "fill": { "sel": "#auto-ticket", "value": "2500" } },
+    { "submit": "#autoCfgForm" },
+    { "expect": "Reglas guardadas" },
+    { "reload": true },
+    { "goto": "#/auto" },
+    { "expect": "0.8" }
+  ]},
+  { "name": "C31 · Cambiar de moneda reexpresa las cifras sin tocar el saldo", "steps": [
+    { "goto": "#/simulador" },
+    { "expect": "100.000" },
+    { "fill": { "sel": "#ccySelect", "value": "PEN" } },
+    { "expect": "S/" },
+    { "goto": "#/arbitraje" },
+    { "expect": "S/" },
+    { "fill": { "sel": "#ccySelect", "value": "USD" } },
+    { "goto": "#/simulador" },
+    { "expect": "100.000" }
+  ]},
+  { "name": "C32 · El piloto aparece en la navegación y su ruta vive", "steps": [
+    { "goto": "#/" },
+    { "click": "#nav-auto" },
+    { "expectHash": "#/auto" },
+    { "expect": "Reglas del piloto" },
+    { "expect": "Bitácora del piloto" }
+  ]},
+  { "name": "C33 · Las rutas de BTC y ETH se vigilan junto a las de oro", "steps": [
+    { "goto": "#/arbitraje" },
+    { "expect": "BTC" },
+    { "expect": "ETH" },
+    { "expect": "PAXG" }
+  ]},
   { "name": "C28 · El panel pide contraseña otra vez tras recargar", "steps": [
     { "goto": "#/admin" },
     { "fill": { "sel": "#adm-pass", "value": "oro-demo-2026" } },
@@ -635,23 +691,50 @@ const CONFIG = {
   STUDIO_BRAND  : "Incuba tu Negocio",
   STUDIO_AUTHOR : "Jaime M. M.",
   STUDIO_URL    : "https://incubatunegocio.example",
-  // MEJORADO: opciones de monitoreo en vivo
-  MONITOR_INTERVAL_MS: 3000,         // Monitorea spreads cada 3s (sin bloquear UI)
+  // Monitoreo en vivo
+  MONITOR_INTERVAL_MS: 3000,         // Refresco REST de respaldo (el WebSocket va en tiempo real)
   MIN_VOLUME_USD: 10000,             // Filtro: solo oportunidades con liquidez >$10k
-  SLIPPAGE_PCT: 0.05,                // Slippage simulado: 0.05% de profundidad de orden book
-  BINANCE_MAKER_FEE: 0.001,          // 0.1% maker
-  BINANCE_TAKER_FEE: 0.001,          // 0.1% taker
+  SLIPPAGE_PCT: 0.05,                // Slippage estimado sobre el tamaño de la orden
+  BINANCE_MAKER_FEE: 0.001,          // 0.10% maker
+  BINANCE_TAKER_FEE: 0.001,          // 0.10% taker
   KRAKEN_MAKER_FEE: 0.0016,          // 0.16% maker
   KRAKEN_TAKER_FEE: 0.0026,          // 0.26% taker
+  // Piloto automático (siempre en simulación — ver AUTO_REAL_NOTE)
+  AUTO_MIN_NET_PCT : 0.25,           // umbral de spread neto para disparar una operación
+  AUTO_MAX_TICKET  : 5000,           // tamaño máximo de cada operación, en la moneda base
+  AUTO_MAX_OPEN    : 3,              // operaciones automáticas simultáneas
+  AUTO_DAILY_STOP  : 1500,           // pérdida acumulada del día que apaga el piloto
+  AUTO_COOLDOWN_MS : 15000,          // espera mínima entre dos operaciones de la misma ruta
 };
 
-/* Mercados y rutas — PLAN.md §6.3 (motor determinista) */
+/* Monedas: el usuario elige en qué moneda LEE la app. El motor calcula siempre en USD
+   (es la moneda de cotización de los exchanges) y se convierte solo al pintar.
+   Las tasas se refrescan de una API pública de divisas; si falla, se usa la de respaldo. */
+const CURRENCIES = {
+  USD: { code:"USD", symbol:"$",  name:"Dólar estadounidense", rate:1,    locale:"en-US" },
+  PEN: { code:"PEN", symbol:"S/", name:"Sol peruano",          rate:3.75, locale:"es-PE" },
+  EUR: { code:"EUR", symbol:"€",  name:"Euro",                 rate:0.92, locale:"es-ES" },
+  MXN: { code:"MXN", symbol:"$",  name:"Peso mexicano",        rate:17.1, locale:"es-MX" },
+  COP: { code:"COP", symbol:"$",  name:"Peso colombiano",      rate:4100, locale:"es-CO" },
+  ARS: { code:"ARS", symbol:"$",  name:"Peso argentino",       rate:980,  locale:"es-AR" },
+};
+let DISPLAY_CCY = "USD";   // moneda de lectura activa
+let FX_LIVE = false;       // true cuando las tasas vienen de la API y no del respaldo
+
+/* Mercados vigilados.
+   `base` = precio de referencia en USD del activo (lo usa el motor determinista cuando no
+   hay datos en vivo). `stream` = nombre del stream de Binance (bookTicker) y `krakenPair` =
+   par en la API de Kraken; con datos en vivo esos dos campos mandan sobre `base`/`offsetPct`. */
 const MARKETS = [
-  { id:"PAXG-BINANCE", asset:"PAXG", venue:"Binance", symbol:"PAXG/USDT", offsetPct:+0.05, vol:0.18 },
-  { id:"PAXG-KRAKEN",  asset:"PAXG", venue:"Kraken",  symbol:"PAXG/USD",  offsetPct:+0.28, vol:0.22 },
-  { id:"XAUT-BINANCE", asset:"XAUT", venue:"Binance", symbol:"XAUT/USDT", offsetPct:-0.12, vol:0.20 },
-  { id:"XAUT-KRAKEN",  asset:"XAUT", venue:"Kraken",  symbol:"XAUT/USD",  offsetPct:+0.63, vol:0.16 },
-  { id:"XAU-INDEX",    asset:"XAU",  venue:"Índice oro spot", symbol:"XAU/USD", offsetPct:0, vol:0.10 },
+  { id:"PAXG-BINANCE", asset:"PAXG", venue:"Binance", symbol:"PAXG/USDT", base:2400,  offsetPct:+0.05, vol:0.18, stream:"paxgusdt" },
+  { id:"PAXG-KRAKEN",  asset:"PAXG", venue:"Kraken",  symbol:"PAXG/USD",  base:2400,  offsetPct:+0.85, vol:0.22, wsPair:"PAXG/USD" },
+  { id:"XAUT-BINANCE", asset:"XAUT", venue:"Binance", symbol:"XAUT/USDT", base:2400,  offsetPct:-0.12, vol:0.20, stream:"xautusdt" },
+  { id:"XAUT-KRAKEN",  asset:"XAUT", venue:"Kraken",  symbol:"XAUT/USD",  base:2400,  offsetPct:+0.98, vol:0.16, wsPair:"XAUT/USD" },
+  { id:"XAU-INDEX",    asset:"XAU",  venue:"Índice oro spot", symbol:"XAU/USD", base:2400, offsetPct:0, vol:0.10 },
+  { id:"BTC-BINANCE",  asset:"BTC",  venue:"Binance", symbol:"BTC/USDT",  base:62000, offsetPct:+0.02, vol:0.45, stream:"btcusdt" },
+  { id:"BTC-KRAKEN",   asset:"BTC",  venue:"Kraken",  symbol:"BTC/USD",   base:62000, offsetPct:+0.72, vol:0.41, wsPair:"XBT/USD" },
+  { id:"ETH-BINANCE",  asset:"ETH",  venue:"Binance", symbol:"ETH/USDT",  base:2500,  offsetPct:-0.08, vol:0.52, stream:"ethusdt" },
+  { id:"ETH-KRAKEN",   asset:"ETH",  venue:"Kraken",  symbol:"ETH/USD",   base:2500,  offsetPct:+0.55, vol:0.48, wsPair:"ETH/USD" },
 ];
 const ROUTES = [
   { id:"R1", buy:"PAXG-BINANCE", sell:"PAXG-KRAKEN",  label:"PAXG · Binance → Kraken" },
@@ -660,6 +743,10 @@ const ROUTES = [
   { id:"R4", buy:"XAUT-BINANCE", sell:"PAXG-KRAKEN",  label:"XAUT Binance → PAXG Kraken" },
   { id:"R5", buy:"PAXG-BINANCE", sell:"XAU-INDEX",    label:"PAXG Binance → Índice oro" },
   { id:"R6", buy:"XAUT-BINANCE", sell:"XAU-INDEX",    label:"XAUT Binance → Índice oro" },
+  { id:"R7", buy:"BTC-BINANCE",  sell:"BTC-KRAKEN",   label:"BTC · Binance → Kraken" },
+  { id:"R8", buy:"BTC-KRAKEN",   sell:"BTC-BINANCE",  label:"BTC · Kraken → Binance" },
+  { id:"R9", buy:"ETH-BINANCE",  sell:"ETH-KRAKEN",   label:"ETH · Binance → Kraken" },
+  { id:"R10",buy:"ETH-KRAKEN",   sell:"ETH-BINANCE",  label:"ETH · Kraken → Binance" },
 ];
 const MARKET_LABEL = m => m.symbol + " · " + m.venue;
 
@@ -855,6 +942,57 @@ const TEXTS = {
   CLOSE_WINDOW:"Cerrar ventana",
   STUDIO_SIGNATURE:"Diseñado por Incuba tu Negocio · por Jaime M. M.",
 
+  /* ---- Multi-moneda ---- */
+  CCY_LABEL:"Moneda",
+  CCY_NOTE_LIVE:"Tasas de cambio en vivo",
+  CCY_NOTE_FALLBACK:"Tasas de cambio de referencia (sin conexión)",
+  CCY_HINT:"Cambia solo cómo lees las cifras. El motor calcula siempre en dólares, que es la moneda en la que cotizan los exchanges.",
+
+  /* ---- Piloto automático ---- */
+  NAV_AUTO:"Piloto",
+  AUTO_H1:"Piloto automático",
+  AUTO_INTRO:"El piloto vigila las rutas sin parar y ejecuta él solo las que superan tu umbral. Tú pones las reglas; él aprieta el botón.",
+  AUTO_REAL_NOTE:"Opera contra tu saldo simulado, nunca contra dinero real. Mover dinero de verdad exige un servidor que custodie las claves de tu exchange: en un archivo que se abre en el navegador, esas claves quedarían al alcance de cualquiera que tocase el equipo.",
+  AUTO_STATUS_ON:"Piloto activo",
+  AUTO_STATUS_OFF:"Piloto detenido",
+  BTN_AUTO_START:"Activar piloto",
+  BTN_AUTO_STOP:"Detener piloto",
+  AUTO_KPI_STATE:"Estado",
+  AUTO_KPI_TRADES:"Operaciones hoy",
+  AUTO_KPI_PNL:"Resultado de hoy",
+  AUTO_KPI_BEST:"Mejor spread ahora",
+  AUTO_CFG_TITLE:"Reglas del piloto",
+  AUTO_CFG_MINNET:"Spread neto mínimo (%)",
+  AUTO_CFG_MINNET_HINT:"Por debajo de esto no toca nada. Cuanto más alto, menos operaciones y más seguras.",
+  AUTO_CFG_TICKET:"Tamaño máximo por operación",
+  AUTO_CFG_TICKET_HINT:"Cuánto capital como mucho arriesga en cada entrada.",
+  AUTO_CFG_MAXOPEN:"Operaciones máximas al día",
+  AUTO_CFG_MAXOPEN_HINT:"Al llegar a este número el piloto se apaga solo.",
+  AUTO_CFG_DAILYSTOP:"Pérdida diaria que lo apaga",
+  AUTO_CFG_DAILYSTOP_HINT:"Si el resultado del día baja de esta cifra en negativo, se detiene sin preguntar.",
+  AUTO_CFG_ACTIVE:"Reglas activas ahora mismo",
+  BTN_AUTO_SAVE:"Guardar reglas",
+  TOAST_AUTO_SAVED:"Reglas guardadas",
+  ERR_AUTO_RANGE:"Revisa las reglas: todos los valores tienen que ser mayores que 0",
+  AUTO_LOG_TITLE:"Bitácora del piloto",
+  AUTO_LOG_EMPTY:"El piloto todavía no ha hecho nada.",
+  AUTO_LOG_STARTED:"Piloto activado",
+  AUTO_STOP_DAILY:"Piloto detenido: se alcanzó el límite de pérdida diaria.",
+  AUTO_STOP_MAXOPEN:"Piloto detenido: se alcanzó el máximo de operaciones del día.",
+  AUTO_SCORE_LABEL:"confianza",
+  AUTO_ENGINE_NOTE:"El motor puntúa cada ruta de 0 a 100 con cuatro señales: margen sobre tu umbral, estabilidad del spread en las últimas muestras, si el dato viene en vivo o simulado, y cuánto se come la comisión. No es una red neuronal: es un sistema de reglas cuantitativas, que es lo que usan de verdad los bots de arbitraje.",
+  AUTO_CHART_TITLE:"Mejor spread neto disponible",
+  AUTO_CHART_CAPTION:"Evolución del mejor spread neto entre todas las rutas. La línea de puntos marca el cero: por debajo, ninguna ruta compensa las comisiones.",
+  AUTO_CHART_EMPTY:"Todavía no hay muestras suficientes para dibujar la evolución.",
+  AUTO_CHART_TABLE:"Muestras del mejor spread neto",
+  TH_SAMPLE:"Muestra", TH_SPREAD:"Spread neto",
+  AUTO_CHART_OPP:"Supera el umbral",
+
+  /* ---- Streaming ---- */
+  STREAM_CONNECTED:"Streaming en vivo",
+  STREAM_MARKETS_SUFFIX:"mercados en tiempo real",
+  ERR_ROUTE_GONE:"Esa ruta ya no está disponible",
+
   NOT_FOUND_TITLE:"Página no encontrada",
   NOT_FOUND_BODY:"Te llevamos a la portada.",
 };
@@ -869,7 +1007,19 @@ function uid(p){ return p+"_"+Date.now().toString(36)+"_"+Math.random().toString
 function r2(v){ return Math.round(v*100)/100; }
 function r3(v){ return Math.round(v*1000)/1000; }
 function clamp(v,min,max){ return Math.max(min,Math.min(max,v)); }
-function fmtUSD(v){ return "$"+new Intl.NumberFormat("es-ES",{minimumFractionDigits:2,maximumFractionDigits:2}).format(v); }
+/* El motor calcula SIEMPRE en USD (es la moneda de cotización de los exchanges).
+   fmtUSD convierte al vuelo a la moneda de lectura elegida — cambiar de moneda nunca
+   toca el estado guardado, solo cómo se pinta. */
+function fxRate(){ const c = CURRENCIES[DISPLAY_CCY]; return c ? c.rate : 1; }
+function ccySymbol(){ const c = CURRENCIES[DISPLAY_CCY]; return c ? c.symbol : "$"; }
+function fmtUSD(v){
+  const conv = v * fxRate();
+  // Monedas de valor bajo (COP, ARS) generan cifras enormes: ahí los céntimos sobran.
+  const big = Math.abs(conv) >= 1000000;
+  return ccySymbol()+new Intl.NumberFormat("es-ES",{
+    minimumFractionDigits: big?0:2, maximumFractionDigits: big?0:2
+  }).format(conv);
+}
 // Importes con signo explícito ("+$12,00" / "−$12,00"): el signo va SIEMPRE delante del
 // símbolo de moneda y nunca se confía solo en el color (accesibilidad).
 function fmtSignedUSD(v){ return (v>=0?"+":"−")+fmtUSD(Math.abs(v)); }
@@ -905,7 +1055,8 @@ function fmtDate(iso){
    ========================================================= */
 const LS = {
   WALLET:"ag_v1_wallet", POSITIONS:"ag_v1_positions", TRADES:"ag_v1_trades",
-  LEADS:"ag_v1_leads", ALERTS:"ag_v1_alerts", ADMIN:"ag_v1_admin", SETTINGS:"ag_v1_settings"
+  LEADS:"ag_v1_leads", ALERTS:"ag_v1_alerts", ADMIN:"ag_v1_admin", SETTINGS:"ag_v1_settings",
+  AUTOLOG:"ag_v1_autolog"
 };
 function readLS(key, fallback){
   try{
@@ -952,14 +1103,18 @@ function defaultState(){
     trades:[],
     leads:[],
     alerts:[],
-    settings:{ liveData:false, updatedAt:now },
+    settings:{
+      liveData:false, ccy:"USD", updatedAt:now,
+      auto:{ on:false, minNet:CONFIG.AUTO_MIN_NET_PCT, ticket:CONFIG.AUTO_MAX_TICKET,
+             maxOpen:CONFIG.AUTO_MAX_OPEN, dailyStop:CONFIG.AUTO_DAILY_STOP }
+    },
     adminPass: CONFIG.ADMIN_PASSWORD,
     tick:0,
     lastAlertAt:{},
     priceHistory: MARKETS.map(()=>[]),
-    // MEJORADO: histórico de spreads y oportunidades detectadas automáticamente
-    spreadHistory: [],
-    autoDetectedOpps: [],
+    spreadHistory: [],   // serie temporal del spread neto de cada ruta
+    autoLog: [],         // bitácora del piloto automático
+    autoLastAt: {},      // enfriamiento por ruta
   };
 }
 function loadState(){
@@ -990,10 +1145,23 @@ function loadState(){
     }
     const settings = readLS(LS.SETTINGS, null);
     if(settings && typeof settings==="object"){
+      const a = (settings.auto && typeof settings.auto==="object") ? settings.auto : {};
       base.settings = {
         liveData: settings.liveData===true,
-        updatedAt: typeof settings.updatedAt==="string" ? settings.updatedAt : base.settings.updatedAt
+        ccy: (typeof settings.ccy==="string" && CURRENCIES[settings.ccy]) ? settings.ccy : "USD",
+        updatedAt: typeof settings.updatedAt==="string" ? settings.updatedAt : base.settings.updatedAt,
+        auto: {
+          on: a.on===true,
+          minNet:    isFiniteNum(a.minNet)    ? clamp(a.minNet,0.01,10)      : CONFIG.AUTO_MIN_NET_PCT,
+          ticket:    isFiniteNum(a.ticket)    ? clamp(a.ticket,10,1000000)   : CONFIG.AUTO_MAX_TICKET,
+          maxOpen:   isFiniteNum(a.maxOpen)   ? clamp(a.maxOpen,1,50)        : CONFIG.AUTO_MAX_OPEN,
+          dailyStop: isFiniteNum(a.dailyStop) ? clamp(a.dailyStop,10,1000000): CONFIG.AUTO_DAILY_STOP
+        }
       };
+    }
+    const autoLog = readLS(LS.AUTOLOG, null);
+    if(Array.isArray(autoLog)){
+      base.autoLog = autoLog.filter(e=>e && typeof e==="object" && typeof e.ts==="string" && typeof e.text==="string").slice(0,50);
     }
   }catch(e){
     // Cualquier fallo inesperado: nos quedamos con los valores por defecto ya calculados.
@@ -1007,6 +1175,7 @@ function persist(){
   writeLS(LS.LEADS, STATE.leads);
   writeLS(LS.ALERTS, STATE.alerts);
   writeLS(LS.SETTINGS, STATE.settings);
+  writeLS(LS.AUTOLOG, STATE.autoLog);
   if(STATE.adminPass !== CONFIG.ADMIN_PASSWORD){
     writeLS(LS.ADMIN, { pass: STATE.adminPass, changedAt: new Date().toISOString() });
   }
@@ -1020,10 +1189,12 @@ function wipeAllData(){
     localStorage.removeItem(LS.ALERTS);
     localStorage.removeItem(LS.ADMIN);
     localStorage.removeItem(LS.SETTINGS);
+    localStorage.removeItem(LS.AUTOLOG);
   }catch(e){
     // si tampoco se puede borrar (sandbox/privado), seguimos con el reseteo en memoria
   }
   STATE = defaultState();
+  DISPLAY_CCY = "USD";
   seedHistory();
 }
 let STATE = loadState();
@@ -1036,9 +1207,13 @@ let LIVE_BASE_GOLD_USD = null; // solo se fija tras un fetch con éxito en http(
    ========================================================= */
 function drift(i,t){ return Math.sin((t+i*7)*0.35)*MARKETS[i].vol; }
 function baseGoldPrice(){ return LIVE_BASE_GOLD_USD!=null ? LIVE_BASE_GOLD_USD : CONFIG.BASE_GOLD_USD; }
+function isGoldAsset(a){ return a==="PAXG" || a==="XAUT" || a==="XAU"; }
 function priceAt(i,t){
   const m = MARKETS[i];
-  const v = baseGoldPrice()*(1+m.offsetPct/100)*(1+drift(i,t)/100);
+  // Los mercados de oro se anclan al precio real del oro cuando lo tenemos; el resto de
+  // activos (BTC, ETH) usan su propio precio de referencia para no cotizar a precio de onza.
+  const base = (isGoldAsset(m.asset) && LIVE_BASE_GOLD_USD!=null) ? LIVE_BASE_GOLD_USD : m.base;
+  const v = base*(1+m.offsetPct/100)*(1+drift(i,t)/100);
   return r2(v);
 }
 function computeMarketsSnapshot(t){
@@ -1061,55 +1236,69 @@ function pushHistory(){
     if(STATE.priceHistory[i].length>20) STATE.priceHistory[i].shift();
   }
 }
-function computeRoutes(pricesById){
+/* Comisión real de cada plaza. Es lo que separa un spread "bonito" de uno que deja dinero:
+   Kraken cobra casi el triple que Binance al tomar liquidez. */
+function venueFee(venue, role){
+  if(venue==="Binance") return role==="taker" ? CONFIG.BINANCE_TAKER_FEE : CONFIG.BINANCE_MAKER_FEE;
+  if(venue==="Kraken")  return role==="taker" ? CONFIG.KRAKEN_TAKER_FEE  : CONFIG.KRAKEN_MAKER_FEE;
+  return CONFIG.FEE_PCT/100;
+}
+/* Libro efectivo: mejor bid y mejor ask de cada mercado.
+   Si hay stream vivo y fresco (<60s) manda el libro real; si no, se sintetiza del motor
+   determinista con una horquilla típica del 0,04%. Una sola fuente de verdad para toda la app. */
+function effectiveBook(){
+  const book = {};
+  computeMarketsSnapshot(STATE.tick).forEach(m=>{
+    const live = LIVE_STREAMS[m.id];
+    if(live && (Date.now()-live.ts) < 60000){
+      book[m.id] = { bid:live.bid, ask:live.ask, mid:live.mid, live:true };
+    }else{
+      const half = m.price*0.0002;
+      book[m.id] = { bid:r2(m.price-half), ask:r2(m.price+half), mid:m.price, live:false };
+    }
+  });
+  return book;
+}
+function computeRoutes(book){
   const rows = ROUTES.map(r=>{
-    const buyPrice = pricesById[r.buy], sellPrice = pricesById[r.sell];
+    const bm = MARKETS.find(m=>m.id===r.buy), sm = MARKETS.find(m=>m.id===r.sell);
+    const bb = book[r.buy], sb = book[r.sell];
+    if(!bb || !sb) return null;
+    // Compramos pagando el ask; vendemos cobrando el bid. Nunca al precio medio: eso
+    // es el error clásico que hace parecer rentable un arbitraje que no lo es.
+    const buyPrice = bb.ask, sellPrice = sb.bid;
     const gross = (sellPrice-buyPrice)/buyPrice*100;
-    const net = r3(gross - 2*CONFIG.FEE_PCT);
+    const feePct = (venueFee(bm.venue,"taker") + venueFee(sm.venue,"taker"))*100;
+    const net = r3(gross - feePct - CONFIG.SLIPPAGE_PCT);
     let statusCls, statusLabel;
     if(net >= CONFIG.ALERT_NET_PCT){ statusCls="spread-up"; statusLabel=TEXTS.SPREAD_GAIN; }
     else if(net>0){ statusCls="spread-flat"; statusLabel=TEXTS.SPREAD_FLAT; }
     else { statusCls="spread-down"; statusLabel=TEXTS.SPREAD_LOSS; }
-    return { id:r.id, buy:r.buy, sell:r.sell, label:r.label, buyPrice, sellPrice, gross:r3(gross), net, statusCls, statusLabel };
-  });
+    return { id:r.id, buy:r.buy, sell:r.sell, label:r.label, buyPrice, sellPrice,
+             gross:r3(gross), feePct:r3(feePct), net, statusCls, statusLabel,
+             live:(bb.live && sb.live) };
+  }).filter(Boolean);
   rows.sort((a,b)=>b.net-a.net);
   return rows;
 }
-function currentMarkets(){ return computeMarketsSnapshot(STATE.tick); }
-function currentPricesById(){
-  // MEJORADO: prefiere precios en vivo de LIVE_STREAMS, cae a simulador determinista
-  const arr = currentMarkets();
-  const map = {};
-  arr.forEach(m=>{
-    // Si tenemos datos en vivo para este mercado, usa el mid price
-    if(LIVE_STREAMS[m.id] && LIVE_STREAMS[m.id].mid){
-      map[m.id] = LIVE_STREAMS[m.id].mid;
-    } else {
-      // Fallback al simulador determinista
-      map[m.id] = m.price;
+function currentMarkets(){
+  // El libro vivo pisa al motor determinista mercado a mercado (puede haber mezcla:
+  // BTC en vivo y el índice de oro simulado, por ejemplo).
+  return computeMarketsSnapshot(STATE.tick).map(m=>{
+    const live = LIVE_STREAMS[m.id];
+    if(live && (Date.now()-live.ts) < 60000){
+      const prev = m.price || live.mid;
+      return Object.assign({}, m, { price:r2(live.mid), changePct:((live.mid-prev)/prev*100), live:true });
     }
+    return Object.assign({}, m, { live:false });
   });
+}
+function currentPricesById(){
+  const map = {};
+  currentMarkets().forEach(m=>{ map[m.id] = m.price; });
   return map;
 }
-function currentRoutes(){
-  // MEJORADO: usa detectSpreadOpportunities() si hay datos en vivo
-  if(Object.keys(LIVE_STREAMS).length > 0){
-    return detectSpreadOpportunities().map((opp, i) => ({
-      id: ROUTES[i]?.id,
-      buy: opp.buyMarket,
-      sell: opp.sellMarket,
-      label: opp.label,
-      buyPrice: opp.buyPrice,
-      sellPrice: opp.sellPrice,
-      gross: r3(opp.spread * 100),
-      net: r3(opp.netRental * 100),
-      statusCls: opp.netRental >= CONFIG.ALERT_NET_PCT / 100 ? "spread-up" : (opp.netRental > 0 ? "spread-flat" : "spread-down"),
-      statusLabel: opp.netRental >= CONFIG.ALERT_NET_PCT / 100 ? TEXTS.SPREAD_GAIN : (opp.netRental > 0 ? TEXTS.SPREAD_FLAT : TEXTS.SPREAD_LOSS)
-    })).filter(r => r.id); // solo rutas válidas
-  }
-  // Fallback al detector determinista simulado
-  return computeRoutes(currentPricesById());
-}
+function currentRoutes(){ return computeRoutes(effectiveBook()); }
 function computeAlertsForCycle(routes){
   const now = Date.now();
   const opportunities = routes.filter(r=>r.net >= CONFIG.ALERT_NET_PCT);
@@ -1132,8 +1321,8 @@ function computeAlertsForCycle(routes){
 /* =========================================================
    7) COMPONENTES REUTILIZABLES
    ========================================================= */
-function renderButton(id,text,classes,type){
-  return '<button id="'+esc(id)+'" type="'+(type||"button")+'" class="btn '+(classes||"btn-secondary")+'">'+esc(text)+'</button>';
+function renderButton(id,text,classes,type,extra){
+  return '<button id="'+esc(id)+'" type="'+(type||"button")+'" class="btn '+(classes||"btn-secondary")+'" '+(extra||"")+'>'+esc(text)+'</button>';
 }
 function renderInput(id,label,type,placeholder,hint,extra){
   return '<div class="field">'
@@ -1383,6 +1572,36 @@ function updateArbEstimate(){
   const pnl = r2(qty*r.sellPrice - qty*r.buyPrice - feeBuy - feeSell);
   est.textContent = TEXTS.MODAL_ARB_ESTIMATE+": "+fmtUSD(pnl);
 }
+/* Ejecuta una ruta de arbitraje contra el saldo simulado. La usan por igual el botón
+   "Operar" y el piloto automático, así que el cálculo del resultado es idéntico en ambos
+   casos: mismas comisiones por plaza, mismo deslizamiento. Devuelve {ok, pnl, error}. */
+function executeArb(r, qty, isAuto){
+  if(!r) return { ok:false, error:TEXTS.ERR_ROUTE_GONE };
+  if(!qty || isNaN(qty) || qty<=0) return { ok:false, error:TEXTS.ERR_QTY_POSITIVE };
+  if(qty > CONFIG.MAX_QTY) return { ok:false, error:TEXTS.ERR_QTY_MAX };
+  const bm = MARKETS.find(m=>m.id===r.buy), sm = MARKETS.find(m=>m.id===r.sell);
+  const costo   = qty*r.buyPrice;
+  const ingreso = qty*r.sellPrice;
+  const feeBuy  = r2(costo   * venueFee(bm.venue,"taker"));
+  const feeSell = r2(ingreso * venueFee(sm.venue,"taker"));
+  // El deslizamiento se cobra sobre la pata de compra: es donde se nota al barrer el libro.
+  const slip    = r2(costo * CONFIG.SLIPPAGE_PCT/100);
+  if(STATE.wallet.cash < costo+feeBuy) return { ok:false, error:TEXTS.ERR_INSUFFICIENT_FUNDS };
+  const pnl = r2(ingreso - costo - feeBuy - feeSell - slip);
+  STATE.wallet.cash = r2(STATE.wallet.cash + pnl);
+  STATE.wallet.realized = r2(STATE.wallet.realized + pnl);
+  STATE.wallet.updatedAt = new Date().toISOString();
+  STATE.trades.unshift({
+    id:uid("t"), ts:new Date().toISOString(), type:"arb", auto:!!isAuto,
+    routeId:r.id, buyMarket:r.buy, sellMarket:r.sell,
+    buyPrice:r.buyPrice, sellPrice:r.sellPrice,
+    market:r.label, label:r.label, side:null, price:null, entryPrice:null, positionId:null,
+    qty:qty, fee:r2(feeBuy+feeSell+slip), pnl:pnl, cashAfter:STATE.wallet.cash
+  });
+  if(STATE.trades.length>500) STATE.trades = STATE.trades.slice(0,500);
+  persist();
+  return { ok:true, pnl:pnl };
+}
 function confirmArb(){
   const modal = document.getElementById("arbModal");
   const routeIndex = Number(modal.dataset.routeIndex);
@@ -1392,26 +1611,8 @@ function confirmArb(){
   const qty = parseFloat((qtyInput.value||"").replace(",","."));
   const errEl = document.getElementById("arbError");
   errEl.textContent = "";
-  if(!qty || isNaN(qty) || qty<=0){ errEl.textContent = TEXTS.ERR_QTY_POSITIVE; return; }
-  if(qty > CONFIG.MAX_QTY){ errEl.textContent = TEXTS.ERR_QTY_MAX; return; }
-  const feeBuy = r2(qty*r.buyPrice*CONFIG.FEE_PCT/100);
-  const feeSell = r2(qty*r.sellPrice*CONFIG.FEE_PCT/100);
-  const costo = qty*r.buyPrice;
-  if(STATE.wallet.cash < costo+feeBuy){ errEl.textContent = TEXTS.ERR_INSUFFICIENT_FUNDS; return; }
-  const ingreso = qty*r.sellPrice;
-  const pnl = r2(ingreso - costo - feeBuy - feeSell);
-  STATE.wallet.cash = r2(STATE.wallet.cash + pnl);
-  STATE.wallet.realized = r2(STATE.wallet.realized + pnl);
-  STATE.wallet.updatedAt = new Date().toISOString();
-  STATE.trades.unshift({
-    id:uid("t"), ts:new Date().toISOString(), type:"arb",
-    routeId:route.id, buyMarket:route.buy, sellMarket:route.sell,
-    buyPrice:r.buyPrice, sellPrice:r.sellPrice,
-    market:route.label, label:route.label, side:null, price:null, entryPrice:null, positionId:null,
-    qty:qty, fee:r2(feeBuy+feeSell), pnl:pnl, cashAfter:STATE.wallet.cash
-  });
-  if(STATE.trades.length>500) STATE.trades = STATE.trades.slice(0,500);
-  persist();
+  const res = executeArb(r, qty, false);
+  if(!res.ok){ errEl.textContent = res.error; return; }
   closeModal("arbModal");
   toast(TEXTS.TOAST_ARB_EXECUTED);
   refreshCurrentViewData();
@@ -1743,17 +1944,152 @@ function renderAdmin(){
 }
 
 /* =========================================================
+   8b) PILOTO AUTOMÁTICO — gráfico y vista
+   ========================================================= */
+
+/* Gráfico del mejor spread neto a lo largo del tiempo.
+   Decisión de codificación (comprobada, no estimada): el verde y el rojo del sistema
+   quedan a ΔE 2,1 en deuteranopía, así que pintar "gana/pierde" solo con color habría
+   dejado fuera a los daltónicos. Quien manda aquí es la POSICIÓN respecto al eje cero,
+   y los puntos que superan el umbral llevan además marcador relleno. El color es refuerzo.
+   Una sola serie ⇒ sin leyenda: el título ya la nombra. */
+function renderSpreadChart(){
+  const samples = (STATE.spreadHistory||[]).slice(0,40).reverse();
+  if(samples.length < 2){
+    return '<div class="empty-state" id="chartEmpty">'+emptyIcon()+'<p>'+esc(TEXTS.AUTO_CHART_EMPTY)+'</p></div>';
+  }
+  const W=640, H=180, PL=48, PR=14, PT=16, PB=28;
+  const vals = samples.map(s=>s.best);
+  const thr  = autoCfg().minNet;
+  let min = Math.min(0, Math.min.apply(null, vals));
+  let max = Math.max(thr, Math.max.apply(null, vals));
+  const pad = ((max-min)*0.15) || 0.1;
+  min -= pad; max += pad;
+  const X = i => PL + (i/(samples.length-1))*(W-PL-PR);
+  const Y = v => PT + (1-((v-min)/(max-min)))*(H-PT-PB);
+  const line = samples.map((s,i)=>X(i).toFixed(1)+","+Y(s.best).toFixed(1)).join(" ");
+
+  // Rejilla recesiva + etiquetas del eje Y en tres cortes.
+  let grid = "";
+  [max, (max+min)/2, min].forEach(function(v){
+    const yy = Y(v).toFixed(1);
+    grid += '<line x1="'+PL+'" y1="'+yy+'" x2="'+(W-PR)+'" y2="'+yy+'" stroke="#232b38" stroke-width="1"/>'
+          + '<text x="'+(PL-8)+'" y="'+(Number(yy)+4)+'" text-anchor="end" font-size="11" fill="#808d9e" font-family="ui-monospace,Menlo,monospace">'+esc(v.toFixed(2))+'%</text>';
+  });
+  // Eje cero: la referencia que de verdad importa (por debajo, la comisión se come el spread).
+  const zeroY = Y(0).toFixed(1);
+  const zeroLine = (0>=min && 0<=max)
+    ? '<line x1="'+PL+'" y1="'+zeroY+'" x2="'+(W-PR)+'" y2="'+zeroY+'" stroke="#808d9e" stroke-width="1.5" stroke-dasharray="4 3"/>'
+    : "";
+  // Umbral del piloto.
+  const thrY = Y(thr).toFixed(1);
+  const thrLine = (thr>=min && thr<=max)
+    ? '<line x1="'+PL+'" y1="'+thrY+'" x2="'+(W-PR)+'" y2="'+thrY+'" stroke="#2fbf71" stroke-width="1" stroke-dasharray="2 4" opacity="0.8"/>'
+    : "";
+  // Marcadores: relleno (≥8px) solo donde se supera el umbral — forma, no solo color.
+  const marks = samples.map(function(s,i){
+    if(s.best < thr) return "";
+    const label = fmtPct(s.best)+" · "+TEXTS.AUTO_CHART_OPP;
+    return '<circle cx="'+X(i).toFixed(1)+'" cy="'+Y(s.best).toFixed(1)+'" r="4.5" fill="#2fbf71" stroke="#161d27" stroke-width="2">'
+         + '<title>'+esc(label)+'</title></circle>';
+  }).join("");
+
+  // Alternativa en tabla: obligatoria para lectores de pantalla y para imprimir en blanco y negro.
+  const tableRows = samples.map(function(s,i){
+    return '<tr><td>'+esc(String(i+1))+'</td><td class="num mono">'+esc(fmtPct(s.best))+'</td></tr>';
+  }).join("");
+
+  return '<figure style="margin:0">'
+    +'<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="auto" role="img" '
+      +'aria-label="'+esc(TEXTS.AUTO_CHART_CAPTION)+'" style="display:block;overflow:visible">'
+      +grid+zeroLine+thrLine
+      +'<polyline points="'+line+'" fill="none" stroke="#f0c75e" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
+      +marks
+    +'</svg>'
+    +'<figcaption class="hint" style="margin-top:8px">'+esc(TEXTS.AUTO_CHART_CAPTION)+'</figcaption>'
+    +'<table class="sr-only"><caption>'+esc(TEXTS.AUTO_CHART_TABLE)+'</caption>'
+      +'<thead><tr><th scope="col">'+esc(TEXTS.TH_SAMPLE)+'</th><th scope="col">'+esc(TEXTS.TH_SPREAD)+'</th></tr></thead>'
+      +'<tbody>'+tableRows+'</tbody></table>'
+  +'</figure>';
+}
+
+function autoKpisContent(){
+  const cfg = autoCfg();
+  const routes = currentRoutes();
+  const best = routes.length ? routes[0].net : 0;
+  const pnl = autoPnlToday();
+  const n = autoTradesToday().length;
+  const items = [
+    { label:TEXTS.AUTO_KPI_STATE,  value:(cfg.on?TEXTS.AUTO_STATUS_ON:TEXTS.AUTO_STATUS_OFF), cls:(cfg.on?"pnl-up":"") },
+    { label:TEXTS.AUTO_KPI_TRADES, value:String(n)+" / "+String(cfg.maxOpen), cls:"" },
+    { label:TEXTS.AUTO_KPI_PNL,    value:fmtSignedUSD(pnl), cls:(pnl>=0?"pnl-up":"pnl-down") },
+    { label:TEXTS.AUTO_KPI_BEST,   value:fmtPct(best), cls:(best>=cfg.minNet?"spread-up":(best>0?"spread-flat":"spread-down")) }
+  ];
+  return items.map(k=>'<div class="kpi"><div class="kpi-label">'+esc(k.label)+'</div>'
+    +'<div class="kpi-value '+k.cls+'">'+esc(k.value)+'</div></div>').join("");
+}
+
+function renderAutoLogList(){
+  if(!STATE.autoLog.length){
+    return '<div class="empty-state" id="autoLogEmpty">'+emptyIcon()+'<p>'+esc(TEXTS.AUTO_LOG_EMPTY)+'</p></div>';
+  }
+  return '<ul id="autoLogList">'+STATE.autoLog.slice(0,20).map(function(e){
+    return '<li class="alert-item"><span>'+esc(e.text)+'</span>'
+      +'<span class="mono" style="color:var(--text-dim);font-size:12px">'+esc(fmtDate(e.ts))+'</span></li>';
+  }).join("")+'</ul>';
+}
+
+function renderAuto(){
+  const cfg = autoCfg();
+  return '<div class="container view-auto">'
+    +'<h1>'+esc(TEXTS.AUTO_H1)+'</h1>'
+    +'<p>'+esc(TEXTS.AUTO_INTRO)+'</p>'
+    +'<div class="alert-banner" role="note"><h3>'+esc(TEXTS.RISK_STRIP)+'</h3>'
+      +'<p style="margin:0">'+esc(TEXTS.AUTO_REAL_NOTE)+'</p></div>'
+    +'<div id="autoKpis" class="kpi-grid block">'+autoKpisContent()+'</div>'
+    +'<section class="block">'
+      +renderButton("btnAutoToggle", cfg.on?TEXTS.BTN_AUTO_STOP:TEXTS.BTN_AUTO_START,
+                    (cfg.on?"btn-danger":"btn-primary")+" btn-block", "button",
+                    'aria-pressed="'+(cfg.on?"true":"false")+'"')
+    +'</section>'
+    +'<section class="card block">'
+      +'<h2>'+esc(TEXTS.AUTO_CHART_TITLE)+'</h2>'
+      +'<div id="spreadChart">'+renderSpreadChart()+'</div>'
+    +'</section>'
+    +'<section class="card block">'
+      +'<h2>'+esc(TEXTS.AUTO_CFG_TITLE)+'</h2>'
+      +'<p id="autoCfgSummary" class="hint mono">'+esc(
+          TEXTS.AUTO_CFG_ACTIVE+": "+cfg.minNet+"% · "+fmtUSD(cfg.ticket)
+          +" · "+cfg.maxOpen+" ops/día · stop "+fmtUSD(cfg.dailyStop))+'</p>'
+      +'<form id="autoCfgForm" novalidate>'
+        +renderInput("auto-minnet",TEXTS.AUTO_CFG_MINNET,"text",String(cfg.minNet),TEXTS.AUTO_CFG_MINNET_HINT,'inputmode="decimal" value="'+esc(String(cfg.minNet))+'"')
+        +renderInput("auto-ticket",TEXTS.AUTO_CFG_TICKET,"text",String(cfg.ticket),TEXTS.AUTO_CFG_TICKET_HINT,'inputmode="decimal" value="'+esc(String(cfg.ticket))+'"')
+        +renderInput("auto-maxopen",TEXTS.AUTO_CFG_MAXOPEN,"text",String(cfg.maxOpen),TEXTS.AUTO_CFG_MAXOPEN_HINT,'inputmode="numeric" value="'+esc(String(cfg.maxOpen))+'"')
+        +renderInput("auto-dailystop",TEXTS.AUTO_CFG_DAILYSTOP,"text",String(cfg.dailyStop),TEXTS.AUTO_CFG_DAILYSTOP_HINT,'inputmode="decimal" value="'+esc(String(cfg.dailyStop))+'"')
+        +'<p id="autoCfgError" class="error-msg" role="alert"></p>'
+        +renderButton("btnAutoSave",TEXTS.BTN_AUTO_SAVE,"btn-secondary","submit")
+      +'</form>'
+      +'<p class="hint" style="margin-top:14px">'+esc(TEXTS.AUTO_ENGINE_NOTE)+'</p>'
+    +'</section>'
+    +'<section class="block">'
+      +'<h2>'+esc(TEXTS.AUTO_LOG_TITLE)+'</h2>'
+      +'<div id="autoLogWrap">'+renderAutoLogList()+'</div>'
+    +'</section>'
+  +'</div>';
+}
+
+/* =========================================================
    9) ROUTER
    ========================================================= */
 const VIEW_TITLES = {
   "/":TEXTS.HOME_H1, "/arbitraje":TEXTS.ARBITRAJE_H1, "/simulador":TEXTS.SIMULADOR_H1,
   "/historial":TEXTS.HISTORIAL_H1, "/guia":TEXTS.GUIA_H1, "/acceso":TEXTS.ACCESO_H1,
-  "/legal":TEXTS.LEGAL_H1, "/admin":TEXTS.ADMIN_H1
+  "/legal":TEXTS.LEGAL_H1, "/admin":TEXTS.ADMIN_H1, "/auto":TEXTS.AUTO_H1
 };
 const VIEWS = {
   "/": renderHome, "/arbitraje": renderArbitraje, "/simulador": renderSimulador,
   "/historial": renderHistorial, "/guia": renderGuia, "/acceso": renderAcceso,
-  "/legal": renderLegal, "/admin": renderAdmin
+  "/legal": renderLegal, "/admin": renderAdmin, "/auto": renderAuto
 };
 function currentPath(){
   let h = location.hash || "#/";
@@ -1859,6 +2195,14 @@ function refreshCurrentViewData(){
     const mini = document.querySelector("#miniPrices tbody");
     if(mini) mini.innerHTML = renderMiniPriceRows();
   }
+  if(path==="/auto"){
+    const k = document.getElementById("autoKpis");
+    if(k) k.innerHTML = autoKpisContent();
+    const ch = document.getElementById("spreadChart");
+    if(ch) ch.innerHTML = renderSpreadChart();
+    const lg = document.getElementById("autoLogWrap");
+    if(lg) lg.innerHTML = renderAutoLogList();
+  }
   if(path==="/admin" && ADMIN_OK){
     const resumen = document.getElementById("pane-resumen");
     if(resumen) resumen.innerHTML = adminKpis();
@@ -1880,6 +2224,7 @@ function advanceCycle(){
   liveStatus.textContent = TEXTS.TOAST_PRICES_UPDATED + " · ciclo " + STATE.tick;
 }
 let clockInterval = null;
+let sampleCounter = 0;
 function startClock(){
   if(clockInterval) return;
   clockInterval = setInterval(function(){
@@ -1890,6 +2235,16 @@ function startClock(){
       countdown = CONFIG.REFRESH_MS/1000;
     }
     paintCountdown();
+    // Con streaming vivo los precios cambian entre ciclos: repintamos en cuanto llegan ticks.
+    if(LIVE_DIRTY){
+      LIVE_DIRTY = false;
+      updateDataModeBadge(true);
+      refreshCurrentViewData();
+    }
+    // Muestreamos la serie de spreads cada 3 s: 40 muestras ≈ 2 minutos de gráfico.
+    sampleCounter++;
+    if(sampleCounter % 3 === 0) pushSpreadHistory(currentRoutes());
+    autoTick();
   }, 1000);
 }
 document.addEventListener("visibilitychange", function(){
@@ -1902,9 +2257,22 @@ document.addEventListener("visibilitychange", function(){
 function updateDataModeBadge(isLive){
   const badge = document.getElementById("dataModeBadge");
   if(!badge) return;
-  badge.classList.toggle("live", !!isLive);
+  const n = liveMarketCount();
+  const live = !!isLive || n>0;
+  badge.classList.toggle("live", live);
   const textEl = badge.querySelector(".badge-text");
-  if(textEl) textEl.textContent = isLive ? TEXTS.DATA_MODE_LIVE : TEXTS.DATA_MODE_SIM;
+  if(textEl) textEl.textContent = live ? (n>0 ? n+" "+TEXTS.STREAM_MARKETS_SUFFIX : TEXTS.DATA_MODE_LIVE) : TEXTS.DATA_MODE_SIM;
+}
+/* El selector de moneda solo cambia cómo se LEEN las cifras: el estado guardado sigue en
+   dólares, así que cambiar de moneda nunca altera un saldo ni un histórico. */
+function paintCurrencySelect(){
+  const sel = document.getElementById("ccySelect");
+  if(!sel) return;
+  sel.innerHTML = Object.keys(CURRENCIES).map(function(code){
+    const c = CURRENCIES[code];
+    return '<option value="'+esc(code)+'"'+(code===DISPLAY_CCY?' selected':'')+'>'+esc(c.symbol+" "+code)+'</option>';
+  }).join("");
+  sel.setAttribute("title", FX_LIVE ? TEXTS.CCY_NOTE_LIVE : TEXTS.CCY_NOTE_FALLBACK);
 }
 function paintChrome(){
   document.getElementById("brandName").textContent = TEXTS.BRAND_NAME;
@@ -1918,6 +2286,8 @@ function paintChrome(){
   document.getElementById("nav-arbitraje").querySelector("span").textContent = TEXTS.NAV_ARBITRAJE;
   document.getElementById("nav-simulador").querySelector("span").textContent = TEXTS.NAV_SIMULADOR;
   document.getElementById("nav-historial").querySelector("span").textContent = TEXTS.NAV_HISTORIAL;
+  document.getElementById("nav-auto").querySelector("span").textContent = TEXTS.NAV_AUTO;
+  paintCurrencySelect();
   document.getElementById("foot-guia").textContent = TEXTS.FOOT_GUIA;
   document.getElementById("foot-acceso").textContent = TEXTS.FOOT_ACCESO;
   document.getElementById("foot-legal").textContent = TEXTS.FOOT_LEGAL;
@@ -1960,6 +2330,13 @@ function handleClick(e){
     return;
   }
 
+  if(byId("btnAutoToggle")){
+    const turningOn = !autoCfg().on;
+    setAutoOn(turningOn, null);
+    toast(turningOn ? TEXTS.AUTO_STATUS_ON : TEXTS.AUTO_STATUS_OFF);
+    route();
+    return;
+  }
   if(byId("btnRefresh")){
     advanceCycle();
     countdown = CONFIG.REFRESH_MS/1000;
@@ -2013,7 +2390,9 @@ function handleClick(e){
         updateDataModeBadge(ok);
         if(ok) refreshCurrentViewData();
       });
+      openStreams();
     } else {
+      closeStreams();
       LIVE_BASE_GOLD_USD = null;
       updateDataModeBadge(false);
     }
@@ -2109,6 +2488,25 @@ function handleSubmit(e){
     if(firstClose) firstClose.focus();
     return;
   }
+  if(form.id === "autoCfgForm"){
+    e.preventDefault();
+    const errEl = document.getElementById("autoCfgError");
+    errEl.textContent = "";
+    const num = id => parseFloat((document.getElementById(id).value||"").replace(",","."));
+    const minNet = num("auto-minnet"), ticket = num("auto-ticket");
+    const maxOpen = num("auto-maxopen"), dailyStop = num("auto-dailystop");
+    const all = [minNet, ticket, maxOpen, dailyStop];
+    if(all.some(v=>!isFinite(v) || v<=0)){ errEl.textContent = TEXTS.ERR_AUTO_RANGE; return; }
+    saveAutoCfg({
+      minNet:    clamp(minNet, 0.01, 10),
+      ticket:    clamp(ticket, 10, 1000000),
+      maxOpen:   Math.round(clamp(maxOpen, 1, 50)),
+      dailyStop: clamp(dailyStop, 10, 1000000)
+    });
+    toast(TEXTS.TOAST_AUTO_SAVED);
+    route();
+    return;
+  }
   if(form.id === "accesoForm"){
     e.preventDefault();
     const nombre = (document.getElementById("acceso-nombre").value||"").trim();
@@ -2162,6 +2560,16 @@ function handleSubmit(e){
 
 function handleChangeOrInput(e){
   const t = e.target;
+  if(t.id === "ccySelect"){
+    if(CURRENCIES[t.value]){
+      DISPLAY_CCY = t.value;
+      STATE.settings.ccy = t.value;
+      STATE.settings.updatedAt = new Date().toISOString();
+      persist();
+      route();
+    }
+    return;
+  }
   if(t.id === "trade-market" || t.id === "trade-side" || t.id === "trade-qty"){
     const preview = document.getElementById("tradePreview");
     if(preview) preview.textContent = tradePreviewText();
@@ -2282,177 +2690,266 @@ if(/^https?:$/.test(location.protocol)){
 }
 
 /* =========================================================
-   13b) PRECIOS EN VIVO MEJORADO (APIs reales Binance + Kraken)
-   MEJORADO: WebSocket + REST + Order book simulado + Histórico de spreads
-   Restricción: CERO red en file://. Degradación silenciosa a simulador.
+   13b) DATOS EN VIVO — divisas, streaming y piloto automático
+   Tres fuentes públicas, ninguna necesita clave ni cuenta:
+     · open.er-api.com          → tasas de cambio (USD → PEN/EUR/MXN/COP/ARS)
+     · wss://stream.binance.com → bookTicker: mejor bid/ask, empujado en tiempo real
+     · wss://ws.kraken.com      → ticker: mejor bid/ask, empujado en tiempo real
+   Restricción dura: CERO red en file://. Si algo falla, degradación silenciosa al
+   motor determinista — nunca un error en consola, nunca un alert.
    ========================================================= */
-let LIVE_STREAMS = {};  // { marketId: { bid, ask, volume, timestamp } }
-let LIVE_ORDER_BOOKS = {};  // { marketId: { bids: [[price,qty],...], asks: [[price,qty],...] } }
+let LIVE_STREAMS = {};                        // { marketId: {bid, ask, mid, ts} }
+let WS_BINANCE = null, WS_KRAKEN = null;
+const WS_RETRY = { binance:0, kraken:0 };
+let LIVE_DIRTY = false;                       // hay ticks sin pintar
 
-async function fetchLivePrices(){
-  const liveWanted = CONFIG.LIVE_PRICES || (STATE.settings && STATE.settings.liveData);
-  if(!liveWanted) return false;
-  if(!/^https?:$/.test(location.protocol) || location.origin === "null") return false;
+function netAllowed(){
+  return /^https?:$/.test(location.protocol) && location.origin !== "null";
+}
+function liveWanted(){
+  return !!(CONFIG.LIVE_PRICES || (STATE.settings && STATE.settings.liveData)) && netAllowed();
+}
+function liveMarketCount(){
+  const now = Date.now();
+  return Object.keys(LIVE_STREAMS).filter(k=>(now-LIVE_STREAMS[k].ts)<60000).length;
+}
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(()=>controller.abort(), 6000);
+/* ---------- Divisas ---------- */
+async function fetchFxRates(){
+  if(!netAllowed()) return false;
+  const ctrl = new AbortController();
+  const to = setTimeout(()=>ctrl.abort(), 5000);
   try{
-    // BINANCE: REST + Order book
-    try{
-      const symbols = "PAXGUSDT,XAUTUSDT";
-      const res = await fetch("https://api.binance.com/api/v3/ticker/24hr?symbols=%5B"+encodeURIComponent(JSON.stringify(symbols.split(',')))+"%5D", { signal: controller.signal });
-      if(res.ok){
-        const data = await res.json();
-        if(Array.isArray(data)){
-          data.forEach(function(ticker){
-            const sym = ticker.symbol;
-            const bid = parseFloat(ticker.bidPrice);
-            const ask = parseFloat(ticker.askPrice);
-            const vol = parseFloat(ticker.quoteAssetVolume);
-            if(isFinite(bid) && isFinite(ask) && bid<ask){
-              const mid = r2((bid+ask)/2);
-              LIVE_STREAMS["PAXG-BINANCE"] = {bid:r2(bid), ask:r2(ask), mid, volume:r3(vol), ts:Date.now()};
-            }
-          });
-        }
-      }
-    }catch(e){}
-
-    // KRAKEN: REST con parsing correcto de bid/ask/volumen
-    try{
-      const res = await fetch("https://api.kraken.com/0/public/Ticker?pair=PAXGUSD,XAUTUSD", { signal: controller.signal });
-      if(res.ok){
-        const data = await res.json();
-        if(data.result){
-          // Kraken devuelve: {c:[close,qty], h:[high,vol], l:[low,vol], o:open, p:[price,vol], t:[count,vol], v:[vol24h,vol], b:[bid,qty], a:[ask,qty], ...}
-          const paxg = data.result["PAXGUSD"];
-          const xaut = data.result["XAUTUSD"];
-          if(paxg && paxg.b && paxg.a){
-            const bid = parseFloat(paxg.b[0]);
-            const ask = parseFloat(paxg.a[0]);
-            if(isFinite(bid) && isFinite(ask) && bid<ask){
-              const mid = r2((bid+ask)/2);
-              const vol = paxg.v ? parseFloat(paxg.v[1]) : 0;
-              LIVE_STREAMS["PAXG-KRAKEN"] = {bid:r2(bid), ask:r2(ask), mid, volume:r3(vol), ts:Date.now()};
-            }
-          }
-          if(xaut && xaut.b && xaut.a){
-            const bid = parseFloat(xaut.b[0]);
-            const ask = parseFloat(xaut.a[0]);
-            if(isFinite(bid) && isFinite(ask) && bid<ask){
-              const mid = r2((bid+ask)/2);
-              const vol = xaut.v ? parseFloat(xaut.v[1]) : 0;
-              LIVE_STREAMS["XAUT-KRAKEN"] = {bid:r2(bid), ask:r2(ask), mid, volume:r3(vol), ts:Date.now()};
-            }
-          }
-        }
-      }
-    }catch(e){}
-
-    clearTimeout(timeoutId);
-
-    // Calcula BASE_GOLD_USD de spreads reales disponibles
-    const allMids = [];
-    Object.keys(LIVE_STREAMS).forEach(k=>{
-      if(LIVE_STREAMS[k] && LIVE_STREAMS[k].mid) allMids.push(LIVE_STREAMS[k].mid);
+    const res = await fetch("https://open.er-api.com/v6/latest/USD", { signal:ctrl.signal });
+    clearTimeout(to);
+    if(!res.ok) return false;
+    const data = await res.json();
+    if(!data || !data.rates) return false;
+    let n = 0;
+    Object.keys(CURRENCIES).forEach(code=>{
+      const rate = parseFloat(data.rates[code]);
+      if(isFinite(rate) && rate>0){ CURRENCIES[code].rate = rate; n++; }
     });
-    if(allMids.length>0){
-      const avg = allMids.reduce((a,b)=>a+b, 0) / allMids.length;
-      if(isFinite(avg) && avg>0){
-        LIVE_BASE_GOLD_USD = r2(avg);
-        // Inicia monitoreo automático en background (sin bloquear UI)
-        startLiveMonitor();
-        return true;
-      }
-    }
+    if(n>0){ FX_LIVE = true; return true; }
     return false;
   }catch(e){
-    clearTimeout(timeoutId);
+    clearTimeout(to);
     return false;
   }
 }
 
-// Monitoreo automático cada CONFIG.MONITOR_INTERVAL_MS
-let liveMonitorInterval = null;
-function startLiveMonitor(){
-  if(liveMonitorInterval) return; // ya corriendo
-  liveMonitorInterval = setInterval(async function(){
-    if(document.hidden) return; // pausa si tab inactiva
-    try{
-      await fetchLivePrices();
-      // Detecta automáticamente spreads y actualiza UI si está en #/arbitraje
-      detectSpreadOpportunities();
-      if(location.hash === "#/arbitraje") refreshCurrentViewData();
-    }catch(e){}
-  }, CONFIG.MONITOR_INTERVAL_MS);
+/* ---------- Streaming en tiempo real ---------- */
+function applyTick(marketId, bid, ask){
+  if(!isFinite(bid) || !isFinite(ask) || bid<=0 || ask<=0 || bid>ask) return;
+  LIVE_STREAMS[marketId] = { bid:bid, ask:ask, mid:(bid+ask)/2, ts:Date.now() };
+  LIVE_DIRTY = true;
+}
+function connectBinanceStream(){
+  if(!liveWanted() || typeof WebSocket === "undefined" || WS_BINANCE) return;
+  const streams = MARKETS.filter(m=>m.stream).map(m=>m.stream+"@bookTicker").join("/");
+  if(!streams) return;
+  try{
+    const ws = new WebSocket("wss://stream.binance.com:9443/stream?streams="+streams);
+    WS_BINANCE = ws;
+    ws.onopen = function(){ WS_RETRY.binance = 0; };
+    ws.onmessage = function(ev){
+      try{
+        const msg = JSON.parse(ev.data);
+        const d = msg && msg.data;
+        if(!d || !d.s) return;
+        const sym = String(d.s).toLowerCase();
+        const mkt = MARKETS.find(m=>m.stream===sym);
+        if(mkt) applyTick(mkt.id, parseFloat(d.b), parseFloat(d.a));
+      }catch(e){}
+    };
+    ws.onclose = function(){ WS_BINANCE = null; scheduleReconnect("binance"); };
+    ws.onerror = function(){ try{ ws.close(); }catch(e){} };
+  }catch(e){ WS_BINANCE = null; }
+}
+function connectKrakenStream(){
+  if(!liveWanted() || typeof WebSocket === "undefined" || WS_KRAKEN) return;
+  const pairs = MARKETS.filter(m=>m.wsPair).map(m=>m.wsPair);
+  if(!pairs.length) return;
+  try{
+    const ws = new WebSocket("wss://ws.kraken.com");
+    WS_KRAKEN = ws;
+    ws.onopen = function(){
+      WS_RETRY.kraken = 0;
+      try{ ws.send(JSON.stringify({ event:"subscribe", pair:pairs, subscription:{ name:"ticker" } })); }catch(e){}
+    };
+    ws.onmessage = function(ev){
+      try{
+        const msg = JSON.parse(ev.data);
+        // Formato de ticker: [channelID, {b:[bid,..], a:[ask,..], ...}, "ticker", "XBT/USD"]
+        if(!Array.isArray(msg) || msg.length < 4) return;
+        const payload = msg[1], pair = msg[3];
+        if(!payload || !payload.b || !payload.a) return;
+        const mkt = MARKETS.find(m=>m.wsPair===pair);
+        if(mkt) applyTick(mkt.id, parseFloat(payload.b[0]), parseFloat(payload.a[0]));
+      }catch(e){}
+    };
+    ws.onclose = function(){ WS_KRAKEN = null; scheduleReconnect("kraken"); };
+    ws.onerror = function(){ try{ ws.close(); }catch(e){} };
+  }catch(e){ WS_KRAKEN = null; }
+}
+function scheduleReconnect(which){
+  if(!liveWanted()) return;
+  WS_RETRY[which] = Math.min((WS_RETRY[which]||0)+1, 5);
+  const wait = Math.min(30000, 1000*Math.pow(2, WS_RETRY[which])); // 2s, 4s, 8s… tope 30s
+  setTimeout(function(){
+    if(!liveWanted()) return;
+    if(which==="binance") connectBinanceStream();
+    if(which==="kraken")  connectKrakenStream();
+  }, wait);
+}
+function openStreams(){
+  if(!liveWanted()) return;
+  connectBinanceStream();
+  connectKrakenStream();
+}
+function closeStreams(){
+  try{ if(WS_BINANCE){ WS_BINANCE.onclose = null; WS_BINANCE.close(); } }catch(e){}
+  try{ if(WS_KRAKEN){  WS_KRAKEN.onclose  = null; WS_KRAKEN.close();  } }catch(e){}
+  WS_BINANCE = null; WS_KRAKEN = null;
+  LIVE_STREAMS = {};
+  LIVE_DIRTY = false;
 }
 
-function stopLiveMonitor(){
-  if(liveMonitorInterval){ clearInterval(liveMonitorInterval); liveMonitorInterval = null; }
-}
-
-// Detector automático profesional: compara bid/ask reales, calcula fees, slippage, volumen
-function detectSpreadOpportunities(){
-  if(!Object.keys(LIVE_STREAMS).length) return []; // sin datos en vivo
-
-  const opps = [];
-  ROUTES.forEach(route=>{
-    const buyM = MARKETS.find(m=>m.id===route.buy);
-    const sellM = MARKETS.find(m=>m.id===route.sell);
-    const buyData = LIVE_STREAMS[route.buy];
-    const sellData = LIVE_STREAMS[route.sell];
-
-    if(!buyData || !sellData) return; // datos incompletos
-
-    // Calcula spreads y fees realistas
-    const buyPrice = buyData.ask; // pagamos el ask
-    const sellPrice = sellData.bid; // recibimos el bid
-    const spread = r3((sellPrice - buyPrice) / buyPrice);
-
-    // Comisiones reales por exchange
-    const buyExch = buyM.venue;
-    const sellExch = sellM.venue;
-    const buyFeeRate = (buyExch==="Binance" ? CONFIG.BINANCE_TAKER_FEE : CONFIG.KRAKEN_TAKER_FEE);
-    const sellFeeRate = (sellExch==="Binance" ? CONFIG.BINANCE_MAKER_FEE : CONFIG.KRAKEN_MAKER_FEE);
-    const buyFee = r3(spread * buyFeeRate);
-    const sellFee = r3(spread * sellFeeRate);
-    const netSpread = r3(spread - buyFee - sellFee);
-
-    // Filtro de volumen: solo si hay liquidez
-    const avgVol = (buyData.volume + sellData.volume) / 2;
-    if(avgVol < CONFIG.MIN_VOLUME_USD / buyPrice) return; // liquidez insuficiente
-
-    // Slippage simulado basado en cantidad (+ cantidad = + slippage)
-    const slippage = r3(CONFIG.SLIPPAGE_PCT * (1 + Math.random() * 0.5));
-    const netRental = r3(netSpread - slippage);
-
-    if(netRental >= CONFIG.ALERT_NET_PCT / 100){
-      opps.push({
-        routeId: route.id,
-        label: route.label,
-        buyMarket: route.buy,
-        sellMarket: route.sell,
-        buyPrice: r2(buyPrice),
-        sellPrice: r2(sellPrice),
-        spread: r3(spread),
-        buyFee: r3(buyFee),
-        sellFee: r3(sellFee),
-        netSpread: r3(netSpread),
-        slippage: r3(slippage),
-        netRental: r3(netRental),
-        volume: r3(avgVol),
-        level: netRental >= 0.008 ? "Alta" : (netRental >= 0.005 ? "Media" : "Baja"),
-        ts: new Date().toISOString()
-      });
+/* Respaldo REST: si el WebSocket no llega (proxy, firewall, navegador antiguo), al menos
+   tenemos precio. No sustituye al stream, lo complementa. */
+async function fetchLivePrices(){
+  if(!liveWanted()) return false;
+  const ctrl = new AbortController();
+  const to = setTimeout(()=>ctrl.abort(), 6000);
+  try{
+    const syms = MARKETS.filter(m=>m.stream).map(m=>m.stream.toUpperCase());
+    const url = "https://api.binance.com/api/v3/ticker/bookTicker?symbols="+encodeURIComponent(JSON.stringify(syms));
+    const res = await fetch(url, { signal:ctrl.signal });
+    clearTimeout(to);
+    if(res.ok){
+      const data = await res.json();
+      if(Array.isArray(data)){
+        data.forEach(function(t){
+          const mkt = MARKETS.find(m=>m.stream && m.stream.toUpperCase()===t.symbol);
+          if(mkt) applyTick(mkt.id, parseFloat(t.bidPrice), parseFloat(t.askPrice));
+        });
+      }
     }
-  });
+    // Ancla del oro para el motor determinista de los mercados sin stream.
+    const gold = LIVE_STREAMS["PAXG-BINANCE"] || LIVE_STREAMS["XAUT-BINANCE"];
+    if(gold && isFinite(gold.mid) && gold.mid>0) LIVE_BASE_GOLD_USD = r2(gold.mid);
+    return liveMarketCount()>0;
+  }catch(e){
+    clearTimeout(to);
+    return false;
+  }
+}
 
-  // Guarda histórico de spreads (últimas 100)
-  if(!STATE.spreadHistory) STATE.spreadHistory = [];
-  STATE.spreadHistory.unshift({ ts: new Date().toISOString(), opportunities: opps });
-  if(STATE.spreadHistory.length > 100) STATE.spreadHistory = STATE.spreadHistory.slice(0, 100);
+/* ---------- Motor de decisión (el "detector") ----------
+   No es una red neuronal: es un sistema de reglas cuantitativas, que es exactamente lo
+   que usan los bots de arbitraje reales. Puntúa cada ruta con cuatro señales y solo deja
+   pasar las que superan todas. Llamarlo "IA" sería vendértelo más caro de lo que es. */
+function scoreRoute(r){
+  // 1) Margen: cuánto sobra por encima del umbral configurado.
+  const margin = r.net - autoCfg().minNet;
+  // 2) Estabilidad: cuánto ha aguantado el spread en las últimas muestras.
+  const hist = (STATE.spreadHistory||[]).slice(0,12);
+  const seen = hist.map(h=>(h.nets||{})[r.id]).filter(v=>typeof v==="number");
+  const stable = seen.length ? seen.filter(v=>v>0).length/seen.length : 0.5;
+  // 3) Frescura: datos en vivo valen más que simulados.
+  const fresh = r.live ? 1 : 0.55;
+  // 4) Coste relativo: rutas donde la comisión se come el spread puntúan peor.
+  const costRatio = r.gross>0 ? clamp(1-(r.feePct/r.gross),0,1) : 0;
+  const score = clamp(Math.round((clamp(margin/1.5,0,1)*40) + (stable*25) + (fresh*15) + (costRatio*20)), 0, 100);
+  const level = score>=70 ? TEXTS.ALERT_LEVEL_HIGH : (score>=45 ? TEXTS.ALERT_LEVEL_MED : TEXTS.ALERT_LEVEL_LOW);
+  return { score:score, level:level, stable:stable, fresh:fresh, costRatio:costRatio };
+}
+function pushSpreadHistory(routes){
+  const nets = {};
+  routes.forEach(r=>{ nets[r.id] = r.net; });
+  STATE.spreadHistory.unshift({ ts:Date.now(), nets:nets, best:routes.length?routes[0].net:0 });
+  if(STATE.spreadHistory.length > 120) STATE.spreadHistory.length = 120;
+}
 
-  return opps;
+/* ---------- Piloto automático ----------
+   Ejecuta SIEMPRE contra el saldo simulado. Ver AUTO_REAL_NOTE en la guía: mover dinero
+   de verdad exige un servidor que custodie las claves de API, no un archivo HTML. */
+function autoCfg(){
+  const s = (STATE.settings && STATE.settings.auto) || {};
+  return {
+    on:        s.on === true,
+    minNet:    isFiniteNum(s.minNet)    ? s.minNet    : CONFIG.AUTO_MIN_NET_PCT,
+    ticket:    isFiniteNum(s.ticket)    ? s.ticket    : CONFIG.AUTO_MAX_TICKET,
+    maxOpen:   isFiniteNum(s.maxOpen)   ? s.maxOpen   : CONFIG.AUTO_MAX_OPEN,
+    dailyStop: isFiniteNum(s.dailyStop) ? s.dailyStop : CONFIG.AUTO_DAILY_STOP
+  };
+}
+function saveAutoCfg(patch){
+  STATE.settings.auto = Object.assign({}, autoCfg(), patch);
+  STATE.settings.updatedAt = new Date().toISOString();
+  persist();
+}
+function todayKey(){ return new Date().toISOString().slice(0,10); }
+function autoTradesToday(){
+  const day = todayKey();
+  return STATE.trades.filter(t=>t.auto && String(t.ts).slice(0,10)===day);
+}
+function autoPnlToday(){
+  return r2(autoTradesToday().reduce((a,t)=>a+(t.pnl||0), 0));
+}
+function setAutoOn(on, reason){
+  saveAutoCfg({ on:!!on });
+  if(!on && reason){
+    STATE.autoLog.unshift({ ts:new Date().toISOString(), kind:"stop", text:reason });
+    if(STATE.autoLog.length>50) STATE.autoLog.length = 50;
+    persist();
+  }
+  if(on){
+    STATE.autoLog.unshift({ ts:new Date().toISOString(), kind:"start", text:TEXTS.AUTO_LOG_STARTED });
+    if(STATE.autoLog.length>50) STATE.autoLog.length = 50;
+    persist();
+  }
+}
+/* Un ciclo del piloto: mira el mercado, aplica los cortafuegos y, como mucho, ejecuta
+   una operación. Nunca encadena varias en el mismo ciclo. */
+function autoTick(){
+  const cfg = autoCfg();
+  if(!cfg.on) return;
+  // Cortafuegos 1 — pérdida diaria acumulada.
+  if(autoPnlToday() <= -Math.abs(cfg.dailyStop)){
+    setAutoOn(false, TEXTS.AUTO_STOP_DAILY);
+    if(location.hash==="#/auto") route();
+    return;
+  }
+  // Cortafuegos 2 — operaciones ya hechas hoy.
+  if(autoTradesToday().length >= cfg.maxOpen){
+    setAutoOn(false, TEXTS.AUTO_STOP_MAXOPEN);
+    if(location.hash==="#/auto") route();
+    return;
+  }
+  const routes = currentRoutes();
+  const now = Date.now();
+  for(let i=0;i<routes.length;i++){
+    const r = routes[i];
+    if(r.net < cfg.minNet) break;                       // vienen ordenadas: si esta no llega, ninguna
+    if(now - (STATE.autoLastAt[r.id]||0) < CONFIG.AUTO_COOLDOWN_MS) continue;
+    const budget = Math.min(cfg.ticket, STATE.wallet.cash);
+    if(budget < r.buyPrice) continue;                    // no llega ni para una unidad
+    const qty = r3(budget / r.buyPrice);
+    if(qty <= 0) continue;
+    const res = executeArb(r, qty, true);
+    if(res.ok){
+      STATE.autoLastAt[r.id] = now;
+      const sc = scoreRoute(r);
+      STATE.autoLog.unshift({
+        ts:new Date().toISOString(), kind:"trade",
+        text: r.label+" · "+fmtPct(r.net)+" · "+fmtSignedUSD(res.pnl)+" · "+TEXTS.AUTO_SCORE_LABEL+" "+sc.score
+      });
+      if(STATE.autoLog.length>50) STATE.autoLog.length = 50;
+      persist();
+    }
+    break;                                               // una por ciclo, y salimos
+  }
 }
 
 /* =========================================================
@@ -2466,6 +2963,7 @@ function syncHeaderHeight(){
 }
 function boot(){
   if(!location.hash){ location.hash = "#/"; }
+  if(STATE.settings && CURRENCIES[STATE.settings.ccy]) DISPLAY_CCY = STATE.settings.ccy;
   seedHistory();
   paintChrome();
   route();
@@ -2474,17 +2972,21 @@ function boot(){
   window.addEventListener("hashchange", function(){ route(); syncHeaderHeight(); });
   let resizeT;
   window.addEventListener("resize", function(){ clearTimeout(resizeT); resizeT = setTimeout(syncHeaderHeight, 150); });
-  // MEJORADO: Intento de precios en vivo + monitoreo automático en background
-  // solo si CONFIG.LIVE_PRICES o el interruptor del admin están activos Y el protocolo es http/https
-  fetchLivePrices().then(function(ok){
-    if(ok){
-      updateDataModeBadge(true);
-      // El monitoreo ya se inició en fetchLivePrices
-      refreshCurrentViewData();
-    }
-  });
-  // Detiene monitoreo si cambia a file://
-  if(!/^https?:$/.test(location.protocol)) stopLiveMonitor();
+  // Datos en vivo: divisas, respaldo REST y streaming. Nada de esto se ejecuta en file://,
+  // donde la app es 100 % simulación determinista y no toca la red.
+  if(netAllowed()){
+    fetchFxRates().then(function(ok){
+      if(ok){ paintCurrencySelect(); refreshCurrentViewData(); }
+    });
+  }
+  if(liveWanted()){
+    fetchLivePrices().then(function(ok){
+      if(ok){ updateDataModeBadge(true); refreshCurrentViewData(); }
+    });
+    openStreams();
+  }
+  // Al cerrar la pestaña soltamos los sockets: nada de conexiones huérfanas.
+  window.addEventListener("pagehide", closeStreams);
 }
 if(document.readyState === "loading"){
   document.addEventListener("DOMContentLoaded", boot);
