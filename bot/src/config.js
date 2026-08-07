@@ -95,6 +95,48 @@ if (modo === "live") {
   }
 }
 
+/* ---------------------------------------------------------------------------
+ * BLOQUEO DE SEGURIDAD — 2026-08-07
+ *
+ * Dos auditorías independientes encontraron defectos que hacen peligroso armar este bot.
+ * El peor no es un fallo del código sino de la premisa: CCXT ha retirado el sandbox de
+ * futuros (binance.js:12707 lanza NotSupported en toda llamada privada de futuros con
+ * setSandboxMode). O sea que en testnet la pata de perpetuos falla SIEMPRE.
+ *
+ * Y ahí encadena con lo demás: cada ciclo compra al contado, falla el perpetuo, deshace
+ * la compra — dos órdenes a mercado cada 60 s, indefinidamente. Ningún cortafuegos lo ve,
+ * porque no llega a haber posición y la pérdida no se anota en ninguna parte. El panel
+ * marca 0,00 de resultado. La conclusión natural del dueño sería "en testnet no funciona"
+ * y pasar a `live`, que es donde sí funciona todo — incluido el bucle.
+ *
+ * Lista completa de lo que falta en README.md, sección "Estado real".
+ *
+ * Hasta que eso esté arreglado y vuelto a auditar, este bot NO se arma. Se puede leer el
+ * código, pasar `npm test` y estudiar la aritmética, que es correcta y está probada.
+ * --------------------------------------------------------------------------- */
+const BLOQUEADO_POR_AUDITORIA = true;
+
+export function comprobarBloqueo() {
+  if (!BLOQUEADO_POR_AUDITORIA) return;
+  if (!CONFIG.armado && CONFIG.esTestnet) return;   // sin armar y en testnet: solo mira
+  console.error(`
+  Este bot está BLOQUEADO tras una auditoría de seguridad.
+
+  Motivo principal: CCXT retiró el sandbox de futuros de Binance, así que en testnet la
+  pata de perpetuos falla siempre. Combinado con otros defectos, eso produce un bucle de
+  órdenes a mercado que ningún cortafuegos detecta y que ningún panel muestra.
+
+  Encontrarás la lista completa en README.md → "Estado real".
+
+  Mientras tanto puedes:
+    · leer el código y pasar \`npm test\` (la aritmética está probada y es correcta)
+    · ejecutarlo con TRADING_MODE=testnet y ARMED=false, que no manda ninguna orden
+
+  Lo que no puedes es armarlo. Y en \`live\` no debería tocarlo nadie todavía.
+`);
+  process.exit(1);
+}
+
 export function validarOMorir() {
   if (!errores.length) return;
   console.error("\n  No se puede arrancar. Arregla esto en tu .env:\n");

@@ -1,6 +1,6 @@
 /* Arranque. El orden importa: se valida, se comprueba a dónde apuntamos, y solo entonces
  * se empieza a mirar el mercado. */
-import { CONFIG, validarOMorir } from "./config.js";
+import { CONFIG, validarOMorir, comprobarBloqueo } from "./config.js";
 import { log, iniciarLog, registrarSecreto } from "./logger.js";
 import * as estado from "./state.js";
 import * as ex from "./exchange.js";
@@ -9,6 +9,7 @@ import { arrancarServidor } from "./server.js";
 import path from "node:path";
 
 validarOMorir();
+comprobarBloqueo();
 
 // Los secretos se registran para que el registro pueda taparlos si asoman en un error.
 registrarSecreto(CONFIG.claves.spot.secret);
@@ -67,3 +68,18 @@ function salir(senal) {
 process.on("SIGINT", () => salir("SIGINT"));
 process.on("SIGTERM", () => salir("SIGTERM"));
 process.on("unhandledRejection", (e) => log.error("Promesa sin capturar:", e && e.message));
+/* Antes, una excepción no capturada mataba el proceso dejando las posiciones abiertas y
+   sin vigilancia — y bastaba un GET al panel con el estado mal formado para provocarla.
+   Ahora se desarma y se guarda antes de caer. */
+process.on("uncaughtException", (e) => {
+  log.error("Excepción no capturada:", e && e.stack ? e.stack : String(e));
+  try {
+    const st = estado.get();
+    st.desarmadoPor = "excepción no capturada: " + (e && e.message);
+    estado.guardar();
+    log.error("Desarmado y estado guardado. Las posiciones abiertas siguen abiertas: revísalas.");
+  } catch (e2) {
+    log.error("Tampoco se pudo guardar el estado:", e2 && e2.message);
+  }
+  process.exit(1);
+});

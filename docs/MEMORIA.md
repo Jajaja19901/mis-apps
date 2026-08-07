@@ -3,6 +3,32 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-07 (tarde) — El bot de financiación queda BLOQUEADO tras auditarlo
+- Qué pasó: dos auditorías (seguridad + corrección del dinero) sobre `bot/`. Veredicto de
+  las dos: NO APTO. 7 críticos + 11 importantes de seguridad, 15 defectos de corrección.
+  Se ha metido un bloqueo en `config.js:comprobarBloqueo()` que impide armarlo.
+- **El hallazgo que tira la premisa**: CCXT retiró el sandbox de futuros de Binance
+  (`binance.js:12707`, `NotSupported` en toda llamada privada de futuros con setSandboxMode).
+  Verificado en el código de ccxt@4.5.71. O sea que "empieza en testnet" NO funciona con
+  binanceusdm + setSandboxMode. Alternativa a investigar: el demo trading de Binance.
+- El escenario de ruina que encadena: en testnet la pata perp falla siempre → cada ciclo
+  compra contado, falla perp, deshace → 2 órdenes a mercado cada 60 s indefinidamente →
+  ningún cortafuegos lo ve (no hay posición, la pérdida no se anota) → el panel marca 0,00
+  → el dueño concluye "en testnet no va" y pasa a live, donde el bucle sí quema dinero.
+- Otros de fondo: no es delta neutral (nunca se fija apalancamiento ni se mira margen;
+  Binance abre en cross 20x → liquidación con +4,7 %); el coste real es ~0,68 % y no 0,30 %
+  (faltan spread, deslizamiento y base), así que los umbrales están mal calibrados; las dos
+  patas no llevan la misma cantidad (pasos de lote distintos) y con la config de ejemplo
+  SOL/USDT quedaría 25 % descubierto; con financiación negativa nunca cierra.
+- Lección de método: la aritmética estaba bien y probada (24 tests) y aun así el producto
+  era peligroso, porque los tests validaban el modelo contra sí mismo. Lo que faltaba era
+  probar los CAMINOS DE FALLO y contrastar el modelo con la realidad del exchange.
+- Lo que sí aguantó: la barrera ARMED (0 órdenes en 5 ciclos con candidato apto), sin XSS
+  ni travesía de rutas en el panel, npm audit limpio, escritura de estado atómica.
+- Siguiente paso: reescribir la sincronía con el exchange (reconciliación al arrancar,
+  llenados reales, patas sueltas) y la contabilidad diaria antes de volver a auditar.
+  Lista completa en `bot/README.md` → "Estado real".
+
 ## 2026-08-07 — Bot de arbitraje de financiación sobre CCXT (`bot/`)
 - Qué se hizo: servidor Node que ejecuta arbitraje de tasa de financiación (delta neutral:
   largo contado + corto perpetuo). Es el "backend que custodia las claves" que faltaba para

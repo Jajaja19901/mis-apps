@@ -1,5 +1,57 @@
 # Bot de arbitraje de tasa de financiación
 
+> ## ⛔ Estado real: BLOQUEADO. No lo armes.
+>
+> Dos auditorías independientes (seguridad y corrección del dinero) lo declararon no apto.
+> El código se niega a arrancar armado hasta que esto se arregle y se vuelva a auditar.
+>
+> **El problema de fondo no es un bug, es la premisa.** CCXT retiró el sandbox de futuros
+> de Binance: cualquier llamada privada de futuros con `setSandboxMode` lanza
+> `NotSupported` (comprobado en `ccxt@4.5.71`, `binance.js:12707`). En testnet la pata de
+> perpetuos **falla siempre**, así que la propuesta de "empieza en testnet" no funciona
+> tal y como está montado.
+>
+> Y encadena con lo peor: cada ciclo compraría al contado, fallaría el perpetuo y
+> desharía la compra. Dos órdenes a mercado cada 60 s, indefinidamente. **Ningún
+> cortafuegos lo detecta** —no llega a haber posición y la pérdida no se anota en ningún
+> sitio— y el panel marcaría "resultado del día: 0,00". La conclusión natural sería
+> "en testnet no va" y pasar a `live`, donde todo funciona, el bucle también.
+>
+> ### Lo que hay que arreglar antes de volver a mirarlo
+>
+> **De seguridad**
+> 1. Bucle de órdenes sin límite ni enfriamiento cuando una pata falla (invisible a todos los límites).
+> 2. El stop de pérdida diaria no puede saltar: `resultadoDelDia()` solo suma cierres voluntarios, que son positivos por construcción.
+> 3. No se valida el precio: con un ticker vacío se mandan órdenes con cantidad `NaN` y se registra la posición como abierta.
+> 4. El estado se carga sin validar. Un `nocional` de texto o negativo desactiva el límite de exposición.
+> 5. Una petición al panel con el estado mal formado mata el proceso dejando las posiciones abiertas. *(Mitigado: ahora se desarma y guarda antes de caer, pero la causa sigue.)*
+> 6. Los mensajes de error de CCXT se guardan en disco y se sirven por la API sin pasar por el tapado de secretos: la clave y la firma acaban en `data/estado.*.json` (permisos 644).
+> 7. CSRF: cualquier web abierta en el equipo puede llamar a `/api/rearmar` y deshacer una parada de emergencia.
+>
+> **De corrección del dinero**
+> 8. No es delta neutral: nunca se fija apalancamiento ni se mira el margen. Binance abre en cross 20x por defecto → el corto se liquida con una subida del 4,7 %.
+> 9. El coste de cierre se calcula con el precio de entrada: con el precio +30 % cierra en pérdida creyendo que gana.
+> 10. El coste real es ~0,68 %, no 0,30 %: faltan spread, deslizamiento y base. Los umbrales están calibrados sobre un coste que no existe.
+> 11. Las dos patas no llevan la misma cantidad (pasos de lote distintos, comisión cobrada en el activo). Con la configuración de ejemplo, SOL/USDT quedaría con **una cuarta parte descubierta**.
+> 12. Llenado parcial ignorado: si el contado llena la mitad, queda medio nocional direccional y el bot cree estar cubierto.
+> 13. Si el proceso muere entre las dos órdenes no queda rastro, y al reiniciar vuelve a abrir.
+> 14. Un tiempo de espera agotado se trata como "la orden no entró". Si sí entró, el "deshacer" deja un corto desnudo.
+> 15. Un cierre a medias deja una pata suelta y reintenta en bucle cada 60 s, sin desarmar.
+> 16. Con financiación **negativa** nunca cierra: la condición de espera se autoalimenta y sangra indefinidamente.
+> 17. Desarmar no impide cerrar posiciones; el botón de pánico no para al bot del todo.
+> 18. El modo sin armar no simula nada, así que "déjalo una semana y lee sus decisiones" no produce nada que juzgar.
+>
+> **Lo que sí está bien**, comprobado y no supuesto: la barrera `ARMED` no tiene ninguna
+> grieta (5 ciclos con candidato apto → 0 órdenes); la aritmética de `funding.js` es
+> correcta dentro de su modelo y está probada; no hay XSS en el panel ni travesía de rutas;
+> `npm audit` limpio; la escritura del estado es atómica.
+>
+> **Qué se puede hacer hoy:** leer el código, pasar `npm test`, y ejecutarlo en
+> `TRADING_MODE=testnet` con `ARMED=false`, que no manda ninguna orden.
+
+---
+
+
 Compra un activo al contado y vende el perpetuo del mismo activo por el mismo importe.
 Como una pata sube cuando la otra baja, **el precio deja de importar**. Lo que se cobra es
 la tasa de financiación que los largos del perpetuo pagan a los cortos cada 8 horas.
