@@ -6,6 +6,7 @@
 <title>ArbitrageGold — Simulador de arbitraje cripto-oro</title>
 <meta name="description" content="Simulador educativo de arbitraje entre oro tokenizado (PAXG, XAUT) y oro spot. Simulación con dinero ficticio, esto no es asesoramiento financiero.">
 <meta name="theme-color" content="#0b0f14">
+<meta name="referrer" content="no-referrer">
 <!-- Lista blanca de destinos: aunque en el futuro se colara una inyección, no tendría
      a dónde sacar los datos. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; manifest-src data:; connect-src https://open.er-api.com https://api.binance.com https://testnet.binance.vision wss://stream.binance.com wss://ws.kraken.com; base-uri 'none'; form-action 'none'">
@@ -784,6 +785,9 @@ const MARKET_LABEL = m => m.symbol + " · " + m.venue;
 /* Índice de cada ruta por id. Lo usan el botón "Operar" y la carga de enfriamientos:
    se declara aquí, antes de loadState(), o esa lectura caería en zona muerta temporal. */
 const ROUTE_INDEX = ROUTES.reduce(function(acc,r,i){ acc[r.id]=i; return acc; },{});
+/* Pares admitidos en Testnet. Arriba del todo porque loadState() los usa para validar la
+   bitácora de mediciones, y porque son una lista blanca: nada fuera de aquí se firma. */
+const TESTNET_SYMBOLS = ["BTCUSDT","ETHUSDT","BNBUSDT"];
 
 /* =========================================================
    3) TEXTOS — objeto TEXTS (contrato). Todo texto visible sale de aquí.
@@ -1074,6 +1078,18 @@ const TEXTS = {
   TN_VERDICT_OK:"El margen aguanta la ejecución real. Sigue midiendo: unas pocas órdenes no son una muestra, y el deslizamiento empeora justo cuando el mercado se mueve.",
   TN_VERDICT_BAD:"La ejecución real se come el margen entero: con estas reglas, operar saldría a pérdida. Sube el umbral, elige pares con más liquidez, o acepta que esa ruta no da.",
   TN_ERR_NOKEYS:"Primero conecta tus claves de Testnet",
+  TN_ERR_NET:"No se pudo contactar con Testnet. O no hay conexión, o el servidor intentó desviar la petición a otro sitio — cosa que se bloquea a propósito, porque esa petición lleva tu clave firmada.",
+  TN_ERR_INSECURE:"Esto solo funciona en una página servida por https. En http normal el navegador desactiva la firma criptográfica, y tus claves viajarían sin cifrar.",
+  TN_ERR_SYMBOL:"Ese par no está en la lista permitida",
+  TN_ERR_AMOUNT:"El importe debe estar entre 10 y 1000 USDT",
+  TN_ERR_MINNOTIONAL:"El mínimo que pide el par para ese importe se pasa de lo permitido. Prueba con otro par o sube el importe.",
+  TN_CONFIRM_T:"Confirma la orden",
+  TN_CONFIRM_PRE:"Se va a mandar una orden a mercado de compra de ",
+  TN_CONFIRM_MID:" por unos ",
+  TN_CONFIRM_POST:". Es una orden real contra el libro de Testnet.",
+  TN_BTN_CONFIRM:"Sí, mandar la orden",
+  TN_BTN_CANCEL:"Cancelar",
+  TN_INSECURE_T:"Hace falta https",
   TN_ERR_FILE:"Esto necesita abrirse por https. En modo archivo local no se puede conectar.",
   TN_ERR_HOST:"Destino no permitido: solo se opera contra Testnet",
   TN_ERR_NOPRICE:"No se pudo leer el precio del par",
@@ -1267,8 +1283,18 @@ function loadState(){
     // vuelve a disparar de inmediato sobre las mismas rutas.
     const tnLog = readLS(LS.TNLOG, null);
     if(Array.isArray(tnLog)){
-      base.tnLog = tnLog.filter(r=>r && typeof r==="object" && typeof r.ts==="string"
-        && isFiniteNum(r.quoted) && isFiniteNum(r.fill) && isFiniteNum(r.slipPct)).slice(0,100);
+      // Rangos, no solo tipos: el veredicto de la pantalla sale de estos números, así que
+      // un registro manipulado a mano podía convertirlo en lo que quisiera (se vieron
+      // "+Infinity%" de deslizamiento y latencias de 5e+307 ms).
+      base.tnLog = tnLog.filter(r=> r && typeof r==="object"
+        && typeof r.ts==="string" && r.ts.length<40
+        && typeof r.symbol==="string" && TESTNET_SYMBOLS.indexOf(r.symbol)>=0
+        && isFiniteNum(r.qty)      && r.qty>0     && r.qty<1e9
+        && isFiniteNum(r.quoted)   && r.quoted>0  && r.quoted<1e12
+        && isFiniteNum(r.fill)     && r.fill>0    && r.fill<1e12
+        && isFiniteNum(r.slipPct)  && Math.abs(r.slipPct)<=100
+        && isFiniteNum(r.latency)  && r.latency>=0 && r.latency<600000
+      ).slice(0,100);
     }
     const cool = readLS(LS.COOLDOWN, null);
     if(cool && typeof cool==="object"){
@@ -1312,6 +1338,7 @@ function wipeAllData(){
     localStorage.removeItem(LS.COOLDOWN);
     localStorage.removeItem(LS.TNLOG);
     localStorage.removeItem(LS.TNKEYS);
+    try{ sessionStorage.removeItem(LS.TNKEYS); }catch(e){}
   }catch(e){
     // si tampoco se puede borrar (sandbox/privado), seguimos con el reseteo en memoria
   }
@@ -1451,13 +1478,16 @@ function computeAlertsForCycle(routes){
 function renderButton(id,text,classes,type,extra){
   return '<button id="'+esc(id)+'" type="'+(type||"button")+'" class="btn '+(classes||"btn-secondary")+'" '+(extra||"")+'>'+esc(text)+'</button>';
 }
-function renderInput(id,label,type,placeholder,hint,extra){
+/* noName: para campos de credenciales. Un `form.submit()` por consola o por un fallo
+   futuro NO dispara el listener de submit (se salta el preventDefault), así que sin
+   atributo `name` no hay nada que mandar aunque el envío llegue a ocurrir. */
+function renderInput(id,label,type,placeholder,hint,extra,noName){
   // La ayuda se enlaza con aria-describedby: si no, un lector de pantalla enfoca el
   // campo y no llega a oírla nunca.
   const hintId = hint ? id+"-hint" : null;
   return '<div class="field">'
     +'<label for="'+esc(id)+'">'+esc(label)+'</label>'
-    +'<input id="'+esc(id)+'" name="'+esc(id)+'" type="'+esc(type||"text")+'" placeholder="'+esc(placeholder||"")+'"'
+    +'<input id="'+esc(id)+'"'+(noName?"":' name="'+esc(id)+'"')+' type="'+esc(type||"text")+'" placeholder="'+esc(placeholder||"")+'"'
       +(hintId?' aria-describedby="'+esc(hintId)+'"':"")+' '+(extra||"")+'>'
     +(hint?'<p class="hint" id="'+esc(hintId)+'">'+esc(hint)+'</p>':"")
     +'</div>';
@@ -2318,6 +2348,7 @@ function renderTnBalances(acc){
 }
 function renderTestnet(){
   const conectado = testnetHasCreds();
+  const seguro = tnCryptoReady();
   const symOpts = TESTNET_SYMBOLS.map(s=>({value:s,label:s}));
   return '<div class="container view-testnet">'
     +'<h1>'+esc(TEXTS.TN_H1)+'</h1>'
@@ -2327,13 +2358,15 @@ function renderTestnet(){
     +'<section class="card block">'
       +'<h2>'+esc(TEXTS.TN_CONNECT_T)+'</h2>'
       +'<p class="hint">'+esc(TEXTS.TN_CONNECT_HOWTO)+'</p>'
-      +(conectado
+      +(!seguro
+        ? ('<p id="tnInsecure" class="error-msg">'+esc(TEXTS.TN_ERR_INSECURE)+'</p>')
+        : conectado
         ? ('<p id="tnStatus" class="success-msg">'+esc(TEXTS.TN_CONNECTED)+'</p>'
            +'<div id="tnBalances"></div>'
            +renderButton("btnTnForget",TEXTS.TN_BTN_FORGET,"btn-secondary"))
         : ('<form id="tnKeyForm" novalidate>'
-            +renderInput("tn-key",TEXTS.TN_KEY_LABEL,"password","",TEXTS.TN_KEY_HINT,'autocomplete="off" spellcheck="false"')
-            +renderInput("tn-secret",TEXTS.TN_SECRET_LABEL,"password","",TEXTS.TN_SECRET_HINT,'autocomplete="off" spellcheck="false"')
+            +renderInput("tn-key",TEXTS.TN_KEY_LABEL,"password","",TEXTS.TN_KEY_HINT,'autocomplete="off" spellcheck="false"',true)
+            +renderInput("tn-secret",TEXTS.TN_SECRET_LABEL,"password","",TEXTS.TN_SECRET_HINT,'autocomplete="off" spellcheck="false"',true)
             +'<div class="checkbox-field">'
               +'<input type="checkbox" id="tn-remember">'
               +'<label for="tn-remember">'+esc(TEXTS.TN_REMEMBER_LABEL)+'</label>'
@@ -2343,7 +2376,7 @@ function renderTestnet(){
             +renderButton("btnTnConnect",TEXTS.TN_BTN_CONNECT,"btn-primary btn-block","submit")
           +'</form>'))
     +'</section>'
-    +(conectado
+    +(conectado && seguro
       ? ('<section class="card block">'
           +'<h2>'+esc(TEXTS.TN_MEASURE_T)+'</h2>'
           +'<p class="hint">'+esc(TEXTS.TN_MEASURE_D)+'</p>'
@@ -2353,6 +2386,7 @@ function renderTestnet(){
             +'<p id="tnMeasureError" class="error-msg" role="alert"></p>'
             +renderButton("btnTnMeasure",TEXTS.TN_BTN_MEASURE,"btn-primary btn-block","submit")
           +'</form>'
+          +'<div id="tnConfirm" class="confirm-panel" hidden></div>'
         +'</section>')
       : "")
     +'<section class="block">'
@@ -2627,9 +2661,31 @@ function handleClick(e){
     return;
   }
 
+  if(byId("btnTnCancel")){
+    TN_PENDING = null;
+    const box = document.getElementById("tnConfirm");
+    if(box){ box.hidden = true; box.innerHTML = ""; }
+    return;
+  }
+  if(byId("btnTnConfirm")){
+    if(!TN_PENDING) return;
+    const prev = TN_PENDING; TN_PENDING = null;
+    const c = document.getElementById("btnTnConfirm");
+    if(c) c.disabled = true;
+    testnetMeasure(prev).then(function(){
+      toast(TEXTS.TN_TOAST_MEASURED);
+      route();
+    }).catch(function(err){
+      const el = document.getElementById("tnMeasureError");
+      if(el) el.textContent = String(err && err.message || err);
+      const box = document.getElementById("tnConfirm");
+      if(box){ box.hidden = true; box.innerHTML = ""; }
+    });
+    return;
+  }
   if(byId("btnTnForget")){
     TESTNET_CREDS = null;
-    try{ localStorage.removeItem(LS.TNKEYS); }catch(e){}
+    try{ sessionStorage.removeItem(LS.TNKEYS); localStorage.removeItem(LS.TNKEYS); }catch(e){}
     toast(TEXTS.TN_TOAST_FORGOTTEN);
     route();
     return;
@@ -2823,10 +2879,13 @@ function handleSubmit(e){
     TESTNET_CREDS = { key:key, secret:sec };
     // Se comprueban contra el servidor antes de dar nada por bueno.
     testnetAccount().then(function(acc){
-      if(recordar) writeLS(LS.TNKEYS, TESTNET_CREDS);
       route();
       const box = document.getElementById("tnBalances");
       if(box) box.innerHTML = renderTnBalances(acc);
+      // Al final del todo: si algo hubiese fallado antes, las claves no quedan escritas.
+      // sessionStorage y no localStorage: muere al cerrar la pestaña, que es justo lo que
+      // promete el texto de la casilla.
+      if(recordar){ try{ sessionStorage.setItem(LS.TNKEYS, JSON.stringify(TESTNET_CREDS)); }catch(e){} }
     }).catch(function(err){
       TESTNET_CREDS = null;   // credenciales malas: no se guarda nada
       const el = document.getElementById("tnKeyError");
@@ -2843,9 +2902,21 @@ function handleSubmit(e){
     if(!amt || isNaN(amt) || amt<=0){ errEl.textContent = TEXTS.ERR_QTY_POSITIVE; return; }
     const btn = document.getElementById("btnTnMeasure");
     if(btn) btn.disabled = true;
-    testnetMeasure(sym, amt).then(function(){
-      toast(TEXTS.TN_TOAST_MEASURED);
-      route();
+    // Primero se calcula lo que saldría y se enseña. Nada se manda sin confirmar.
+    testnetPreview(sym, amt).then(function(prev){
+      TN_PENDING = prev;
+      const box = document.getElementById("tnConfirm");
+      if(box){
+        box.hidden = false;
+        box.innerHTML = '<p>'+esc(TEXTS.TN_CONFIRM_PRE+fmtQty(prev.qty)+" "+prev.symbol
+                          +TEXTS.TN_CONFIRM_MID+prev.notional.toFixed(2)+" USDT"+TEXTS.TN_CONFIRM_POST)+'</p>'
+          +'<div class="confirm-actions">'
+          +renderButton("btnTnConfirm",TEXTS.TN_BTN_CONFIRM,"btn-primary")
+          +renderButton("btnTnCancel",TEXTS.TN_BTN_CANCEL,"btn-secondary")
+          +'</div>';
+      }
+      const b2 = document.getElementById("btnTnMeasure");
+      if(b2) b2.disabled = false;
     }).catch(function(err){
       const el = document.getElementById("tnMeasureError");
       if(el) el.textContent = String(err && err.message || err);
@@ -3390,19 +3461,28 @@ function autoTick(){
 
    Decisiones de seguridad, deliberadas:
    · El host es una CONSTANTE, nunca configurable. Si viviera en CONFIG, alguien podría
-     apuntarlo a api.binance.com y las mismas órdenes saldrían contra dinero real: es el
-     fallo abierto más caro que podría tener este archivo. Además se comprueba en cada
-     petición y la CSP solo permite este destino.
+     apuntarlo a api.binance.com y las mismas órdenes saldrían contra dinero real.
+   · Y no basta con fijar el destino de SALIDA: `fetch` sigue redirecciones por defecto,
+     así que un 302 desde Testnet (secuestro de DNS, proxy TLS corporativo, CDN tocada)
+     reenviaba la petición firmada Y la cabecera con la clave al exchange real. La CSP no
+     lo impide, porque api.binance.com está en la lista blanca para leer precios. Por eso
+     va `redirect:"error"` y se comprueba la URL con la que respondió el servidor.
    · Las claves viven en memoria. Guardarlas exige marcar una casilla y leer el aviso.
    · El secreto NUNCA se escribe en el DOM, ni en la bitácora, ni en el CSV, ni en consola.
    · Sin claves no hay respaldo silencioso: la función falla y lo dice.
    ========================================================= */
 const TESTNET_API = "https://testnet.binance.vision";   // NO configurable. Ver arriba.
-const TESTNET_SYMBOLS = ["BTCUSDT","ETHUSDT","BNBUSDT"];
+const TN_MAX_QUOTE = 1000;   // techo absoluto por orden, en USDT. Ninguna respuesta remota lo sube.
 let TESTNET_CREDS = null;    // {key, secret} — solo en memoria salvo opt-in explícito
 let TESTNET_INFO  = null;    // filtros de exchangeInfo por símbolo
+let TN_PENDING    = null;    // orden calculada, a la espera de que el usuario confirme
 
 function testnetHasCreds(){ return !!(TESTNET_CREDS && TESTNET_CREDS.key && TESTNET_CREDS.secret); }
+/* Sin contexto seguro no hay WebCrypto: no se puede firmar. Y más importante, no se debe
+   ni pedir la clave en una página servida en claro. */
+function tnCryptoReady(){
+  return !!(window.isSecureContext && window.crypto && window.crypto.subtle);
+}
 
 /* Firma HMAC-SHA256 con WebCrypto. Es la que exige Binance y la que corresponde:
    nada de hashes rápidos ni de criptografía casera. */
@@ -3417,6 +3497,7 @@ async function hmacSha256Hex(secret, message){
 /* Única puerta de salida hacia Testnet. Todo pasa por aquí, y aquí se comprueba el host. */
 async function testnetFetch(path, params, method, signed){
   if(!netAllowed()) throw new Error(TEXTS.TN_ERR_FILE);
+  if(!tnCryptoReady()) throw new Error(TEXTS.TN_ERR_INSECURE);
   if(typeof path !== "string" || path.charAt(0) !== "/") throw new Error("ruta inválida");
   const base = TESTNET_API;
   // Cinturón: si esta comprobación falla, algo ha manipulado la constante. No se opera.
@@ -3433,8 +3514,18 @@ async function testnetFetch(path, params, method, signed){
   const ctrl = new AbortController();
   const to = setTimeout(()=>ctrl.abort(), 10000);
   try{
-    const res = await fetch(base + path + (qs?("?"+qs):""), { method:method||"GET", headers:headers, signal:ctrl.signal });
+    const res = await fetch(base + path + (qs?("?"+qs):""), {
+      method: method||"GET", headers: headers, signal: ctrl.signal,
+      redirect: "error",            // cierra el reenvío de la orden firmada a otro host
+      cache: "no-store",            // que la URL con la firma no quede en caché
+      credentials: "omit",          // sin cookies: la autenticación es la firma y nada más
+      referrerPolicy: "no-referrer"
+    });
     clearTimeout(to);
+    // Cinturón sobre el tirante: si por lo que sea respondió otro origen, no lo tocamos.
+    if(res.type === "opaqueredirect" || (res.url && res.url.indexOf(base+"/") !== 0)){
+      throw new Error(TEXTS.TN_ERR_HOST);
+    }
     const body = await res.json().catch(()=>null);
     if(!res.ok){
       // Binance devuelve {code, msg}. Se muestra su mensaje tal cual, escapado al pintar.
@@ -3444,6 +3535,10 @@ async function testnetFetch(path, params, method, signed){
     return body;
   }catch(e){
     clearTimeout(to);
+    // Un redirect bloqueado llega aquí como TypeError, igual que una caída de red. No se
+    // pueden distinguir desde el cliente, así que se nombran las dos posibilidades: la
+    // segunda es relevante para la seguridad y el usuario merece saberla.
+    if(e instanceof TypeError) throw new Error(TEXTS.TN_ERR_NET);
     throw e;
   }
 }
@@ -3466,7 +3561,9 @@ async function testnetLoadInfo(){
 }
 function roundToStep(qty, step){
   if(!isFiniteNum(step) || step<=0) return qty;
-  const dec = Math.max(0, (String(step).split(".")[1]||"").replace(/0+$/,"").length);
+  // Por log10 y no contando decimales del texto: un stepSize como "1e-8" dejaba dec=0,
+  // redondeaba a entero y tumbaba pares perfectamente válidos.
+  const dec = Math.max(0, Math.min(12, -Math.round(Math.log10(step))));
   return parseFloat((Math.floor(qty/step)*step).toFixed(dec));
 }
 
@@ -3482,7 +3579,13 @@ async function testnetAccount(){
 /* El experimento que da sentido a todo esto: se anota el precio al que se DECIDE, se
    manda una orden a mercado de verdad, y se compara con el precio al que se LLENA.
    Esa diferencia es la que se come los arbitrajes sobre el papel. */
-async function testnetMeasure(symbol, quoteAmount){
+/* Calcula QUÉ se va a mandar, sin mandar nada. El usuario lo ve y confirma: antes, un
+   `minNotional` inflado en la respuesta de exchangeInfo subía la cantidad en silencio
+   —se pidieron 50 USDT y salió una orden de 18.360 BTC— porque el importe efectivo lo
+   acababa fijando el servidor. Ninguna respuesta remota decide cuánto se compra. */
+async function testnetPreview(symbol, quoteAmount){
+  if(TESTNET_SYMBOLS.indexOf(symbol) < 0) throw new Error(TEXTS.TN_ERR_SYMBOL);
+  if(!isFiniteNum(quoteAmount) || quoteAmount < 10 || quoteAmount > TN_MAX_QUOTE) throw new Error(TEXTS.TN_ERR_AMOUNT);
   const info = await testnetLoadInfo();
   const f = info[symbol] || {};
   const book = await testnetFetch("/api/v3/ticker/bookTicker", { symbol:symbol }, "GET", false);
@@ -3495,6 +3598,15 @@ async function testnetMeasure(symbol, quoteAmount){
     if(isFiniteNum(f.minQty) && qty < f.minQty) qty = f.minQty;
   }
   if(!isFiniteNum(qty) || qty<=0) throw new Error(TEXTS.TN_ERR_QTY);
+  const notional = qty*quotedAsk;
+  // Techo duro: ni el mínimo del par ni nada que venga de fuera puede pasar de aquí.
+  if(notional > Math.min(quoteAmount*1.5, TN_MAX_QUOTE)) throw new Error(TEXTS.TN_ERR_MINNOTIONAL);
+  return { symbol:symbol, qty:qty, quotedAsk:quotedAsk, notional:r2(notional) };
+}
+async function testnetMeasure(prev){
+  const symbol = prev.symbol, qty = prev.qty, quotedAsk = prev.quotedAsk;
+  if(TESTNET_SYMBOLS.indexOf(symbol) < 0) throw new Error(TEXTS.TN_ERR_SYMBOL);
+  if(!isFiniteNum(qty) || qty<=0 || qty*quotedAsk > TN_MAX_QUOTE) throw new Error(TEXTS.TN_ERR_AMOUNT);
 
   const t0 = Date.now();
   const order = await testnetFetch("/api/v3/order",
@@ -3550,10 +3662,14 @@ function boot(){
   if(!location.hash){ location.hash = "#/"; }
   if(STATE.settings && CURRENCIES[STATE.settings.ccy]) DISPLAY_CCY = STATE.settings.ccy;
   // Claves de Testnet: solo se recuperan si en su día se marcó "recordar".
-  const savedKeys = readLS(LS.TNKEYS, null);
-  if(savedKeys && typeof savedKeys==="object" && typeof savedKeys.key==="string" && typeof savedKeys.secret==="string"){
-    TESTNET_CREDS = { key:savedKeys.key, secret:savedKeys.secret };
-  }
+  try{
+    const raw = sessionStorage.getItem(LS.TNKEYS);
+    const sk = raw ? JSON.parse(raw) : null;
+    const forma = /^[A-Za-z0-9]{16,128}$/;    // M11: forma esperada, no solo "es texto"
+    if(sk && typeof sk==="object" && forma.test(sk.key||"") && forma.test(sk.secret||"")){
+      TESTNET_CREDS = { key:sk.key, secret:sk.secret };
+    }
+  }catch(e){}
   seedHistory();
   paintChrome();
   route();
