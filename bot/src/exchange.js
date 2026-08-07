@@ -27,23 +27,41 @@ export const perp = crear(ccxt.binanceusdm, CONFIG.claves.perp);
 /* Se comprueba al arrancar que los clientes apuntan donde creemos. Si la URL no es de
  * testnet estando en modo testnet, se para: es la comprobación que separa "dinero de
  * prueba" de "tu dinero". */
+function todasLasUrls(ex) {
+  const u = ex.urls.api;
+  if (typeof u === "string") return [u];
+  // TODAS, no la primera que encaje. binanceusdm hereda de binance las claves `public` y
+  // `private` apuntando al endpoint de CONTADO, mientras las órdenes de futuros salen por
+  // `fapiPrivate`. Mirar solo la primera dejaba sin comprobar justamente el endpoint por
+  // el que se manda la orden.
+  return Object.values(u).flatMap(v =>
+    typeof v === "string" ? [v] : (v && typeof v === "object" ? Object.values(v).filter(x => typeof x === "string") : [])
+  );
+}
+
 export function verificarDestino() {
-  const urls = [spot, perp].map(ex => {
-    const u = ex.urls.api;
-    return typeof u === "string" ? u : (u.private || u.public || u.fapiPrivate || JSON.stringify(u));
-  });
-  const texto = urls.join(" ");
-  const pareceTestnet = /testnet|vision/i.test(texto);
-  if (CONFIG.esTestnet && !pareceTestnet) {
-    throw new Error(
-      "Modo testnet pero los clientes no apuntan a testnet. Se para por seguridad.\n" +
-      "URLs: " + texto
-    );
+  const porCliente = { spot: todasLasUrls(spot), perp: todasLasUrls(perp) };
+  const todas = [...porCliente.spot, ...porCliente.perp];
+  const esTest = url => /testnet|vision/i.test(url);
+
+  if (CONFIG.esTestnet) {
+    // En testnet exigimos que NINGUNA apunte a producción. Basta una para parar.
+    const produccion = todas.filter(u => !esTest(u));
+    if (produccion.length) {
+      throw new Error(
+        "Modo testnet pero hay endpoints que apuntan a producción. Se para por seguridad.\n" +
+        produccion.slice(0, 6).join("\n")
+      );
+    }
+  } else {
+    const test = todas.filter(esTest);
+    if (test.length) {
+      throw new Error("Modo live pero hay endpoints de testnet. Configuración incoherente.\n" + test.slice(0, 6).join("\n"));
+    }
   }
-  if (!CONFIG.esTestnet && pareceTestnet) {
-    throw new Error("Modo live pero los clientes apuntan a testnet. Configuración incoherente.");
-  }
-  return { testnet: pareceTestnet, urls };
+  // Se devuelve el endpoint de futuros de verdad, que es el que importa para las órdenes.
+  const fapi = (perp.urls.api && perp.urls.api.fapiPrivate) || porCliente.perp[0];
+  return { testnet: CONFIG.esTestnet, spot: porCliente.spot[0], perpFuturos: fapi, total: todas.length };
 }
 
 let mercadosCargados = false;
