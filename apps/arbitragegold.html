@@ -50,7 +50,9 @@ a:hover{text-decoration:underline}
 ul{list-style:none;margin:0;padding:0}
 button{font-family:inherit}
 img,svg{max-width:100%}
-.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+/* min-width:0 es imprescindible: sin él, una <table> oculta conserva su min-width:520px
+   y arrastra el scrollWidth de la página entera. */
+.sr-only{position:absolute;width:1px;min-width:0;max-width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 :focus-visible{outline:3px solid var(--focus);outline-offset:2px;border-radius:4px}
 .skip-link{position:absolute;left:8px;top:8px;background:var(--gold);color:var(--gold-ink);padding:10px 16px;border-radius:var(--radius-sm);z-index:200;font-weight:700;transform:translateY(-200%);transition:transform var(--t-fast)}
 .skip-link:focus{transform:translateY(0)}
@@ -174,6 +176,7 @@ td.num,th.num{font-family:var(--font-mono);text-align:right}
 .tag.spread-flat{background:var(--amber-bg)}
 
 .sparkline{display:block}
+.chart-scale{display:flex;flex-wrap:wrap;gap:4px 16px;margin:0 0 8px;font-size:12px;color:var(--text-dim)}
 
 /* ===== KPIs / wallet bar ===== */
 .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
@@ -732,14 +735,14 @@ let FX_LIVE = false;       // true cuando las tasas vienen de la API y no del re
    par en la API de Kraken; con datos en vivo esos dos campos mandan sobre `base`/`offsetPct`. */
 const MARKETS = [
   { id:"PAXG-BINANCE", asset:"PAXG", venue:"Binance", symbol:"PAXG/USDT", base:2400,  offsetPct:+0.05, vol:0.18, stream:"paxgusdt" },
-  { id:"PAXG-KRAKEN",  asset:"PAXG", venue:"Kraken",  symbol:"PAXG/USD",  base:2400,  offsetPct:+0.85, vol:0.22, wsPair:"PAXG/USD" },
+  { id:"PAXG-KRAKEN",  asset:"PAXG", venue:"Kraken",  symbol:"PAXG/USD",  base:2400,  offsetPct:+0.46, vol:0.22, wsPair:"PAXG/USD" },
   { id:"XAUT-BINANCE", asset:"XAUT", venue:"Binance", symbol:"XAUT/USDT", base:2400,  offsetPct:-0.12, vol:0.20, stream:"xautusdt" },
-  { id:"XAUT-KRAKEN",  asset:"XAUT", venue:"Kraken",  symbol:"XAUT/USD",  base:2400,  offsetPct:+0.98, vol:0.16, wsPair:"XAUT/USD" },
+  { id:"XAUT-KRAKEN",  asset:"XAUT", venue:"Kraken",  symbol:"XAUT/USD",  base:2400,  offsetPct:+0.29, vol:0.16, wsPair:"XAUT/USD" },
   { id:"XAU-INDEX",    asset:"XAU",  venue:"Índice oro spot", symbol:"XAU/USD", base:2400, offsetPct:0, vol:0.10 },
   { id:"BTC-BINANCE",  asset:"BTC",  venue:"Binance", symbol:"BTC/USDT",  base:62000, offsetPct:+0.02, vol:0.45, stream:"btcusdt" },
-  { id:"BTC-KRAKEN",   asset:"BTC",  venue:"Kraken",  symbol:"BTC/USD",   base:62000, offsetPct:+0.72, vol:0.41, wsPair:"XBT/USD" },
+  { id:"BTC-KRAKEN",   asset:"BTC",  venue:"Kraken",  symbol:"BTC/USD",   base:62000, offsetPct:+0.43, vol:0.41, wsPair:"XBT/USD" },
   { id:"ETH-BINANCE",  asset:"ETH",  venue:"Binance", symbol:"ETH/USDT",  base:2500,  offsetPct:-0.08, vol:0.52, stream:"ethusdt" },
-  { id:"ETH-KRAKEN",   asset:"ETH",  venue:"Kraken",  symbol:"ETH/USD",   base:2500,  offsetPct:+0.55, vol:0.48, wsPair:"ETH/USD" },
+  { id:"ETH-KRAKEN",   asset:"ETH",  venue:"Kraken",  symbol:"ETH/USD",   base:2500,  offsetPct:+0.33, vol:0.48, wsPair:"ETH/USD" },
 ];
 const ROUTES = [
   { id:"R1", buy:"PAXG-BINANCE", sell:"PAXG-KRAKEN",  label:"PAXG · Binance → Kraken" },
@@ -787,7 +790,7 @@ const TEXTS = {
   HOME_FEATURE_2_T:"Detectar spreads",
   HOME_FEATURE_2_D:"Un detector determinista calcula 6 rutas de arbitraje y marca las que superan el umbral de rentabilidad neta.",
   HOME_FEATURE_3_T:"Practicar sin riesgo",
-  HOME_FEATURE_3_D:"Opera con 100.000 $ ficticios, abre posiciones largas y cortas, y revisa tu historial completo.",
+  HOME_FEATURE_3_D_PRE:"Opera con ", HOME_FEATURE_3_D_POST:" ficticios, abre posiciones largas y cortas, y revisa tu historial completo.",
 
   ARBITRAJE_H1:"Panel de arbitraje",
   ARBITRAJE_INTRO:"Estos precios son simulados de forma determinista con fines educativos: no proceden de ningún exchange real.",
@@ -813,6 +816,7 @@ const TEXTS = {
   MODAL_ARB_ROUTE_LABEL:"Ruta",
   MODAL_ARB_QTY_LABEL:"Cantidad",
   MODAL_ARB_ESTIMATE:"Beneficio neto estimado",
+  MODAL_ARB_FILL_NOTE:"el resultado real varía según a qué precio se llene la segunda pata",
   MODAL_ARB_LOSS_WARNING:"Esta ruta está en pérdida",
   BTN_ARB_CONFIRM:"Ejecutar arbitraje",
   BTN_ARB_CANCEL:"Cancelar",
@@ -868,7 +872,8 @@ const TEXTS = {
   GUIA_SIM_T:"¿Por qué es una simulación?",
   GUIA_SIM_D:"Esta app no ejecuta órdenes reales ni mueve dinero de verdad: todo el capital, las posiciones y los resultados son ficticios y sirven para practicar y entender el concepto de arbitraje sin ningún riesgo económico.",
   FAQ_Q1:"¿Puedo perder dinero real usando esta app?",
-  FAQ_A1:"No. No hay conexión con ningún exchange real ni movimiento de dinero de verdad: el capital de 100.000 $ es ficticio y sirve solo para practicar.",
+  FAQ_A1_PRE:"No. No hay conexión con ningún exchange real ni movimiento de dinero de verdad: el capital de ",
+  FAQ_A1_POST:" es ficticio y sirve solo para practicar.",
   FAQ_Q2:"¿De dónde salen los precios?",
   FAQ_A2:"En el modo por defecto (archivo local) los precios los genera un simulador determinista basado en fórmulas matemáticas, no un exchange real. Con conexión https se podría intentar consultar APIs públicas, sin garantías de latencia ni disponibilidad.",
   FAQ_Q3:"¿Qué significa 'spread neto'?",
@@ -936,6 +941,7 @@ const TEXTS = {
   TOAST_PASS_UPDATED:"Contraseña actualizada",
   BTN_LIVE_LABEL:"Intentar precios en vivo",
   LIVE_NOTE:"En modo archivo local siempre se usan precios simulados",
+  LIVE_NOTE_ON:"Precios en vivo activados: con conexión https el navegador contactará con Binance, Kraken y el servicio de tasas de cambio (ver Aviso legal). En modo archivo local siempre se usan precios simulados.",
   BTN_WIPE:"Borrar todos los datos",
   WIPE_WARNING:"Se borrarán todas las operaciones, posiciones, solicitudes y ajustes guardados en este dispositivo.",
   BTN_WIPE_YES:"Sí, borrar todo",
@@ -984,6 +990,7 @@ const TEXTS = {
   AUTO_CFG_ACTIVE:"Reglas activas ahora mismo",
   BTN_AUTO_SAVE:"Guardar reglas",
   TOAST_AUTO_SAVED:"Reglas guardadas",
+  TOAST_AUTO_SAVED_CLAMPED:"Reglas guardadas, ajustadas a los límites permitidos",
   ERR_AUTO_RANGE:"Revisa las reglas: todos los valores tienen que ser mayores que 0",
   AUTO_LOG_TITLE:"Bitácora del piloto",
   AUTO_LOG_EMPTY:"El piloto todavía no ha hecho nada.",
@@ -998,6 +1005,7 @@ const TEXTS = {
   AUTO_CHART_EMPTY:"Todavía no hay muestras suficientes para dibujar la evolución.",
   AUTO_CHART_TABLE:"Muestras del mejor spread neto",
   TH_SAMPLE:"Muestra", TH_SPREAD:"Spread neto",
+  CHART_MAX:"Máx", CHART_MIN:"Mín", CHART_THRESHOLD:"Umbral",
   AUTO_CHART_OPP:"Supera el umbral",
 
   /* ---- Streaming ---- */
@@ -1026,11 +1034,14 @@ function fxRate(){ const c = CURRENCIES[DISPLAY_CCY]; return c ? c.rate : 1; }
 function ccySymbol(){ const c = CURRENCIES[DISPLAY_CCY]; return c ? c.symbol : "$"; }
 function fmtUSD(v){
   const conv = v * fxRate();
-  // Monedas de valor bajo (COP, ARS) generan cifras enormes: ahí los céntimos sobran.
-  const big = Math.abs(conv) >= 1000000;
-  return ccySymbol()+new Intl.NumberFormat("es-ES",{
-    minimumFractionDigits: big?0:2, maximumFractionDigits: big?0:2
-  }).format(conv);
+  // Los céntimos se deciden por MONEDA, no por magnitud: si no, en la misma pantalla
+  // conviven "$50.668,67" y "$1.659.281" y parecen formatos distintos.
+  const dec = fxRate() >= 500 ? 0 : 2;   // COP y ARS no usan céntimos en la práctica
+  const neg = conv < 0;
+  // El signo va SIEMPRE delante del símbolo: "−$42,86", nunca "$-42,86".
+  return (neg?"−":"")+ccySymbol()+new Intl.NumberFormat("es-ES",{
+    minimumFractionDigits:dec, maximumFractionDigits:dec, useGrouping:"always"
+  }).format(Math.abs(conv));
 }
 // Importes con signo explícito ("+$12,00" / "−$12,00"): el signo va SIEMPRE delante del
 // símbolo de moneda y nunca se confía solo en el color (accesibilidad).
@@ -1474,7 +1485,7 @@ function renderHome(){
       +'<div class="feature-grid">'
         +'<article class="feature-card"><h3>'+esc(TEXTS.HOME_FEATURE_1_T)+'</h3><p>'+esc(TEXTS.HOME_FEATURE_1_D)+'</p></article>'
         +'<article class="feature-card"><h3>'+esc(TEXTS.HOME_FEATURE_2_T)+'</h3><p>'+esc(TEXTS.HOME_FEATURE_2_D)+'</p></article>'
-        +'<article class="feature-card"><h3>'+esc(TEXTS.HOME_FEATURE_3_T)+'</h3><p>'+esc(TEXTS.HOME_FEATURE_3_D)+'</p></article>'
+        +'<article class="feature-card"><h3>'+esc(TEXTS.HOME_FEATURE_3_T)+'</h3><p>'+esc((TEXTS.HOME_FEATURE_3_D_PRE+fmtUSD(CONFIG.INITIAL_CASH)+TEXTS.HOME_FEATURE_3_D_POST))+'</p></article>'
       +'</div>'
     +'</section>'
   +'</div>';
@@ -1513,7 +1524,7 @@ function renderRouteRows(onlyOps, routes){
     return '<tr>'
     +'<td>'+esc(r.label)+'</td>'
     +'<td class="num mono">'+esc(fmtPct(r.gross))+'</td>'
-    +'<td class="num mono">'+esc((2*CONFIG.FEE_PCT).toFixed(2))+'%</td>'
+    +'<td class="num mono">'+esc((r.feePct+CONFIG.SLIPPAGE_PCT).toFixed(2))+'%</td>'
     +'<td class="num mono '+r.statusCls+'">'+esc(fmtPct(r.net))+'</td>'
     +'<td><span class="tag '+r.statusCls+'">'+esc(r.statusLabel)+'</span></td>'
     +'<td>'+renderButton("arb-op-"+origIndex,TEXTS.BTN_OPERAR,"btn-secondary btn-sm")+'</td>'
@@ -1607,10 +1618,31 @@ function updateArbEstimate(){
   const qty = parseFloat((qtyInput && qtyInput.value || "").replace(",","."));
   const est = document.getElementById("arbEstimate");
   if(!qty || qty<=0 || isNaN(qty)){ est.textContent = ""; return; }
-  const feeBuy = r2(qty*r.buyPrice*CONFIG.FEE_PCT/100);
-  const feeSell = r2(qty*r.sellPrice*CONFIG.FEE_PCT/100);
-  const pnl = r2(qty*r.sellPrice - qty*r.buyPrice - feeBuy - feeSell);
-  est.textContent = TEXTS.MODAL_ARB_ESTIMATE+": "+fmtUSD(pnl);
+  const c = arbCosts(r, qty);
+  const pnl = r2(c.ingreso - c.costo - c.feeBuy - c.feeSell - c.slip);
+  est.textContent = TEXTS.MODAL_ARB_ESTIMATE+": "+fmtUSD(pnl)+" · "+TEXTS.MODAL_ARB_FILL_NOTE;
+}
+/* Coste real de recorrer una ruta con una cantidad dada. Única fuente de verdad: la
+   usan la tabla, la estimación del modal y la ejecución. Antes cada una calculaba lo
+   suyo y la estimación se desviaba hasta un 17% del resultado real. */
+function arbCosts(r, qty){
+  const bm = MARKETS.find(m=>m.id===r.buy), sm = MARKETS.find(m=>m.id===r.sell);
+  const costo   = qty*r.buyPrice;
+  const ingreso = qty*r.sellPrice;
+  return {
+    costo:costo, ingreso:ingreso,
+    feeBuy:  r2(costo   * venueFee(bm.venue,"taker")),
+    feeSell: r2(ingreso * venueFee(sm.venue,"taker")),
+    slip:    r2(costo   * CONFIG.SLIPPAGE_PCT/100)
+  };
+}
+/* ¿Nos ganan la carrera? Determinista (reproducible) pero distinto en cada ciclo y ruta.
+   La probabilidad sube con lo atractivo del hueco: los mejores spreads son justo los que
+   más competencia atraen. */
+function raceLost(r, tick){
+  const heat = clamp((r.net||0)/1.0, 0, 1);
+  const roll = Math.abs(Math.sin((tick + (ROUTE_INDEX[r.id]||0)*13) * 7.13));
+  return roll < (0.30 + heat*0.45);
 }
 /* Ejecuta una ruta de arbitraje contra el saldo simulado. La usan por igual el botón
    "Operar" y el piloto automático, así que el cálculo del resultado es idéntico en ambos
@@ -1620,23 +1652,39 @@ function executeArb(r, qty, isAuto){
   if(!qty || isNaN(qty) || qty<=0) return { ok:false, error:TEXTS.ERR_QTY_POSITIVE };
   if(qty > CONFIG.MAX_QTY) return { ok:false, error:TEXTS.ERR_QTY_MAX };
   const bm = MARKETS.find(m=>m.id===r.buy), sm = MARKETS.find(m=>m.id===r.sell);
-  const costo   = qty*r.buyPrice;
-  const ingreso = qty*r.sellPrice;
-  const feeBuy  = r2(costo   * venueFee(bm.venue,"taker"));
-  const feeSell = r2(ingreso * venueFee(sm.venue,"taker"));
-  // El deslizamiento se cobra sobre la pata de compra: es donde se nota al barrer el libro.
-  const slip    = r2(costo * CONFIG.SLIPPAGE_PCT/100);
-  if(STATE.wallet.cash < costo+feeBuy) return { ok:false, error:TEXTS.ERR_INSUFFICIENT_FUNDS };
-  const pnl = r2(ingreso - costo - feeBuy - feeSell - slip);
+  const c = arbCosts(r, qty);
+  if(STATE.wallet.cash < c.costo+c.feeBuy) return { ok:false, error:TEXTS.ERR_INSUFFICIENT_FUNDS };
+  // La segunda pata NO se llena al precio de la decisión: entre que se lanza la orden de
+  // compra y se cierra la venta, el mercado se mueve. Se modela llenando al precio del
+  // ciclo siguiente en vez de con ruido inventado, porque así aparece solo el fenómeno
+  // que de verdad arruina los arbitrajes: quien entra en el pico de una oscilación se
+  // encuentra con que el hueco ya se cerró. Antes se liquidaba a los mismos precios con
+  // los que se decidía, así que el piloto ganaba el 100% de las veces y el freno de
+  // pérdidas no podía saltar nunca.
+  const sIdx = MARKETS.findIndex(m=>m.id===r.sell);
+  let fillSell = r.sellPrice, perdida = false;
+  if(sIdx>=0 && !LIVE_STREAMS[r.sell]){
+    // Primero: el mercado se mueve entre que se decide y se llena la segunda pata.
+    fillSell = r2(priceAt(sIdx, STATE.tick+1) * (1 - 0.0002));
+    // Y sobre todo: la carrera. Un hueco de arbitraje no es tuyo por verlo — cuanto más
+    // goloso, más gente lo persigue, y lo habitual es llegar tarde y que te llenen cuando
+    // ya se cerró, comiéndote las comisiones. Es la razón por la que el arbitraje real es
+    // difícil, y sin ella un simulador enseña que ver una oportunidad equivale a cobrarla.
+    perdida = raceLost(r, STATE.tick);
+    if(perdida) fillSell = r2(r.buyPrice * (1 + CONFIG.SLIPPAGE_PCT/100));
+  }
+  const ingreso  = qty*fillSell;
+  const feeSell  = r2(ingreso * venueFee(sm.venue,"taker"));
+  const pnl = r2(ingreso - c.costo - c.feeBuy - feeSell - c.slip);
   STATE.wallet.cash = r2(STATE.wallet.cash + pnl);
   STATE.wallet.realized = r2(STATE.wallet.realized + pnl);
   STATE.wallet.updatedAt = new Date().toISOString();
   STATE.trades.unshift({
     id:uid("t"), ts:new Date().toISOString(), type:"arb", auto:!!isAuto,
     routeId:r.id, buyMarket:r.buy, sellMarket:r.sell,
-    buyPrice:r.buyPrice, sellPrice:r.sellPrice,
+    buyPrice:r.buyPrice, sellPrice:r2(fillSell), quotedSell:r.sellPrice,
     market:r.label, label:r.label, side:null, price:null, entryPrice:null, positionId:null,
-    qty:qty, fee:r2(feeBuy+feeSell+slip), pnl:pnl, cashAfter:STATE.wallet.cash
+    qty:qty, fee:r2(c.feeBuy+feeSell+c.slip), pnl:pnl, raced:perdida, cashAfter:STATE.wallet.cash
   });
   if(STATE.trades.length>500) STATE.trades = STATE.trades.slice(0,500);
   persist();
@@ -1804,7 +1852,7 @@ function renderHistorial(){
 
 function renderGuia(){
   const faqs = [
-    {q:TEXTS.FAQ_Q1,a:TEXTS.FAQ_A1},{q:TEXTS.FAQ_Q2,a:TEXTS.FAQ_A2},
+    {q:TEXTS.FAQ_Q1,a:(TEXTS.FAQ_A1_PRE+fmtUSD(CONFIG.INITIAL_CASH)+TEXTS.FAQ_A1_POST)},{q:TEXTS.FAQ_Q2,a:TEXTS.FAQ_A2},
     {q:TEXTS.FAQ_Q3,a:TEXTS.FAQ_A3},{q:TEXTS.FAQ_Q4,a:TEXTS.FAQ_A4}
   ];
   const faqsHtml = faqs.map((f,i)=>(
@@ -2010,13 +2058,19 @@ function renderSpreadChart(){
   const Y = v => PT + (1-((v-min)/(max-min)))*(H-PT-PB);
   const line = samples.map((s,i)=>X(i).toFixed(1)+","+Y(s.best).toFixed(1)).join(" ");
 
-  // Rejilla recesiva + etiquetas del eje Y en tres cortes.
+  // Rejilla recesiva. Las escalas NO van dentro del SVG: el viewBox se escala con el
+  // ancho disponible y a 320px el texto quedaba en 4,3px reales, ilegible en una app
+  // que es mobile-first. Van fuera, en HTML, que no se escala.
   let grid = "";
   [max, (max+min)/2, min].forEach(function(v){
     const yy = Y(v).toFixed(1);
-    grid += '<line x1="'+PL+'" y1="'+yy+'" x2="'+(W-PR)+'" y2="'+yy+'" stroke="#232b38" stroke-width="1"/>'
-          + '<text x="'+(PL-8)+'" y="'+(Number(yy)+4)+'" text-anchor="end" font-size="11" fill="#808d9e" font-family="ui-monospace,Menlo,monospace">'+esc(v.toFixed(2))+'%</text>';
+    grid += '<line x1="'+PL+'" y1="'+yy+'" x2="'+(W-PR)+'" y2="'+yy+'" stroke="#232b38" stroke-width="1"/>';
   });
+  const escala = '<p class="chart-scale mono">'
+    + '<span>'+esc(TEXTS.CHART_MAX)+" "+esc(fmtPct(max))+'</span>'
+    + '<span>'+esc(TEXTS.CHART_THRESHOLD)+" "+esc(fmtPct(thr))+'</span>'
+    + '<span>'+esc(TEXTS.CHART_MIN)+" "+esc(fmtPct(min))+'</span>'
+    + '</p>';
   // Eje cero: la referencia que de verdad importa (por debajo, la comisión se come el spread).
   const zeroY = Y(0).toFixed(1);
   const zeroLine = (0>=min && 0<=max)
@@ -2041,6 +2095,7 @@ function renderSpreadChart(){
   }).join("");
 
   return '<figure style="margin:0">'
+    +escala
     +'<svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img" '
       +'aria-labelledby="chartCaption" style="display:block;overflow:visible">'
       +grid+zeroLine+thrLine
@@ -2105,9 +2160,9 @@ function renderAuto(){
           +" · "+cfg.maxOpen+" ops/día · stop "+fmtUSD(cfg.dailyStop))+'</p>'
       +'<form id="autoCfgForm" novalidate>'
         +renderInput("auto-minnet",TEXTS.AUTO_CFG_MINNET,"text",String(cfg.minNet),TEXTS.AUTO_CFG_MINNET_HINT,'inputmode="decimal" value="'+esc(String(cfg.minNet))+'"')
-        +renderInput("auto-ticket",TEXTS.AUTO_CFG_TICKET,"text",String(cfg.ticket),TEXTS.AUTO_CFG_TICKET_HINT,'inputmode="decimal" value="'+esc(String(cfg.ticket))+'"')
+        +renderInput("auto-ticket",TEXTS.AUTO_CFG_TICKET+" ("+esc(DISPLAY_CCY)+")","text",String(r2(cfg.ticket*fxRate())),TEXTS.AUTO_CFG_TICKET_HINT,'inputmode="decimal" value="'+esc(String(r2(cfg.ticket*fxRate())))+'"')
         +renderInput("auto-maxopen",TEXTS.AUTO_CFG_MAXOPEN,"text",String(cfg.maxOpen),TEXTS.AUTO_CFG_MAXOPEN_HINT,'inputmode="numeric" value="'+esc(String(cfg.maxOpen))+'"')
-        +renderInput("auto-dailystop",TEXTS.AUTO_CFG_DAILYSTOP,"text",String(cfg.dailyStop),TEXTS.AUTO_CFG_DAILYSTOP_HINT,'inputmode="decimal" value="'+esc(String(cfg.dailyStop))+'"')
+        +renderInput("auto-dailystop",TEXTS.AUTO_CFG_DAILYSTOP+" ("+esc(DISPLAY_CCY)+")","text",String(r2(cfg.dailyStop*fxRate())),TEXTS.AUTO_CFG_DAILYSTOP_HINT,'inputmode="decimal" value="'+esc(String(r2(cfg.dailyStop*fxRate())))+'"')
         +'<p id="autoCfgError" class="error-msg" role="alert"></p>'
         +renderButton("btnAutoSave",TEXTS.BTN_AUTO_SAVE,"btn-secondary","submit")
       +'</form>'
@@ -2406,6 +2461,13 @@ function handleClick(e){
     STATE.wallet = { cash:CONFIG.INITIAL_CASH, locked:0, realized:0, initial:CONFIG.INITIAL_CASH, createdAt:new Date().toISOString(), updatedAt:new Date().toISOString() };
     STATE.positions = [];
     STATE.trades = [];
+    // El piloto se apaga y su bitácora se limpia con lo demás: si no, quedan anotadas
+    // operaciones que ya no existen y el contador diario vuelve a cero, lo que convertía
+    // "Reiniciar" en un atajo para saltarse el tope de operaciones.
+    STATE.autoLog = [];
+    STATE.autoLastAt = {};
+    STATE.autoLastGlobalAt = 0;
+    saveAutoCfg({ on:false });
     persist();
     document.getElementById("resetConfirm").hidden = true;
     toast(TEXTS.TOAST_RESET_DONE);
@@ -2433,7 +2495,9 @@ function handleClick(e){
     const btn = document.getElementById("btnLive");
     btn.setAttribute("aria-pressed", STATE.settings.liveData?"true":"false");
     btn.textContent = TEXTS.BTN_LIVE_LABEL+": "+(STATE.settings.liveData?"ON":"OFF");
-    document.getElementById("liveNote").hidden = false;
+    const nota = document.getElementById("liveNote");
+    nota.hidden = false;
+    nota.textContent = STATE.settings.liveData ? TEXTS.LIVE_NOTE_ON : TEXTS.LIVE_NOTE;
     if(STATE.settings.liveData){
       fetchLivePrices().then(function(ok){
         updateDataModeBadge(ok);
@@ -2451,6 +2515,7 @@ function handleClick(e){
   if(byId("btnWipeNo")){ document.getElementById("wipeConfirm").hidden = true; return; }
   if(byId("btnWipeYes")){
     wipeAllData();
+    paintCurrencySelect();
     toast(TEXTS.TOAST_DATA_WIPED);
     adminActiveTab = "ops";
     route();
@@ -2490,7 +2555,9 @@ function closePosition(idx){
   } else {
     devuelto = Math.max(0, r2(p.notional + (p.entryPrice-P)*p.qty));
   }
-  STATE.wallet.cash = r2(STATE.wallet.cash + devuelto - feeClose);
+  // La comisión de cierre no puede empujar la caja por debajo de cero: en un corto cuyo
+  // precio se dispare, "devuelto" ya llega recortado a 0 y la comisión sí la restaría.
+  STATE.wallet.cash = r2(Math.max(0, STATE.wallet.cash + devuelto - feeClose));
   STATE.wallet.locked = r2(STATE.wallet.locked - p.notional);
   pnl = r2(devuelto - p.notional - p.feeOpen - feeClose);
   STATE.wallet.realized = r2(STATE.wallet.realized + pnl);
@@ -2550,17 +2617,24 @@ function handleSubmit(e){
     const errEl = document.getElementById("autoCfgError");
     errEl.textContent = "";
     const num = id => parseFloat((document.getElementById(id).value||"").replace(",","."));
-    const minNet = num("auto-minnet"), ticket = num("auto-ticket");
-    const maxOpen = num("auto-maxopen"), dailyStop = num("auto-dailystop");
+    const minNet = num("auto-minnet"), maxOpen = num("auto-maxopen");
+    // Los importes se escriben en la moneda de lectura y se guardan en dólares, que es
+    // como calcula el motor. Sin esta vuelta, en COP se configuraba un ticket 4.100× mayor.
+    const ticket = num("auto-ticket") / fxRate();
+    const dailyStop = num("auto-dailystop") / fxRate();
     const all = [minNet, ticket, maxOpen, dailyStop];
     if(all.some(v=>!isFinite(v) || v<=0)){ errEl.textContent = TEXTS.ERR_AUTO_RANGE; return; }
-    saveAutoCfg({
+    const ajustado = {
       minNet:    clamp(minNet, 0.01, 10),
       ticket:    clamp(ticket, 10, 1000000),
       maxOpen:   Math.round(clamp(maxOpen, 1, 50)),
       dailyStop: clamp(dailyStop, 10, 1000000)
-    });
-    toast(TEXTS.TOAST_AUTO_SAVED);
+    };
+    saveAutoCfg(ajustado);
+    // D16: si se recortó algún valor, decirlo en vez de cambiarlo por la cara.
+    const recortado = ajustado.minNet!==minNet || ajustado.maxOpen!==Math.round(maxOpen)
+                   || Math.abs(ajustado.ticket-ticket)>0.01 || Math.abs(ajustado.dailyStop-dailyStop)>0.01;
+    toast(recortado ? TEXTS.TOAST_AUTO_SAVED_CLAMPED : TEXTS.TOAST_AUTO_SAVED);
     routeAndRefocus("btnAutoSave");
     return;
   }
@@ -3010,15 +3084,17 @@ function autoTick(){
     if(location.hash==="#/auto") route();
     return;
   }
-  // Cortafuegos 2 — enfriamiento global: sin él, tres rutas rentables disparan tres
-  // operaciones en tres segundos seguidos.
-  if(Date.now() - (STATE.autoLastGlobalAt||0) < CONFIG.AUTO_COOLDOWN_MS) return;
-  // Cortafuegos 2 — operaciones ya hechas hoy.
+
+  // Cortafuegos 2 — operaciones ya hechas hoy. Va ANTES del enfriamiento: si no, el
+  // apagado se retrasa un ciclo entero y el panel sigue diciendo "activo" sin serlo.
   if(autoTradesToday().length >= cfg.maxOpen){
     setAutoOn(false, TEXTS.AUTO_STOP_MAXOPEN);
     if(location.hash==="#/auto") route();
     return;
   }
+  // Cortafuegos 3 — enfriamiento global: sin él, tres rutas rentables disparan tres
+  // operaciones en tres segundos seguidos.
+  if(Date.now() - (STATE.autoLastGlobalAt||0) < CONFIG.AUTO_COOLDOWN_MS) return;
   const routes = currentRoutes();
   const now = Date.now();
   const anyLive = liveMarketCount() > 0;
@@ -3030,16 +3106,24 @@ function autoTick(){
     // es el hueco entre dos fuentes distintas, y el piloto se dedicaría a imprimir dinero.
     if(anyLive && !r.live) continue;
     if(now - (STATE.autoLastAt[r.id]||0) < CONFIG.AUTO_COOLDOWN_MS) continue;
-    const budget = Math.min(cfg.ticket, STATE.wallet.cash);
+    // Se reserva margen para comisión y deslizamiento: gastar el 100% del efectivo hace
+    // que executeArb rechace siempre por saldo insuficiente y el piloto se atasque.
+    const budget = Math.min(cfg.ticket, STATE.wallet.cash * 0.98);
     if(budget < r.buyPrice) continue;                    // no llega ni para una unidad
     const qty = r3(budget / r.buyPrice);
     if(qty <= 0) continue;
     const res = executeArb(r, qty, true);
     if(!res.ok){
-      // Dejar constancia: si no, el piloto parece activo y no opera nunca sin decir por qué.
-      STATE.autoLog.unshift({ ts:new Date().toISOString(), kind:"skip", text:r.label+" · "+res.error });
-      if(STATE.autoLog.length>50) STATE.autoLog.length = 50;
-      persist();
+      // Constancia SIN repetirse: antes anotaba la misma línea cada segundo y escribía en
+      // localStorage indefinidamente. Se aplica el enfriamiento global también al fallo.
+      const linea = r.label+" · "+res.error;
+      const ultima = STATE.autoLog[0];
+      if(!ultima || ultima.text !== linea){
+        STATE.autoLog.unshift({ ts:new Date().toISOString(), kind:"skip", text:linea });
+        if(STATE.autoLog.length>50) STATE.autoLog.length = 50;
+        persist();
+      }
+      STATE.autoLastGlobalAt = now;
     }
     if(res.ok){
       STATE.autoLastAt[r.id] = now;

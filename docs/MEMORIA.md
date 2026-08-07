@@ -3,6 +3,42 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-07 — Arbitraje: streaming real, multi-moneda, piloto automático y riesgo de ejecución
+- Qué se hizo: `apps/arbitragegold.html` ampliada con WebSocket a Binance (bookTicker) y Kraken
+  (ticker), multi-moneda (USD/PEN/EUR/MXN/COP/ARS con tasas de open.er-api.com), mercados de BTC y
+  ETH (9 mercados, 10 rutas), piloto automático en `#/auto` con cortafuegos, y gráfico SVG del mejor
+  spread. Pipeline completo de revisores + QA. Verificador: 30/30, ✅ APTO.
+- Errores de fondo corregidos (los importantes, para no repetirlos):
+  1. Los spreads se calculaban sobre el precio MEDIO. Se compra al ask y se vende al bid, o el
+     arbitraje parece rentable cuando no lo es. Ahora hay un `effectiveBook()` único.
+  2. Comisión plana igual para todas las plazas. Kraken cobra 0,26% al tomar, Binance 0,10%.
+  3. La estimación del modal y la ejecución usaban aritméticas distintas y se desviaban un 17%.
+     Ahora ambas pasan por `arbCosts()`.
+  4. **El piloto no podía perder**: liquidaba a los mismos precios con los que decidía, ganaba el
+     100% de las veces y el freno de pérdidas diarias era decorativo. Se modeló el riesgo real:
+     la segunda pata se llena un ciclo después, y sobre todo se pierde la carrera contra otros
+     participantes (más probable cuanto más goloso es el hueco). Resultado: ~65% de aciertos.
+     Además se bajaron los desplazamientos para que el neto medio ronde cero, como un mercado real;
+     un +1,13% neto permanente era enseñar dinero gratis que no existe.
+  5. Un `trade` con `pnl` no numérico anulaba el freno diario (`NaN <= -x` es siempre falso).
+  6. El interruptor de precios en vivo no cortaba nada (`CONFIG.LIVE_PRICES` lo pisaba) mientras el
+     aviso legal prometía no contactar con terceros. Ahora manda el ajuste, viene apagado, y el
+     aviso legal enumera los dominios.
+  7. `.sr-only` no anulaba el `min-width:520px` de `table`: una tabla oculta provocaba 234px de
+     desborde horizontal a 320px.
+  8. `ROUTE_INDEX` se usaba en `loadState()` y se declaraba 700 líneas después: no fallaba en un
+     perfil nuevo, pero tras la primera operación del piloto la siguiente carga rompía la app.
+- Lecciones de método: el validador de paleta (skill `dataviz`) cazó que verde y rojo quedan a
+  ΔE 2,1 en deuteranopía — el gráfico codifica por posición y forma, no por color. El verificador
+  automático daba ✅ mientras existían 11 defectos: hay que pasar el QA a mano igualmente.
+- Pendiente: MXN/COP/ARS comparten el símbolo `$` sin desambiguar; el piloto reanuda solo tras
+  recargar (decidido a propósito, conviene avisarlo en pantalla).
+- Datos a confirmar: `BUSINESS_NAME` "ArbitrageGold" sigue siendo marcador de posición, igual que
+  `CONTACT_EMAIL`, `WHATSAPP`, `STUDIO_URL` y el titular del aviso legal. **Dinero real: la app NO
+  lo mueve.** Meter claves de exchange en un HTML que se abre en el navegador las deja expuestas;
+  eso exige un servidor que las custodie. Siguiente paso honesto si se quiere ir por ahí: Binance
+  Testnet (órdenes reales, dinero de prueba).
+
 ## 2026-07-31 — Fase 1: APIs reales en vivo, detector automático, monitoreo
 
 - **Qué se hizo**: App arbitraje mejorada a Opción B: APIs reales (Binance + Kraken REST), detector automático profesional con spreads reales, monitoreo en background cada 3s, histórico de spreads.
