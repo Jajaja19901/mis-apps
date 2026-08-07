@@ -6,6 +6,9 @@
 <title>ArbitrageGold — Simulador de arbitraje cripto-oro</title>
 <meta name="description" content="Simulador educativo de arbitraje entre oro tokenizado (PAXG, XAUT) y oro spot. Simulación con dinero ficticio, esto no es asesoramiento financiero.">
 <meta name="theme-color" content="#0b0f14">
+<!-- Lista blanca de destinos: aunque en el futuro se colara una inyección, no tendría
+     a dónde sacar los datos. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; manifest-src data:; connect-src https://open.er-api.com https://api.binance.com wss://stream.binance.com wss://ws.kraken.com; base-uri 'none'; form-action 'none'">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="ArbitrageGold">
@@ -89,7 +92,8 @@ main#view{order:3;flex:1;padding-bottom:24px}
 nav#mainNav{order:4;position:fixed;left:0;right:0;bottom:0;z-index:80;background:var(--bg-elevated);border-top:1px solid var(--border)}
 .nav-list{display:flex;height:var(--nav-h)}
 .nav-list li{flex:1;display:flex}
-.nav-link{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--text-muted);font-size:11px;font-weight:600;min-height:44px;transition:color var(--t-fast)}
+.nav-link{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--text-muted);font-size:10px;font-weight:600;min-height:44px;transition:color var(--t-fast);padding:0 2px}
+.nav-link span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .nav-link:hover{text-decoration:none;color:var(--text)}
 .nav-link svg{width:20px;height:20px}
 .nav-link[aria-current="page"]{color:var(--gold-bright)}
@@ -181,7 +185,7 @@ td.num,th.num{font-family:var(--font-mono);text-align:right}
 
 /* ===== Alertas / banner ===== */
 .alert-banner{border:1px solid var(--gold-dark);background:var(--bg-elevated);border-radius:var(--radius);padding:14px 16px;margin-bottom:18px}
-.alert-banner h3{margin:0 0 8px;color:var(--gold-bright)}
+.alert-banner h2,.alert-banner h3{margin:0 0 8px;color:var(--gold-bright);font-size:16px}
 .alert-item{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--border-soft);font-size:13.5px}
 .alert-item:first-child{border-top:none}
 /* align-self:center evita que la píldora de nivel se estire (y se deforme en óvalo) cuando
@@ -680,7 +684,8 @@ const CONFIG = {
   ALERT_NET_PCT : 0.30,
   MAX_QTY       : 1000,
   BASE_GOLD_USD : 2400,
-  LIVE_PRICES   : true,             // MEJORADO: conecta APIs reales por defecto en https
+  LIVE_PRICES   : false,            // valor POR DEFECTO del interruptor del panel, no un override:
+                                    // con OFF la app no contacta con ningún tercero (ver Aviso legal)
   CURRENCY      : "USD",
   CONTACT_EMAIL : "",
   WHATSAPP      : "",
@@ -702,7 +707,7 @@ const CONFIG = {
   // Piloto automático (siempre en simulación — ver AUTO_REAL_NOTE)
   AUTO_MIN_NET_PCT : 0.25,           // umbral de spread neto para disparar una operación
   AUTO_MAX_TICKET  : 5000,           // tamaño máximo de cada operación, en la moneda base
-  AUTO_MAX_OPEN    : 3,              // operaciones automáticas simultáneas
+  AUTO_MAX_OPEN    : 3,              // tope de operaciones automáticas AL DÍA (al llegar, se apaga)
   AUTO_DAILY_STOP  : 1500,           // pérdida acumulada del día que apaga el piloto
   AUTO_COOLDOWN_MS : 15000,          // espera mínima entre dos operaciones de la misma ruta
 };
@@ -749,6 +754,9 @@ const ROUTES = [
   { id:"R10",buy:"ETH-KRAKEN",   sell:"ETH-BINANCE",  label:"ETH · Kraken → Binance" },
 ];
 const MARKET_LABEL = m => m.symbol + " · " + m.venue;
+/* Índice de cada ruta por id. Lo usan el botón "Operar" y la carga de enfriamientos:
+   se declara aquí, antes de loadState(), o esa lectura caería en zona muerta temporal. */
+const ROUTE_INDEX = ROUTES.reduce(function(acc,r,i){ acc[r.id]=i; return acc; },{});
 
 /* =========================================================
    3) TEXTOS — objeto TEXTS (contrato). Todo texto visible sale de aquí.
@@ -899,6 +907,8 @@ const TEXTS = {
   LEGAL_RIGHTS_D:"El usuario puede solicitar el acceso, rectificación o supresión de sus datos escribiendo al responsable del tratamiento indicado arriba, o simplemente borrando los datos de este sitio desde su navegador.",
   LEGAL_COOKIES_T:"Sin cookies de seguimiento",
   LEGAL_COOKIES_D:"Esta aplicación no utiliza cookies de seguimiento ni analítica de terceros. Todo el estado se guarda en el almacenamiento local del navegador.",
+  LEGAL_THIRD_T:"Conexiones con terceros",
+  LEGAL_THIRD_D:"Con los precios en vivo DESACTIVADOS —la opción por defecto— la aplicación no contacta con ningún servidor externo. Si el dueño los activa desde su panel, el navegador se conecta a estos servicios públicos para leer precios y tasas de cambio: api.binance.com y stream.binance.com (Binance), ws.kraken.com (Kraken) y open.er-api.com (tasas de cambio). Esas peticiones no llevan ningún dato personal ni identificador: a esos servicios solo les llega la dirección IP desde la que se hace la petición, igual que al visitar cualquier web. No se envía nunca la actividad de simulación, ni las solicitudes de acceso, ni ningún dato de los formularios.",
   LEGAL_IP_T:"Propiedad intelectual",
   LEGAL_IP_D:"Los textos, el diseño y el código de esta aplicación son propiedad de su titular, salvo indicación expresa en contrario.",
   LEGAL_LAW_T:"Legislación aplicable",
@@ -946,6 +956,7 @@ const TEXTS = {
   CCY_LABEL:"Moneda",
   CCY_NOTE_LIVE:"Tasas de cambio en vivo",
   CCY_NOTE_FALLBACK:"Tasas de cambio de referencia (sin conexión)",
+  CCY_ANNOUNCE_PREFIX:"Precios ahora en ",
   CCY_HINT:"Cambia solo cómo lees las cifras. El motor calcula siempre en dólares, que es la moneda en la que cotizan los exchanges.",
 
   /* ---- Piloto automático ---- */
@@ -977,6 +988,7 @@ const TEXTS = {
   AUTO_LOG_TITLE:"Bitácora del piloto",
   AUTO_LOG_EMPTY:"El piloto todavía no ha hecho nada.",
   AUTO_LOG_STARTED:"Piloto activado",
+  AUTO_STOP_CORRUPT:"Piloto detenido: los datos guardados no cuadran y los límites dejan de ser fiables.",
   AUTO_STOP_DAILY:"Piloto detenido: se alcanzó el límite de pérdida diaria.",
   AUTO_STOP_MAXOPEN:"Piloto detenido: se alcanzó el máximo de operaciones del día.",
   AUTO_SCORE_LABEL:"confianza",
@@ -1056,7 +1068,7 @@ function fmtDate(iso){
 const LS = {
   WALLET:"ag_v1_wallet", POSITIONS:"ag_v1_positions", TRADES:"ag_v1_trades",
   LEADS:"ag_v1_leads", ALERTS:"ag_v1_alerts", ADMIN:"ag_v1_admin", SETTINGS:"ag_v1_settings",
-  AUTOLOG:"ag_v1_autolog"
+  AUTOLOG:"ag_v1_autolog", COOLDOWN:"ag_v1_cooldown"
 };
 function readLS(key, fallback){
   try{
@@ -1082,11 +1094,15 @@ function isFiniteNum(v){ return typeof v==="number" && isFinite(v); }
 function isValidPosition(p){
   return !!p && typeof p==="object" && typeof p.id==="string"
     && typeof p.market==="string" && (p.side==="long"||p.side==="short")
-    && isFiniteNum(p.qty) && isFiniteNum(p.entryPrice) && isFiniteNum(p.notional) && isFiniteNum(p.feeOpen);
+    && isFiniteNum(p.qty) && p.qty>0 && isFiniteNum(p.entryPrice) && p.entryPrice>0
+    && isFiniteNum(p.notional) && p.notional>=0 && isFiniteNum(p.feeOpen) && p.feeOpen>=0;
 }
 function isValidTrade(t){
+  // pnl/qty/fee DEBEN ser números: si entra un NaN, autoPnlToday() devuelve NaN y la
+  // comparación del stop diario pasa a ser siempre falsa — el cortafuegos deja de existir.
   return !!t && typeof t==="object" && typeof t.id==="string" && typeof t.ts==="string"
-    && (t.type==="arb"||t.type==="open"||t.type==="close");
+    && (t.type==="arb"||t.type==="open"||t.type==="close")
+    && isFiniteNum(t.pnl) && isFiniteNum(t.qty) && isFiniteNum(t.fee);
 }
 function isValidLead(l){
   return !!l && typeof l==="object" && typeof l.id==="string"
@@ -1104,7 +1120,7 @@ function defaultState(){
     leads:[],
     alerts:[],
     settings:{
-      liveData:false, ccy:"USD", updatedAt:now,
+      liveData:CONFIG.LIVE_PRICES===true, ccy:"USD", updatedAt:now,
       auto:{ on:false, minNet:CONFIG.AUTO_MIN_NET_PCT, ticket:CONFIG.AUTO_MAX_TICKET,
              maxOpen:CONFIG.AUTO_MAX_OPEN, dailyStop:CONFIG.AUTO_DAILY_STOP }
     },
@@ -1112,6 +1128,7 @@ function defaultState(){
     tick:0,
     lastAlertAt:{},
     priceHistory: MARKETS.map(()=>[]),
+    autoLastGlobalAt: 0, // enfriamiento global del piloto
     spreadHistory: [],   // serie temporal del spread neto de cada ruta
     autoLog: [],         // bitácora del piloto automático
     autoLastAt: {},      // enfriamiento por ruta
@@ -1123,16 +1140,16 @@ function loadState(){
     const wallet = readLS(LS.WALLET, null);
     if(wallet && typeof wallet==="object" && isFiniteNum(wallet.cash)){
       base.wallet = {
-        cash: wallet.cash,
-        locked: isFiniteNum(wallet.locked) ? wallet.locked : 0,
-        realized: isFiniteNum(wallet.realized) ? wallet.realized : 0,
+        cash: clamp(wallet.cash, 0, 1e9),
+        locked: isFiniteNum(wallet.locked) ? clamp(wallet.locked, 0, 1e9) : 0,
+        realized: isFiniteNum(wallet.realized) ? clamp(wallet.realized, -1e9, 1e9) : 0,
         initial: isFiniteNum(wallet.initial) ? wallet.initial : CONFIG.INITIAL_CASH,
         createdAt: typeof wallet.createdAt==="string" ? wallet.createdAt : base.wallet.createdAt,
         updatedAt: typeof wallet.updatedAt==="string" ? wallet.updatedAt : base.wallet.updatedAt
       };
     }
     const positions = readLS(LS.POSITIONS, null);
-    if(Array.isArray(positions)) base.positions = positions.filter(isValidPosition);
+    if(Array.isArray(positions)) base.positions = positions.filter(isValidPosition).slice(0,200);
     const trades = readLS(LS.TRADES, null);
     if(Array.isArray(trades)) base.trades = trades.filter(isValidTrade).slice(0,500);
     const leads = readLS(LS.LEADS, null);
@@ -1163,6 +1180,19 @@ function loadState(){
     if(Array.isArray(autoLog)){
       base.autoLog = autoLog.filter(e=>e && typeof e==="object" && typeof e.ts==="string" && typeof e.text==="string").slice(0,50);
     }
+    // Los enfriamientos se persisten: si no, recargar la página los borra y el piloto
+    // vuelve a disparar de inmediato sobre las mismas rutas.
+    const cool = readLS(LS.COOLDOWN, null);
+    if(cool && typeof cool==="object"){
+      const now = Date.now();
+      if(isFiniteNum(cool.global) && cool.global<=now) base.autoLastGlobalAt = cool.global;
+      if(cool.byRoute && typeof cool.byRoute==="object"){
+        Object.keys(cool.byRoute).forEach(function(k){
+          const v = cool.byRoute[k];
+          if(ROUTE_INDEX.hasOwnProperty(k) && isFiniteNum(v) && v<=now) base.autoLastAt[k] = v;
+        });
+      }
+    }
   }catch(e){
     // Cualquier fallo inesperado: nos quedamos con los valores por defecto ya calculados.
   }
@@ -1176,6 +1206,7 @@ function persist(){
   writeLS(LS.ALERTS, STATE.alerts);
   writeLS(LS.SETTINGS, STATE.settings);
   writeLS(LS.AUTOLOG, STATE.autoLog);
+  writeLS(LS.COOLDOWN, { global:STATE.autoLastGlobalAt||0, byRoute:STATE.autoLastAt||{} });
   if(STATE.adminPass !== CONFIG.ADMIN_PASSWORD){
     writeLS(LS.ADMIN, { pass: STATE.adminPass, changedAt: new Date().toISOString() });
   }
@@ -1190,6 +1221,7 @@ function wipeAllData(){
     localStorage.removeItem(LS.ADMIN);
     localStorage.removeItem(LS.SETTINGS);
     localStorage.removeItem(LS.AUTOLOG);
+    localStorage.removeItem(LS.COOLDOWN);
   }catch(e){
     // si tampoco se puede borrar (sandbox/privado), seguimos con el reseteo en memoria
   }
@@ -1270,6 +1302,7 @@ function computeRoutes(book){
     const gross = (sellPrice-buyPrice)/buyPrice*100;
     const feePct = (venueFee(bm.venue,"taker") + venueFee(sm.venue,"taker"))*100;
     const net = r3(gross - feePct - CONFIG.SLIPPAGE_PCT);
+    if(!isFinite(gross) || !isFinite(net)) return null;
     let statusCls, statusLabel;
     if(net >= CONFIG.ALERT_NET_PCT){ statusCls="spread-up"; statusLabel=TEXTS.SPREAD_GAIN; }
     else if(net>0){ statusCls="spread-flat"; statusLabel=TEXTS.SPREAD_FLAT; }
@@ -1287,8 +1320,11 @@ function currentMarkets(){
   return computeMarketsSnapshot(STATE.tick).map(m=>{
     const live = LIVE_STREAMS[m.id];
     if(live && (Date.now()-live.ts) < 60000){
-      const prev = m.price || live.mid;
-      return Object.assign({}, m, { price:r2(live.mid), changePct:((live.mid-prev)/prev*100), live:true });
+      // La variación se mide contra el mid anterior del MISMO stream. Compararla con el
+      // precio del motor determinista daría saltos falsos de ±37% al conectar.
+      const prev = isFiniteNum(live.prevMid) ? live.prevMid : live.mid;
+      const chg = prev>0 ? ((live.mid-prev)/prev*100) : 0;
+      return Object.assign({}, m, { price:r2(live.mid), changePct:chg, live:true });
     }
     return Object.assign({}, m, { live:false });
   });
@@ -1325,10 +1361,14 @@ function renderButton(id,text,classes,type,extra){
   return '<button id="'+esc(id)+'" type="'+(type||"button")+'" class="btn '+(classes||"btn-secondary")+'" '+(extra||"")+'>'+esc(text)+'</button>';
 }
 function renderInput(id,label,type,placeholder,hint,extra){
+  // La ayuda se enlaza con aria-describedby: si no, un lector de pantalla enfoca el
+  // campo y no llega a oírla nunca.
+  const hintId = hint ? id+"-hint" : null;
   return '<div class="field">'
     +'<label for="'+esc(id)+'">'+esc(label)+'</label>'
-    +'<input id="'+esc(id)+'" name="'+esc(id)+'" type="'+esc(type||"text")+'" placeholder="'+esc(placeholder||"")+'" '+(extra||"")+'>'
-    +(hint?'<p class="hint">'+esc(hint)+'</p>':"")
+    +'<input id="'+esc(id)+'" name="'+esc(id)+'" type="'+esc(type||"text")+'" placeholder="'+esc(placeholder||"")+'"'
+      +(hintId?' aria-describedby="'+esc(hintId)+'"':"")+' '+(extra||"")+'>'
+    +(hint?'<p class="hint" id="'+esc(hintId)+'">'+esc(hint)+'</p>':"")
     +'</div>';
 }
 function renderSelect(id,label,options,extra){
@@ -1465,9 +1505,6 @@ function renderMarketRows(){
     +'</tr>'
   )).join("");
 }
-/* Índice de cada ruta por id: el botón "Operar" lo necesita y así evitamos una
-   búsqueda lineal por fila en cada repintado. */
-const ROUTE_INDEX = ROUTES.reduce(function(acc,r,i){ acc[r.id]=i; return acc; },{});
 function renderRouteRows(onlyOps, routes){
   routes = routes || currentRoutes();
   if(onlyOps) routes = routes.filter(r=>r.net>0);
@@ -1828,6 +1865,7 @@ function renderLegal(){
     +'<section class="legal-section"><h2>'+esc(TEXTS.LEGAL_CONS_T)+'</h2><p>'+esc(TEXTS.LEGAL_CONS_D)+'</p></section>'
     +'<section class="legal-section"><h2>'+esc(TEXTS.LEGAL_RIGHTS_T)+'</h2><p>'+esc(TEXTS.LEGAL_RIGHTS_D)+'</p></section>'
     +'<section class="legal-section"><h2>'+esc(TEXTS.LEGAL_COOKIES_T)+'</h2><p>'+esc(TEXTS.LEGAL_COOKIES_D)+'</p></section>'
+    +'<section class="legal-section"><h2>'+esc(TEXTS.LEGAL_THIRD_T)+'</h2><p>'+esc(TEXTS.LEGAL_THIRD_D)+'</p></section>'
     +'<section class="legal-section"><h2>'+esc(TEXTS.LEGAL_IP_T)+'</h2><p>'+esc(TEXTS.LEGAL_IP_D)+'</p></section>'
     +'<section class="legal-section"><h2>'+esc(TEXTS.LEGAL_LAW_T)+'</h2><p>'+esc(TEXTS.LEGAL_LAW_D)+' '+esc(CONFIG.LEGAL_COUNTRY)+'.</p></section>'
     +'<a id="legal-back" class="btn btn-secondary" href="#/simulador">'+esc(TEXTS.LEGAL_BACK)+'</a>'
@@ -1957,7 +1995,7 @@ function renderAdmin(){
    y los puntos que superan el umbral llevan además marcador relleno. El color es refuerzo.
    Una sola serie ⇒ sin leyenda: el título ya la nombra. */
 function renderSpreadChart(){
-  const samples = (STATE.spreadHistory||[]).slice(0,40).reverse();
+  const samples = (STATE.spreadHistory||[]).filter(s=>s && isFiniteNum(s.best)).slice(0,40).reverse();
   if(samples.length < 2){
     return '<div class="empty-state" id="chartEmpty">'+emptyIcon()+'<p>'+esc(TEXTS.AUTO_CHART_EMPTY)+'</p></div>';
   }
@@ -2003,13 +2041,13 @@ function renderSpreadChart(){
   }).join("");
 
   return '<figure style="margin:0">'
-    +'<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="auto" role="img" '
-      +'aria-label="'+esc(TEXTS.AUTO_CHART_CAPTION)+'" style="display:block;overflow:visible">'
+    +'<svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img" '
+      +'aria-labelledby="chartCaption" style="display:block;overflow:visible">'
       +grid+zeroLine+thrLine
       +'<polyline points="'+line+'" fill="none" stroke="#f0c75e" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
       +marks
     +'</svg>'
-    +'<figcaption class="hint" style="margin-top:8px">'+esc(TEXTS.AUTO_CHART_CAPTION)+'</figcaption>'
+    +'<figcaption class="hint" id="chartCaption" style="margin-top:8px">'+esc(TEXTS.AUTO_CHART_CAPTION)+'</figcaption>'
     +'<table class="sr-only"><caption>'+esc(TEXTS.AUTO_CHART_TABLE)+'</caption>'
       +'<thead><tr><th scope="col">'+esc(TEXTS.TH_SAMPLE)+'</th><th scope="col">'+esc(TEXTS.TH_SPREAD)+'</th></tr></thead>'
       +'<tbody>'+tableRows+'</tbody></table>'
@@ -2047,13 +2085,14 @@ function renderAuto(){
   return '<div class="container view-auto">'
     +'<h1>'+esc(TEXTS.AUTO_H1)+'</h1>'
     +'<p>'+esc(TEXTS.AUTO_INTRO)+'</p>'
-    +'<div class="alert-banner" role="note"><h3>'+esc(TEXTS.RISK_STRIP)+'</h3>'
+    +'<div class="alert-banner" role="note"><h2>'+esc(TEXTS.RISK_STRIP)+'</h2>'
       +'<p style="margin:0">'+esc(TEXTS.AUTO_REAL_NOTE)+'</p></div>'
     +'<div id="autoKpis" class="kpi-grid block">'+autoKpisContent()+'</div>'
     +'<section class="block">'
+      // Sin aria-pressed a propósito: la etiqueta ya cambia ("Activar"/"Detener"), y
+      // un lector anunciaría "Detener piloto, presionado", que dice lo contrario.
       +renderButton("btnAutoToggle", cfg.on?TEXTS.BTN_AUTO_STOP:TEXTS.BTN_AUTO_START,
-                    (cfg.on?"btn-danger":"btn-primary")+" btn-block", "button",
-                    'aria-pressed="'+(cfg.on?"true":"false")+'"')
+                    (cfg.on?"btn-danger":"btn-primary")+" btn-block", "button")
     +'</section>'
     +'<section class="card block">'
       +'<h2>'+esc(TEXTS.AUTO_CHART_TITLE)+'</h2>'
@@ -2102,8 +2141,8 @@ function currentPath(){
   return h;
 }
 function updateNavCurrent(path){
-  const map = {"/":"nav-home","/arbitraje":"nav-arbitraje","/simulador":"nav-simulador","/historial":"nav-historial"};
-  ["nav-home","nav-arbitraje","nav-simulador","nav-historial"].forEach(id=>{
+  const map = {"/":"nav-home","/arbitraje":"nav-arbitraje","/simulador":"nav-simulador","/historial":"nav-historial","/auto":"nav-auto"};
+  ["nav-home","nav-arbitraje","nav-simulador","nav-historial","nav-auto"].forEach(id=>{
     document.getElementById(id).removeAttribute("aria-current");
   });
   const activeId = map[path];
@@ -2344,7 +2383,7 @@ function handleClick(e){
     const turningOn = !autoCfg().on;
     setAutoOn(turningOn, null);
     toast(turningOn ? TEXTS.AUTO_STATUS_ON : TEXTS.AUTO_STATUS_OFF);
-    route();
+    routeAndRefocus("btnAutoToggle");
     return;
   }
   if(byId("btnRefresh")){
@@ -2431,6 +2470,14 @@ function handleClick(e){
   }
 }
 
+/* Repinta la vista y devuelve el foco al control que originó la acción.
+   Sin esto, quien navega con teclado pierde el sitio en cada cambio de moneda o
+   guardado: route() manda el foco a <main> y el usuario acaba en otra parte. */
+function routeAndRefocus(id){
+  route();
+  const el = document.getElementById(id);
+  if(el && typeof el.focus === "function") el.focus();
+}
 function closePosition(idx){
   const p = STATE.positions[idx];
   if(!p) return;
@@ -2514,7 +2561,7 @@ function handleSubmit(e){
       dailyStop: clamp(dailyStop, 10, 1000000)
     });
     toast(TEXTS.TOAST_AUTO_SAVED);
-    route();
+    routeAndRefocus("btnAutoSave");
     return;
   }
   if(form.id === "accesoForm"){
@@ -2576,7 +2623,9 @@ function handleChangeOrInput(e){
       STATE.settings.ccy = t.value;
       STATE.settings.updatedAt = new Date().toISOString();
       persist();
-      route();
+      routeAndRefocus("ccySelect");
+      const live = document.getElementById("liveStatus");
+      if(live) live.textContent = TEXTS.CCY_ANNOUNCE_PREFIX + CURRENCIES[t.value].name;
     }
     return;
   }
@@ -2711,13 +2760,17 @@ if(/^https?:$/.test(location.protocol)){
 let LIVE_STREAMS = {};                        // { marketId: {bid, ask, mid, ts} }
 let WS_BINANCE = null, WS_KRAKEN = null;
 const WS_RETRY = { binance:0, kraken:0 };
+const WS_RECONNECT_T = { binance:null, kraken:null };
 let LIVE_DIRTY = false;                       // hay ticks sin pintar
 
 function netAllowed(){
   return /^https?:$/.test(location.protocol) && location.origin !== "null";
 }
+/* Manda SIEMPRE el ajuste del dueño. CONFIG.LIVE_PRICES solo siembra su valor inicial:
+   si fuese un override, apagar el interruptor no cortaría las conexiones salientes y el
+   aviso legal (que promete no contactar con terceros) sería falso. */
 function liveWanted(){
-  return !!(CONFIG.LIVE_PRICES || (STATE.settings && STATE.settings.liveData)) && netAllowed();
+  return !!(STATE.settings && STATE.settings.liveData) && netAllowed();
 }
 function liveMarketCount(){
   const now = Date.now();
@@ -2726,7 +2779,7 @@ function liveMarketCount(){
 
 /* ---------- Divisas ---------- */
 async function fetchFxRates(){
-  if(!netAllowed()) return false;
+  if(!liveWanted()) return false;
   const ctrl = new AbortController();
   const to = setTimeout(()=>ctrl.abort(), 5000);
   try{
@@ -2751,7 +2804,14 @@ async function fetchFxRates(){
 /* ---------- Streaming en tiempo real ---------- */
 function applyTick(marketId, bid, ask){
   if(!isFinite(bid) || !isFinite(ask) || bid<=0 || ask<=0 || bid>ask) return;
-  LIVE_STREAMS[marketId] = { bid:bid, ask:ask, mid:(bid+ask)/2, ts:Date.now() };
+  // Cordura frente al precio de referencia del activo: un tick corrupto o un feed falso
+  // con BTC a 0,00000001 generaría un spread de +Infinity% y una "oportunidad" de nivel Alta.
+  const ref = (MARKETS.find(m=>m.id===marketId)||{}).base;
+  if(!isFiniteNum(ref) || bid < ref*0.2 || ask > ref*5) return;
+  if((ask-bid)/bid > 0.05) return;   // horquilla del 5%: no es un mercado real
+  const prev = LIVE_STREAMS[marketId];
+  LIVE_STREAMS[marketId] = { bid:bid, ask:ask, mid:(bid+ask)/2,
+                             prevMid: prev ? prev.mid : null, ts:Date.now() };
   LIVE_DIRTY = true;
 }
 function connectBinanceStream(){
@@ -2804,9 +2864,13 @@ function connectKrakenStream(){
 }
 function scheduleReconnect(which){
   if(!liveWanted()) return;
-  WS_RETRY[which] = Math.min((WS_RETRY[which]||0)+1, 5);
-  const wait = Math.min(30000, 1000*Math.pow(2, WS_RETRY[which])); // 2s, 4s, 8s… tope 30s
-  setTimeout(function(){
+  WS_RETRY[which] = (WS_RETRY[which]||0)+1;
+  // Nos rendimos tras 8 intentos: si la plaza no responde, reintentar cada 30 s para
+  // siempre solo gasta batería y datos. La app sigue con el motor determinista.
+  if(WS_RETRY[which] > 8){ updateDataModeBadge(false); return; }
+  const wait = Math.min(30000, 1000*Math.pow(2, Math.min(WS_RETRY[which],5)));
+  WS_RECONNECT_T[which] = setTimeout(function(){
+    WS_RECONNECT_T[which] = null;
     if(!liveWanted()) return;
     if(which==="binance") connectBinanceStream();
     if(which==="kraken")  connectKrakenStream();
@@ -2818,6 +2882,12 @@ function openStreams(){
   connectKrakenStream();
 }
 function closeStreams(){
+  // Cancelar los temporizadores en vuelo: si no, uno pendiente reabre los sockets
+  // justo después de haberlos cerrado.
+  ["binance","kraken"].forEach(function(k){
+    if(WS_RECONNECT_T[k]){ clearTimeout(WS_RECONNECT_T[k]); WS_RECONNECT_T[k] = null; }
+    WS_RETRY[k] = 0;
+  });
   try{ if(WS_BINANCE){ WS_BINANCE.onclose = null; WS_BINANCE.close(); } }catch(e){}
   try{ if(WS_KRAKEN){  WS_KRAKEN.onclose  = null; WS_KRAKEN.close();  } }catch(e){}
   WS_BINANCE = null; WS_KRAKEN = null;
@@ -2905,7 +2975,8 @@ function autoTradesToday(){
   return STATE.trades.filter(t=>t.auto && String(t.ts).slice(0,10)===day);
 }
 function autoPnlToday(){
-  return r2(autoTradesToday().reduce((a,t)=>a+(t.pnl||0), 0));
+  const sum = autoTradesToday().reduce((a,t)=>a+(isFiniteNum(t.pnl)?t.pnl:0), 0);
+  return isFiniteNum(sum) ? r2(sum) : NaN;   // NaN = estado corrupto, lo trata autoTick
 }
 function setAutoOn(on, reason){
   saveAutoCfg({ on:!!on });
@@ -2925,12 +2996,23 @@ function setAutoOn(on, reason){
 function autoTick(){
   const cfg = autoCfg();
   if(!cfg.on) return;
+  const pnlToday = autoPnlToday();
+  // Cortafuegos 0 — si el resultado del día no es un número, el estado está corrupto y
+  // ningún límite es fiable: se apaga en vez de seguir operando a ciegas.
+  if(!isFiniteNum(pnlToday)){
+    setAutoOn(false, TEXTS.AUTO_STOP_CORRUPT);
+    if(location.hash==="#/auto") route();
+    return;
+  }
   // Cortafuegos 1 — pérdida diaria acumulada.
-  if(autoPnlToday() <= -Math.abs(cfg.dailyStop)){
+  if(pnlToday <= -Math.abs(cfg.dailyStop)){
     setAutoOn(false, TEXTS.AUTO_STOP_DAILY);
     if(location.hash==="#/auto") route();
     return;
   }
+  // Cortafuegos 2 — enfriamiento global: sin él, tres rutas rentables disparan tres
+  // operaciones en tres segundos seguidos.
+  if(Date.now() - (STATE.autoLastGlobalAt||0) < CONFIG.AUTO_COOLDOWN_MS) return;
   // Cortafuegos 2 — operaciones ya hechas hoy.
   if(autoTradesToday().length >= cfg.maxOpen){
     setAutoOn(false, TEXTS.AUTO_STOP_MAXOPEN);
@@ -2939,17 +3021,29 @@ function autoTick(){
   }
   const routes = currentRoutes();
   const now = Date.now();
+  const anyLive = liveMarketCount() > 0;
   for(let i=0;i<routes.length;i++){
     const r = routes[i];
+    if(!isFiniteNum(r.net)) continue;
     if(r.net < cfg.minNet) break;                       // vienen ordenadas: si esta no llega, ninguna
+    // Nunca operar una ruta con una pata en vivo y la otra simulada: ese spread no existe,
+    // es el hueco entre dos fuentes distintas, y el piloto se dedicaría a imprimir dinero.
+    if(anyLive && !r.live) continue;
     if(now - (STATE.autoLastAt[r.id]||0) < CONFIG.AUTO_COOLDOWN_MS) continue;
     const budget = Math.min(cfg.ticket, STATE.wallet.cash);
     if(budget < r.buyPrice) continue;                    // no llega ni para una unidad
     const qty = r3(budget / r.buyPrice);
     if(qty <= 0) continue;
     const res = executeArb(r, qty, true);
+    if(!res.ok){
+      // Dejar constancia: si no, el piloto parece activo y no opera nunca sin decir por qué.
+      STATE.autoLog.unshift({ ts:new Date().toISOString(), kind:"skip", text:r.label+" · "+res.error });
+      if(STATE.autoLog.length>50) STATE.autoLog.length = 50;
+      persist();
+    }
     if(res.ok){
       STATE.autoLastAt[r.id] = now;
+      STATE.autoLastGlobalAt = now;
       const sc = scoreRoute(r);
       STATE.autoLog.unshift({
         ts:new Date().toISOString(), kind:"trade",
@@ -2984,12 +3078,10 @@ function boot(){
   window.addEventListener("resize", function(){ clearTimeout(resizeT); resizeT = setTimeout(syncHeaderHeight, 150); });
   // Datos en vivo: divisas, respaldo REST y streaming. Nada de esto se ejecuta en file://,
   // donde la app es 100 % simulación determinista y no toca la red.
-  if(netAllowed()){
+  if(liveWanted()){
     fetchFxRates().then(function(ok){
       if(ok){ paintCurrencySelect(); refreshCurrentViewData(); }
     });
-  }
-  if(liveWanted()){
     fetchLivePrices().then(function(ok){
       if(ok){ updateDataModeBadge(true); refreshCurrentViewData(); }
     });
