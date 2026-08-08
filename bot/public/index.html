@@ -71,7 +71,7 @@ code{background:var(--elev);padding:1px 5px;border-radius:4px;font-size:12px}
     <button class="btn stop" id="btnStop">Desarmar ahora</button>
     <button class="btn" id="btnGo">Rearmar</button>
   </div>
-  <p style="margin-top:10px;font-size:12.5px">Desarmar impide abrir posiciones nuevas. <strong>No cierra las que ya están abiertas</strong>: eso se hace a mano desde el exchange.</p>
+  <p style="margin-top:10px;font-size:12.5px">Desarmar impide abrir posiciones nuevas. Las que ya están abiertas <strong>sí se pueden cerrar</strong> —desarmar frena el riesgo nuevo, no impide deshacer el que ya tienes— pero el bot no las cierra de golpe: espera a que se cumpla su regla de cierre. Para salir ya, hazlo desde el exchange.</p>
 </div>
 
 <script>
@@ -97,7 +97,7 @@ async function pintar(){
   b.className = 'banner ' + (real ? 'real' : 'test');
   b.textContent = real
     ? '*** DINERO REAL *** — cada orden mueve fondos de verdad'
-    : 'TESTNET — fondos de prueba, esto no vale dinero';
+    : 'MODO PAPEL — precios y financiación reales, ejecución simulada. No se mueve dinero.';
 
   const parado = !!d.desarmadoPor;
   $('#kpis').innerHTML = [
@@ -112,7 +112,8 @@ async function pintar(){
   $('#posiciones').innerHTML = tabla(
     ['Símbolo','Importe','Abierta','Cobros','Cobrado','Neto si cierro ahora'],
     d.posiciones.map(p=>{
-      const coste = p.nocional * 0.003;
+      // El coste real de la posición lo calcula el bot al abrirla; no se estima aquí.
+      const coste = (p.costeAperturaReal||0) * 2;
       const neto = (p.fundingCobrado||0) - coste;
       return '<tr><td>'+esc(p.simbolo)+'</td><td class="n">'+esc(usdt(p.nocional))+'</td>'
         +'<td>'+esc(new Date(p.abiertaEn).toLocaleString('es-ES'))+'</td>'
@@ -148,8 +149,10 @@ async function pintar(){
     : '<div class="vacio">Todavía no hay decisiones anotadas.</div>';
 }
 
-$('#btnStop').onclick = async () => { await fetch('/api/desarmar',{method:'POST'}); pintar(); };
-$('#btnGo').onclick   = async () => { await fetch('/api/rearmar',{method:'POST'}); pintar(); };
+const FICHA = '__FICHA__';
+const post = p => fetch(p, { method:'POST', headers:{ 'X-Ficha': FICHA } });
+$('#btnStop').onclick = async () => { await post('/api/desarmar'); pintar(); };
+$('#btnGo').onclick   = async () => { await post('/api/rearmar'); pintar(); };
 pintar();
 setInterval(pintar, 5000);
 </script>

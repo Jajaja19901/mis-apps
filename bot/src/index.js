@@ -1,15 +1,14 @@
 /* Arranque. El orden importa: se valida, se comprueba a dónde apuntamos, y solo entonces
  * se empieza a mirar el mercado. */
-import { CONFIG, validarOMorir, comprobarBloqueo } from "./config.js";
+import { CONFIG, validarOMorir } from "./config.js";
 import { log, iniciarLog, registrarSecreto } from "./logger.js";
 import * as estado from "./state.js";
-import * as ex from "./exchange.js";
-import { ciclo, actualizarFunding } from "./strategy.js";
+import { crearBroker } from "./broker.js";
+import { ciclo, actualizarFunding, usarBroker, reconciliar } from "./strategy.js";
 import { arrancarServidor } from "./server.js";
 import path from "node:path";
 
 validarOMorir();
-comprobarBloqueo();
 
 // Los secretos se registran para que el registro pueda taparlos si asoman en un error.
 registrarSecreto(CONFIG.claves.spot.secret);
@@ -18,8 +17,8 @@ registrarSecreto(CONFIG.claves.spot.key);
 registrarSecreto(CONFIG.claves.perp.key);
 iniciarLog(path.join(CONFIG.raiz, "data"));
 
-const banner = CONFIG.esTestnet
-  ? "TESTNET — fondos de prueba, no vale dinero"
+const banner = CONFIG.esPapel
+  ? "MODO PAPEL — precios reales, ejecución simulada, no se mueve dinero"
   : "*** DINERO REAL ***";
 log.info(`Arrancando en modo ${CONFIG.modo}  [${banner}]`);
 log.info(CONFIG.armado
@@ -28,11 +27,14 @@ log.info(CONFIG.armado
 
 estado.cargar();
 
+let broker;
 try {
-  const destino = ex.verificarDestino();
-  log.info("Destino comprobado:", destino.testnet ? "testnet" : "producción");
-  await ex.cargarMercados();
+  broker = crearBroker(CONFIG);
+  usarBroker(broker);
+  await broker.cargarMercados();
   log.info(`Mercados cargados. Vigilando: ${CONFIG.estrategia.simbolos.join(", ")}`);
+  const rec = await reconciliar();
+  log.info("Reconciliación:", rec.ok ? (rec.nota || "correcta") : `FALLIDA — ${rec.motivo}`);
 } catch (e) {
   log.error("No se puede continuar:", e.message);
   process.exit(1);

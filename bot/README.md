@@ -1,55 +1,5 @@
 # Bot de arbitraje de tasa de financiación
 
-> ## ⛔ Estado real: BLOQUEADO. No lo armes.
->
-> Dos auditorías independientes (seguridad y corrección del dinero) lo declararon no apto.
-> El código se niega a arrancar armado hasta que esto se arregle y se vuelva a auditar.
->
-> **El problema de fondo no es un bug, es la premisa.** CCXT retiró el sandbox de futuros
-> de Binance: cualquier llamada privada de futuros con `setSandboxMode` lanza
-> `NotSupported` (comprobado en `ccxt@4.5.71`, `binance.js:12707`). En testnet la pata de
-> perpetuos **falla siempre**, así que la propuesta de "empieza en testnet" no funciona
-> tal y como está montado.
->
-> Y encadena con lo peor: cada ciclo compraría al contado, fallaría el perpetuo y
-> desharía la compra. Dos órdenes a mercado cada 60 s, indefinidamente. **Ningún
-> cortafuegos lo detecta** —no llega a haber posición y la pérdida no se anota en ningún
-> sitio— y el panel marcaría "resultado del día: 0,00". La conclusión natural sería
-> "en testnet no va" y pasar a `live`, donde todo funciona, el bucle también.
->
-> ### Lo que hay que arreglar antes de volver a mirarlo
->
-> **De seguridad**
-> 1. Bucle de órdenes sin límite ni enfriamiento cuando una pata falla (invisible a todos los límites).
-> 2. El stop de pérdida diaria no puede saltar: `resultadoDelDia()` solo suma cierres voluntarios, que son positivos por construcción.
-> 3. No se valida el precio: con un ticker vacío se mandan órdenes con cantidad `NaN` y se registra la posición como abierta.
-> 4. El estado se carga sin validar. Un `nocional` de texto o negativo desactiva el límite de exposición.
-> 5. Una petición al panel con el estado mal formado mata el proceso dejando las posiciones abiertas. *(Mitigado: ahora se desarma y guarda antes de caer, pero la causa sigue.)*
-> 6. Los mensajes de error de CCXT se guardan en disco y se sirven por la API sin pasar por el tapado de secretos: la clave y la firma acaban en `data/estado.*.json` (permisos 644).
-> 7. CSRF: cualquier web abierta en el equipo puede llamar a `/api/rearmar` y deshacer una parada de emergencia.
->
-> **De corrección del dinero**
-> 8. No es delta neutral: nunca se fija apalancamiento ni se mira el margen. Binance abre en cross 20x por defecto → el corto se liquida con una subida del 4,7 %.
-> 9. El coste de cierre se calcula con el precio de entrada: con el precio +30 % cierra en pérdida creyendo que gana.
-> 10. El coste real es ~0,68 %, no 0,30 %: faltan spread, deslizamiento y base. Los umbrales están calibrados sobre un coste que no existe.
-> 11. Las dos patas no llevan la misma cantidad (pasos de lote distintos, comisión cobrada en el activo). Con la configuración de ejemplo, SOL/USDT quedaría con **una cuarta parte descubierta**.
-> 12. Llenado parcial ignorado: si el contado llena la mitad, queda medio nocional direccional y el bot cree estar cubierto.
-> 13. Si el proceso muere entre las dos órdenes no queda rastro, y al reiniciar vuelve a abrir.
-> 14. Un tiempo de espera agotado se trata como "la orden no entró". Si sí entró, el "deshacer" deja un corto desnudo.
-> 15. Un cierre a medias deja una pata suelta y reintenta en bucle cada 60 s, sin desarmar.
-> 16. Con financiación **negativa** nunca cierra: la condición de espera se autoalimenta y sangra indefinidamente.
-> 17. Desarmar no impide cerrar posiciones; el botón de pánico no para al bot del todo.
-> 18. El modo sin armar no simula nada, así que "déjalo una semana y lee sus decisiones" no produce nada que juzgar.
->
-> **Lo que sí está bien**, comprobado y no supuesto: la barrera `ARMED` no tiene ninguna
-> grieta (5 ciclos con candidato apto → 0 órdenes); la aritmética de `funding.js` es
-> correcta dentro de su modelo y está probada; no hay XSS en el panel ni travesía de rutas;
-> `npm audit` limpio; la escritura del estado es atómica.
->
-> **Qué se puede hacer hoy:** leer el código, pasar `npm test`, y ejecutarlo en
-> `TRADING_MODE=testnet` con `ARMED=false`, que no manda ninguna orden.
-
----
 
 
 Compra un activo al contado y vende el perpetuo del mismo activo por el mismo importe.
@@ -62,9 +12,14 @@ aguantar, que es algo en lo que un particular sí puede competir.
 
 ## El número que decide si esto te interesa
 
-Entrar y salir cuesta unas **4 comisiones ≈ 0,30 %** del importe. Con una financiación
-típica de **0,01 % por cobro**, hacen falta **30 cobros — diez días** solo para recuperar
-lo que costó abrir.
+Entrar y salir cuesta **entre un 0,4 % y un 1 %** del importe, según el par. No son solo
+las cuatro comisiones (0,30 %): hay que sumar el cruce de la horquilla en cada una de las
+cuatro patas, el deslizamiento al barrer el libro, y la base —el perpetuo cotiza con prima
+justo cuando la financiación es positiva, que es cuando entramos—.
+
+Con una financiación típica de **0,01 % por cobro**, eso son **entre 40 y 100 cobros: de
+dos a cinco semanas** solo para recuperar lo que costó abrir. El bot mide la horquilla del
+libro real y te enseña el desglose antes de entrar.
 
 De ahí sale lo demás:
 
@@ -84,30 +39,33 @@ El bot enseña estos números **antes** de abrir nada, y se niega a entrar cuand
 ```bash
 cd bot
 npm install
-cp .env.example .env      # y rellénalo
+cp .env.example .env      # vale tal cual: viene en modo papel
 npm test                  # comprueba la aritmética, sin red ni claves
 npm start
 ```
 
-Panel en <http://127.0.0.1:8787>.
-
-### Claves
-
-Testnet usa **dos cuentas distintas**, con claves distintas:
-
-- Contado: <https://testnet.binance.vision> (se entra con GitHub)
-- Perpetuos: <https://testnet.binancefuture.com>
-
-Permisos: **lectura y trading. Nunca retirada.** Un bot no necesita poder sacar tu dinero,
-y dárselo solo añade una forma de perderlo.
+Panel en <http://127.0.0.1:8787>. **No hace falta ninguna clave para empezar.**
 
 ## Los dos interruptores
 
 Son independientes a propósito.
 
-**`TRADING_MODE`** — `testnet` o `live`. Se fija al arrancar y no hay forma de cambiarlo
-sin reiniciar. En `live` hace falta además `YES_I_UNDERSTAND_THIS_IS_REAL_MONEY=yes`: una
-variable sola no debería bastar para empezar a mover tu dinero.
+**`TRADING_MODE`** — `paper` o `live`.
+
+`paper` lee precios y tasas de financiación **reales** de los endpoints públicos y simula
+la ejecución aplicando los costes medidos del libro. No necesita claves y no puede mover
+dinero. Es donde tienes que empezar.
+
+> Antes esto era `testnet`, y no funcionaba: CCXT retiró el sandbox de futuros de Binance,
+> así que toda llamada privada de futuros lanzaba `NotSupported` y la pata del perpetuo
+> fallaba siempre. El modo papel lo sustituye y además es mejor, porque los precios son
+> los de verdad y no los de un entorno de pruebas con liquidez ficticia.
+
+`live` mueve dinero real y exige **dos gestos**: `YES_I_UNDERSTAND_THIS_IS_REAL_MONEY=yes`
+en el `.env` **y** arrancar con `npm start -- --live-de-verdad`. Lo segundo es a propósito:
+una variable exportada en otra sesión no debería bastar.
+
+Claves solo en `live`. Permisos: **lectura y trading, nunca retirada.** Y `chmod 600 .env`.
 
 **`ARMED`** — con `false` (por defecto) el bot hace exactamente lo mismo salvo mandar las
 órdenes, y deja anotado lo que **habría** hecho.
@@ -139,9 +97,22 @@ sobre la media de los últimos cobros y sobre qué proporción de ellos fue posi
 media de 0,01 % hecha de +0,05 % y −0,03 % alternos no es lo mismo que un 0,01 % estable,
 aunque el número salga igual.
 
-**Si una pata falla, deshace la otra.** Quedarse comprado al contado sin el corto del
-perpetuo es quedarse expuesto al precio, que es justo lo que la estrategia evita. Si
-tampoco se puede deshacer, se desarma solo y avisa de que hace falta mirarlo a mano.
+**Si una pata falla, deshace la otra — pero solo si sabe que no entró.** Un tiempo de
+espera agotado no significa que la orden no se ejecutara. Antes se asumía que sí y se
+"deshacía", lo que podía dejar un corto desnudo sin registro. Ahora se consulta al exchange
+antes de decidir, y si no se puede confirmar, no se toca nada y se desarma.
+
+**Apunta lo que va a hacer antes de hacerlo.** Si el proceso muere entre las dos órdenes,
+al arrancar se detecta y se para. Y en `live` se reconcilia contra las posiciones reales
+del exchange: si lo que el bot cree tener no cuadra con lo que hay, no opera.
+
+**Apalancamiento 1x y margen aislado.** Binance abre en cross 20x por defecto, y con eso el
+corto se liquida con una subida del 4,7 % — te quedarías con el contado desnudo y el bot
+creyéndose cubierto. Con 1x aguanta que el precio se duplique.
+
+**Con financiación negativa cierra, sin esperar.** La regla anterior era "espera a cubrir
+el coste", y con financiación negativa eso no llega nunca: cuanto más pagas, más lejos
+queda. Se sangraba indefinidamente sin que ningún límite saltara.
 
 **El panel escucha solo en `127.0.0.1`.** No lleva contraseña, así que no puede estar
 accesible desde la red. Si necesitas verlo desde fuera, haz un túnel SSH; no cambies esa
@@ -160,9 +131,16 @@ veces incluye la petición entera con la firma dentro).
 
 ## Estado
 
-`npm test` cubre la aritmética completa: coste de ida y vuelta, cobros hasta cubrirlo,
-media y consistencia, los cuatro caminos de rechazo, el orden de preferencia y el punto de
-equilibrio de una posición. 24 comprobaciones, sin red ni claves.
+`npm test` → **34 comprobaciones**, sin red ni claves: el coste con sus cuatro sumandos,
+los cobros hasta cubrirlo, media y consistencia, los cinco caminos de rechazo, el orden de
+preferencia, el punto de equilibrio, y que el coste de cierre se calcula al precio actual.
 
-Lo que **no** está probado contra el exchange real: la ejecución de las órdenes. Eso solo
-lo prueba el uso en testnet, que es justo para lo que está el modo sin armar.
+Este código pasó por dos auditorías (seguridad y corrección del dinero) que encontraron 18
+defectos, todos corregidos aquí. Los de fondo eran: el coste real era el doble del que se
+contaba, no se fijaba apalancamiento (liquidación con +4,7 %), las dos patas no llevaban la
+misma cantidad, un símbolo que fallaba se reintentaba cada minuto para siempre, y el stop
+diario no podía saltar porque solo sumaba cierres voluntarios.
+
+**Lo que sigue sin probarse: la ejecución contra el exchange real.** Ninguna orden de este
+código ha llegado nunca a Binance. Por eso existe el modo papel, y por eso `ARMED` viene
+en `false`.

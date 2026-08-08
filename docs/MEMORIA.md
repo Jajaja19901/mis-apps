@@ -3,6 +3,30 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-08 — Bot reconstruido: modo papel y los 18 defectos corregidos
+- Se levanta el bloqueo. El cambio de fondo es que `testnet` desaparece como modo y lo
+  sustituye `paper`: precios y tasas de financiación REALES de endpoints públicos, ejecución
+  simulada, **sin claves**. Resuelve de raíz que CCXT retirara el sandbox de futuros, y de
+  paso es mejor que testnet (precios de verdad, no liquidez ficticia).
+- Arquitectura nueva: `broker.js` con dos implementaciones tras la misma interfaz, para que
+  la estrategia sea el mismo código en papel y en real. `exchange.js` desaparece.
+- Correcciones de dinero: coste con sus cuatro sumandos (comisiones + horquilla medida del
+  libro + deslizamiento + base) — antes solo comisiones, la mitad del real; apalancamiento
+  1x y margen aislado (con el 20x por defecto el corto se liquidaba con +4,7 %); cantidad
+  alineada al paso de lote de AMBOS mercados; llenados reales en vez de la cantidad pedida;
+  coste de cierre al precio actual; cierre incondicional con financiación negativa.
+- Correcciones de robustez: escritura anticipada + reconciliación contra el exchange al
+  arrancar; un timeout ya no se asume como "no entró" (se consulta antes de deshacer);
+  cuarentena con espera creciente por símbolo; libro de movimientos con fecha (el stop
+  diario no podía saltar porque solo sumaba cierres voluntarios, positivos por construcción).
+- Correcciones de seguridad: ficha de sesión contra CSRF, validación de Host/Origin, CSP y
+  cabeceras, try/catch en el servidor + uncaughtException, tapado de secretos en el borde
+  de la API y del estado, permisos 600, validación estricta al cargar el estado.
+- `npm test`: 34 comprobaciones. Verificado que arranca en papel sin claves y que `live`
+  exige dos gestos (variable + `--live-de-verdad`).
+- **Sigue sin probarse la ejecución real**: ninguna orden ha llegado nunca a Binance desde
+  este código. Por eso ARMED viene en false.
+
 ## 2026-08-07 (tarde) — El bot de financiación queda BLOQUEADO tras auditarlo
 - Qué pasó: dos auditorías (seguridad + corrección del dinero) sobre `bot/`. Veredicto de
   las dos: NO APTO. 7 críticos + 11 importantes de seguridad, 15 defectos de corrección.

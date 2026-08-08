@@ -19,6 +19,8 @@ export function tapar(texto) {
   for (const s of SECRETOS) t = t.split(s).join("«oculto»");
   // Por si aparece una firma o una clave que no habíamos registrado.
   t = t.replace(/signature=[A-Fa-f0-9]{16,}/g, "signature=«oculto»");
+  // También en forma JSON y en base64 (claves Ed25519 llevan +/= y no encajan arriba).
+  t = t.replace(/(["']?signature["']?\s*[:=]\s*["']?)[A-Za-z0-9+/=]{16,}/gi, "$1«oculto»");
   t = t.replace(/X-MBX-APIKEY['":\s]+[A-Za-z0-9]{16,}/gi, "X-MBX-APIKEY=«oculto»");
   return t;
 }

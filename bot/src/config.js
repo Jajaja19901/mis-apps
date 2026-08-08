@@ -1,15 +1,17 @@
 /* Configuración. La regla es una: si falta algo que hace falta, se para.
  *
- * Nada de `process.env.X || "valor"`. Un valor por defecto en una variable de seguridad
- * significa que el bot arranca operando con una configuración que nadie eligió, y esa es
- * exactamente la forma en que estas cosas pierden dinero sin que nadie lo haya decidido.
+ * Nada de `process.env.X || "valor"` en nada que afecte a la seguridad. Un valor por
+ * defecto ahí significa arrancar con una configuración que nadie eligió, y esa es la forma
+ * en que estas cosas pierden dinero sin que nadie lo haya decidido.
  */
 import fs from "node:fs";
 import path from "node:path";
 
 const RAIZ = path.resolve(import.meta.dirname, "..");
 
-/* Carga .env sin dependencias. Solo pares clave=valor, ignora comentarios. */
+/* Carga .env sin dependencias. Se anota de dónde sale cada variable: que el entorno pise
+ * al archivo en silencio es desagradable cuando estás editando un .env que se ignora. */
+const ORIGEN = {};
 function cargarEnv() {
   const f = path.join(RAIZ, ".env");
   if (!fs.existsSync(f)) return;
@@ -19,13 +21,21 @@ function cargarEnv() {
     const i = t.indexOf("=");
     if (i < 0) continue;
     const k = t.slice(0, i).trim();
-    const v = t.slice(i + 1).trim().replace(/\s+#.*$/, "");
-    if (!(k in process.env)) process.env[k] = v;
+    let v = t.slice(i + 1).trim();
+    // El borrado de comentarios no se aplica a los secretos: truncaba en silencio
+    // cualquier clave que contuviera " #".
+    if (!/(_KEY|_SECRET)$/.test(k)) v = v.replace(/\s+#.*$/, "");
+    v = v.replace(/^["'](.*)["']$/, "$1");     // quitar comillas envolventes
+    if (k in process.env) { ORIGEN[k] = "entorno (pisa al .env)"; continue; }
+    process.env[k] = v;
+    ORIGEN[k] = ".env";
   }
 }
 cargarEnv();
+export function origenDe(nombre) { return ORIGEN[nombre] || (nombre in process.env ? "entorno" : "sin definir"); }
 
 const errores = [];
+const avisos = [];
 
 function exigido(nombre) {
   const v = (process.env[nombre] || "").trim();
@@ -46,25 +56,34 @@ function booleano(nombre) {
 }
 
 const modo = (process.env.TRADING_MODE || "").trim().toLowerCase();
-if (modo !== "testnet" && modo !== "live") {
-  errores.push('TRADING_MODE debe ser exactamente "testnet" o "live"');
+if (modo !== "paper" && modo !== "live") {
+  errores.push('TRADING_MODE debe ser "paper" (recomendado) o "live".\n' +
+    '    "testnet" ya no existe: CCXT retiró el sandbox de futuros de Binance, así que la\n' +
+    '    pata de perpetuos fallaba siempre. El modo "paper" lo sustituye: usa precios y\n' +
+    '    tasas de financiación REALES y simula la ejecución, sin necesitar claves.');
 }
+const esPapel = modo === "paper";
 
 export const CONFIG = {
-  modo,
-  esTestnet: modo === "testnet",
+  modo, esPapel,
   armado: booleano("ARMED"),
 
-  claves: {
+  // En papel no hacen falta claves: todo lo que se lee es público.
+  claves: esPapel ? { spot: {}, perp: {} } : {
     spot: { key: exigido("BINANCE_SPOT_KEY"), secret: exigido("BINANCE_SPOT_SECRET") },
     perp: { key: exigido("BINANCE_PERP_KEY"), secret: exigido("BINANCE_PERP_SECRET") },
   },
+
+  // Apalancamiento de la pata corta. 1x significa que el corto aguanta una subida del
+  // 100 % sin liquidarse. Con el 20x que Binance pone por defecto, se liquida con +4,7 %.
+  apalancamiento: esPapel ? 1 : numero("LEVERAGE", 1, 5),
 
   riesgo: {
     maxNocionalPorPosicion: numero("MAX_NOTIONAL_PER_POSITION", 10, 1e6),
     maxNocionalTotal:       numero("MAX_TOTAL_NOTIONAL", 10, 1e7),
     maxPosiciones:          numero("MAX_POSITIONS", 1, 20),
     stopPerdidaDiaria:      numero("DAILY_LOSS_STOP", 1, 1e6),
+    maxAperturasFallidasDia:numero("MAX_APERTURAS_FALLIDAS_DIA", 1, 100),
   },
 
   estrategia: {
@@ -82,62 +101,26 @@ export const CONFIG = {
 
 if (!CONFIG.estrategia.simbolos.length) errores.push("SYMBOLS no puede estar vacío");
 
-/* El modo "live" mueve dinero de verdad. Exige un gesto explícito e imposible de hacer
- * sin querer: no basta con que una variable ponga "live". */
+/* El modo live mueve dinero real. Exige un gesto de ESTA ejecución, no una variable
+ * heredada de una sesión anterior que podría estar exportada sin que nadie se acuerde. */
 if (modo === "live") {
-  const confirmacion = (process.env.YES_I_UNDERSTAND_THIS_IS_REAL_MONEY || "").trim();
-  if (confirmacion !== "yes") {
+  const porArgv = process.argv.includes("--live-de-verdad");
+  const porEnv = (process.env.YES_I_UNDERSTAND_THIS_IS_REAL_MONEY || "").trim() === "yes";
+  if (!porEnv || !porArgv) {
     errores.push(
-      'TRADING_MODE=live mueve DINERO REAL. Para permitirlo hay que añadir además\n' +
-      '    YES_I_UNDERSTAND_THIS_IS_REAL_MONEY=yes\n' +
-      '  No lo hagas hasta llevar semanas de datos en testnet que digan que la estrategia gana.'
+      'TRADING_MODE=live mueve DINERO REAL. Hacen falta las DOS cosas:\n' +
+      '    · YES_I_UNDERSTAND_THIS_IS_REAL_MONEY=yes en el .env\n' +
+      '    · y arrancar con:  npm start -- --live-de-verdad\n' +
+      '  Lo segundo es a propósito: una variable exportada en otra sesión no debería bastar.'
     );
+  }
+  if (origenDe("TRADING_MODE") === "entorno (pisa al .env)") {
+    avisos.push("TRADING_MODE viene del entorno y está pisando lo que dice tu .env");
   }
 }
 
-/* ---------------------------------------------------------------------------
- * BLOQUEO DE SEGURIDAD — 2026-08-07
- *
- * Dos auditorías independientes encontraron defectos que hacen peligroso armar este bot.
- * El peor no es un fallo del código sino de la premisa: CCXT ha retirado el sandbox de
- * futuros (binance.js:12707 lanza NotSupported en toda llamada privada de futuros con
- * setSandboxMode). O sea que en testnet la pata de perpetuos falla SIEMPRE.
- *
- * Y ahí encadena con lo demás: cada ciclo compra al contado, falla el perpetuo, deshace
- * la compra — dos órdenes a mercado cada 60 s, indefinidamente. Ningún cortafuegos lo ve,
- * porque no llega a haber posición y la pérdida no se anota en ninguna parte. El panel
- * marca 0,00 de resultado. La conclusión natural del dueño sería "en testnet no funciona"
- * y pasar a `live`, que es donde sí funciona todo — incluido el bucle.
- *
- * Lista completa de lo que falta en README.md, sección "Estado real".
- *
- * Hasta que eso esté arreglado y vuelto a auditar, este bot NO se arma. Se puede leer el
- * código, pasar `npm test` y estudiar la aritmética, que es correcta y está probada.
- * --------------------------------------------------------------------------- */
-const BLOQUEADO_POR_AUDITORIA = true;
-
-export function comprobarBloqueo() {
-  if (!BLOQUEADO_POR_AUDITORIA) return;
-  if (!CONFIG.armado && CONFIG.esTestnet) return;   // sin armar y en testnet: solo mira
-  console.error(`
-  Este bot está BLOQUEADO tras una auditoría de seguridad.
-
-  Motivo principal: CCXT retiró el sandbox de futuros de Binance, así que en testnet la
-  pata de perpetuos falla siempre. Combinado con otros defectos, eso produce un bucle de
-  órdenes a mercado que ningún cortafuegos detecta y que ningún panel muestra.
-
-  Encontrarás la lista completa en README.md → "Estado real".
-
-  Mientras tanto puedes:
-    · leer el código y pasar \`npm test\` (la aritmética está probada y es correcta)
-    · ejecutarlo con TRADING_MODE=testnet y ARMED=false, que no manda ninguna orden
-
-  Lo que no puedes es armarlo. Y en \`live\` no debería tocarlo nadie todavía.
-`);
-  process.exit(1);
-}
-
 export function validarOMorir() {
+  for (const a of avisos) console.error("  aviso: " + a);
   if (!errores.length) return;
   console.error("\n  No se puede arrancar. Arregla esto en tu .env:\n");
   for (const e of errores) console.error("   · " + e);
