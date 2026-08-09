@@ -77,6 +77,27 @@ Reglas del director:
 - Eficiencia de modelos: los agentes ya traen su modelo asignado (Opus solo en arquitecto,
   seguridad y QA; Sonnet en los que producen; Haiku en rendimiento). No los cambies sin motivo.
 
+## 🌍 Skills de marketing en inglés → salida SIEMPRE en español
+Está instalado el plugin `marketing-skills` (49 skills de estrategia y marketing: `marketing-plan`,
+`pricing`, `offers`, `product-marketing`, `customer-research`, `cro`, `copywriting`, `competitors`…).
+Sus instrucciones están en INGLÉS y asumen contexto SaaS/startup de EE.UU. Al usarlas:
+
+1. **Todo lo que vea el usuario o el cliente va en español**: respuestas, documentos generados,
+   títulos de sección de las plantillas y nombres de archivo. Traduce la plantilla, no la copies.
+2. **Traduce también la jerga al negocio real**, que aquí son peluquerías, talleres, bares y
+   tiendas de barrio, no SaaS:
+   - ICP → cliente ideal · value metric → por qué cobras (hora, servicio, persona)
+   - MRR → ingresos al mes · churn → clientes que no vuelven · CAC → coste por cliente nuevo
+   - activation → primera visita · retention → que vuelvan · freemium/trial → primera prueba gratis
+     o descuento de bienvenida
+3. **Descarta lo que no aplique sin backend ni suscripciones** (dunning, paywalls in-app, per-seat
+   pricing, MRR expansion). Si una skill lo propone, dilo y ofrece el equivalente local:
+   WhatsApp, bono de sesiones, tarjeta de fidelidad, reseñas en Google.
+4. **Canales reales de aquí**: WhatsApp Business, Google Business Profile y reseñas, Instagram
+   local, boca a boca del barrio. No Product Hunt ni cold email B2B salvo que el briefing lo pida.
+5. Antes de nada, `product-marketing` para fijar negocio, cliente ideal y posicionamiento; el
+   resto de skills lo leen. Ese documento, en español.
+
 ## 🔒 REGLAS DE ORO (lo que NUNCA se hace sin que el prompt lo pida)
 OBLIGATORIAS para el director y los 10 agentes, en CADA app. El Agente 10 (QA) las verifica y veta.
 
