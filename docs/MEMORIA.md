@@ -3,6 +3,11 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-10 (7) — Reel 1 DEFINITIVO: fuera la rotura de huevos, entra el huevo 3D (apps/reel-incuba.mp4)
+- Qué se hizo: el overlay de la tableta seguía sin convencer al usuario ("se sigue viendo mal, mejor cortar ese cacho"). Se CORTÓ toda la parte de los huevos rompiéndose de esc6: ahora la escena es (1) 4 s de cinta con huevos INTACTOS a cámara lenta (esc6 rate 0.45, solo llega al segundo 1.8 del clip, antes de la primera grieta) + flash dorado + (2) 4 s del huevo dorado 3D girando (public/huevo3d.mp4 = copia de apps/huevo-3d-demo.mp4, startFrom 75, muted). El overlay de la tableta se eliminó del código. Paletas idénticas (oro + verde neón) → la transición parece diseñada a propósito.
+- Lección: cuando un elemento IA se deforma demasiado, no se parchea: se corta y se sustituye por material propio. El huevo 3D de la skill ya tiene su primer uso real en un Reel.
+- Pendiente: confirmación del usuario y publicar. El Reel 2 (fondo dorado) también está entregado y pendiente de confirmación.
+
 ## 2026-08-10 (6) — Reel 1: web real en la tableta de la cinta de huevos (apps/reel-incuba.mp4)
 - Qué se hizo: el usuario señaló que en esc6 (cinta de huevos) salía "una PDA rara" flotando con un estallido blanco. Se incrustó la web real del restaurante de brasa en la pantalla apaisada: captura DESKTOP nueva (demo-restaurante-web.html a viewport 1088x800@2x → public/cap-resto-desktop.png; la primera a 1280x800 quedaba recortada por objectFit cover), tracking con 5 keyframes (f locales 90/120/165/210/237: centro/tamaño/rotación medidos con cuadrícula) y objectPosition left-top para conservar el titular. Truco clave para tabletas IA que SE DEFORMAN: overlay algo menor que la pantalla + halo blanco potente alrededor que se funde con el brillo ardiente del clip → los temblores de la IA los absorbe la luz.
 - Con esto las 3 pantallas del Reel 1 muestran producto real: eclosión (app pizzería con encendido de luz), cinta (web restaurante en tableta). Pendiente: confirmación y publicar.
