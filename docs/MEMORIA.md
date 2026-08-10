@@ -3,6 +3,11 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-10 (8) — Reel 1: final ágil (apps/reel-incuba.mp4, 56 s)
+- Qué se hizo: el usuario notó el final "muy largo y un poco raro" — al meter el huevo 3D antes del cierre quedaban 16 s seguidos de huevo-sobre-peana (el cierre esc7 iba además a cámara lenta 0.67 estirado a 12 s). Arreglo: esc7 a velocidad normal (240 frames, 8 s), CTA adelantado a f1520, composición recortada de 1800 a 1680 frames (60→56 s), fundido de música a [1610,1676]. Verificado: cierre con "Pon tu huevo / INCUBA TU NEGocio / Enlace en la bio" entra con ritmo.
+- Estado Reel 1 FINAL: gancho → problema → eclosión (pantalla nace como luz → app pizzería real) → tienda → notificaciones → cinta de huevos intactos + huevo 3D girando → cierre 8 s con CTA. Sin partes raras de IA.
+- Pendiente: publicar Reel 1 y Reel 2.
+
 ## 2026-08-10 (7) — Reel 1 DEFINITIVO: fuera la rotura de huevos, entra el huevo 3D (apps/reel-incuba.mp4)
 - Qué se hizo: el overlay de la tableta seguía sin convencer al usuario ("se sigue viendo mal, mejor cortar ese cacho"). Se CORTÓ toda la parte de los huevos rompiéndose de esc6: ahora la escena es (1) 4 s de cinta con huevos INTACTOS a cámara lenta (esc6 rate 0.45, solo llega al segundo 1.8 del clip, antes de la primera grieta) + flash dorado + (2) 4 s del huevo dorado 3D girando (public/huevo3d.mp4 = copia de apps/huevo-3d-demo.mp4, startFrom 75, muted). El overlay de la tableta se eliminó del código. Paletas idénticas (oro + verde neón) → la transición parece diseñada a propósito.
 - Lección: cuando un elemento IA se deforma demasiado, no se parchea: se corta y se sustituye por material propio. El huevo 3D de la skill ya tiene su primer uso real en un Reel.
