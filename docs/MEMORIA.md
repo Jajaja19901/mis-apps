@@ -3,6 +3,11 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-10 (5) — Reel 1 "perfecto": encendido de luz en la eclosión (apps/reel-incuba.mp4)
+- Qué se hizo: el usuario pidió perfección también en el tramo en que el móvil aún sale del huevo (ahí hay cáscara y cristales POR DELANTE de la pantalla: no se puede pegar la app sin roto). Solución cinematográfica en 3 fases: (1) al romperse el huevo la pantalla se ENCIENDE como luz pura (resplandor dorado grande + relleno que inunda el interior del huevo + destello en cruz palpitante, mix-blend screen → los fragmentos delante quedan retroiluminados, creíble); (2) la app real se vuelve opaca DEBAJO del resplandor (f84-96, keyframe extra de tracking en f81); (3) la luz se disipa (f100-116) revelando la app. Clave: nunca cruzar opacidades app/fondo sin cobertura, o el texto IA se transparenta.
+- Detalle: el primer resplandor se quedó corto (a través del cristal se veía más pantalla que la medida en la zona limpia) → se amplió a 660px de alto + relleno interior 520x860.
+- Pendiente: confirmación del usuario; publicar.
+
 ## 2026-08-10 (4) — Reel 1: pantalla real en el móvil de la eclosión (apps/reel-incuba.mp4)
 - Qué se hizo: el usuario señaló que en la escena 3 del Reel 1 (esc3-eclosion, el móvil saliendo del huevo) la pantalla del móvil mostraba texto sin sentido generado por la IA de CapCut ("Plsitter"...). Se incrustó encima la app real de la pizzería (cap-cafeteria-ejemplo.png, demo de su web) con seguimiento manual del movimiento: 4 keyframes medidos con cuadrícula sobre fotogramas del clip (frames locales 105/135/180/237 → rects en coords de composición contando el scale(1.1) del clip), interpolación easing, scroll suave de la carta, fade-in en el frame 100 (antes el móvil está dentro del huevo de cristal con reflejos: ahí no se tapa), reflejo de cristal + tinte dorado encima para integrarlo. La captura de la pizzería tenía un manchurrón (emoji sin renderizar): se RECAPTURÓ limpia desde demo-cafeteria-ejemplo.html (mismo tamaño 856x5280, keyframes válidos). OJO: un primer intento de taparlo clonando píxeles con PIL rompió el título de una tarjeta — recapturar siempre es más seguro que parchear.
 - Pendiente: confirmación del usuario; publicar.
