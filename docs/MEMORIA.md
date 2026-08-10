@@ -3,6 +3,11 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-10 (3) — Reel 2 v6: fondo de escenario (apps/reel2-tour.mp4)
+- Qué se hizo: el usuario vio el Reel de la web "súper triste" por el fondo negro vacío. Se añadió a Reel3.tsx un componente FondoVivo detrás de todas las escenas: gradiente cálido de incubadora (#52390f→#120b05), resplandor dorado central tras el móvil, 3 haces de luz de escenario, halos dorado+verde de marca, 34 motas de polvo dorado flotando (deterministas por frame, alguna verde), suelo con horizonte cálido y viñeta suave. Re-render completo (1500 frames) y recomprimido (17 MB).
+- OJO: la primera queja llegó ambigua y se empezó a poner fondo al vídeo del huevo 3D; el usuario aclaró "no hablo del vídeo del huevo, hablo del vídeo de toda la web". El código de fondo del huevo (telón+columnas+polvo en viewer/main.ts e interactive.ts del scratchpad) quedó hecho pero SIN re-renderizar; si pide mejorar el huevo, está listo para renderizar.
+- Pendiente: confirmación del usuario del Reel v6; publicar ambos Reels.
+
 ## 2026-08-10 (2) — Huevo dorado en 3D real (skill img2threejs) — demo sorpresa
 - Qué se hizo: a petición del usuario ("Hazme alguna prueba. Qué me sorprenda") tras instalar la skill img2threejs, se reconstruyó el huevo dorado del Reel 1 (fotograma de esc7-cierre) como modelo 3D procedural de Three.js siguiendo el pipeline completo de la skill (estado local, análisis de imagen, assessment, sculpt spec con 11 componentes y 7 materiales PBR, validación estricta PASS, 8 pases build con revisión por capturas, historial de revisiones en el spec). Materiales: oro espejo con bandas de reflexión (PMREM procedural), ventana ámbar transmisiva con llama en S emisiva dentro (flicker), peana negro piano con anillo LED verde (pulso), foco cenital con sombra, haz volumétrico y suelo espejo. Renderizado headless (SwiftShader) con Playwright a 300 fotogramas y montado con la música épica del Reel.
 - Entregables: apps/huevo-3d-demo.mp4 (giro 360°, 10 s, 1080x1920, 5,4 MB) y apps/huevo-3d.html (visor 3D interactivo autocontenido, 549 KB: arrastrar para girar, autorotación, llama y LED animados). Fuentes en scratchpad egg3d/ (viewer/main.ts + interactive.ts, spec, evidencias).
