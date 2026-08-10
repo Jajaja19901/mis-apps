@@ -3,6 +3,11 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-10 — Reel 2 FINAL v4 (apps/reel2-tour.mp4, 50 s)
+- Qué se hizo: tras varias iteraciones con feedback del usuario, versión final: móvil GRANDE y realista como protagonista (carcasa, botones, reflejo), ráfaga de 13 demos reales extraídas de la web COMPLETA76 con window.demoSrcdoc (bar QR, bar web, restaurante app+web, pizzería, peluquería web, veterinaria, reformas, fontanería, floristería, tienda de arte, huerta, y la asesora inmobiliaria etiquetada "WEB PERSONAL"). Voz Piper es_ES-sharvard (sid 1) a velocidad 0.92 con frases cortas (la Kokoro pronunciaba el español con acento inglés — descartada; davefx le parecía rara al usuario). SIN precios (los está cambiando en la web), web y app presentadas como productos SEPARADOS ("tu web, tu app, o las dos") y matiz de webs/apps PERSONALES. Subtítulos TikTok palabra a palabra.
+- Reglas aprendidas del usuario: no inventar contenidos que no estén en su web; no mencionar precios; mostrar MUCHOS ejemplos; web+app separadas; incluir lo personal; el vídeo entero en español.
+- Pendiente: publicarlo como segundo post con la caption entregada.
+
 ## 2026-08-09 (2) — Reel 2: tour real del producto (apps/reel2-tour.mp4)
 - Qué se hizo: segundo Reel para el Instagram de Incuba tu Negocio (52 s, 1080x1920, 11 MB), 100% generado en la sesión: web de Incuba + 3 apps reales (peluquería Aurora, eventos/fiesta sin marca, tienda de arte) capturadas con Playwright (vídeo la web y eventos; captura de página completa con paneo la peluquería y la tienda — sus animaciones de scroll no arrancaban al grabar en vídeo). Montaje Remotion: móvil flotante con etiqueta por app, voz Piper es-ES (7 frases nuevas), subtítulos TikTok palabra a palabra con @remotion/captions (captions.json generado desde las duraciones del TTS), chips de oferta (desde 250 €, tuya para siempre, panel del dueño, sin cuotas) y cierre reutilizando esc7-cierre.mp4 del Reel 1 para continuidad. Vigía se descartó como 3ª app (su selector inicial bloqueaba la captura).
 - Pendiente: publicarlo como segundo post; corte de 30 s si conviene.
