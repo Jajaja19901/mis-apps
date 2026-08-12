@@ -15207,7 +15207,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V27'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V28'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -18933,8 +18933,9 @@ function seccionGenerales() {
   html += '<div class="contador"><label>Cantidad <select id="remesa-cantidad" onchange="_remSet(\'cantidad\', this.value)">';
   [5, 10, 20, 30, 40, 50, 100, 200, 300, 500].forEach(function (n) { html += '<option value="' + n + '"' + (String(n) === String(cantVal) ? ' selected' : '') + '>' + n + '</option>'; });
   html += '</select></label>';
-  html += '<label>Estado <select id="remesa-estado" onchange="_remSet(\'estado\', this.value)"><option value="pagadas"' + (estadoVal === 'pagadas' ? ' selected' : '') + '>Ya pagadas</option><option value="vender"' + (estadoVal === 'vender' ? ' selected' : '') + '>Para vender</option><option value="sinprecio"' + (estadoVal === 'sinprecio' ? ' selected' : '') + '>Sin precio (entra directa · no muestra importe)</option></select></label></div>';
-  html += '<div class="contador"><label>Precio (€) <input type="number" id="remesa-precio" value="' + esc(precioVal) + '" min="0" style="width:80px" oninput="_remSet(\'precio\', this.value)"></label>';
+  html += '<label>Estado <select id="remesa-estado" onchange="_remSet(\'estado\', this.value); _remToggleExtras(this.value)"><option value="pagadas"' + (estadoVal === 'pagadas' ? ' selected' : '') + '>Ya pagadas</option><option value="vender"' + (estadoVal === 'vender' ? ' selected' : '') + '>Para vender</option><option value="sinprecio"' + (estadoVal === 'sinprecio' ? ' selected' : '') + '>Sin precio (entra directa · sin importe ni copas)</option></select></label></div>';
+  // Precio y Copas no aplican a "Sin precio": se ocultan al elegir esa opción.
+  html += '<div class="contador" id="remesa-extras"' + (estadoVal === 'sinprecio' ? ' style="display:none"' : '') + '><label>Precio (€) <input type="number" id="remesa-precio" value="' + esc(precioVal) + '" min="0" style="width:80px" oninput="_remSet(\'precio\', this.value)"></label>';
   html += '<label>Copas incluidas <input type="number" id="remesa-copas" value="' + esc(copasVal) + '" min="0" max="20" style="width:80px" oninput="_remSet(\'copas\', this.value)"></label></div>';
   html += '<label>Nombre de la serie (lo que tú quieras)<input type="text" id="remesa-etiqueta" value="' + esc(etiqVal) + '" placeholder="Ej: Preventa Instagram, Lista Marta…" oninput="_remSet(\'etiqueta\', this.value)"></label>';
   html += '<button type="button" data-testid="btn-crear-remesa" onclick="crearRemesa()">Crear remesa de entradas</button>';
@@ -18993,6 +18994,8 @@ var _entBusca = '';
    con 20 € y 1 copa aunque el dueño hubiera puesto 25 € y 2. null = usar el defecto. */
 var _remForm = { cantidad: null, estado: null, precio: null, copas: null, etiqueta: null, faseId: null };
 function _remSet(campo, valor) { _remForm[campo] = valor; }
+// "Sin precio" no usa Precio ni Copas: los oculta (sin re-dibujar, para no cerrar el teclado).
+function _remToggleExtras(estado) { var e = document.getElementById('remesa-extras'); if (e) e.style.display = (estado === 'sinprecio') ? 'none' : ''; }
 /* ===== ENTREGAR ENTRADAS: manda a cada persona su enlace (con QR) por WhatsApp/email ===== */
 function _entregaUnaVez() { return !!(state.config && state.config.entregaUnaVez); }
 function duenoToggleEntregaUnaVez() {
@@ -19521,7 +19524,7 @@ function crearRemesa() {
         dentro: false, horaEntrada: null,
         precioVenta: sinPrecio ? 0 : precio,
         sinPrecio: sinPrecio, // oculta el importe en la entrada
-        consumicionesIncluidas: copas,
+        consumicionesIncluidas: sinPrecio ? 0 : copas, // "sin precio" = entrada limpia, sin copas
         remesa: etiqueta,
         faseId: fase ? fase.id : null
       });
