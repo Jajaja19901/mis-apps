@@ -15207,7 +15207,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V26'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V27'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -17487,7 +17487,7 @@ function canvasInvitacion(p) {
     if (c.fecha || c.hora) lineas += 1;
     if (c.lugar) lineas += 1;
     if (esVip) lineas += 2;         // mesa + acompañantes, y línea de botella/refrescos
-    lineas += 1;                    // precio
+    if (!p.sinPrecio) lineas += 1;  // precio (la opción "sin precio" no lo muestra)
     if (copas > 0) lineas += 1;     // copas (no-VIP)
     var detalleH = 40 + lineas * 46 + 24;
     var stubH = 620;                // perforado + QR + código + pie
@@ -17547,12 +17547,14 @@ function canvasInvitacion(p) {
     if (c.fecha || c.hora) { ctx.fillText([c.fecha, c.hora].filter(Boolean).join('  ·  '), cx, y); y += 46; }
     if (c.lugar) { ctx.fillText('📍 ' + c.lugar, cx, y); y += 46; }
     if (esVip) { ctx.fillStyle = '#fff'; ctx.fillText('Mesa Nº ' + p.mesa.numero + '  ·  ' + p.mesa.acompanantesPermitidos + ' acompañantes', cx, y); y += 46; ctx.fillStyle = '#c8c8d4'; }
-    // precio
-    var precioTxt;
-    if (p.tipo === 'invitado') precioTxt = 'INVITACIÓN · GRATIS';
-    else if (esVip) precioTxt = 'Mesa: ' + (p.mesa.total || 0) + ' €';
-    else precioTxt = 'Precio: ' + precioEntradaDe(p) + ' €';
-    ctx.fillStyle = '#fff'; ctx.font = '600 26px -apple-system, sans-serif'; ctx.fillText(precioTxt, cx, y); y += 46;
+    // precio — la opción "Sin precio" (p.sinPrecio) NO dibuja ninguna línea de importe
+    if (!p.sinPrecio) {
+      var precioTxt;
+      if (p.tipo === 'invitado') precioTxt = 'INVITACIÓN · GRATIS';
+      else if (esVip) precioTxt = 'Mesa: ' + (p.mesa.total || 0) + ' €';
+      else precioTxt = 'Precio: ' + precioEntradaDe(p) + ' €';
+      ctx.fillStyle = '#fff'; ctx.font = '600 26px -apple-system, sans-serif'; ctx.fillText(precioTxt, cx, y); y += 46;
+    }
     if (esVip) {
       var vp2 = vipPack();
       ctx.fillStyle = '#b026ff'; ctx.font = '600 24px -apple-system, sans-serif';
@@ -17987,7 +17989,7 @@ function resolverEscaneo(valor, deCamara) {
   var nombre = esc(p.nombre + " " + p.apellido);
   // ACCESO AUTOMÁTICO: solo cámara + config ON + válida + fuera + sin nada que cobrar.
   var pend = p.tipo === "vip" ? ((p.mesa.total || 0) - (p.importePagado || 0)) : 0;
-  var sinDeuda = p.tipo === "invitado" || (p.importePagado || 0) > 0 && pend <= 0;
+  var sinDeuda = p.tipo === "invitado" || p.sinPrecio || (p.importePagado || 0) > 0 && pend <= 0;
   if (deCamara && state.config.accesoAuto && !p.dentro && sinDeuda) {
     darAccesoSimple(p.id, p.tipo === "invitado" ? "Invitado" : (p.tipo === "vip" ? "VIP" : "Taquilla"));
     _sonar('ok');
@@ -18931,7 +18933,7 @@ function seccionGenerales() {
   html += '<div class="contador"><label>Cantidad <select id="remesa-cantidad" onchange="_remSet(\'cantidad\', this.value)">';
   [5, 10, 20, 30, 40, 50, 100, 200, 300, 500].forEach(function (n) { html += '<option value="' + n + '"' + (String(n) === String(cantVal) ? ' selected' : '') + '>' + n + '</option>'; });
   html += '</select></label>';
-  html += '<label>Estado <select id="remesa-estado" onchange="_remSet(\'estado\', this.value)"><option value="pagadas"' + (estadoVal === 'pagadas' ? ' selected' : '') + '>Ya pagadas</option><option value="vender"' + (estadoVal === 'vender' ? ' selected' : '') + '>Para vender</option></select></label></div>';
+  html += '<label>Estado <select id="remesa-estado" onchange="_remSet(\'estado\', this.value)"><option value="pagadas"' + (estadoVal === 'pagadas' ? ' selected' : '') + '>Ya pagadas</option><option value="vender"' + (estadoVal === 'vender' ? ' selected' : '') + '>Para vender</option><option value="sinprecio"' + (estadoVal === 'sinprecio' ? ' selected' : '') + '>Sin precio (entra directa · no muestra importe)</option></select></label></div>';
   html += '<div class="contador"><label>Precio (€) <input type="number" id="remesa-precio" value="' + esc(precioVal) + '" min="0" style="width:80px" oninput="_remSet(\'precio\', this.value)"></label>';
   html += '<label>Copas incluidas <input type="number" id="remesa-copas" value="' + esc(copasVal) + '" min="0" max="20" style="width:80px" oninput="_remSet(\'copas\', this.value)"></label></div>';
   html += '<label>Nombre de la serie (lo que tú quieras)<input type="text" id="remesa-etiqueta" value="' + esc(etiqVal) + '" placeholder="Ej: Preventa Instagram, Lista Marta…" oninput="_remSet(\'etiqueta\', this.value)"></label>';
@@ -19494,7 +19496,11 @@ function crearRemesa() {
     while (existentes[etiqueta + ' (' + n + ')']) n++;
     etiqueta = etiqueta + ' (' + n + ')';
   }
-  var pagadas = estado === 'pagadas';
+  var sinPrecio = estado === 'sinprecio';
+  // "Sin precio": entra directa (cuenta como pagada para el acceso) pero NO muestra importe ni
+  // toca la caja (el dinero, si lo hay, se cobra por fuera). No es "invitación gratis": es una
+  // entrada normal sin importe visible.
+  var pagadas = estado === 'pagadas' || sinPrecio;
   // Limpia el formulario ANTES de mutate(): mutate() re-renderiza, y así el
   // re-render ya pinta el formulario vacío (si no, se quedaban precio/copas en
   // pantalla y se corría el riesgo de crear la remesa dos veces sin querer).
@@ -19511,16 +19517,17 @@ function crearRemesa() {
         codigoReserva: nuevoCodigoLista(s),
         mesa: null,
         pagado: pagadas,
-        importePagado: pagadas ? precio : 0,
+        importePagado: (pagadas && !sinPrecio) ? precio : 0, // "sin precio" no suma a la caja
         dentro: false, horaEntrada: null,
-        precioVenta: precio,
+        precioVenta: sinPrecio ? 0 : precio,
+        sinPrecio: sinPrecio, // oculta el importe en la entrada
         consumicionesIncluidas: copas,
         remesa: etiqueta,
         faseId: fase ? fase.id : null
       });
     }
     addLog('creó remesa "' + etiqueta + '"' + (fase ? ' (' + fase.nombre + ')' : '') + ': ' + cantidad + ' entradas ' +
-      (pagadas ? 'ya pagadas' : 'para vender') + ' a ' + precio + ' € con ' + copas + ' copa(s)', 'alta');
+      (sinPrecio ? 'sin precio' : (pagadas ? 'ya pagadas' : 'para vender')) + (sinPrecio ? '' : ' a ' + precio + ' €') + ' con ' + copas + ' copa(s)', 'alta');
   });
   toast(cantidad + ' entradas creadas' + (fase ? ' · ' + fase.nombre : ''));
 }
