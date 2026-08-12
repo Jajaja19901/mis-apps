@@ -14133,8 +14133,9 @@ function etiquetaPerfil(id) {
 }
 function perfilesLista() {
   var lista = [{ id: 'dueno', label: 'Dueño' }];
-  var nv = (state.config && state.config.nVigilantes) || 2;
-  var nc = (state.config && state.config.nCamareros) || 2;
+  // OJO: usar || 2 trataba el 0 como "sin poner" y mostraba 2 (bug del "0 camareros").
+  var nv = (state.config && typeof state.config.nVigilantes === 'number') ? state.config.nVigilantes : 2;
+  var nc = (state.config && typeof state.config.nCamareros === 'number') ? state.config.nCamareros : 2;
   for (var i = 1; i <= nv; i++) lista.push({ id: 'vig-' + i, label: 'Vigilante ' + i });
   for (var j = 1; j <= nc; j++) lista.push({ id: 'cam-' + j, label: 'Camarero ' + j });
   return lista;
@@ -14579,13 +14580,16 @@ function ejecutarComandoVoz(frases, quiet) {
   // Crear un LOTE: "crea 100 entradas (pagadas) (a 20 euros)" — también con el número en letras
   var tNum = _convNum(t); // números en palabras -> dígitos (veinticinco, cuarenta y cinco, cien…)
   // Nº de CAMAREROS / VIGILANTES por voz (funciona SIN Google): "pon 2 camareros", "tres porteros", "cuatro en la barra"
-  var _np = '(\\d{1,2}|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)';
+  var _np = '(\\d{1,2}|cero|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce)';
+  // "quita los camareros" / "sin camareros" / "sin barra" -> 0 camareros (fiesta solo puerta)
+  if (/(quita|quitar|sin|ningun|cero|no hay)\s+(los\s+|las\s+|de\s+)?(camarero|barman|barra)/.test(t) && !/vigilante|portero|puerta/.test(t)) { mutate(function () { setCamareros(0); }); duenoTab('ajustes'); _hecho('0 camareros'); return; }
+  if (/(quita|quitar|sin|ningun|cero|no hay)\s+(los\s+|las\s+|de\s+)?(vigilante|portero|segurata)/.test(t)) { mutate(function () { setVigilantes(0); }); duenoTab('ajustes'); _hecho('0 vigilantes'); return; }
   var mCam = t.match(new RegExp(_np + '\\s+(?:camareros?|barman|barmans|en la barra|para la barra|a la barra)'));
   var mVig = t.match(new RegExp(_np + '\\s+(?:vigilantes?|porteros?|seguratas?|segurdad|en la puerta|para la puerta|a la puerta)'));
   if ((mCam || mVig) && !/(recaud|vend|dinero|cuant|lleva|cobrad|vendid|codigo|contrasena|clave)/.test(t)) {
     var hechoP = [];
-    if (mCam && typeof setCamareros === 'function') { var nCa = _numPeq(mCam[1]); if (nCa >= 1 && nCa <= 20) { mutate(function () { setCamareros(nCa); }); hechoP.push(state.config.nCamareros + ' camareros'); } }
-    if (mVig && typeof setVigilantes === 'function') { var nVi = _numPeq(mVig[1]); if (nVi >= 1 && nVi <= 20) { mutate(function () { setVigilantes(nVi); }); hechoP.push(state.config.nVigilantes + ' vigilantes'); } }
+    if (mCam && typeof setCamareros === 'function') { var nCa = _numPeq(mCam[1]); if (nCa >= 0 && nCa <= 20) { mutate(function () { setCamareros(nCa); }); hechoP.push(state.config.nCamareros + ' camareros'); } }
+    if (mVig && typeof setVigilantes === 'function') { var nVi = _numPeq(mVig[1]); if (nVi >= 0 && nVi <= 20) { mutate(function () { setVigilantes(nVi); }); hechoP.push(state.config.nVigilantes + ' vigilantes'); } }
     if (hechoP.length) { duenoTab('ajustes'); _hecho(hechoP.join(' y ')); return; }
   }
   // Poner/generar las CLAVES (códigos) de TODOS los trabajadores de golpe: "ponme las claves",
@@ -14841,8 +14845,8 @@ function _numPeq(str) {
   var s = _normVoz(str);
   var d = s.match(/\b(\d{1,2})\b/);
   if (d) return parseInt(d[1], 10);
-  var w = { un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16, veinte: 20 };
-  var m = s.match(/\b(un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieciseis|veinte)\b/);
+  var w = { cero: 0, un: 1, uno: 1, una: 1, dos: 2, tres: 3, cuatro: 4, cinco: 5, seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10, once: 11, doce: 12, trece: 13, catorce: 14, quince: 15, dieciseis: 16, veinte: 20 };
+  var m = s.match(/\b(cero|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|once|doce|trece|catorce|quince|dieciseis|veinte)\b/);
   return m ? w[m[1]] : null;
 }
 /* Convierte números en palabras a dígitos dentro de una frase ("treinta euros" -> "30 euros"). */
@@ -15203,7 +15207,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V25'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V26'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -15709,8 +15713,8 @@ function ejecutarAccionIA(accion, args) {
     case 'enviar_email_a': { var eeP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada'])); if (!eeP) { _respVoz('No encuentro esa entrada'); break; } emailEntrada(eeP.id); hablar('Abriendo el email para ' + _nombreDe(eeP)); break; }
     case 'ver_entrada': { var veP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada'])); if (!veP) { _respVoz('No encuentro esa entrada'); break; } verEntrada(veP.id); hablar('Aquí está la entrada de ' + _nombreDe(veP)); break; }
     case 'blindar': { var blP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada'])); if (!blP) { _respVoz('No encuentro esa entrada'); break; } blindarEntrada(blP.id); break; }
-    case 'poner_vigilantes': { var nv = parseInt(_arg(args, ['n', 'cantidad', 'numero', 'vigilantes', 'valor']), 10); if (nv >= 1 && nv <= 20) { mutate(function () { setVigilantes(nv); }); _hecho(state.config.nVigilantes + ' vigilantes'); } else _respVoz('Dime cuántos vigilantes, del 1 al 20'); break; }
-    case 'poner_camareros': { var nc = parseInt(_arg(args, ['n', 'cantidad', 'numero', 'camareros', 'valor']), 10); if (nc >= 1 && nc <= 20) { mutate(function () { setCamareros(nc); }); _hecho(state.config.nCamareros + ' camareros'); } else _respVoz('Dime cuántos camareros, del 1 al 20'); break; }
+    case 'poner_vigilantes': { var nv = parseInt(_arg(args, ['n', 'cantidad', 'numero', 'vigilantes', 'valor']), 10); if (nv >= 0 && nv <= 20) { mutate(function () { setVigilantes(nv); }); _hecho(state.config.nVigilantes + ' vigilantes'); } else _respVoz('Dime cuántos vigilantes, del 0 al 20'); break; }
+    case 'poner_camareros': { var nc = parseInt(_arg(args, ['n', 'cantidad', 'numero', 'camareros', 'valor']), 10); if (nc >= 0 && nc <= 20) { mutate(function () { setCamareros(nc); }); _hecho(state.config.nCamareros + ' camareros'); } else _respVoz('Dime cuántos camareros, del 0 al 20'); break; }
     case 'anadir_producto': {
       var apN = String(args.nombre || '').trim(), apP = Number(args.precio) || 0;
       if (!apN) { _respVoz('Dime el nombre del producto'); break; }
@@ -16124,19 +16128,26 @@ function fusionarPendientesSobre(remotoObj) {
 }
 
 /* ---------- Personal dinámico (llamar envuelto en mutate) ---------- */
+// Si el perfil de trabajo de ESTE móvil deja de existir (p.ej. pones 0 camareros y estabas en
+// cam-1), lo movemos al primer perfil que quede; si no queda ninguno, al Dueño.
+function _reajustaPerfilActivo() {
+  if (perfilesLista().some(function (p) { return p.id === state.perfilActivo; })) return;
+  var otros = perfilesLista().filter(function (p) { return p.id !== 'dueno'; });
+  state.perfilActivo = otros.length ? otros[0].id : 'dueno';
+}
 function setVigilantes(n) {
-  n = Math.max(1, Math.min(9, Math.round(n) || 1));
+  n = Math.max(0, Math.min(9, Math.round(n) || 0)); // permite 0 (fiesta sin vigilantes)
   state.config.nVigilantes = n;
   state.recaudacionPorPerfil = state.recaudacionPorPerfil || {};
   for (var i = 1; i <= n; i++) {
     var id = 'vig-' + i;
     if (!(id in state.recaudacionPorPerfil)) state.recaudacionPorPerfil[id] = 0;
   }
-  if (!perfilesLista().some(function (p) { return p.id === state.perfilActivo; })) state.perfilActivo = 'vig-1';
+  _reajustaPerfilActivo();
   addLog('ajustó nº de vigilantes a ' + n, 'personal');
 }
 function setCamareros(n) {
-  n = Math.max(1, Math.min(9, Math.round(n) || 1));
+  n = Math.max(0, Math.min(9, Math.round(n) || 0)); // permite 0 (fiesta solo-puerta, sin barra)
   state.config.nCamareros = n;
   state.recaudacionPorPerfil = state.recaudacionPorPerfil || {};
   state.carritos = state.carritos || {};
@@ -16145,7 +16156,7 @@ function setCamareros(n) {
     if (!(id in state.recaudacionPorPerfil)) state.recaudacionPorPerfil[id] = 0;
     if (!state.carritos[id]) state.carritos[id] = [];
   }
-  if (!perfilesLista().some(function (p) { return p.id === state.perfilActivo; })) state.perfilActivo = 'vig-1';
+  _reajustaPerfilActivo();
   addLog('ajustó nº de camareros a ' + n, 'personal');
 }
 
@@ -19682,12 +19693,12 @@ function _generarClavesTrabajadores(regenerar) {
 function duenoGenerarClaves() { _generarClavesTrabajadores(true); } // botón: regenera todas
 
 function duenoCambiarVigilantes(delta) {
-  var n = Math.max(1, Math.min(9, state.config.nVigilantes + delta));
+  var n = Math.max(0, Math.min(9, (state.config.nVigilantes || 0) + delta));
   mutate(function () { setVigilantes(n); });
 }
 
 function duenoCambiarCamareros(delta) {
-  var n = Math.max(1, Math.min(9, state.config.nCamareros + delta));
+  var n = Math.max(0, Math.min(9, (state.config.nCamareros || 0) + delta));
   mutate(function () { setCamareros(n); });
 }
 
