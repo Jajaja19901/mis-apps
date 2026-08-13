@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Marca de Agua IA · Detecta, gestiona y sustituye marcas de agua</title>
+<meta name="description" content="Plataforma para detectar, limpiar, reconstruir y sustituir marcas de agua de contenido generado por IA — sobre contenido propio o autorizado. Procesamiento privado en tu navegador.">
+<meta name="theme-color" content="#0a0d14">
+<meta name="color-scheme" content="dark light">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%236d8bff'/%3E%3Cpath d='M32 12c7 9 12 15 12 22a12 12 0 1 1-24 0c0-7 5-13 12-22z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+/* ===================== SISTEMA VISUAL (oscuro premium por defecto) ===================== */
+:root{
+  --bg:#0a0d14; --bg2:#0e131d; --surface:#111827; --surface2:#151d2e; --glass:rgba(20,27,44,.72);
+  --line:#222c42; --line-soft:#1a2234;
+  --ink:#eaf0fb; --ink-soft:#aab6cc; --ink-mut:#6d7a93;
+  --brand:#6d8bff; --brand2:#8a5cff; --accent:#38e1c8;
+  --grad:linear-gradient(135deg,#6d8bff 0%,#8a5cff 100%);
+  --grad-soft:linear-gradient(135deg,rgba(109,139,255,.16),rgba(138,92,255,.16));
+  --ok:#2fbf71; --warn:#f5b544; --err:#ff6b6b;
+  --shadow:0 1px 2px rgba(0,0,0,.5),0 24px 60px rgba(0,0,0,.45);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.3);
+  --radius:16px; --radius-sm:11px;
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,monospace;
+}
+:root[data-theme="light"]{
+  --bg:#f4f6fb; --bg2:#eef1f8; --surface:#ffffff; --surface2:#f7f9fd; --glass:rgba(255,255,255,.82);
+  --line:#e2e7f1; --line-soft:#edf1f8;
+  --ink:#141a26; --ink-soft:#48546b; --ink-mut:#7b869c;
+  --grad-soft:linear-gradient(135deg,rgba(109,139,255,.12),rgba(138,92,255,.12));
+  --shadow:0 1px 2px rgba(20,26,38,.06),0 20px 50px rgba(20,26,38,.10);
+  --shadow-sm:0 1px 2px rgba(20,26,38,.05),0 8px 22px rgba(20,26,38,.07);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;min-height:100vh}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(1100px 600px at 82% -8%,rgba(138,92,255,.16),transparent 60%),radial-gradient(900px 560px at -6% 6%,rgba(109,139,255,.14),transparent 55%)}
+img{max-width:100%;display:block}
+svg{width:16px;height:16px;flex-shrink:0}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit}
+h1,h2,h3,h4{line-height:1.15;letter-spacing:-.02em;font-weight:700}
+:focus-visible{outline:2.5px solid var(--brand);outline-offset:2px;border-radius:8px}
+.mono{font-family:var(--mono)}
+.muted{color:var(--ink-mut)}
+.soft{color:var(--ink-soft)}
+.hidden{display:none!important}
+
+/* ===== Layout: barra superior + contenido ===== */
+.appbar{position:sticky;top:0;z-index:50;background:var(--glass);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+.appbar-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:11px 18px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:16px;flex-shrink:0}
+.brand .mk{width:30px;height:30px;border-radius:9px;background:var(--grad);display:grid;place-items:center;box-shadow:0 6px 18px rgba(109,139,255,.4)}
+.brand .mk svg{width:18px;height:18px}
+.brand small{display:block;font-weight:500;font-size:10.5px;color:var(--ink-mut);letter-spacing:.02em}
+nav.pills{display:flex;gap:4px;overflow-x:auto;flex:1;scrollbar-width:none;-ms-overflow-style:none;padding:2px}
+nav.pills::-webkit-scrollbar{display:none}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:999px;font-size:13.5px;font-weight:600;color:var(--ink-soft);white-space:nowrap;border:1px solid transparent;transition:.15s;cursor:pointer;background:none}
+.pill:hover{color:var(--ink);background:var(--surface2)}
+.pill.active{color:#fff;background:var(--grad);border-color:transparent;box-shadow:0 6px 16px rgba(109,139,255,.35)}
+.pill svg{width:15px;height:15px}
+.appbar .right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.credits-chip{display:inline-flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:13px;font-weight:700}
+.credits-chip b{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.icon-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);color:var(--ink);cursor:pointer;display:grid;place-items:center;transition:.15s}
+.icon-btn:hover{border-color:var(--brand);color:var(--brand)}
+.icon-btn svg{width:18px;height:18px}
+
+main{max-width:1180px;margin:0 auto;padding:24px 18px 90px}
+.page-head{margin:6px 0 20px}
+.page-head h1{font-size:clamp(23px,4.6vw,32px)}
+.page-head p{color:var(--ink-soft);margin-top:6px;max-width:640px}
+.eyebrow{font-size:11.5px;text-transform:uppercase;letter-spacing:.15em;font-weight:700;color:var(--brand)}
+
+/* ===== Botones ===== */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:700;font-size:14px;border:1px solid transparent;border-radius:11px;padding:11px 18px;cursor:pointer;transition:transform .12s,background .2s,border-color .2s,opacity .2s;line-height:1}
+.btn:active{transform:scale(.975)}
+.btn svg{width:16px;height:16px}
+.btn-primary{background:var(--grad);color:#fff;box-shadow:0 8px 20px rgba(109,139,255,.32)}
+.btn-primary:hover{filter:brightness(1.07)}
+.btn-ghost{background:var(--surface2);color:var(--ink);border-color:var(--line)}
+.btn-ghost:hover{border-color:var(--brand);color:var(--brand)}
+.btn-soft{background:var(--grad-soft);color:var(--ink);border-color:var(--line)}
+.btn-sm{padding:8px 13px;font-size:13px;border-radius:9px}
+.btn-lg{padding:14px 24px;font-size:15px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.btn-block{width:100%}
+
+/* ===== Tarjetas / grid ===== */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow-sm)}
+.card.glass{background:var(--glass);backdrop-filter:blur(10px)}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow-sm)}
+.stat .k{font-size:12px;color:var(--ink-mut);text-transform:uppercase;letter-spacing:.08em;font-weight:700;display:flex;align-items:center;gap:7px}
+.stat .k svg{width:15px;height:15px;color:var(--brand)}
+.stat .v{font-size:27px;font-weight:800;margin-top:8px}
+.stat .v.grad{background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.stat .s{font-size:12.5px;color:var(--ink-soft);margin-top:2px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;background:var(--surface2);border:1px solid var(--line)}
+.chip.ok{color:var(--ok);border-color:rgba(47,191,113,.35);background:rgba(47,191,113,.1)}
+.chip.warn{color:var(--warn);border-color:rgba(245,181,68,.35);background:rgba(245,181,68,.1)}
+.chip.info{color:var(--brand);border-color:rgba(109,139,255,.35);background:rgba(109,139,255,.1)}
+.badge-sim{font-size:10.5px;font-weight:800;letter-spacing:.04em;color:var(--warn);border:1px solid rgba(245,181,68,.4);background:rgba(245,181,68,.1);padding:2px 7px;border-radius:6px;text-transform:uppercase}
+
+/* ===== Hero (dashboard) ===== */
+.hero{position:relative;overflow:hidden;border-radius:22px;padding:28px;background:linear-gradient(135deg,rgba(109,139,255,.16),rgba(138,92,255,.14));border:1px solid var(--line);margin-bottom:22px}
+.hero h1{font-size:clamp(24px,4.4vw,34px);max-width:640px}
+.hero p{color:var(--ink-soft);margin:10px 0 18px;max-width:560px}
+.hero .row{display:flex;gap:10px;flex-wrap:wrap}
+
+/* ===== Editor ===== */
+.editor{display:grid;grid-template-columns:1.55fr 1fr;gap:18px;align-items:start}
+.filebar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;font-size:13px;color:var(--ink-soft);margin-bottom:12px}
+.filebar b{color:var(--ink)}
+.stage-wrap{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px;box-shadow:var(--shadow-sm)}
+.dropzone{border:2px dashed var(--line);border-radius:14px;padding:34px 20px;text-align:center;transition:.2s;background:var(--surface2)}
+.dropzone.drag{border-color:var(--brand);background:var(--grad-soft)}
+.dropzone .dz-ic{width:54px;height:54px;border-radius:14px;background:var(--grad-soft);display:grid;place-items:center;margin:0 auto 12px}
+.dropzone .dz-ic svg{width:26px;height:26px;color:var(--brand)}
+.canvas-host{position:relative;border-radius:12px;overflow:hidden;background:
+  conic-gradient(from 0deg,#0000 0 90deg,rgba(255,255,255,.03) 0 180deg,#0000 0 270deg,rgba(255,255,255,.03) 0) 0 0/22px 22px;
+  line-height:0;touch-action:none}
+.canvas-host canvas{width:100%;height:auto;display:block}
+#overlay{position:absolute;inset:0;width:100%;height:100%}
+.tools .card{margin-bottom:14px}
+.tool-h{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15px;margin-bottom:4px}
+.tool-h .n{width:24px;height:24px;border-radius:7px;background:var(--grad-soft);color:var(--brand);display:grid;place-items:center;font-size:12.5px;font-weight:800;flex-shrink:0}
+.tool-sub{font-size:12.5px;color:var(--ink-mut);margin-bottom:12px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px}
+.field input[type=text],.field input[type=password],.field input[type=email],.field select,.field textarea{
+  width:100%;background:var(--surface2);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:11px 12px;font-size:14px;font-family:inherit}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(109,139,255,.22)}
+.range-row{display:flex;align-items:center;gap:10px}
+input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:99px;background:var(--line);flex:1}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--brand);cursor:pointer;border:3px solid var(--surface);box-shadow:0 2px 6px rgba(0,0,0,.4)}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border:none;border-radius:50%;background:var(--brand);cursor:pointer}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{flex:1;min-width:80px;padding:9px;border-radius:9px;border:1px solid var(--line);background:var(--surface2);color:var(--ink-soft);font-weight:600;font-size:13px;cursor:pointer}
+.seg button.on{background:var(--grad-soft);border-color:var(--brand);color:var(--brand)}
+.consent{display:flex;gap:10px;align-items:flex-start;background:var(--surface2);border:1px solid var(--line);border-radius:11px;padding:12px;margin:6px 0 12px}
+.consent input{margin-top:3px;width:17px;height:17px;accent-color:var(--brand);flex-shrink:0}
+.consent label{font-size:12.5px;color:var(--ink-soft);line-height:1.5}
+.consent.err{border-color:var(--err);background:rgba(255,107,107,.08)}
+.consent-msg{color:var(--err);font-size:12.5px;font-weight:600;margin:-4px 0 10px;display:none}
+.consent-msg.show{display:block}
+
+/* Detección */
+.finding{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line-soft);font-size:13px}
+.finding:first-of-type{border-top:none}
+.finding .fi{width:26px;height:26px;border-radius:7px;display:grid;place-items:center;flex-shrink:0;font-size:14px}
+.finding .fi.p{background:rgba(138,92,255,.14);color:var(--brand2)}
+.finding .fi.g{background:rgba(56,225,200,.14);color:var(--accent)}
+.finding code{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);word-break:break-word;background:var(--surface2);padding:1px 5px;border-radius:5px}
+.zone-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line-soft);font-size:13px}
+.zone-item:first-child{border-top:none}
+.empty{text-align:center;color:var(--ink-mut);padding:26px 16px}
+.empty .ic{font-size:32px;margin-bottom:8px}
+
+/* Comparador antes/después */
+.cmp{position:relative;border-radius:12px;overflow:hidden;background:#000;user-select:none;touch-action:none}
+.cmp-stage{position:relative;transform-origin:0 0}
+.cmp canvas{width:100%;height:auto;display:block}
+#cmpBase{position:relative}
+#cmpAfter{position:absolute;top:0;left:0;clip-path:inset(0 0 0 50%)}
+.cmp .tag{position:absolute;top:8px;font-size:11px;font-weight:800;letter-spacing:.05em;padding:3px 9px;border-radius:999px;background:rgba(0,0,0,.6);color:#fff;z-index:4}
+.cmp .tag.a{left:8px}.cmp .tag.b{right:8px}
+.cmp-handle{position:absolute;top:0;height:100%;width:38px;transform:translateX(-50%);display:grid;place-items:center;z-index:5;pointer-events:none}
+.cmp-handle .grip{width:34px;height:34px;border-radius:50%;background:var(--brand);display:grid;place-items:center;box-shadow:0 4px 12px rgba(0,0,0,.5);color:#fff;font-size:14px;font-weight:800}
+.cmp-ctrls{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+.cmp-ctrls input[type=range]{max-width:170px}
+.info-line{display:flex;gap:8px 16px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-soft);margin-top:10px}
+.info-line b{color:var(--ink)}
+
+/* Pricing */
+.plan{border:1px solid var(--line);border-radius:18px;padding:22px;background:var(--surface);display:flex;flex-direction:column;box-shadow:var(--shadow-sm);position:relative}
+.plan.pop{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand),0 20px 46px rgba(109,139,255,.22)}
+.plan .pop-tag{position:absolute;top:-11px;left:22px;background:var(--grad);color:#fff;font-size:11px;font-weight:800;padding:4px 12px;border-radius:999px;letter-spacing:.03em}
+.plan h3{font-size:19px}
+.plan .price{font-size:32px;font-weight:800;margin:10px 0 2px}
+.plan .price small{font-size:14px;font-weight:600;color:var(--ink-mut)}
+.plan ul{list-style:none;margin:14px 0 18px;display:flex;flex-direction:column;gap:9px}
+.plan li{font-size:13.5px;color:var(--ink-soft);display:flex;gap:9px;align-items:flex-start}
+.plan li svg{width:16px;height:16px;color:var(--ok);flex-shrink:0;margin-top:2px}
+.plan .btn{margin-top:auto}
+
+/* Tablas */
+.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+.tbl th,.tbl td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line-soft)}
+.tbl th{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-mut);font-weight:700}
+.tbl tr:hover td{background:var(--surface2)}
+.tbl .thumb{width:46px;height:34px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+
+/* Legal / prosa */
+.prose{max-width:760px}
+.prose h2{font-size:20px;margin:26px 0 8px}
+.prose h3{font-size:16px;margin:18px 0 6px}
+.prose p,.prose li{color:var(--ink-soft);font-size:14px;margin-bottom:8px}
+.prose ul{margin:0 0 10px 20px}
+.callout{border-left:3px solid var(--brand);background:var(--grad-soft);border-radius:0 12px 12px 0;padding:14px 16px;margin:14px 0;font-size:13.5px;color:var(--ink-soft)}
+.callout b{color:var(--ink)}
+
+/* Admin */
+.gate{max-width:400px;margin:8vh auto;text-align:center}
+.gate .mk{width:52px;height:52px;border-radius:14px;background:var(--grad);display:grid;place-items:center;margin:0 auto 14px}
+.gate .mk svg{width:26px;height:26px}
+.log-row{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--line-soft);font-size:13px}
+.log-row:first-child{border-top:none}
+.log-row .lt{font-family:var(--mono);font-size:11px;color:var(--ink-mut);white-space:nowrap}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--line-soft);font-size:13.5px}
+.kv:first-child{border-top:none}
+
+/* Toast */
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(24px);background:var(--surface);border:1px solid var(--line);color:var(--ink);padding:12px 18px;border-radius:12px;font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:.28s;z-index:200;box-shadow:var(--shadow);max-width:calc(100vw - 32px)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:rgba(47,191,113,.5)}
+.toast.err{border-color:rgba(255,107,107,.5)}
+
+/* Footer */
+footer.site{border-top:1px solid var(--line);margin-top:40px;padding:24px 18px;color:var(--ink-mut);font-size:12.5px}
+footer.site .in{max-width:1180px;margin:0 auto;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center}
+footer.site a{color:var(--ink-soft)}
+footer.site a:hover{color:var(--brand)}
+
+/* Responsive */
+@media(max-width:900px){.editor{grid-template-columns:1fr}.g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:1fr}}
+@media(max-width:620px){.g2,.g4{grid-template-columns:1fr}.brand small{display:none}.appbar-in{padding:10px 12px;gap:8px}main{padding:18px 12px 84px}.credits-chip .lbl{display:none}}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Tests de aceptación: los ejecuta tools/verificar-app.mjs clic a clic -->
+<script type="application/json" id="acceptance-tests">
+[
+  { "name": "El dashboard carga y muestra créditos", "steps": [
+    { "goto": "#/" }, { "expect": "Créditos" }
+  ]},
+  { "name": "Cargar ejemplo detecta procedencia en el código", "steps": [
+    { "goto": "#/editor" }, { "clickText": "Usar imagen de ejemplo" }, { "wait": 400 },
+    { "expect": "Procedencia" }, { "expect": "DemoDiffusion" }
+  ]},
+  { "name": "Muestra zonas visuales antes de tocar nada", "steps": [
+    { "goto": "#/editor" }, { "clickText": "Usar imagen de ejemplo" }, { "wait": 400 },
+    { "expect": "Zonas" }
+  ]},
+  { "name": "El consentimiento es obligatorio para procesar", "steps": [
+    { "goto": "#/editor" }, { "clickText": "Usar imagen de ejemplo" }, { "wait": 400 },
+    { "click": "#btn-process" }, { "expect": "Confirma" },
+    { "check": "#rights-ack" }, { "click": "#btn-process" }, { "wait": 500 }, { "expect": "Después" }
+  ]},
+  { "name": "Limpiar metadatos deja el archivo sin marcas en el código", "steps": [
+    { "goto": "#/editor" }, { "clickText": "Usar imagen de ejemplo" }, { "wait": 400 },
+    { "click": "#btn-clean" }, { "wait": 300 }, { "expect": "limpi" }
+  ]},
+  { "name": "Añadir marca propia se aplica al resultado", "steps": [
+    { "goto": "#/editor" }, { "clickText": "Usar imagen de ejemplo" }, { "wait": 400 },
+    { "fill": { "sel": "#wm-text", "value": "© MI MARCA" } }, { "click": "#btn-wm" }, { "wait": 400 },
+    { "expect": "Después" }
+  ]},
+  { "name": "El trabajo queda en el historial", "steps": [
+    { "goto": "#/editor" }, { "clickText": "Usar imagen de ejemplo" }, { "wait": 400 },
+    { "check": "#rights-ack" }, { "click": "#btn-process" }, { "wait": 500 },
+    { "goto": "#/historial" }, { "expect": "ejemplo" }
+  ]},
+  { "name": "Comprar créditos es un pago simulado", "steps": [
+    { "goto": "#/precios" }, { "clickText": "Añadir créditos" }, { "wait": 200 }, { "expect": "simulad" }
+  ]},
+  { "name": "El panel del dueño exige contraseña y muestra el registro", "steps": [
+    { "goto": "#/admin" }, { "fill": { "sel": "#adm-pass", "value": "marca-admin-2026" } },
+    { "submit": "#adminForm" }, { "wait": 200 }, { "expect": "Registro de acciones" }
+  ]},
+  { "name": "Existe la política de contenido", "steps": [
+    { "goto": "#/legal" }, { "expect": "Política de contenido" }
+  ]}
+]
+</script>
+
+<script>
+"use strict";
+/* ==================================================================================
+   ⚙️  CONFIGURA TU PRODUCTO AQUÍ (cambia estos valores y listo)
+   ================================================================================== */
+const CONFIG = {
+  // ⚠️ PLACEHOLDER: pon aquí el nombre comercial de tu producto (no está en el briefing).
+  PRODUCT_NAME : "Marca de Agua IA",
+  TAGLINE      : "Detecta, gestiona y sustituye marcas de agua de contenido generado por IA — sobre contenido tuyo o autorizado.",
+  // La contraseña vive en el código: es un cerrojo básico del panel, NO seguridad real.
+  ADMIN_PASSWORD : "marca-admin-2026",
+  // Firma del estudio (obligatoria en el pie)
+  STUDIO_BRAND : "Incuba tu Negocio",
+  STUDIO_AUTHOR: "Jaime M. M.",
+  STUDIO_URL   : "#",
+  // Titular legal (PLACEHOLDER — necesario para privacidad/aviso legal)
+  LEGAL_HOLDER : "[Titular legal]",
+  CONTACT_EMAIL: "hola@tu-dominio.example",
+  FREE_CREDITS : 30,
+  // Coste en créditos por operación (simulado; en producción lo cobra el backend)
+  COSTS : { analyze:0, inpaint:4, clone:3, blur:1, watermark:1, clean:1, hires:6, video:8 },
+};
+
+// Planes (precios PLACEHOLDER; sin cobro real, arquitectura Stripe-ready)
+const PLANS = [
+  { code:"free", name:"Free", price:0, credits:30, pop:false,
+    features:["30 créditos / mes","Imágenes hasta 4 MP","Procesado en tu navegador","Detección de procedencia"] },
+  { code:"pro", name:"Pro", price:19, credits:600, pop:true,
+    features:["600 créditos / mes","Alta resolución","Procesado por lotes","Historial y versiones","API con 10.000 llamadas"] },
+  { code:"studio", name:"Studio", price:59, credits:2500, pop:false,
+    features:["2.500 créditos / mes","Lotes y prioridad","Motores IA de estudio (GPU)","Vídeo (próximamente)","Content Credentials C2PA","Soporte prioritario"] },
+];
+
+// Registro de MOTORES (arquitectura modular). Local = corre en tu navegador; backend = requiere servidor/GPU.
+const ENGINES = [
+  { task:"Detección visual",          name:"Heurística de bordes",          version:"0.9", where:"navegador", active:true },
+  { task:"Marca oculta / procedencia", name:"Lector C2PA · EXIF · XMP · PNG", version:"1.0", where:"navegador", active:true },
+  { task:"Marca invisible (píxeles)",  name:"Análisis y limpieza LSB",       version:"0.9", where:"navegador", active:true },
+  { task:"Inpainting imagen",         name:"Difusión de vecinos",           version:"0.9", where:"navegador", active:true },
+  { task:"Inpainting imagen",         name:"LaMa / MAT",                    version:"—",   where:"GPU (backend)", active:false },
+  { task:"Inpainting vídeo (futuro)", name:"ProPainter / E2FGVI",           version:"—",   where:"GPU (backend)", active:false },
+  { task:"Procedencia firmada",       name:"Verificación C2PA",             version:"—",   where:"backend", active:false },
+];
+
+// Firmas de generadores / procedencia de IA que buscamos "en el código" del archivo
+const AI_SIGNATURES = [
+  { re:/c2pa|contentauth|content[_ ]?credentials|jumbf|urn:uuid:.*c2pa/i, label:"C2PA / Content Credentials", type:"procedencia" },
+  { re:/synthid|made with google ai|deepmind/i, label:"Google SynthID", type:"procedencia" },
+  { re:/dall[·.\-]?e|openai/i, label:"OpenAI · DALL·E", type:"generador" },
+  { re:/midjourney/i, label:"Midjourney", type:"generador" },
+  { re:/stable[ -]?diffusion|automatic1111|sd-webui|comfyui|invokeai/i, label:"Stable Diffusion", type:"generador" },
+  { re:/adobe firefly|firefly/i, label:"Adobe Firefly", type:"generador" },
+  { re:/leonardo\.?ai/i, label:"Leonardo.Ai", type:"generador" },
+  { re:/ideogram/i, label:"Ideogram", type:"generador" },
+  { re:/\bflux\b/i, label:"Flux", type:"generador" },
+  { re:/runway|gen-?[23]/i, label:"Runway", type:"generador" },
+  { re:/\bsora\b/i, label:"OpenAI Sora", type:"generador" },
+  { re:/\bveo\s?\d?\b/i, label:"Google Veo", type:"generador" },
+  { re:/\bkling\b/i, label:"Kling", type:"generador" },
+  { re:/grok|x\.?ai/i, label:"xAI Grok", type:"generador" },
+  { re:/imagen\b|gemini/i, label:"Google Imagen / Gemini", type:"generador" },
+  { re:/negative prompt|steps:\s?\d|sampler:|cfg scale|seed:\s?\d/i, label:"Parámetros de generación IA", type:"generador" },
+];
+
+/* ==================================================================================
+   ALMACENAMIENTO (todo en el navegador; nada sale del dispositivo)
+   ================================================================================== */
+const K = { files:"wm_files_v1", jobs:"wm_jobs_v1", credits:"wm_credits_v1", log:"wm_log_v1", settings:"wm_settings_v1", admin:"wm_admin_session" };
+function jget(key, def){ try{ const r=localStorage.getItem(key); return r?JSON.parse(r):def; }catch(e){ return def; } }
+function jset(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); return true; }catch(e){ showToast("No se pudo guardar en este dispositivo","err"); return false; } }
+
+function getCredits(){ const c=jget(K.credits,null); if(!c){ const init={balance:CONFIG.FREE_CREDITS,plan:"Free",ledger:[{delta:CONFIG.FREE_CREDITS,reason:"Créditos de bienvenida",ts:Date.now()}]}; jset(K.credits,init); return init; } return c; }
+function setCredits(c){ jset(K.credits,c); paintCredits(); }
+function chargeCredits(amount, reason){
+  const c=getCredits();
+  if(amount>0 && c.balance<amount) return false;
+  c.balance-=amount; c.ledger.unshift({delta:-amount,reason,ts:Date.now()});
+  if(c.ledger.length>60) c.ledger.length=60; setCredits(c); return true;
+}
+function addCredits(amount, reason){ const c=getCredits(); c.balance+=amount; c.ledger.unshift({delta:amount,reason,ts:Date.now()}); setCredits(c); }
+
+function getJobs(){ return jget(K.jobs,[]); }
+function addJob(job){ const j=getJobs(); j.unshift(job); if(j.length>80) j.length=80; jset(K.jobs,j); }
+function getLog(){ return jget(K.log,[]); }
+function addLog(action, detail, rightsAck){ const l=getLog(); l.unshift({ts:Date.now(),action,detail:detail||"",rightsAck:!!rightsAck}); if(l.length>120) l.length=120; jset(K.log,l); }
+function getSettings(){ return jget(K.settings,{theme:"dark",autoDelete:true,ttlDays:1,keepMetadata:false,apiKey:""}); }
+function saveSettings(s){ jset(K.settings,s); }
+
+/* ==================================================================================
+   UTILIDADES
+   ================================================================================== */
+function esc(s){ if(s===null||s===undefined) return ""; return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;"); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function byId(id){ return document.getElementById(id); }
+function clamp(v,a,b){ return v<a?a:(v>b?b:v); }
+function fmtBytes(n){ if(!n&&n!==0) return "—"; if(n<1024) return n+" B"; if(n<1048576) return (n/1024).toFixed(1)+" KB"; return (n/1048576).toFixed(2)+" MB"; }
+function fmtDate(ts){ const d=new Date(ts); return d.toLocaleDateString("es-ES",{day:"numeric",month:"short"})+" "+d.toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit"}); }
+function median(arr){ if(!arr.length) return 0; const a=[...arr].sort((x,y)=>x-y); const m=a.length>>1; return a.length%2?a[m]:(a[m-1]+a[m])/2; }
+let _toastT;
+function showToast(msg, kind){ const t=byId("toast"); if(!t) return; t.textContent=msg; t.className="toast show"+(kind?(" "+kind):""); clearTimeout(_toastT); _toastT=setTimeout(()=>t.classList.remove("show"),2600); }
+function downloadBlob(blob, filename){
+  try{ const a=document.createElement("a"); const url=URL.createObjectURL(blob); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); },1500); }
+  catch(e){ showToast("No se pudo descargar aquí","err"); }
+}
+
+/* ==================================================================================
+   METADATOS / PROCEDENCIA "escrita en el código"  (lectura, firma y limpieza reales)
+   ================================================================================== */
+const CRC_TABLE=(()=>{ const t=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); t[n]=c>>>0; } return t; })();
+function crc32(bytes,start,end){ let c=0xFFFFFFFF; for(let i=start;i<end;i++) c=CRC_TABLE[(c^bytes[i])&0xFF]^(c>>>8); return (c^0xFFFFFFFF)>>>0; }
+function latin1Bytes(s){ const b=new Uint8Array(s.length); for(let i=0;i<s.length;i++) b[i]=s.charCodeAt(i)&0xFF; return b; }
+function latin1Str(bytes,start,end){ let s=""; end=Math.min(end,bytes.length); for(let i=start;i<end;i++) s+=String.fromCharCode(bytes[i]); return s; }
+function dataURLtoBytes(durl){ const b64=durl.split(",")[1]||""; const bin=atob(b64); const u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i); return u; }
+
+function isPNG(b){ return b&&b.length>8&&b[0]===137&&b[1]===80&&b[2]===78&&b[3]===71; }
+function pngChunks(bytes){
+  if(!isPNG(bytes)) return null;
+  const chunks=[]; let p=8; const dv=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+  while(p+8<=bytes.length){
+    const len=dv.getUint32(p); const type=latin1Str(bytes,p+4,p+8);
+    const dataStart=p+8, dataEnd=dataStart+len;
+    if(dataEnd+4>bytes.length) break;
+    chunks.push({type,len,dataStart,dataEnd,chunkStart:p});
+    p=dataEnd+4; if(type==="IEND") break;
+  }
+  return chunks;
+}
+function pngInsertText(bytes, entries){
+  const chunks=pngChunks(bytes); if(!chunks||!chunks.length) return bytes;
+  const insertAt=chunks[0].dataEnd+4; // tras IHDR
+  const news=entries.map(({key,val})=>{
+    const kb=latin1Bytes(key), vb=latin1Bytes(val);
+    const dataLen=kb.length+1+vb.length;
+    const chunk=new Uint8Array(12+dataLen); const dv=new DataView(chunk.buffer);
+    dv.setUint32(0,dataLen);
+    chunk[4]=116;chunk[5]=69;chunk[6]=88;chunk[7]=116; // 'tEXt'
+    chunk.set(kb,8); chunk[8+kb.length]=0; chunk.set(vb,8+kb.length+1);
+    dv.setUint32(8+dataLen, crc32(chunk,4,8+dataLen));
+    return chunk;
+  });
+  const addLen=news.reduce((a,c)=>a+c.length,0);
+  const out=new Uint8Array(bytes.length+addLen);
+  out.set(bytes.subarray(0,insertAt),0); let o=insertAt;
+  for(const c of news){ out.set(c,o); o+=c.length; }
+  out.set(bytes.subarray(insertAt),o);
+  return out;
+}
+function pngStrip(bytes){
+  const chunks=pngChunks(bytes); if(!chunks) return bytes;
+  const drop=new Set(["tEXt","iTXt","zTXt","eXIf","tIME"]);
+  const kept=chunks.filter(c=>!drop.has(c.type));
+  let total=8; for(const c of kept) total+=(c.dataEnd+4)-c.chunkStart;
+  const out=new Uint8Array(total); out.set(bytes.subarray(0,8),0); let o=8;
+  for(const c of kept){ const s=c.chunkStart, e=c.dataEnd+4; out.set(bytes.subarray(s,e),o); o+=e-s; }
+  return out;
+}
+// Lee un valor de texto de un chunk PNG (tEXt: key\0val ; iTXt: key\0 flags... val)
+function readPngText(bytes,c){
+  const raw=bytes.subarray(c.dataStart,c.dataEnd); let z=0; while(z<raw.length&&raw[z]!==0) z++;
+  const key=latin1Str(raw,0,z); let val="";
+  if(c.type==="tEXt"){ val=latin1Str(raw,z+1,raw.length); }
+  else if(c.type==="iTXt"){ // key\0 comp(1) method(1) lang\0 transKey\0 text
+    let p=z+1; const comp=raw[p]; p+=2; // comp flag + method
+    while(p<raw.length&&raw[p]!==0) p++; p++; // lang
+    while(p<raw.length&&raw[p]!==0) p++; p++; // transKey
+    val = comp?"(comprimido)":(()=>{ try{ return new TextDecoder("utf-8").decode(raw.subarray(p)); }catch(e){ return latin1Str(raw,p,raw.length); } })();
+  } else if(c.type==="zTXt"){ val="(comprimido zlib)"; }
+  return {key,val};
+}
+// Parser universal → { findings:[{source,key,value,type}], hasProvenance:bool }
+function parseMetadata(bytes, mime){
+  const findings=[]; const seen=new Set();
+  const push=(source,key,value,type)=>{ const id=source+"|"+key+"|"+String(value).slice(0,40); if(seen.has(id)) return; seen.add(id); findings.push({source,key,value:String(value).slice(0,240),type:type||"metadato"}); };
+  try{
+    if(isPNG(bytes)){
+      const chunks=pngChunks(bytes)||[];
+      for(const c of chunks){ if(c.type==="tEXt"||c.type==="iTXt"||c.type==="zTXt"){ const {key,val}=readPngText(bytes,c); push("PNG "+c.type, key||"(texto)", val, "metadato"); }
+        else if(c.type==="eXIf") push("PNG eXIf","EXIF","bloque EXIF presente","metadato"); }
+    }
+    const scanLen=Math.min(bytes.length, 1500000);
+    const text=latin1Str(bytes,0,scanLen);
+    // XMP
+    const xmp=text.match(/<x:xmpmeta[\s\S]{0,20000}?<\/x:xmpmeta>/i);
+    if(xmp){ push("XMP","packet","XMP presente ("+xmp[0].length+" bytes)","metadato");
+      const tags=[["xmp:CreatorTool","CreatorTool"],["dc:creator","Autor"],["photoshop:Credit","Crédito"],["Iptc4xmpExt","IPTC"],["xmpMM:","Historial"],["c2pa","C2PA"]];
+      for(const [needle,label] of tags){ const m=xmp[0].match(new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"[^<>]{0,60}","i")); if(m) push("XMP",label,m[0].replace(/\s+/g," ").trim(),"metadato"); }
+    }
+    // EXIF marker en JPEG
+    if(/Exif\x00\x00/.test(text)) push("EXIF","bloque","EXIF presente en el archivo","metadato");
+    // C2PA / JUMBF markers
+    if(/jumbf|c2pa|contentauth/i.test(text)) push("Procedencia","C2PA","Manifiesto de Content Credentials detectado","procedencia");
+    // Firmas IA
+    for(const s of AI_SIGNATURES){ if(s.re.test(text)) push("Firma IA", s.label, s.type==="procedencia"?"credencial de procedencia":"marca de generador de IA", s.type); }
+  }catch(e){ /* parseo robusto: nunca peta */ }
+  const hasProv=findings.some(f=>f.type==="procedencia"||f.type==="generador");
+  return { findings, hasProvenance:hasProv };
+}
+
+/* ==================================================================================
+   DETECCIÓN VISUAL (heurística aproximada; se confirma/ajusta a mano)
+   ================================================================================== */
+function detectVisual(canvas){
+  try{
+    const w=canvas.width,h=canvas.height;
+    const sw=160, sh=Math.max(40,Math.round(sw*h/w));
+    const s=document.createElement("canvas"); s.width=sw; s.height=sh;
+    const sg=s.getContext("2d"); sg.drawImage(canvas,0,0,sw,sh);
+    const d=sg.getImageData(0,0,sw,sh).data;
+    const lum=(x,y)=>{ const i=(y*sw+x)*4; return .299*d[i]+.587*d[i+1]+.114*d[i+2]; };
+    const grad=new Float32Array(sw*sh);
+    for(let y=1;y<sh-1;y++)for(let x=1;x<sw-1;x++){ const gx=lum(x+1,y)-lum(x-1,y), gy=lum(x,y+1)-lum(x,y-1); grad[y*sw+x]=Math.hypot(gx,gy); }
+    const zones=[
+      {name:"esquina inferior derecha",x:.60,y:.78,w:.38,h:.20},
+      {name:"esquina inferior izquierda",x:.02,y:.78,w:.38,h:.20},
+      {name:"esquina superior derecha",x:.60,y:.02,w:.38,h:.20},
+      {name:"esquina superior izquierda",x:.02,y:.02,w:.38,h:.20},
+      {name:"banda central",x:.28,y:.40,w:.44,h:.20},
+    ];
+    const score=z=>{ let sum=0,n=0; const x0=z.x*sw|0,y0=z.y*sh|0,x1=(z.x+z.w)*sw|0,y1=(z.y+z.h)*sh|0;
+      for(let y=y0;y<y1;y++)for(let x=x0;x<x1;x++){ sum+=grad[y*sw+x]; n++; } return n?sum/n:0; };
+    const scored=zones.map(z=>({z,s:score(z)}));
+    const med=median(scored.map(o=>o.s))||1;
+    return scored.filter(o=>o.s>med*1.5 && o.s>5).sort((a,b)=>b.s-a.s).slice(0,3).map(o=>({
+      x:Math.round(o.z.x*w),y:Math.round(o.z.y*h),w:Math.round(o.z.w*w),h:Math.round(o.z.h*h),
+      conf:Math.min(.96, o.s/(med*2.6)), label:o.z.name
+    }));
+  }catch(e){ return []; }
+}
+
+/* ==================================================================================
+   PROCESADO DE IMAGEN (inpaint difusión / clon / difuminado / marca)
+   ================================================================================== */
+function inpaintRegion(ctx, w, h, box){
+  const x0=clamp(box.x,0,w-1), y0=clamp(box.y,0,h-1);
+  const x1=clamp(box.x+box.w,1,w), y1=clamp(box.y+box.h,1,h);
+  const bw=x1-x0, bh=y1-y0; if(bw<2||bh<2) return;
+  const pad=Math.max(6, Math.round(Math.min(bw,bh)*0.2));
+  const rx0=clamp(x0-pad,0,w), ry0=clamp(y0-pad,0,h), rx1=clamp(x1+pad,0,w), ry1=clamp(y1+pad,0,h);
+  const rw=rx1-rx0, rh=ry1-ry0; if(rw<3||rh<3) return;
+  // trabajar a baja resolución para ser rápido (<2s)
+  const maxDim=190, scl=Math.min(1, maxDim/Math.max(rw,rh));
+  const lw=Math.max(3,Math.round(rw*scl)), lh=Math.max(3,Math.round(rh*scl));
+  const tmp=document.createElement("canvas"); tmp.width=lw; tmp.height=lh;
+  const tg=tmp.getContext("2d"); tg.drawImage(ctx.canvas, rx0,ry0,rw,rh, 0,0,lw,lh);
+  const img=tg.getImageData(0,0,lw,lh); const data=img.data;
+  const mask=new Uint8Array(lw*lh);
+  const mx0=Math.round((x0-rx0)*scl), my0=Math.round((y0-ry0)*scl), mx1=Math.round((x1-rx0)*scl), my1=Math.round((y1-ry0)*scl);
+  for(let y=0;y<lh;y++)for(let x=0;x<lw;x++){ if(x>=mx0&&x<mx1&&y>=my0&&y<my1) mask[y*lw+x]=1; }
+  let ar=0,ag=0,ab=0,cnt=0;
+  for(let i=0,p=0;i<lw*lh;i++,p+=4){ if(!mask[i]){ ar+=data[p];ag+=data[p+1];ab+=data[p+2];cnt++; } }
+  if(cnt){ ar/=cnt;ag/=cnt;ab/=cnt; } else return;
+  for(let i=0,p=0;i<lw*lh;i++,p+=4){ if(mask[i]){ data[p]=ar;data[p+1]=ag;data[p+2]=ab; } }
+  const nx=new Float32Array(lw*lh*3);
+  const iters=160;
+  for(let it=0;it<iters;it++){
+    for(let y=0;y<lh;y++)for(let x=0;x<lw;x++){ const i=y*lw+x; if(!mask[i]) continue;
+      let r=0,g=0,b=0,k=0;
+      if(x>0){ const j=(i-1)*4; r+=data[j];g+=data[j+1];b+=data[j+2];k++; }
+      if(x<lw-1){ const j=(i+1)*4; r+=data[j];g+=data[j+1];b+=data[j+2];k++; }
+      if(y>0){ const j=(i-lw)*4; r+=data[j];g+=data[j+1];b+=data[j+2];k++; }
+      if(y<lh-1){ const j=(i+lw)*4; r+=data[j];g+=data[j+1];b+=data[j+2];k++; }
+      const t=i*3; if(k){ nx[t]=r/k;nx[t+1]=g/k;nx[t+2]=b/k; }
+    }
+    for(let i=0;i<lw*lh;i++){ if(mask[i]){ const p=i*4,t=i*3; data[p]=nx[t];data[p+1]=nx[t+1];data[p+2]=nx[t+2]; } }
+  }
+  tg.putImageData(img,0,0);
+  // componer solo la zona de la caja (recorte) a resolución completa
+  ctx.save(); ctx.beginPath(); ctx.rect(x0,y0,bw,bh); ctx.clip();
+  ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality="high";
+  ctx.drawImage(tmp, 0,0,lw,lh, rx0,ry0,rw,rh);
+  ctx.restore();
+}
+function cloneRegion(ctx, w, h, box){
+  const bx=clamp(box.x,0,w-1), by=clamp(box.y,0,h-1), bw=Math.min(box.w,w-bx), bh=Math.min(box.h,h-by);
+  if(bw<2||bh<2) return;
+  let sx=bx-bw-8; if(sx<0) sx=bx+bw+8; if(sx+bw>w) sx=clamp(bx-bw-8,0,w-bw); // fuente a un lado
+  let sy=by; if(sx<0||sx+bw>w){ sx=bx; sy=by-bh-8; if(sy<0) sy=by+bh+8; }
+  sx=clamp(sx,0,w-bw); sy=clamp(sy,0,h-bh);
+  const src=ctx.getImageData(sx,sy,bw,bh);
+  ctx.putImageData(src,bx,by);
+}
+function blurRegion(ctx, w, h, box){
+  const bx=clamp(box.x,0,w-1), by=clamp(box.y,0,h-1), bw=Math.min(box.w,w-bx), bh=Math.min(box.h,h-by);
+  if(bw<2||bh<2) return;
+  const f=Math.max(6,Math.round(Math.min(bw,bh)/9)); // pixelado
+  const tmp=document.createElement("canvas"); tmp.width=Math.max(1,Math.round(bw/f)); tmp.height=Math.max(1,Math.round(bh/f));
+  const tg=tmp.getContext("2d"); tg.imageSmoothingEnabled=true; tg.drawImage(ctx.canvas,bx,by,bw,bh,0,0,tmp.width,tmp.height);
+  ctx.imageSmoothingEnabled=false; ctx.drawImage(tmp,0,0,tmp.width,tmp.height,bx,by,bw,bh); ctx.imageSmoothingEnabled=true;
+}
+// ---- Marca INVISIBLE en los píxeles (heurística de esteganografía LSB) ----
+function analyzeInvisible(canvas){
+  try{
+    const w=canvas.width,h=canvas.height; const sw=Math.min(w,240), sh=Math.max(1,Math.round(sw*h/w));
+    const s=document.createElement("canvas"); s.width=sw; s.height=sh; s.getContext("2d").drawImage(canvas,0,0,sw,sh);
+    const d=s.getContext("2d").getImageData(0,0,sw,sh).data;
+    let ones=0,tot=0; const hist=new Array(256).fill(0);
+    for(let i=0;i<d.length;i+=4){ for(let c=0;c<3;c++){ const v=d[i+c]; ones+=v&1; tot++; hist[v]++; } }
+    const lsbRatio=tot?ones/tot:0.5;
+    // chi-cuadrado de pares (2k, 2k+1): la esteganografía LSB tiende a igualar esas frecuencias
+    let chi=0,pairs=0; for(let k=0;k<128;k++){ const a=hist[2*k],b=hist[2*k+1],e=(a+b)/2; if(e>4){ chi+=((a-e)*(a-e))/e; pairs++; } }
+    const pairBalance=pairs?chi/pairs:99;
+    let level="baja", note="No se aprecian indicios claros de marca invisible LSB.";
+    if(Math.abs(lsbRatio-0.5)<0.02 && pairBalance<0.5){ level="media"; note="El plano de bits menos significativo está muy equilibrado: posible dato oculto (esteganografía LSB)."; }
+    return { level, note, lsbRatio:+lsbRatio.toFixed(3) };
+  }catch(e){ return { level:"baja", note:"No se pudo analizar la capa invisible.", lsbRatio:0 }; }
+}
+// Rompe marcas invisibles FRÁGILES: limpia el bit menos significativo con dither ligero (imperceptible)
+function scrubInvisible(ctx,w,h){
+  const img=ctx.getImageData(0,0,w,h); const d=img.data;
+  for(let i=0;i<d.length;i+=4){ for(let c=0;c<3;c++){ let v=d[i+c]&0xFE; if(v<254 && (((i>>2)+c)&1)) v+=1; d[i+c]=v; } }
+  ctx.putImageData(img,0,0);
+}
+function applyWatermark(ctx, w, h, opts){
+  ctx.save();
+  ctx.globalAlpha=clamp(opts.opacity,0,1);
+  const size=Math.max(10, opts.sizePct/100 * Math.min(w,h));
+  const draw=(cx,cy)=>{
+    ctx.save(); ctx.translate(cx,cy); ctx.rotate(opts.rotation*Math.PI/180);
+    if(opts.mode==="logo" && opts.logo){ const lw=size, lh=size*(opts.logo.height/opts.logo.width||1); ctx.drawImage(opts.logo,-lw/2,-lh/2,lw,lh); }
+    else { ctx.font="800 "+size+"px "+"-apple-system,Segoe UI,Roboto,sans-serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillStyle=opts.color||"#ffffff"; ctx.shadowColor="rgba(0,0,0,.35)"; ctx.shadowBlur=size*0.06;
+      ctx.fillText(opts.text||"© MARCA", 0, 0); }
+    ctx.restore();
+  };
+  if(opts.tile){ const stepX=size*3.4, stepY=size*2.2; for(let y=stepY*0.3;y<h+stepY;y+=stepY){ for(let x=stepX*0.3;x<w+stepX;x+=stepX){ draw(x,y); } } }
+  else { draw(opts.xPct/100*w, opts.yPct/100*h); }
+  ctx.restore();
+}
+
+/* ==================================================================================
+   IMAGEN DE EJEMPLO (para probar sin subir nada; trae metadatos IA reales inyectados)
+   ================================================================================== */
+function makeSample(){
+  const c=document.createElement("canvas"); c.width=1280; c.height=800; const g=c.getContext("2d");
+  const sky=g.createLinearGradient(0,0,0,800); sky.addColorStop(0,"#274690"); sky.addColorStop(.55,"#6d8bff"); sky.addColorStop(1,"#f5b8a0");
+  g.fillStyle=sky; g.fillRect(0,0,1280,800);
+  g.fillStyle="rgba(255,244,214,.95)"; g.beginPath(); g.arc(980,210,90,0,7); g.fill();
+  g.fillStyle="#2a3d66"; g.beginPath(); g.moveTo(0,640); g.lineTo(360,430); g.lineTo(640,600); g.lineTo(980,410); g.lineTo(1280,560); g.lineTo(1280,800); g.lineTo(0,800); g.closePath(); g.fill();
+  g.fillStyle="#1d2b4a"; g.beginPath(); g.moveTo(0,720); g.lineTo(300,600); g.lineTo(560,700); g.lineTo(900,590); g.lineTo(1280,690); g.lineTo(1280,800); g.lineTo(0,800); g.closePath(); g.fill();
+  for(let i=0;i<70;i++){ g.fillStyle="rgba(255,255,255,"+(Math.random()*.5+.2)+")"; const x=Math.random()*1280,y=Math.random()*360,r=Math.random()*1.6+.4; g.beginPath(); g.arc(x,y,r,0,7); g.fill(); }
+  // marca de agua semitransparente (esquina inf. derecha) + patrón diagonal tenue
+  g.save(); g.globalAlpha=.5; g.font="800 46px -apple-system,Segoe UI,Roboto,sans-serif"; g.fillStyle="#ffffff"; g.textAlign="right"; g.shadowColor="rgba(0,0,0,.35)"; g.shadowBlur=6;
+  g.fillText("© FOTO DEMO", 1240, 762); g.restore();
+  g.save(); g.globalAlpha=.06; g.strokeStyle="#fff"; g.lineWidth=2; for(let x=-800;x<1280;x+=90){ g.beginPath(); g.moveTo(x,0); g.lineTo(x+800,800); g.stroke(); } g.restore();
+  let bytes=dataURLtoBytes(c.toDataURL("image/png"));
+  bytes=pngInsertText(bytes,[
+    {key:"Software", val:"DemoDiffusion 1.5"},
+    {key:"parameters", val:"a scenic mountain landscape at dusk, cfg scale: 7, steps: 30, sampler: Euler a, seed: 4412, Model: sd-demo"},
+    {key:"Comment", val:"Generated by Example-AI. Content Credentials: contentauthenticity.org (C2PA demo claim)"},
+    {key:"Author", val:"MUESTRA — contenido de ejemplo (no subas nada para probar)"},
+  ]);
+  return { canvas:c, bytes, name:"imagen-ejemplo.png", mime:"image/png" };
+}
+
+/* ==================================================================================
+   ESTADO DEL EDITOR
+   ================================================================================== */
+const EDITOR = { loaded:false, name:"", mime:"", bytes:null, w:0, h:0, base:null, work:null, meta:null, invisible:null, detections:[], selection:null, cleaned:false, exportBytes:0, cmp:{pos:50,zoom:1,tx:0,ty:0} };
+const WM = { mode:"texto", text:"© MI MARCA", logo:null, sizePct:12, opacity:.6, rotation:0, tile:false, xPct:82, yPct:92, color:"#ffffff" };
+
+function resetEditorState(){ EDITOR.loaded=false; EDITOR.bytes=null; EDITOR.base=null; EDITOR.work=null; EDITOR.meta=null; EDITOR.invisible=null; EDITOR.detections=[]; EDITOR.selection=null; EDITOR.cleaned=false; EDITOR.exportBytes=0; EDITOR.cmp={pos:50,zoom:1,tx:0,ty:0}; }
+
+function loadIntoEditor(canvas, bytes, name, mime){
+  const MAX=1600; let w=canvas.width,h=canvas.height, scale=Math.min(1,MAX/Math.max(w,h));
+  const bw=Math.round(w*scale), bh=Math.round(h*scale);
+  const base=document.createElement("canvas"); base.width=bw; base.height=bh; base.getContext("2d").drawImage(canvas,0,0,bw,bh);
+  const work=document.createElement("canvas"); work.width=bw; work.height=bh; work.getContext("2d").drawImage(base,0,0);
+  EDITOR.loaded=true; EDITOR.name=name; EDITOR.mime=mime||"image/png"; EDITOR.bytes=bytes; EDITOR.w=bw; EDITOR.h=bh; EDITOR.base=base; EDITOR.work=work; EDITOR.cleaned=false; EDITOR.exportBytes=bytes?bytes.length:0;
+  EDITOR.meta = bytes ? parseMetadata(bytes, EDITOR.mime) : {findings:[],hasProvenance:false};
+  EDITOR.detections = detectVisual(base);
+  EDITOR.invisible = analyzeInvisible(base);
+  // caja por defecto = primera detección (o esquina inf. derecha)
+  EDITOR.selection = EDITOR.detections[0] ? {x:EDITOR.detections[0].x,y:EDITOR.detections[0].y,w:EDITOR.detections[0].w,h:EDITOR.detections[0].h}
+                                          : {x:Math.round(bw*.62),y:Math.round(bh*.80),w:Math.round(bw*.34),h:Math.round(bh*.16)};
+  addLog("Análisis", "Archivo analizado: "+name+(EDITOR.meta.hasProvenance?" · procedencia IA detectada":""), false);
+  renderEditor();
+}
+
+/* ==================================================================================
+   ROUTER
+   ================================================================================== */
+const ROUTES = {
+  "":"dashboard","/":"dashboard","dashboard":"dashboard",
+  "editor":"editor","historial":"historial","precios":"precios",
+  "ajustes":"ajustes","api":"api","legal":"legal","admin":"admin"
+};
+function currentRoute(){ const h=location.hash.replace(/^#\/?/,"").split("?")[0]; return ROUTES[h]||"dashboard"; }
+function navTo(r){ location.hash="#/"+r; }
+function route(){
+  const r=currentRoute();
+  if(r==="dashboard") renderDashboard();
+  else if(r==="editor") renderEditor();
+  else if(r==="historial") renderHistorial();
+  else if(r==="precios") renderPrecios();
+  else if(r==="ajustes") renderAjustes();
+  else if(r==="api") renderApi();
+  else if(r==="legal") renderLegal();
+  else if(r==="admin") renderAdmin();
+  else renderDashboard();
+  window.scrollTo(0,0);
+  paintActivePill(r);
+}
+window.addEventListener("hashchange",route);
+
+/* ==================================================================================
+   SHELL (barra superior + pie)  — se pinta una vez; el contenido va en #view
+   ================================================================================== */
+function shell(){
+  const c=getCredits();
+  document.getElementById("app").innerHTML = `
+  <header class="appbar"><div class="appbar-in">
+    <a class="brand" href="#/" aria-label="Inicio">
+      <span class="mk">${iconDrop()}</span>
+      <span>${esc(CONFIG.PRODUCT_NAME)}<small>Gestión de marcas de agua IA</small></span>
+    </a>
+    <nav class="pills" id="pills" aria-label="Navegación principal">
+      ${navPill("dashboard","Panel",iconGrid())}
+      ${navPill("editor","Editor",iconWand())}
+      ${navPill("historial","Historial",iconClock())}
+      ${navPill("precios","Créditos",iconSpark())}
+      ${navPill("api","API",iconCode())}
+      ${navPill("ajustes","Ajustes",iconGear())}
+    </nav>
+    <div class="right">
+      <a href="#/precios" class="credits-chip" title="Créditos disponibles"><span class="lbl">Créditos</span> <b id="creditsNum">${c.balance}</b></a>
+      <button class="icon-btn" id="themeBtn" aria-label="Cambiar tema">${iconMoon()}</button>
+    </div>
+  </div></header>
+  <main id="view"></main>
+  <footer class="site"><div class="in">
+    <span>Diseñado por <a href="${esc(CONFIG.STUDIO_URL)}"><b>${esc(CONFIG.STUDIO_BRAND)}</b></a> · por ${esc(CONFIG.STUDIO_AUTHOR)}</span>
+    <span><a href="#/legal">Términos</a> · <a href="#/legal">Privacidad</a> · <a href="#/admin">Acceso del dueño</a></span>
+  </div></footer>`;
+  byId("themeBtn").addEventListener("click",toggleTheme);
+  byId("pills").addEventListener("click",(e)=>{ const p=e.target.closest(".pill"); if(p&&p.dataset.route){ e.preventDefault(); navTo(p.dataset.route); } });
+}
+function navPill(route,label,icon){ return `<button class="pill" data-route="${route}">${icon}<span>${label}</span></button>`; }
+function paintActivePill(r){ const pills=document.querySelectorAll("#pills .pill"); pills.forEach(p=>p.classList.toggle("active", p.dataset.route===r || (r==="dashboard"&&p.dataset.route==="dashboard"))); }
+function paintCredits(){ const n=byId("creditsNum"); if(n) n.textContent=getCredits().balance; }
+const view=()=>byId("view");
+
+/* ==================================================================================
+   TEMA
+   ================================================================================== */
+function applyTheme(){ const s=getSettings(); document.documentElement.setAttribute("data-theme", s.theme==="light"?"light":"dark"); }
+function toggleTheme(){ const s=getSettings(); s.theme=(s.theme==="light")?"dark":"light"; saveSettings(s); applyTheme(); showToast(s.theme==="light"?"Modo claro":"Modo oscuro"); }
+
+/* ==================================================================================
+   PÁGINA: DASHBOARD
+   ================================================================================== */
+function renderDashboard(){
+  if(!byId("view")) shell();
+  const c=getCredits(); const jobs=getJobs(); const log=getLog();
+  const processed=jobs.length; const withProv=jobs.filter(j=>j.provenance).length;
+  view().innerHTML = `
+  <section class="hero">
+    <div class="eyebrow">Contenido generado por IA</div>
+    <h1>Detecta, limpia y sustituye marcas de agua con control total</h1>
+    <p>${esc(CONFIG.TAGLINE)} Detectamos también las <b>marcas ocultas</b> —metadatos, Content Credentials (C2PA) y firmas de IA— y las <b>invisibles</b> en los píxeles. Todo ocurre <b>en tu navegador</b>: nada se sube a ningún servidor.</p>
+    <div class="row">
+      <a href="#/editor" class="btn btn-primary btn-lg">${iconWand()} Abrir el editor</a>
+      <a href="#/precios" class="btn btn-ghost btn-lg">Ver planes y créditos</a>
+    </div>
+  </section>
+
+  <div class="grid g4" style="margin-bottom:22px">
+    <div class="stat"><div class="k">${iconSpark()} Créditos</div><div class="v grad">${c.balance}</div><div class="s">Plan ${esc(c.plan)}</div></div>
+    <div class="stat"><div class="k">${iconClock()} Procesos en curso</div><div class="v">0</div><div class="s">Cola local vacía</div></div>
+    <div class="stat"><div class="k">${iconLayers()} Archivos procesados</div><div class="v">${processed}</div><div class="s">${withProv} con procedencia IA</div></div>
+    <div class="stat"><div class="k">${iconShield()} Privacidad</div><div class="v" style="font-size:20px">Local</div><div class="s">Nada sale del dispositivo</div></div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1.5fr 1fr;gap:18px">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 style="font-size:16px">Archivos recientes</h3><a href="#/historial" class="chip info">Ver historial</a>
+      </div>
+      ${jobs.length ? `<div class="table-scroll" style="border:none"><table class="tbl"><thead><tr><th></th><th>Archivo</th><th>Método</th><th>Fecha</th></tr></thead><tbody>
+        ${jobs.slice(0,5).map(j=>`<tr><td>${j.thumbAfter?`<img class="thumb" src="${j.thumbAfter}" alt="">`:""}</td><td><b>${esc(j.name)}</b><br><span class="muted" style="font-size:12px">${j.w}×${j.h}</span></td><td><span class="chip">${esc(j.methodLabel||j.method)}</span></td><td class="muted">${fmtDate(j.createdAt)}</td></tr>`).join("")}
+      </tbody></table></div>` : `<div class="empty"><div class="ic">🗂️</div><b>Aún no has procesado nada</b><p class="muted">Abre el editor y usa la imagen de ejemplo para probarlo.</p></div>`}
+    </div>
+    <div class="card">
+      <h3 style="font-size:16px;margin-bottom:12px">Flujo de trabajo</h3>
+      ${["Subir archivo","Análisis automático","Detección","Vista previa","Elegir método","Procesar","Comparar","Exportar"].map((s,i)=>`<div style="display:flex;gap:11px;align-items:center;padding:7px 0"><span style="width:24px;height:24px;border-radius:50%;background:var(--grad-soft);color:var(--brand);display:grid;place-items:center;font-size:12px;font-weight:800;flex-shrink:0">${i+1}</span><span style="font-size:13.5px">${s}</span></div>`).join("")}
+      <a href="#/editor" class="btn btn-soft btn-block" style="margin-top:12px">Empezar ahora</a>
+    </div>
+  </div>`;
+}
+
+/* ==================================================================================
+   PÁGINA: EDITOR (núcleo)
+   ================================================================================== */
+function renderEditor(){
+  if(!byId("view")) shell();
+  const E=EDITOR;
+  view().innerHTML = `
+  <div class="page-head"><div class="eyebrow">Editor</div><h1>Editor de marcas de agua</h1>
+    <p>Sube contenido <b>tuyo o autorizado</b>. Detectamos marcas <b>visibles</b> y <b>ocultas</b> (metadatos, C2PA, firmas de IA e invisibles en los píxeles) y tú decides qué hacer. Todo en tu navegador.</p></div>
+
+  ${E.loaded ? `<div class="filebar">
+    <span>${iconFile()} <b>${esc(E.name)}</b></span>
+    <span>Resolución: <b>${E.w}×${E.h}</b></span>
+    <span>Tamaño: <b>${fmtBytes(E.exportBytes)}</b></span>
+    <span>Formato: <b>${esc((E.mime||"").replace("image/","").toUpperCase()||"PNG")}</b></span>
+    <button class="btn btn-ghost btn-sm" id="btn-newfile">Cambiar archivo</button>
+  </div>`:""}
+
+  <div class="editor">
+    <div class="left">
+      <div class="stage-wrap">
+        ${E.loaded ? `<div class="canvas-host" id="host"><canvas id="baseCanvas"></canvas><canvas id="overlay"></canvas></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+            <button class="btn btn-ghost btn-sm" id="btn-usezone">${iconTarget()} Usar zona detectada</button>
+            <button class="btn btn-ghost btn-sm" id="btn-reset">${iconUndo()} Deshacer cambios</button>
+            <span class="chip info" style="margin-left:auto">Arrastra sobre la imagen para marcar una zona</span>
+          </div>` : dropzoneHTML()}
+      </div>
+
+      ${E.loaded ? `<div class="card" style="margin-top:16px">
+        <h3 style="font-size:16px;margin-bottom:4px">Comparación antes / después</h3>
+        <p class="tool-sub">Desliza para comparar, usa la rueda o los botones para hacer zoom.</p>
+        <div class="cmp" id="cmp">
+          <div class="cmp-stage" id="cmpStage">
+            <canvas id="cmpBase"></canvas>
+            <canvas id="cmpAfter"></canvas>
+          </div>
+          <span class="tag a">Antes</span><span class="tag b">Después</span>
+          <div class="cmp-handle" id="cmpHandle"><span class="grip">⇋</span></div>
+        </div>
+        <div class="cmp-ctrls">
+          <input type="range" id="cmpRange" min="0" max="100" value="50" aria-label="Comparador">
+          <button class="btn btn-ghost btn-sm" id="zoomOut">−</button>
+          <button class="btn btn-ghost btn-sm" id="zoomIn">+</button>
+          <button class="btn btn-ghost btn-sm" id="zoomReset">Reajustar</button>
+        </div>
+        <div class="info-line">
+          <span>Resolución <b>${E.w}×${E.h}</b></span><span>Tamaño aprox. <b id="sizeInfo">${fmtBytes(E.exportBytes)}</b></span>
+          <span>Formato <b id="fmtInfo">${esc((E.mime||"").replace("image/","").toUpperCase()||"PNG")}</b></span>
+          <span>${E.cleaned?`<span class="chip ok">Metadatos limpios</span>`:``}</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+          <select id="expFormat" class="field" style="width:auto;margin:0"><option value="image/png">PNG (sin pérdida)</option><option value="image/jpeg">JPEG</option><option value="image/webp">WEBP</option></select>
+          <button class="btn btn-primary" id="btn-download">${iconDownload()} Descargar resultado</button>
+          <button class="btn btn-ghost" id="btn-version">${iconLayers()} Guardar versión</button>
+        </div>
+      </div>`:""}
+    </div>
+
+    <div class="tools">
+      ${E.loaded ? toolsHTML() : `<div class="card"><div class="tool-h"><span class="n">i</span> Empieza por aquí</div><p class="tool-sub">Sube una imagen o usa el ejemplo. Detectaremos automáticamente marcas de agua visuales y la <b>procedencia escrita en el código</b> (metadatos, C2PA, firmas de IA).</p><button class="btn btn-primary btn-block js-sample">${iconSpark()} Usar imagen de ejemplo</button></div>
+      <div class="card"><div class="tool-h"><span class="n">?</span> ¿Qué detecta?</div>
+        <div class="finding"><span class="fi p">🔎</span><div><b>Marca de agua visual</b><br><span class="muted">Logos/textos superpuestos, con su posición y tamaño aproximados.</span></div></div>
+        <div class="finding"><span class="fi g">🧬</span><div><b>Procedencia en el código</b><br><span class="muted">EXIF, XMP, chunks PNG, C2PA/Content Credentials y firmas de generadores de IA.</span></div></div>
+      </div>`}
+    </div>
+  </div>`;
+
+  // Enlazar según estado
+  if(E.loaded){ bindEditorLoaded(); paintCanvas(); paintCompare(); }
+  else bindEditorEmpty();
+}
+
+function dropzoneHTML(){
+  return `<div class="dropzone" id="dropzone">
+    <div class="dz-ic">${iconUpload()}</div>
+    <h3 style="font-size:16px;margin-bottom:4px">Arrastra tu imagen aquí</h3>
+    <p class="muted" style="font-size:13px;margin-bottom:14px">PNG · JPG · WEBP · TIFF (según el navegador). Máx. recomendado 4 MP. Nada se sube: se procesa aquí.</p>
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+      <label class="btn btn-primary" style="cursor:pointer">${iconFile()} Elegir archivo<input type="file" id="fileInput" accept="image/*" hidden></label>
+      <button class="btn btn-ghost js-sample">Usar imagen de ejemplo</button>
+    </div>
+    <p class="muted" style="font-size:12px;margin-top:12px">${iconShield()} Se procesa en tu navegador: tus imágenes no se suben a ningún servidor.</p>
+  </div>`;
+}
+
+function toolsHTML(){
+  const E=EDITOR, m=E.meta||{findings:[],hasProvenance:false};
+  const inv=E.invisible||{level:"baja",note:"—",lsbRatio:0};
+  const prov = m.findings.filter(f=>f.type==="procedencia"||f.type==="generador");
+  const meta = m.findings.filter(f=>f.type==="metadato");
+  return `
+  <div class="card">
+    <div class="tool-h"><span class="n">1</span> Análisis</div>
+    <p class="tool-sub">Buscamos marcas de agua <b>visibles</b> y, sobre todo, las <b>ocultas</b> que el generador de IA incrusta en el archivo.</p>
+
+    <h4 style="font-size:13px;margin:6px 0 4px">🧬 Marcas ocultas en el código · Procedencia</h4>
+    ${ (prov.length||meta.length) ? (prov.concat(meta)).slice(0,8).map(f=>`
+      <div class="finding"><span class="fi ${f.type==='metadato'?'g':'p'}">${f.type==='metadato'?'📄':'🧬'}</span>
+      <div><b>${esc(f.label||f.key||f.source)}</b> <span class="muted">· ${esc(f.source)}</span><br>
+      <code>${esc(f.value)}</code></div></div>`).join("")
+      : `<p class="muted" style="font-size:13px">No se han encontrado metadatos ni procedencia embebida en este archivo.</p>` }
+    ${ m.hasProvenance?`<div class="chip warn" style="margin-top:10px">⚠ Marca oculta de IA detectada (procedencia embebida)</div>`:`<div class="chip ok" style="margin-top:10px">Sin firmas de IA en el código</div>` }
+    <button class="btn btn-primary btn-block btn-sm" id="btn-clean" style="margin-top:10px">${iconEraser()} Borrar marcas ocultas (metadatos) <span style="opacity:.75;font-weight:600">· ${CONFIG.COSTS.clean} créd.</span></button>
+
+    <h4 style="font-size:13px;margin:16px 0 4px">👻 Marca invisible en los píxeles</h4>
+    <div class="finding"><span class="fi p">${inv.level==='baja'?'✅':'⚠'}</span><div><b>Sospecha ${esc(inv.level)}</b> <span class="muted">· LSB ${inv.lsbRatio}</span><br><span class="muted" style="font-size:12.5px">${esc(inv.note)}</span></div></div>
+    <button class="btn btn-ghost btn-block btn-sm" id="btn-scrub" style="margin-top:8px">${iconWand()} Romper marca invisible (re-muestreo) <span style="opacity:.7;font-weight:600">· ${CONFIG.COSTS.clean} créd.</span></button>
+    <p class="muted" style="font-size:11px;margin-top:6px">Elimina datos ocultos frágiles (esteganografía LSB). Las marcas robustas de procedencia (p. ej. SynthID) están diseñadas para resistir y podrían persistir — <b>respeta la disclosure cuando proceda</b>.</p>
+
+    <h4 style="font-size:13px;margin:16px 0 4px">🔎 Marca visible · Zonas detectadas</h4>
+    ${ E.detections.length ? E.detections.map((d,i)=>`<div class="zone-item"><span>${iconTarget()} ${esc(d.label)} <span class="muted">· ${(d.conf*100|0)}%</span></span><button class="btn btn-ghost btn-sm" data-zone="${i}">Usar</button></div>`).join("")
+       : `<p class="muted" style="font-size:13px">Sin zonas claras. Dibuja la zona a mano sobre la imagen.</p>` }
+  </div>
+
+  <div class="card">
+    <div class="tool-h"><span class="n">2</span> Eliminar / reconstruir</div>
+    <p class="tool-sub">Reconstruye la zona marcada (inpainting aproximado en el navegador).</p>
+    <div class="field"><label for="method">Método</label>
+      <select id="method">
+        <option value="inpaint">Reconstruir (inpaint por difusión)</option>
+        <option value="clone">Clonar zona contigua</option>
+        <option value="blur">Difuminar / pixelar (ocultar)</option>
+      </select>
+    </div>
+    <div class="consent" id="consentBox">
+      <input type="checkbox" id="rights-ack" aria-label="Confirmo derechos">
+      <label for="rights-ack">Confirmo que soy <b>titular del contenido</b> o tengo <b>autorización</b> para modificar sus marcas de agua, y acepto la <a href="#/legal">política de contenido</a>.</label>
+    </div>
+    <div class="consent-msg" id="consentMsg">Confirma que tienes derechos sobre el contenido para poder procesarlo.</div>
+    <button class="btn btn-primary btn-block" id="btn-process">${iconWand()} Procesar la zona <span class="muted" style="font-weight:600">· ${CONFIG.COSTS.inpaint} créd.</span></button>
+    <p class="muted" style="font-size:11.5px;margin-top:8px">Para calidad de estudio (modelos IA en GPU) se conecta un motor del backend — ver arquitectura. <span class="badge-sim">local aproximado</span></p>
+  </div>
+
+  <div class="card">
+    <div class="tool-h"><span class="n">3</span> Marca propia</div>
+    <p class="tool-sub">Sustituye o añade tu logotipo / texto.</p>
+    <div class="seg" style="margin-bottom:12px"><button data-wmmode="texto" class="${WM.mode==='texto'?'on':''}">Texto</button><button data-wmmode="logo" class="${WM.mode==='logo'?'on':''}">Logo (imagen)</button></div>
+    <div class="field" id="wmTextField"><label for="wm-text">Texto de la marca</label><input type="text" id="wm-text" value="${esc(WM.text)}" maxlength="40"></div>
+    <div class="field" id="wmLogoField" style="${WM.mode==='logo'?'':'display:none'}"><label>Logo (PNG con transparencia)</label><label class="btn btn-ghost btn-sm" style="cursor:pointer">Subir logo<input type="file" id="wm-logo" accept="image/*" hidden></label> <span id="wmLogoName" class="muted" style="font-size:12px">${WM.logo?'logo cargado':'ninguno'}</span></div>
+    <div class="field"><label>Tamaño <span id="wmSizeV" class="muted">${WM.sizePct}%</span></label><input type="range" id="wm-size" min="4" max="40" value="${WM.sizePct}"></div>
+    <div class="field"><label>Transparencia <span id="wmOpV" class="muted">${Math.round(WM.opacity*100)}%</span></label><input type="range" id="wm-op" min="10" max="100" value="${Math.round(WM.opacity*100)}"></div>
+    <div class="field"><label>Rotación <span id="wmRotV" class="muted">${WM.rotation}°</span></label><input type="range" id="wm-rot" min="-45" max="45" value="${WM.rotation}"></div>
+    <div class="consent" style="padding:9px 12px"><input type="checkbox" id="wm-tile" ${WM.tile?'checked':''}><label for="wm-tile">Repetir en mosaico (marca difícil de recortar)</label></div>
+    <button class="btn btn-primary btn-block" id="btn-wm">${iconStamp()} Aplicar marca <span class="muted" style="font-weight:600">· ${CONFIG.COSTS.watermark} créd.</span></button>
+  </div>`;
+}
+
+/* ---- Enlaces del editor ---- */
+function bindEditorEmpty(){
+  document.querySelectorAll(".js-sample").forEach(b=>b.addEventListener("click",onSample));
+  const fi=byId("fileInput"); if(fi) fi.addEventListener("change",e=>{ if(e.target.files&&e.target.files[0]) onFile(e.target.files[0]); });
+  const dz=byId("dropzone");
+  if(dz){ ["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add("drag");}));
+    ["dragleave","drop"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove("drag");}));
+    dz.addEventListener("drop",e=>{ const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]; if(f) onFile(f); }); }
+}
+function bindEditorLoaded(){
+  on("btn-newfile","click",()=>{ resetEditorState(); renderEditor(); });
+  on("btn-sample","click",onSample);
+  on("btn-clean","click",onCleanMetadata);
+  on("btn-scrub","click",onScrubInvisible);
+  on("btn-process","click",onProcess);
+  on("btn-wm","click",onApplyWatermark);
+  on("btn-usezone","click",()=>{ if(EDITOR.detections[0]){ const d=EDITOR.detections[0]; EDITOR.selection={x:d.x,y:d.y,w:d.w,h:d.h}; paintCanvas(); showToast("Zona seleccionada"); } else showToast("No hay zona detectada; dibuja una"); });
+  on("btn-reset","click",()=>{ if(!EDITOR.base) return; EDITOR.work.getContext("2d").drawImage(EDITOR.base,0,0); paintCompare(); showToast("Cambios deshechos"); });
+  on("btn-download","click",onDownload);
+  on("btn-version","click",onSaveVersion);
+  // zonas detectadas
+  document.querySelectorAll("[data-zone]").forEach(b=>b.addEventListener("click",()=>{ const d=EDITOR.detections[+b.dataset.zone]; if(d){ EDITOR.selection={x:d.x,y:d.y,w:d.w,h:d.h}; paintCanvas(); showToast("Zona seleccionada"); } }));
+  // marca propia
+  document.querySelectorAll("[data-wmmode]").forEach(b=>b.addEventListener("click",()=>{ WM.mode=b.dataset.wmmode; renderEditor(); }));
+  bindRange("wm-size",v=>{WM.sizePct=+v; setText("wmSizeV",v+"%");});
+  bindRange("wm-op",v=>{WM.opacity=+v/100; setText("wmOpV",v+"%");});
+  bindRange("wm-rot",v=>{WM.rotation=+v; setText("wmRotV",v+"°");});
+  const wt=byId("wm-text"); if(wt) wt.addEventListener("input",e=>WM.text=e.target.value);
+  const tl=byId("wm-tile"); if(tl) tl.addEventListener("change",e=>WM.tile=e.target.checked);
+  const wl=byId("wm-logo"); if(wl) wl.addEventListener("change",e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return; const img=new Image(); img.onload=()=>{ WM.logo=img; setText("wmLogoName","logo cargado"); showToast("Logo cargado"); }; img.onerror=()=>showToast("No se pudo leer el logo","err"); img.src=URL.createObjectURL(f); });
+  // comparador
+  bindCompare();
+}
+function on(id,ev,fn){ const el=byId(id); if(el) el.addEventListener(ev,fn); }
+function bindRange(id,fn){ const el=byId(id); if(el) el.addEventListener("input",e=>fn(e.target.value)); }
+function setText(id,t){ const el=byId(id); if(el) el.textContent=t; }
+
+/* ---- Carga de archivos ---- */
+function onSample(){ try{ const s=makeSample(); loadIntoEditor(s.canvas, s.bytes, s.name, s.mime); showToast("Imagen de ejemplo cargada","ok"); }catch(e){ showToast("No se pudo generar el ejemplo","err"); } }
+function onFile(file){
+  if(!file || !/^image\//.test(file.type)){ showToast("Por ahora solo imágenes: PNG, JPG o WEBP","err"); return; }
+  const reader=new FileReader();
+  reader.onload=()=>{ const bytes=new Uint8Array(reader.result);
+    const img=new Image(); img.onload=()=>{ const c=document.createElement("canvas"); c.width=img.naturalWidth; c.height=img.naturalHeight; c.getContext("2d").drawImage(img,0,0); loadIntoEditor(c,bytes,file.name,file.type); showToast("Imagen cargada","ok"); };
+    img.onerror=()=>showToast("No se pudo abrir la imagen","err");
+    img.src=URL.createObjectURL(new Blob([bytes],{type:file.type})); };
+  reader.onerror=()=>showToast("No se pudo leer el archivo","err");
+  reader.readAsArrayBuffer(file);
+}
+
+/* ---- Pintar canvas + overlay de zonas ---- */
+function paintCanvas(){
+  const E=EDITOR; const bc=byId("baseCanvas"), ov=byId("overlay"); if(!bc||!ov||!E.work) return;
+  bc.width=E.w; bc.height=E.h; bc.getContext("2d").drawImage(E.work,0,0);
+  ov.width=E.w; ov.height=E.h; const g=ov.getContext("2d"); g.clearRect(0,0,E.w,E.h);
+  // detecciones
+  E.detections.forEach(d=>{ g.strokeStyle="rgba(138,92,255,.9)"; g.lineWidth=Math.max(2,E.w/500); g.setLineDash([10,7]); g.strokeRect(d.x,d.y,d.w,d.h); });
+  g.setLineDash([]);
+  // selección activa
+  if(E.selection){ const s=E.selection; g.strokeStyle="#38e1c8"; g.lineWidth=Math.max(2,E.w/380); g.strokeRect(s.x,s.y,s.w,s.h); g.fillStyle="rgba(56,225,200,.14)"; g.fillRect(s.x,s.y,s.w,s.h); }
+  bindCanvasSelection();
+}
+function bindCanvasSelection(){
+  const host=byId("host"); const ov=byId("overlay"); if(!host||!ov||host._bound) return; host._bound=true;
+  let drag=null;
+  const toImg=(e)=>{ const r=ov.getBoundingClientRect(); const x=(e.clientX-r.left)/r.width*EDITOR.w; const y=(e.clientY-r.top)/r.height*EDITOR.h; return {x:clamp(x,0,EDITOR.w),y:clamp(y,0,EDITOR.h)}; };
+  ov.addEventListener("pointerdown",e=>{ e.preventDefault(); ov.setPointerCapture(e.pointerId); drag=toImg(e); EDITOR.selection={x:drag.x,y:drag.y,w:1,h:1}; });
+  ov.addEventListener("pointermove",e=>{ if(!drag) return; const p=toImg(e); EDITOR.selection={x:Math.min(drag.x,p.x),y:Math.min(drag.y,p.y),w:Math.abs(p.x-drag.x),h:Math.abs(p.y-drag.y)}; paintOverlayOnly(); });
+  ov.addEventListener("pointerup",()=>{ drag=null; });
+  ov.addEventListener("pointercancel",()=>{ drag=null; });
+}
+function paintOverlayOnly(){ const E=EDITOR; const ov=byId("overlay"); if(!ov) return; const g=ov.getContext("2d"); g.clearRect(0,0,E.w,E.h);
+  E.detections.forEach(d=>{ g.strokeStyle="rgba(138,92,255,.6)"; g.lineWidth=Math.max(2,E.w/500); g.setLineDash([10,7]); g.strokeRect(d.x,d.y,d.w,d.h); }); g.setLineDash([]);
+  if(E.selection){ const s=E.selection; g.strokeStyle="#38e1c8"; g.lineWidth=Math.max(2,E.w/380); g.strokeRect(s.x,s.y,s.w,s.h); g.fillStyle="rgba(56,225,200,.14)"; g.fillRect(s.x,s.y,s.w,s.h); } }
+
+/* ---- Procesar (eliminar/reconstruir) ---- */
+function onProcess(){
+  const E=EDITOR; if(!E.loaded){ showToast("Primero carga una imagen"); return; }
+  const consent=byId("rights-ack"); const box=byId("consentBox"); const msg=byId("consentMsg");
+  if(!consent||!consent.checked){ if(box) box.classList.add("err"); if(msg) msg.classList.add("show"); showToast("Confirma que tienes derechos sobre el contenido","err"); return; }
+  if(box) box.classList.remove("err"); if(msg) msg.classList.remove("show");
+  const sel=E.selection; if(!sel||sel.w<3||sel.h<3){ showToast("Marca primero una zona sobre la imagen"); return; }
+  const method=(byId("method")||{}).value||"inpaint";
+  const cost=CONFIG.COSTS[method]!=null?CONFIG.COSTS[method]:CONFIG.COSTS.inpaint;
+  if(!chargeCredits(cost, "Proceso: "+method)){ showToast("No te quedan créditos suficientes","err"); navTo("precios"); return; }
+  const ctx=E.work.getContext("2d");
+  try{
+    if(method==="clone") cloneRegion(ctx,E.w,E.h,sel);
+    else if(method==="blur") blurRegion(ctx,E.w,E.h,sel);
+    else inpaintRegion(ctx,E.w,E.h,sel);
+  }catch(e){ showToast("Error al procesar","err"); return; }
+  const label={inpaint:"Reconstrucción (inpaint)",clone:"Clonado",blur:"Difuminado"}[method]||method;
+  recordJob(label, method);
+  addLog("Proceso", label+" en zona ["+[sel.x,sel.y,sel.w,sel.h].map(n=>Math.round(n)).join(",")+"] de "+E.name, true);
+  paintCanvas(); paintCompare();
+  showToast("Zona procesada · "+label,"ok");
+}
+
+/* ---- Aplicar marca propia ---- */
+function onApplyWatermark(){
+  const E=EDITOR; if(!E.loaded){ showToast("Primero carga una imagen"); return; }
+  if(WM.mode==="logo" && !WM.logo){ showToast("Sube primero un logo o cambia a modo Texto"); return; }
+  if(!chargeCredits(CONFIG.COSTS.watermark,"Marca propia")){ showToast("No te quedan créditos","err"); navTo("precios"); return; }
+  try{ applyWatermark(E.work.getContext("2d"), E.w, E.h, WM); }catch(e){ showToast("No se pudo aplicar la marca","err"); return; }
+  recordJob(WM.tile?"Marca en mosaico":"Marca aplicada","watermark");
+  addLog("Marca propia", (WM.mode==="logo"?"Logo":("Texto: "+WM.text))+(WM.tile?" (mosaico)":"")+" sobre "+E.name, true);
+  paintCanvas(); paintCompare();
+  showToast("Marca aplicada","ok");
+}
+
+/* ---- Limpiar metadatos ---- */
+function onCleanMetadata(){
+  const E=EDITOR; if(!E.loaded||!E.bytes){ showToast("Primero carga una imagen"); return; }
+  if(!chargeCredits(CONFIG.COSTS.clean,"Limpieza de metadatos")){ showToast("No te quedan créditos","err"); navTo("precios"); return; }
+  let clean;
+  try{
+    if(isPNG(E.bytes)) clean=pngStrip(E.bytes);
+    else { // re-encode del canvas → sin metadatos
+      const durl=E.work.toDataURL(E.mime==="image/jpeg"?"image/jpeg":"image/png",0.92); clean=dataURLtoBytes(durl);
+    }
+  }catch(e){ clean=E.bytes; }
+  E.bytes=clean; E.exportBytes=clean.length; E.cleaned=true;
+  E.meta=parseMetadata(clean, E.mime);
+  const remaining=E.meta.findings.length;
+  recordJob("Metadatos limpiados","clean");
+  addLog("Limpieza", "Metadatos eliminados de "+E.name+" ("+remaining+" restantes)", true);
+  renderEditor();
+  showToast(remaining===0?"Marcas ocultas borradas · archivo limpio (0 metadatos)":"Metadatos limpiados ("+remaining+" restantes)","ok");
+}
+
+/* ---- Romper marca invisible (esteganografía LSB en píxeles) ---- */
+function onScrubInvisible(){
+  const E=EDITOR; if(!E.loaded){ showToast("Primero carga una imagen"); return; }
+  if(!chargeCredits(CONFIG.COSTS.clean,"Romper marca invisible")){ showToast("No te quedan créditos","err"); navTo("precios"); return; }
+  try{ scrubInvisible(E.work.getContext("2d"), E.w, E.h); }catch(e){ showToast("No se pudo procesar la capa invisible","err"); return; }
+  E.invisible=analyzeInvisible(E.work);
+  recordJob("Marca invisible rota","scrub");
+  addLog("Marca invisible", "Re-muestreo de píxeles (LSB) en "+E.name, true);
+  renderEditor();
+  showToast("Capa invisible frágil eliminada (re-muestreo LSB)","ok");
+}
+
+/* ---- Exportar / versiones ---- */
+function exportCurrentBlob(cb){
+  const E=EDITOR; const fmt=(byId("expFormat")||{}).value||"image/png";
+  try{ E.work.toBlob(b=>{ if(!b){ showToast("No se pudo exportar","err"); return; } cb(b,fmt); }, fmt, fmt==="image/png"?undefined:0.92); }
+  catch(e){ showToast("Exportación no soportada aquí","err"); }
+}
+function onDownload(){
+  const E=EDITOR; if(!E.loaded){ showToast("Primero carga una imagen"); return; }
+  exportCurrentBlob((blob,fmt)=>{ E.exportBytes=blob.size; setText("sizeInfo",fmtBytes(blob.size)); setText("fmtInfo",fmt.replace("image/","").toUpperCase());
+    const ext=fmt.replace("image/",""); const base=E.name.replace(/\.[^.]+$/,"")||"resultado";
+    downloadBlob(blob, base+"-editado."+ext); addLog("Exportación","Descargado "+base+"-editado."+ext,false); showToast("Descargando resultado","ok"); });
+}
+function onSaveVersion(){ if(!EDITOR.loaded){ showToast("Primero carga una imagen"); return; } recordJob("Versión guardada","version"); showToast("Versión guardada en el historial","ok"); }
+
+/* ---- Registrar trabajo en historial ---- */
+function recordJob(methodLabel, method){
+  const E=EDITOR;
+  let thumb=""; try{ const t=document.createElement("canvas"); const s=Math.min(1,320/Math.max(E.w,E.h)); t.width=Math.round(E.w*s); t.height=Math.round(E.h*s); t.getContext("2d").drawImage(E.work,0,0,t.width,t.height); thumb=t.toDataURL("image/jpeg",0.72); }catch(e){}
+  addJob({ id:uid(), name:E.name, method, methodLabel, w:E.w, h:E.h, provenance:!!(E.meta&&E.meta.hasProvenance), cleaned:E.cleaned, createdAt:Date.now(), thumbAfter:thumb, status:"done" });
+  paintCredits();
+}
+
+/* ---- Comparador antes/después ---- */
+function paintCompare(){
+  const E=EDITOR; const b=byId("cmpBase"), a=byId("cmpAfter"); if(!b||!a||!E.base) return;
+  b.width=E.w; b.height=E.h; b.getContext("2d").drawImage(E.base,0,0);
+  a.width=E.w; a.height=E.h; a.getContext("2d").drawImage(E.work,0,0);
+  applyCmpPos(); applyCmpZoom();
+}
+function applyCmpPos(){ const a=byId("cmpAfter"), h=byId("cmpHandle"); const pos=EDITOR.cmp.pos; if(a) a.style.clipPath="inset(0 0 0 "+pos+"%)"; if(h) h.style.left=pos+"%"; }
+function applyCmpZoom(){ const st=byId("cmpStage"); if(!st) return; const z=EDITOR.cmp.zoom; st.style.transform="translate("+EDITOR.cmp.tx+"px,"+EDITOR.cmp.ty+"px) scale("+z+")"; }
+function bindCompare(){
+  const r=byId("cmpRange"); if(r) r.addEventListener("input",e=>{ EDITOR.cmp.pos=+e.target.value; applyCmpPos(); });
+  on("zoomIn","click",()=>{ EDITOR.cmp.zoom=clamp(EDITOR.cmp.zoom*1.25,1,6); applyCmpZoom(); });
+  on("zoomOut","click",()=>{ EDITOR.cmp.zoom=clamp(EDITOR.cmp.zoom/1.25,1,6); if(EDITOR.cmp.zoom===1){EDITOR.cmp.tx=0;EDITOR.cmp.ty=0;} applyCmpZoom(); });
+  on("zoomReset","click",()=>{ EDITOR.cmp.zoom=1;EDITOR.cmp.tx=0;EDITOR.cmp.ty=0; applyCmpZoom(); });
+  const cmp=byId("cmp"); if(cmp&&!cmp._bound){ cmp._bound=true;
+    cmp.addEventListener("wheel",e=>{ e.preventDefault(); const d=e.deltaY<0?1.12:1/1.12; EDITOR.cmp.zoom=clamp(EDITOR.cmp.zoom*d,1,6); if(EDITOR.cmp.zoom===1){EDITOR.cmp.tx=0;EDITOR.cmp.ty=0;} applyCmpZoom(); },{passive:false});
+    let pan=null; cmp.addEventListener("pointerdown",e=>{ if(EDITOR.cmp.zoom<=1) return; pan={x:e.clientX,y:e.clientY,tx:EDITOR.cmp.tx,ty:EDITOR.cmp.ty}; cmp.setPointerCapture(e.pointerId); });
+    cmp.addEventListener("pointermove",e=>{ if(!pan) return; EDITOR.cmp.tx=pan.tx+(e.clientX-pan.x); EDITOR.cmp.ty=pan.ty+(e.clientY-pan.y); applyCmpZoom(); });
+    cmp.addEventListener("pointerup",()=>{ pan=null; }); cmp.addEventListener("pointercancel",()=>{ pan=null; });
+  }
+}
+
+/* ==================================================================================
+   PÁGINA: HISTORIAL
+   ================================================================================== */
+function renderHistorial(){
+  if(!byId("view")) shell();
+  const jobs=getJobs();
+  view().innerHTML=`
+  <div class="page-head"><div class="eyebrow">Historial</div><h1>Trabajos procesados</h1>
+    <p>Se guardan solo en <b>este dispositivo</b>. Puedes borrarlos cuando quieras.</p></div>
+  <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+    <a href="#/editor" class="btn btn-primary btn-sm">${iconWand()} Nuevo trabajo</a>
+    ${jobs.length?`<button class="btn btn-ghost btn-sm" id="btn-clearhist">Vaciar historial</button>`:""}
+  </div>
+  ${jobs.length? `<div class="table-scroll"><table class="tbl"><thead><tr><th>Vista</th><th>Archivo</th><th>Resolución</th><th>Método</th><th>Procedencia</th><th>Fecha</th></tr></thead><tbody>
+    ${jobs.map(j=>`<tr>
+      <td>${j.thumbAfter?`<img class="thumb" src="${j.thumbAfter}" alt="miniatura">`:"—"}</td>
+      <td><b>${esc(j.name)}</b>${j.cleaned?` <span class="chip ok" style="font-size:10px">limpio</span>`:""}</td>
+      <td>${j.w}×${j.h}</td>
+      <td><span class="chip">${esc(j.methodLabel||j.method)}</span></td>
+      <td>${j.provenance?`<span class="chip warn">IA</span>`:`<span class="muted">—</span>`}</td>
+      <td class="muted">${fmtDate(j.createdAt)}</td></tr>`).join("")}
+  </tbody></table></div>`
+  : `<div class="card"><div class="empty"><div class="ic">🗂️</div><b>Nada en el historial todavía</b><p class="muted">Procesa una imagen en el editor y aparecerá aquí.</p><a href="#/editor" class="btn btn-primary" style="margin-top:12px">Abrir editor</a></div></div>`}`;
+  on("btn-clearhist","click",()=>{ if(confirm("¿Vaciar todo el historial de este dispositivo?")){ jset(K.jobs,[]); renderHistorial(); showToast("Historial vaciado"); } });
+}
+
+/* ==================================================================================
+   PÁGINA: PRECIOS / CRÉDITOS
+   ================================================================================== */
+function renderPrecios(){
+  if(!byId("view")) shell();
+  const c=getCredits();
+  view().innerHTML=`
+  <div class="page-head"><div class="eyebrow">Créditos y planes</div><h1>Elige tu plan</h1>
+    <p>Sistema de créditos preparado para <b>Stripe</b>. Aquí los pagos son <b>simulados</b>: no se cobra nada real.</p></div>
+  <div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px">
+    <div><div class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:.08em;font-weight:700">Saldo actual</div><div style="font-size:30px;font-weight:800" class="stat"><span class="v grad" style="margin:0">${c.balance}</span> <span style="font-size:16px" class="muted">créditos · plan ${esc(c.plan)}</span></div></div>
+    <button class="btn btn-soft" id="btn-topup">+ Añadir créditos (simulado)</button>
+  </div>
+  <div class="grid g3">
+    ${PLANS.map(p=>`<div class="plan ${p.pop?'pop':''}">${p.pop?'<span class="pop-tag">Más popular</span>':''}
+      <h3>${esc(p.name)}</h3>
+      <div class="price">${p.price===0?'Gratis':('€'+p.price)}<small>${p.price===0?'':'/mes'}</small></div>
+      <div class="muted" style="font-size:13px">${p.credits} créditos / mes</div>
+      <ul>${p.features.map(f=>`<li>${iconCheck()} ${esc(f)}</li>`).join("")}</ul>
+      <button class="btn ${p.pop?'btn-primary':'btn-ghost'} btn-block" data-plan="${p.code}">${p.price===0?'Empezar gratis':'Añadir créditos'}</button>
+    </div>`).join("")}
+  </div>
+  <p class="muted" style="font-size:12.5px;margin-top:16px">${iconShield()} Los pagos reales se integrarán con Stripe (Checkout + Billing + webhooks). La arquitectura ya lo contempla — ver documentación técnica. <span class="badge-sim">pago simulado</span></p>`;
+  on("btn-topup","click",()=>{ addCredits(50,"Recarga simulada"); showToast("Pago simulado: +50 créditos añadidos","ok"); renderPrecios(); });
+  document.querySelectorAll("[data-plan]").forEach(b=>b.addEventListener("click",()=>{ const p=PLANS.find(x=>x.code===b.dataset.plan); if(!p) return; const cc=getCredits(); cc.plan=p.name; setCredits(cc); addCredits(p.credits, "Plan "+p.name+" (simulado)"); showToast("Plan "+p.name+" activado · pago simulado: +"+p.credits+" créditos","ok"); renderPrecios(); }));
+}
+
+/* ==================================================================================
+   PÁGINA: API
+   ================================================================================== */
+function renderApi(){
+  if(!byId("view")) shell();
+  const s=getSettings(); if(!s.apiKey){ s.apiKey="sk_demo_"+uid()+uid(); saveSettings(s); }
+  view().innerHTML=`
+  <div class="page-head"><div class="eyebrow">API</div><h1>API para desarrolladores</h1>
+    <p>Integra la detección y el procesado en tus apps. Autenticación por clave, límites de uso y control de costes. <span class="badge-sim">endpoints conceptuales</span></p></div>
+  <div class="card" style="margin-bottom:16px">
+    <h3 style="font-size:15px;margin-bottom:8px">Tu clave de API (demo)</h3>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <code class="mono" style="background:var(--surface2);border:1px solid var(--line);padding:9px 12px;border-radius:9px;font-size:12.5px;flex:1;min-width:220px;overflow:auto">${esc(s.apiKey)}</code>
+      <button class="btn btn-ghost btn-sm" id="btn-regen">Regenerar</button>
+    </div>
+    <p class="muted" style="font-size:12px;margin-top:8px">Clave de demostración local. En producción se emite y revoca desde el backend con scopes y cuota por plan.</p>
+  </div>
+  <div class="card">
+    <h3 style="font-size:15px;margin-bottom:10px">Endpoints</h3>
+    ${[
+      ["POST","/v1/assets","Sube un archivo y devuelve un asset_id."],
+      ["POST","/v1/analyze","Detecta marca visual + procedencia en el código."],
+      ["POST","/v1/process","Elimina/sustituye la marca. Requiere rights_ack."],
+      ["GET","/v1/jobs/{id}","Estado del trabajo (cola asíncrona)."],
+      ["GET","/v1/results/{id}","Resultado con URL firmada de corta vida."],
+      ["GET","/v1/credits","Saldo y plan."],
+    ].map(([m,p,d])=>`<div class="kv"><span><span class="chip ${m==='GET'?'info':'ok'}" style="min-width:48px;justify-content:center">${m}</span> <code class="mono" style="font-size:12.5px">${p}</code></span><span class="muted" style="text-align:right;max-width:52%">${d}</span></div>`).join("")}
+    <h3 style="font-size:14px;margin:18px 0 6px">Ejemplo</h3>
+    <pre class="mono" style="background:var(--surface2);border:1px solid var(--line);border-radius:11px;padding:14px;overflow:auto;font-size:12px;color:var(--ink-soft)">POST /v1/process
+Authorization: Bearer ${esc(s.apiKey.slice(0,16))}…
+Content-Type: application/json
+
+{
+  "asset_id": "a_123",
+  "method": "inpaint",
+  "regions": [{ "x":12, "y":18, "w":120, "h":40 }],
+  "keep_metadata": false,
+  "rights_ack": true
+}
+
+→ 202 { "job_id":"j_789", "status":"queued", "credits_cost":4 }</pre>
+  </div>`;
+  on("btn-regen","click",()=>{ const st=getSettings(); st.apiKey="sk_demo_"+uid()+uid(); saveSettings(st); renderApi(); showToast("Clave regenerada"); });
+}
+
+/* ==================================================================================
+   PÁGINA: AJUSTES
+   ================================================================================== */
+function renderAjustes(){
+  if(!byId("view")) shell();
+  const s=getSettings();
+  view().innerHTML=`
+  <div class="page-head"><div class="eyebrow">Configuración</div><h1>Ajustes</h1></div>
+  <div class="grid g2">
+    <div class="card"><h3 style="font-size:15px;margin-bottom:10px">${iconShield()} Privacidad</h3>
+      <div class="consent" style="padding:10px 12px"><input type="checkbox" id="set-auto" ${s.autoDelete?'checked':''}><label for="set-auto">Borrado automático de miniaturas del historial</label></div>
+      <div class="field"><label>Conservar durante <span class="muted" id="ttlV">${s.ttlDays} día(s)</span></label><input type="range" id="set-ttl" min="1" max="30" value="${s.ttlDays}"></div>
+      <div class="consent" style="padding:10px 12px"><input type="checkbox" id="set-keep" ${s.keepMetadata?'checked':''}><label for="set-keep">Conservar metadatos al exportar (por defecto se eliminan)</label></div>
+      <p class="muted" style="font-size:12px">Tus imágenes se procesan en el navegador y <b>no se usan para entrenar</b> ningún modelo.</p>
+    </div>
+    <div class="card"><h3 style="font-size:15px;margin-bottom:10px">${iconGear()} Cuenta y apariencia</h3>
+      <div class="field"><label>Nombre (local)</label><input type="text" id="set-name" placeholder="Tu nombre" value=""></div>
+      <div class="field"><label>Tema</label><div class="seg"><button id="th-dark" class="${s.theme!=='light'?'on':''}">Oscuro</button><button id="th-light" class="${s.theme==='light'?'on':''}">Claro</button></div></div>
+      <button class="btn btn-ghost btn-block btn-sm" id="btn-install">${iconDownload()} Instalar app (PWA)</button>
+    </div>
+    <div class="card"><h3 style="font-size:15px;margin-bottom:10px">${iconLayers()} Almacenamiento</h3>
+      <div class="kv"><span>Trabajos guardados</span><b>${getJobs().length}</b></div>
+      <div class="kv"><span>Registro de acciones</span><b>${getLog().length}</b></div>
+      <button class="btn btn-ghost btn-block btn-sm" id="btn-wipe" style="margin-top:12px">Borrar todos mis datos locales</button>
+    </div>
+    <div class="card"><h3 style="font-size:15px;margin-bottom:10px">${iconCode()} API y facturación</h3>
+      <p class="muted" style="font-size:13px;margin-bottom:10px">Gestiona tu clave de API y tu plan.</p>
+      <a href="#/api" class="btn btn-ghost btn-block btn-sm" style="margin-bottom:8px">Ir a la API</a>
+      <a href="#/precios" class="btn btn-ghost btn-block btn-sm">Créditos y facturación</a>
+    </div>
+  </div>`;
+  const save=()=>saveSettings(s);
+  on("set-auto","change",e=>{ s.autoDelete=e.target.checked; save(); });
+  on("set-keep","change",e=>{ s.keepMetadata=e.target.checked; save(); });
+  bindRange("set-ttl",v=>{ s.ttlDays=+v; setText("ttlV",v+" día(s)"); save(); });
+  on("th-dark","click",()=>{ s.theme="dark"; save(); applyTheme(); renderAjustes(); });
+  on("th-light","click",()=>{ s.theme="light"; save(); applyTheme(); renderAjustes(); });
+  on("btn-install","click",promptInstall);
+  on("btn-wipe","click",()=>{ if(confirm("¿Borrar historial, créditos y registro de este dispositivo?")){ [K.files,K.jobs,K.credits,K.log].forEach(k=>{try{localStorage.removeItem(k);}catch(e){}}); paintCredits(); showToast("Datos locales borrados"); renderAjustes(); } });
+}
+
+/* ==================================================================================
+   PÁGINA: LEGAL
+   ================================================================================== */
+function renderLegal(){
+  if(!byId("view")) shell();
+  view().innerHTML=`
+  <div class="page-head"><div class="eyebrow">Legal</div><h1>Términos, contenido y privacidad</h1></div>
+  <div class="prose card">
+    <div class="callout"><b>Uso responsable.</b> Esta herramienta está pensada para gestionar marcas de agua de <b>contenido propio</b> o de contenido para el que tengas <b>autorización expresa</b>. No la uses para eliminar marcas de agua o señales de procedencia de material protegido de terceros sin permiso.</div>
+
+    <h2>Términos de uso</h2>
+    <p>Al usar ${esc(CONFIG.PRODUCT_NAME)} aceptas emplearlo únicamente sobre contenido sobre el que ostentas derechos o autorización. Eres responsable del uso que hagas de los archivos y de los resultados. El servicio se ofrece "tal cual", sin garantía de idoneidad para un fin concreto.</p>
+
+    <h2>Política de contenido</h2>
+    <ul>
+      <li>Prohibido procesar material protegido de terceros sin autorización.</li>
+      <li>Prohibido usar la herramienta para suplantar la autoría o falsear la procedencia de un contenido con fines engañosos.</li>
+      <li>Antes de cada eliminación/modificación se exige una <b>declaración de derechos</b>, que queda registrada.</li>
+      <li>Nos reservamos el derecho de limitar el uso ante patrones de abuso.</li>
+    </ul>
+
+    <h2>Detección y procedencia (C2PA)</h2>
+    <p>Detectamos y mostramos la procedencia "escrita en el código" (EXIF, XMP, chunks PNG, Content Credentials/C2PA y firmas de generadores de IA). Recomendamos <b>conservar o volver a añadir</b> las Content Credentials cuando corresponda, en lugar de limitarse a eliminarlas.</p>
+
+    <h2>Privacidad y datos</h2>
+    <ul>
+      <li>El procesamiento ocurre <b>en tu navegador</b>: por defecto, tus archivos no se envían a ningún servidor.</li>
+      <li>No usamos cookies de seguimiento ni recopilamos datos personales salvo lo que introduzcas voluntariamente.</li>
+      <li>El historial y los ajustes se guardan solo en tu dispositivo y puedes borrarlos cuando quieras.</li>
+      <li>No utilizamos tus archivos para entrenar modelos.</li>
+    </ul>
+
+    <h2>Aviso legal</h2>
+    <p>Titular: <b>${esc(CONFIG.LEGAL_HOLDER)}</b> · Contacto: <b>${esc(CONFIG.CONTACT_EMAIL)}</b>. Completa estos datos con los del responsable real del servicio (obligatorio según LSSI/RGPD si se publica).</p>
+    <p class="muted" style="font-size:12px">Plantilla orientativa; no constituye asesoramiento legal. Revísala con un profesional antes de publicar.</p>
+  </div>`;
+}
+
+/* ==================================================================================
+   PÁGINA: ADMIN (panel del dueño)
+   ================================================================================== */
+function isAdmin(){ try{ return sessionStorage.getItem(K.admin)==="1"; }catch(e){ return false; } }
+function renderAdmin(){
+  if(!byId("view")) shell();
+  if(!isAdmin()){ renderAdminGate(false); return; }
+  const jobs=getJobs(), log=getLog(), c=getCredits();
+  const provCount=jobs.filter(j=>j.provenance).length;
+  view().innerHTML=`
+  <div class="page-head" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px">
+    <div><div class="eyebrow">Panel del dueño</div><h1>Administración</h1></div>
+    <button class="btn btn-ghost btn-sm" id="btn-logout">Salir</button>
+  </div>
+  <div class="grid g4" style="margin-bottom:18px">
+    <div class="stat"><div class="k">${iconLayers()} Trabajos</div><div class="v">${jobs.length}</div></div>
+    <div class="stat"><div class="k">${iconWand()} Con procedencia IA</div><div class="v">${provCount}</div></div>
+    <div class="stat"><div class="k">${iconSpark()} Créditos</div><div class="v grad">${c.balance}</div></div>
+    <div class="stat"><div class="k">${iconShield()} Acciones registradas</div><div class="v">${log.length}</div></div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1.3fr 1fr;gap:18px">
+    <div class="card">
+      <h3 style="font-size:15px;margin-bottom:10px">Registro de acciones <span class="muted" style="font-weight:600;font-size:12px">(uso responsable · append-only)</span></h3>
+      ${log.length? log.slice(0,40).map(l=>`<div class="log-row"><span class="lt">${fmtDate(l.ts)}</span><div><b>${esc(l.action)}</b>${l.rightsAck?` <span class="chip ok" style="font-size:10px">derechos ✓</span>`:""}<br><span class="muted" style="font-size:12.5px">${esc(l.detail)}</span></div></div>`).join("")
+      : `<p class="muted" style="font-size:13px">Sin acciones registradas todavía.</p>`}
+    </div>
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <h3 style="font-size:15px;margin-bottom:10px">Motores de IA (modular)</h3>
+        ${ENGINES.map(e=>`<div class="kv"><span><b>${esc(e.name)}</b><br><span class="muted" style="font-size:12px">${esc(e.task)} · ${esc(e.where)}</span></span><span class="chip ${e.active?'ok':'warn'}">${e.active?'activo':'backend'}</span></div>`).join("")}
+      </div>
+      <div class="card">
+        <h3 style="font-size:15px;margin-bottom:10px">Límites y abuso</h3>
+        <div class="kv"><span>Límite de imágenes / día (Free)</span><b>40</b></div>
+        <div class="kv"><span>Resolución máxima (Free)</span><b>4 MP</b></div>
+        <div class="kv"><span>Declaración de derechos</span><b class="chip ok">obligatoria</b></div>
+        <button class="btn btn-ghost btn-block btn-sm" id="btn-clearlog" style="margin-top:12px">Vaciar registro local</button>
+      </div>
+    </div>
+  </div>`;
+  on("btn-logout","click",()=>{ try{ sessionStorage.removeItem(K.admin); }catch(e){} renderAdmin(); });
+  on("btn-clearlog","click",()=>{ if(confirm("¿Vaciar el registro de acciones de este dispositivo?")){ jset(K.log,[]); renderAdmin(); showToast("Registro vaciado"); } });
+}
+function renderAdminGate(bad){
+  view().innerHTML=`
+  <div class="gate card">
+    <div class="mk">${iconLock()}</div>
+    <h1 style="font-size:22px">Acceso del dueño</h1>
+    <p class="muted" style="margin:6px 0 16px">Zona privada de administración de ${esc(CONFIG.PRODUCT_NAME)}.</p>
+    <div class="callout" style="text-align:left;margin-bottom:14px">🔎 <b>Demo:</b> la contraseña es <b>${esc(CONFIG.ADMIN_PASSWORD)}</b> (cámbiala en <code class="mono">CONFIG.ADMIN_PASSWORD</code>).</div>
+    <form id="adminForm">
+      <div class="field"><input type="password" id="adm-pass" placeholder="Contraseña" autocomplete="current-password" aria-label="Contraseña"></div>
+      <button class="btn btn-primary btn-block" type="submit">Entrar</button>
+      ${bad?`<p style="color:var(--err);font-size:13px;margin-top:10px">Contraseña incorrecta.</p>`:""}
+    </form>
+    <p style="margin-top:14px"><a href="#/" class="muted" style="font-size:13px">← Volver</a></p>
+  </div>`;
+  const f=byId("adminForm"); if(f) f.addEventListener("submit",e=>{ e.preventDefault();
+    const now=Date.now(); let g={n:0,until:0}; try{ g=JSON.parse(sessionStorage.getItem("wm_gate")||"{}"); }catch(err){}
+    if(g.until&&now<g.until){ showToast("Demasiados intentos. Espera "+Math.ceil((g.until-now)/1000)+"s","err"); return; }
+    if((byId("adm-pass")||{}).value===CONFIG.ADMIN_PASSWORD){ try{ sessionStorage.setItem(K.admin,"1"); sessionStorage.removeItem("wm_gate"); }catch(err){} renderAdmin(); }
+    else { g.n=(g.n||0)+1; if(g.n>=5){ g.until=now+60000; g.n=0; showToast("Demasiados intentos. Espera 60s","err"); } try{ sessionStorage.setItem("wm_gate",JSON.stringify(g)); }catch(err){} renderAdminGate(true); }
+  });
+}
+
+/* ==================================================================================
+   PWA (instalación)
+   ================================================================================== */
+let deferredPrompt=null;
+window.addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); deferredPrompt=e; });
+function promptInstall(){ if(deferredPrompt){ deferredPrompt.prompt(); deferredPrompt.userChoice.finally(()=>{deferredPrompt=null;}); } else { showToast("Para instalar, ábrela en HTTPS y usa 'Añadir a pantalla de inicio'"); } }
+function setupPWA(){
+  try{
+    const manifest={ name:CONFIG.PRODUCT_NAME, short_name:"MarcaIA", start_url:".", display:"standalone", background_color:"#0a0d14", theme_color:"#0a0d14",
+      icons:[{src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%236d8bff'/%3E%3Cpath d='M256 96c56 72 96 120 96 176a96 96 0 1 1-192 0c0-56 40-104 96-176z' fill='%23fff'/%3E%3C/svg%3E", sizes:"512x512", type:"image/svg+xml", purpose:"any" }] };
+    const blob=new Blob([JSON.stringify(manifest)],{type:"application/manifest+json"});
+    const link=document.createElement("link"); link.rel="manifest"; link.href=URL.createObjectURL(blob); document.head.appendChild(link);
+  }catch(e){}
+}
+
+/* ==================================================================================
+   ICONOS (SVG inline)
+   ================================================================================== */
+function svg(p,extra){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" ${extra||""}>${p}</svg>`; }
+function iconDrop(){ return `<svg viewBox="0 0 24 24" fill="#fff"><path d="M12 3c4 5 7 8 7 12a7 7 0 1 1-14 0c0-4 3-7 7-12z"/></svg>`; }
+function iconGrid(){ return svg('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'); }
+function iconWand(){ return svg('<path d="M15 4V2M15 10V8M11 6H9M21 6h-2M18 3l-1.4 1.4M18 9l-1.4-1.4"/><path d="M4 20l10-10 1.5 1.5L5.5 21.5z"/>'); }
+function iconClock(){ return svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'); }
+function iconSpark(){ return svg('<path d="M12 3l1.8 4.9L18 9.6l-4.2 1.7L12 16l-1.8-4.7L6 9.6l4.2-1.7z"/>'); }
+function iconCode(){ return svg('<path d="M8 9l-3 3 3 3M16 9l3 3-3 3M13 6l-2 12"/>'); }
+function iconGear(){ return svg('<circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 0 0-1.7-1L14.5 3h-5l-.4 2.6a7 7 0 0 0-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 0 0 0 2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 1.7 1L9.5 21h5l.4-2.6a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.5a7 7 0 0 0 .1-1z"/>'); }
+function iconMoon(){ return svg('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>'); }
+function iconShield(){ return svg('<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>'); }
+function iconLayers(){ return svg('<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>'); }
+function iconFile(){ return svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>'); }
+function iconUpload(){ return svg('<path d="M12 16V4M8 8l4-4 4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/>'); }
+function iconDownload(){ return svg('<path d="M12 4v12M8 12l4 4 4-4"/><path d="M4 20h16"/>'); }
+function iconTarget(){ return svg('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>'); }
+function iconUndo(){ return svg('<path d="M9 7L4 12l5 5"/><path d="M4 12h11a5 5 0 0 1 0 10h-1"/>'); }
+function iconEraser(){ return svg('<path d="M4 15l7-7 6 6-7 7H7z"/><path d="M9 21h11"/>'); }
+function iconStamp(){ return svg('<path d="M9 3h6a2 2 0 0 1 2 2c0 2-2 3-2 5h-6c0-2-2-3-2-5a2 2 0 0 1 2-2z"/><path d="M5 15h14v3H5z"/><path d="M4 21h16"/>'); }
+function iconCheck(){ return svg('<path d="M20 6L9 17l-5-5"/>'); }
+function iconLock(){ return `<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`; }
+
+/* ==================================================================================
+   ARRANQUE
+   ================================================================================== */
+function boot(){
+  applyTheme(); setupPWA(); shell(); route(); paintCredits();
+}
+boot();
+</script>
+</body>
+</html>
