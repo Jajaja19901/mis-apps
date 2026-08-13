@@ -170,7 +170,7 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border:none;border-ra
 .cmp-stage{position:relative;transform-origin:0 0}
 .cmp canvas{width:100%;height:auto;display:block}
 #cmpBase{position:relative}
-#cmpAfter{position:absolute;top:0;left:0;clip-path:inset(0 0 0 50%)}
+#cmpAfter{position:absolute;top:0;left:0;clip-path:inset(0 0 0 50%);will-change:clip-path}
 .cmp .tag{position:absolute;top:8px;font-size:11px;font-weight:800;letter-spacing:.05em;padding:3px 9px;border-radius:999px;background:rgba(0,0,0,.6);color:#fff;z-index:4}
 .cmp .tag.a{left:8px}.cmp .tag.b{right:8px}
 .cmp-handle{position:absolute;top:0;height:100%;width:38px;transform:translateX(-50%);display:grid;place-items:center;z-index:5;pointer-events:none}
@@ -765,7 +765,7 @@ function renderDashboard(){
         <h3 style="font-size:16px">Archivos recientes</h3><a href="#/historial" class="chip info">Ver historial</a>
       </div>
       ${jobs.length ? `<div class="table-scroll" style="border:none"><table class="tbl"><thead><tr><th></th><th>Archivo</th><th>Método</th><th>Fecha</th></tr></thead><tbody>
-        ${jobs.slice(0,5).map(j=>`<tr><td>${j.thumbAfter?`<img class="thumb" src="${j.thumbAfter}" alt="">`:""}</td><td><b>${esc(j.name)}</b><br><span class="muted" style="font-size:12px">${j.w}×${j.h}</span></td><td><span class="chip">${esc(j.methodLabel||j.method)}</span></td><td class="muted">${fmtDate(j.createdAt)}</td></tr>`).join("")}
+        ${jobs.slice(0,5).map(j=>`<tr><td>${j.thumbAfter?`<img class="thumb" src="${esc(j.thumbAfter)}" alt="">`:""}</td><td><b>${esc(j.name)}</b><br><span class="muted" style="font-size:12px">${+j.w||0}×${+j.h||0}</span></td><td><span class="chip">${esc(j.methodLabel||j.method)}</span></td><td class="muted">${fmtDate(j.createdAt)}</td></tr>`).join("")}
       </tbody></table></div>` : `<div class="empty"><div class="ic">🗂️</div><b>Aún no has procesado nada</b><p class="muted">Abre el editor y usa la imagen de ejemplo para probarlo.</p></div>`}
     </div>
     <div class="card">
@@ -1125,9 +1125,9 @@ function renderHistorial(){
   </div>
   ${jobs.length? `<div class="table-scroll"><table class="tbl"><thead><tr><th>Vista</th><th>Archivo</th><th>Resolución</th><th>Método</th><th>Procedencia</th><th>Fecha</th></tr></thead><tbody>
     ${jobs.map(j=>`<tr>
-      <td>${j.thumbAfter?`<img class="thumb" src="${j.thumbAfter}" alt="miniatura">`:"—"}</td>
+      <td>${j.thumbAfter?`<img class="thumb" src="${esc(j.thumbAfter)}" alt="">`:"—"}</td>
       <td><b>${esc(j.name)}</b>${j.cleaned?` <span class="chip ok" style="font-size:10px">limpio</span>`:""}</td>
-      <td>${j.w}×${j.h}</td>
+      <td>${+j.w||0}×${+j.h||0}</td>
       <td><span class="chip">${esc(j.methodLabel||j.method)}</span></td>
       <td>${j.provenance?`<span class="chip warn">IA</span>`:`<span class="muted">—</span>`}</td>
       <td class="muted">${fmtDate(j.createdAt)}</td></tr>`).join("")}
@@ -1371,8 +1371,8 @@ function setupPWA(){
 /* ==================================================================================
    ICONOS (SVG inline)
    ================================================================================== */
-function svg(p,extra){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" ${extra||""}>${p}</svg>`; }
-function iconDrop(){ return `<svg viewBox="0 0 24 24" fill="#fff"><path d="M12 3c4 5 7 8 7 12a7 7 0 1 1-14 0c0-4 3-7 7-12z"/></svg>`; }
+function svg(p,extra){ return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false" ${extra||""}>${p}</svg>`; }
+function iconDrop(){ return `<svg viewBox="0 0 24 24" fill="#fff" aria-hidden="true" focusable="false"><path d="M12 3c4 5 7 8 7 12a7 7 0 1 1-14 0c0-4 3-7 7-12z"/></svg>`; }
 function iconGrid(){ return svg('<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>'); }
 function iconWand(){ return svg('<path d="M15 4V2M15 10V8M11 6H9M21 6h-2M18 3l-1.4 1.4M18 9l-1.4-1.4"/><path d="M4 20l10-10 1.5 1.5L5.5 21.5z"/>'); }
 function iconClock(){ return svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'); }
@@ -1390,7 +1390,7 @@ function iconUndo(){ return svg('<path d="M9 7L4 12l5 5"/><path d="M4 12h11a5 5 
 function iconEraser(){ return svg('<path d="M4 15l7-7 6 6-7 7H7z"/><path d="M9 21h11"/>'); }
 function iconStamp(){ return svg('<path d="M9 3h6a2 2 0 0 1 2 2c0 2-2 3-2 5h-6c0-2-2-3-2-5a2 2 0 0 1 2-2z"/><path d="M5 15h14v3H5z"/><path d="M4 21h16"/>'); }
 function iconCheck(){ return svg('<path d="M20 6L9 17l-5-5"/>'); }
-function iconLock(){ return `<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`; }
+function iconLock(){ return `<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`; }
 
 /* ==================================================================================
    ARRANQUE
