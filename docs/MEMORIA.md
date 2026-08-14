@@ -3,11 +3,35 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
-## 2026-08-13 — App "Gestor de Marcas de Agua IA" + blueprint SaaS
-- Qué se hizo: nueva app `apps/gestor-marcas-agua-ia.html` (un archivo, cliente puro, sin backend, tema oscuro premium + claro). Núcleo: **detección y borrado de marcas de agua OCULTAS** —las que la IA incrusta "en el código": metadatos EXIF/XMP, chunks PNG tEXt/iTXt, C2PA/Content Credentials y firmas de generadores (SD, DALL·E, Firefly, SynthID…)— con lectura y **limpieza reales** (strip de chunks PNG / re-encode). Además: análisis y **limpieza de marca INVISIBLE** (esteganografía LSB, con aviso honesto de que las robustas tipo SynthID pueden persistir), reconstrucción de marca visible (inpaint por difusión / clon / difuminado en canvas), sustitución/añadido de marca propia (texto o logo), comparador antes/después (slider+zoom+pan), créditos simulados (Stripe-ready), dashboard, historial, API docs, legal (términos+política de contenido+privacidad), panel del dueño (#/admin, pass `marca-admin-2026`) con **registro de acciones** y consentimiento de derechos obligatorio. Vídeo queda como capacidad FUTURA (motor backend). Verificador: **✅ APTO, 10/10 tests**. Blueprint de producción en `docs/watermark-saas/ARQUITECTURA.md` (requisitos, stack, carpetas, BD, APIs, procesamiento, seguridad, escalado 100→100k) + `docs/watermark-saas/PLAN.md`.
-- Archivos tocados: `apps/gestor-marcas-agua-ia.html` (nuevo), `docs/watermark-saas/ARQUITECTURA.md` (nuevo), `docs/watermark-saas/PLAN.md` (nuevo), `docs/MEMORIA.md`.
-- Pendiente / siguiente paso: aplicar hallazgos de los 3 revisores (seguridad/rendimiento/accesibilidad) que se lanzaron en paralelo; si el usuario lo pide, andamiar el backend real (Next.js + FastAPI + Postgres + Redis + workers GPU) del blueprint, y añadir el motor de vídeo.
-- Datos a confirmar (placeholders en CONFIG): nombre comercial/marca del producto, logo real, titular legal + contacto (aviso legal/RGPD), dominios, precios reales de los planes y proveedor de pago (Stripe).
+## 2026-08-14 — Gestor de Marcas de Agua IA (app + backend real que INTEGRA remove-ai-watermarks)
+- Qué se hizo: producto SaaS para detectar/gestionar/sustituir marcas de agua de contenido IA, con
+  foco en las **marcas ocultas** —las que la IA incrusta "en el código": metadatos EXIF/XMP, chunks PNG
+  tEXt/iTXt, C2PA/Content Credentials y firmas de generadores (SD, DALL·E, Firefly, SynthID…)— e invisibles.
+  (1) App de un archivo `apps/gestor-marcas-agua-ia.html` (cliente puro, oscuro premium + claro): panel,
+  editor con procesado REAL en canvas (detección/**limpieza de metadatos**, marca **invisible LSB**,
+  inpaint por difusión/clon/difuminado, sustitución/añadido de marca propia, comparador antes/después
+  con zoom/pan), créditos simulados (Stripe-ready), historial, API docs, legal (términos+política de
+  contenido+privacidad), panel del dueño `#/admin` (pass `marca-admin-2026`) con **registro de acciones**
+  y consentimiento de derechos obligatorio, PWA. Verificador `tools/verificar-app.mjs`: **✅ APTO, 10/10**.
+  (2) **Backend real** `services/watermark-api/` (FastAPI) que INTEGRA la librería
+  `wiltodelta/remove-ai-watermarks` (Apache-2.0) como motor: `identify` + `strip_and_verify` (CPU) y
+  `remove_visible` (opencv); fallback nativo si la lib no está. Auth por clave, rate limit, `rights_ack`,
+  TTL, cola. **6/6 tests + demo HTTP real** (subir→analizar→limpiar→re-analizar limpio) con el motor real.
+  El frontend lo usa si se configura su URL en Ajustes, con fallback local (verificado navegador↔backend).
+  (3) Blueprint de producción en `docs/watermark-saas/ARQUITECTURA.md` + `PLAN.md`. Revisores del pipeline
+  pasados (seguridad **APTO** — sin XSS explotable; rendimiento **APTO**; accesibilidad — aplicado contraste
+  AA en ambos temas, nombres accesibles en sliders/select, inputs de archivo operables por teclado,
+  aria-pressed/current, semántica de canvas, foco tras cambiar tema).
+- Archivos tocados: `apps/gestor-marcas-agua-ia.html` (nuevo), `services/watermark-api/**` (nuevo),
+  `docs/watermark-saas/ARQUITECTURA.md` + `PLAN.md` (nuevos), `docs/MEMORIA.md`. El repo de referencia se
+  clonó en `/workspace` (fuera del repo); venv/node_modules/pycache gitignored.
+- Pendiente / siguiente paso: nombre comercial/marca y logo reales (placeholder "Marca de Agua IA"),
+  titular legal para privacidad/aviso legal, precios reales y proveedor de pago (Stripe). Marca invisible
+  SynthID real = `remove-ai-watermarks[diffusion]` + GPU (worker aparte). Vídeo: motor futuro (el usuario
+  pidió mantenerlo). Accesibilidad menor pendiente: restaurar foco tras cada re-render en TODAS las vistas
+  y teclado para dibujar zona en el canvas.
+- Datos a confirmar: decidido con el usuario — producto sin instalar y privado, integrar la librería real
+  como motor de backend, y postura conservadora/honesta con SynthID/C2PA (por el EU AI Act).
 
 ## 2026-07-19 — Vídeo demo en la portada de Incuba tu Negocio
 - Qué se hizo: vídeo demo del producto (32s, MP4 1080p): la app peluqueria-aurora navegada de verdad (Playwright) dentro de un móvil flotante, narrador es-ES (Piper davefx via sherpa-onnx), música y efectos generados con numpy, rótulos y subtítulos (Remotion). Integrado en la PORTADA de apps/incuba-tu-negocio.html (tras el subtítulo, antes de la incubadora). Verificador: ✅ APTO.

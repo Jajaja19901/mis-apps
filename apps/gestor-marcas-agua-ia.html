@@ -305,6 +305,10 @@ const CONFIG = {
   // Titular legal (PLACEHOLDER — necesario para privacidad/aviso legal)
   LEGAL_HOLDER : "[Titular legal]",
   CONTACT_EMAIL: "hola@tu-dominio.example",
+  // Backend opcional (services/watermark-api). Vacío = todo en el navegador (modo local).
+  // Si lo conectas, el borrado usa el motor real remove-ai-watermarks (C2PA/EXIF/XMP + marcas de generador).
+  API_BASE     : "",
+  API_KEY      : "",
   FREE_CREDITS : 30,
   // Coste en créditos por operación (simulado; en producción lo cobra el backend)
   COSTS : { analyze:0, inpaint:4, clone:3, blur:1, watermark:1, clean:1, hires:6, video:8 },
@@ -372,8 +376,28 @@ function getJobs(){ return jget(K.jobs,[]); }
 function addJob(job){ const j=getJobs(); j.unshift(job); if(j.length>80) j.length=80; jset(K.jobs,j); }
 function getLog(){ return jget(K.log,[]); }
 function addLog(action, detail, rightsAck){ const l=getLog(); l.unshift({ts:Date.now(),action,detail:detail||"",rightsAck:!!rightsAck}); if(l.length>120) l.length=120; jset(K.log,l); }
-function getSettings(){ return jget(K.settings,{theme:"dark",autoDelete:true,ttlDays:1,keepMetadata:false,apiKey:""}); }
+function getSettings(){ return jget(K.settings,{theme:"dark",autoDelete:true,ttlDays:1,keepMetadata:false,apiKey:"",apiBase:"",backendKey:""}); }
 function saveSettings(s){ jset(K.settings,s); }
+
+/* ==================================================================================
+   CONEXIÓN OPCIONAL CON EL BACKEND (motor de estudio remove-ai-watermarks)
+   Si no hay API_BASE configurado, la app funciona 100% en el navegador (modo local).
+   ================================================================================== */
+function backendCfg(){ const s=getSettings(); return { base:(s.apiBase||CONFIG.API_BASE||"").replace(/\/+$/,""), key:(s.backendKey||CONFIG.API_KEY||"") }; }
+function backendOn(){ return !!backendCfg().base; }
+async function apiFetch(path, opts){
+  const cfg=backendCfg(); const o=opts||{};
+  const headers=Object.assign({}, o.headers, cfg.key?{Authorization:"Bearer "+cfg.key}:{});
+  const r=await fetch(cfg.base+path, Object.assign({}, o, {headers}));
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  return r;
+}
+async function apiHealth(){ const r=await fetch(backendCfg().base+"/healthz"); if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }
+async function apiUploadBytes(bytes, name, mime){ const fd=new FormData(); fd.append("file", new Blob([bytes],{type:mime||"image/png"}), name||"imagen.png"); return (await apiFetch("/v1/assets",{method:"POST",body:fd})).json(); }
+async function apiProcess(assetId, method, rightsAck){ return (await apiFetch("/v1/process",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({asset_id:assetId,method,rights_ack:!!rightsAck})})).json(); }
+async function apiJob(jid){ return (await apiFetch("/v1/jobs/"+jid)).json(); }
+async function apiResultBytes(jid){ const r=await apiFetch("/v1/results/"+jid); return new Uint8Array(await r.arrayBuffer()); }
+async function apiWaitJob(jid, tries){ let j; for(let i=0;i<(tries||100);i++){ j=await apiJob(jid); if(["done","incomplete","failed"].indexOf(j.status)>=0) return j; await new Promise(r=>setTimeout(r,150)); } return j; }
 
 /* ==================================================================================
    UTILIDADES
@@ -724,7 +748,7 @@ function shell(){
   byId("pills").addEventListener("click",(e)=>{ const p=e.target.closest(".pill"); if(p&&p.dataset.route){ e.preventDefault(); navTo(p.dataset.route); } });
 }
 function navPill(route,label,icon){ return `<button class="pill" data-route="${route}">${icon}<span>${label}</span></button>`; }
-function paintActivePill(r){ const pills=document.querySelectorAll("#pills .pill"); pills.forEach(p=>p.classList.toggle("active", p.dataset.route===r || (r==="dashboard"&&p.dataset.route==="dashboard"))); }
+function paintActivePill(r){ const pills=document.querySelectorAll("#pills .pill"); pills.forEach(p=>{ const on=p.dataset.route===r; p.classList.toggle("active", on); if(on) p.setAttribute("aria-current","page"); else p.removeAttribute("aria-current"); }); }
 function paintCredits(){ const n=byId("creditsNum"); if(n) n.textContent=getCredits().balance; }
 const view=()=>byId("view");
 
@@ -797,7 +821,7 @@ function renderEditor(){
   <div class="editor">
     <div class="left">
       <div class="stage-wrap">
-        ${E.loaded ? `<div class="canvas-host" id="host"><canvas id="baseCanvas"></canvas><canvas id="overlay"></canvas></div>
+        ${E.loaded ? `<div class="canvas-host" id="host" role="img" aria-label="Vista previa de la imagen con las zonas de marca de agua detectadas superpuestas"><canvas id="baseCanvas" aria-hidden="true"></canvas><canvas id="overlay" aria-hidden="true"></canvas></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
             <button class="btn btn-ghost btn-sm" id="btn-usezone">${iconTarget()} Usar zona detectada</button>
             <button class="btn btn-ghost btn-sm" id="btn-reset">${iconUndo()} Deshacer cambios</button>
@@ -810,16 +834,16 @@ function renderEditor(){
         <p class="tool-sub">Desliza para comparar, usa la rueda o los botones para hacer zoom.</p>
         <div class="cmp" id="cmp">
           <div class="cmp-stage" id="cmpStage">
-            <canvas id="cmpBase"></canvas>
-            <canvas id="cmpAfter"></canvas>
+            <canvas id="cmpBase" aria-hidden="true"></canvas>
+            <canvas id="cmpAfter" aria-hidden="true"></canvas>
           </div>
           <span class="tag a">Antes</span><span class="tag b">Después</span>
-          <div class="cmp-handle" id="cmpHandle"><span class="grip">⇋</span></div>
+          <div class="cmp-handle" id="cmpHandle" aria-hidden="true"><span class="grip">⇋</span></div>
         </div>
         <div class="cmp-ctrls">
           <input type="range" id="cmpRange" min="0" max="100" value="50" aria-label="Comparador">
-          <button class="btn btn-ghost btn-sm" id="zoomOut">−</button>
-          <button class="btn btn-ghost btn-sm" id="zoomIn">+</button>
+          <button class="btn btn-ghost btn-sm" id="zoomOut" aria-label="Alejar">−</button>
+          <button class="btn btn-ghost btn-sm" id="zoomIn" aria-label="Acercar">+</button>
           <button class="btn btn-ghost btn-sm" id="zoomReset">Reajustar</button>
         </div>
         <div class="info-line">
@@ -828,7 +852,7 @@ function renderEditor(){
           <span>${E.cleaned?`<span class="chip ok">Metadatos limpios</span>`:``}</span>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
-          <select id="expFormat" class="field" style="width:auto;margin:0"><option value="image/png">PNG (sin pérdida)</option><option value="image/jpeg">JPEG</option><option value="image/webp">WEBP</option></select>
+          <select id="expFormat" class="field" aria-label="Formato de exportación" style="width:auto;margin:0"><option value="image/png">PNG (sin pérdida)</option><option value="image/jpeg">JPEG</option><option value="image/webp">WEBP</option></select>
           <button class="btn btn-primary" id="btn-download">${iconDownload()} Descargar resultado</button>
           <button class="btn btn-ghost" id="btn-version">${iconLayers()} Guardar versión</button>
         </div>
@@ -836,8 +860,8 @@ function renderEditor(){
     </div>
 
     <div class="tools">
-      ${E.loaded ? toolsHTML() : `<div class="card"><div class="tool-h"><span class="n">i</span> Empieza por aquí</div><p class="tool-sub">Sube una imagen o usa el ejemplo. Detectaremos automáticamente marcas de agua visuales y la <b>procedencia escrita en el código</b> (metadatos, C2PA, firmas de IA).</p><button class="btn btn-primary btn-block js-sample">${iconSpark()} Usar imagen de ejemplo</button></div>
-      <div class="card"><div class="tool-h"><span class="n">?</span> ¿Qué detecta?</div>
+      ${E.loaded ? toolsHTML() : `<div class="card"><div class="tool-h" role="heading" aria-level="2"><span class="n">i</span> Empieza por aquí</div><p class="tool-sub">Sube una imagen o usa el ejemplo. Detectaremos automáticamente marcas de agua visuales y la <b>procedencia escrita en el código</b> (metadatos, C2PA, firmas de IA).</p><button class="btn btn-primary btn-block js-sample">${iconSpark()} Usar imagen de ejemplo</button></div>
+      <div class="card"><div class="tool-h" role="heading" aria-level="2"><span class="n">?</span> ¿Qué detecta?</div>
         <div class="finding"><span class="fi p">🔎</span><div><b>Marca de agua visual</b><br><span class="muted">Logos/textos superpuestos, con su posición y tamaño aproximados.</span></div></div>
         <div class="finding"><span class="fi g">🧬</span><div><b>Procedencia en el código</b><br><span class="muted">EXIF, XMP, chunks PNG, C2PA/Content Credentials y firmas de generadores de IA.</span></div></div>
       </div>`}
@@ -855,7 +879,7 @@ function dropzoneHTML(){
     <h3 style="font-size:16px;margin-bottom:4px">Arrastra tu imagen aquí</h3>
     <p class="muted" style="font-size:13px;margin-bottom:14px">PNG · JPG · WEBP · TIFF (según el navegador). Máx. recomendado 4 MP. Nada se sube: se procesa aquí.</p>
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-      <label class="btn btn-primary" style="cursor:pointer">${iconFile()} Elegir archivo<input type="file" id="fileInput" accept="image/*" hidden></label>
+      <label class="btn btn-primary js-filelabel" tabindex="0" role="button" style="cursor:pointer">${iconFile()} Elegir archivo<input type="file" id="fileInput" accept="image/*" hidden></label>
       <button class="btn btn-ghost js-sample">Usar imagen de ejemplo</button>
     </div>
     <p class="muted" style="font-size:12px;margin-top:12px">${iconShield()} Se procesa en tu navegador: tus imágenes no se suben a ningún servidor.</p>
@@ -869,7 +893,7 @@ function toolsHTML(){
   const meta = m.findings.filter(f=>f.type==="metadato");
   return `
   <div class="card">
-    <div class="tool-h"><span class="n">1</span> Análisis</div>
+    <div class="tool-h" role="heading" aria-level="2"><span class="n">1</span> Análisis</div>
     <p class="tool-sub">Buscamos marcas de agua <b>visibles</b> y, sobre todo, las <b>ocultas</b> que el generador de IA incrusta en el archivo.</p>
 
     <h4 style="font-size:13px;margin:6px 0 4px">🧬 Marcas ocultas en el código · Procedencia</h4>
@@ -892,7 +916,7 @@ function toolsHTML(){
   </div>
 
   <div class="card">
-    <div class="tool-h"><span class="n">2</span> Eliminar / reconstruir</div>
+    <div class="tool-h" role="heading" aria-level="2"><span class="n">2</span> Eliminar / reconstruir</div>
     <p class="tool-sub">Reconstruye la zona marcada (inpainting aproximado en el navegador).</p>
     <div class="field"><label for="method">Método</label>
       <select id="method">
@@ -902,31 +926,33 @@ function toolsHTML(){
       </select>
     </div>
     <div class="consent" id="consentBox">
-      <input type="checkbox" id="rights-ack" aria-label="Confirmo derechos">
+      <input type="checkbox" id="rights-ack" aria-describedby="consentMsg">
       <label for="rights-ack">Confirmo que soy <b>titular del contenido</b> o tengo <b>autorización</b> para modificar sus marcas de agua, y acepto la <a href="#/legal">política de contenido</a>.</label>
     </div>
-    <div class="consent-msg" id="consentMsg">Confirma que tienes derechos sobre el contenido para poder procesarlo.</div>
+    <div class="consent-msg" id="consentMsg" role="alert">Confirma que tienes derechos sobre el contenido para poder procesarlo.</div>
     <button class="btn btn-primary btn-block" id="btn-process">${iconWand()} Procesar la zona <span class="muted" style="font-weight:600">· ${CONFIG.COSTS.inpaint} créd.</span></button>
     <p class="muted" style="font-size:11.5px;margin-top:8px">Para calidad de estudio (modelos IA en GPU) se conecta un motor del backend — ver arquitectura. <span class="badge-sim">local aproximado</span></p>
   </div>
 
   <div class="card">
-    <div class="tool-h"><span class="n">3</span> Marca propia</div>
+    <div class="tool-h" role="heading" aria-level="2"><span class="n">3</span> Marca propia</div>
     <p class="tool-sub">Sustituye o añade tu logotipo / texto.</p>
-    <div class="seg" style="margin-bottom:12px"><button data-wmmode="texto" class="${WM.mode==='texto'?'on':''}">Texto</button><button data-wmmode="logo" class="${WM.mode==='logo'?'on':''}">Logo (imagen)</button></div>
+    <div class="seg" style="margin-bottom:12px" role="group" aria-label="Tipo de marca"><button data-wmmode="texto" aria-pressed="${WM.mode==='texto'}" class="${WM.mode==='texto'?'on':''}">Texto</button><button data-wmmode="logo" aria-pressed="${WM.mode==='logo'}" class="${WM.mode==='logo'?'on':''}">Logo (imagen)</button></div>
     <div class="field" id="wmTextField"><label for="wm-text">Texto de la marca</label><input type="text" id="wm-text" value="${esc(WM.text)}" maxlength="40"></div>
-    <div class="field" id="wmLogoField" style="${WM.mode==='logo'?'':'display:none'}"><label>Logo (PNG con transparencia)</label><label class="btn btn-ghost btn-sm" style="cursor:pointer">Subir logo<input type="file" id="wm-logo" accept="image/*" hidden></label> <span id="wmLogoName" class="muted" style="font-size:12px">${WM.logo?'logo cargado':'ninguno'}</span></div>
-    <div class="field"><label>Tamaño <span id="wmSizeV" class="muted">${WM.sizePct}%</span></label><input type="range" id="wm-size" min="4" max="40" value="${WM.sizePct}"></div>
-    <div class="field"><label>Transparencia <span id="wmOpV" class="muted">${Math.round(WM.opacity*100)}%</span></label><input type="range" id="wm-op" min="10" max="100" value="${Math.round(WM.opacity*100)}"></div>
-    <div class="field"><label>Rotación <span id="wmRotV" class="muted">${WM.rotation}°</span></label><input type="range" id="wm-rot" min="-45" max="45" value="${WM.rotation}"></div>
+    <div class="field" id="wmLogoField" style="${WM.mode==='logo'?'':'display:none'}"><label>Logo (PNG con transparencia)</label><label class="btn btn-ghost btn-sm js-filelabel" tabindex="0" role="button" style="cursor:pointer">Subir logo<input type="file" id="wm-logo" accept="image/*" hidden></label> <span id="wmLogoName" class="muted" style="font-size:12px">${WM.logo?'logo cargado':'ninguno'}</span></div>
+    <div class="field"><label for="wm-size">Tamaño <span id="wmSizeV" class="muted">${WM.sizePct}%</span></label><input type="range" id="wm-size" min="4" max="40" value="${WM.sizePct}" aria-label="Tamaño de la marca"></div>
+    <div class="field"><label for="wm-op">Transparencia <span id="wmOpV" class="muted">${Math.round(WM.opacity*100)}%</span></label><input type="range" id="wm-op" min="10" max="100" value="${Math.round(WM.opacity*100)}" aria-label="Transparencia de la marca"></div>
+    <div class="field"><label for="wm-rot">Rotación <span id="wmRotV" class="muted">${WM.rotation}°</span></label><input type="range" id="wm-rot" min="-45" max="45" value="${WM.rotation}" aria-label="Rotación de la marca"></div>
     <div class="consent" style="padding:9px 12px"><input type="checkbox" id="wm-tile" ${WM.tile?'checked':''}><label for="wm-tile">Repetir en mosaico (marca difícil de recortar)</label></div>
     <button class="btn btn-primary btn-block" id="btn-wm">${iconStamp()} Aplicar marca <span class="muted" style="font-weight:600">· ${CONFIG.COSTS.watermark} créd.</span></button>
   </div>`;
 }
 
 /* ---- Enlaces del editor ---- */
+function bindFileLabels(){ document.querySelectorAll(".js-filelabel").forEach(l=>{ if(l._kb) return; l._kb=true; l.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); const inp=l.querySelector("input[type=file]"); if(inp) inp.click(); } }); }); }
 function bindEditorEmpty(){
   document.querySelectorAll(".js-sample").forEach(b=>b.addEventListener("click",onSample));
+  bindFileLabels();
   const fi=byId("fileInput"); if(fi) fi.addEventListener("change",e=>{ if(e.target.files&&e.target.files[0]) onFile(e.target.files[0]); });
   const dz=byId("dropzone");
   if(dz){ ["dragenter","dragover"].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add("drag");}));
@@ -956,6 +982,7 @@ function bindEditorLoaded(){
   const wl=byId("wm-logo"); if(wl) wl.addEventListener("change",e=>{ const f=e.target.files&&e.target.files[0]; if(!f) return; const img=new Image(); img.onload=()=>{ WM.logo=img; setText("wmLogoName","logo cargado"); showToast("Logo cargado"); }; img.onerror=()=>showToast("No se pudo leer el logo","err"); img.src=URL.createObjectURL(f); });
   // comparador
   bindCompare();
+  bindFileLabels();
 }
 function on(id,ev,fn){ const el=byId(id); if(el) el.addEventListener(ev,fn); }
 function bindRange(id,fn){ const el=byId(id); if(el) el.addEventListener("input",e=>fn(e.target.value)); }
@@ -1034,24 +1061,41 @@ function onApplyWatermark(){
   showToast("Marca aplicada","ok");
 }
 
-/* ---- Limpiar metadatos ---- */
+/* ---- Limpiar metadatos (usa el backend si está configurado; si no, local) ---- */
 function onCleanMetadata(){
   const E=EDITOR; if(!E.loaded||!E.bytes){ showToast("Primero carga una imagen"); return; }
   if(!chargeCredits(CONFIG.COSTS.clean,"Limpieza de metadatos")){ showToast("No te quedan créditos","err"); navTo("precios"); return; }
-  let clean;
+  if(backendOn()){ cleanViaBackend().catch(()=>{ showToast("Backend no disponible; limpieza local","err"); cleanLocal(); }); return; }
+  cleanLocal();
+}
+function cleanLocal(){
+  const E=EDITOR; let clean;
   try{
     if(isPNG(E.bytes)) clean=pngStrip(E.bytes);
-    else { // re-encode del canvas → sin metadatos
-      const durl=E.work.toDataURL(E.mime==="image/jpeg"?"image/jpeg":"image/png",0.92); clean=dataURLtoBytes(durl);
-    }
+    else { const durl=E.work.toDataURL(E.mime==="image/jpeg"?"image/jpeg":"image/png",0.92); clean=dataURLtoBytes(durl); }
   }catch(e){ clean=E.bytes; }
-  E.bytes=clean; E.exportBytes=clean.length; E.cleaned=true;
-  E.meta=parseMetadata(clean, E.mime);
+  E.bytes=clean; E.exportBytes=clean.length; E.cleaned=true; E.meta=parseMetadata(clean, E.mime);
   const remaining=E.meta.findings.length;
   recordJob("Metadatos limpiados","clean");
   addLog("Limpieza", "Metadatos eliminados de "+E.name+" ("+remaining+" restantes)", true);
-  renderEditor();
+  renderEditor(); const b=byId("btn-clean"); if(b) b.focus();
   showToast(remaining===0?"Marcas ocultas borradas · archivo limpio (0 metadatos)":"Metadatos limpiados ("+remaining+" restantes)","ok");
+}
+async function cleanViaBackend(){
+  const E=EDITOR;
+  showToast("Enviando al motor de estudio…");
+  const up=await apiUploadBytes(E.bytes, E.name, E.mime);
+  const job=await apiProcess(up.asset_id, "metadata", true);
+  const j=await apiWaitJob(job.job_id);
+  if(!j || j.status==="failed") throw new Error((j&&j.error)||"falló");
+  const clean=await apiResultBytes(job.job_id);
+  E.bytes=clean; E.exportBytes=clean.length; E.cleaned=true; E.meta=parseMetadata(clean, E.mime);
+  await new Promise((res)=>{ const img=new Image(); img.onload=()=>{ try{ E.work.getContext("2d").drawImage(img,0,0,E.w,E.h); }catch(e){} URL.revokeObjectURL(img.src); res(); }; img.onerror=()=>{ URL.revokeObjectURL(img.src); res(); }; img.src=URL.createObjectURL(new Blob([clean],{type:E.mime||"image/png"})); });
+  const rest=(j.surviving&&j.surviving.length)?j.surviving.length:0;
+  recordJob("Metadatos limpiados (motor de estudio)","clean");
+  addLog("Limpieza (backend)", "remove-ai-watermarks sobre "+E.name+" ("+rest+" restantes)", true);
+  renderEditor(); const b=byId("btn-clean"); if(b) b.focus();
+  showToast(rest===0?"Marcas ocultas borradas por el motor de estudio · limpio":"Limpiado por el motor de estudio ("+rest+" restantes)","ok");
 }
 
 /* ---- Romper marca invisible (esteganografía LSB en píxeles) ---- */
@@ -1224,8 +1268,8 @@ function renderAjustes(){
       <p class="muted" style="font-size:12px">Tus imágenes se procesan en el navegador y <b>no se usan para entrenar</b> ningún modelo.</p>
     </div>
     <div class="card"><h3 style="font-size:15px;margin-bottom:10px">${iconGear()} Cuenta y apariencia</h3>
-      <div class="field"><label>Nombre (local)</label><input type="text" id="set-name" placeholder="Tu nombre" value=""></div>
-      <div class="field"><label>Tema</label><div class="seg"><button id="th-dark" class="${s.theme!=='light'?'on':''}">Oscuro</button><button id="th-light" class="${s.theme==='light'?'on':''}">Claro</button></div></div>
+      <div class="field"><label for="set-name">Nombre (local)</label><input type="text" id="set-name" placeholder="Tu nombre" value=""></div>
+      <div class="field"><label id="temaLbl">Tema</label><div class="seg" role="group" aria-labelledby="temaLbl"><button id="th-dark" aria-pressed="${s.theme!=='light'}" class="${s.theme!=='light'?'on':''}">Oscuro</button><button id="th-light" aria-pressed="${s.theme==='light'}" class="${s.theme==='light'?'on':''}">Claro</button></div></div>
       <button class="btn btn-ghost btn-block btn-sm" id="btn-install">${iconDownload()} Instalar app (PWA)</button>
     </div>
     <div class="card"><h3 style="font-size:15px;margin-bottom:10px">${iconLayers()} Almacenamiento</h3>
@@ -1238,15 +1282,30 @@ function renderAjustes(){
       <a href="#/api" class="btn btn-ghost btn-block btn-sm" style="margin-bottom:8px">Ir a la API</a>
       <a href="#/precios" class="btn btn-ghost btn-block btn-sm">Créditos y facturación</a>
     </div>
+    <div class="card"><h3 style="font-size:15px;margin-bottom:10px">${iconLayers()} Motor de estudio (backend)</h3>
+      <p class="tool-sub">Opcional. Conecta el servidor <code class="mono">services/watermark-api</code> y el borrado usará el motor real <b>remove-ai-watermarks</b> (C2PA/EXIF/XMP + marcas de generador). Sin conexión, todo funciona en local en tu navegador.</p>
+      <div class="field"><label for="set-apibase">URL del backend</label><input type="text" id="set-apibase" placeholder="http://localhost:8000" value="${esc(s.apiBase||'')}"></div>
+      <div class="field"><label for="set-apikey">Clave de API del backend</label><input type="text" id="set-apikey" placeholder="dev-key-cambia-esto" value="${esc(s.backendKey||'')}"></div>
+      <button class="btn btn-ghost btn-block btn-sm" id="btn-testapi">Probar conexión</button>
+      <p class="muted" id="apiStatus" role="status" style="font-size:12px;margin-top:8px">${backendOn()?("Backend configurado · "+esc(backendCfg().base)):"Sin backend · modo local en el navegador"}</p>
+    </div>
   </div>`;
   const save=()=>saveSettings(s);
   on("set-auto","change",e=>{ s.autoDelete=e.target.checked; save(); });
   on("set-keep","change",e=>{ s.keepMetadata=e.target.checked; save(); });
   bindRange("set-ttl",v=>{ s.ttlDays=+v; setText("ttlV",v+" día(s)"); save(); });
-  on("th-dark","click",()=>{ s.theme="dark"; save(); applyTheme(); renderAjustes(); });
-  on("th-light","click",()=>{ s.theme="light"; save(); applyTheme(); renderAjustes(); });
+  on("th-dark","click",()=>{ s.theme="dark"; save(); applyTheme(); renderAjustes(); const b=byId("th-dark"); if(b) b.focus(); });
+  on("th-light","click",()=>{ s.theme="light"; save(); applyTheme(); renderAjustes(); const b=byId("th-light"); if(b) b.focus(); });
   on("btn-install","click",promptInstall);
   on("btn-wipe","click",()=>{ if(confirm("¿Borrar historial, créditos y registro de este dispositivo?")){ [K.files,K.jobs,K.credits,K.log].forEach(k=>{try{localStorage.removeItem(k);}catch(e){}}); paintCredits(); showToast("Datos locales borrados"); renderAjustes(); } });
+  on("set-apibase","input",e=>{ s.apiBase=e.target.value.trim(); save(); });
+  on("set-apikey","input",e=>{ s.backendKey=e.target.value.trim(); save(); });
+  on("btn-testapi","click",async ()=>{
+    if(!backendCfg().base){ showToast("Escribe primero la URL del backend","err"); return; }
+    setText("apiStatus","Probando conexión…");
+    try{ const h=await apiHealth(); const cap=(h&&h.capabilities)||{}; setText("apiStatus","Conectado · motor "+(cap.engine||"?")+" · visible "+(cap.visible?"sí":"no")+" · invisible "+(cap.invisible?"sí":"no")); showToast("Conexión con el backend correcta","ok"); }
+    catch(e){ setText("apiStatus","No se pudo conectar (¿servidor arrancado y CORS habilitado?)"); showToast("No se pudo conectar al backend","err"); }
+  });
 }
 
 /* ==================================================================================

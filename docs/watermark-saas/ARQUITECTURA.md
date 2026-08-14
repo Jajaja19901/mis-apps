@@ -373,6 +373,28 @@ sequenceDiagram
 
 ---
 
+## Implementación de referencia (ya construida): `services/watermark-api`
+
+El backend de este blueprint **está implementado y verificado** en `services/watermark-api` (FastAPI),
+integrando el motor real **[`remove-ai-watermarks`](https://github.com/wiltodelta/remove-ai-watermarks)**
+(Apache-2.0). Correspondencia con este documento:
+
+| Este blueprint | Implementado en |
+|----------------|-----------------|
+| API modular (`/analyze`, `/process`, `/jobs`, `/results`) | `app/main.py` |
+| Registro de motores intercambiables (§4, apéndice) | `app/engine.py` (remove-ai-watermarks ↔ nativo) |
+| Detección de procedencia C2PA/EXIF/XMP/firmas | `identify` real + `app/native_meta.py` (fallback CPU) |
+| Borrado de marcas ocultas (metadatos) | `metadata.strip_and_verify` (o nativo) |
+| Marca visible (opencv, CPU) / invisible (SynthID, GPU) | `remove_visible` / `remove_all` |
+| Auth por clave, rate limit, `rights_ack`, registro de acciones (§9) | `app/security.py` |
+| Almacenamiento temporal con TTL (§9, privacidad) | `app/store.py` |
+| Cola de trabajos asíncrona (§8) | `ThreadPoolExecutor` (sustituible por Redis/SQS al escalar) |
+
+Estado: **CPU verificado** (identify + metadata + visible corren y pasan tests + demo HTTP real). El
+borrado de marca **invisible/SynthID** requiere `remove-ai-watermarks[diffusion]` y **GPU (CUDA)**; el
+servicio lo expone y degrada a `unavailable` cuando no hay GPU. El frontend `apps/gestor-marcas-agua-ia.html`
+lo consume cuando se configura su URL en Ajustes (con fallback local). Ver `services/watermark-api/README.md`.
+
 ## Apéndice — Interfaz de motor (contrato de extensión)
 
 ```python
