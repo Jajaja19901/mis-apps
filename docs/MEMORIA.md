@@ -3,6 +3,12 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-15 — Informe de normativa europea/española de IA para las apps
+- Qué se hizo: investigado el AI Act (Reglamento UE 2024/1689), el proyecto español de Ley Orgánica de gobernanza de IA, RGPD/LSSI, Ley 11/2023 (accesibilidad) y NIS2, todo aplicado a las apps que fabricamos aquí (embudos + formulario de leads + panel de admin). Redactado `docs/NORMATIVA-IA-Y-WEB.md`: resumen ejecutivo, calendario, art. 4 (alfabetización IA obligatoria) y art. 50 (transparencia), sanciones (hasta 35 M€ / 7 %), checklist para el QA y cambios concretos a meter en las plantillas.
+- Archivos tocados: `docs/NORMATIVA-IA-Y-WEB.md` (nuevo), `docs/MEMORIA.md`.
+- Pendiente / siguiente paso: (1) meter en la plantilla del formulario de leads el bloque RGPD completo (responsable/finalidad/derechos) junto a la casilla, (2) añadir aviso discreto en el pie "Contenidos asistidos por IA con revisión humana", (3) actualizar el agente `qa-verificador` con el checklist legal del informe, (4) preparar `docs/FORMACION-IA.md` con acta de alfabetización IA cuando el usuario haga un curso básico.
+- Datos a confirmar: si en el futuro añadimos chatbot o imágenes generadas por IA "tipo foto" a las apps, revisar el bloque 5.2 del informe (aplica etiquetado obligatorio).
+
 ## 2026-07-19 — Vídeo demo en la portada de Incuba tu Negocio
 - Qué se hizo: vídeo demo del producto (32s, MP4 1080p): la app peluqueria-aurora navegada de verdad (Playwright) dentro de un móvil flotante, narrador es-ES (Piper davefx via sherpa-onnx), música y efectos generados con numpy, rótulos y subtítulos (Remotion). Integrado en la PORTADA de apps/incuba-tu-negocio.html (tras el subtítulo, antes de la incubadora). Verificador: ✅ APTO.
 - Archivos tocados: apps/incuba-tu-negocio.html, apps/incuba-demo.mp4 (nuevo), apps/incuba-demo-poster.jpg (nuevo). Fuentes del vídeo en scratchpad de la sesión (video-incuba/).
