@@ -5,103 +5,168 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Visuales DJ · reactivos a la música</title>
 <style>
-  html,body{margin:0;height:100%;background:#000;overflow:hidden;cursor:none}
-  canvas{display:block;width:100vw;height:100vh}
-  #ui{position:fixed;left:0;right:0;bottom:0;padding:18px 22px;font:600 15px/1.5 system-ui;color:#fff;
-      background:linear-gradient(0deg,rgba(0,0,0,.82),transparent);opacity:1;transition:opacity .5s;cursor:default}
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:system-ui}
+  canvas{display:block;width:100vw;height:100vh;cursor:none}
+  /* ---- nombre del DJ en pantalla ---- */
+  #nombre{position:fixed;left:0;right:0;top:7vh;text-align:center;pointer-events:none;
+          display:none;line-height:1;white-space:pre-wrap;padding:0 4vw;
+          font-size:var(--tam,8vw);font-family:var(--fuente,'Arial Black',sans-serif);
+          font-weight:900;letter-spacing:var(--esp,.06em);color:var(--c1,#fff)}
+  /* ---- barra de ayuda ---- */
+  #ui{position:fixed;left:0;right:0;bottom:0;padding:16px 20px;font:600 15px/1.5 system-ui;color:#fff;
+      background:linear-gradient(0deg,rgba(0,0,0,.82),transparent);transition:opacity .5s}
   #ui.oculto{opacity:0;pointer-events:none}
   #ui b{color:#f5c542}
-  #nombre{position:fixed;left:0;right:0;top:6vh;text-align:center;font:800 7vw/1 system-ui;color:#fff;
-          letter-spacing:.12em;text-shadow:0 0 30px rgba(255,255,255,.55),0 4px 24px rgba(0,0,0,.8);
-          pointer-events:none;display:none;mix-blend-mode:screen}
-  #estado{position:fixed;top:14px;right:18px;font:700 13px system-ui;color:#7dffb0;opacity:.85;cursor:default}
-  #tap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;
-       background:#000;color:#fff;font:700 22px system-ui;cursor:pointer;text-align:center;padding:30px}
-  #tap small{font:500 15px system-ui;color:#aaa;max-width:520px}
-  #tap .boton{background:#f5c542;color:#111;padding:16px 42px;border-radius:999px;font-size:20px}
+  #fxnombre{float:right;color:#f5c542}
+  #estado{position:fixed;top:14px;right:18px;font:700 13px system-ui;color:#7dffb0;opacity:.85}
+  /* ---- arranque ---- */
+  #tap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;
+       background:#000;color:#fff;font:800 24px system-ui;cursor:pointer;text-align:center;padding:30px;z-index:20}
+  #tap small{font:500 15px system-ui;color:#aaa;max-width:540px}
+  #tap .boton{background:#f5c542;color:#111;padding:16px 46px;border-radius:999px;font-size:20px;font-weight:800}
+  /* ---- editor de DJs ---- */
+  #editor{position:fixed;inset:0;display:none;z-index:30;background:rgba(6,6,10,.86);backdrop-filter:blur(8px);
+          overflow:auto;padding:26px;box-sizing:border-box;color:#fff;font:500 15px system-ui}
+  #editor.abierto{display:block}
+  #editor h2{margin:0 0 4px;font-size:22px}
+  #editor .sub{color:#9aa;margin-bottom:18px;font-size:14px}
+  .slots{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+  .slot{padding:10px 14px;border-radius:10px;background:#1a1a22;border:2px solid #2a2a35;cursor:pointer;font-weight:700;min-width:54px;text-align:center}
+  .slot.activo{border-color:#f5c542;background:#2a2410}
+  .campo{margin-bottom:16px}
+  .campo label{display:block;font-size:13px;color:#9aa;margin-bottom:6px;text-transform:uppercase;letter-spacing:.08em}
+  .campo input[type=text]{width:100%;box-sizing:border-box;padding:14px;font-size:20px;border-radius:10px;border:2px solid #333;background:#111;color:#fff;font-weight:800}
+  .opciones{display:flex;flex-wrap:wrap;gap:8px}
+  .opc{padding:10px 16px;border-radius:10px;background:#16161d;border:2px solid #2a2a35;cursor:pointer}
+  .opc.sel{border-color:#f5c542;color:#f5c542}
+  .fila{display:flex;gap:22px;flex-wrap:wrap}
+  .fila>div{flex:1;min-width:260px}
+  .colores{display:flex;gap:12px;align-items:center}
+  .colores input[type=color]{width:54px;height:44px;border:none;border-radius:8px;background:none;cursor:pointer}
+  #vista{margin:14px 0 20px;padding:26px;border-radius:14px;background:#000;text-align:center;min-height:70px;display:flex;align-items:center;justify-content:center}
+  .acciones{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+  .acciones button{padding:14px 26px;border-radius:10px;border:none;font-weight:800;font-size:16px;cursor:pointer}
+  .btn-ok{background:#22c55e;color:#04240f}
+  .btn-usar{background:#f5c542;color:#111}
+  .btn-x{background:#2a2a35;color:#fff}
+  .nota{color:#9aa;font-size:13px;margin-top:14px;line-height:1.6}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="nombre"></div>
 <div id="estado"></div>
+
 <div id="ui">
-  <b>← →</b> cambiar efecto · <b>1-9,0</b> efecto directo · <b>A</b> modo automático · <b>F</b> pantalla completa · <b>N</b> nombre en pantalla · <b>H</b> ocultar esta ayuda
-  <span id="fxnombre" style="float:right;color:#f5c542"></span>
+  <b>E</b> editar DJs · <b>1-8</b> poner un DJ · <b>← →</b> efecto · <b>A</b> auto · <b>F</b> pantalla completa · <b>V</b> ver/ocultar nombre · <b>H</b> ocultar ayuda
+  <span id="fxnombre"></span>
 </div>
+
 <div id="tap">
   <div>🎛️ VISUALES DJ</div>
-  <small>Toca para empezar. Pedirá permiso de <b>micrófono</b> para que los visuales bailen con tu música.
-  Si no lo das, funcionan igual en modo automático (124 bpm).</small>
+  <small>Toca para empezar. Pedirá permiso de <b>micrófono</b> para que los visuales bailen con la música.
+  Si no lo das, funcionan igual en modo automático. Luego pulsa <b>E</b> para poner los nombres de los 8 DJs.</small>
   <div class="boton">▶ EMPEZAR</div>
 </div>
+
+<!-- ============ EDITOR DE DJs ============ -->
+<div id="editor">
+  <h2>🎧 Nombres de los DJs</h2>
+  <div class="sub">Elige un hueco (1 a 8), escribe el nombre y su estilo. Se guarda solo en este ordenador. En la sesión, pulsa el número del DJ para ponerlo en la tele.</div>
+
+  <div class="slots" id="slots"></div>
+
+  <div id="vista"></div>
+
+  <div class="campo">
+    <label>Nombre del DJ</label>
+    <input type="text" id="in-nombre" maxlength="40" placeholder="Escribe aquí el nombre…">
+  </div>
+
+  <div class="fila">
+    <div class="campo">
+      <label>Letra (tipografía)</label>
+      <div class="opciones" id="fuentes"></div>
+    </div>
+    <div class="campo">
+      <label>Estilo</label>
+      <div class="opciones" id="estilos"></div>
+    </div>
+  </div>
+
+  <div class="fila">
+    <div class="campo">
+      <label>Colores</label>
+      <div class="colores">
+        <input type="color" id="col1" value="#ffffff"> <span>principal</span>
+        <input type="color" id="col2" value="#ff2fd0"> <span>secundario (degradado/brillo)</span>
+      </div>
+    </div>
+    <div class="campo">
+      <label>Tamaño</label>
+      <div class="opciones" id="tamanos"></div>
+    </div>
+  </div>
+
+  <div class="acciones">
+    <button class="btn-usar" id="btn-usar">▶ Poner este DJ en la tele</button>
+    <button class="btn-x" id="btn-cerrar">Cerrar editor (E)</button>
+  </div>
+  <div class="nota">Todo se guarda automáticamente. Puedes dejar huecos vacíos.
+  Atajo directo: añade <b>?dj=NOMBRE</b> al final de la dirección para abrir con un nombre puesto.</div>
+</div>
+
 <script>
 "use strict";
-/* ============ VISUALES DJ · 10 efectos reactivos · un solo archivo ============ */
+/* ============ VISUALES DJ · 10 efectos reactivos + 8 DJs editables ============ */
 const canvas = document.getElementById('c');
-const gl = canvas.getContext('webgl', { antialias: false, preserveDrawingBuffer: false });
+const gl = canvas.getContext('webgl', { antialias:false, preserveDrawingBuffer:false });
 
-/* ---------- audio: micrófono → bandas + detector de golpes ---------- */
+/* ---------- audio: micrófono → bandas + golpes + drops ---------- */
 const audio = { bass:0, mid:0, high:0, energy:0, beat:0, drop:0, ok:false, fft:new Uint8Array(64) };
-let analyser = null, fftBuf = null;
-const histCorta = []; const histLarga = [];
-let ultimoBeat = 0;
+let analyser=null, fftBuf=null; const histCorta=[], histLarga=[]; let ultimoBeat=0;
 
 async function iniciarMic(){
   try{
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false } });
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false } });
     const ctx = new (window.AudioContext||window.webkitAudioContext)();
     const src = ctx.createMediaStreamSource(stream);
-    analyser = ctx.createAnalyser();
-    analyser.fftSize = 2048; analyser.smoothingTimeConstant = 0.55;
-    src.connect(analyser);
-    fftBuf = new Uint8Array(analyser.frequencyBinCount);
-    audio.ok = true;
-    document.getElementById('estado').textContent = '🎤 escuchando la música';
-  }catch(e){
-    audio.ok = false;
-    document.getElementById('estado').textContent = '⏱ modo automático (sin micro)';
-  }
+    analyser = ctx.createAnalyser(); analyser.fftSize=2048; analyser.smoothingTimeConstant=0.55;
+    src.connect(analyser); fftBuf = new Uint8Array(analyser.frequencyBinCount);
+    audio.ok=true; document.getElementById('estado').textContent='🎤 escuchando la música';
+  }catch(e){ audio.ok=false; document.getElementById('estado').textContent='⏱ modo automático (sin micro)'; }
 }
-
 function leerAudio(t){
   if(audio.ok && analyser){
     analyser.getByteFrequencyData(fftBuf);
-    const n = fftBuf.length;                       // 1024 bins hasta ~24 kHz
-    const banda = (a,b)=>{ let s=0; for(let i=a;i<b;i++) s+=fftBuf[i]; return s/((b-a)*255); };
-    audio.bass = banda(1, 9);                      // ~23-210 Hz
-    audio.mid  = banda(9, 80);                     // ~210 Hz-1.9 kHz
-    audio.high = banda(80, 400);                   // ~1.9-9.4 kHz
-    audio.energy = audio.bass*0.5 + audio.mid*0.35 + audio.high*0.15;
-    for(let i=0;i<64;i++){ audio.fft[i] = fftBuf[Math.floor(i*i/64*  (420/64) + i)] ; }
-    // golpe: el grave supera con margen su media reciente
+    const banda=(a,b)=>{ let s=0; for(let i=a;i<b;i++) s+=fftBuf[i]; return s/((b-a)*255); };
+    audio.bass=banda(1,9); audio.mid=banda(9,80); audio.high=banda(80,400);
+    audio.energy=audio.bass*0.5+audio.mid*0.35+audio.high*0.15;
+    for(let i=0;i<64;i++) audio.fft[i]=fftBuf[Math.floor(i*i/64*(420/64)+i)];
     histCorta.push(audio.bass); if(histCorta.length>30) histCorta.shift();
-    const media = histCorta.reduce((a,b)=>a+b,0)/histCorta.length;
-    if(audio.bass > media*1.32 && audio.bass > 0.16 && t-ultimoBeat > 0.22){ audio.beat = 1; ultimoBeat = t; }
-    // drop: energía sostenida muy por encima de la media larga
+    const m=histCorta.reduce((a,b)=>a+b,0)/histCorta.length;
+    if(audio.bass>m*1.32 && audio.bass>0.16 && t-ultimoBeat>0.22){ audio.beat=1; ultimoBeat=t; }
     histLarga.push(audio.energy); if(histLarga.length>300) histLarga.shift();
-    const mediaL = histLarga.reduce((a,b)=>a+b,0)/histLarga.length;
-    audio.drop += (((audio.energy > mediaL*1.45 && audio.energy>0.3)?1:0) - audio.drop)*0.05;
+    const mL=histLarga.reduce((a,b)=>a+b,0)/histLarga.length;
+    audio.drop += (((audio.energy>mL*1.45 && audio.energy>0.3)?1:0)-audio.drop)*0.05;
   } else {
-    // modo demo: latido sintético 124 bpm
-    const bps = 124/60, ph = (t*bps)%1;
-    audio.bass = 0.28 + 0.5*Math.pow(Math.max(0,1-ph*3.2),2);
-    audio.mid  = 0.3 + 0.2*Math.sin(t*2.1) + 0.12*Math.sin(t*7.7);
-    audio.high = 0.22 + 0.18*Math.abs(Math.sin(t*9.3));
-    audio.energy = 0.4 + 0.25*Math.sin(t*0.13);
-    if(ph < 0.04 && t-ultimoBeat>0.3){ audio.beat = 1; ultimoBeat = t; }
-    audio.drop += ((Math.sin(t*0.11)>0.86?1:0) - audio.drop)*0.04;
-    for(let i=0;i<64;i++) audio.fft[i] = 255*Math.max(0, (audio.bass*(1-i/64) + audio.high*(i/64)) * (0.6+0.4*Math.sin(t*3+i*0.7)));
+    const bps=124/60, ph=(t*bps)%1;
+    audio.bass=0.28+0.5*Math.pow(Math.max(0,1-ph*3.2),2);
+    audio.mid=0.3+0.2*Math.sin(t*2.1)+0.12*Math.sin(t*7.7);
+    audio.high=0.22+0.18*Math.abs(Math.sin(t*9.3));
+    audio.energy=0.4+0.25*Math.sin(t*0.13);
+    if(ph<0.04 && t-ultimoBeat>0.3){ audio.beat=1; ultimoBeat=t; }
+    audio.drop += ((Math.sin(t*0.11)>0.86?1:0)-audio.drop)*0.04;
+    for(let i=0;i<64;i++) audio.fft[i]=255*Math.max(0,(audio.bass*(1-i/64)+audio.high*(i/64))*(0.6+0.4*Math.sin(t*3+i*0.7)));
   }
-  audio.beat *= 0.90;   // decaimiento del pulso
+  audio.beat*=0.90;
 }
 
-/* ---------- WebGL: quad + shader con 10 efectos ---------- */
-const vs = `attribute vec2 p; void main(){ gl_Position = vec4(p,0.,1.); }`;
-const fs = `
+/* ---------- shader (10 efectos) ---------- */
+const vs=`attribute vec2 p; void main(){ gl_Position=vec4(p,0.,1.); }`;
+const fs=`
 precision highp float;
-uniform vec2 R; uniform float T, BASS, MID, HIGH, BEAT, ENERGY, DROP; uniform int FX;
-uniform sampler2D FFT;
+uniform vec2 R; uniform float T,BASS,MID,HIGH,BEAT,ENERGY,DROP; uniform int FX; uniform sampler2D FFT;
 #define PI 3.14159265
 mat2 rot(float a){ float c=cos(a),s=sin(a); return mat2(c,-s,s,c); }
 vec3 hsv(float h,float s,float v){ vec3 k=abs(mod(h*6.+vec3(0.,4.,2.),6.)-3.)-1.; return v*mix(vec3(1.),clamp(k,0.,1.),s); }
@@ -109,218 +174,207 @@ float hash(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 float noise(vec2 p){ vec2 i=floor(p),f=fract(p); f=f*f*(3.-2.*f);
   return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y); }
 float fbm(vec2 p){ float v=0.,a=.5; for(int i=0;i<5;i++){ v+=a*noise(p); p=p*2.03+7.3; a*=.5; } return v; }
-float fftAt(float x){ return texture2D(FFT, vec2(clamp(x,0.01,0.99), 0.5)).r; }
-
-/* 1 · TÚNEL DE NEÓN */
-vec3 fxTunel(vec2 u){
-  float a = atan(u.y,u.x), r = length(u);
-  float z = 0.35/(r+0.05) + T*(1.6+ENERGY*2.5);
-  float anillo = smoothstep(0.42,0.0,abs(fract(z)-0.5)) * (0.5+BEAT*1.6);
-  float radios = smoothstep(0.35,0.0,abs(fract(a/PI*6.+T*0.4)-0.5))*0.5*MID;
-  vec3 col = hsv(fract(z*0.07+T*0.02), 0.85, 1.0)*anillo + hsv(fract(T*0.1+0.5),0.7,1.)*radios;
-  return col * smoothstep(1.35,0.35,r) + BEAT*0.12;
-}
-/* 2 · ESPECTRO CIRCULAR */
-vec3 fxEspectro(vec2 u){
-  float a = atan(u.y,u.x), r = length(u);
-  float x = abs(fract(a/(2.*PI)+0.5+T*0.02)*2.-1.);
-  float f = fftAt(x)*0.55+0.06;
-  vec3 col = vec3(0.);
-  float d = abs(r-(0.34+BEAT*0.05));
-  col += hsv(fract(x*0.65+T*0.05),0.9,1.) * smoothstep(f,f*0.35,d) * step(d, f);
-  col += vec3(1.,0.85,0.4)*smoothstep(0.02,0.,abs(r-0.3))*BEAT*2.2;
-  col += hsv(fract(T*0.05),0.6,1.)*0.35*smoothstep(0.05,0.,abs(r-0.3-f));
-  return col;
-}
-/* 3 · ONDAS LÁSER */
-vec3 fxOndas(vec2 u){
-  vec3 col = vec3(0.);
-  for(int i=0;i<6;i++){
-    float fi = float(i);
-    float y = 0.34*sin(u.x*(2.2+fi*0.9) + T*(1.2+fi*0.35) + fi*1.7) * (0.35+MID*1.4+BEAT*0.35);
-    y *= sin(T*0.5+fi);
-    col += hsv(fract(fi*0.14+T*0.04),0.85,1.) * (0.0035+BASS*0.004)/abs(u.y-y*0.55);
-  }
-  return col*(0.7+DROP*0.6);
-}
-/* 4 · WARP ESTELAR */
-vec3 fxWarp(vec2 u){
-  vec3 col=vec3(0.);
-  float v = 2.5+ENERGY*9.+DROP*8.;
-  for(int i=0;i<3;i++){
-    float fi=float(i);
-    vec2 q=u*rot(T*0.05+fi*2.1);
-    vec2 g=fract(q*(5.+fi*4.)+vec2(T*v*(0.12+fi*0.06),0.))-0.5;
-    float s=hash(floor(q*(5.+fi*4.)+vec2(floor(T*v*(0.12+fi*0.06)),0.)));
-    float st=smoothstep(0.06+0.05*s,0.,length(g))*step(0.75,s);
-    col+=hsv(fract(s*3.+T*0.03),0.5,1.)*st*(1.+BEAT*1.5);
-  }
-  return col + vec3(0.02,0.01,0.05)+BEAT*0.06;
-}
-/* 5 · REJILLA SYNTHWAVE */
-vec3 fxRejilla(vec2 u){
-  vec3 col=vec3(0.);
-  float horiz=-0.12;
-  if(u.y<horiz){
-    vec2 p=vec2(u.x/(u.y-horiz+0.001)*0.6, 1.4/(horiz-u.y+0.02)+T*(2.2+BASS*4.));
+float fftAt(float x){ return texture2D(FFT, vec2(clamp(x,0.01,0.99),0.5)).r; }
+vec3 fxTunel(vec2 u){ float a=atan(u.y,u.x),r=length(u); float z=0.35/(r+0.05)+T*(1.6+ENERGY*2.5);
+  float an=smoothstep(0.42,0.0,abs(fract(z)-0.5))*(0.5+BEAT*1.6);
+  float rd=smoothstep(0.35,0.0,abs(fract(a/PI*6.+T*0.4)-0.5))*0.5*MID;
+  return (hsv(fract(z*0.07+T*0.02),0.85,1.)*an+hsv(fract(T*0.1+0.5),0.7,1.)*rd)*smoothstep(1.35,0.35,r)+BEAT*0.12; }
+vec3 fxEspectro(vec2 u){ float a=atan(u.y,u.x),r=length(u); float x=abs(fract(a/(2.*PI)+0.5+T*0.02)*2.-1.);
+  float f=fftAt(x)*0.55+0.06; vec3 c=vec3(0.); float d=abs(r-(0.34+BEAT*0.05));
+  c+=hsv(fract(x*0.65+T*0.05),0.9,1.)*smoothstep(f,f*0.35,d)*step(d,f);
+  c+=vec3(1.,0.85,0.4)*smoothstep(0.02,0.,abs(r-0.3))*BEAT*2.2;
+  c+=hsv(fract(T*0.05),0.6,1.)*0.35*smoothstep(0.05,0.,abs(r-0.3-f)); return c; }
+vec3 fxOndas(vec2 u){ vec3 c=vec3(0.); for(int i=0;i<6;i++){ float fi=float(i);
+  float y=0.34*sin(u.x*(2.2+fi*0.9)+T*(1.2+fi*0.35)+fi*1.7)*(0.35+MID*1.4+BEAT*0.35); y*=sin(T*0.5+fi);
+  c+=hsv(fract(fi*0.14+T*0.04),0.85,1.)*(0.0035+BASS*0.004)/abs(u.y-y*0.55); } return c*(0.7+DROP*0.6); }
+vec3 fxWarp(vec2 u){ vec3 c=vec3(0.); float v=2.5+ENERGY*9.+DROP*8.;
+  for(int i=0;i<3;i++){ float fi=float(i); vec2 q=u*rot(T*0.05+fi*2.1);
+  vec2 g=fract(q*(5.+fi*4.)+vec2(T*v*(0.12+fi*0.06),0.))-0.5;
+  float s=hash(floor(q*(5.+fi*4.)+vec2(floor(T*v*(0.12+fi*0.06)),0.)));
+  c+=hsv(fract(s*3.+T*0.03),0.5,1.)*smoothstep(0.06+0.05*s,0.,length(g))*step(0.75,s)*(1.+BEAT*1.5); }
+  return c+vec3(0.02,0.01,0.05)+BEAT*0.06; }
+vec3 fxRejilla(vec2 u){ vec3 c=vec3(0.); float h=-0.12;
+  if(u.y<h){ vec2 p=vec2(u.x/(u.y-h+0.001)*0.6,1.4/(h-u.y+0.02)+T*(2.2+BASS*4.));
     float g=smoothstep(0.94,1.,max(abs(fract(p.x)-0.5)*2.,0.))+smoothstep(0.9,1.,abs(fract(p.y)-0.5)*2.);
-    col+=mix(vec3(1.,0.2,0.8),vec3(0.2,0.9,1.),fract(p.y*0.05))*g*(0.6+BEAT*1.2)*smoothstep(horiz,horiz-0.7,u.y);
-  } else {
-    float d=length(u-vec2(0.,0.28));
-    float sol=smoothstep(0.24+BEAT*0.05,0.2,d);
+    c+=mix(vec3(1.,0.2,0.8),vec3(0.2,0.9,1.),fract(p.y*0.05))*g*(0.6+BEAT*1.2)*smoothstep(h,h-0.7,u.y);
+  } else { float d=length(u-vec2(0.,0.28)); float sol=smoothstep(0.24+BEAT*0.05,0.2,d);
     sol*=step(0.35,fract(u.y*26.+T*1.4))+step(u.y,0.28);
-    col+=mix(vec3(1.,0.75,0.1),vec3(1.,0.2,0.6),(u.y-0.05)*2.)*sol;
-    col+=vec3(1.,0.5,0.15)*0.35/max(d,0.08)*0.12*(1.+BEAT);
-  }
-  return col;
-}
-/* 6 · PLASMA LÍQUIDO */
-vec3 fxPlasma(vec2 u){
-  vec2 p=u*1.6; float t=T*0.25;
+    c+=mix(vec3(1.,0.75,0.1),vec3(1.,0.2,0.6),(u.y-0.05)*2.)*sol;
+    c+=vec3(1.,0.5,0.15)*0.35/max(d,0.08)*0.12*(1.+BEAT); } return c; }
+vec3 fxPlasma(vec2 u){ vec2 p=u*1.6; float t=T*0.25;
   float n=fbm(p+vec2(t,0.)+fbm(p*1.7-vec2(0.,t*1.2))*1.4*(1.+BASS));
-  vec3 col=hsv(fract(n*0.8+T*0.03),0.8-HIGH*0.3,smoothstep(0.15,0.95,n));
-  col+=pow(n,6.)*vec3(1.)*HIGH*2.2;
-  return col*(0.55+ENERGY*0.8+BEAT*0.35);
-}
-/* 7 · CALEIDOSCOPIO */
-vec3 fxKaleido(vec2 u){
-  float a=atan(u.y,u.x), r=length(u);
-  float seg=6.; a=abs(mod(a,2.*PI/seg)-PI/seg);
-  vec2 p=vec2(cos(a),sin(a))*r;
-  p*=rot(T*0.3*(1.+ENERGY)); p+=vec2(T*0.12,0.);
-  float n=fbm(p*3.2);
-  vec3 col=hsv(fract(n+r*0.5-T*0.05),0.9,1.)*smoothstep(0.2,0.9,n);
-  col*= (0.5+BEAT*1.4)*smoothstep(1.2,0.2,r);
-  col+=vec3(1.,0.9,0.6)*smoothstep(0.05,0.,abs(r-0.5-BEAT*0.12))*0.7;
-  return col;
-}
-/* 8 · ANILLOS DE CHOQUE */
-vec3 fxAnillos(vec2 u){
-  float r=length(u);
-  vec3 col=vec3(0.);
-  for(int i=0;i<5;i++){
-    float fi=float(i);
-    float ph=fract(T*(0.55+BASS*0.7)+fi/5.);
-    float rad=ph*1.5;
-    col+=hsv(fract(fi*0.2+T*0.05),0.85,1.)*smoothstep(0.05+0.05*ph,0.,abs(r-rad))*(1.-ph)*(0.8+BEAT*1.4);
-  }
-  col+=hsv(fract(T*0.08),0.5,1.)*smoothstep(0.16+BEAT*0.1,0.,r)*(0.6+BEAT*1.8);
-  return col;
-}
-/* 9 · LÁTIGOS DE LUZ */
-vec3 fxLatigos(vec2 u){
-  vec3 col=vec3(0.);
-  for(int i=0;i<4;i++){
-    float fi=float(i);
-    vec2 p=u*rot(T*(0.4+fi*0.13)+fi*1.57);
-    float d=abs(p.y-0.28*sin(p.x*3.+T*2.2+fi*2.)*(0.4+MID*1.5));
-    col+=hsv(fract(fi*0.25+T*0.06),0.9,1.)*(0.004+BEAT*0.004)/max(d,0.002);
-  }
-  return col*smoothstep(1.5,0.4,length(u));
-}
-/* 10 · DIAMANTE ESTROBO SUAVE */
-vec3 fxDiamante(vec2 u){
-  vec2 p=abs(u*rot(T*0.2));
-  float d=p.x+p.y;
-  float band=smoothstep(0.05,0.,abs(fract(d*5.-T*2.-BEAT)-0.5)*0.2);
-  vec3 col=hsv(fract(floor(d*5.-T*2.)*0.13+T*0.04),0.8,1.)*band;
-  col*=0.5+0.5*BEAT+ENERGY*0.6;
-  col+=vec3(1.)*smoothstep(0.03,0.,d-0.05)*BEAT*1.4;
-  return col*smoothstep(1.6,0.5,d);
-}
-void main(){
-  vec2 u=(gl_FragCoord.xy-0.5*R)/R.y;
-  vec3 col=vec3(0.);
-  if(FX==0) col=fxTunel(u); else if(FX==1) col=fxEspectro(u);
-  else if(FX==2) col=fxOndas(u); else if(FX==3) col=fxWarp(u);
-  else if(FX==4) col=fxRejilla(u); else if(FX==5) col=fxPlasma(u);
-  else if(FX==6) col=fxKaleido(u); else if(FX==7) col=fxAnillos(u);
-  else if(FX==8) col=fxLatigos(u); else col=fxDiamante(u);
-  // viñeta + golpe global de drop
-  col*=1.-0.45*dot(u,u);
-  col+=col*DROP*0.35;
-  gl_FragColor=vec4(pow(col,vec3(0.85)),1.);
-}`;
-
-function compilar(tipo, src){ const s=gl.createShader(tipo); gl.shaderSource(s,src); gl.compileShader(s);
-  if(!gl.getShaderParameter(s,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; }
-const prog = gl.createProgram();
-gl.attachShader(prog, compilar(gl.VERTEX_SHADER, vs));
-gl.attachShader(prog, compilar(gl.FRAGMENT_SHADER, fs));
+  vec3 c=hsv(fract(n*0.8+T*0.03),0.8-HIGH*0.3,smoothstep(0.15,0.95,n));
+  c+=pow(n,6.)*vec3(1.)*HIGH*2.2; return c*(0.55+ENERGY*0.8+BEAT*0.35); }
+vec3 fxKaleido(vec2 u){ float a=atan(u.y,u.x),r=length(u); float seg=6.; a=abs(mod(a,2.*PI/seg)-PI/seg);
+  vec2 p=vec2(cos(a),sin(a))*r; p*=rot(T*0.3*(1.+ENERGY)); p+=vec2(T*0.12,0.);
+  float n=fbm(p*3.2); vec3 c=hsv(fract(n+r*0.5-T*0.05),0.9,1.)*smoothstep(0.2,0.9,n);
+  c*=(0.5+BEAT*1.4)*smoothstep(1.2,0.2,r);
+  c+=vec3(1.,0.9,0.6)*smoothstep(0.05,0.,abs(r-0.5-BEAT*0.12))*0.7; return c; }
+vec3 fxAnillos(vec2 u){ float r=length(u); vec3 c=vec3(0.);
+  for(int i=0;i<5;i++){ float fi=float(i); float ph=fract(T*(0.55+BASS*0.7)+fi/5.); float rad=ph*1.5;
+    c+=hsv(fract(fi*0.2+T*0.05),0.85,1.)*smoothstep(0.05+0.05*ph,0.,abs(r-rad))*(1.-ph)*(0.8+BEAT*1.4); }
+  c+=hsv(fract(T*0.08),0.5,1.)*smoothstep(0.16+BEAT*0.1,0.,r)*(0.6+BEAT*1.8); return c; }
+vec3 fxLatigos(vec2 u){ vec3 c=vec3(0.); for(int i=0;i<4;i++){ float fi=float(i); vec2 p=u*rot(T*(0.4+fi*0.13)+fi*1.57);
+  float d=abs(p.y-0.28*sin(p.x*3.+T*2.2+fi*2.)*(0.4+MID*1.5));
+  c+=hsv(fract(fi*0.25+T*0.06),0.9,1.)*(0.004+BEAT*0.004)/max(d,0.002); } return c*smoothstep(1.5,0.4,length(u)); }
+vec3 fxDiamante(vec2 u){ vec2 p=abs(u*rot(T*0.2)); float d=p.x+p.y;
+  float b=smoothstep(0.05,0.,abs(fract(d*5.-T*2.-BEAT)-0.5)*0.2);
+  vec3 c=hsv(fract(floor(d*5.-T*2.)*0.13+T*0.04),0.8,1.)*b; c*=0.5+0.5*BEAT+ENERGY*0.6;
+  c+=vec3(1.)*smoothstep(0.03,0.,d-0.05)*BEAT*1.4; return c*smoothstep(1.6,0.5,d); }
+void main(){ vec2 u=(gl_FragCoord.xy-0.5*R)/R.y; vec3 c=vec3(0.);
+  if(FX==0)c=fxTunel(u);else if(FX==1)c=fxEspectro(u);else if(FX==2)c=fxOndas(u);else if(FX==3)c=fxWarp(u);
+  else if(FX==4)c=fxRejilla(u);else if(FX==5)c=fxPlasma(u);else if(FX==6)c=fxKaleido(u);else if(FX==7)c=fxAnillos(u);
+  else if(FX==8)c=fxLatigos(u);else c=fxDiamante(u);
+  c*=1.-0.45*dot(u,u); c+=c*DROP*0.35; gl_FragColor=vec4(pow(c,vec3(0.85)),1.); }`;
+function comp(t,s){ const sh=gl.createShader(t); gl.shaderSource(sh,s); gl.compileShader(sh);
+  if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh)); return sh; }
+const prog=gl.createProgram(); gl.attachShader(prog,comp(gl.VERTEX_SHADER,vs)); gl.attachShader(prog,comp(gl.FRAGMENT_SHADER,fs));
 gl.linkProgram(prog); gl.useProgram(prog);
-const buf = gl.createBuffer();
-gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
-const locP = gl.getAttribLocation(prog,'p');
-gl.enableVertexAttribArray(locP); gl.vertexAttribPointer(locP,2,gl.FLOAT,false,0,0);
-const U = {}; ['R','T','BASS','MID','HIGH','BEAT','ENERGY','DROP','FX','FFT'].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
-// textura FFT 64x1
-const texFFT = gl.createTexture();
-gl.bindTexture(gl.TEXTURE_2D, texFFT);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+const buf=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,buf);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+const locP=gl.getAttribLocation(prog,'p'); gl.enableVertexAttribArray(locP); gl.vertexAttribPointer(locP,2,gl.FLOAT,false,0,0);
+const U={}; ['R','T','BASS','MID','HIGH','BEAT','ENERGY','DROP','FX','FFT'].forEach(n=>U[n]=gl.getUniformLocation(prog,n));
+const texFFT=gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D,texFFT);
+gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
 
-/* ---------- control ---------- */
-const NOMBRES = ['TÚNEL DE NEÓN','ESPECTRO CIRCULAR','ONDAS LÁSER','WARP ESTELAR','REJILLA SYNTHWAVE','PLASMA LÍQUIDO','CALEIDOSCOPIO','ANILLOS DE CHOQUE','LÁTIGOS DE LUZ','DIAMANTE'];
-let fx = 0, auto = true, tCambio = 0;
-const fxnombre = document.getElementById('fxnombre');
-function ponerFx(i){ fx=(i+10)%10; fxnombre.textContent = (auto?'AUTO · ':'')+NOMBRES[fx]; }
+/* ---------- efectos: control ---------- */
+const NOMBRES=['TÚNEL DE NEÓN','ESPECTRO CIRCULAR','ONDAS LÁSER','WARP ESTELAR','REJILLA SYNTHWAVE','PLASMA LÍQUIDO','CALEIDOSCOPIO','ANILLOS DE CHOQUE','LÁTIGOS DE LUZ','DIAMANTE'];
+let fx=0, auto=true, tCambio=0;
+const fxnombre=document.getElementById('fxnombre');
+function ponerFx(i){ fx=(i+10)%10; fxnombre.textContent=(auto?'AUTO · ':'')+NOMBRES[fx]; }
 ponerFx(0);
 
-function tamano(){ const d=Math.min(window.devicePixelRatio||1, 2);
-  canvas.width=innerWidth*d; canvas.height=innerHeight*d; gl.viewport(0,0,canvas.width,canvas.height); }
-addEventListener('resize', tamano); tamano();
+/* ---------- nombre del DJ + estilos ---------- */
+const FUENTES=[
+  {id:'impacto',n:'Impacto',css:"'Arial Black',Impact,sans-serif"},
+  {id:'moderna',n:'Moderna',css:"system-ui,sans-serif"},
+  {id:'elegante',n:'Elegante',css:"Georgia,'Times New Roman',serif"},
+  {id:'maquina',n:'Máquina',css:"'Courier New',monospace"},
+  {id:'manuscrita',n:'Manuscrita',css:"'Segoe Script','Brush Script MT',cursive"},
+  {id:'fantasia',n:'Fantasía',css:"Papyrus,fantasy"},
+];
+const ESTILOS=[
+  {id:'neon',n:'Neón'}, {id:'cromo',n:'Cromo'}, {id:'fuego',n:'Fuego'},
+  {id:'solido',n:'Sólido'}, {id:'contorno',n:'Contorno'}, {id:'degradado',n:'Degradado'},
+];
+const TAMANOS=[{id:'s',n:'Pequeño',v:'5.5vw'},{id:'m',n:'Mediano',v:'8vw'},{id:'l',n:'Grande',v:'11vw'},{id:'xl',n:'Gigante',v:'15vw'}];
 
-const ui = document.getElementById('ui');
-const nombreEl = document.getElementById('nombre');
-const params = new URLSearchParams(location.search);
-if(params.get('nombre')){ nombreEl.textContent = params.get('nombre'); nombreEl.style.display='block'; }
+const nombreEl=document.getElementById('nombre');
+let djVisible=false;
 
-addEventListener('keydown', e=>{
-  if(e.key==='ArrowRight'){ auto=false; ponerFx(fx+1); }
-  else if(e.key==='ArrowLeft'){ auto=false; ponerFx(fx-1); }
-  else if(e.key>='0'&&e.key<='9'){ auto=false; ponerFx(e.key==='0'?9:+e.key-1); }
-  else if(e.key==='a'||e.key==='A'){ auto=!auto; ponerFx(fx); }
-  else if(e.key==='f'||e.key==='F'){ document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen(); }
-  else if(e.key==='h'||e.key==='H'){ ui.classList.toggle('oculto'); }
-  else if(e.key==='n'||e.key==='N'){
-    const n = prompt('Nombre para la pantalla (vacío = quitar):', nombreEl.textContent);
-    if(n!==null){ nombreEl.textContent=n; nombreEl.style.display=n?'block':'none'; }
-  }
-});
-let uiTimer = setTimeout(()=>ui.classList.add('oculto'), 9000);
-addEventListener('mousemove', ()=>{ ui.classList.remove('oculto'); clearTimeout(uiTimer);
-  uiTimer=setTimeout(()=>ui.classList.add('oculto'), 5000); });
-
-/* ---------- bucle ---------- */
-const t0 = performance.now();
-function frame(){
-  requestAnimationFrame(frame);
-  const t = (performance.now()-t0)/1000;
-  leerAudio(t);
-  if(auto && t-tCambio > 38){ tCambio=t; ponerFx(fx+1); }
-  gl.bindTexture(gl.TEXTURE_2D, texFFT);
-  gl.texImage2D(gl.TEXTURE_2D,0,gl.LUMINANCE,64,1,0,gl.LUMINANCE,gl.UNSIGNED_BYTE,audio.fft);
-  gl.uniform2f(U.R, canvas.width, canvas.height);
-  gl.uniform1f(U.T, t);
-  gl.uniform1f(U.BASS, audio.bass); gl.uniform1f(U.MID, audio.mid); gl.uniform1f(U.HIGH, audio.high);
-  gl.uniform1f(U.BEAT, Math.min(audio.beat,1)); gl.uniform1f(U.ENERGY, audio.energy); gl.uniform1f(U.DROP, audio.drop);
-  gl.uniform1i(U.FX, fx); gl.uniform1i(U.FFT, 0);
-  gl.drawArrays(gl.TRIANGLES, 0, 3);
-  // pulso del nombre con el golpe
-  if(nombreEl.style.display==='block') nombreEl.style.transform = `scale(${1+Math.min(audio.beat,1)*0.06})`;
+function estiloCSS(p){
+  // devuelve {css vars + textShadow + background para el elemento nombre}
+  const c1=p.col1, c2=p.col2;
+  let o={fontFamily:FUENTES.find(f=>f.id===p.fuente)?.css||FUENTES[0].css,
+         fontSize:TAMANOS.find(t=>t.id===p.tam)?.v||'8vw', color:c1,
+         background:'none', webkitBackgroundClip:'border-box', webkitTextFillColor:c1,
+         textShadow:'none', webkitTextStroke:'0'};
+  if(p.estilo==='neon'){ o.color=c1; o.webkitTextFillColor=c1;
+    o.textShadow=`0 0 8px ${c1}, 0 0 22px ${c2}, 0 0 46px ${c2}, 0 0 90px ${c2}`; }
+  else if(p.estilo==='cromo'){ o.background=`linear-gradient(180deg,#fff 0%,${c1} 40%,${c2} 55%,#111 60%,${c1} 75%,#fff 100%)`;
+    o.webkitBackgroundClip='text'; o.webkitTextFillColor='transparent'; o.textShadow=`0 3px 10px rgba(0,0,0,.6)`; }
+  else if(p.estilo==='fuego'){ o.background=`linear-gradient(0deg,#7a1500 0%,${c2} 35%,${c1} 70%,#fff 100%)`;
+    o.webkitBackgroundClip='text'; o.webkitTextFillColor='transparent'; o.textShadow=`0 0 26px ${c2},0 0 60px #ff5a00`; }
+  else if(p.estilo==='solido'){ o.color=c1; o.webkitTextFillColor=c1; o.textShadow=`0 4px 18px rgba(0,0,0,.8)`; }
+  else if(p.estilo==='contorno'){ o.color='transparent'; o.webkitTextFillColor='transparent';
+    o.webkitTextStroke=`2px ${c1}`; o.textShadow=`0 0 18px ${c2}`; }
+  else if(p.estilo==='degradado'){ o.background=`linear-gradient(90deg,${c1},${c2})`;
+    o.webkitBackgroundClip='text'; o.webkitTextFillColor='transparent'; o.textShadow=`0 0 30px ${c2}66`; }
+  return o;
+}
+function aplicarNombre(p){
+  if(!p || !p.nombre){ nombreEl.style.display='none'; djVisible=false; return; }
+  const o=estiloCSS(p);
+  nombreEl.textContent=p.nombre;
+  Object.assign(nombreEl.style, o);
+  nombreEl.style.display='block'; djVisible=true;
 }
 
-document.getElementById('tap').addEventListener('click', async function(){
-  this.remove();
-  await iniciarMic();
-  frame();
+/* ---------- 8 DJs guardados ---------- */
+const CLAVE='visualesdj.djs.v1';
+const porDefecto=()=>({nombre:'',fuente:'impacto',estilo:'neon',col1:'#ffffff',col2:'#ff2fd0',tam:'m'});
+let DJS = cargarDJs();
+function cargarDJs(){ try{ const d=JSON.parse(localStorage.getItem(CLAVE)); if(Array.isArray(d)&&d.length===8) return d; }catch(e){}
+  return Array.from({length:8},porDefecto); }
+function guardarDJs(){ try{ localStorage.setItem(CLAVE, JSON.stringify(DJS)); }catch(e){} }
+
+/* ---------- editor ---------- */
+const editor=document.getElementById('editor');
+let slotSel=0;
+const $=id=>document.getElementById(id);
+function pintarSlots(){ const cont=$('slots'); cont.innerHTML='';
+  DJS.forEach((d,i)=>{ const el=document.createElement('div'); el.className='slot'+(i===slotSel?' activo':'');
+    el.textContent=(i+1)+(d.nombre?' · '+d.nombre.slice(0,10):' ·');
+    el.onclick=()=>{ slotSel=i; cargarEnFormulario(); }; cont.appendChild(el); }); }
+function pintarOpciones(){
+  const f=$('fuentes'); f.innerHTML=''; FUENTES.forEach(x=>{ const b=document.createElement('div');
+    b.className='opc'+(DJS[slotSel].fuente===x.id?' sel':''); b.textContent=x.n; b.style.fontFamily=x.css;
+    b.onclick=()=>{ DJS[slotSel].fuente=x.id; sync(); }; f.appendChild(b); });
+  const e=$('estilos'); e.innerHTML=''; ESTILOS.forEach(x=>{ const b=document.createElement('div');
+    b.className='opc'+(DJS[slotSel].estilo===x.id?' sel':''); b.textContent=x.n;
+    b.onclick=()=>{ DJS[slotSel].estilo=x.id; sync(); }; e.appendChild(b); });
+  const t=$('tamanos'); t.innerHTML=''; TAMANOS.forEach(x=>{ const b=document.createElement('div');
+    b.className='opc'+(DJS[slotSel].tam===x.id?' sel':''); b.textContent=x.n;
+    b.onclick=()=>{ DJS[slotSel].tam=x.id; sync(); }; t.appendChild(b); });
+}
+function pintarVista(){ const p=DJS[slotSel]; const v=$('vista');
+  const o=estiloCSS({...p, tam:'m'}); v.textContent=p.nombre||'(escribe un nombre)';
+  Object.assign(v.style,{fontWeight:900,fontSize:'42px',letterSpacing:'.05em'}); Object.assign(v.style,o); v.style.fontSize='42px'; }
+function cargarEnFormulario(){ const p=DJS[slotSel]; $('in-nombre').value=p.nombre;
+  $('col1').value=p.col1; $('col2').value=p.col2; pintarSlots(); pintarOpciones(); pintarVista(); }
+function sync(){ guardarDJs(); pintarSlots(); pintarOpciones(); pintarVista(); }
+$('in-nombre').addEventListener('input',e=>{ DJS[slotSel].nombre=e.target.value; sync(); });
+$('col1').addEventListener('input',e=>{ DJS[slotSel].col1=e.target.value; sync(); });
+$('col2').addEventListener('input',e=>{ DJS[slotSel].col2=e.target.value; sync(); });
+$('btn-usar').onclick=()=>{ aplicarNombre(DJS[slotSel]); cerrarEditor(); };
+$('btn-cerrar').onclick=()=>cerrarEditor();
+function abrirEditor(){ editor.classList.add('abierto'); cargarEnFormulario(); }
+function cerrarEditor(){ editor.classList.remove('abierto'); }
+
+/* ---------- teclado ---------- */
+const ui=document.getElementById('ui');
+addEventListener('keydown', e=>{
+  if(editor.classList.contains('abierto')){ if(e.key==='e'||e.key==='E'||e.key==='Escape') cerrarEditor(); return; }
+  if(e.key==='ArrowRight'){ auto=false; ponerFx(fx+1); }
+  else if(e.key==='ArrowLeft'){ auto=false; ponerFx(fx-1); }
+  else if(e.key>='1'&&e.key<='8'){ aplicarNombre(DJS[+e.key-1]); }   // poner el DJ n
+  else if(e.key==='0'){ aplicarNombre(null); }                      // quitar nombre
+  else if(e.key==='a'||e.key==='A'){ auto=!auto; ponerFx(fx); }
+  else if(e.key==='f'||e.key==='F'){ document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen(); }
+  else if(e.key==='v'||e.key==='V'){ if(djVisible){ nombreEl.style.display='none'; djVisible=false; } else if(nombreEl.textContent){ nombreEl.style.display='block'; djVisible=true; } }
+  else if(e.key==='e'||e.key==='E'){ abrirEditor(); }
+  else if(e.key==='h'||e.key==='H'){ ui.classList.toggle('oculto'); }
 });
-// hook de pruebas sin interfaz
-window.__test_start = async () => { const el=document.getElementById('tap'); if(el) el.remove(); await iniciarMic(); frame(); };
-window.__test_fx = (i) => { auto=false; ponerFx(i); };
+let uiTimer=setTimeout(()=>ui.classList.add('oculto'),10000);
+addEventListener('mousemove',()=>{ ui.classList.remove('oculto'); clearTimeout(uiTimer); uiTimer=setTimeout(()=>ui.classList.add('oculto'),5000); });
+
+/* atajo ?dj=NOMBRE */
+const params=new URLSearchParams(location.search);
+if(params.get('dj')){ const p=porDefecto(); p.nombre=params.get('dj'); aplicarNombre(p); }
+
+/* ---------- lienzo + bucle ---------- */
+function tamano(){ const d=Math.min(window.devicePixelRatio||1,2); canvas.width=innerWidth*d; canvas.height=innerHeight*d; gl.viewport(0,0,canvas.width,canvas.height); }
+addEventListener('resize',tamano); tamano();
+const t0=performance.now();
+function frame(){ requestAnimationFrame(frame);
+  const t=(performance.now()-t0)/1000; leerAudio(t);
+  if(auto && t-tCambio>38){ tCambio=t; ponerFx(fx+1); }
+  gl.bindTexture(gl.TEXTURE_2D,texFFT);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.LUMINANCE,64,1,0,gl.LUMINANCE,gl.UNSIGNED_BYTE,audio.fft);
+  gl.uniform2f(U.R,canvas.width,canvas.height); gl.uniform1f(U.T,t);
+  gl.uniform1f(U.BASS,audio.bass); gl.uniform1f(U.MID,audio.mid); gl.uniform1f(U.HIGH,audio.high);
+  gl.uniform1f(U.BEAT,Math.min(audio.beat,1)); gl.uniform1f(U.ENERGY,audio.energy); gl.uniform1f(U.DROP,audio.drop);
+  gl.uniform1i(U.FX,fx); gl.uniform1i(U.FFT,0);
+  gl.drawArrays(gl.TRIANGLES,0,3);
+  if(djVisible) nombreEl.style.transform=`scale(${1+Math.min(audio.beat,1)*0.06})`;
+}
+document.getElementById('tap').addEventListener('click', async function(){ this.remove(); await iniciarMic(); frame(); });
+/* hooks de prueba */
+window.__test_start=async()=>{ const el=document.getElementById('tap'); if(el) el.remove(); await iniciarMic(); frame(); };
+window.__test_fx=i=>{ auto=false; ponerFx(i); };
+window.__test_editor=()=>abrirEditor();
+window.__test_dj=i=>aplicarNombre(DJS[i]);
 </script>
 </body>
 </html>
