@@ -109,6 +109,10 @@ OBLIGATORIAS para el director y los 10 agentes, en CADA app. El Agente 10 (QA) l
   **casilla de consentimiento** ("Acepto la política de privacidad", obligatoria para enviar) y
   una página/sección de **Política de Privacidad + Aviso Legal** (plantilla con placeholders del
   titular), enlazada en el pie. Por ley (RGPD/LSSI en España).
+- **Cumplimiento legal completo:** aplica la skill `cumplimiento-legal` en TODA app (bloque
+  RGPD junto al formulario, aviso legal con datos LSSI, nota de IA en el pie, y las reglas
+  del AI Act si hay chatbot o imágenes generadas por IA). El QA (agente 10) lo veta si falta.
+  Detalle normativo en `docs/NORMATIVA-IA-Y-WEB.md`.
 - Orientado a **convertir** (embudo de venta): cada pantalla empuja a la acción principal.
 - Seguro y rápido. Sin librerías pesadas (nada de Bootstrap, jQuery, React, Vue).
 - Contenido REAL, cero "lorem ipsum".

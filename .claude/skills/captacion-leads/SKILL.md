@@ -16,6 +16,8 @@ que el dueño ve en su panel de admin. Sin backend: todo en localStorage + Whats
    conversión ~10%. Nunca más de 4 campos.
 3. **Casilla RGPD obligatoria** ("Acepto la política de privacidad") + página de
    Política de Privacidad enlazada en el pie. Sin esto NO se entrega (ley española).
+   USA el Bloque 1 de la skill `cumplimiento-legal` (casilla + texto rgpd-mini con
+   responsable/finalidad/derechos junto al formulario): es la versión legal completa.
 4. **Doble salida tras enviar**:
    - Guardar el lead en localStorage (colección `leads`, con fecha y origen).
    - Botón "Continuar por WhatsApp" con mensaje prerrellenado (wa.me/<TELEFONO>?text=...).

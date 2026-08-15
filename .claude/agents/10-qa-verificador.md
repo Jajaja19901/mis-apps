@@ -64,6 +64,13 @@ de consola, rutas en blanco, botones muertos o un test que falla), corrígelo y 
 8. Sintaxis JS válida: extrae cada `<script>` y pásalo por `node --check` o `new vm.Script(...)`.
 9. Confirma que entraron los veredictos de seguridad, rendimiento y accesibilidad.
 10. **Reglas de oro** (CLAUDE.md): nombre, logo, contacto, colores y textos vienen del briefing o son placeholders; nada inventado ni copiado de otra app.
+11. **Cumplimiento legal** (skill `cumplimiento-legal`, ejecútala pulsando):
+    - Formulario: casilla de consentimiento SIN marcar por defecto; enviar sin marcarla → se bloquea con mensaje (pruébalo en el navegador).
+    - Bloque `rgpd-mini` (responsable · finalidad · legitimación · derechos · email) visible JUNTO al formulario, no escondido.
+    - `#/privacidad` y `#/aviso-legal` existen, cargan contenido real (no vacío) y están enlazadas en el pie. El aviso legal lleva titular, NIF, domicilio y email (o placeholders anotados en "datos a confirmar").
+    - Aviso de IA en el pie: "Contenidos elaborados con asistencia de IA y revisión humana."
+    - Sin cookies → sin banner de cookies (y la política lo dice). Con chatbot IA → aviso "soy una IA" antes de la primera interacción. Con imágenes IA realistas → etiqueta visible sobre la imagen.
+    - Cualquier ❌ de este punto VETA la entrega igual que un flujo roto.
 
 ## Reglas
 - **Corrige todos los ❌** (tú mismo o devolviendo al agente correspondiente) y **vuelve a pasar la checklist ENTERA en el navegador**, no solo lo que tocaste.

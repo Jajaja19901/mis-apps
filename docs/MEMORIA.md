@@ -3,6 +3,12 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-15 (2) — Skill `cumplimiento-legal` + acta de formación IA
+- Qué se hizo: creado el blindaje legal operativo a partir del informe de normativa: (1) skill `.claude/skills/cumplimiento-legal/SKILL.md` con los bloques HTML exactos (consentimiento + rgpd-mini, privacidad/aviso legal mínimos, nota de IA en el pie, reglas de cookies y de chatbot/imágenes IA) y checklist de entrega; (2) punto 11 legal con VETO en el agente `10-qa-verificador`; (3) `docs/FORMACION-IA.md` como registro del art. 4 del AI Act (inventario de herramientas, política interna de uso de IA, tabla de formación); (4) CLAUDE.md y skill `captacion-leads` enlazan la nueva skill.
+- Archivos tocados: `.claude/skills/cumplimiento-legal/SKILL.md` (nuevo), `docs/FORMACION-IA.md` (nuevo), `.claude/agents/10-qa-verificador.md`, `CLAUDE.md`, `.claude/skills/captacion-leads/SKILL.md`, `docs/MEMORIA.md`.
+- Pendiente / siguiente paso: (1) el usuario debe hacer un curso básico de IA (2–4 h; AESIA/INCIBE/FUNDAE) y apuntarlo en `docs/FORMACION-IA.md` con su NIF y datos reales; (2) en la próxima app que se toque, aplicar el Bloque 1 y 3 de la skill también a `apps/peluqueria-aurora.html` y demás apps ya entregadas.
+- Datos a confirmar: NIF/razón social del titular para FORMACION-IA.md y para los avisos legales.
+
 ## 2026-08-15 — Informe de normativa europea/española de IA para las apps
 - Qué se hizo: investigado el AI Act (Reglamento UE 2024/1689), el proyecto español de Ley Orgánica de gobernanza de IA, RGPD/LSSI, Ley 11/2023 (accesibilidad) y NIS2, todo aplicado a las apps que fabricamos aquí (embudos + formulario de leads + panel de admin). Redactado `docs/NORMATIVA-IA-Y-WEB.md`: resumen ejecutivo, calendario, art. 4 (alfabetización IA obligatoria) y art. 50 (transparencia), sanciones (hasta 35 M€ / 7 %), checklist para el QA y cambios concretos a meter en las plantillas.
 - Archivos tocados: `docs/NORMATIVA-IA-Y-WEB.md` (nuevo), `docs/MEMORIA.md`.
