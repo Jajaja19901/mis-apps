@@ -3,6 +3,11 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-10 (9) — VISUALES DJ reactivos a la música (apps/visuales-dj.html)
+- Qué se hizo: el usuario pidió efectos visuales para poner en la tele/pantalla LED en sesiones de DJ, que "peguen con la música". Se creó un visualizador VJ autocontenido (un solo HTML, WebGL puro sin librerías, ~15 KB): el micrófono (getUserMedia + AnalyserNode fftSize 2048) se separa en graves/medios/agudos + detector de golpes (bass > 1.32x media móvil de 30 frames, refractario 220 ms) + detector de drops (energía > 1.45x media larga). 10 efectos en un fragment shader (switch FX): túnel de neón, espectro circular (FFT como textura 64x1 LUMINANCE), ondas láser, warp estelar, rejilla synthwave, plasma líquido, caleidoscopio, anillos de choque, látigos de luz, diamante. Controles: flechas/1-0 cambio de efecto, A auto-ciclo (38 s), F pantalla completa, H ocultar ayuda, N nombre en pantalla (prompt, también ?nombre=X en la URL — sin marca por defecto, regla de oro). Sin micrófono → modo demo 124 bpm. Probado headless: 10/10 efectos sin errores de consola.
+- Uso: portátil conectado por HDMI a la tele → abrir el archivo → EMPEZAR → permitir micrófono → F.
+- Pendiente: que lo pruebe en una sesión real; posibles extras (más efectos, colores por defecto de su marca, versión MP4 en bucle para teles sin portátil).
+
 ## 2026-08-10 (8) — Reel 1: final ágil (apps/reel-incuba.mp4, 56 s)
 - Qué se hizo: el usuario notó el final "muy largo y un poco raro" — al meter el huevo 3D antes del cierre quedaban 16 s seguidos de huevo-sobre-peana (el cierre esc7 iba además a cámara lenta 0.67 estirado a 12 s). Arreglo: esc7 a velocidad normal (240 frames, 8 s), CTA adelantado a f1520, composición recortada de 1800 a 1680 frames (60→56 s), fundido de música a [1610,1676]. Verificado: cierre con "Pon tu huevo / INCUBA TU NEGocio / Enlace en la bio" entra con ritmo.
 - Estado Reel 1 FINAL: gancho → problema → eclosión (pantalla nace como luz → app pizzería real) → tienda → notificaciones → cinta de huevos intactos + huevo 3D girando → cierre 8 s con CTA. Sin partes raras de IA.
