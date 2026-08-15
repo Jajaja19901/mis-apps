@@ -23,11 +23,14 @@
 ## Formación realizada
 | Fecha | Persona | Formación | Duración | Evidencia |
 |---|---|---|---|---|
-| [pendiente] | Jaime M. M. | [curso básico de fundamentos y riesgos de IA — p. ej. los gratuitos de AESIA/INCIBE/Google Actívate, o uno bonificado por FUNDAE] | [horas] | [certificado/captura] |
+| [pendiente] | Jaime M. M. | Curso interno «Alfabetización en IA — Incuba tu Negocio» (`docs/curso-ia-basico.html`): 5 módulos + examen de 12 preguntas (aprobado con ≥10) | ~40 min | Acta impresa del propio curso, en `docs/certificados/` |
 
-**Siguiente paso:** hacer un curso introductorio (2–4 h basta para nuestro nivel de riesgo),
-guardar el certificado en `docs/certificados/` y apuntar la fila. Repetir/refrescar
-aproximadamente una vez al año o cuando cambien las herramientas.
+**Cómo completarlo:** abrir `docs/curso-ia-basico.html` en el navegador (doble clic), leer
+los 5 módulos, aprobar el examen y **guardar el acta en PDF** en `docs/certificados/`.
+Después rellenar la fecha en la fila de arriba. El material del curso queda en el repo como
+evidencia del contenido impartido (formación interna: válida para el art. 4, que no exige
+certificación oficial, solo formación adecuada y demostrable). Refrescar ~una vez al año o
+cuando cambien las herramientas; un curso externo (INCIBE/FUNDAE) suma, pero no es requisito.
 
 ## Política interna de uso de IA (en vigor)
 1. **Revisión humana siempre**: ningún texto, imagen o app generado con IA se entrega a un

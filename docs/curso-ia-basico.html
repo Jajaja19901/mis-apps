@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Curso interno de alfabetización en IA — Incuba tu Negocio</title>
+<style>
+  :root{
+    --tinta:#1c2430; --fondo:#f7f5f0; --papel:#ffffff; --acento:#0d7a5f;
+    --acento-2:#b4552d; --linea:#e3ded4; --suave:#6b7280;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Georgia,'Times New Roman',serif;background:var(--fondo);color:var(--tinta);line-height:1.65}
+  header{background:var(--tinta);color:#f5f2ea;padding:2.2rem 1.2rem;text-align:center}
+  header h1{font-size:1.45rem;font-weight:700;max-width:34rem;margin:0 auto .4rem}
+  header p{font-size:.95rem;opacity:.85;max-width:34rem;margin:0 auto}
+  main{max-width:44rem;margin:0 auto;padding:1.2rem}
+  .modulo{background:var(--papel);border:1px solid var(--linea);border-radius:12px;padding:1.4rem 1.3rem;margin:1.1rem 0}
+  .modulo h2{font-size:1.12rem;margin-bottom:.7rem;color:var(--acento)}
+  .modulo h3{font-size:1rem;margin:.9rem 0 .35rem}
+  .modulo p, .modulo li{font-size:.97rem;margin-bottom:.5rem}
+  .modulo ul{padding-left:1.2rem}
+  .clave{background:#eef7f3;border-left:4px solid var(--acento);padding:.7rem .9rem;border-radius:0 8px 8px 0;margin:.7rem 0;font-size:.95rem}
+  .ojo{background:#fdf1ea;border-left:4px solid var(--acento-2);padding:.7rem .9rem;border-radius:0 8px 8px 0;margin:.7rem 0;font-size:.95rem}
+  /* Test */
+  .pregunta{border-top:1px solid var(--linea);padding:1rem 0}
+  .pregunta p.enunciado{font-weight:700;margin-bottom:.5rem}
+  .pregunta label{display:block;padding:.45rem .6rem;border:1px solid var(--linea);border-radius:8px;margin:.3rem 0;cursor:pointer;font-size:.95rem}
+  .pregunta label:hover{border-color:var(--acento)}
+  .pregunta input{margin-right:.5rem}
+  .pregunta.bien label.elegida{border-color:var(--acento);background:#eef7f3}
+  .pregunta.mal  label.elegida{border-color:#c0392b;background:#fdeceb}
+  .pregunta .porque{display:none;font-size:.88rem;color:var(--suave);margin-top:.4rem}
+  .pregunta.corregida .porque{display:block}
+  button{font-family:inherit;font-size:1rem;background:var(--acento);color:#fff;border:0;border-radius:10px;padding:.8rem 1.4rem;cursor:pointer}
+  button:hover{filter:brightness(1.08)}
+  #resultado{text-align:center;padding:1rem 0 .4rem;font-size:1.05rem;font-weight:700}
+  /* Acta */
+  #acta{display:none}
+  #acta.visible{display:block}
+  .acta-caja{border:2px solid var(--tinta);border-radius:6px;padding:1.6rem;background:#fffdf8}
+  .acta-caja h2{text-align:center;color:var(--tinta);font-size:1.2rem;margin-bottom:1rem;letter-spacing:.04em}
+  .acta-caja p{font-size:.95rem;margin-bottom:.6rem}
+  .campo{border-bottom:1px dotted var(--suave);min-width:12rem;display:inline-block;font-weight:700}
+  .firma{margin-top:2.2rem;display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+  .firma div{text-align:center;font-size:.85rem;color:var(--suave)}
+  .firma .raya{border-top:1px solid var(--tinta);width:14rem;margin-bottom:.3rem}
+  input[type=text]{font-family:inherit;font-size:.95rem;border:1px solid var(--linea);border-radius:8px;padding:.55rem .7rem;width:100%;margin:.2rem 0 .6rem;background:#fff}
+  footer{color:var(--suave);text-align:center;font-size:.82rem;padding:1.5rem 1rem 2.5rem}
+  @media print{
+    header, #curso, #test, footer, .no-print{display:none !important}
+    #acta{display:block !important} body{background:#fff} main{max-width:100%}
+    .acta-caja{border-width:1.5px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Curso interno de alfabetización en IA</h1>
+  <p>Incuba tu Negocio · Cumplimiento del art. 4 del Reglamento (UE) 2024/1689 (AI Act) ·
+     Duración estimada: 30–40 min · Examen final con acta imprimible</p>
+</header>
+<main>
+
+<div id="curso">
+
+<div class="modulo">
+  <h2>Módulo 1 · Qué es (y qué no es) la IA que usamos</h2>
+  <p>En el estudio usamos sobre todo <strong>IA generativa</strong>: modelos entrenados con
+  cantidades enormes de texto e imágenes que <em>predicen</em> la continuación más probable
+  de lo que se les pide. Claude genera textos, código y webs; otras herramientas
+  (p. ej. Higgsfield) generan imagen, vídeo y audio.</p>
+  <p>Lo importante: un modelo generativo <strong>no consulta una base de datos de hechos ni
+  "sabe" lo que dice</strong>. Produce salidas plausibles. Por eso puede escribir un párrafo
+  perfecto sobre una peluquería… con un horario inventado.</p>
+  <div class="clave">Idea clave: la IA es un <strong>redactor brillante sin responsabilidad</strong>.
+  La responsabilidad de lo publicado es siempre de una persona: nosotros o el cliente.</div>
+</div>
+
+<div class="modulo">
+  <h2>Módulo 2 · Riesgos y límites (lo que nos puede pillar)</h2>
+  <h3>Alucinaciones</h3>
+  <p>La IA afirma con total seguridad cosas falsas: datos, precios, leyes, teléfonos.
+  En nuestras apps, un dato inventado (un horario, una dirección, "aprobado por Sanidad")
+  puede ser publicidad engañosa. <strong>Todo dato verificable se contrasta con el briefing
+  del cliente; si no está en el briefing, es placeholder.</strong></p>
+  <h3>Sesgos</h3>
+  <p>Los modelos heredan sesgos de sus datos de entrenamiento (género, edad, origen). En
+  textos de marketing puede colarse un estereotipo sin que nadie lo haya pedido. Se revisa
+  con ojo humano antes de entregar.</p>
+  <h3>Confidencialidad</h3>
+  <p>Lo que pegas en un prompt sale de tu ordenador y lo procesa un tercero. <strong>Nunca
+  se pegan datos personales de clientes finales</strong> (los leads con nombre y teléfono
+  que recogen las apps) ni contraseñas reales en una herramienta de IA.</p>
+  <h3>Derechos de autor</h3>
+  <p>No se pide a la IA "copia la web de X" ni imitar el estilo de un artista concreto.
+  Inspirarse en una referencia solo si el cliente la da expresamente en su briefing.</p>
+  <div class="ojo">Regla de la casa: <strong>nada generado por IA se publica sin revisión
+  humana</strong>. Esa revisión es la que nos ampara legalmente (módulo 3) y la que evita
+  el 90&nbsp;% de estos riesgos.</div>
+</div>
+
+<div class="modulo">
+  <h2>Módulo 3 · El AI Act: lo que la ley nos exige</h2>
+  <p>El Reglamento (UE) 2024/1689 clasifica los usos de IA por riesgo. Nuestro uso
+  (generar webs y contenidos con revisión) es de <strong>riesgo mínimo/limitado</strong>.
+  Nos afectan dos artículos:</p>
+  <h3>Art. 4 — Alfabetización (por eso haces este curso)</h3>
+  <p>Toda empresa o autónomo que usa IA debe garantizar que quien la maneja entiende sus
+  riesgos y límites, de forma proporcional a su uso. No exige título oficial: exige
+  formación real y <strong>documentada</strong> (este curso + el acta + el registro en
+  <code>docs/FORMACION-IA.md</code>).</p>
+  <h3>Art. 50 — Transparencia (en vigor desde el 2/8/2026)</h3>
+  <ul>
+    <li><strong>Chatbots:</strong> si una web lleva un asistente con IA, el usuario debe saber
+    que habla con una IA <em>antes</em> de la primera interacción (aviso en la propia burbuja,
+    no en el aviso legal).</li>
+    <li><strong>Contenido sintético realista:</strong> una imagen/vídeo/audio generado por IA
+    que parece real (una "foto" del local, una persona) debe llevar etiqueta visible
+    ("Imagen generada con IA"). Si reproduce a una persona real (deepfake), la etiqueta es
+    obligatoria <em>siempre</em>, sin excepciones.</li>
+    <li><strong>Textos:</strong> si pasan revisión editorial humana con un responsable
+    (nuestro caso, siempre), <em>no</em> hay obligación de etiquetarlos. Aun así ponemos la
+    nota del pie ("Contenidos elaborados con asistencia de IA y revisión humana") por
+    transparencia.</li>
+  </ul>
+  <h3>Prohibiciones que nos afectan</h3>
+  <p>Nunca usamos IA para: puntuar o clasificar personas (scoring), reconocer emociones,
+  biometría, ni decisiones automatizadas con efectos legales sobre alguien. Están
+  prohibidas o son de alto riesgo, y quedan fuera de nuestro negocio.</p>
+  <div class="clave">Quien vigila en España es <strong>AESIA</strong> (A Coruña). Las multas de
+  transparencia llegan a 15&nbsp;M€ o el 3&nbsp;% de facturación — a pymes se les aplica la
+  cifra menor, pero nadie está exento.</div>
+</div>
+
+<div class="modulo">
+  <h2>Módulo 4 · IA y datos personales (RGPD) en nuestro flujo</h2>
+  <ul>
+    <li>Las apps guardan los leads <strong>en el navegador del dueño</strong> (localStorage),
+    sin servidores nuestros: nosotros no tratamos esos datos, el dueño sí — por eso cada app
+    lleva su política de privacidad y su casilla de consentimiento.</li>
+    <li>En los prompts de IA solo van los datos que el negocio quiere <em>publicar</em>
+    (nombre comercial, teléfono de contacto público, horario). Jamás listados de clientes.</li>
+    <li>El formulario de toda app lleva: casilla <strong>sin marcar por defecto</strong>,
+    bloque informativo junto al formulario (responsable · finalidad · derechos) y páginas
+    de Privacidad y Aviso Legal enlazadas en el pie. Lo verifica el QA con veto.</li>
+  </ul>
+</div>
+
+<div class="modulo">
+  <h2>Módulo 5 · Nuestra política interna (resumen operativo)</h2>
+  <ul>
+    <li>✋ Revisión humana de TODO antes de entregar (activa la excepción del art. 50).</li>
+    <li>🔒 Cero datos personales de terceros en prompts.</li>
+    <li>🏷️ Contenido realista generado por IA → etiqueta visible. Deepfakes → prohibidos.</li>
+    <li>🚫 Nada de scoring, emociones ni biometría.</li>
+    <li>📓 Herramienta de IA nueva → se apunta en el inventario de <code>docs/FORMACION-IA.md</code>
+    antes de usarla.</li>
+    <li>✅ Toda app pasa la skill <code>cumplimiento-legal</code> y el verificador antes del commit.</li>
+  </ul>
+</div>
+
+</div><!-- /curso -->
+
+<div class="modulo" id="test">
+  <h2>Examen final (12 preguntas · se aprueba con 10)</h2>
+  <p>Contesta sin mirar arriba. Si fallas, repasa el módulo indicado y reintenta —
+  el objetivo es que se te quede, no la nota.</p>
+  <div id="preguntas"></div>
+  <div id="resultado"></div>
+  <p style="text-align:center;margin-top:.8rem">
+    <button id="corregir">Corregir examen</button>
+  </p>
+</div>
+
+<div class="modulo" id="acta">
+  <div class="no-print" style="margin-bottom:1rem">
+    <h2 style="color:var(--acento)">🎉 Aprobado — genera tu acta</h2>
+    <p>Rellena tus datos y pulsa Imprimir (o "Guardar como PDF"). Archívala en
+    <code>docs/certificados/</code> y apunta la fila en <code>docs/FORMACION-IA.md</code>.</p>
+    <label>Nombre completo</label>
+    <input type="text" id="f-nombre" placeholder="Nombre y apellidos">
+    <label>NIF (opcional)</label>
+    <input type="text" id="f-nif" placeholder="NIF">
+    <p style="text-align:center;margin-top:.6rem"><button onclick="prepararActa()">Preparar acta e imprimir</button></p>
+  </div>
+  <div class="acta-caja">
+    <h2>ACTA DE FORMACIÓN INTERNA EN IA</h2>
+    <p><strong>Curso:</strong> «Alfabetización en IA — Incuba tu Negocio» (formación interna,
+    5 módulos: fundamentos de IA generativa, riesgos y límites, obligaciones del Reglamento
+    (UE) 2024/1689, IA y protección de datos, política interna de uso).</p>
+    <p><strong>Finalidad:</strong> cumplimiento del deber de alfabetización en materia de IA
+    del artículo 4 del Reglamento (UE) 2024/1689.</p>
+    <p><strong>Asistente:</strong> <span class="campo" id="a-nombre">&nbsp;</span>
+       &nbsp;·&nbsp; NIF: <span class="campo" id="a-nif" style="min-width:8rem">&nbsp;</span></p>
+    <p><strong>Duración:</strong> aprox. 40 minutos · <strong>Evaluación:</strong> examen de
+    12 preguntas, superado con <span id="a-nota" class="campo" style="min-width:5rem">&nbsp;</span>.</p>
+    <p><strong>Fecha de realización:</strong> <span class="campo" id="a-fecha" style="min-width:9rem">&nbsp;</span></p>
+    <p style="font-size:.85rem;color:var(--suave)">El material del curso queda archivado en el
+    repositorio del estudio (docs/curso-ia-basico.html) como evidencia del contenido impartido.</p>
+    <div class="firma">
+      <div><div class="raya"></div>Firma del asistente</div>
+      <div><div class="raya"></div>Responsable de la formación</div>
+    </div>
+  </div>
+</div>
+
+</main>
+<footer>Formación interna de Incuba tu Negocio · Material elaborado con asistencia de IA y
+revisión humana · No constituye asesoramiento jurídico</footer>
+
+<script>
+"use strict";
+var PREGUNTAS=[
+ {m:1,q:"¿Qué hace en esencia un modelo de IA generativa como el que usamos?",
+  ops:["Consulta una base de datos oficial de hechos","Predice la continuación más plausible de lo que se le pide","Copia fragmentos exactos de webs existentes"],ok:1,
+  why:"Módulo 1: genera lo más plausible, no lo verificado. Por eso hay que revisar."},
+ {m:2,q:"La IA escribe que la peluquería 'abre los domingos'. Ese dato no está en el briefing. ¿Qué haces?",
+  ops:["Lo dejo, suena razonable","Lo quito o lo dejo como placeholder y lo apunto en 'datos a confirmar'","Llamo a otra peluquería para comprobarlo"],ok:1,
+  why:"Módulo 2: dato no presente en el briefing = alucinación potencial → placeholder + confirmar."},
+ {m:2,q:"¿Qué se puede pegar en un prompt de IA?",
+  ops:["El listado de leads (nombres y teléfonos) para redactar mensajes","Solo datos que el negocio quiere publicar (nombre comercial, teléfono público, horario)","Cualquier cosa, la IA es confidencial"],ok:1,
+  why:"Módulo 2 y 4: los datos personales de terceros nunca salen hacia una herramienta de IA."},
+ {m:2,q:"¿Cuál es la salvaguarda principal de la casa frente a alucinaciones, sesgos y errores?",
+  ops:["Usar siempre el modelo más grande","Revisión humana de todo antes de publicar","Pedirle a la IA que se autocompruebe"],ok:1,
+  why:"Módulo 2: revisión humana siempre. Además nos da la excepción legal del art. 50."},
+ {m:3,q:"¿Desde cuándo se aplican las obligaciones de transparencia del art. 50 del AI Act?",
+  ops:["Desde el 2 de agosto de 2026","Todavía no están en vigor","Solo cuando España apruebe su propia ley"],ok:0,
+  why:"Módulo 3: 2/8/2026, con AESIA ya supervisando. El reglamento europeo aplica directamente."},
+ {m:3,q:"Montamos un chatbot con IA en la web de un cliente. ¿Dónde va el aviso de que es una IA?",
+  ops:["En el aviso legal, con el resto de textos jurídicos","En la propia ventana del chat, antes de que el usuario escriba","No hace falta si el chatbot funciona bien"],ok:1,
+  why:"Módulo 3: aviso claro y previo a la primera interacción, en el propio chat."},
+ {m:3,q:"Generamos con IA una imagen fotorrealista del 'local' del cliente. ¿Qué exige la ley?",
+  ops:["Nada, es nuestra creación","Etiqueta visible tipo 'Imagen generada con IA'","Basta la nota genérica del pie de página"],ok:1,
+  why:"Módulo 3: contenido sintético que parece real → etiqueta sobre el propio contenido. El pie no basta."},
+ {m:3,q:"¿Por qué NO estamos obligados a etiquetar los textos de nuestras webs?",
+  ops:["Porque los textos nunca cuentan como contenido de IA","Porque pasan revisión editorial humana con responsable","Porque somos una empresa pequeña"],ok:1,
+  why:"Módulo 3: la excepción es la revisión editorial humana. El tamaño de la empresa no exime."},
+ {m:3,q:"Un cliente pide 'un vídeo del alcalde recomendando mi bar' hecho con IA. ¿Qué respondes?",
+  ops:["Se puede si lleva etiqueta de IA","No: es un deepfake de una persona real; en la casa están prohibidos","Se puede si el vídeo es corto"],ok:1,
+  why:"Módulo 3 y 5: reproducir a una persona real es deepfake; nuestra política los prohíbe."},
+ {m:3,q:"¿Cuál de estos usos de IA está fuera de los límites de la casa?",
+  ops:["Generar la paleta de colores de una web","Puntuar automáticamente a los leads según 'probabilidad de pagar'","Redactar la sección de preguntas frecuentes"],ok:1,
+  why:"Módulo 3 y 5: scoring de personas = alto riesgo/prohibido. No lo hacemos."},
+ {m:4,q:"La casilla de consentimiento del formulario de una app debe estar…",
+  ops:["Marcada por defecto para no perder leads","Sin marcar, y el envío se bloquea si no se marca","Es opcional si el formulario solo pide el nombre"],ok:1,
+  why:"Módulo 4: consentimiento activo. Premarcarla invalida el consentimiento (RGPD)."},
+ {m:5,q:"Quieres probar una herramienta de IA nueva para generar logos. ¿Primer paso?",
+  ops:["Usarla y ver qué tal","Apuntarla en el inventario de docs/FORMACION-IA.md y revisar qué genera","Pedirle una cuenta al cliente"],ok:1,
+  why:"Módulo 5: toda herramienta nueva entra antes en el inventario (art. 4: uso consciente)."}
+];
+var APROBADO_CON=10;
+var cont=document.getElementById("preguntas");
+PREGUNTAS.forEach(function(p,i){
+  var d=document.createElement("div");d.className="pregunta";d.dataset.i=i;
+  var h='<p class="enunciado">'+(i+1)+'. '+p.q+'</p>';
+  p.ops.forEach(function(o,j){
+    h+='<label><input type="radio" name="q'+i+'" value="'+j+'">'+o+'</label>';
+  });
+  h+='<p class="porque">→ '+p.why+'</p>';
+  d.innerHTML=h;cont.appendChild(d);
+});
+document.getElementById("corregir").addEventListener("click",function(){
+  var aciertos=0, sin=0;
+  PREGUNTAS.forEach(function(p,i){
+    var div=cont.children[i];
+    var sel=div.querySelector("input:checked");
+    div.classList.remove("bien","mal");div.classList.add("corregida");
+    div.querySelectorAll("label").forEach(function(l){l.classList.remove("elegida");});
+    if(!sel){sin++;div.classList.add("mal");return;}
+    sel.parentElement.classList.add("elegida");
+    if(parseInt(sel.value,10)===p.ok){aciertos++;div.classList.add("bien");}
+    else{div.classList.add("mal");}
+  });
+  var r=document.getElementById("resultado");
+  if(sin>0){r.textContent="Te quedan "+sin+" pregunta(s) sin contestar.";r.style.color="#b4552d";return;}
+  var nota=aciertos+" / "+PREGUNTAS.length;
+  if(aciertos>=APROBADO_CON){
+    r.textContent="✅ APROBADO — "+nota;r.style.color="#0d7a5f";
+    document.getElementById("a-nota").textContent=nota+" aciertos";
+    document.getElementById("acta").classList.add("visible");
+    document.getElementById("acta").scrollIntoView({behavior:"smooth"});
+  }else{
+    r.textContent="❌ "+nota+" — repasa los módulos marcados en rojo y reintenta.";
+    r.style.color="#c0392b";
+  }
+});
+function prepararActa(){
+  var n=document.getElementById("f-nombre").value.trim();
+  if(!n){alert("Pon tu nombre para el acta.");return;}
+  document.getElementById("a-nombre").textContent=n;
+  document.getElementById("a-nif").textContent=document.getElementById("f-nif").value.trim()||"—";
+  var hoy=new Date();
+  document.getElementById("a-fecha").textContent=hoy.toLocaleDateString("es-ES",{day:"numeric",month:"long",year:"numeric"});
+  window.print();
+}
+</script>
+</body>
+</html>

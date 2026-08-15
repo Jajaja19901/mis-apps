@@ -3,6 +3,12 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-15 (3) — Curso interno de alfabetización IA con examen y acta
+- Qué se hizo: el usuario preguntó si Claude podía hacerle "el examen" de formación IA; se explicó que suplantar un examen oficial invalidaría la evidencia, y en su lugar se creó `docs/curso-ia-basico.html`: curso interno autocontenido (5 módulos adaptados al negocio: IA generativa, riesgos, AI Act art. 4 y 50, RGPD, política interna) + examen de 12 preguntas (aprueba con ≥10, corrección con explicaciones) + acta imprimible (PDF) para archivar como prueba del art. 4. Probado clic a clic con Puppeteer: suspenso no muestra acta, aprobado sí, acta se rellena e imprime, 0 errores de consola. `docs/FORMACION-IA.md` actualizado para apuntar al curso interno como vía de cumplimiento.
+- Archivos tocados: `docs/curso-ia-basico.html` (nuevo), `docs/FORMACION-IA.md`, `docs/MEMORIA.md`.
+- Pendiente / siguiente paso: que el usuario HAGA el curso (≈40 min), guarde el acta en `docs/certificados/` y rellene fecha y NIF en FORMACION-IA.md. Sigue pendiente aplicar los bloques legales a las apps ya entregadas (peluqueria-aurora, etc.).
+- Datos a confirmar: NIF/razón social del titular.
+
 ## 2026-08-15 (2) — Skill `cumplimiento-legal` + acta de formación IA
 - Qué se hizo: creado el blindaje legal operativo a partir del informe de normativa: (1) skill `.claude/skills/cumplimiento-legal/SKILL.md` con los bloques HTML exactos (consentimiento + rgpd-mini, privacidad/aviso legal mínimos, nota de IA en el pie, reglas de cookies y de chatbot/imágenes IA) y checklist de entrega; (2) punto 11 legal con VETO en el agente `10-qa-verificador`; (3) `docs/FORMACION-IA.md` como registro del art. 4 del AI Act (inventario de herramientas, política interna de uso de IA, tabla de formación); (4) CLAUDE.md y skill `captacion-leads` enlazan la nueva skill.
 - Archivos tocados: `.claude/skills/cumplimiento-legal/SKILL.md` (nuevo), `docs/FORMACION-IA.md` (nuevo), `.claude/agents/10-qa-verificador.md`, `CLAUDE.md`, `.claude/skills/captacion-leads/SKILL.md`, `docs/MEMORIA.md`.
