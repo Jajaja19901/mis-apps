@@ -50,6 +50,22 @@
   .btn-usar{background:#f5c542;color:#111}
   .btn-x{background:#2a2a35;color:#fff}
   .nota{color:#9aa;font-size:13px;margin-top:14px;line-height:1.6}
+  /* ---- barra táctil (móvil) ---- */
+  #barra{position:fixed;left:0;right:0;bottom:0;z-index:15;display:flex;gap:10px;justify-content:center;
+         padding:14px 12px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(0deg,rgba(0,0,0,.7),transparent);
+         transition:opacity .4s;flex-wrap:wrap}
+  #barra.oculto{opacity:0;pointer-events:none}
+  #barra button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;border:none;cursor:pointer;
+         background:rgba(28,28,36,.9);color:#fff;border:2px solid #333;border-radius:14px;
+         font:800 17px system-ui;min-width:60px;height:58px;padding:0 16px}
+  #barra button.on{border-color:#f5c542;color:#f5c542}
+  #barra .grande{font-size:22px}
+  /* selector rápido de DJs */
+  #djpick{position:fixed;left:0;right:0;bottom:96px;z-index:16;display:none;flex-wrap:wrap;gap:8px;justify-content:center;padding:0 12px}
+  #djpick.abierto{display:flex}
+  #djpick button{-webkit-tap-highlight-color:transparent;touch-action:manipulation;border:none;cursor:pointer;
+         background:rgba(20,20,28,.95);color:#fff;border:2px solid #2a2a35;border-radius:12px;
+         font:800 15px system-ui;min-width:64px;height:52px;padding:0 12px}
 </style>
 </head>
 <body>
@@ -65,8 +81,20 @@
 <div id="tap">
   <div>🎛️ VISUALES DJ</div>
   <small>Toca para empezar. Pedirá permiso de <b>micrófono</b> para que los visuales bailen con la música.
-  Si no lo das, funcionan igual en modo automático. Luego pulsa <b>E</b> para poner los nombres de los 8 DJs.</small>
+  Funciona en móvil o portátil. Arranca solo en <b>modo automático</b>: los efectos van cambiando sin tocar nada.</small>
   <div class="boton">▶ EMPEZAR</div>
+</div>
+
+<!-- selector rápido de DJs (táctil) -->
+<div id="djpick"></div>
+<!-- barra de botones táctil -->
+<div id="barra">
+  <button id="b-prev" class="grande" title="Efecto anterior">◀</button>
+  <button id="b-auto" class="on">AUTO</button>
+  <button id="b-next" class="grande" title="Efecto siguiente">▶</button>
+  <button id="b-dj" title="Poner un DJ">🎧</button>
+  <button id="b-edit" title="Editar DJs">✎</button>
+  <button id="b-full" class="grande" title="Pantalla completa">⛶</button>
 </div>
 
 <!-- ============ EDITOR DE DJs ============ -->
@@ -349,6 +377,31 @@ addEventListener('keydown', e=>{
 let uiTimer=setTimeout(()=>ui.classList.add('oculto'),10000);
 addEventListener('mousemove',()=>{ ui.classList.remove('oculto'); clearTimeout(uiTimer); uiTimer=setTimeout(()=>ui.classList.add('oculto'),5000); });
 
+/* ---------- controles TÁCTILES (móvil) ---------- */
+const barra=document.getElementById('barra'), djpick=document.getElementById('djpick'), bAuto=document.getElementById('b-auto');
+const esTactil = matchMedia('(pointer:coarse)').matches || 'ontouchstart' in window;
+if(esTactil) ui.style.display='none';   // en móvil sobra la ayuda de teclado; mandan los botones
+function refAuto(){ bAuto.classList.toggle('on',auto); ponerFx(fx); }
+document.getElementById('b-prev').onclick=()=>{ auto=false; refAuto(); ponerFx(fx-1); };
+document.getElementById('b-next').onclick=()=>{ auto=false; refAuto(); ponerFx(fx+1); };
+bAuto.onclick=()=>{ auto=!auto; refAuto(); };
+document.getElementById('b-full').onclick=()=>{ document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen(); };
+document.getElementById('b-edit').onclick=()=>abrirEditor();
+function pintarDjPick(){ djpick.innerHTML='';
+  const off=document.createElement('button'); off.textContent='SIN NOMBRE'; off.onclick=()=>{ aplicarNombre(null); djpick.classList.remove('abierto'); }; djpick.appendChild(off);
+  DJS.forEach((d,i)=>{ const b=document.createElement('button'); b.textContent=(i+1)+(d.nombre?' · '+d.nombre.slice(0,10):'');
+    b.onclick=()=>{ aplicarNombre(DJS[i]); djpick.classList.remove('abierto'); }; djpick.appendChild(b); }); }
+document.getElementById('b-dj').onclick=()=>{ pintarDjPick(); djpick.classList.toggle('abierto'); };
+/* tocar el lienzo enseña/oculta la barra */
+let barraTimer=setTimeout(()=>barra.classList.add('oculto'),8000);
+function mostrarBarra(){ barra.classList.remove('oculto'); clearTimeout(barraTimer); barraTimer=setTimeout(()=>{ barra.classList.add('oculto'); djpick.classList.remove('abierto'); },5000); }
+canvas.addEventListener('pointerdown',()=>{ if(barra.classList.contains('oculto')) mostrarBarra(); else { barra.classList.add('oculto'); djpick.classList.remove('abierto'); } });
+
+/* ---------- mantener la PANTALLA ENCENDIDA (móvil no se duerme) ---------- */
+let wl=null;
+async function wakeLock(){ try{ if('wakeLock' in navigator) wl=await navigator.wakeLock.request('screen'); }catch(e){} }
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') wakeLock(); });
+
 /* atajo ?dj=NOMBRE */
 const params=new URLSearchParams(location.search);
 if(params.get('dj')){ const p=porDefecto(); p.nombre=params.get('dj'); aplicarNombre(p); }
@@ -369,7 +422,12 @@ function frame(){ requestAnimationFrame(frame);
   gl.drawArrays(gl.TRIANGLES,0,3);
   if(djVisible) nombreEl.style.transform=`scale(${1+Math.min(audio.beat,1)*0.06})`;
 }
-document.getElementById('tap').addEventListener('click', async function(){ this.remove(); await iniciarMic(); frame(); });
+document.getElementById('tap').addEventListener('click', async function(){ this.remove();
+  auto=true; refAuto();                                   // arranca SIEMPRE en automático
+  await iniciarMic(); await wakeLock();
+  try{ document.documentElement.requestFullscreen && await document.documentElement.requestFullscreen(); }catch(e){}
+  mostrarBarra(); frame();
+});
 /* hooks de prueba */
 window.__test_start=async()=>{ const el=document.getElementById('tap'); if(el) el.remove(); await iniciarMic(); frame(); };
 window.__test_fx=i=>{ auto=false; ponerFx(i); };
