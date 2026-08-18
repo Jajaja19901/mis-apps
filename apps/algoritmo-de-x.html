@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>El Algoritmo de X · Explorador de xai-org/x-algorithm</title>
+<meta name="description" content="Explorador navegable del código abierto del algoritmo del 'Para ti' de X (xai-org/x-algorithm): cómo se arma tu feed, sus 25 módulos reales, el filtrado de visibilidad, el filtro electoral de Brasil 2026 y la herramienta de transparencia. Con fuentes.">
+<meta name="theme-color" content="#0a0e14">
+<meta name="color-scheme" content="dark">
+
+<!-- ==== PWA (manifest base64, a prueba de errores) ==== -->
+<link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiRWwgQWxnb3JpdG1vIGRlIFgiLCJzaG9ydF9uYW1lIjoiQWxnb3JpdG1vIFgiLCJzdGFydF91cmwiOiIuIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiIzBhMGUxNCIsInRoZW1lX2NvbG9yIjoiIzBhMGUxNCIsImljb25zIjpbeyJzcmMiOiJkYXRhOmltYWdlL3N2Zyt4bWwsJTNDc3ZnIHhtbG5zPSUyN2h0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnJTI3IHZpZXdCb3g9JTI3MCAwIDE5MiAxOTIlMjclM0UlM0NyZWN0IHdpZHRoPSUyNzE5MiUyNyBoZWlnaHQ9JTI3MTkyJTI3IHJ4PSUyNzQyJTI3IGZpbGw9JTI3JTIzMGEwZTE0JTI3LyUzRSUzQ2cgZmlsbD0lMjdub25lJTI3IHN0cm9rZT0lMjclMjMxZDliZjAlMjcgc3Ryb2tlLXdpZHRoPSUyNzglMjclM0UlM0NjaXJjbGUgY3g9JTI3OTYlMjcgY3k9JTI3NDglMjcgcj0lMjcxNiUyNy8lM0UlM0NjaXJjbGUgY3g9JTI3NDglMjcgY3k9JTI3MTMyJTI3IHI9JTI3MTYlMjcvJTNFJTNDY2lyY2xlIGN4PSUyNzE0NCUyNyBjeT0lMjcxMzIlMjcgcj0lMjcxNiUyNy8lM0UlM0NwYXRoIGQ9JTI3TTk2IDY0IEw1NCAxMTggTTk2IDY0IEwxMzggMTE4IE02NCAxMzIgTDEyOCAxMzIlMjcvJTNFJTNDL2clM0UlM0Mvc3ZnJTNFIiwic2l6ZXMiOiIxOTJ4MTkyIiwidHlwZSI6ImltYWdlL3N2Zyt4bWwifV19">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Algoritmo X">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230a0e14'/%3E%3Cg fill='none' stroke='%231d9bf0' stroke-width='8'%3E%3Ccircle cx='90' cy='45' r='15'/%3E%3Ccircle cx='45' cy='124' r='15'/%3E%3Ccircle cx='135' cy='124' r='15'/%3E%3Cpath d='M90 60 L51 110 M90 60 L129 110 M60 124 L120 124'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0e14'/%3E%3Cg fill='none' stroke='%231d9bf0' stroke-width='2'%3E%3Ccircle cx='16' cy='8' r='3'/%3E%3Ccircle cx='8' cy='23' r='3'/%3E%3Ccircle cx='24' cy='23' r='3'/%3E%3Cpath d='M16 11 L9 20 M16 11 L23 20 M11 23 L21 23'/%3E%3C/g%3E%3C/svg%3E">
+
+<style>
+/* ============================================================
+   CONFIG rápida (edítalo en 1 minuto)
+   — Explorador informativo del repositorio xai-org/x-algorithm.
+   ============================================================ */
+:root{
+  --bg:#0a0e14; --bg-soft:#0f1520; --bg-card:#131b28; --bg-card-2:#172234;
+  --line:#20293a; --line-soft:#1a2230;
+  --tx:#e7edf5; --tx-dim:#9fb0c4; --tx-faint:#6b7a90;
+  --brand:#1d9bf0; --brand-2:#4fc3ff; --brand-deep:#0e5f9e;
+  --warn:#ffb020; --warn-bg:#2a2210;
+  --ok:#31c48d; --danger:#f0506e;
+  --shadow:0 10px 40px rgba(0,0,0,.45);
+  --radius:16px; --radius-sm:10px;
+  --maxw:1120px;
+  --f-sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --f-mono:"SF Mono",ui-monospace,"Cascadia Code","JetBrains Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--f-sans); background:var(--bg); color:var(--tx);
+  line-height:1.6; font-size:16px; overflow-x:hidden;
+  background-image:
+    radial-gradient(1200px 600px at 80% -10%, rgba(29,155,240,.10), transparent 60%),
+    radial-gradient(900px 500px at -10% 10%, rgba(79,195,255,.06), transparent 55%);
+}
+img{max-width:100%;display:block}
+a{color:var(--brand-2);text-decoration:none}
+a:hover{text-decoration:underline}
+:focus-visible{outline:3px solid var(--brand);outline-offset:2px;border-radius:6px}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 20px}
+.mono{font-family:var(--f-mono)}
+.skip{position:absolute;left:-999px;top:0;background:var(--brand);color:#04121f;padding:10px 16px;border-radius:0 0 8px 0;z-index:200;font-weight:700}
+.skip:focus{left:0}
+
+/* ---------- Header ---------- */
+header.nav{position:sticky;top:0;z-index:100;background:rgba(10,14,20,.82);backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.nav-in{display:flex;align-items:center;gap:14px;height:60px}
+.logo{display:flex;align-items:center;gap:11px;font-weight:800;letter-spacing:-.02em;color:var(--tx);font-size:1.02rem}
+.logo:hover{text-decoration:none}
+.logo svg{flex:0 0 auto}
+.logo small{display:block;font-weight:500;font-size:.7rem;color:var(--tx-faint);letter-spacing:.02em}
+.nav-links{margin-left:auto;display:flex;gap:6px;align-items:center}
+.nav-links a{color:var(--tx-dim);padding:8px 12px;border-radius:8px;font-size:.9rem;font-weight:500}
+.nav-links a:hover{color:var(--tx);background:var(--bg-card);text-decoration:none}
+.btn{display:inline-flex;align-items:center;gap:8px;background:var(--brand);color:#04121f;font-weight:700;padding:10px 16px;border-radius:10px;border:0;cursor:pointer;font-size:.9rem;transition:transform .12s ease,box-shadow .12s ease}
+.btn:hover{text-decoration:none;transform:translateY(-1px);box-shadow:0 8px 24px rgba(29,155,240,.35)}
+.btn.ghost{background:transparent;color:var(--tx);border:1px solid var(--line)}
+.btn.ghost:hover{border-color:var(--brand);box-shadow:none}
+.nav-toggle{display:none;margin-left:auto;background:transparent;border:1px solid var(--line);color:var(--tx);width:42px;height:42px;border-radius:10px;cursor:pointer;font-size:1.2rem}
+@media(max-width:860px){
+  .nav-links{position:fixed;inset:60px 0 auto 0;flex-direction:column;background:var(--bg-soft);border-bottom:1px solid var(--line);padding:12px;gap:4px;display:none}
+  .nav-links.open{display:flex}
+  .nav-links a{padding:12px}
+  .nav-toggle{display:block}
+  .nav-cta{display:none}
+}
+
+/* ---------- Hero ---------- */
+.hero{padding:64px 0 40px;position:relative}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-2);background:rgba(29,155,240,.1);border:1px solid rgba(29,155,240,.25);padding:6px 12px;border-radius:999px;margin-bottom:20px}
+.hero h1{font-size:clamp(2.1rem,6vw,3.5rem);line-height:1.05;letter-spacing:-.03em;font-weight:800;margin-bottom:18px}
+.hero h1 .g{background:linear-gradient(120deg,var(--brand-2),var(--brand));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.hero .lead{font-size:clamp(1.05rem,2.4vw,1.28rem);color:var(--tx-dim);max-width:730px;margin-bottom:26px}
+.hero-cta{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:34px}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;max-width:900px}
+.stat{background:var(--bg-card);border:1px solid var(--line);border-radius:var(--radius-sm);padding:16px 14px}
+.stat b{display:block;font-size:clamp(1.2rem,3.2vw,1.6rem);font-weight:800;letter-spacing:-.02em;color:var(--tx)}
+.stat span{font-size:.72rem;color:var(--tx-faint);text-transform:uppercase;letter-spacing:.04em}
+@media(max-width:720px){.stats{grid-template-columns:repeat(2,1fr)}}
+
+/* ---------- Section ---------- */
+section{padding:52px 0;border-top:1px solid var(--line-soft)}
+.sec-head{max-width:730px;margin-bottom:32px}
+.sec-tag{font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--brand-2)}
+.sec-head h2{font-size:clamp(1.6rem,4vw,2.3rem);letter-spacing:-.02em;margin:8px 0 12px;font-weight:800}
+.sec-head p{color:var(--tx-dim);font-size:1.05rem}
+
+/* ---------- Callout ---------- */
+.callout{display:grid;grid-template-columns:auto 1fr;gap:18px;background:linear-gradient(180deg,rgba(29,155,240,.08),rgba(15,21,32,.4));border:1px solid rgba(29,155,240,.3);border-radius:var(--radius);padding:24px}
+.callout .ic{font-size:1.8rem;line-height:1}
+.callout h3{font-size:1.15rem;margin-bottom:8px;color:var(--brand-2)}
+.callout p{color:var(--tx-dim);font-size:.98rem}
+.callout p+p{margin-top:10px}
+.callout .yes-no{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.chip{display:inline-flex;align-items:center;gap:7px;font-size:.85rem;font-weight:600;padding:7px 12px;border-radius:999px;border:1px solid var(--line)}
+.chip.no{color:#ffb3c0;background:rgba(240,80,110,.1);border-color:rgba(240,80,110,.3)}
+.chip.si{color:#9ff0cd;background:rgba(49,196,141,.1);border-color:rgba(49,196,141,.3)}
+@media(max-width:560px){.callout{grid-template-columns:1fr}}
+
+/* ---------- Pipeline ---------- */
+.pipe{display:flex;flex-direction:column;gap:0}
+.pstep{position:relative;display:grid;grid-template-columns:56px 1fr;gap:18px;padding-bottom:26px}
+.pstep:last-child{padding-bottom:0}
+.pstep .num{width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.2rem;background:var(--bg-card-2);border:1px solid var(--line);color:var(--brand-2);z-index:2}
+.pstep:not(:last-child)::before{content:"";position:absolute;left:27px;top:56px;bottom:0;width:2px;background:linear-gradient(var(--brand),transparent)}
+.pcard{background:var(--bg-card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px}
+.pcard h3{font-size:1.12rem;margin-bottom:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pcard h3 .badge{font-size:.68rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--brand-2);background:rgba(29,155,240,.12);padding:3px 9px;border-radius:999px}
+.pcard p{color:var(--tx-dim);font-size:.96rem}
+.pcard .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.pcard .tags .mono{font-size:.78rem;color:var(--tx-dim);background:var(--bg-soft);border:1px solid var(--line-soft);padding:4px 9px;border-radius:7px}
+
+/* ---------- Explorador ---------- */
+.toolbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:22px}
+.search{flex:1;min-width:220px;position:relative}
+.search input{width:100%;background:var(--bg-card);border:1px solid var(--line);color:var(--tx);padding:13px 14px 13px 42px;border-radius:12px;font-size:.98rem;font-family:inherit}
+.search input::placeholder{color:var(--tx-faint)}
+.search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);opacity:.5}
+.filters{display:flex;flex-wrap:wrap;gap:8px}
+.fbtn{background:var(--bg-card);border:1px solid var(--line);color:var(--tx-dim);padding:8px 14px;border-radius:999px;font-size:.86rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .12s ease}
+.fbtn:hover{color:var(--tx);border-color:var(--brand-deep)}
+.fbtn[aria-pressed="true"]{background:var(--brand);color:#04121f;border-color:var(--brand)}
+.count{font-size:.85rem;color:var(--tx-faint);margin-bottom:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.comp{background:var(--bg-card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;display:flex;flex-direction:column;gap:10px;transition:transform .12s ease,border-color .12s ease}
+.comp:hover{transform:translateY(-3px);border-color:var(--brand-deep)}
+.comp .top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.comp h3{font-size:1.02rem;letter-spacing:-.01em;word-break:break-word}
+.comp .cat{flex:0 0 auto;font-size:.66rem;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:4px 9px;border-radius:999px;white-space:nowrap}
+.comp p{color:var(--tx-dim);font-size:.9rem;flex:1}
+.comp .path{font-family:var(--f-mono);font-size:.76rem;color:var(--tx-faint);background:var(--bg-soft);border:1px solid var(--line-soft);padding:7px 10px;border-radius:8px;word-break:break-all}
+.comp .go{align-self:flex-start;font-size:.85rem;font-weight:600;color:var(--brand-2);display:inline-flex;align-items:center;gap:5px}
+.cat-core{color:#8fd4ff;background:rgba(29,155,240,.12)}
+.cat-fuente{color:#9ff0cd;background:rgba(49,196,141,.1)}
+.cat-ranking{color:#ffd27a;background:rgba(255,176,32,.1)}
+.cat-ml{color:#c9b3ff;background:rgba(160,120,255,.12)}
+.cat-filtro{color:#ffb3c0;background:rgba(240,80,110,.12)}
+.cat-transparencia{color:#7dffd4;background:rgba(49,196,141,.14)}
+.cat-docs{color:#a9b7c9;background:rgba(120,140,170,.14)}
+.empty{grid-column:1/-1;text-align:center;color:var(--tx-faint);padding:40px 20px;border:1px dashed var(--line);border-radius:var(--radius)}
+
+/* ---------- Info / deep dive ---------- */
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:820px){.two{grid-template-columns:1fr}}
+.info{background:var(--bg-card);border:1px solid var(--line);border-radius:var(--radius);padding:24px}
+.info h3{font-size:1.15rem;margin-bottom:12px;display:flex;gap:10px;align-items:center}
+.info ul{list-style:none;display:flex;flex-direction:column;gap:10px}
+.info li{padding-left:26px;position:relative;color:var(--tx-dim);font-size:.95rem}
+.info li::before{content:"";position:absolute;left:0;top:9px;width:8px;height:8px;border-radius:50%;background:var(--brand)}
+.info li b{color:var(--tx)}
+blockquote{border-left:3px solid var(--brand);background:var(--bg-soft);padding:14px 18px;border-radius:0 10px 10px 0;color:var(--tx-dim);font-style:italic;margin:14px 0}
+.bignum{display:flex;align-items:baseline;gap:12px;margin:6px 0 14px}
+.bignum b{font-size:2.4rem;font-weight:800;color:#ffd27a;letter-spacing:-.02em;line-height:1}
+.bignum span{color:var(--tx-dim);font-size:.92rem}
+.filepill{display:inline-flex;align-items:center;gap:8px;font-family:var(--f-mono);font-size:.8rem;background:var(--bg-soft);border:1px solid var(--line);padding:8px 12px;border-radius:9px;color:var(--tx-dim);margin-top:8px;word-break:break-all}
+
+/* ---------- Fuentes ---------- */
+.srcs{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.src{background:var(--bg-card);border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px 16px;display:block}
+.src:hover{border-color:var(--brand-deep);text-decoration:none}
+.src b{display:block;color:var(--tx);font-size:.95rem;margin-bottom:3px}
+.src span{font-size:.8rem;color:var(--tx-faint)}
+
+/* ---------- Footer ---------- */
+footer{border-top:1px solid var(--line);padding:36px 0 60px;margin-top:20px}
+.foot{display:flex;flex-wrap:wrap;gap:20px;justify-content:space-between;align-items:center}
+.foot p{color:var(--tx-faint);font-size:.85rem;max-width:560px}
+.foot .studio{font-size:.82rem;color:var(--tx-dim)}
+.foot .studio a{color:var(--brand-2)}
+.disc{margin-top:22px;font-size:.78rem;color:var(--tx-faint);line-height:1.6;border-top:1px solid var(--line-soft);padding-top:18px}
+
+.install{position:fixed;right:16px;bottom:16px;z-index:120;display:none}
+.install.show{display:block}
+</style>
+</head>
+<body>
+<a href="#main" class="skip">Saltar al contenido</a>
+
+<!-- ============ NAV ============ -->
+<header class="nav">
+  <div class="wrap nav-in">
+    <a href="#top" class="logo" aria-label="Inicio">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+        <rect width="34" height="34" rx="9" fill="#0f1520" stroke="#20293a"/>
+        <g fill="none" stroke="#1d9bf0" stroke-width="2.2">
+          <circle cx="17" cy="9" r="3.4"/><circle cx="9" cy="24" r="3.4"/><circle cx="25" cy="24" r="3.4"/>
+          <path d="M17 12.4 L10 20.6 M17 12.4 L24 20.6 M11.5 24 L22.5 24"/>
+        </g>
+      </svg>
+      <span>El Algoritmo de X<small>Explorador de <span class="mono">xai-org/x-algorithm</span></small></span>
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-label="Abrir menú" aria-expanded="false">☰</button>
+    <nav class="nav-links" id="navLinks" aria-label="Principal">
+      <a href="#como-funciona">Cómo funciona</a>
+      <a href="#componentes">Módulos</a>
+      <a href="#censura">Censura y transparencia</a>
+      <a href="#fuentes">Fuentes</a>
+      <a class="btn nav-cta" href="https://github.com/xai-org/x-algorithm" target="_blank" rel="noopener">Ver en GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+<span id="top"></span>
+
+<!-- ============ HERO ============ -->
+<section class="hero" style="border-top:0">
+  <div class="wrap">
+    <span class="eyebrow">● Código abierto · Apache-2.0 · agosto 2026</span>
+    <h1>El algoritmo del “Para ti” de <span class="g">X</span>, abierto y explicado</h1>
+    <p class="lead">xAI publicó en GitHub el código que decide qué posts ves en tu feed de X. Aquí lo tienes navegable: cómo se construye tu “Para ti”, sus <b>25 módulos</b> reales, la maquinaria de filtrado de visibilidad y —esto es lo nuevo— la <b>censura por mandato de gobiernos metida en el propio código</b>. Todo con enlaces al repositorio.</p>
+    <div class="hero-cta">
+      <a class="btn" href="#como-funciona">Ver cómo funciona</a>
+      <a class="btn ghost" href="https://github.com/xai-org/x-algorithm" target="_blank" rel="noopener">Repositorio en GitHub ↗</a>
+    </div>
+    <div class="stats" role="list">
+      <div class="stat" role="listitem"><b>31,9 k</b><span>estrellas ★</span></div>
+      <div class="stat" role="listitem"><b>5,2 k</b><span>forks</span></div>
+      <div class="stat" role="listitem"><b>25</b><span>módulos</span></div>
+      <div class="stat" role="listitem"><b>Rust</b><span>lenguaje principal</span></div>
+      <div class="stat" role="listitem"><b>Apache-2.0</b><span>licencia</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CALLOUT ============ -->
+<section id="que-es">
+  <div class="wrap">
+    <div class="callout">
+      <div class="ic" aria-hidden="true">🔎</div>
+      <div>
+        <h3>¿Salen aquí las censuras que piden los gobiernos?</h3>
+        <p>La respuesta corta: <b>en parte, sí — y es lo más llamativo de este repositorio.</b> A diferencia del código antiguo de 2023, esta versión incluye <b>filtros de cumplimiento legal escritos directamente en el código</b> y una herramienta de transparencia.</p>
+        <p>El caso más claro es el <b>filtro electoral de Brasil 2026</b>: por orden del Tribunal Superior Electoral de Brasil, el “Para ti” oculta las publicaciones de ciertas cuentas señaladas (salvo que tú las sigas). Ese filtro está en el código, se puede leer, e incluye su base legal.</p>
+        <p>El matiz honesto: <b>no</b> es un registro mundial con “todas” las peticiones de “todos” los gobiernos. Es el <em>código</em> que aplica esas decisiones, con casos concretos publicados (Brasil). Otros países, como India, tienen leyes de secreto que —según la prensa— impiden publicar sus peticiones.</p>
+        <div class="yes-no">
+          <span class="chip si">✓ Filtro electoral de Brasil 2026 en el código</span>
+          <span class="chip si">✓ Herramienta de transparencia por cuenta</span>
+          <span class="chip no">✕ Registro global de todos los gobiernos</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CÓMO FUNCIONA ============ -->
+<section id="como-funciona">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="sec-tag">El recorrido de un post</span>
+      <h2>Cómo se construye tu feed “Para ti”</h2>
+      <p>Cada vez que abres X, el sistema elige entre millones de posts y te deja unos pocos. Este es el recorrido, tal y como lo describe el propio repositorio.</p>
+    </div>
+    <div class="pipe">
+      <div class="pstep">
+        <div class="num">1</div>
+        <div class="pcard">
+          <h3>Fuentes de candidatos <span class="badge">retrieval</span></h3>
+          <p>Se reúnen posibles posts de dos mundos: los <b>recientes de quien sigues</b> (in-network, guardados en memoria por <span class="mono">thunder</span>) y los de gente que <b>no sigues</b> (out-of-network), encontrados por similitud de embeddings (<span class="mono">phoenix</span>) y por clusters de interés (<span class="mono">simclusters</span>).</p>
+          <div class="tags"><span class="mono">thunder</span><span class="mono">phoenix</span><span class="mono">simclusters</span><span class="mono">candidate-pipeline</span></div>
+        </div>
+      </div>
+      <div class="pstep">
+        <div class="num">2</div>
+        <div class="pcard">
+          <h3>Comprensión y etiquetado <span class="badge">labeling</span></h3>
+          <p>Modelos analizan cada post y cada cuenta: detectan spam, contenido adulto o violento, comportamiento no auténtico y calidad. Producen <b>etiquetas</b> que luego usarán el ranking y el filtrado.</p>
+          <div class="tags"><span class="mono">grox</span><span class="mono">agatha</span><span class="mono">bdsm</span><span class="mono">clip</span><span class="mono">media-model-proxy</span></div>
+        </div>
+      </div>
+      <div class="pstep">
+        <div class="num">3</div>
+        <div class="pcard">
+          <h3>Ranking <span class="badge">transformer</span></h3>
+          <p>El modelo <span class="mono">phoenix</span> predice la probabilidad de tus acciones (responder, dar me gusta, tiempo de lectura…). Unos <b>pesos</b> escalan esas probabilidades predichas —no los recuentos de engagement en bruto— para ordenar el feed.</p>
+          <div class="tags"><span class="mono">phoenix (ranking)</span><span class="mono">phoenix-rankall</span></div>
+        </div>
+      </div>
+      <div class="pstep">
+        <div class="num">4</div>
+        <div class="pcard">
+          <h3>Reordenado por diversidad <span class="badge">re-rank</span></h3>
+          <p><span class="mono">vm-ranker</span> reordena los posts ya puntuados usando “determinantal point processes” para que no veas 10 cosas casi iguales seguidas.</p>
+          <div class="tags"><span class="mono">vm-ranker</span></div>
+        </div>
+      </div>
+      <div class="pstep">
+        <div class="num">5</div>
+        <div class="pcard">
+          <h3>Filtrado de visibilidad y aplicación <span class="badge">moderación</span></h3>
+          <p>Por cada par post–espectador se decide <b>mostrar, ocultar o poner un aviso</b> (interstitial). Aquí entran las reglas (<span class="mono">botmaker</span>, <span class="mono">scarecrow</span>), la aplicación de sanciones a cuentas y los <b>filtros de cumplimiento legal</b> como el de Brasil.</p>
+          <div class="tags"><span class="mono">visibility-filtering</span><span class="mono">scarecrow</span><span class="mono">botmaker-rules</span><span class="mono">abuse-enforcement-service</span></div>
+        </div>
+      </div>
+      <div class="pstep">
+        <div class="num">✓</div>
+        <div class="pcard">
+          <h3>home-mixer arma y sirve tu feed</h3>
+          <p><span class="mono">home-mixer</span> coordina todas las etapas, aplica los pesos de scoring y sirve la lista final que ves en pantalla — todo en fracciones de segundo, cada vez que refrescas.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MÓDULOS ============ -->
+<section id="componentes">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="sec-tag">Explorador del repositorio</span>
+      <h2>Los 25 módulos, uno a uno</h2>
+      <p>Cada carpeta del repositorio, con su descripción y su enlace directo a GitHub. Busca por nombre o filtra por tipo.</p>
+    </div>
+    <div class="toolbar">
+      <div class="search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9fb0c4" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="search" id="q" placeholder="Buscar módulo (ej: ranking, brasil, filtro, spam…)" aria-label="Buscar módulo">
+      </div>
+      <div class="filters" id="filters" role="group" aria-label="Filtrar por tipo">
+        <button class="fbtn" data-f="all" aria-pressed="true">Todos</button>
+        <button class="fbtn" data-f="core" aria-pressed="false">Núcleo</button>
+        <button class="fbtn" data-f="fuente" aria-pressed="false">Fuentes</button>
+        <button class="fbtn" data-f="ranking" aria-pressed="false">Ranking</button>
+        <button class="fbtn" data-f="ml" aria-pressed="false">Etiquetado/ML</button>
+        <button class="fbtn" data-f="filtro" aria-pressed="false">Filtrado</button>
+        <button class="fbtn" data-f="transparencia" aria-pressed="false">Transparencia</button>
+      </div>
+    </div>
+    <p class="count" id="count" aria-live="polite"></p>
+    <div class="grid" id="grid"></div>
+  </div>
+</section>
+
+<!-- ============ CENSURA Y TRANSPARENCIA ============ -->
+<section id="censura">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="sec-tag">Lo que buscabas</span>
+      <h2>Censura de gobiernos y transparencia</h2>
+      <p>La parte que da titulares: cómo el cumplimiento legal de distintos países queda escrito, y auditable, dentro del código.</p>
+    </div>
+    <div class="two">
+      <div class="info">
+        <h3>🇧🇷 Filtro electoral de Brasil 2026</h3>
+        <div class="bignum"><b>~665</b><span>cuentas señaladas por el Tribunal Superior Electoral de Brasil, según la prensa</span></div>
+        <p style="color:var(--tx-dim)">Por la ley electoral brasileña, el “Para ti” ejecuta un filtro que <b>retira las publicaciones de las cuentas denunciadas ante el Tribunal Electoral</b> para las elecciones de 2026 — salvo que el usuario siga directamente a esa cuenta. La novedad es que <b>ese filtro está publicado en el código fuente</b>, con las cuentas afectadas y su base legal.</p>
+        <div class="filepill">home-mixer/filters/brazil_2026_election_filter.rs</div>
+        <p style="margin-top:12px"><a href="https://github.com/xai-org/x-algorithm/blob/main/home-mixer/filters/brazil_2026_election_filter.rs" target="_blank" rel="noopener">Ver el filtro en GitHub ↗</a></p>
+      </div>
+      <div class="info">
+        <h3>🔦 “Under the Hood”: transparencia por cuenta</h3>
+        <p style="color:var(--tx-dim);margin-bottom:12px">Una herramienta para que cada usuario <b>vea qué etiquetas afectan a la visibilidad de sus publicaciones</b>, en lugar de adivinar si tiene límites ocultos.</p>
+        <ul>
+          <li>Genera un <b>informe por cuenta</b> de las etiquetas que impactan su alcance.</li>
+          <li>Pensada para cuentas con cierta actividad (p. ej. 10+ posts el último mes) y antigüedad, empezando por un grupo piloto.</li>
+          <li>El objetivo declarado: poder <b>verificar la imparcialidad</b> sin especular.</li>
+        </ul>
+        <div class="filepill">under-the-hood/</div>
+        <p style="margin-top:12px"><a href="https://github.com/xai-org/x-algorithm/tree/main/under-the-hood" target="_blank" rel="noopener">Ver el módulo en GitHub ↗</a></p>
+      </div>
+    </div>
+    <blockquote style="margin-top:18px">Contexto justo: publicar el código no equivale a publicarlo “todo”. Se conocen los <b>filtros y su lógica</b>, pero los pesos de los modelos, los datos de entrenamiento y las peticiones de países con leyes de secreto (como India, según la prensa) no aparecen. “Abierto” no significa “completo” ni “reproducible”.</blockquote>
+  </div>
+</section>
+
+<!-- ============ FUENTES ============ -->
+<section id="fuentes">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="sec-tag">Verifícalo tú</span>
+      <h2>Fuentes</h2>
+      <p>Todo lo de esta web sale del propio repositorio y de la cobertura de prensa de su publicación (agosto 2026). Aquí tienes de dónde.</p>
+    </div>
+    <div class="srcs">
+      <a class="src" href="https://github.com/xai-org/x-algorithm" target="_blank" rel="noopener"><b>xai-org/x-algorithm ↗</b><span>Repositorio oficial (GitHub) — código y README</span></a>
+      <a class="src" href="https://github.com/xai-org/x-algorithm/blob/main/home-mixer/filters/brazil_2026_election_filter.rs" target="_blank" rel="noopener"><b>brazil_2026_election_filter.rs ↗</b><span>El filtro electoral de Brasil, en el código</span></a>
+      <a class="src" href="https://github.com/xai-org/x-algorithm/tree/main/under-the-hood" target="_blank" rel="noopener"><b>under-the-hood/ ↗</b><span>Herramienta de transparencia por cuenta</span></a>
+      <a class="src" href="https://brusselssignal.eu/2026/08/elon-musk-says-x-will-make-government-censorship-requests-clearly-visible/" target="_blank" rel="noopener"><b>Brussels Signal ↗</b><span>“X hará visibles las peticiones de censura de gobiernos”</span></a>
+      <a class="src" href="https://www.techtimes.com/articles/324704/20260817/x-published-brazils-election-censorship-filter-code-indias-secrecy-law-prevents-this.htm" target="_blank" rel="noopener"><b>Tech Times ↗</b><span>Filtro de Brasil publicado; el secreto de India lo impide</span></a>
+      <a class="src" href="https://www.trendingtopics.eu/x-open-sources-its-algorithm-and-reveals-what-it-takes-to-go-viral/" target="_blank" rel="noopener"><b>Trending Topics ↗</b><span>X abre su algoritmo: qué hace falta para hacerse viral</span></a>
+    </div>
+  </div>
+</section>
+</main>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <p>Web informativa y educativa, sin relación oficial con X Corp. ni xAI. Marcas, nombres y código pertenecen a sus dueños. Los datos proceden del repositorio público <span class="mono">xai-org/x-algorithm</span> y de las fuentes citadas; el estado del repositorio puede cambiar con el tiempo.</p>
+      <div class="studio">Diseñado por <a href="#" id="studioLink">Incuba tu Negocio</a> · por Jaime M. M.</div>
+    </div>
+    <p class="disc">Nota de transparencia: las cifras de estrellas, forks y cuentas afectadas son aproximadas a la fecha de consulta (agosto 2026) y provienen del repositorio y de la prensa citada. Esta página describe la <b>arquitectura y la lógica</b> del algoritmo y sus filtros; no reproduce datos personales ni listados completos de cuentas.</p>
+  </div>
+</footer>
+
+<button class="btn install" id="installBtn">⬇ Instalar app</button>
+
+<!-- ============ DATOS + LÓGICA ============ -->
+<script type="application/json" id="components-data">
+[
+  {"n":"home-mixer","cat":"core","catL":"Núcleo","path":"home-mixer/","d":"Construye el feed 'Para ti': coordina las etapas del pipeline, aplica los pesos de scoring y orquesta las llamadas al sistema. Aquí viven también los filtros (como el de Brasil)."},
+  {"n":"candidate-pipeline","cat":"core","catL":"Núcleo","path":"candidate-pipeline/","d":"Framework que define los tipos de etapa (source, hydrator, filter, scorer, selector, side effect) y su ejecución en paralelo."},
+  {"n":"thunder","cat":"fuente","catL":"Fuente","path":"thunder/","d":"Mantiene en memoria los posts recientes de las cuentas que sigues (in-network) para servirlos rápido como candidatos."},
+  {"n":"phoenix","cat":"ranking","catL":"Ranking","path":"phoenix/","d":"El corazón ML: recuperación por embeddings (posts cercanos a tus vectores) y ranking (predice la probabilidad de tus acciones). Entrenamiento en JAX, serving en Rust."},
+  {"n":"simclusters","cat":"fuente","catL":"Fuente","path":"simclusters/","d":"Recuperación por clusters: agrupa cuentas y posts según patrones de engagement para encontrar contenido out-of-network relevante."},
+  {"n":"vm-ranker","cat":"ranking","catL":"Ranking","path":"vm-ranker/","d":"Reordena los posts ya puntuados usando 'determinantal point processes' para dar diversidad y evitar repetición."},
+  {"n":"phoenix-rankall","cat":"ranking","catL":"Ranking","path":"phoenix-rankall/","d":"Mantiene el índice de recuperación, que se va actualizando a medida que llegan eventos."},
+  {"n":"phoenix-rankall-strato","cat":"ranking","catL":"Ranking","path":"phoenix-rankall-strato/","d":"Capa de eventos que determina la colocación de cada post dentro del índice de recuperación."},
+  {"n":"grox","cat":"ml","catL":"Etiquetado","path":"grox/","d":"Clasifica los posts (spam, contenido adulto, violencia) y produce representaciones de texto e imagen para el resto del sistema."},
+  {"n":"media-model-proxy","cat":"ml","catL":"Etiquetado","path":"media-model-proxy/","d":"Sirve los modelos de imagen y vídeo que se usan para clasificar el contenido multimedia."},
+  {"n":"clip","cat":"ml","catL":"Etiquetado","path":"clip/","d":"Entrena un modelo de embeddings imagen-texto (estilo CLIP) para entender el contenido visual junto al texto."},
+  {"n":"agatha","cat":"ml","catL":"Etiquetado","path":"agatha/","d":"Etiqueta cuentas a partir de cómo responde la gente a ellas (bloqueos, reportes, ratios de engagement)."},
+  {"n":"bdsm","cat":"ml","catL":"Etiquetado","path":"bdsm/","d":"Identifica comportamiento no auténtico (coordinado/automatizado) a partir de secuencias de acciones."},
+  {"n":"user-cred-v2","cat":"ml","catL":"Etiquetado","path":"user-cred-v2/","d":"Puntúa la credibilidad de las cuentas mediante un enfoque basado en PageRank sobre el grafo social."},
+  {"n":"adult-content","cat":"ml","catL":"Etiquetado","path":"adult-content/","d":"Entrenamiento y calibración del clasificador de contenido adulto."},
+  {"n":"pnsfwmedia","cat":"ml","catL":"Etiquetado","path":"pnsfwmedia/","d":"Clasificador de contenido adulto en medios que combina embeddings de imagen con puntuaciones de la cuenta."},
+  {"n":"visibility-filtering","cat":"filtro","catL":"Filtrado","path":"visibility-filtering/","d":"El motor de moderación: por cada par post–espectador decide mostrar, ocultar o poner un aviso (interstitial)."},
+  {"n":"scarecrow","cat":"filtro","catL":"Filtrado","path":"scarecrow/","d":"Aplica en tiempo real las reglas de etiquetas a los eventos que van ocurriendo."},
+  {"n":"botmaker","cat":"filtro","catL":"Filtrado","path":"botmaker/","d":"El motor de reglas: su lenguaje, su compilador y su runtime. La 'gramática' con la que se escriben las reglas de moderación."},
+  {"n":"botmaker-rules","cat":"filtro","catL":"Filtrado","path":"botmaker-rules/","d":"Las reglas concretas que carga scarecrow (incluye, por ejemplo, la carpeta scarecrow con reglas específicas)."},
+  {"n":"abuse-enforcement-service","cat":"filtro","catL":"Filtrado","path":"abuse-enforcement-service/","d":"Actúa sobre las puntuaciones de los modelos: etiqueta, lanza retos (challenges) o suspende cuentas."},
+  {"n":"safety-label-user-agg","cat":"filtro","catL":"Filtrado","path":"safety-label-user-agg/","d":"Agrega señales a nivel de post para etiquetar cuentas completas de cara a la seguridad."},
+  {"n":"visibility-filtering-client","cat":"filtro","catL":"Filtrado","path":"visibility-filtering-client/","d":"Librería cliente y definiciones de los tipos de etiquetas de seguridad que usan otros servicios."},
+  {"n":"under-the-hood","cat":"transparencia","catL":"Transparencia","path":"under-the-hood/","d":"Genera informes por cuenta de las etiquetas que afectan a su visibilidad. La pieza de transparencia del repositorio."},
+  {"n":"docs","cat":"docs","catL":"Docs","path":"docs/","d":"Documentación del repositorio: explicaciones del sistema, del pipeline y de los módulos."}
+]
+</script>
+
+<script>
+(function(){
+  "use strict";
+  var REPO = "https://github.com/xai-org/x-algorithm/tree/main/";
+
+  // ----- Menú móvil -----
+  var t = document.getElementById('navToggle'), nl = document.getElementById('navLinks');
+  t.addEventListener('click', function(){
+    var open = nl.classList.toggle('open');
+    t.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  nl.addEventListener('click', function(e){ if(e.target.tagName==='A'){ nl.classList.remove('open'); t.setAttribute('aria-expanded','false'); }});
+
+  // ----- Datos -----
+  var data = [];
+  try { data = JSON.parse(document.getElementById('components-data').textContent); }
+  catch(err){ data = []; }
+
+  var grid = document.getElementById('grid');
+  var countEl = document.getElementById('count');
+  var qEl = document.getElementById('q');
+  var state = { f:'all', q:'' };
+
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  }); }
+
+  function urlFor(c){ return c.url ? c.url : REPO + encodeURI(c.path); }
+
+  function render(){
+    var q = state.q.trim().toLowerCase();
+    var items = data.filter(function(c){
+      if(state.f !== 'all' && c.cat !== state.f) return false;
+      if(!q) return true;
+      return (c.n + ' ' + c.d + ' ' + c.path + ' ' + c.catL).toLowerCase().indexOf(q) !== -1;
+    });
+    countEl.textContent = items.length + (items.length === 1 ? ' módulo' : ' módulos');
+    if(!items.length){
+      grid.innerHTML = '<div class="empty">No hay módulos que coincidan. Prueba con otra búsqueda o quita el filtro.</div>';
+      return;
+    }
+    grid.innerHTML = items.map(function(c){
+      return '<article class="comp">'
+        + '<div class="top"><h3 class="mono">' + esc(c.n) + '</h3>'
+        + '<span class="cat cat-' + esc(c.cat) + '">' + esc(c.catL) + '</span></div>'
+        + '<p>' + esc(c.d) + '</p>'
+        + '<div class="path" title="Ruta en el repositorio">' + esc(c.path) + '</div>'
+        + '<a class="go" href="' + esc(urlFor(c)) + '" target="_blank" rel="noopener">Ver en GitHub ↗</a>'
+        + '</article>';
+    }).join('');
+  }
+
+  // ----- Filtros -----
+  var fbtns = Array.prototype.slice.call(document.querySelectorAll('.fbtn'));
+  document.getElementById('filters').addEventListener('click', function(e){
+    var b = e.target.closest('.fbtn'); if(!b) return;
+    state.f = b.getAttribute('data-f');
+    fbtns.forEach(function(x){ x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+    render();
+  });
+
+  // ----- Búsqueda -----
+  qEl.addEventListener('input', function(){ state.q = qEl.value; render(); });
+
+  render();
+
+  // ----- PWA: instalar -----
+  var deferred = null, ib = document.getElementById('installBtn');
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault(); deferred = e; ib.classList.add('show');
+  });
+  ib.addEventListener('click', function(){
+    if(!deferred) return;
+    deferred.prompt();
+    deferred.userChoice.finally(function(){ deferred = null; ib.classList.remove('show'); });
+  });
+})();
+</script>
+</body>
+</html>
