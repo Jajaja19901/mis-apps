@@ -3,6 +3,14 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-20 (sexies) — MH Collective: V40 (escaneo continuo: la cámara se queda puesta)
+- Queja: al escanear salía "Siguiente/Cerrar" y había que pulsar cada vez; con mucha gente incómodo. Pidió: la cámara se queda puesta (escaneo continuo) y se cierra a mano.
+- `intentarCamaraQR(onCodigo, continuo)`: en modo continuo NO para la cámara al leer (antes `encontrado` hacía cerrarCamara+quitar vídeo); lee, avisa y sigue con una pausa de 900ms. Guardas `_camActiva`/`_camAbriendo` para no abrir dos cámaras.
+- `_cbEscanerPuerta`: anti-relectura del MISMO código (<4s) para no repetir "YA ENTRÓ" con el QR aún delante. `abreEscaner` usa este cb (cámara viva y botón foto) y `intentarCamaraQR(_cbEscanerPuerta, true)`.
+- `resolverEscaneo`: en ÉXITO (auto-admit) muestra "✔ DENTRO · Listo, apunta al siguiente" y limpia el veredicto solo a los 1.4s (reabrirCamaraEscaner) SIN botón "Siguiente". En avisos (no válido / ya entró / hay que cobrar) añade botón "🔄 Seguir escaneando". Botón del modal ahora "Cerrar cámara" (cierre manual).
+- Además (pedido para poder REPETIR pruebas sin crear entradas): en la lista de Entradas del dueño, el badge "Dentro" es PULSABLE ("Dentro ✕", `duenoSacarEntrada`) → la entrada vuelve a estar FUERA (p.dentro=false, borra horaEntrada, VIP acompanantesDentro=0, baja el aforo). Sirve también para corregir accesos por error y marcar salidas desde el panel.
+- Verificado V40: 49/49 aceptación · 13/13 batería de escaneo continuo · 7/7 batería de "sacar entrada" (badge pulsable, vuelve a fuera, aforo -1, se puede reescanear).
+
 ## 2026-08-20 (quinquies) — MH Collective: V39 (puerta con pestañas visibles + escaneo que entra directo)
 - El usuario se quejó de que la puerta del vigilante quedó "pelada" tras V36 (solo le salía + Añadir) y pidió: que se vean TODAS las opciones (pestañas) pero SIN volcar las entradas de primeras (tenga que "darle a Todos"), y que al ESCANEAR entre directo sin tocar nada.
 - Puerta: las 6 pestañas (Por entrar/Ya dentro/Todos/Invitados/Taquilla/Mesas VIP) SIEMPRE se ven, incluso en "buscar primero". Nuevo `_filtroTocado`: sin búsqueda y sin pestaña pulsada, la lista va vacía con aviso "👆 Elige qué ver"; al pulsar una pestaña (o buscar/escanear) ya se ven. `entrarPerfil` reinicia (_busq='', _filtroTocado=false, _filtro='fuera') → cada vez que el vigilante entra a su puesto arranca limpio. filtroTab no marca ninguna hasta pulsar.

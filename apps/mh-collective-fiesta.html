@@ -82,6 +82,8 @@ p{margin:0 0 .75rem;color:var(--text-dim)}
 /* Badges de estado */
 .badge{display:inline-block;border-radius:var(--radius-pill);padding:8px 14px;font-size:.8125rem;font-weight:600}
 .badge-dentro{background:var(--neon-verde);color:var(--bg)}
+.badge-boton{border:none;cursor:pointer;font:inherit;font-weight:700;font-size:.72rem}
+.badge-boton:active{filter:brightness(.9)}
 .badge-fuera{background:var(--border);color:var(--text)}
 .badge-pagado{background:var(--neon-verde);color:var(--bg)}
 .badge-pendiente{background:var(--ambar);color:var(--bg)}
@@ -15525,7 +15527,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V39'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V40'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -18630,9 +18632,9 @@ function abreEscaner() {
   var html = "";
   html += '<div class="modal-escaner">';
   html += "<h2>Escanear QR" + _btnSonidoEscaner() + "</h2>";
-  html += '<button type="button" class="btn-camara" data-testid="btn-camara" onclick="escanearConCamara(function(c){var i=document.getElementById(\'qr-codigo\');if(i)i.value=c;resolverEscaneo(c,true);})">📷 Escanear con cámara</button>';
+  html += '<button type="button" class="btn-camara" data-testid="btn-camara" onclick="escanearConCamara(_cbEscanerPuerta)">📷 Escanear con cámara</button>';
   if (nfcActivo()) html += '<button type="button" class="btn-nfc" data-testid="btn-nfc-escaner" onclick="nfcLeerEscaner()">📡 Leer pulsera/tarjeta NFC</button>';
-  html += '<p id="escanerAviso">' + (nfcActivo() ? 'Haz una foto al QR, acerca una pulsera NFC, o teclea el código a mano.' : 'Haz una foto al QR, o teclea el código a mano.') + '</p>';
+  html += '<p id="escanerAviso">' + (nfcActivo() ? 'Apunta al QR y se lee solo (la cámara se queda puesta). También puedes acercar una pulsera NFC o teclear el código.' : 'Apunta al QR y se lee solo: la cámara se queda puesta para el siguiente. También puedes teclear el código.') + '</p>';
   html += '<div id="escanerVideoWrap"></div>';
   html += '<form id="qrForm">';
   html += '<label for="qr-codigo">Código</label>';
@@ -18640,12 +18642,39 @@ function abreEscaner() {
   html += '<button type="submit">Buscar</button>';
   html += "</form>";
   html += '<div id="escanerResultado"></div>';
-  html += '<button type="button" onclick="closeModal()">Cerrar</button>';
+  html += '<button type="button" class="btn-cerrar-escaner" data-testid="cerrar-escaner" onclick="closeModal()">Cerrar cámara</button>';
   html += "</div>";
   showModal(html);
   var form = document.getElementById("qrForm");
   if (form) form.addEventListener("submit", onEscanerSubmit);
-  intentarCamaraQR();
+  intentarCamaraQR(_cbEscanerPuerta);
+}
+/* Callback del escáner de PUERTA: la cámara se queda puesta (escaneo continuo). Evita re-leer el
+   MISMO código que se acaba de leer (la cámara sigue viendo ese QR unos segundos). */
+var _ultimoCodigoScan = '', _ultimoScanTs = 0;
+function _cbEscanerPuerta(c) {
+  c = String(c || '').trim();
+  var i = document.getElementById('qr-codigo'); if (i) i.value = c;
+  // El mismo QR sigue delante de la cámara: ignóralo (la cámara continua sigue sola con el siguiente).
+  if (c && c === _ultimoCodigoScan && (Date.now() - _ultimoScanTs) < 4000) return;
+  _ultimoCodigoScan = c; _ultimoScanTs = Date.now();
+  resolverEscaneo(c, true);
+}
+/* Limpia el veredicto y deja la cámara lista para el SIGUIENTE, sin cerrar el modal ni pulsar nada.
+   Si la cámara continua ya está puesta, solo borra el aviso; si no (modo foto), intenta arrancarla.
+   Si el modal ya se cerró (Cerrar cámara), no hace nada. */
+function reabrirCamaraEscaner() {
+  var out = document.getElementById('escanerResultado');
+  if (!out) return;              // el vigilante cerró la cámara a mano
+  out.innerHTML = '';
+  var aviso = document.getElementById('escanerAviso');
+  if (aviso) aviso.textContent = 'Apunta al siguiente QR: se lee solo.';
+  if (!_camActiva) intentarCamaraQR(_cbEscanerPuerta, true); // solo (re)arranca si no estaba puesta
+}
+/* Botón para seguir escaneando tras un aviso (código no válido, ya entró, hay que cobrar…):
+   así el vigilante no tiene que cerrar y volver a abrir la cámara. */
+function _btnSeguirScan() {
+  return '<button type="button" class="btn-seguir-scan" data-testid="seguir-scan" onclick="reabrirCamaraEscaner()">🔄 Seguir escaneando</button>';
 }
 
 /* CÁMARA UNIVERSAL: abre la cámara del móvil, haces una foto al QR y la app lo lee.
@@ -18746,7 +18775,7 @@ function resolverEscaneo(valor, deCamara) {
     _sonar('error');
     if (out) out.innerHTML = '<div class="scan-res scan-rojo"><b>❌ Código no válido</b>' +
       '<span>' + esc(valor) + ' no existe en la lista.</span></div>' +
-      '<button type="button" onclick="closeModal();abreExpress();">Dar de alta express</button>';
+      '<button type="button" onclick="closeModal();abreExpress();">Dar de alta express</button>' + _btnSeguirScan();
     return;
   }
   var nombre = esc(p.nombre + " " + p.apellido);
@@ -18767,7 +18796,9 @@ function resolverEscaneo(valor, deCamara) {
       _sonar('ok');
       if (out) out.innerHTML = '<div class="scan-res scan-ok"><b class="scan-verde">✔ DENTRO</b>' +
         '<span>' + nombre + ' · ' + esc(p.codigoReserva) + '</span></div>' +
-        '<button type="button" onclick="closeModal()">Siguiente</button>';
+        '<p class="nota">Listo ✅ Apunta al siguiente…</p>';
+      // TODO OK: no hay que pulsar nada. La cámara se queda puesta y sigue sola con el siguiente.
+      setTimeout(reabrirCamaraEscaner, 1400);
     }
     return;
   }
@@ -18779,7 +18810,7 @@ function resolverEscaneo(valor, deCamara) {
     mutate(function () { addLog("intento de reentrada con código ya usado: " + p.nombre + " " + p.apellido + " (" + p.codigoReserva + ")", "salida"); });
     if (out) out.innerHTML = '<div class="scan-res scan-rojo"><b>⚠️ YA ENTRÓ</b>' +
       '<span>' + nombre + ' entró a las ' + esc(p.horaEntrada || "?") + '. Código repetido.</span></div>' +
-      '<button type="button" onclick="verFicha(\'' + escJs(valor) + '\')">Ver su ficha</button>';
+      '<button type="button" onclick="verFicha(\'' + escJs(valor) + '\')">Ver su ficha</button>' + _btnSeguirScan();
     return;
   }
   // VÁLIDO y aún fuera: estado de pago + acción directa.
@@ -18795,7 +18826,7 @@ function resolverEscaneo(valor, deCamara) {
     '<span>' + nombre + ' · ' + esc(p.codigoReserva) +
     (copas > 0 ? ' · ' + copas + ' copa' + (copas === 1 ? '' : 's') : '') + '</span></div>' +
     '<button type="button" class="btn-primary" onclick="verFicha(\'' + escJs(valor) + '\')">' +
-    esc(labelAccion(p)) + '</button>';
+    esc(labelAccion(p)) + '</button>' + _btnSeguirScan();
 }
 
 function verFicha(valor) {
@@ -18810,12 +18841,14 @@ function verFicha(valor) {
    (universal, incluye iPhone). En file://, http o sin permiso, no molesta: queda
    el botón de foto y el teclado. onCodigo recibe el código leído. */
 var _camActiva = false;
+var _camAbriendo = false;
 function cerrarCamara() {
-  _camActiva = false;
+  _camActiva = false; _camAbriendo = false;
   if (window._camStream) { try { window._camStream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {} window._camStream = null; }
 }
-function intentarCamaraQR(onCodigo) {
+function intentarCamaraQR(onCodigo, continuo) {
   try {
+    if (_camActiva || _camAbriendo) return;     // ya hay (o se está abriendo) una cámara: no abrir otra
     var seguro = (window.isSecureContext === true) || location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
     if (!seguro) return;                       // sin https el navegador bloquea la cámara en vivo
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
@@ -18828,27 +18861,40 @@ function intentarCamaraQR(onCodigo) {
     video.style.width = "100%"; video.style.borderRadius = "8px";
     wrap.appendChild(video);
     var cb = onCodigo || function (v) { var i = document.getElementById('qr-codigo'); if (i) i.value = v; resolverEscaneo(v, true); };
+    _camAbriendo = true;
     navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function (stream) {
+      _camAbriendo = false;
       window._camStream = stream; _camActiva = true;
       video.srcObject = stream; video.play && video.play().catch(function () {});
       if (aviso) aviso.textContent = 'Apunta al QR: se lee solo.';
       var detector = null;
       try { if (typeof BarcodeDetector !== 'undefined') detector = new BarcodeDetector({ formats: ["qr_code"] }); } catch (e) {}
       var lienzo = document.createElement('canvas');
+      var pausa = false; // tras leer un código, pausa breve para no leer en ráfaga
       function encontrado(valor) {
-        cerrarCamara();
-        if (video.parentNode) video.parentNode.removeChild(video);
-        cb(String(valor).trim());
+        if (continuo) {
+          // ESCANEO CONTINUO (puerta): la cámara SE QUEDA puesta. Leemos, avisamos y seguimos solos;
+          // solo se cierra a mano con "Cerrar cámara". Una pausa evita releer el mismo QR en bucle.
+          pausa = true;
+          cb(String(valor).trim());
+          setTimeout(function () { pausa = false; if (_camActiva) requestAnimationFrame(tick); }, 900);
+        } else {
+          // Un solo uso (barra/foto): para la cámara al leer.
+          cerrarCamara();
+          if (video.parentNode) video.parentNode.removeChild(video);
+          cb(String(valor).trim());
+        }
       }
       function tick() {
         if (!_camActiva) return;
         if (!document.body.contains(video)) { cerrarCamara(); return; }
+        if (pausa) return;                       // esperando la pausa tras una lectura
         if (!video.videoWidth) { requestAnimationFrame(tick); return; }
         if (detector) {
           detector.detect(video).then(function (codes) {
             if (codes && codes.length) { encontrado(codes[0].rawValue); return; }
-            if (_camActiva) requestAnimationFrame(tick);
-          }).catch(function () { if (_camActiva) requestAnimationFrame(tick); });
+            if (_camActiva && !pausa) requestAnimationFrame(tick);
+          }).catch(function () { if (_camActiva && !pausa) requestAnimationFrame(tick); });
         } else if (typeof window.jsQR === 'function') {
           var w = video.videoWidth, h = video.videoHeight;
           var f = Math.min(1, 640 / Math.max(w, h));
@@ -18858,12 +18904,12 @@ function intentarCamaraQR(onCodigo) {
           var d = ctx.getImageData(0, 0, lienzo.width, lienzo.height);
           var res = window.jsQR(d.data, lienzo.width, lienzo.height);
           if (res && res.data) { encontrado(res.data); return; }
-          if (_camActiva) requestAnimationFrame(tick);
+          if (_camActiva && !pausa) requestAnimationFrame(tick);
         }
       }
       requestAnimationFrame(tick);
-    }).catch(function () { if (video.parentNode) video.parentNode.removeChild(video); });
-  } catch (e) {}
+    }).catch(function () { _camAbriendo = false; if (video.parentNode) video.parentNode.removeChild(video); });
+  } catch (e) { _camAbriendo = false; }
 }
 
 /* frag-barra.js — TPV de Barra (#/barra), camareros + dueño.
@@ -20027,7 +20073,10 @@ function entradasListaHTML() {
       : ((p.importePagado || 0) > 0 && (p.tipo !== 'vip' || (p.mesa.total || 0) - p.importePagado <= 0)
         ? '<span class="badge badge-pagado">' + (puertaVentaRRPP() ? 'Vendida' : 'Pagada') + '</span>'
         : '<span class="badge badge-pendiente">' + (puertaVentaRRPP() ? 'Sin vender' : 'Pendiente') + '</span>');
-    var dentro = p.dentro ? ' <span class="badge badge-dentro">Dentro</span>' : '';
+    // El badge "Dentro" es PULSABLE: al tocarlo, la entrada vuelve a estar FUERA (activa, sin entrar).
+    // Sirve para corregir un acceso dado por error, para cuando alguien sale, y para repetir pruebas
+    // sin tener que crear entradas nuevas.
+    var dentro = p.dentro ? ' <button type="button" class="badge badge-dentro badge-boton" data-testid="ent-sacar-' + esc(p.id) + '" title="Pulsa para sacarla: vuelve a estar activa (sin entrar)" onclick="duenoSacarEntrada(\'' + escJs(p.id) + '\')">Dentro ✕</button>' : '';
     var rrppB = '';
     if (p.rrppSlug) { var rr = (state.rrpp || []).find(function (x) { return x.slug === p.rrppSlug; }); rrppB = ' <span class="badge badge-rrpp">RRPP ' + esc(rr ? rr.nombre : p.rrppSlug) + '</span>'; }
     html += '<li><span class="ent-info"><b>' + esc((p.nombre + ' ' + p.apellido).trim() || 'Entrada al portador') + '</b> · ' + esc(p.codigoReserva) +
@@ -20039,6 +20088,19 @@ function entradasListaHTML() {
   html += '</ul>';
   if (lista.length > tope) html += '<p class="nota">Mostrando las primeras ' + tope + '. Usa el buscador o el filtro para acotar.</p>';
   return html;
+}
+/* Toca el badge "Dentro" en la lista del dueño → la entrada vuelve a estar FUERA (activa, sin entrar).
+   Corrige accesos dados por error, marca salidas, y permite REPETIR pruebas de escaneo sin crear más. */
+function duenoSacarEntrada(id) {
+  mutate(function () {
+    var p = personaPorId(id);
+    if (!p || !p.dentro) return;
+    p.dentro = false;
+    if (p.mesa) p.mesa.acompanantesDentro = 0; // VIP: al sacar al titular, salen sus acompañantes
+    p.horaEntrada = '';
+    addLog('sacó (reactivó) la entrada de ' + p.nombre + ' ' + p.apellido + ' (' + p.codigoReserva + ')', 'salida');
+  });
+  toast('Entrada fuera otra vez. Ya se puede volver a escanear.');
 }
 /* Filtro reutilizable de "Entradas creadas" (lo usan la lista y el borrado en bloque). */
 function entradasFiltradas() {
