@@ -3,6 +3,17 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-20 (ter) — MH Collective: V37 (blindaje "peor caso Fallas": 6 arreglos de resiliencia)
+- Petición: "ponte en el peor caso (Fallas) y corrígelo" → "no quiero tener ningún tipo de problema". Se lanzaron 3 agentes auditores (sync/offline, almacenamiento/caché, aforo/finanzas/rendimiento) que leyeron el código real. Hallazgos 🔴 principales: log sin poda → doc >1 MiB → sync muere; sin tope de aforo (legal); O(n²) en creación masiva; ventana `_ops`=400 pequeña. Correcciones (V37):
+  - Fix1 (raíz del fallo silencioso): `addLog` corta a 500 líneas; `serializarEstado` recorta el log en pasos si el doc pasa de ~950 KB (antes solo quitaba imágenes) → la sincronización aguanta la noche.
+  - Fix2 (legal): tope de aforo real. `aforoMax`/`aforoCompleto(mas)`/`confirmarSobreAforo(cb)`; al llegar al máximo, TODO acceso (darAccesoSimple/Vendida/cobrarYEntrar/admitirAcompanante/alta express) avisa "🚫 AFORO COMPLETO" y pide confirmar (nunca bloquea del todo → no deja tirado; aforo 0 = sin tope). Voz `dar_acceso` avisa pero deja pasar.
+  - Fix3 (rendimiento): `_setCodigosUsados(s)` (Set) + `nuevoCodigoLista(s, usados)`; `_crearLote` y `_anadirBulkTexto` construyen el Set una vez → crear 1000 sobre 1500 existentes en ~25 ms (antes O(n²), se congelaba).
+  - Fix4 (caja): ventana anti-duplicados `_ops` 400→3000 (evita re-sumar un cobro si pasan cientos de ops entre push y confirmación).
+  - Fix5 (cuota): latido de presencia 30s→90s (UMBRAL desconectado 75s→210s) → 3× menos escrituras a la nube.
+  - Fix6 (resiliencia auth): reautenticación anónima defensiva (`reautenticarSiHaceFalta` + `onAuthStateChanged`) al caer la sesión/permiso; antes el móvil se quedaba "Sin conexión" hasta cerrarlo a mano.
+- Aviso al usuario (acción SUYA, no de código): para un evento masivo, pasar el proyecto Firebase a plan Blaze con alerta de gasto (el plan gratis Spark tiene topes diarios). El límite de 1 MiB/documento no lo quita Blaze → por eso el Fix1 es imprescindible.
+- Verificado V37: 49/49 aceptación · 12/12 batería "Fallas" (log cap, _ops 3000, creación 1000 en 25 ms + códigos únicos, aforo lleno→aviso→forzar entra→por debajo no molesta→aforo 0 no bloquea).
+
 ## 2026-08-20 (bis) — MH Collective: V36 (puerta "buscar primero": la lista empieza vacía)
 - Petición del usuario: en la puerta salían TODAS las entradas de golpe; quiere que no salga ninguna hasta buscar/escanear.
 - V36: nuevo `state.config.puertaBuscarPrimero` (por defecto ON). Con él, `renderPuerta` oculta las pestañas de filtro y `renderListaPersonasHTML` muestra un aviso ("Busca la entrada…") en vez de la lista; `personasFiltradas` devuelve [] sin búsqueda y, al buscar, ignora el filtro dentro/fuera para encontrar a CUALQUIERA (dentro o fuera). Alta express deja a la vista a la persona recién creada (`_busq = nombre`). QR/escáner sigue funcionando (abre modal, no depende de la lista).

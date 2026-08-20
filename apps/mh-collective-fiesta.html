@@ -14166,6 +14166,11 @@ function actorActual() {
 }
 function addLog(texto, tipo) {
   state.log.unshift({ hora: nowHM(), actor: etiquetaPerfil(actorActual()), texto: texto, tipo: tipo || '' });
+  // TOPE DE SEGURIDAD: el registro NO puede crecer sin fin. En una noche larga con miles de
+  // altas/cobros llegaría a pesar más de lo que admite la nube (1 MiB por documento) y la
+  // sincronización entre móviles se pararía en seco. Guardamos las 500 últimas líneas (de sobra
+  // para el registro en pantalla); el histórico completo del dinero va aparte, en el cierre/CSV.
+  if (state.log.length > 500) state.log.length = 500;
 }
 
 /* ---------- Caja / búsquedas ---------- */
@@ -14956,10 +14961,11 @@ function _crearLote(cantidad, opts) {
   if (existentes[etiqueta]) { var n = 2; while (existentes[etiqueta + ' (' + n + ')']) n++; etiqueta = etiqueta + ' (' + n + ')'; }
   mutate(function (s) {
     var ya = s.personas.filter(function (x) { return x.remesa; }).length;
+    var usados = _setCodigosUsados(s); // una sola vez: crear el lote es instantáneo aunque sean 1000
     for (var i = 0; i < cantidad; i++) {
       s.personas.push({
         id: 'p' + Date.now() + '_r' + i, nombre: etiqueta, apellido: '#' + String(ya + i + 1).padStart(3, '0'),
-        tipo: 'taquilla', codigoReserva: nuevoCodigoLista(s), mesa: null, pagado: pagadas,
+        tipo: 'taquilla', codigoReserva: nuevoCodigoLista(s, usados), mesa: null, pagado: pagadas,
         importePagado: (pagadas && !sinPrecio) ? precio : 0, dentro: false, horaEntrada: null,
         precioVenta: precio, sinPrecio: sinPrecio, sinNumero: sinNumero, consumicionesIncluidas: copas, remesa: etiqueta, faseId: faseParaContar ? faseParaContar.id : null
       });
@@ -15516,7 +15522,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V36'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V37'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -15878,12 +15884,15 @@ function ejecutarAccionIA(accion, args) {
       var daP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada']));
       if (!daP) { _respVoz('No encuentro esa entrada'); break; }
       if (daP.dentro) { _respVoz(_nombreDe(daP) + ' ya está dentro'); break; }
+      var _aforoLleno = aforoCompleto(1);
       mutate(function (s) {
         var py = s.personas.find(function (x) { return x.id === daP.id; }); if (!py) return;
         py.dentro = true; py.horaEntrada = nowHM();
-        addLog('dio acceso (por IA) a ' + _nombreDe(py), 'acceso');
+        addLog('dio acceso (por IA) a ' + _nombreDe(py) + (_aforoLleno ? ' (aforo completo)' : ''), 'acceso');
       });
-      _hecho(_nombreDe(daP) + ' dentro'); break;
+      if (_aforoLleno) _respVoz(_nombreDe(daP) + ' dentro, pero ojo: aforo completo (' + aforoDentro() + ' de ' + aforoMax() + ')');
+      else _hecho(_nombreDe(daP) + ' dentro');
+      break;
     }
     case 'borrar_entrada': {
       var boP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona', 'codigo', 'entrada']));
@@ -16451,6 +16460,17 @@ function codigoUsado(s, cod) {
          (s.bonos || []).some(function (b) { return _normalizaCod(b.codigo) === n; }) ||
          (s.monederos || []).some(function (m) { return _normalizaCod(m.codigo) === n; });
 }
+/* Conjunto (Set) de TODOS los códigos ya usados, construido UNA sola vez. Al crear muchas
+   entradas de golpe (lote de 500, importar lista), comprobar código por código con codigoUsado
+   recorría toda la lista en cada vuelta → miles × miles = el móvil se congelaba varios segundos.
+   Con el Set, cada comprobación es instantánea. Se pasa a nuevoCodigoLista dentro del bucle. */
+function _setCodigosUsados(s) {
+  var set = new Set();
+  (s.personas || []).forEach(function (p) { set.add(_normalizaCod(p.codigoReserva)); });
+  (s.bonos || []).forEach(function (b) { set.add(_normalizaCod(b.codigo)); });
+  (s.monederos || []).forEach(function (m) { set.add(_normalizaCod(m.codigo)); });
+  return set;
+}
 /* Código de bono: MH-B<copas>-<nº de serie>-<2 letras>. Ej: bono de 5 copas, el
    número 47 → "MH-B5-047-KJ". Tres cosas dentro:
    - <copas>: cuántas copas lleva (se ve de un vistazo),
@@ -16558,8 +16578,11 @@ function registrarOp(st, opId) {
   if (!st._ops) st._ops = [];
   if (st._ops.indexOf(opId) === -1) {
     st._ops.push(opId);
-    // Ventana acotada: basta con recordar las últimas; el reintento ocurre en segundos.
-    if (st._ops.length > 400) st._ops.splice(0, st._ops.length - 400);
+    // Ventana anti-duplicados. Recordamos MUCHAS (3000): en una noche de Fallas, con varias
+    // puertas y barras a la vez y red saturada, entre que un móvil cobra y recibe la confirmación
+    // pueden pasar cientos de operaciones de otros; si el opId se olvidara antes, ese cobro se
+    // volvería a sumar y la caja saldría alta. 3000 cubre el peor caso y pesa poco (~80 KB).
+    if (st._ops.length > 3000) st._ops.splice(0, st._ops.length - 3000);
   }
 }
 function opAplicada(st, opId) { return !!(opId && st && st._ops && st._ops.indexOf(opId) !== -1); }
@@ -16948,7 +16971,7 @@ function tiempoDesde(t) {
 }
 function seccionEquipo() {
   var pres = (state && state.presencia) || {};
-  var UMBRAL = 75000; // 75 s sin latido = desconectado
+  var UMBRAL = 210000; // 210 s sin latido = desconectado (2+ latidos perdidos; el latido va cada 90 s)
   var ahora = Date.now();
   var lista = perfilesLista().filter(function (p) { return p.id !== 'dueno'; });
   var html = '<section class="panel" data-testid="seccion-equipo"><h2>📡 Equipo conectado</h2>';
@@ -17130,14 +17153,25 @@ function initFirebaseSync() {
   function serializarEstado(M) {
     var json;
     try { json = JSON.stringify(M); } catch (e) { json = '{}'; }
-    if (json.length > 900000) {
-      try {
-        var copia = JSON.parse(json);
-        if (copia.config) { copia.config.logo = null; copia.config.cartel = null; }
+    if (json.length <= 900000) return json;
+    // Demasiado grande para la nube (límite ~1 MiB por documento). Se recorta en pasos, del
+    // dato menos crítico al más, para que la SINCRONIZACIÓN NUNCA se pare (cada móvil conserva
+    // su copia completa en local; solo se aligera lo que viaja a la nube):
+    try {
+      var copia = JSON.parse(json);
+      // 1) Fuera las imágenes (logo/cartel): se quedan en cada móvil.
+      if (copia.config) { copia.config.logo = null; copia.config.cartel = null; }
+      json = JSON.stringify(copia);
+      if (typeof toast === 'function') toast('⚠️ Imagen muy grande: se sincroniza todo menos el logo/cartel.');
+      // 2) Si aún es grande, recorta el registro (log) progresivamente. El dinero (personas, caja,
+      //    monederos, bonos) NUNCA se toca: solo el histórico de líneas de actividad.
+      var tope = 200;
+      while (json.length > 950000 && Array.isArray(copia.log) && copia.log.length > 20) {
+        copia.log.length = Math.min(copia.log.length, tope);
         json = JSON.stringify(copia);
-        if (typeof toast === 'function') toast('⚠️ Imagen muy grande: se sincroniza todo menos el logo/cartel.');
-      } catch (e2) {}
-    }
+        tope = Math.floor(tope / 2);
+      }
+    } catch (e2) {}
     return json;
   }
 
@@ -17173,8 +17207,22 @@ function initFirebaseSync() {
       if (window.__mhSync.pendientes.length) setTimeout(function () { if (!pushing) pushFirebase(0); }, 1500);
     }).catch(function (e) {
       pushing = false; window.__mhSync.error = true; refrescarSync();
+      reautenticarSiHaceFalta(e); // si la sesión de la nube se cayó, vuelve a entrar solo
       if (window.__mhSync.pendientes.length) setTimeout(function () { pushFirebase((intentos || 0) + 1); }, 3000);
     });
+  }
+  /* Reautenticación defensiva: en una noche larga la sesión anónima puede caerse (token caducado,
+     pestaña que el móvil mató por memoria, error de permisos). Antes, el móvil se quedaba clavado
+     en "Sin conexión" reintentando lo mismo hasta que lo cerrabas y abrías a mano. Ahora, ante un
+     error de autenticación/permiso, volvemos a entrar solos y seguimos. */
+  function reautenticarSiHaceFalta(e) {
+    try {
+      var txt = ((e && e.code) || '') + ' ' + ((e && e.message) || '');
+      var sinSesion = !(window.firebase.auth().currentUser);
+      if (sinSesion || /permission-denied|unauthenticated|auth\//i.test(txt)) {
+        window.firebase.auth().signInAnonymously().catch(function () {});
+      }
+    } catch (e2) {}
   }
 
   cargarFirebaseSDK().then(function () {
@@ -17186,6 +17234,12 @@ function initFirebaseSync() {
     return window.firebase.auth().signInAnonymously();
   }).then(function () {
     listo = true;
+    // Si la sesión anónima se cae en cualquier momento, volvemos a entrar solos (noche larga).
+    try {
+      window.firebase.auth().onAuthStateChanged(function (u) {
+        if (!u) { try { window.firebase.auth().signInAnonymously().catch(function () {}); } catch (e) {} }
+      });
+    } catch (e) {}
     // Escuchador en tiempo real: cada cambio (propio o de otro móvil) llega aquí.
     docRef.onSnapshot(function (snap) {
       try {
@@ -17194,7 +17248,7 @@ function initFirebaseSync() {
         if (typeof d.version === 'number') srvVersion = d.version;
         if (d.data) adoptarRemoto(JSON.parse(d.data));
       } catch (e) { /* snapshot raro: ignorar */ }
-    }, function () { window.__mhSync.error = true; refrescarSync(); });
+    }, function (err) { window.__mhSync.error = true; reautenticarSiHaceFalta(err); refrescarSync(); });
 
     // Auto-reconexión: volver a la app / recuperar señal → re-sincroniza al momento.
     window.addEventListener('online', reSync);
@@ -17441,8 +17495,8 @@ function bootApp() {
   if (!esTicket) {
     _initBateria();
     latidoPresencia();
-    setInterval(latidoPresencia, 30000);
-    setInterval(refrescarEquipo, 15000);
+    setInterval(latidoPresencia, 90000); // latido cada 90 s (antes 30 s): menos escrituras a la nube en noches largas
+    setInterval(refrescarEquipo, 20000);
     window.addEventListener('focus', latidoPresencia);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) latidoPresencia(); });
   }
@@ -17665,7 +17719,27 @@ function accionPrincipal(id) {
   }
 }
 
-function darAccesoSimple(id, tipoLabel) {
+/* ===== TOPE DE AFORO (seguridad legal) =====
+   Antes la app solo PINTABA el número de gente dentro; no impedía pasarse. En un evento grande
+   pasarse del aforo es ilegal y peligroso. Ahora, al llegar al máximo, cada acceso AVISA y pide
+   confirmar. Nunca bloquea del todo (no deja tirado al vigilante ante un aforo mal puesto): el
+   vigilante decide, pero con el aviso delante. Solo actúa si el dueño puso un aforo > 0. */
+function aforoMax() { var m = state.config && state.config.maxAforo; return (typeof m === 'number' && m > 0) ? m : 0; }
+function aforoCompleto(mas) { var m = aforoMax(); return m ? (aforoDentro() + (mas || 0)) > m : false; }
+function confirmarSobreAforo(cb) {
+  var m = aforoMax();
+  showModal('<div class="modal-aforo" data-testid="modal-aforo">' +
+    '<h2 style="color:#ff5a5a;margin-top:0">🚫 AFORO COMPLETO</h2>' +
+    '<p class="nota">Dentro hay <b>' + aforoDentro() + '</b> de <b>' + m + '</b> permitidos. Pasarse del aforo puede ser ilegal y un riesgo de seguridad.</p>' +
+    '<div class="modal-botones">' +
+    '<button type="button" class="btn-secundario" data-testid="aforo-forzar" style="min-height:44px">Dejar entrar igualmente</button> ' +
+    '<button type="button" class="btn-primary" onclick="closeModal()" style="min-height:44px">No dejar entrar</button>' +
+    '</div></div>');
+  var b = document.querySelector('[data-testid="aforo-forzar"]');
+  if (b) b.onclick = function () { closeModal(); if (typeof cb === 'function') cb(); };
+}
+function darAccesoSimple(id, tipoLabel, forzar) {
+  if (!forzar && aforoCompleto(1)) { confirmarSobreAforo(function () { darAccesoSimple(id, tipoLabel, true); }); return; }
   mutate(function () {
     var p = personaPorId(id);
     if (!p || p.dentro) return;
@@ -17684,7 +17758,8 @@ function puertaVentaRRPP() { return !!(state.config && state.config.puertaVentaR
 /* Puerta "buscar primero": la lista arranca VACÍA hasta que el vigilante busca o escanea.
    Por defecto ACTIVADO (solo se apaga si el dueño lo pone a false). */
 function puertaBuscarPrimero() { return !(state.config && state.config.puertaBuscarPrimero === false); }
-function darAccesoVendida(id) {
+function darAccesoVendida(id, forzar) {
+  if (!forzar && aforoCompleto(1)) { confirmarSobreAforo(function () { darAccesoVendida(id, true); }); return; }
   mutate(function (s) {
     var p = personaPorId(id);
     if (!p || p.dentro) return;
@@ -17698,7 +17773,8 @@ function darAccesoVendida(id) {
   toast('Acceso dado · contada como vendida');
 }
 
-function cobrarYEntrar(id, importe, metodo) {
+function cobrarYEntrar(id, importe, metodo, forzar) {
+  if (!forzar && aforoCompleto(1)) { confirmarSobreAforo(function () { cobrarYEntrar(id, importe, metodo, true); }); return; }
   mutate(function (s) {
     var p = personaPorId(id);
     if (!p || p.dentro) return;
@@ -17855,7 +17931,7 @@ function marcarSalida(id) {
 }
 
 /* Cupo de mesa: admite acompañantes de una reserva VIP uno a uno hasta el tope. */
-function admitirAcompanante(id) {
+function admitirAcompanante(id, forzar) {
   var p = personaPorId(id);
   if (!p || p.tipo !== "vip" || !p.mesa || !p.dentro) return;
   var permit = p.mesa.acompanantesPermitidos || 0;
@@ -17863,6 +17939,7 @@ function admitirAcompanante(id) {
     toast("Cupo completo (" + (permit + 1) + "/" + (permit + 1) + ")");
     return;
   }
+  if (!forzar && aforoCompleto(1)) { confirmarSobreAforo(function () { admitirAcompanante(id, true); }); return; }
   mutate(function () {
     var q = personaPorId(id);
     if (!q || !q.mesa) return;
@@ -17919,6 +17996,12 @@ function onExpressSubmit(ev) {
   var tipo = tipoEl ? tipoEl.value : "invitado";
   var acompanantes = acompEl ? parseInt(acompEl.value || "0", 10) : 0;
   if (isNaN(acompanantes)) acompanantes = 0;
+  // El alta express también mete a alguien DENTRO → respeta el tope de aforo (avisa y pide
+  // confirmar). Los datos ya están capturados arriba, así que el aviso puede reemplazar el modal.
+  if (aforoCompleto(1)) { confirmarSobreAforo(function () { _altaExpressHacer(nombre, apellido, tipo, acompanantes); }); return; }
+  _altaExpressHacer(nombre, apellido, tipo, acompanantes);
+}
+function _altaExpressHacer(nombre, apellido, tipo, acompanantes) {
   var nuevoId = "p" + Date.now();
   var codigo = nuevoCodigoLista(state); // fijo fuera del mutate (no se regenera al sincronizar)
   var actor = state.perfilActivo;
@@ -19488,9 +19571,15 @@ function duenoAnadirFase() {
 }
 
 /* ===== LISTA ANTICIPADA (entradas vendidas ANTES de la fiesta; sin servidor) ===== */
-function nuevoCodigoLista(s) {
+function nuevoCodigoLista(s, usados) {
   var base = "MH-5" + String((s.personas || []).length).padStart(2, "0");
-  var cod; do { cod = base + '-' + _dosLetras(); } while (codigoUsado(s, cod));
+  var cod;
+  if (usados) { // camino rápido para creación masiva: comprueba contra el Set (instantáneo)
+    do { cod = base + '-' + _dosLetras(); } while (usados.has(_normalizaCod(cod)));
+    usados.add(_normalizaCod(cod));
+    return cod;
+  }
+  do { cod = base + '-' + _dosLetras(); } while (codigoUsado(s, cod));
   return cod;
 }
 
@@ -20039,12 +20128,13 @@ function _anadirBulkTexto(txt, tipo) {
   if (!lineas.length) return 0;
   var n = 0;
   mutate(function (s) {
+    var usados = _setCodigosUsados(s); // una sola vez: importar cientos de invitados es instantáneo
     lineas.forEach(function (linea, i) {
       if (i === 0 && /^(nombre|name)\b/i.test(linea)) return; // salta la cabecera si la hay
       var c = _parseContacto(linea);
       if (!c.nombre) return;
       s.personas.push({ id: 'p' + Date.now() + '_' + i, nombre: c.nombre, apellido: c.apellido,
-        email: c.email, telefono: c.telefono, codigoReserva: nuevoCodigoLista(s), mesa: null,
+        email: c.email, telefono: c.telefono, codigoReserva: nuevoCodigoLista(s, usados), mesa: null,
         pagado: tipo === 'taquilla-pagada', importePagado: tipo === 'taquilla-pagada' ? s.config.precioEntrada : 0,
         dentro: false, horaEntrada: null, tipo: tipo === 'invitado' ? 'invitado' : 'taquilla' });
       n++;
