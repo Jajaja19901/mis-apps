@@ -3,6 +3,15 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-20 (quater) — MH Collective: V38 (reconexión a prueba de todo)
+- Petición: "asegúrate de manera tajante de que se reconecte". Se reescribió initFirebaseSync con reconexión que NUNCA se rinde:
+  - `conectar()` REINTENTABLE con espera creciente (2→30s): antes el arranque pasaba una vez y, si fallaba (abrir sin internet), el móvil se quedaba sin conectar PARA SIEMPRE. Ahora se reintenta hasta lograrlo.
+  - `suscribir(forzar)` guarda el `unsub` y RE-engancha el escuchador si se cae (en el onError: unsub+null+re-suscribe a los 3s).
+  - `asegurarSesion()` + `onAuthStateChanged` → si la sesión anónima se pierde, entra sola.
+  - `latidoConexion()` cada 10s: vigilante que repara (reconecta si !listo, reautentica, re-engancha si !unsub, reintenta pendientes, fuerza re-suscripción si lleva >40s en error). Eventos online/focus/visibilidad llaman a este reparador. `enablePersistence`/`initializeApp` guardados para no repetirse.
+- Verificado V38: 49/49 aceptación · 9/9 batería de reconexión con Firebase SIMULADO (mock inyectado por evaluateOnNewDocument): abrir sin internet no conecta pero sigue intentándolo → vuelve el net y reconecta+suscribe → Sincronizado; cae el escuchador → "Sin conexión" → re-engancha solo → Sincronizado; cae la sesión → re-login solo; cambio offline queda en cola y se sube al reconectar.
+- Nota: el mock funciona porque cargarFirebaseSDK() detecta `window.firebase` ya presente y no baja el SDK real. Útil para futuras pruebas de sync sin red.
+
 ## 2026-08-20 (ter) — MH Collective: V37 (blindaje "peor caso Fallas": 6 arreglos de resiliencia)
 - Petición: "ponte en el peor caso (Fallas) y corrígelo" → "no quiero tener ningún tipo de problema". Se lanzaron 3 agentes auditores (sync/offline, almacenamiento/caché, aforo/finanzas/rendimiento) que leyeron el código real. Hallazgos 🔴 principales: log sin poda → doc >1 MiB → sync muere; sin tope de aforo (legal); O(n²) en creación masiva; ventana `_ops`=400 pequeña. Correcciones (V37):
   - Fix1 (raíz del fallo silencioso): `addLog` corta a 500 líneas; `serializarEstado` recorta el log en pasos si el doc pasa de ~950 KB (antes solo quitaba imágenes) → la sincronización aguanta la noche.
