@@ -3,6 +3,12 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-20 (octies) — MH Collective: V42 (filtro "Ya dentro" en la lista del dueño)
+- Petición: el dueño quiere poder ver, en su lista de "Entradas creadas", solo las que YA están dentro.
+- Añadidas 2 opciones al desplegable de filtro (seccionEntradas): "✅ Ya dentro (N)" y "🚪 Aún fuera / por llegar (N)", con contador en vivo. `entradasFiltradas` filtra por `p.dentro`.
+- Nota de soporte: el usuario reportó que "al escanear le salta el QR al dueño" en lo que él cree que es V41. Reproducido 4 formas (incl. 2 móviles reales con sync) y en V42/V41 NO se abre ninguna ventana/QR al dueño al escanear (solo pasa a "Dentro"). Diagnóstico: su móvil sirve versión vieja cacheada; pendiente de que confirme la versión por voz EN EL MÓVIL donde salta.
+- Verificado V42: 49/49 aceptación · 3/3 batería del filtro (existe opción, "dentro" solo dentro, "fuera" solo fuera).
+
 ## 2026-08-20 (septies) — MH Collective: V41 (Modo pruebas: meter/sacar entradas a mano, solo el dueño)
 - El "Dentro ✕" que sacaba entradas (V40) se generaliza a un MODO PRUEBAS con interruptor, para poder meter Y sacar a mano y ensayar el escaneo sin crear entradas nuevas. El usuario avisó que hay que poder QUITARLO en la fiesta real ("si no pueden hacer chanchullos").
 - `state.config.modoPruebas` (default OFF). Interruptor "🧪 Modo pruebas" en el panel del dueño → pestaña Entradas → "Entradas creadas" (SOLO el dueño; va tras el PIN; los trabajadores no lo ven). Con aviso en ámbar de quitarlo para la fiesta real.

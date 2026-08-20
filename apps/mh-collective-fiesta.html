@@ -15530,7 +15530,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V41'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V42'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -20052,8 +20052,10 @@ function seccionEntradas() {
   html += '<p class="nota"' + (modoPruebas() ? ' style="color:#ffb020"' : '') + '>' + (modoPruebas()
     ? '⚠️ Encendido: en cada entrada salen los botones <b>Meter ✓</b> / <b>Dentro ✕</b>. <b>Quítalo para la fiesta real</b> (si no, se podría colar gente desde aquí).'
     : 'Apagado: las entradas solo muestran su estado; nadie puede meterlas/sacarlas a mano. Enciéndelo solo para probar.') + '</p>';
+  var nDentro = state.personas.filter(function (p) { return p.dentro; }).length;
+  var nFuera = state.personas.filter(function (p) { return !p.dentro; }).length;
   html += '<div class="contador"><select id="ent-filtro" onchange="entSetFiltro(this.value)">';
-  [['todas', 'Todas'], ['pendientes', 'Solo pendientes de pago'], ['pagadas', 'Solo pagadas']].forEach(function (o) {
+  [['todas', 'Todas'], ['dentro', '✅ Ya dentro (' + nDentro + ')'], ['fuera', '🚪 Aún fuera / por llegar (' + nFuera + ')'], ['pendientes', 'Solo pendientes de pago'], ['pagadas', 'Solo pagadas']].forEach(function (o) {
     html += '<option value="' + o[0] + '"' + (_entFiltro === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
   });
   Object.keys(series).forEach(function (k) {
@@ -20146,6 +20148,8 @@ function duenoMeterEntrada(id) {
 /* Filtro reutilizable de "Entradas creadas" (lo usan la lista y el borrado en bloque). */
 function entradasFiltradas() {
   var lista = state.personas.filter(function (p) {
+    if (_entFiltro === 'dentro') return !!p.dentro;
+    if (_entFiltro === 'fuera') return !p.dentro;
     if (_entFiltro === 'pendientes') { if (p.tipo === 'invitado') return false; var pend = p.tipo === 'vip' ? ((p.mesa.total || 0) - (p.importePagado || 0)) : (taquillaLiquidada(p) ? 0 : 1); return pend > 0; }
     if (_entFiltro === 'pagadas') return (p.importePagado || 0) > 0 || p.tipo === 'invitado';
     if (_entFiltro.indexOf('serie:') === 0) return p.remesa === _entFiltro.slice(6);
