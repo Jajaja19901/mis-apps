@@ -15502,7 +15502,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V32'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V33'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -17311,8 +17311,19 @@ function entrarAcceso(ev) {
     ocultarGate();
     return false;
   }
-  // 4) Nada coincide -> error y temblor.
-  var err = document.getElementById('gate-err'); if (err) err.textContent = 'Código o contraseña incorrectos';
+  // 4) ¿Es un código VIEJO (de un puesto que ya no existe, p.ej. vig-3 cuando solo hay 2
+  // vigilantes)? Pasaba al bajar el nº de trabajadores: el código seguía guardado pero el
+  // puesto no, y el rechazo sin explicación volvía loco a todos. Ahora lo dice claro.
+  var codigoViejo = false;
+  try {
+    var clG = (state.config && state.config.claves) || {};
+    var vivos = perfilesLista().map(function (p) { return p.id; });
+    codigoViejo = Object.keys(clG).some(function (k) { return String(clG[k] || '').trim() === val && vivos.indexOf(k) === -1; });
+  } catch (e) {}
+  // 5) Nada coincide -> error y temblor.
+  var err = document.getElementById('gate-err'); if (err) err.textContent = codigoViejo
+    ? 'Ese código era de un puesto que ya no existe. Pide al dueño el código nuevo.'
+    : 'Código o contraseña incorrectos';
   var card = document.querySelector('.gate-card');
   if (card) { card.classList.remove('gate-shake'); void card.offsetWidth; card.classList.add('gate-shake'); }
   var inp = document.getElementById('gate-pass'); if (inp) { inp.value = ''; try { inp.focus(); } catch (e) {} }
