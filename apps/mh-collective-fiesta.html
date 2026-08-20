@@ -14763,8 +14763,9 @@ function ejecutarComandoVoz(frases, quiet) {
   var mL = tNum.match(/(?:crea|crear|haz|hazme|genera|generar|prepara|preparame|saca|sacame|monta|dame)\w*\s+(?:un lote de\s+)?(\d{1,3})\s+entradas?/);
   if (mL) {
     var mP = tNum.match(/a\s+(\d+(?:[.,]\d+)?)\s*euros?/);
-    var rL = _crearLote(mL[1], { pagadas: /pagad/.test(t), precio: mP ? Number(mP[1].replace(',', '.')) : 0 });
-    if (rL) { duenoTab('entradas'); _hecho('Lote creado · ' + rL.cantidad + ' entradas · ' + Math.round(rL.precio) + ' € · serie ' + rL.etiqueta + ' · (para el ZIP di: descarga las entradas en zip)'); }
+    var mLSP = /(sin precio|sin importe|sin coste|sin cobrar|sin dinero)/.test(t); // respaldo: "sin precio" también aquí
+    var rL = _crearLote(mL[1], { pagadas: /pagad/.test(t), precio: mP ? Number(mP[1].replace(',', '.')) : 0, sinPrecio: mLSP });
+    if (rL) { duenoTab('entradas'); _hecho('Lote creado · ' + rL.cantidad + ' entradas · ' + (rL.sinPrecio ? 'sin precio' : Math.round(rL.precio) + ' €') + ' · serie ' + rL.etiqueta + ' · (para el ZIP di: descarga las entradas en zip)'); }
     else _respVoz('Dime cuántas entradas creo');
     return;
   }
@@ -14910,14 +14911,18 @@ function _crearLote(cantidad, opts) {
     var qF = _normVoz(String(opts.fase));
     faseObj = fasesLista().find(function (f) { var nf = _normVoz(f.nombre); return nf.indexOf(qF) !== -1 || qF.indexOf(nf) !== -1; }) || null;
   }
+  // "SIN PRECIO" (mismo comportamiento que la opción del formulario): entra directa al escanear,
+  // no muestra importe NI copas en la entrada, y no toca la caja (se cobra por fuera).
+  var sinPrecio = !!(opts.sinPrecio === true || opts.sinPrecio === 'true' || opts.sin_precio === true || opts.sin_precio === 'true');
   var precio = Number(opts.precio);
-  if (!(precio > 0)) precio = (faseObj && Number(faseObj.precio) > 0) ? Number(faseObj.precio) : (Number(state.config && state.config.precioEntrada) || 0);
+  if (sinPrecio) precio = 0;
+  else if (!(precio > 0)) precio = (faseObj && Number(faseObj.precio) > 0) ? Number(faseObj.precio) : (Number(state.config && state.config.precioEntrada) || 0);
   // Para que el PANEL DE FASES refleje las entradas creadas: si el dueño NO dijo fase, se cuentan
   // en la fase ACTIVA (la que se está vendiendo). Así "crea 100 entradas" SÍ se ve en su fase, no
   // se queda en "0 / 300". (El precio NO cambia por esto; solo el conteo.)
   var faseParaContar = faseObj || (typeof faseActiva === 'function' ? faseActiva() : null);
-  var copas = parseInt(opts.copas, 10) || 0;
-  var pagadas = !!opts.pagadas;
+  var copas = sinPrecio ? 0 : (parseInt(opts.copas, 10) || 0);
+  var pagadas = sinPrecio || !!opts.pagadas;
   var etiqueta = String(opts.etiqueta || '').trim() || (faseObj ? faseObj.nombre : 'Entrada');
   var existentes = {};
   state.personas.forEach(function (x) { if (x.remesa) existentes[x.remesa] = true; });
@@ -14928,14 +14933,14 @@ function _crearLote(cantidad, opts) {
       s.personas.push({
         id: 'p' + Date.now() + '_r' + i, nombre: etiqueta, apellido: '#' + String(ya + i + 1).padStart(3, '0'),
         tipo: 'taquilla', codigoReserva: nuevoCodigoLista(s), mesa: null, pagado: pagadas,
-        importePagado: pagadas ? precio : 0, dentro: false, horaEntrada: null,
-        precioVenta: precio, consumicionesIncluidas: copas, remesa: etiqueta, faseId: faseParaContar ? faseParaContar.id : null
+        importePagado: (pagadas && !sinPrecio) ? precio : 0, dentro: false, horaEntrada: null,
+        precioVenta: precio, sinPrecio: sinPrecio, consumicionesIncluidas: copas, remesa: etiqueta, faseId: faseParaContar ? faseParaContar.id : null
       });
     }
-    addLog('creó por voz/IA el lote "' + etiqueta + '" (' + cantidad + ' entradas)', 'alta');
+    addLog('creó por voz/IA el lote "' + etiqueta + '" (' + cantidad + ' entradas' + (sinPrecio ? ', sin precio' : '') + ')', 'alta');
   });
   _ultimaCreacion = { tipo: 'lote', etiqueta: etiqueta, desc: cantidad + ' entradas (' + etiqueta + ')' };
-  return { etiqueta: etiqueta, cantidad: cantidad, precio: precio };
+  return { etiqueta: etiqueta, cantidad: cantidad, precio: precio, sinPrecio: sinPrecio };
 }
 /* Crea o ACTUALIZA una fase (mismo nombre = se actualiza, no duplica). La usan la voz
    SIN Google y la IA. Devuelve {nombre,precio,cantidad,actualizada} o null si falta precio. */
@@ -15045,15 +15050,21 @@ function _intentLocal(t0) {
   // precio de la entrada a 10 (el bug que soltaba cantidades locas). Se excluye lo que es una
   // FASE, borrar, descargar/enviar, o una pregunta ("cuántas entradas hay").
   var mLoteN = tn.match(/\b(\d{1,3})\s+entradas?\b/);
+  // "SIN PRECIO" se detecta ANTES de las exclusiones: la palabra "precio" de "sin precio"
+  // hacía saltar la exclusión de preguntas y la orden caía en la regla vieja, que creaba el
+  // lote CON el precio por defecto (el fallo de "créame 200 sin precio → 200 a 200 €").
+  var loteSinPrecio = /(sin precio|sin importe|sin coste|sin cobrar|sin dinero|sin ningun precio|sin ningun importe)/.test(t);
+  var tExcl = t.replace(/sin (ningun )?(precio|importe|coste)/g, ' ').replace(/sin (cobrar|dinero)/g, ' ');
   if (mLoteN && !/\bfase\b/.test(t)
       && !/(borra|borrar|elimina|quita|quitar|anula)/.test(t)
       && !/(descarga|descargar|baja|bajame|exporta|export|manda|mandar|envia|enviar|reparte|repartir|email|correo|imprime|imprimir|\bpdf\b|\bzip\b|excel|\bcsv\b|enlace)/.test(t)
-      && !/(cuant|hay\b|tengo|quedan|vendid|creada|cuesta|vale\b|precio)/.test(t)) {
+      && !/(cuant|hay\b|tengo|quedan|vendid|creada|cuesta|vale\b|precio)/.test(tExcl)) {
     var cantLote = parseInt(mLoteN[1], 10);
     if (cantLote > 0 && cantLote <= 999) {
       var mPrecLote = tn.match(/a\s+(\d+(?:[.,]\d+)?)\s*euros?/);
       var argsLote = { cantidad: cantLote, pagadas: /pagad/.test(t) };
-      if (mPrecLote) argsLote.precio = Number(mPrecLote[1].replace(',', '.'));
+      if (loteSinPrecio) { argsLote.sinPrecio = true; delete argsLote.pagadas; }
+      else if (mPrecLote) argsLote.precio = Number(mPrecLote[1].replace(',', '.'));
       return { accion: 'crear_lote', args: argsLote };
     }
   }
@@ -15472,7 +15483,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V30'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V31'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -15507,7 +15518,7 @@ function _accionesIA() {
   return [
     'decir_dinero decir_recaudacion decir_beneficio decir_gastos decir_top decir_aforo decir_entradas decir_quedan decir_bonos — dicen ese dato en voz alta',
     'enviar_emails(limite?) copiar_enlaces descargar_zip(serie?) descargar_pdf(serie?) descargar_csv(serie?) descargar_informe copia_seguridad',
-    'crear_entrada(nombre,email?,telefono?,tipo:invitado?) crear_lote(cantidad,precio?,pagadas?,etiqueta?,fase?) crear_fase(nombre?,precio,cantidad?) poner_precio_fase(fase,precio) poner_cupo_fase(fase,cantidad) borrar_entrada(quien) borrar_entradas(serie?,confirmar?)',
+    'crear_entrada(nombre,email?,telefono?,tipo:invitado?) crear_lote(cantidad,precio?,pagadas?,etiqueta?,fase?,sinPrecio? — sinPrecio:true si dice "sin precio": entra directa, sin importe visible) crear_fase(nombre?,precio,cantidad?) poner_precio_fase(fase,precio) poner_cupo_fase(fase,cantidad) borrar_entrada(quien) borrar_entradas(serie?,confirmar?)',
     'crear_mesa_vip(nombre,acompanantes?,senal?,pagada?) poner_pack_vip(botellas?,refrescos?) poner_copas_incluidas(tipo:invitado|taquilla,copas)',
     'crear_monedero(importe) recargar_monedero(codigo?,importe) decir_saldo_monedero(codigo?) decir_historico — fiestas archivadas',
     'poner_contacto(quien,telefono?,email?) poner_color(color) nombrar_admin(nombre,clave?) poner_comision_rrpp(promotor,comision?,precio?)',
@@ -15753,8 +15764,8 @@ function ejecutarAccionIA(accion, args) {
     case 'crear_entrada': _crearEntradaIA(args); break;
     case 'crear_lote': {
       var _cantOk = _blindaCantEntradas(_arg(args, ['cantidad', 'n', 'numero', 'entradas']));
-      var rl = _crearLote(_cantOk, { precio: _arg(args, ['precio', 'euros', 'valor']), pagadas: (args.pagadas === true || args.pagadas === 'true'), etiqueta: args.etiqueta, copas: args.copas, fase: args.fase });
-      if (rl) { duenoTab('entradas'); _hecho(rl.cantidad + ' entradas · ' + Math.round(rl.precio) + ' € · serie ' + rl.etiqueta); }
+      var rl = _crearLote(_cantOk, { precio: _arg(args, ['precio', 'euros', 'valor']), pagadas: (args.pagadas === true || args.pagadas === 'true'), etiqueta: args.etiqueta, copas: args.copas, fase: args.fase, sinPrecio: args.sinPrecio, sin_precio: args.sin_precio });
+      if (rl) { duenoTab('entradas'); _hecho(rl.cantidad + ' entradas · ' + (rl.sinPrecio ? 'sin precio' : Math.round(rl.precio) + ' €') + ' · serie ' + rl.etiqueta); }
       else _respVoz('Dime cuántas entradas creo'); break;
     }
     case 'crear_fase': {
