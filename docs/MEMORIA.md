@@ -3,6 +3,15 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-20 — MH Collective: V30→V35 (deshacer por voz, sin número, no dejar tirado a nadie, el móvil recuerda su puesto)
+- V30: "deshaz lo último" (`deshacerUltimo`/`_ultimaCreacion`) deshace solo la ÚLTIMA creación (lote/persona/gasto/bonos/monedero/fase/rrpp/admin/nota), nunca accesos ni pagos, con guardas; versión respondida en LOCAL; `_sugerenciaVoz`.
+- V31: "créame N entradas sin precio" por voz ya NO cobra (la palabra "precio" en "sin precio" disparaba la exclusión anti-pregunta y caía a la regla vieja); `_crearLote` soporta `opts.sinPrecio` en las 3 rutas + catálogo IA.
+- V32: opción "sin número" — la entrada no muestra el #043 (`p.sinNumero`, `nombreVisible(p)` quita `#\d+` en token/canvas/QR); disponible por voz.
+- V33: código huérfano (bajaste el nº de trabajadores) → mensaje claro en la portada ("ese código era de un puesto que ya no existe").
+- V34: `perfilPorCodigo` cae al primer puesto VIVO de su rol si el puesto exacto ya no existe → con un código válido de vigilante SIEMPRE entra a la puerta (nunca deja tirado).
+- V35: cada móvil RECUERDA su puesto. Un trabajador mete su código una vez → se guarda `mh_rol_movil` en ESE móvil; al reabrir la app entra SOLO a su parte (puerta/barra) sin pedir nada. Botón "🚪 Salir" para olvidarlo y pasar el móvil a otro. No es por IP (el navegador no la ve y cambia); se guarda en el propio móvil, no se sincroniza. Degrada bien: puesto obsoleto→primer vivo del rol; rol entero borrado→olvida y acceso normal; el PIN del dueño NO registra puesto.
+- Verificado V35: 49/49 aceptación · 20/20 batería nueva de rol-móvil (entrar/recordar/recargar/salir/dueño/camarero/obsoleto/rol-borrado). Fiesta real del usuario en pocos días; sube ZIP a mano a `mh-control.netlify.app` (la rama no auto-deploya). PIN 1234 aún sin cambiar (avisado).
+
 ## 2026-07-08 (bis) — MH Collective: V26→V29 (0 camareros, sin precio, censo total de la IA)
 - V26: permitir 0 camareros/vigilantes (bug `|| 2` en perfilesLista tratava 0 como "sin poner"); `_reajustaPerfilActivo`.
 - V27-V28: opción "Sin precio" al crear lotes (entra directa, sin importe NI copas en la entrada, no toca caja; campos Precio/Copas se ocultan). El usuario la usa para su fiesta (pago por fuera, solo escanear).

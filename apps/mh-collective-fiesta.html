@@ -422,6 +422,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
 <span id="logoBox"><svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MH Collective"><rect width="200" height="200" rx="24" fill="#000000"/><path d="M100 22 L178 100 L100 178 L22 100 Z" fill="none" stroke="#ffffff" stroke-width="2.4"/><text x="100" y="104" font-family="Arial Black, Arial, sans-serif" font-size="52" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="3">MH</text><rect x="45" y="115" width="110" height="25" rx="2" fill="#ffffff"/><text x="100" y="133" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700" fill="#000000" text-anchor="middle" letter-spacing="0.5">Collective</text></svg></span>
 <div id="rolChips"></div>
 <span data-testid="sync-estado">Conectando…</span>
+<button id="btnSalirPuesto" type="button" style="display:none" title="Salir de este puesto en este móvil">🚪 Salir</button>
 <button id="btnInstalar" type="button">Instalar app</button>
 </header>
 <main id="vista"></main>
@@ -15502,7 +15503,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V34'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V35'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -16742,6 +16743,14 @@ function renderAppInterno() {
   var vista = document.getElementById('vista');
   var hash = location.hash || '#/puerta';
 
+  // Botón "🚪 Salir": solo aparece si ESTE móvil está registrado en un puesto (un trabajador
+  // metió su código). Sirve para olvidar el puesto y pasarle el móvil a otro. Fuera del panel del dueño.
+  var btnSalirP = document.getElementById('btnSalirPuesto');
+  if (btnSalirP) {
+    if (_rolMovilGuardado() && hash !== '#/dueno') { btnSalirP.style.display = ''; btnSalirP.onclick = salirPuesto; }
+    else btnSalirP.style.display = 'none';
+  }
+
   // SEGURIDAD (1): fuera del panel del dueño, la sesión de admin SIEMPRE cae.
   // Así, si se sale del panel (botón Atrás, chip de rol, enlace) no se puede
   // reabrir #/dueno sin volver a meter el PIN.
@@ -17250,6 +17259,38 @@ function perfilPorCodigo(val) {
 function accesoDesbloqueado() {
   try { return localStorage.getItem('mh_acceso_ok') === _accesoToken(); } catch (e) { return false; }
 }
+/* ===== "REGISTRAR" EL MÓVIL EN SU PUESTO (lo que pidió el dueño) =====
+   Cuando un trabajador mete su código, este móvil recuerda su puesto: al reabrir la app entra
+   SOLO a su parte (puerta/barra), sin pedir nada. Se guarda en el móvil (no se sincroniza).
+   No se puede por IP (el navegador no la ve y cambia sola); por eso se guarda en el propio móvil.
+   Con "🚪 Salir" se olvida (para pasarle el móvil a otro). */
+function _recordarRolMovil(id) { try { if (id) localStorage.setItem('mh_rol_movil', id); } catch (e) {} }
+function _rolMovilGuardado() { try { return localStorage.getItem('mh_rol_movil') || ''; } catch (e) { return ''; } }
+function _autoEntrarRolMovil() {
+  var id = _rolMovilGuardado();
+  if (!id) return false;
+  var lista = perfilesLista();
+  if (!lista.some(function (p) { return p.id === id; })) {
+    // El puesto exacto ya no existe (bajaste el nº): si su ROL sigue, cae al primer puesto vivo;
+    // si el rol entero desapareció, olvida el registro y deja el acceso normal.
+    var rol = id.slice(0, 3);
+    var vivo = lista.filter(function (p) { return p.id.indexOf(rol + '-') === 0; })[0];
+    if (vivo) { id = vivo.id; _recordarRolMovil(id); }
+    else { try { localStorage.removeItem('mh_rol_movil'); } catch (e) {} return false; }
+  }
+  _perfilOK[id] = true;
+  _recordarAcceso();
+  state.perfilActivo = id;
+  if (typeof ocultarGate === 'function') ocultarGate();
+  location.hash = id.indexOf('cam-') === 0 ? '#/barra' : '#/puerta';
+  return true;
+}
+/* "🚪 Salir": este móvil olvida su puesto y su desbloqueo → vuelve a la portada (para dárselo a otro). */
+function salirPuesto() {
+  try { localStorage.removeItem('mh_rol_movil'); localStorage.removeItem('mh_acceso_ok'); } catch (e) {}
+  _perfilOK = {};
+  try { location.reload(); } catch (e) { location.hash = '#/puerta'; renderApp(); }
+}
 function _emblemaMH() {
   // Recreación en vector del logo MH Collective (rombo + monograma + banda "Collective").
   return '<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="MH Collective">' +
@@ -17303,6 +17344,7 @@ function entrarAcceso(ev) {
   if (destino) {
     _recordarAcceso();
     _perfilOK[destino] = true;   // acaba de meter su código: no se lo volvemos a pedir
+    _recordarRolMovil(destino);  // ESTE móvil queda "registrado" en su puesto: no vuelve a pedir nada
     ocultarGate();
     entrarPerfil(destino);        // fija su rol y navega a #/barra o #/puerta
     return false;
@@ -17357,6 +17399,9 @@ function bootApp() {
   capturarTokenDeEnlace();
   load();
   chequearAcceso();
+  // Si ESTE móvil ya se registró en un puesto (un trabajador metió su código antes), entra
+  // solo a su parte sin pedir nada. No aplica en entradas de invitados ni si el Dueño abre #/dueno.
+  if (!esTicket && location.hash !== '#/dueno') _autoEntrarRolMovil();
   precargarCartel();
   aplicarLogo();
   window.addEventListener('hashchange', renderApp);
