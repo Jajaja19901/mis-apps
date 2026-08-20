@@ -3,6 +3,12 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-07-08 (bis) — MH Collective: V26→V29 (0 camareros, sin precio, censo total de la IA)
+- V26: permitir 0 camareros/vigilantes (bug `|| 2` en perfilesLista tratava 0 como "sin poner"); `_reajustaPerfilActivo`.
+- V27-V28: opción "Sin precio" al crear lotes (entra directa, sin importe NI copas en la entrada, no toca caja; campos Precio/Copas se ocultan). El usuario la usa para su fiesta (pago por fuera, solo escanear).
+- V29 (censo con agente auditor de cobertura UI↔voz): ~18 órdenes nuevas — crear_mesa_vip, invitados por voz, monederos (crear/recargar/saldo), decir_historico (+histórico y monederos en _estadoIA), poner_cupo_fase, poner_contacto, poner_color, nombrar_admin, poner_comision_rrpp, poner_stock, producto_refrescos, configurar_bonos, sonido escáner, decir-hecho, pregunta-tipo, versión en LOCAL. Entender mejor: toast "🎤 «lo oído»", fuzzy Levenshtein en _personaDeIA ("Pero"→Pedro), splitter no parte "X y Y" de packs/vip. Fixes de regex cazados por batería (\b en para/a, \b(no)\b en bonos, artículos en stock).
+- Verificado V29: 49/49 aceptación · 18/18 batería nueva · 16/16 históricos. Fiesta real del usuario en ~24 días; web en `mh-control.netlify.app` (sube ZIP a mano; branch NO auto-deploya). PIN 1234 aún sin cambiar (avisado); Firebase comprobado en vivo (proyecto mh-collective-7b907, sala principal).
+
 ## 2026-07-08 — MH Collective: V16→V25 (manos libres, arreglos de auditoría, más pedidos, cartel)
 - Qué se hizo (rama `claude/party-access-finance-app-pybmqt`, app `apps/mh-collective-fiesta.html`):
   - V16: manos libres (escucha continua con auto-reinicio, banner ✋ Parar, "para de escuchar") y "si mandas HACER algo no habla" (`_hecho` = pitido + toast; solo contesta en voz a PREGUNTAS; toggle `hablarAlHacer` off por defecto).
