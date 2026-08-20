@@ -13478,9 +13478,17 @@ function _b64urlDec(b64) {
 function baseUrlApp() {
   return (location.origin && location.origin !== 'null') ? (location.origin + location.pathname) : location.href.split('#')[0];
 }
+/* Nombre que VE el invitado. Con la opción "sin número" se quita el "#043" (el puesto)
+   para que nadie sepa qué número de entrada tiene. El código QR no cambia (hace falta
+   para escanear); solo se oculta el ordinal visible. */
+function nombreVisible(p) {
+  var t = (String(p.nombre || '') + ' ' + String(p.apellido || '')).trim();
+  if (p.sinNumero) t = t.replace(/#\s*\d+/g, '').trim();
+  return t;
+}
 function tokenEntrada(p) {
   var payload = {
-    n: (String(p.nombre || '') + ' ' + String(p.apellido || '')).trim(),
+    n: nombreVisible(p),
     c: p.codigoReserva,
     ev: (state.config && state.config.eventName) || 'MH Collective',
     f: (state.config && state.config.fecha) || '',
@@ -14414,6 +14422,14 @@ function procesarComandosVoz(frases) {
   else {
     partes = best.split(/\s+(?:y luego|y despues|y tambien|y ademas|y despue|luego|tambien|ademas|y)\s+/)
       .map(function (p) { return p.trim(); }).filter(Boolean);
+    // Los trozos que empiezan por "sin …" son MODIFICADORES de la orden anterior, no órdenes
+    // ("crea 200 entradas sin precio Y sin numero" es UNA orden): se pegan al trozo previo.
+    var unidas = [];
+    partes.forEach(function (p) {
+      if (unidas.length && /^sin\s/.test(p)) unidas[unidas.length - 1] += ' y ' + p;
+      else unidas.push(p);
+    });
+    partes = unidas;
     if (partes.length <= 1) partes = [raw]; // una sola orden: usa el texto ORIGINAL (conserva mayúsculas/nombres)
   }
   // MOTOR LOCAL PRIMERO (silencioso). Lo que el motor entienda se hace al instante SIN llamar a
@@ -14764,7 +14780,8 @@ function ejecutarComandoVoz(frases, quiet) {
   if (mL) {
     var mP = tNum.match(/a\s+(\d+(?:[.,]\d+)?)\s*euros?/);
     var mLSP = /(sin precio|sin importe|sin coste|sin cobrar|sin dinero)/.test(t); // respaldo: "sin precio" también aquí
-    var rL = _crearLote(mL[1], { pagadas: /pagad/.test(t), precio: mP ? Number(mP[1].replace(',', '.')) : 0, sinPrecio: mLSP });
+    var mLSN = /(sin numero|sin numeros|oculta el numero|ocultar el numero|sin puesto|sin el numero)/.test(t);
+    var rL = _crearLote(mL[1], { pagadas: /pagad/.test(t), precio: mP ? Number(mP[1].replace(',', '.')) : 0, sinPrecio: mLSP, sinNumero: mLSN });
     if (rL) { duenoTab('entradas'); _hecho('Lote creado · ' + rL.cantidad + ' entradas · ' + (rL.sinPrecio ? 'sin precio' : Math.round(rL.precio) + ' €') + ' · serie ' + rL.etiqueta + ' · (para el ZIP di: descarga las entradas en zip)'); }
     else _respVoz('Dime cuántas entradas creo');
     return;
@@ -14914,6 +14931,7 @@ function _crearLote(cantidad, opts) {
   // "SIN PRECIO" (mismo comportamiento que la opción del formulario): entra directa al escanear,
   // no muestra importe NI copas en la entrada, y no toca la caja (se cobra por fuera).
   var sinPrecio = !!(opts.sinPrecio === true || opts.sinPrecio === 'true' || opts.sin_precio === true || opts.sin_precio === 'true');
+  var sinNumero = !!(opts.sinNumero === true || opts.sinNumero === 'true' || opts.sin_numero === true || opts.sin_numero === 'true');
   var precio = Number(opts.precio);
   if (sinPrecio) precio = 0;
   else if (!(precio > 0)) precio = (faseObj && Number(faseObj.precio) > 0) ? Number(faseObj.precio) : (Number(state.config && state.config.precioEntrada) || 0);
@@ -14934,7 +14952,7 @@ function _crearLote(cantidad, opts) {
         id: 'p' + Date.now() + '_r' + i, nombre: etiqueta, apellido: '#' + String(ya + i + 1).padStart(3, '0'),
         tipo: 'taquilla', codigoReserva: nuevoCodigoLista(s), mesa: null, pagado: pagadas,
         importePagado: (pagadas && !sinPrecio) ? precio : 0, dentro: false, horaEntrada: null,
-        precioVenta: precio, sinPrecio: sinPrecio, consumicionesIncluidas: copas, remesa: etiqueta, faseId: faseParaContar ? faseParaContar.id : null
+        precioVenta: precio, sinPrecio: sinPrecio, sinNumero: sinNumero, consumicionesIncluidas: copas, remesa: etiqueta, faseId: faseParaContar ? faseParaContar.id : null
       });
     }
     addLog('creó por voz/IA el lote "' + etiqueta + '" (' + cantidad + ' entradas' + (sinPrecio ? ', sin precio' : '') + ')', 'alta');
@@ -15065,6 +15083,7 @@ function _intentLocal(t0) {
       var argsLote = { cantidad: cantLote, pagadas: /pagad/.test(t) };
       if (loteSinPrecio) { argsLote.sinPrecio = true; delete argsLote.pagadas; }
       else if (mPrecLote) argsLote.precio = Number(mPrecLote[1].replace(',', '.'));
+      if (/(sin numero|sin numeros|oculta el numero|ocultar el numero|sin puesto|sin el numero)/.test(t)) argsLote.sinNumero = true;
       return { accion: 'crear_lote', args: argsLote };
     }
   }
@@ -15483,7 +15502,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V31'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V32'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -15518,7 +15537,7 @@ function _accionesIA() {
   return [
     'decir_dinero decir_recaudacion decir_beneficio decir_gastos decir_top decir_aforo decir_entradas decir_quedan decir_bonos — dicen ese dato en voz alta',
     'enviar_emails(limite?) copiar_enlaces descargar_zip(serie?) descargar_pdf(serie?) descargar_csv(serie?) descargar_informe copia_seguridad',
-    'crear_entrada(nombre,email?,telefono?,tipo:invitado?) crear_lote(cantidad,precio?,pagadas?,etiqueta?,fase?,sinPrecio? — sinPrecio:true si dice "sin precio": entra directa, sin importe visible) crear_fase(nombre?,precio,cantidad?) poner_precio_fase(fase,precio) poner_cupo_fase(fase,cantidad) borrar_entrada(quien) borrar_entradas(serie?,confirmar?)',
+    'crear_entrada(nombre,email?,telefono?,tipo:invitado?) crear_lote(cantidad,precio?,pagadas?,etiqueta?,fase?,sinPrecio?,sinNumero? — sinPrecio:true si dice "sin precio" (entra directa, sin importe visible); sinNumero:true si dice "sin número" (no se ve el #puesto)) crear_fase(nombre?,precio,cantidad?) poner_precio_fase(fase,precio) poner_cupo_fase(fase,cantidad) borrar_entrada(quien) borrar_entradas(serie?,confirmar?)',
     'crear_mesa_vip(nombre,acompanantes?,senal?,pagada?) poner_pack_vip(botellas?,refrescos?) poner_copas_incluidas(tipo:invitado|taquilla,copas)',
     'crear_monedero(importe) recargar_monedero(codigo?,importe) decir_saldo_monedero(codigo?) decir_historico — fiestas archivadas',
     'poner_contacto(quien,telefono?,email?) poner_color(color) nombrar_admin(nombre,clave?) poner_comision_rrpp(promotor,comision?,precio?)',
@@ -15764,7 +15783,7 @@ function ejecutarAccionIA(accion, args) {
     case 'crear_entrada': _crearEntradaIA(args); break;
     case 'crear_lote': {
       var _cantOk = _blindaCantEntradas(_arg(args, ['cantidad', 'n', 'numero', 'entradas']));
-      var rl = _crearLote(_cantOk, { precio: _arg(args, ['precio', 'euros', 'valor']), pagadas: (args.pagadas === true || args.pagadas === 'true'), etiqueta: args.etiqueta, copas: args.copas, fase: args.fase, sinPrecio: args.sinPrecio, sin_precio: args.sin_precio });
+      var rl = _crearLote(_cantOk, { precio: _arg(args, ['precio', 'euros', 'valor']), pagadas: (args.pagadas === true || args.pagadas === 'true'), etiqueta: args.etiqueta, copas: args.copas, fase: args.fase, sinPrecio: args.sinPrecio, sin_precio: args.sin_precio, sinNumero: args.sinNumero, sin_numero: args.sin_numero });
       if (rl) { duenoTab('entradas'); _hecho(rl.cantidad + ' entradas · ' + (rl.sinPrecio ? 'sin precio' : Math.round(rl.precio) + ' €') + ' · serie ' + rl.etiqueta); }
       else _respVoz('Dime cuántas entradas creo'); break;
     }
@@ -17836,7 +17855,7 @@ function abreQR(id) {
   var copas = consIncluidas(p);
   var html = "";
   html += '<div class="modal-qr" data-testid="qr-modal">';
-  html += "<h2>" + esc((p.nombre + " " + p.apellido).trim() || "Entrada al portador") + "</h2>";
+  html += "<h2>" + esc(nombreVisible(p) || "Entrada al portador") + "</h2>";
   var extraQR = '';
   if (p.tipo === 'vip' && p.mesa) {
     var vpq = vipPack();
@@ -18034,7 +18053,7 @@ function canvasInvitacion(p) {
     var titulo = p.tipo === 'vip' ? 'MESA VIP' : (p.tipo === 'invitado' ? 'INVITACIÓN' : 'ENTRADA GENERAL');
     ctx.fillText(titulo, cx, y); y += 46;
     ctx.fillStyle = '#fff'; ctx.font = 'bold 30px -apple-system, sans-serif';
-    var titular = (p.nombre + ' ' + p.apellido).trim();
+    var titular = nombreVisible(p); // con "sin número" no enseña el #puesto
     ctx.fillText(titular || 'Entrada al portador', cx, y); y += 46;
     ctx.font = '400 25px -apple-system, sans-serif'; ctx.fillStyle = '#c8c8d4';
     if (c.fecha || c.hora) { ctx.fillText([c.fecha, c.hora].filter(Boolean).join('  ·  '), cx, y); y += 46; }
@@ -19430,7 +19449,9 @@ function seccionGenerales() {
   // Precio y Copas no aplican a "Sin precio": se ocultan al elegir esa opción.
   html += '<div class="contador" id="remesa-extras"' + (estadoVal === 'sinprecio' ? ' style="display:none"' : '') + '><label>Precio (€) <input type="number" id="remesa-precio" value="' + esc(precioVal) + '" min="0" style="width:80px" oninput="_remSet(\'precio\', this.value)"></label>';
   html += '<label>Copas incluidas <input type="number" id="remesa-copas" value="' + esc(copasVal) + '" min="0" max="20" style="width:80px" oninput="_remSet(\'copas\', this.value)"></label></div>';
-  html += '<label>Nombre de la serie (lo que tú quieras)<input type="text" id="remesa-etiqueta" value="' + esc(etiqVal) + '" placeholder="Ej: Preventa Instagram, Lista Marta…" oninput="_remSet(\'etiqueta\', this.value)"></label>';
+  var sinNumVal = !!_remForm.sinNumero;
+  html += '<label style="display:flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" id="remesa-sinnumero"' + (sinNumVal ? ' checked' : '') + ' onchange="_remSet(\'sinNumero\', this.checked)" style="width:22px;height:22px"> <span>\ud83d\ude48 Ocultar el n\u00famero (#) en la entrada <span class="nota" style="font-weight:400">(la gente no ve qu\u00e9 puesto tiene; el QR no cambia)</span></span></label>';
+  html += '<label>Nombre de la serie (lo que t\u00fa quieras)<input type="text" id="remesa-etiqueta" value="' + esc(etiqVal) + '" placeholder="Ej: Preventa Instagram, Lista Marta…" oninput="_remSet(\'etiqueta\', this.value)"></label>';
   html += '<button type="button" data-testid="btn-crear-remesa" onclick="crearRemesa()">Crear remesa de entradas</button>';
   // Series existentes con descarga de PDF completo
   var series = {};
@@ -19485,7 +19506,7 @@ var _entBusca = '';
    (una sincronización, cualquier cambio de estado) regeneraba los inputs con sus
    valores por defecto y borraba en silencio el precio/copas escritos → el PDF salía
    con 20 € y 1 copa aunque el dueño hubiera puesto 25 € y 2. null = usar el defecto. */
-var _remForm = { cantidad: null, estado: null, precio: null, copas: null, etiqueta: null, faseId: null };
+var _remForm = { cantidad: null, estado: null, precio: null, copas: null, etiqueta: null, faseId: null, sinNumero: null };
 function _remSet(campo, valor) { _remForm[campo] = valor; }
 // "Sin precio" no usa Precio ni Copas: los oculta (sin re-dibujar, para no cerrar el teclado).
 function _remToggleExtras(estado) { var e = document.getElementById('remesa-extras'); if (e) e.style.display = (estado === 'sinprecio') ? 'none' : ''; }
@@ -19992,6 +20013,7 @@ function crearRemesa() {
     while (existentes[etiqueta + ' (' + n + ')']) n++;
     etiqueta = etiqueta + ' (' + n + ')';
   }
+  var sinNumero = !!(document.getElementById('remesa-sinnumero') && document.getElementById('remesa-sinnumero').checked);
   var sinPrecio = estado === 'sinprecio';
   // "Sin precio": entra directa (cuenta como pagada para el acceso) pero NO muestra importe ni
   // toca la caja (el dinero, si lo hay, se cobra por fuera). No es "invitación gratis": es una
@@ -20001,7 +20023,7 @@ function crearRemesa() {
   // re-render ya pinta el formulario vacío (si no, se quedaban precio/copas en
   // pantalla y se corría el riesgo de crear la remesa dos veces sin querer).
   // Los valores ya están leídos en variables locales arriba, así no se pierden.
-  _remForm = { cantidad: null, estado: null, precio: null, copas: null, etiqueta: null, faseId: null };
+  _remForm = { cantidad: null, estado: null, precio: null, copas: null, etiqueta: null, faseId: null, sinNumero: null };
   mutate(function (s) {
     var yaEnRemesas = s.personas.filter(function (x) { return x.remesa; }).length;
     for (var i = 0; i < cantidad; i++) {
@@ -20017,6 +20039,7 @@ function crearRemesa() {
         dentro: false, horaEntrada: null,
         precioVenta: sinPrecio ? 0 : precio,
         sinPrecio: sinPrecio, // oculta el importe en la entrada
+        sinNumero: sinNumero, // oculta el #puesto en la entrada
         consumicionesIncluidas: sinPrecio ? 0 : copas, // "sin precio" = entrada limpia, sin copas
         remesa: etiqueta,
         faseId: fase ? fase.id : null
