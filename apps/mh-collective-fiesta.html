@@ -15502,7 +15502,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V33'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V34'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -17227,11 +17227,22 @@ function perfilPorCodigo(val) {
   var v = String(val || '').trim();
   if (!v) return null;
   var lista = perfilesLista();
+  // 1) Coincide con un puesto VIVO -> entra a ese.
   for (var i = 0; i < lista.length; i++) {
     var id = lista[i].id;
     if (id === 'dueno') continue;
     var c = String(claveDe(id) || '').trim();
     if (c && c === v) return id;
+  }
+  // 2) BLINDAJE ANTI-"me quedé tirado": el código es de un puesto que ya no existe (bajaste el
+  //    número), PERO su ROL sigue teniendo puestos -> entra al primer puesto vivo de su rol.
+  //    Así, con un código válido de vigilante, SIEMPRE entra a la puerta aunque cambies el nº.
+  var cl = (state.config && state.config.claves) || {};
+  var idViejo = Object.keys(cl).filter(function (k) { return String(cl[k] || '').trim() === v; })[0];
+  if (idViejo) {
+    var rol = idViejo.slice(0, 3); // 'vig' o 'cam'
+    var vivo = lista.filter(function (p) { return p.id.indexOf(rol + '-') === 0; })[0];
+    if (vivo) return vivo.id;
   }
   return null;
 }
