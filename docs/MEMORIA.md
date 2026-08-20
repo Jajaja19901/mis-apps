@@ -3,6 +3,13 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-20 (bis) — MH Collective: V36 (puerta "buscar primero": la lista empieza vacía)
+- Petición del usuario: en la puerta salían TODAS las entradas de golpe; quiere que no salga ninguna hasta buscar/escanear.
+- V36: nuevo `state.config.puertaBuscarPrimero` (por defecto ON). Con él, `renderPuerta` oculta las pestañas de filtro y `renderListaPersonasHTML` muestra un aviso ("Busca la entrada…") en vez de la lista; `personasFiltradas` devuelve [] sin búsqueda y, al buscar, ignora el filtro dentro/fuera para encontrar a CUALQUIERA (dentro o fuera). Alta express deja a la vista a la persona recién creada (`_busq = nombre`). QR/escáner sigue funcionando (abre modal, no depende de la lista).
+- Toggle en Ajustes → Personal ("🔎 La puerta empieza vacía") + voz (`puerta_buscar_primero(on)`: "que la puerta empiece vacía"/"buscar primero" → on; "muestra toda la lista"/"lista completa" → off).
+- Tests de aceptación tocados (sin cambiar comportamiento, solo adaptados al modo por defecto): "Dar acceso a invitado" ya no pulsa la pestaña "Ya dentro" (la búsqueda mantiene la tarjeta visible ya como Dentro); tarjeta-p11 y bizum-p11 buscan "Roberto" antes de pulsar.
+- Verificado V36: 49/49 aceptación · 22/22 batería nueva de buscar-primero · 4/4 regresión de rol-móvil (V35).
+
 ## 2026-08-20 — MH Collective: V30→V35 (deshacer por voz, sin número, no dejar tirado a nadie, el móvil recuerda su puesto)
 - V30: "deshaz lo último" (`deshacerUltimo`/`_ultimaCreacion`) deshace solo la ÚLTIMA creación (lote/persona/gasto/bonos/monedero/fase/rrpp/admin/nota), nunca accesos ni pagos, con guardas; versión respondida en LOCAL; `_sugerenciaVoz`.
 - V31: "créame N entradas sin precio" por voz ya NO cobra (la palabra "precio" en "sin precio" disparaba la exclusión anti-pregunta y caía a la regla vieja); `_crearLote` soporta `opts.sinPrecio` en las 3 rutas + catálogo IA.

@@ -241,6 +241,10 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .historico-item{border:1px solid var(--border);border-radius:var(--radius-card);padding:12px;margin-bottom:8px}
 .confirmar{background:rgba(255,51,51,.1);border:1px solid var(--rojo);border-radius:var(--radius-card);padding:12px;margin-top:10px}
 .lista-vacia{color:var(--text-dim);text-align:center;padding:24px}
+.puerta-vacia-buscar{text-align:center;padding:36px 18px;color:var(--text-dim)}
+.puerta-vacia-buscar .pvb-icono{font-size:40px;line-height:1;margin-bottom:10px;opacity:.85}
+.puerta-vacia-buscar .pvb-titulo{font-weight:800;color:var(--text);margin:0 0 4px;font-size:16px}
+.puerta-vacia-buscar .pvb-sub{margin:0;font-size:14px;line-height:1.5;max-width:340px;margin-left:auto;margin-right:auto}
 .fila-stock{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)}
 /* PIN */
 .panel-pin{max-width:320px;margin:40px auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);padding:24px;text-align:center}
@@ -439,7 +443,6 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "fill": { "sel": "#buscador", "value": "Lucía" } },
     { "expect": "Lucía Fernández" },
     { "clickText": "Dar acceso" },
-    { "clickText": "Ya dentro" },
     { "expect": "Lucía Fernández" },
     { "expect": "Dentro" } ]},
   { "name": "Puerta (modo RRPP): dar acceso a una entrada la cuenta como vendida y sube la caja", "steps": [
@@ -759,6 +762,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "check": "#tarjeta-activa" },
     { "click": "[data-testid=\"rol-vig-1\"]" },
     { "expectHash": "#/puerta" },
+    { "fill": { "sel": "#buscador", "value": "Roberto" } },
     { "click": "[data-testid=\"tarjeta-p11\"]" },
     { "expectVisible": "[data-testid=\"modal-tarjeta\"]" },
     { "expect": "100 €" },
@@ -839,6 +843,7 @@ button:disabled{opacity:.5;cursor:not-allowed}
     { "expect": "10 €" },
     { "click": "[data-testid=\"bizum-cobrado\"]" },
     { "click": "[data-testid=\"rol-vig-1\"]" },
+    { "fill": { "sel": "#buscador", "value": "Roberto" } },
     { "expectVisible": "[data-testid=\"bizum-p11\"]" },
     { "click": "[data-testid=\"bizum-p11\"]" },
     { "expectVisible": "[data-testid=\"modal-bizum\"]" },
@@ -13973,6 +13978,9 @@ function migrar(s) {
   if (typeof s.config.adminClave !== "string") s.config.adminClave = CONFIG.ADMIN_PASSWORD;
   if (!Array.isArray(s.config.adminsExtra)) s.config.adminsExtra = [];
   if (typeof s.config.preparada !== "boolean") s.config.preparada = false;
+  // Puerta "buscar primero": la lista arranca VACÍA; el vigilante busca por nombre/código o
+  // escanea el QR para sacar UNA entrada. Así no ve toda la lista de golpe. Por defecto activado.
+  if (typeof s.config.puertaBuscarPrimero !== "boolean") s.config.puertaBuscarPrimero = true;
   if (!s.config.modulos) {
     s.config.modulos = { qr: true, cierre: true, gastos: true, stock: true };
   }
@@ -15225,6 +15233,11 @@ function _intentLocal(t0) {
   }
   if (/(modo\s+rrpp|puerta.*rrpp|rrpp.*puerta)/.test(t) && tieneVerbo) return { accion: 'activar_modo_rrpp', args: { on: on } };
   if (/acceso\s+automatic|entrada\s+automatic|automatic.*(acceso|entrar|puerta)/.test(t)) return { accion: 'activar_acceso_auto', args: { on: on } };
+  // Puerta "buscar primero": la lista empieza VACÍA y el vigilante busca/escanea cada entrada.
+  if (/(la\s+puerta|vigilante).*(empie[cz][ae]|empezar).*(vac[ií]a)|(empie[cz][ae]|empezar)\s+vac[ií]a|puerta\s+vac[ií]a|buscar\s+primero|(oculta|esconde|no\s+(se\s+)?(vea|vean|muestre|muestren)).*(lista|entradas)/.test(t))
+    return { accion: 'puerta_buscar_primero', args: { on: true } };
+  if (/(quita|desactiva|fuera).*(buscar\s+primero|puerta\s+vac)|(muestra|ense[nñ]a|ver|que\s+se\s+vea|que\s+se\s+vean).*(toda\s+la\s+lista|lista\s+entera|lista\s+completa)|lista\s+(entera|completa).*puerta/.test(t))
+    return { accion: 'puerta_buscar_primero', args: { on: false } };
 
   // ---------- PERSONAS ----------
   // El nombre puede ir tras "a/de/para" (final) o ANTES de "se va / ha pagado".
@@ -15503,7 +15516,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V35'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V36'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -15546,7 +15559,7 @@ function _accionesIA() {
     'marcar_pagada(quien) dar_acceso(quien) marcar_salida(quien) buscar(quien) ver_entrada(quien) blindar(quien) enviar_whatsapp(quien) enviar_email_a(quien)',
     'anadir_gasto(concepto,importe,categoria?) crear_bonos(cantidad,copas,precio?) anular_bono(codigo)',
     'crear_rrpp(nombre,comision?,precio?) repartir_rrpp(promotor,desde,hasta)',
-    'activar_cobro(metodo:bizum|tarjeta|monedero|nfc, on, numero?) activar_modulo(nombre:qr|cierre|gastos|stock, on) activar_modo_rrpp(on) activar_acceso_auto(on) modo_secreto(on)',
+    'activar_cobro(metodo:bizum|tarjeta|monedero|nfc, on, numero?) activar_modulo(nombre:qr|cierre|gastos|stock, on) activar_modo_rrpp(on) activar_acceso_auto(on) modo_secreto(on) puerta_buscar_primero(on) — on:true la puerta empieza vacía (buscar/escanear cada entrada); on:false ve la lista completa',
     'poner_config(campo:precio_entrada|precio_vip|aforo|nombre|fecha|hora|lugar|lema|video|instagram, valor) poner_vigilantes(n) poner_camareros(n) anadir_producto(nombre,precio) precio_producto(producto,precio)',
     'poner_pin(pin) poner_contrasena_portada(clave) poner_codigo_trabajador(rol,codigo) generar_claves(regenerar?) — genera el código de TODOS los trabajadores de golpe',
     'apuntar_nota(texto) leer_notas borrar_nota(cual) borrar_notas — bloc Mis notas del dueño',
@@ -16043,6 +16056,7 @@ function ejecutarAccionIA(accion, args) {
       _hecho(ppX.nombre + ' → ' + Math.round(ppP) + ' €'); break;
     }
     case 'activar_modo_rrpp': { var vr = (args.on === true || args.on === 'true' || args.on === 1); if (puertaVentaRRPP() !== vr) duenoTogglePuertaRRPP(); _respVoz(vr ? 'Modo RRPP activado: en la puerta no se cobra' : 'Modo RRPP quitado: se cobra en la puerta'); break; }
+    case 'puerta_buscar_primero': { var vb = !(args.on === false || args.on === 'false' || args.on === 0); if (puertaBuscarPrimero() !== vb) duenoTogglePuertaBuscar(); _respVoz(vb ? 'Hecho: la puerta empieza vacía; el vigilante busca o escanea cada entrada' : 'Hecho: el vigilante ya ve la lista completa'); break; }
     case 'activar_acceso_auto': { var va = (args.on === true || args.on === 'true' || args.on === 1); if (!!state.config.accesoAuto !== va) duenoToggleAccesoAuto(); _respVoz(va ? 'Acceso automático activado' : 'Acceso automático quitado'); break; }
     case 'descargar_informe': if (typeof duenoDescargarCsv === 'function') { duenoDescargarCsv(); hablar('Descargando el informe del dinero'); } break;
     case 'apuntar_nota': {
@@ -17449,12 +17463,22 @@ function escJs(s) {
 
 function personasFiltradas() {
   var list = state.personas.slice();
+  var q = normTxt(_busq).trim();
+  // Modo "buscar primero": la búsqueda manda y busca a CUALQUIERA (dentro o fuera), sin que el
+  // filtro de pestaña esconda a alguien que ya entró. Sin búsqueda, la lista va vacía (se decide
+  // en renderListaPersonasHTML).
+  if (puertaBuscarPrimero()) {
+    if (!q) return [];
+    return list.filter(function (p) {
+      var hay = normTxt((p.nombre || "") + " " + (p.apellido || "") + " " + (p.codigoReserva || ""));
+      return hay.indexOf(q) !== -1;
+    });
+  }
   if (_filtro === "invitados") list = list.filter(function (p) { return p.tipo === "invitado"; });
   else if (_filtro === "taquilla") list = list.filter(function (p) { return p.tipo === "taquilla"; });
   else if (_filtro === "vip") list = list.filter(function (p) { return p.tipo === "vip"; });
   else if (_filtro === "dentro") list = list.filter(function (p) { return p.dentro === true; });
   else if (_filtro === "fuera") list = list.filter(function (p) { return p.dentro === false; });
-  var q = normTxt(_busq).trim();
   if (q) {
     list = list.filter(function (p) {
       var hay = normTxt((p.nombre || "") + " " + (p.apellido || "") + " " + (p.codigoReserva || ""));
@@ -17487,23 +17511,36 @@ function renderPuerta() {
     html += '<button type="button" class="btn-monedero" data-testid="btn-monedero-puerta" onclick="abreMonederoPuerta()">💰 Monedero</button>';
   }
   html += "</div>";
-  html += '<div class="puerta-filtros">';
-  html += filtroTab("fuera", "Por entrar");
-  html += filtroTab("dentro", "Ya dentro");
-  html += filtroTab("todos", "Todos");
-  html += filtroTab("invitados", "Invitados");
-  html += filtroTab("taquilla", "Taquilla");
-  html += filtroTab("vip", "Mesas VIP");
-  html += "</div>";
+  // En modo "buscar primero" las pestañas de filtro sobran (la lista va vacía hasta buscar).
+  if (!puertaBuscarPrimero()) {
+    html += '<div class="puerta-filtros">';
+    html += filtroTab("fuera", "Por entrar");
+    html += filtroTab("dentro", "Ya dentro");
+    html += filtroTab("todos", "Todos");
+    html += filtroTab("invitados", "Invitados");
+    html += filtroTab("taquilla", "Taquilla");
+    html += filtroTab("vip", "Mesas VIP");
+    html += "</div>";
+  }
   html += '<div id="listaPersonas">' + renderListaPersonasHTML() + "</div>";
   html += "</div>";
   vista.innerHTML = html;
 }
 
 function renderListaPersonasHTML() {
+  var q = normTxt(_busq).trim();
+  // Modo "buscar primero": sin búsqueda, no se enseña la lista entera (privacidad + acción a propósito).
+  if (puertaBuscarPrimero() && !q) {
+    var qrOn = !!(state.config && state.config.modulos && state.config.modulos.qr);
+    return '<div class="puerta-vacia-buscar" data-testid="puerta-buscar-primero">' +
+      '<div class="pvb-icono">🔎</div>' +
+      '<p class="pvb-titulo">Busca la entrada para gestionarla</p>' +
+      '<p class="pvb-sub">Escribe el nombre, apellido o código' + (qrOn ? ', o pulsa <b>Escanear QR</b>' : '') +
+      '. La lista no se muestra entera.</p></div>';
+  }
   var list = personasFiltradas();
   if (list.length === 0) {
-    return '<p class="lista-vacia">Sin resultados en este filtro</p>';
+    return '<p class="lista-vacia">' + (q ? 'No se encuentra a nadie con «' + esc(_busq.trim()) + '»' : 'Sin resultados en este filtro') + '</p>';
   }
   var html = "";
   for (var i = 0; i < list.length; i++) html += renderPersonaCard(list[i]);
@@ -17644,6 +17681,9 @@ function darAccesoSimple(id, tipoLabel) {
    El dinero NO se atribuye al portero: no lo cobró él, lo cobró el RRPP fuera y lo liquida
    el día de la fiesta. Así se "cierra el círculo" con un solo toque. */
 function puertaVentaRRPP() { return !!(state.config && state.config.puertaVentaRRPP); }
+/* Puerta "buscar primero": la lista arranca VACÍA hasta que el vigilante busca o escanea.
+   Por defecto ACTIVADO (solo se apaga si el dueño lo pone a false). */
+function puertaBuscarPrimero() { return !(state.config && state.config.puertaBuscarPrimero === false); }
 function darAccesoVendida(id) {
   mutate(function (s) {
     var p = personaPorId(id);
@@ -17907,7 +17947,9 @@ function onExpressSubmit(ev) {
   });
   closeModal();
   toast(cobro > 0 ? ('Dentro · cóbrale ' + money(cobro)) : "Persona registrada y dentro");
-  _busq = "";
+  // Modo "buscar primero": deja a la vista la persona recién dada de alta (si no, la lista queda
+  // vacía y parece que no se ha hecho nada). En modo normal, limpia la búsqueda como siempre.
+  _busq = puertaBuscarPrimero() ? nombre : "";
   // Enseña al momento su QR/código (para copas incluidas y reentradas): 0 pasos extra en puerta.
   if (state.config && state.config.modulos && state.config.modulos.qr) {
     abreQR(nuevoId);
@@ -20233,6 +20275,11 @@ function seccionPersonal() {
   html += '<div class="contador"><span>Camareros: <b data-testid="camareros-count">' + esc(c.nCamareros) + '</b></span> ';
   html += '<button type="button" data-testid="camareros-menos" onclick="duenoCambiarCamareros(-1)">−</button> ';
   html += '<button type="button" data-testid="camareros-mas" onclick="duenoCambiarCamareros(1)">+</button></div>';
+  // 🔎 Puerta "buscar primero": el vigilante no ve toda la lista; busca o escanea cada entrada.
+  html += '<h3>Cómo ve la lista el vigilante</h3>';
+  html += '<label class="switch"><input type="checkbox" id="puerta-buscar-primero"' + (puertaBuscarPrimero() ? ' checked' : '') +
+    ' onchange="duenoTogglePuertaBuscar()"> <b>🔎 La puerta empieza vacía (buscar o escanear cada entrada)</b></label>';
+  html += '<p class="nota">Activado (recomendado): el vigilante <b>no ve la lista entera</b>; escribe el nombre o el código, o <b>escanea el QR</b>, y le sale solo esa entrada. Más privado y evita toques sin querer. Desactívalo si prefieres que vea la lista completa con pestañas (Por entrar / Ya dentro…).</p>';
   // Código propio por trabajador: sirve para entrar DIRECTO a su puesto desde la portada.
   html += '<h3>Código de cada trabajador</h3>';
   html += '<p class="nota">Dale a cada uno el suyo. Con ese código, al abrir la web y escribirlo en la portada, entra <b>directo a su puesto</b> (el portero a la puerta, el camarero a la barra), sin elegir rol. Que sean <b>distintos entre sí y del PIN de administrador</b>. Déjalo en blanco si ese trabajador no necesita código.</p>';
@@ -20306,6 +20353,17 @@ function duenoTogglePuertaRRPP() {
   toast(state.config.puertaVentaRRPP
     ? 'Activado: en la puerta solo se da acceso; la entrada se cuenta como vendida'
     : 'Desactivado: en la puerta se cobra la entrada');
+}
+function duenoTogglePuertaBuscar() {
+  mutate(function (s) {
+    // Por defecto está activo (undefined => true). Al pulsar, alterna sobre el valor efectivo.
+    var actual = !(s.config.puertaBuscarPrimero === false);
+    s.config.puertaBuscarPrimero = !actual;
+    addLog((s.config.puertaBuscarPrimero ? 'activó' : 'desactivó') + ' el modo "la puerta empieza vacía (buscar primero)"', 'config');
+  });
+  toast(puertaBuscarPrimero()
+    ? 'Activado: la puerta empieza vacía; el vigilante busca o escanea cada entrada'
+    : 'Desactivado: el vigilante ve la lista completa con pestañas');
 }
 function duenoToggleTarjeta() {
   mutate(function (s) {
