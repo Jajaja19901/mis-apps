@@ -14403,10 +14403,14 @@ function procesarComandosVoz(frases) {
   try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (e) {}
   var raw = (frases && frases[0]) || '';
   var best = _normVoz(raw);
+  // Transparencia: enseña SIEMPRE lo que ha oído/leído. Si el micro entendió mal
+  // ("Pero" por "Pedro"), lo ves al momento y sabes por qué hizo lo que hizo.
+  if (raw.trim()) toast('🎤 «' + raw.trim() + '»');
   var hayIA = (typeof iaConfigurada === 'function' && iaConfigurada());
-  // Trocea por conectores ("A y luego B"), salvo las NOTAS (pueden llevar "vasos y hielo").
+  // Trocea por conectores ("A y luego B"), salvo las NOTAS (pueden llevar "vasos y hielo"),
+  // los packs ("incluyen 2 botellas Y 6 refrescos") y las mesas VIP ("con 6 acompañantes Y señal 50").
   var partes;
-  if (/^(apunta|anota|nota)\b/.test(best)) partes = [raw];
+  if (/^(apunta|anota|nota)\b/.test(best) || /\b(incluye|incluyen|lleva|llevan)\b/.test(best) || /mesa\s*vip/.test(best)) partes = [raw];
   else {
     partes = best.split(/\s+(?:y luego|y despues|y tambien|y ademas|y despue|luego|tambien|ademas|y)\s+/)
       .map(function (p) { return p.trim(); }).filter(Boolean);
@@ -14478,6 +14482,8 @@ function ejecutarComandoVoz(frases, quiet) {
   // Manos libres (escuchar seguido) ON/OFF por voz
   if (/(para de escuchar|deja de escuchar|para ya de escuchar|deja de oirme|ya no escuches|manos libres fuera|quita manos libres|apaga el micro|descansa el micro)/.test(t)) { pararManosLibres(); return; }
   if (/(manos libres|escucha seguido|escuchame seguido|modo continuo|modo manos libres|no voy a tocar el micro)/.test(t)) { iniciarManosLibres(); return; }
+  // Versión del asistente SIN internet (para comprobar qué versión hay subida): "¿qué versión eres?"
+  if (/(que version|version eres|version tienes|version llevas|version es la app|cual es tu version|version del asistente)/.test(t)) { _respVoz('Soy la versión ' + IA_VERSION); return; }
   // Ajustar la VOZ por voz: tono (grave/agudo), velocidad (despacio/rápido) y preset tranquila.
   if (/\b(voz|habla|hablas|hablame)\b/.test(t) && /(tranquil|normal|natural|relaj|suave|que no canse|que no agote)/.test(t)) { duenoVozTranquila(); return; }
   if (/(mas grave|mas seri|voz grave|tono grave|mas bajo de tono)/.test(t)) { mutateSilent(function (s) { s.config.vozTono = _clamp((s.config.vozTono || 1) - 0.15, 0.4, 1.8, 1.0); }); hablar('Ahora hablo más grave'); return; }
@@ -14675,7 +14681,7 @@ function ejecutarComandoVoz(frases, quiet) {
     var mm = t.match(/\bpara\s+([a-z0-9 ]{2,40})$/);
     var nombre = mm ? mm[1].trim() : '';
     nombre = nombre.replace(/^(una |la |el |a |de )+/, '').trim(); // por si se cuela relleno
-    if (nombre) _crearEntradaVoz(nombre); else _respVoz('Di: crea una entrada para, y luego el nombre');
+    if (nombre) _crearEntradaVoz(nombre, /invita|invitaci|invitad/.test(t) ? 'invitado' : 'taquilla'); else _respVoz('Di: crea una entrada para, y luego el nombre');
     return;
   }
   // Comisiones RRPP (ANTES de la navegación y del recuento de RRPP)
@@ -14761,7 +14767,8 @@ function ejecutarComandoVoz(frases, quiet) {
   _cvHandled = false;
   if (!quiet) _respVoz('No te he entendido. Di ayuda para oir lo que puedo hacer');
 }
-function _crearEntradaVoz(nombreCompleto) {
+function _crearEntradaVoz(nombreCompleto, tipoE) {
+  tipoE = (tipoE === 'invitado') ? 'invitado' : 'taquilla';
   var cap = function (w) { return w ? w.charAt(0).toUpperCase() + w.slice(1) : w; };
   var partes = String(nombreCompleto).trim().split(/\s+/).map(cap);
   var nombre = partes[0] || 'Invitado', apellido = partes.slice(1).join(' ');
@@ -14769,11 +14776,11 @@ function _crearEntradaVoz(nombreCompleto) {
   mutate(function (s) {
     s.personas.push({ id: id, nombre: nombre, apellido: apellido,
       codigoReserva: nuevoCodigoLista(s), telefono: '', email: '', mesa: null, pagado: false, importePagado: 0,
-      dentro: false, horaEntrada: null, tipo: 'taquilla' });
-    addLog('creo por voz la entrada de ' + nombreCompleto, 'alta');
+      dentro: false, horaEntrada: null, tipo: tipoE });
+    addLog('creo por voz la ' + (tipoE === 'invitado' ? 'invitación' : 'entrada') + ' de ' + nombreCompleto, 'alta');
   });
   duenoTab('entradas');
-  _hecho('Entrada creada · ' + nombreCompleto);
+  _hecho((tipoE === 'invitado' ? 'Invitación' : 'Entrada') + ' creada · ' + nombreCompleto);
 }
 
 /* Crea un LOTE de entradas generales (remesa) sin pasar por el formulario. Lo usan
@@ -14934,6 +14941,114 @@ function _intentLocal(t0) {
     }
   }
 
+  // ---------- MESAS VIP, MONEDEROS, HISTÓRICO Y AJUSTES FINOS (censo V29) ----------
+  // Crear MESA VIP: "crea una mesa vip para Juan con 6 acompañantes [señal 50 / pagada]"
+  if (/(mesa\s*vip|\bvip\b)/.test(t) && /(crea|crear|apunta|anota|reserva|monta|haz|hazme|pon|ponme|dame|nueva|quiero|necesito)/.test(t)
+      && /(?:para|a)\s+[a-z]/.test(t) && !/(precio|cuesta|vale|acceso|salida|borra|quita|pagada la|incluye|llevan)/.test(t)) {
+    var mvN = (t.match(/\b(?:para|a)\s+([a-z][a-z ]{1,39}?)(?:\s+con\b|\s+y\b|\s*$)/) || [])[1];
+    if (mvN && !/^(la mesa|mesa|una mesa)/.test(mvN)) {
+      var mvA = parseInt((tn.match(/(\d{1,2})\s+(?:acompanantes?|personas|amigos)/) || [])[1], 10) || 0;
+      var mvS = Number((tn.match(/(?:senal|adelanto|anticipo|deja|dejo)\s*(?:de\s+)?(\d+)/) || [])[1]) || 0;
+      return { accion: 'crear_mesa_vip', args: { nombre: _cap(mvN.trim()), acompanantes: mvA, senal: mvS, pagada: /pagad/.test(t) } };
+    }
+  }
+  // Pack VIP: "las mesas vip incluyen 2 botellas y 6 refrescos"
+  if (/vip/.test(t) && /(incluye|incluyen|llevan|lleva|con)/.test(t) && /(botella|refresco)/.test(t)) {
+    var pvB = parseInt((tn.match(/(\d{1,2})\s+botellas?/) || [])[1], 10);
+    var pvR = parseInt((tn.match(/(\d{1,2})\s+refrescos?/) || [])[1], 10);
+    if (pvB >= 0 || pvR >= 0) return { accion: 'poner_pack_vip', args: { botellas: pvB, refrescos: pvR } };
+  }
+  // Copas incluidas por tipo: "los invitados llevan 1 copa", "las entradas de taquilla incluyen 2 consumiciones"
+  if (/(invitado|taquilla|entrada)/.test(t) && /(llevan|lleva|incluyen|incluye|tienen|van con)/.test(t) && /(copa|consumici)/.test(t) && !/bono|vale\b/.test(t)) {
+    var ciN = parseInt((tn.match(/(\d{1,2})\s+(?:copas?|consumici)/) || [])[1], 10);
+    if (ciN >= 0) return { accion: 'poner_copas_incluidas', args: { tipo: /invitad/.test(t) ? 'invitado' : 'taquilla', copas: ciN } };
+  }
+  // MONEDEROS: crear ("carga un monedero de 50"), recargar ("recarga 20 al monedero MH-M-001"), saldo
+  if (/monedero/.test(t) && /(crea|crear|carga|cargar|cargame|nuevo|hazme|dame|saca|abre)/.test(t) && !/recarga/.test(t) && /\d/.test(tn)) {
+    var cmI = Number((tn.match(/(\d{1,4})\s*(?:euros?|eur|€|pavos)?/) || [])[1]) || 0;
+    if (cmI > 0) return { accion: 'crear_monedero', args: { importe: cmI } };
+  }
+  if (/monedero/.test(t) && /(recarga|recargar|recargame|añade|anade|mete|suma)/.test(t) && /\d/.test(tn)) {
+    var rmI = Number((tn.match(/(?:recarga(?:r|me)?|añade|anade|mete|suma)\s*(?:le)?\s*(\d{1,4})/) || tn.match(/(\d{1,4})\s*euros?/) || [])[1]) || 0;
+    var rmC = (t.match(/(mh[\s-]*m[\s-]*\d+[\s-]*[a-z]*|\b[a-z0-9]{4,12}\b\s*$)/) || [])[1] || '';
+    if (rmI > 0) return { accion: 'recargar_monedero', args: { importe: rmI, codigo: rmC.trim() } };
+  }
+  if (/monedero|mh[\s-]*m/.test(t) && /(saldo|cuanto (le )?queda|cuanto tiene|cuanto hay en)/.test(t)) {
+    var smC = (t.match(/(mh[\s-]*m[\s-]*\d+[\s-]*[a-z]*)/) || [])[1] || (t.match(/monedero\s+([a-z0-9-]{3,14})/) || [])[1] || '';
+    return { accion: 'decir_saldo_monedero', args: { codigo: smC.trim() } };
+  }
+  // HISTÓRICO: "¿cuánto hice en la última fiesta?", "fiestas pasadas", "histórico"
+  if (/(ultima fiesta|fiestas pasadas|fiestas anteriores|historico de fiestas|\bhistorico\b|cuanto (hice|gane|saque|recaude) en la ultima)/.test(t) && !/registro|log\b/.test(t)) {
+    return { accion: 'decir_historico', args: {} };
+  }
+  // CUPO de una fase sin repetir el precio: "pon el cupo de la fase 2 en 200"
+  if (/\bfase\b/.test(t) && /(cupo|cantidad|entradas maximas|maximo de entradas)/.test(t) && /(pon|poner|cambia|cambiar|deja|ajusta|sube|baja)/.test(t)) {
+    var cfF = _faseNumDe(t, tn);
+    var cfN = parseInt((tn.match(/(?:en|a|de)\s+(\d{1,4})\s*(?:entradas)?\s*$/) || tn.match(/(\d{2,4})\s*(?:entradas)?\s*$/) || [])[1], 10);
+    if (cfF && cfN > 0) return { accion: 'poner_cupo_fase', args: { fase: 'Fase ' + cfF, cantidad: cfN } };
+  }
+  // CONTACTO de una persona: "el teléfono de Marta es 612345678", "el email de Ana es ana@x.com"
+  if (/(telefono|movil|whatsapp|numero)\s+de\s+[a-z]/.test(t) && /\d{9,}/.test(tn.replace(/\s/g, '')) && !/(manda|envia|mandale|enviale)/.test(t)) {
+    var pcQ = (t.match(/(?:telefono|movil|whatsapp|numero)\s+de\s+([a-z ]{2,30}?)\s+(?:es|sera|:|\bal?\b)/) || [])[1];
+    var pcT = (tn.replace(/\s/g, ' ').match(/(\d[\d ]{7,14}\d)/) || [])[1];
+    if (pcQ && pcT) return { accion: 'poner_contacto', args: { quien: pcQ.trim(), telefono: pcT.replace(/\s/g, '') } };
+  }
+  if (/(email|correo|mail)\s+de\s+[a-z]/.test(t) && /\S+@\S+/.test(t0) && !/(manda|envia|mandale|enviale)/.test(t)) {
+    var peQ = (t.match(/(?:email|correo|mail)\s+de\s+([a-z ]{2,30}?)\s+(?:es|sera|:)/) || [])[1];
+    var peM = (t0.match(/([\w.+-]+@[\w.-]+\.\w{2,})/) || [])[1];
+    if (peQ && peM) return { accion: 'poner_contacto', args: { quien: peQ.trim(), email: peM } };
+  }
+  // COLOR del evento: "pon el color en morado" (nombres comunes o #hex)
+  if (/\bcolor\b/.test(t) && /(pon|poner|cambia|cambiar|quiero|deja|usa)/.test(t)) {
+    var colHex = (t0.match(/#([0-9a-fA-F]{6})\b/) || [])[1];
+    var colNom = (t.match(/\b(morado|violeta|lila|azul|rojo|verde|rosa|fucsia|naranja|amarillo|dorado|oro|blanco|turquesa|cian|magenta)\b/) || [])[1];
+    if (colHex || colNom) return { accion: 'poner_color', args: { color: colHex ? ('#' + colHex) : colNom } };
+  }
+  // NOMBRAR ADMINISTRADOR: "nombra administradora a Ana con pin 4321" (sin pin = se genera)
+  if (/(administrador|administradora|\badmin\b)/.test(t) && /(nombra|nombrar|haz|pon|anade|añade|mete|crea|da de alta)/.test(t) && !/(borra|quita|elimina)/.test(t)) {
+    var naN = (t.match(/\b(?:a|al)\s+([a-z][a-z ]{1,29}?)(?:\s+como\b|\s+con\b|\s+de\b|\s*$)/) || [])[1];
+    if (naN && !/administrad|admin/.test(naN)) {
+      var naC = (t0.match(/(?:pin|clave|contraseña|contrasena)\s+(\S{3,12})/i) || [])[1] || '';
+      return { accion: 'nombrar_admin', args: { nombre: _cap(naN.trim()), clave: naC } };
+    }
+  }
+  // COMISIÓN / PRECIO de un RRPP ya creado: "sube la comisión de Nico a 3 euros"
+  if (/comision/.test(t) && /(pon|poner|sube|subir|baja|bajar|cambia|cambiar|deja|ajusta|es|sera)/.test(t) && /\d/.test(tn)) {
+    var crQ = (t.match(/comision\s+(?:de|del|a)\s+([a-z ]{2,30}?)(?:\s+(?:a|en|es|sera)\b|\s*$)/) || [])[1];
+    var crM = (tn.match(/(?:a|en|es|sera)\s+(\d+(?:[.,]\d+)?)/) || tn.match(/(\d+(?:[.,]\d+)?)\s*euros?/) || [])[1];
+    if (crQ && crM != null) return { accion: 'poner_comision_rrpp', args: { promotor: crQ.trim(), comision: Number(String(crM).replace(',', '.')) } };
+  }
+  // STOCK exacto: "pon el stock del ron a 30"
+  if (/(stock|existencias)/.test(t) && /(pon|poner|deja|ajusta|cambia)/.test(t) && /(?:a|en)\s+\d/.test(tn)) {
+    var psQ = (t.match(/(?:stock|existencias)\s+(?:de|del)\s+(?:la\s+|el\s+|los\s+|las\s+)?([a-z ]{2,25}?)\s+(?:a|en)\b/) || [])[1];
+    var psN = parseInt((tn.match(/(?:a|en)\s+(\d{1,4})\s*$/) || tn.match(/(?:a|en)\s+(\d{1,4})/) || [])[1], 10);
+    if (psQ && psN >= 0) return { accion: 'poner_stock', args: { producto: psQ.trim(), cantidad: psN } };
+  }
+  // REFRESCOS incluidos de un producto: "la botella incluye 4 refrescos" (sin "vip")
+  if (!/vip|mesa/.test(t) && /(incluye|incluyen|lleva|llevan)/.test(t) && /refrescos?/.test(t) && /\d/.test(tn)) {
+    var prQ2 = ((state.config && state.config.productos) || []).find(function (p) { return t.indexOf(_normVoz(p.nombre)) !== -1; });
+    var prN2 = parseInt((tn.match(/(\d{1,2})\s+refrescos?/) || [])[1], 10);
+    if (prQ2 && prN2 >= 0) return { accion: 'producto_refrescos', args: { producto: prQ2.nombre, refrescos: prN2 } };
+  }
+  // BONO de barra (config): "que los camareros vendan bonos de 5 copas a 20 euros"
+  if (/bonos?/.test(t) && /camarero/.test(t) && /(venda|vendan|vender|puedan)/.test(t)) {
+    var bcC = parseInt((tn.match(/(\d{1,2})\s+copas?/) || [])[1], 10);
+    var bcP = Number((tn.match(/a\s+(\d+(?:[.,]\d+)?)\s*euros?/) || [])[1]);
+    return { accion: 'configurar_bonos', args: { venta_camareros: !/\b(no|quita|quites|desactiva)\b/.test(t), copas: bcC, precio: bcP } };
+  }
+  // SONIDO del escáner: "quita el pitido del escáner" (antes que el módulo QR, para no apagar los QR)
+  if (/(sonido|pitido|bip|ruido)/.test(t) && /(escaner|escanear|escaneo|puerta|\bqr\b)/.test(t)) {
+    return { accion: 'activar_sonido_escaner', args: { on: on } };
+  }
+  // "Di hecho al ejecutar" / "no digas nada al hacer" (toggle hablarAlHacer)
+  if (/\bhecho\b/.test(t) && /(di\b|dime|digas|decir)/.test(t) && /(ejecut|hacer|orden|accion)/.test(t)) {
+    return { accion: 'activar_decir_hecho', args: { on: !/\bno\b|\bsin\b|calla|quita/.test(t) } };
+  }
+  // Preguntar el TIPO de combinado en barra: "pregunta el tipo de copa al cobrar"
+  if (/(pregunta|preguntar|preguntes)/.test(t) && /(tipo|combinado|variante)/.test(t) && /(barra|cobrar|copa|producto|vend)/.test(t)) {
+    return { accion: 'activar_pregunta_tipo', args: { on: !/\bno\b|quita|desactiva/.test(t) } };
+  }
+
   // ---------- CARPETA DE ARCHIVOS (coge cosas de GitHub por voz) ----------
   if (/(la carpeta (de archivos )?(es|esta en|sera)|cambia la carpeta|pon la carpeta|carpeta de archivos)/.test(t)) { var mcu = t0.match(/(https?:\/\/\S+)/i); if (mcu) return { accion: 'poner_carpeta', args: { url: mcu[1] } }; }
   var cargaVerbo = /(coge|cogeme|carga|cargame|cargar|trae|traeme|pon|poner|importa|importar|baja|bajame|mete|saca|actualiza|coloca)/.test(t);
@@ -14995,8 +15110,8 @@ function _intentLocal(t0) {
     if (mn) {
       // Nombre completo (hasta 4 palabras): antes solo cogía 2, así "Juan Carlos Pérez" fallaba
       // y acababa como NOTA. Limpiamos relleno ("que/el/la") y validamos que sea un nombre.
-      var nm = mn[1].trim().replace(/^(que|el|la|un|una)\s+/, '').replace(/\s+(en|a)\s+la\s+lista$/, '').trim();
-      if (nm && /^[a-záéíóúñ][a-záéíóúñ ]{1,39}$/.test(nm) && nm.split(/\s+/).length <= 4 && !/^(la lista|lista)$/.test(nm) && !/\b(entrada|invitad|fase|bono|gasto|nota|acceso|salida|pagad)\b/.test(nm)) return { accion: 'crear_entrada', args: { nombre: _cap(nm) } };
+      var nm = mn[1].trim().replace(/^(que|el|la|un|una)\s+/, '').replace(/\s+(en|a)\s+la\s+lista$/, '').replace(/\s+como\s+invitad[oa]s?$/, '').replace(/\s+de\s+invitad[oa]s?$/, '').trim();
+      if (nm && /^[a-záéíóúñ][a-záéíóúñ ]{1,39}$/.test(nm) && nm.split(/\s+/).length <= 4 && !/^(la lista|lista)$/.test(nm) && !/\b(entrada|invitad|fase|bono|gasto|nota|acceso|salida|pagad)\b/.test(nm)) return { accion: 'crear_entrada', args: { nombre: _cap(nm), tipo: /invita|invitaci|invitad/.test(t) ? 'invitado' : 'taquilla' } };
     }
   }
 
@@ -15181,6 +15296,22 @@ function seccionNotas() {
 }
 function _nombreDe(p) { return ((p.nombre || '') + ' ' + (p.apellido || '')).trim() || p.codigoReserva; }
 /* Encuentra una entrada por código (exacto, con o sin guiones) o por nombre (contiene). */
+/* Distancia de edición (Levenshtein) acotada: para perdonar los errores del micro
+   ("Pero"→"Pedro", "Marta"→"Martha"). Solo para palabras cortas, es barato. */
+function _lev(a, b) {
+  a = String(a); b = String(b);
+  if (Math.abs(a.length - b.length) > 2) return 9;
+  var prev = [], cur = [], i, j;
+  for (j = 0; j <= b.length; j++) prev[j] = j;
+  for (i = 1; i <= a.length; i++) {
+    cur[0] = i;
+    for (j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = cur.slice();
+  }
+  return prev[b.length];
+}
 function _personaDeIA(quien) {
   var q = _normVoz(String(quien || '')).trim();
   if (!q) return null;
@@ -15189,7 +15320,23 @@ function _personaDeIA(quien) {
     return String(p.codigoReserva || '').toLowerCase().replace(/[\s-]/g, '') === qCod;
   });
   if (porCodigo) return porCodigo;
-  return (state.personas || []).find(function (p) { return _normVoz(_nombreDe(p)).indexOf(q) !== -1; }) || null;
+  var exacto = (state.personas || []).find(function (p) { return _normVoz(_nombreDe(p)).indexOf(q) !== -1; });
+  if (exacto) return exacto;
+  // PARECIDOS: el micro oye regular. Si "pero" no existe pero "pedro" sí (1 letra de
+  // diferencia), lo damos por bueno. El nombre REAL sale en la confirmación, así que
+  // el dueño ve a quién se aplicó de verdad.
+  if (q.length < 3) return null;
+  var qTok = q.split(/\s+/)[0]; // primera palabra dicha (el nombre de pila)
+  var tope = qTok.length <= 4 ? 1 : 2;
+  var mejor = null, mejorD = 9;
+  (state.personas || []).forEach(function (p) {
+    var toks = _normVoz(_nombreDe(p)).split(/\s+/);
+    for (var i = 0; i < toks.length; i++) {
+      var d = _lev(qTok, toks[i]);
+      if (d < mejorD) { mejorD = d; mejor = p; }
+    }
+  });
+  return (mejorD <= tope) ? mejor : null;
 }
 function _buscarPersonaVoz(q) {
   q = _normVoz(q);
@@ -15207,7 +15354,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V28'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V29'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -15242,7 +15389,11 @@ function _accionesIA() {
   return [
     'decir_dinero decir_recaudacion decir_beneficio decir_gastos decir_top decir_aforo decir_entradas decir_quedan decir_bonos — dicen ese dato en voz alta',
     'enviar_emails(limite?) copiar_enlaces descargar_zip(serie?) descargar_pdf(serie?) descargar_csv(serie?) descargar_informe copia_seguridad',
-    'crear_entrada(nombre,email?,telefono?) crear_lote(cantidad,precio?,pagadas?,etiqueta?,fase?) crear_fase(nombre?,precio,cantidad?) poner_precio_fase(fase,precio) borrar_entrada(quien) borrar_entradas(serie?,confirmar?)',
+    'crear_entrada(nombre,email?,telefono?,tipo:invitado?) crear_lote(cantidad,precio?,pagadas?,etiqueta?,fase?) crear_fase(nombre?,precio,cantidad?) poner_precio_fase(fase,precio) poner_cupo_fase(fase,cantidad) borrar_entrada(quien) borrar_entradas(serie?,confirmar?)',
+    'crear_mesa_vip(nombre,acompanantes?,senal?,pagada?) poner_pack_vip(botellas?,refrescos?) poner_copas_incluidas(tipo:invitado|taquilla,copas)',
+    'crear_monedero(importe) recargar_monedero(codigo?,importe) decir_saldo_monedero(codigo?) decir_historico — fiestas archivadas',
+    'poner_contacto(quien,telefono?,email?) poner_color(color) nombrar_admin(nombre,clave?) poner_comision_rrpp(promotor,comision?,precio?)',
+    'poner_stock(producto,cantidad) producto_refrescos(producto,refrescos) configurar_bonos(venta_camareros?,copas?,precio?) activar_sonido_escaner(on) activar_decir_hecho(on) activar_pregunta_tipo(on)',
     'marcar_pagada(quien) dar_acceso(quien) marcar_salida(quien) buscar(quien) ver_entrada(quien) blindar(quien) enviar_whatsapp(quien) enviar_email_a(quien)',
     'anadir_gasto(concepto,importe,categoria?) crear_bonos(cantidad,copas,precio?) anular_bono(codigo)',
     'crear_rrpp(nombre,comision?,precio?) repartir_rrpp(promotor,desde,hasta)',
@@ -15282,6 +15433,8 @@ function _estadoIA() {
       cobros: { bizum: bizumActivo(), tarjeta: tarjetaActiva(), monedero: monederoActivo(), nfc: nfcActivo() },
       modo_rrpp: puertaVentaRRPP(), modo_secreto: !!c.entregaUnaVez,
       notas: (s.notas || []).slice(0, 10).map(function (n) { return n.texto; }),
+      monederos_activos: { n: (s.monederos || []).length, saldo_vivo_eur: Math.round((s.monederos || []).reduce(function (a, m) { return a + (m.saldo || 0); }, 0)) },
+      fiestas_pasadas: (s.historico || []).slice(-3).map(function (h) { return (h.nombre || '?') + ' asist:' + (h.asistentes || 0) + ' benef:' + Math.round(h.beneficioNeto || 0) + '€'; }),
       ultima_serie: _ultimaRemesa(), hora_actual: nowHM(), asistente_version: IA_VERSION
     };
     Object.keys(o).forEach(function (k) {
@@ -15801,6 +15954,206 @@ function ejecutarAccionIA(accion, args) {
     case 'importar_invitados': cargarInvitadosDeCarpeta(); break;
     case 'cargar_copia': cargarCopiaDeCarpeta(); break;
     case 'poner_carpeta': { var pcu = String(_arg(args, ['url', 'carpeta', 'enlace', 'direccion']) || '').trim(); if (!/^https?:\/\//.test(pcu)) { _respVoz('Dime la dirección web de la carpeta'); break; } mutateSilent(function (s) { s.config.carpetaArchivos = pcu; }); _hecho('Carpeta guardada'); break; }
+    // ---------- censo V29: VIP, monederos, histórico y ajustes finos ----------
+    case 'crear_mesa_vip': {
+      var mvNom = _cap(String(_arg(args, ['nombre', 'quien', 'para']) || '').trim());
+      if (!mvNom) { _respVoz('Dime para quién es la mesa VIP'); break; }
+      var mvAc = parseInt(_arg(args, ['acompanantes', 'personas', 'n']), 10); if (!(mvAc >= 0)) mvAc = 0;
+      var mvSen = Math.max(0, Number(_arg(args, ['senal', 'adelanto', 'anticipo'])) || 0);
+      var mvPag = (args.pagada === true || args.pagada === 'true');
+      var mvPartes = mvNom.split(/\s+/);
+      var mvId = 'p' + Date.now(), mvCod = nuevoCodigoLista(state);
+      mutate(function (s) {
+        var nums = s.personas.filter(function (x) { return x.mesa; }).map(function (x) { return x.mesa.numero; });
+        var sig = nums.length ? Math.max.apply(null, nums) + 1 : 1;
+        var mvTot = Number(s.config.precioMesaVip) || 0;
+        var mvAde = mvPag ? mvTot : mvSen;
+        s.personas.push({ id: mvId, nombre: mvPartes[0], apellido: mvPartes.slice(1).join(' '), tipo: 'vip',
+          codigoReserva: mvCod, telefono: '', email: '',
+          mesa: { numero: sig, acompanantesPermitidos: mvAc, acompanantesDentro: 0, total: mvTot, adelantado: mvAde },
+          pagado: mvTot > 0 && mvAde >= mvTot, importePagado: mvAde, dentro: false, horaEntrada: null });
+        addLog('creó por voz la mesa VIP ' + sig + ' de ' + mvNom + ' (' + mvAc + ' acompañantes' + (mvAde > 0 ? ', señal ' + mvAde + ' €' : '') + ')', 'alta');
+      });
+      duenoTab('entradas');
+      _hecho('Mesa VIP · ' + mvNom + ' · ' + mvAc + ' acompañantes' + (mvPag ? ' · pagada' : (mvSen > 0 ? ' · señal ' + Math.round(mvSen) + ' €' : '')));
+      break;
+    }
+    case 'poner_pack_vip': {
+      var ppB = parseInt(_arg(args, ['botellas', 'botella']), 10), ppR = parseInt(_arg(args, ['refrescos', 'refresco']), 10);
+      if (!(ppB >= 0) && !(ppR >= 0)) { _respVoz('Dime cuántas botellas o refrescos incluye la mesa'); break; }
+      mutateSilent(function (s) {
+        var vp = s.config.vipPack || { botellas: 1, refrescos: 4 };
+        s.config.vipPack = { botellas: (ppB >= 0) ? ppB : vp.botellas, refrescos: (ppR >= 0) ? ppR : vp.refrescos };
+        addLog('fijó el pack VIP en ' + s.config.vipPack.botellas + ' botella(s) y ' + s.config.vipPack.refrescos + ' refresco(s)', 'config');
+      });
+      _hecho('Mesa VIP: ' + state.config.vipPack.botellas + ' botella(s) · ' + state.config.vipPack.refrescos + ' refrescos'); break;
+    }
+    case 'poner_copas_incluidas': {
+      var pciT = /invitad/.test(_normVoz(String(args.tipo || ''))) ? 'invitado' : 'taquilla';
+      var pciN = parseInt(_arg(args, ['copas', 'consumiciones', 'n']), 10);
+      if (!(pciN >= 0)) { _respVoz('Dime cuántas copas incluye'); break; }
+      mutateSilent(function (s) {
+        var cc = s.config.consumiciones || { invitado: 0, taquilla: 1, vip: 2 };
+        cc[pciT] = pciN; s.config.consumiciones = cc;
+        addLog('fijó ' + pciN + ' consumición(es) incluidas por ' + pciT, 'config');
+      });
+      _hecho(pciN + ' copa(s) incluidas por ' + pciT); break;
+    }
+    case 'crear_monedero': {
+      var cmImp = Math.round(Number(_arg(args, ['importe', 'saldo', 'euros', 'cantidad'])) || 0);
+      if (cmImp <= 0) { _respVoz('Dime de cuántos euros cargo el monedero'); break; }
+      var cmId = 'm' + Date.now(), cmCod = nuevoCodigoMonedero(state), cmActor = actorActual();
+      mutate(function (s) {
+        if (!s.monederos) s.monederos = [];
+        s.monederos.push({ id: cmId, codigo: cmCod, saldo: cmImp, hora: nowHM(),
+          movs: [{ h: nowHM(), t: 'carga', imp: cmImp, por: etiquetaPerfil(cmActor) }] });
+        s.ingresosMonederos = (s.ingresosMonederos || 0) + cmImp;
+        s.recaudacionPorPerfil[cmActor] = (s.recaudacionPorPerfil[cmActor] || 0) + cmImp;
+        addLog('cargó por voz el monedero ' + cmCod + ' con ' + cmImp + ' €', 'cobro');
+      });
+      _hecho('Monedero ' + cmCod + ' · ' + cmImp + ' €');
+      try { abreQRMonedero(cmId, true); } catch (eqm) {}
+      break;
+    }
+    case 'recargar_monedero': {
+      var rmImp = Math.round(Number(_arg(args, ['importe', 'euros', 'cantidad'])) || 0);
+      var rmCod = String(_arg(args, ['codigo', 'monedero', 'cual']) || '').trim();
+      if (rmImp <= 0) { _respVoz('Dime cuántos euros recargo'); break; }
+      var rmM = rmCod ? monederoPorCodigo(rmCod) : null;
+      if (!rmM && !rmCod && (state.monederos || []).length === 1) rmM = state.monederos[0];
+      if (!rmM) { _respVoz(rmCod ? 'No encuentro ese monedero' : 'Dime el código del monedero, por ejemplo: recarga 20 al monedero MH M cero cero uno'); break; }
+      recargarMonedero(rmM.id, rmImp);
+      _hecho('Recargado ' + rmImp + ' € · ' + rmM.codigo + ' · saldo ' + Math.round((monederoPorId(rmM.id) || {}).saldo || 0) + ' €'); break;
+    }
+    case 'decir_saldo_monedero': {
+      var smCod = String(_arg(args, ['codigo', 'monedero', 'cual']) || '').trim();
+      var smM = smCod ? monederoPorCodigo(smCod) : ((state.monederos || []).length === 1 ? state.monederos[0] : null);
+      if (!smM) {
+        var smT = (state.monederos || []).length;
+        _respVoz(smT ? ('Hay ' + smT + ' monederos. Dime el código de cuál quieres saber el saldo') : 'No hay monederos todavía'); break;
+      }
+      _respVoz('El monedero ' + smM.codigo + ' tiene ' + Math.round(smM.saldo || 0) + ' euros'); break;
+    }
+    case 'decir_historico': {
+      var hFs = state.historico || [];
+      if (!hFs.length) { _respVoz('No hay fiestas archivadas todavía. Al cerrar una fiesta se guarda aquí'); break; }
+      var hUl = hFs[hFs.length - 1];
+      var hTx = 'Llevas ' + hFs.length + (hFs.length === 1 ? ' fiesta archivada. ' : ' fiestas archivadas. ') +
+        'La última, ' + (hUl.nombre || 'sin nombre') + ': ' + (hUl.asistentes || 0) + ' asistentes y ' +
+        Math.round(hUl.beneficioNeto || 0) + ' euros de beneficio neto';
+      _respVoz(hTx); break;
+    }
+    case 'poner_cupo_fase': {
+      var pcfQ = _normVoz(String(args.fase || '')), pcfN = parseInt(_arg(args, ['cantidad', 'cupo', 'n']), 10);
+      var pcfF = fasesLista().find(function (f) { var nf = _normVoz(f.nombre); return nf.indexOf(pcfQ) !== -1 || pcfQ.indexOf(nf) !== -1; });
+      if (!pcfF) { _respVoz('No encuentro esa fase'); break; }
+      if (!(pcfN > 0)) { _respVoz('Dime el cupo, por ejemplo: pon el cupo de la fase 2 en 200'); break; }
+      mutateSilent(function (s) {
+        var f2 = (s.config.fases || []).find(function (x) { return x.id === pcfF.id; });
+        if (f2) { f2.cantidad = pcfN; addLog('cambió el cupo de ' + f2.nombre + ' a ' + pcfN, 'config'); }
+      });
+      _hecho(pcfF.nombre + ' · cupo ' + pcfN); break;
+    }
+    case 'poner_contacto': {
+      var pctP = _personaDeIA(_arg(args, ['quien', 'nombre', 'persona']));
+      if (!pctP) { _respVoz('No encuentro esa entrada'); break; }
+      var pctT = String(_arg(args, ['telefono', 'movil', 'whatsapp']) || '').replace(/\s/g, '');
+      var pctE = String(_arg(args, ['email', 'correo']) || '').trim();
+      if (!pctT && !pctE) { _respVoz('Dime el teléfono o el email'); break; }
+      mutateSilent(function (s) {
+        var q = (s.personas || []).find(function (x) { return x.id === pctP.id; });
+        if (q) { if (pctT) q.telefono = pctT; if (pctE) q.email = pctE; addLog('apuntó el contacto de ' + _nombreDe(q), 'config'); }
+      });
+      _hecho('Contacto de ' + _nombreDe(pctP) + ' guardado'); break;
+    }
+    case 'poner_color': {
+      var COLORES = { morado: '#b026ff', violeta: '#8a2be2', lila: '#c77dff', azul: '#00d4ff', rojo: '#ff3355', verde: '#00d48a', rosa: '#ff4fa3', fucsia: '#ff00aa', naranja: '#ff8c00', amarillo: '#ffd400', dorado: '#d4af37', oro: '#d4af37', blanco: '#ffffff', turquesa: '#00e5d0', cian: '#00d4ff', magenta: '#ff00aa' };
+      var pcoV = String(_arg(args, ['color', 'valor']) || '').trim().toLowerCase();
+      var pcoHex = /^#[0-9a-f]{6}$/.test(pcoV) ? pcoV : COLORES[_normVoz(pcoV)];
+      if (!pcoHex) { _respVoz('Dime un color: morado, azul, rojo, verde, rosa, naranja, dorado…'); break; }
+      mutateSilent(function (s) { s.config.colorTema = pcoHex; addLog('cambió el color del evento a ' + pcoV, 'config'); });
+      _hecho('Color del evento: ' + pcoV); break;
+    }
+    case 'nombrar_admin': {
+      var naNom = _cap(String(_arg(args, ['nombre', 'quien']) || '').trim());
+      if (!naNom) { _respVoz('Dime el nombre del nuevo administrador'); break; }
+      if (((state.config && state.config.adminsExtra) || []).some(function (a) { return _normVoz(a.nombre) === _normVoz(naNom); })) { _respVoz(naNom + ' ya es administrador'); break; }
+      var naCla = String(_arg(args, ['clave', 'pin', 'contrasena']) || '').trim();
+      if (!naCla) { // genera un PIN de 4 cifras que no choque con el del dueño ni otros
+        var naUsa = {}; naUsa[String((state.config && state.config.adminClave) || '')] = true;
+        ((state.config && state.config.adminsExtra) || []).forEach(function (a) { naUsa[String(a.clave)] = true; });
+        do { naCla = String(Math.floor(1000 + Math.random() * 9000)); } while (naUsa[naCla]);
+      }
+      var naId = 'adm' + Date.now();
+      mutate(function (s) {
+        if (!Array.isArray(s.config.adminsExtra)) s.config.adminsExtra = [];
+        s.config.adminsExtra.push({ id: naId, nombre: naNom, clave: naCla });
+        addLog('nombró administrador (por voz) a ' + naNom, 'config');
+      });
+      toast('👑 ' + naNom + ' · PIN: ' + naCla);
+      hablar('Hecho. ' + naNom + ' ya es administrador. Su PIN está en pantalla'); break;
+    }
+    case 'poner_comision_rrpp': {
+      var pcrQ = _normVoz(String(args.promotor || ''));
+      var pcrR = (state.rrpp || []).find(function (x) { return _normVoz(x.nombre).indexOf(pcrQ) !== -1 || x.slug === pcrQ; });
+      if (!pcrR) { _respVoz('No encuentro a ese promotor'); break; }
+      var pcrC = Number(_arg(args, ['comision'])), pcrP = Number(_arg(args, ['precio']));
+      if (!(pcrC >= 0) && !(pcrP >= 0)) { _respVoz('Dime la comisión o el precio'); break; }
+      if (pcrC >= 0) duenoRrppCampo(pcrR.slug, 'comision', pcrC);
+      if (pcrP >= 0) duenoRrppCampo(pcrR.slug, 'precio', pcrP);
+      _hecho(pcrR.nombre + (pcrC >= 0 ? ' · comisión ' + Math.round(pcrC) + ' €' : '') + (pcrP >= 0 ? ' · precio ' + Math.round(pcrP) + ' €' : '')); break;
+    }
+    case 'poner_stock': {
+      var pstQ = _normVoz(_arg(args, ['producto', 'nombre']) || '').replace(/^(la|el|los|las)\s+/, '');
+      var pstN = parseInt(_arg(args, ['cantidad', 'stock', 'n']), 10);
+      var pstP = ((state.config && state.config.productos) || []).find(function (x) { var nx = _normVoz(x.nombre); return nx.indexOf(pstQ) !== -1 || pstQ.indexOf(nx) !== -1; });
+      if (!pstP) { _respVoz('No encuentro ese producto'); break; }
+      if (!(pstN >= 0)) { _respVoz('Dime a cuánto pongo el stock'); break; }
+      mutateSilent(function (s) {
+        var p2 = (s.config.productos || []).find(function (x) { return x.id === pstP.id; });
+        if (p2) { p2.stock = pstN; if (!(p2.stockInicial >= pstN)) p2.stockInicial = pstN; addLog('puso el stock de ' + p2.nombre + ' en ' + pstN, 'config'); }
+      });
+      _hecho(pstP.nombre + ' · stock ' + pstN); break;
+    }
+    case 'producto_refrescos': {
+      var prfQ = _normVoz(_arg(args, ['producto', 'nombre']) || '').replace(/^(la|el|los|las)\s+/, '');
+      var prfN = parseInt(_arg(args, ['refrescos', 'n']), 10);
+      var prfP = ((state.config && state.config.productos) || []).find(function (x) { var nx = _normVoz(x.nombre); return nx.indexOf(prfQ) !== -1 || prfQ.indexOf(nx) !== -1; });
+      if (!prfP) { _respVoz('No encuentro ese producto'); break; }
+      if (!(prfN >= 0)) { _respVoz('Dime cuántos refrescos incluye'); break; }
+      mutateSilent(function (s) {
+        var p3 = (s.config.productos || []).find(function (x) { return x.id === prfP.id; });
+        if (p3) { p3.refrescosIncluidos = prfN; addLog(p3.nombre + ': ' + prfN + ' refrescos incluidos', 'config'); }
+      });
+      _hecho(prfP.nombre + ' · incluye ' + prfN + ' refrescos'); break;
+    }
+    case 'configurar_bonos': {
+      var cbOn = !(args.venta_camareros === false || args.venta_camareros === 'false');
+      var cbC = parseInt(_arg(args, ['copas']), 10), cbP = Number(_arg(args, ['precio']));
+      mutateSilent(function (s) {
+        var bc = s.config.bonoCfg || {};
+        s.config.bonoCfg = { ventaCamareros: cbOn, copas: (cbC > 0 ? cbC : (bc.copas || 5)), precio: (cbP >= 0 ? cbP : (bc.precio || 0)) };
+        addLog((cbOn ? 'activó' : 'desactivó') + ' la venta de bonos por camareros (' + s.config.bonoCfg.copas + ' copas · ' + s.config.bonoCfg.precio + ' €)', 'config');
+      });
+      _hecho('Bonos de barra: ' + (cbOn ? 'los camareros venden' : 'venta apagada') + ' · ' + state.config.bonoCfg.copas + ' copas · ' + Math.round(state.config.bonoCfg.precio) + ' €'); break;
+    }
+    case 'activar_sonido_escaner': {
+      var aseOn = !(args.on === false || args.on === 'false');
+      mutateSilent(function (s) { s.config.sonidoEscaner = aseOn; });
+      if (aseOn) { try { _desbloquearSonido(); _sonar('ok'); } catch (ese) {} }
+      _hecho(aseOn ? 'Sonido del escáner activado' : 'Sonido del escáner apagado'); break;
+    }
+    case 'activar_decir_hecho': {
+      var adhOn = !(args.on === false || args.on === 'false');
+      if (typeof duenoToggleHablarHacer === 'function') duenoToggleHablarHacer(adhOn);
+      else mutateSilent(function (s) { s.config.hablarAlHacer = adhOn; });
+      if (adhOn) hablar('Hecho. A partir de ahora te lo digo en voz'); break;
+    }
+    case 'activar_pregunta_tipo': {
+      var aptOn = !(args.on === false || args.on === 'false');
+      mutateSilent(function (s) { s.config.preguntarTipo = aptOn; addLog((aptOn ? 'activó' : 'desactivó') + ' la pregunta de tipo de combinado', 'config'); });
+      _hecho(aptOn ? 'La barra preguntará el tipo de combinado' : 'La barra ya no pregunta el tipo'); break;
+    }
     case 'responder': _respVoz(args.texto || 'Hecho'); break;
     default:
       // Que quede constancia de lo que la IA pidió y no existe: se ve en el Registro.
@@ -15811,17 +16164,19 @@ function ejecutarAccionIA(accion, args) {
 function _crearEntradaIA(args) {
   var nombreCompleto = String((args && args.nombre) || '').trim();
   if (!nombreCompleto) { _respVoz('¿Para quién creo la entrada?'); return; }
+  // tipo: 'invitado' (gratis) o 'taquilla' (normal). "Invita a Ana" crea invitación de verdad.
+  var tipoE = (String((args && args.tipo) || '').toLowerCase().indexOf('invitad') === 0) ? 'invitado' : 'taquilla';
   var cap = function (w) { return w ? w.charAt(0).toUpperCase() + w.slice(1) : w; };
   var partes = nombreCompleto.split(/\s+/).map(cap);
   var id = 'p' + Date.now();
   mutate(function (s) {
     s.personas.push({ id: id, nombre: partes[0] || 'Invitado', apellido: partes.slice(1).join(' '),
       codigoReserva: nuevoCodigoLista(s), telefono: String((args && args.telefono) || '').trim(), email: String((args && args.email) || '').trim(),
-      mesa: null, pagado: false, importePagado: 0, dentro: false, horaEntrada: null, tipo: 'taquilla' });
-    addLog('creó por voz (IA) la entrada de ' + nombreCompleto, 'alta');
+      mesa: null, pagado: false, importePagado: 0, dentro: false, horaEntrada: null, tipo: tipoE });
+    addLog('creó por voz (IA) la ' + (tipoE === 'invitado' ? 'invitación' : 'entrada') + ' de ' + nombreCompleto, 'alta');
   });
   duenoTab('entradas');
-  _hecho('Entrada creada · ' + nombreCompleto);
+  _hecho((tipoE === 'invitado' ? 'Invitación' : 'Entrada') + ' creada · ' + nombreCompleto);
 }
 /* Prueba la clave y la IA en 2 pasos y CUENTA lo que pasa (sin esconder nada):
    1) valida la clave contra la lista de modelos (GET); 2) lanza una orden real. */
