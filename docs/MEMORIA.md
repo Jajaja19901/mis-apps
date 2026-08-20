@@ -3,6 +3,12 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-20 (septies) — MH Collective: V41 (Modo pruebas: meter/sacar entradas a mano, solo el dueño)
+- El "Dentro ✕" que sacaba entradas (V40) se generaliza a un MODO PRUEBAS con interruptor, para poder meter Y sacar a mano y ensayar el escaneo sin crear entradas nuevas. El usuario avisó que hay que poder QUITARLO en la fiesta real ("si no pueden hacer chanchullos").
+- `state.config.modoPruebas` (default OFF). Interruptor "🧪 Modo pruebas" en el panel del dueño → pestaña Entradas → "Entradas creadas" (SOLO el dueño; va tras el PIN; los trabajadores no lo ven). Con aviso en ámbar de quitarlo para la fiesta real.
+- Con modo pruebas ON: cada entrada muestra "Meter ✓" (si está fuera) o "Dentro ✕" (si está dentro). OFF: badge "Dentro" plano, informativo; sin botones → nadie cuela gente desde el panel. `duenoToggleModoPruebas`, `duenoMeterEntrada`, `duenoSacarEntrada`, `modoPruebas()`.
+- Verificado V41: 49/49 aceptación · 10/10 batería modo pruebas (OFF por defecto sin botones y badge plano; ON aparecen Meter/Sacar; meter mete; sacar saca; al apagar desaparecen).
+
 ## 2026-08-20 (sexies) — MH Collective: V40 (escaneo continuo: la cámara se queda puesta)
 - Queja: al escanear salía "Siguiente/Cerrar" y había que pulsar cada vez; con mucha gente incómodo. Pidió: la cámara se queda puesta (escaneo continuo) y se cierra a mano.
 - `intentarCamaraQR(onCodigo, continuo)`: en modo continuo NO para la cámara al leer (antes `encontrado` hacía cerrarCamara+quitar vídeo); lee, avisa y sigue con una pausa de 900ms. Guardas `_camActiva`/`_camAbriendo` para no abrir dos cámaras.

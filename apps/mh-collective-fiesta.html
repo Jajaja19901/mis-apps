@@ -13983,6 +13983,9 @@ function migrar(s) {
   // Puerta "buscar primero": la lista arranca VACÍA; el vigilante busca por nombre/código o
   // escanea el QR para sacar UNA entrada. Así no ve toda la lista de golpe. Por defecto activado.
   if (typeof s.config.puertaBuscarPrimero !== "boolean") s.config.puertaBuscarPrimero = true;
+  // Modo pruebas: permite METER/SACAR entradas a mano desde el panel (para ensayar el escaneo sin
+  // crear entradas nuevas). Por defecto APAGADO: en la fiesta real nadie puede colar gente a mano.
+  if (typeof s.config.modoPruebas !== "boolean") s.config.modoPruebas = false;
   if (!s.config.modulos) {
     s.config.modulos = { qr: true, cierre: true, gastos: true, stock: true };
   }
@@ -15527,7 +15530,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V40'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V41'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -20042,6 +20045,13 @@ function seccionEntradas() {
   state.personas.forEach(function (x) { if (x.remesa) series[x.remesa] = 1; });
   var html = '<section class="panel" data-testid="seccion-entradas"><h2>Entradas creadas</h2>';
   html += '<p class="nota">Toca una entrada para ver su QR, compartirla, sacar su PDF o marcarla pagada.</p>';
+  // 🧪 Modo pruebas (SOLO el dueño lo ve, este panel va tras el PIN): mete/saca entradas a mano para
+  // ensayar el escaneo. Recuérdale que lo quite en la fiesta real.
+  html += '<label class="switch modo-pruebas-sw"><input type="checkbox" id="modo-pruebas"' + (modoPruebas() ? ' checked' : '') +
+    ' onchange="duenoToggleModoPruebas()"> <b>🧪 Modo pruebas</b> · meter/sacar entradas a mano para ensayar</label>';
+  html += '<p class="nota"' + (modoPruebas() ? ' style="color:#ffb020"' : '') + '>' + (modoPruebas()
+    ? '⚠️ Encendido: en cada entrada salen los botones <b>Meter ✓</b> / <b>Dentro ✕</b>. <b>Quítalo para la fiesta real</b> (si no, se podría colar gente desde aquí).'
+    : 'Apagado: las entradas solo muestran su estado; nadie puede meterlas/sacarlas a mano. Enciéndelo solo para probar.') + '</p>';
   html += '<div class="contador"><select id="ent-filtro" onchange="entSetFiltro(this.value)">';
   [['todas', 'Todas'], ['pendientes', 'Solo pendientes de pago'], ['pagadas', 'Solo pagadas']].forEach(function (o) {
     html += '<option value="' + o[0] + '"' + (_entFiltro === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
@@ -20073,10 +20083,19 @@ function entradasListaHTML() {
       : ((p.importePagado || 0) > 0 && (p.tipo !== 'vip' || (p.mesa.total || 0) - p.importePagado <= 0)
         ? '<span class="badge badge-pagado">' + (puertaVentaRRPP() ? 'Vendida' : 'Pagada') + '</span>'
         : '<span class="badge badge-pendiente">' + (puertaVentaRRPP() ? 'Sin vender' : 'Pendiente') + '</span>');
-    // El badge "Dentro" es PULSABLE: al tocarlo, la entrada vuelve a estar FUERA (activa, sin entrar).
-    // Sirve para corregir un acceso dado por error, para cuando alguien sale, y para repetir pruebas
-    // sin tener que crear entradas nuevas.
-    var dentro = p.dentro ? ' <button type="button" class="badge badge-dentro badge-boton" data-testid="ent-sacar-' + esc(p.id) + '" title="Pulsa para sacarla: vuelve a estar activa (sin entrar)" onclick="duenoSacarEntrada(\'' + escJs(p.id) + '\')">Dentro ✕</button>' : '';
+    // Estado dentro/fuera. En MODO PRUEBAS los badges son PULSABLES para meter/sacar a mano
+    // (ensayar el escaneo sin crear entradas). Fuera del modo pruebas es solo informativo, para que
+    // en la fiesta real nadie pueda colar gente desde el panel.
+    var dentro;
+    if (p.dentro) {
+      dentro = modoPruebas()
+        ? ' <button type="button" class="badge badge-dentro badge-boton" data-testid="ent-sacar-' + esc(p.id) + '" title="Modo pruebas: sácala (vuelve a estar fuera)" onclick="duenoSacarEntrada(\'' + escJs(p.id) + '\')">Dentro ✕</button>'
+        : ' <span class="badge badge-dentro">Dentro</span>';
+    } else {
+      dentro = modoPruebas()
+        ? ' <button type="button" class="badge badge-fuera badge-boton" data-testid="ent-meter-' + esc(p.id) + '" title="Modo pruebas: métela dentro" onclick="duenoMeterEntrada(\'' + escJs(p.id) + '\')">Meter ✓</button>'
+        : '';
+    }
     var rrppB = '';
     if (p.rrppSlug) { var rr = (state.rrpp || []).find(function (x) { return x.slug === p.rrppSlug; }); rrppB = ' <span class="badge badge-rrpp">RRPP ' + esc(rr ? rr.nombre : p.rrppSlug) + '</span>'; }
     html += '<li><span class="ent-info"><b>' + esc((p.nombre + ' ' + p.apellido).trim() || 'Entrada al portador') + '</b> · ' + esc(p.codigoReserva) +
@@ -20089,8 +20108,19 @@ function entradasListaHTML() {
   if (lista.length > tope) html += '<p class="nota">Mostrando las primeras ' + tope + '. Usa el buscador o el filtro para acotar.</p>';
   return html;
 }
-/* Toca el badge "Dentro" en la lista del dueño → la entrada vuelve a estar FUERA (activa, sin entrar).
-   Corrige accesos dados por error, marca salidas, y permite REPETIR pruebas de escaneo sin crear más. */
+/* MODO PRUEBAS: interruptor para ensayar el escaneo metiendo/sacando entradas a mano, SIN crear
+   entradas nuevas. Por defecto apagado (en la fiesta real nadie puede colar gente desde el panel). */
+function modoPruebas() { return !!(state.config && state.config.modoPruebas); }
+function duenoToggleModoPruebas() {
+  mutate(function (s) {
+    s.config.modoPruebas = !s.config.modoPruebas;
+    addLog((s.config.modoPruebas ? 'activó' : 'desactivó') + ' el MODO PRUEBAS (meter/sacar entradas a mano)', 'config');
+  });
+  toast(modoPruebas()
+    ? '🧪 Modo pruebas ON: puedes meter y sacar entradas a mano. ¡Quítalo para la fiesta real!'
+    : 'Modo pruebas OFF: las entradas ya no se pueden meter/sacar a mano.');
+}
+/* (Modo pruebas) Saca la entrada: vuelve a estar FUERA. También sirve para corregir un acceso por error. */
 function duenoSacarEntrada(id) {
   mutate(function () {
     var p = personaPorId(id);
@@ -20101,6 +20131,17 @@ function duenoSacarEntrada(id) {
     addLog('sacó (reactivó) la entrada de ' + p.nombre + ' ' + p.apellido + ' (' + p.codigoReserva + ')', 'salida');
   });
   toast('Entrada fuera otra vez. Ya se puede volver a escanear.');
+}
+/* (Modo pruebas) Mete la entrada dentro a mano, para ensayar sin escanear. */
+function duenoMeterEntrada(id) {
+  mutate(function () {
+    var p = personaPorId(id);
+    if (!p || p.dentro) return;
+    p.dentro = true;
+    p.horaEntrada = nowHM();
+    addLog('metió a mano (modo pruebas) la entrada de ' + p.nombre + ' ' + p.apellido + ' (' + p.codigoReserva + ')', 'entrada');
+  });
+  toast('Entrada dentro (modo pruebas).');
 }
 /* Filtro reutilizable de "Entradas creadas" (lo usan la lista y el borrado en bloque). */
 function entradasFiltradas() {
