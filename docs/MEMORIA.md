@@ -3,6 +3,13 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-20 (quinquies) — MH Collective: V39 (puerta con pestañas visibles + escaneo que entra directo)
+- El usuario se quejó de que la puerta del vigilante quedó "pelada" tras V36 (solo le salía + Añadir) y pidió: que se vean TODAS las opciones (pestañas) pero SIN volcar las entradas de primeras (tenga que "darle a Todos"), y que al ESCANEAR entre directo sin tocar nada.
+- Puerta: las 6 pestañas (Por entrar/Ya dentro/Todos/Invitados/Taquilla/Mesas VIP) SIEMPRE se ven, incluso en "buscar primero". Nuevo `_filtroTocado`: sin búsqueda y sin pestaña pulsada, la lista va vacía con aviso "👆 Elige qué ver"; al pulsar una pestaña (o buscar/escanear) ya se ven. `entrarPerfil` reinicia (_busq='', _filtroTocado=false, _filtro='fuera') → cada vez que el vigilante entra a su puesto arranca limpio. filtroTab no marca ninguna hasta pulsar.
+- Escaneo directo: `accesoAuto` pasa a ON por defecto + activación por ÚNICA vez para estados ya creados (`_autoAccesoV39`). `resolverEscaneo` con cámara ahora entra solo también para taquilla en modo RRPP (usa `darAccesoVendida`, cuenta como vendida) y para "sin precio"; solo confirma "✔ DENTRO" si REALMENTE entró (si aforo completo, deja que el aviso de confirmación mande, no miente). Lo que hay que cobrar sigue cayendo al veredicto manual.
+- Aclarado al usuario: que el dueño "vea lo mismo" al escanear es la SINCRONIZACIÓN (comparten datos); el modal del escáner es local del móvil del vigilante, no salta en el del dueño.
+- Verificado V39: 49/49 aceptación · 17/17 batería nueva (pestañas visibles, no vuelca al entrar, Todos/Por entrar filtran, re-entrar limpia, buscar funciona, escaneo invitado/taquilla-RRPP entra directo, re-escaneo = YA ENTRÓ).
+
 ## 2026-08-20 (quater) — MH Collective: V38 (reconexión a prueba de todo)
 - Petición: "asegúrate de manera tajante de que se reconecte". Se reescribió initFirebaseSync con reconexión que NUNCA se rinde:
   - `conectar()` REINTENTABLE con espera creciente (2→30s): antes el arranque pasaba una vez y, si fallaba (abrir sin internet), el móvil se quedaba sin conectar PARA SIEMPRE. Ahora se reintenta hasta lograrlo.

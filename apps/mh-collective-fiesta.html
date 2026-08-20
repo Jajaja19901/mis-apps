@@ -13880,7 +13880,7 @@ function seedState() {
       // Apagado de serie (marca directo, menos ajetreo); lo activa el dueño si quiere
       // la analítica por tipo.
       preguntarTipo: false,
-      accesoAuto: false,
+      accesoAuto: true, // al escanear con cámara una entrada válida y pagada, entra directo (sin toques)
       // Las entradas de pago las venden los RRPP: en la puerta NO se cobra, solo se da
       // acceso y la entrada se cuenta como vendida. Es el modelo de esta fiesta.
       puertaVentaRRPP: true,
@@ -14029,7 +14029,10 @@ function migrar(s) {
   if (!s.ventasPorProducto || typeof s.ventasPorProducto !== 'object') s.ventasPorProducto = {};
   if (!Array.isArray(s.monederos)) s.monederos = [];
   if (typeof s.ingresosMonederos !== 'number') s.ingresosMonederos = 0;
-  if (typeof s.config.accesoAuto !== 'boolean') s.config.accesoAuto = false;
+  if (typeof s.config.accesoAuto !== 'boolean') s.config.accesoAuto = true; // por defecto: al escanear con cámara, entra directo
+  // Activación por ÚNICA vez para fiestas ya creadas (pedido: "al escanear que entre directo, el
+  // vigilante no tiene que hacer nada"). Solo la primera vez; luego respeta lo que ponga el dueño.
+  if (!s.config._autoAccesoV39) { s.config._autoAccesoV39 = true; s.config.accesoAuto = true; }
   ['fecha', 'hora', 'lugar', 'lema'].forEach(function (k) { if (typeof s.config[k] !== 'string') s.config[k] = ''; });
   if (s.config.logo === undefined) s.config.logo = null;
   if (typeof s.config.colorTema !== 'string') s.config.colorTema = '#00d4ff';
@@ -15522,7 +15525,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V38'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V39'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -16838,6 +16841,8 @@ function entrarPerfil(id) {
   // Salir del panel del dueño al pasar a un trabajador (misma regla de aislamiento).
   duenoAutenticado = false;
   state.perfilActivo = id;
+  // Al entrar a la puerta, arranca "limpia": sin búsqueda y sin pestaña elegida (buscar primero).
+  _busq = ""; _filtroTocado = false; _filtro = "fuera";
   location.hash = id.startsWith('cam') ? '#/barra' : '#/puerta';
   renderApp();
 }
@@ -17552,6 +17557,10 @@ window.addEventListener('DOMContentLoaded', bootApp);
 /* ===== VISTA PUERTA (#/puerta) — MH Collective ===== */
 var _busq = "";
 var _filtro = "fuera"; // por defecto el vigilante ve solo "Por entrar" (la lista se acorta al entrar la gente)
+// Modo "buscar primero": la puerta arranca con las PESTAÑAS visibles pero SIN volcar las entradas.
+// El vigilante pulsa una pestaña (p.ej. "Todos") o busca/escanea, y entonces se ven. _filtroTocado
+// recuerda si ya ha pulsado una pestaña en esta sesión (se reinicia al entrar a su puesto).
+var _filtroTocado = false;
 
 function normTxt(s) {
   return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -17564,14 +17573,16 @@ function personasFiltradas() {
   var list = state.personas.slice();
   var q = normTxt(_busq).trim();
   // Modo "buscar primero": la búsqueda manda y busca a CUALQUIERA (dentro o fuera), sin que el
-  // filtro de pestaña esconda a alguien que ya entró. Sin búsqueda, la lista va vacía (se decide
-  // en renderListaPersonasHTML).
+  // filtro de pestaña esconda a alguien que ya entró. Sin búsqueda, la lista va vacía HASTA que el
+  // vigilante pulsa una pestaña (_filtroTocado); ahí ya se filtra normal como abajo.
   if (puertaBuscarPrimero()) {
-    if (!q) return [];
-    return list.filter(function (p) {
-      var hay = normTxt((p.nombre || "") + " " + (p.apellido || "") + " " + (p.codigoReserva || ""));
-      return hay.indexOf(q) !== -1;
-    });
+    if (q) {
+      return list.filter(function (p) {
+        var hay = normTxt((p.nombre || "") + " " + (p.apellido || "") + " " + (p.codigoReserva || ""));
+        return hay.indexOf(q) !== -1;
+      });
+    }
+    if (!_filtroTocado) return []; // aún no ha elegido pestaña → nada volcado
   }
   if (_filtro === "invitados") list = list.filter(function (p) { return p.tipo === "invitado"; });
   else if (_filtro === "taquilla") list = list.filter(function (p) { return p.tipo === "taquilla"; });
@@ -17588,7 +17599,9 @@ function personasFiltradas() {
 }
 
 function filtroTab(key, label) {
-  var activo = _filtro === key ? " activo" : "";
+  // En "buscar primero" ninguna pestaña sale marcada hasta que el vigilante pulsa una.
+  var marcar = _filtro === key && (!puertaBuscarPrimero() || _filtroTocado);
+  var activo = marcar ? " activo" : "";
   return '<button type="button" class="filtro-tab' + activo + '" data-testid="filtro-' + key +
     '" onclick="setFiltro(\'' + key + '\')">' + esc(label) + "</button>";
 }
@@ -17610,17 +17623,16 @@ function renderPuerta() {
     html += '<button type="button" class="btn-monedero" data-testid="btn-monedero-puerta" onclick="abreMonederoPuerta()">💰 Monedero</button>';
   }
   html += "</div>";
-  // En modo "buscar primero" las pestañas de filtro sobran (la lista va vacía hasta buscar).
-  if (!puertaBuscarPrimero()) {
-    html += '<div class="puerta-filtros">';
-    html += filtroTab("fuera", "Por entrar");
-    html += filtroTab("dentro", "Ya dentro");
-    html += filtroTab("todos", "Todos");
-    html += filtroTab("invitados", "Invitados");
-    html += filtroTab("taquilla", "Taquilla");
-    html += filtroTab("vip", "Mesas VIP");
-    html += "</div>";
-  }
+  // Las pestañas SIEMPRE se ven (el vigilante tiene sus opciones a mano). En "buscar primero"
+  // están visibles pero no vuelcan las entradas hasta que pulsa una.
+  html += '<div class="puerta-filtros">';
+  html += filtroTab("fuera", "Por entrar");
+  html += filtroTab("dentro", "Ya dentro");
+  html += filtroTab("todos", "Todos");
+  html += filtroTab("invitados", "Invitados");
+  html += filtroTab("taquilla", "Taquilla");
+  html += filtroTab("vip", "Mesas VIP");
+  html += "</div>";
   html += '<div id="listaPersonas">' + renderListaPersonasHTML() + "</div>";
   html += "</div>";
   vista.innerHTML = html;
@@ -17628,14 +17640,15 @@ function renderPuerta() {
 
 function renderListaPersonasHTML() {
   var q = normTxt(_busq).trim();
-  // Modo "buscar primero": sin búsqueda, no se enseña la lista entera (privacidad + acción a propósito).
-  if (puertaBuscarPrimero() && !q) {
+  // Modo "buscar primero": sin búsqueda y sin pestaña pulsada, no se vuelca la lista (privacidad +
+  // acción a propósito). En cuanto pulsa una pestaña o busca/escanea, sí se ven.
+  if (puertaBuscarPrimero() && !q && !_filtroTocado) {
     var qrOn = !!(state.config && state.config.modulos && state.config.modulos.qr);
     return '<div class="puerta-vacia-buscar" data-testid="puerta-buscar-primero">' +
-      '<div class="pvb-icono">🔎</div>' +
-      '<p class="pvb-titulo">Busca la entrada para gestionarla</p>' +
-      '<p class="pvb-sub">Escribe el nombre, apellido o código' + (qrOn ? ', o pulsa <b>Escanear QR</b>' : '') +
-      '. La lista no se muestra entera.</p></div>';
+      '<div class="pvb-icono">👆</div>' +
+      '<p class="pvb-titulo">Elige qué ver</p>' +
+      '<p class="pvb-sub">Pulsa una pestaña de arriba (por ejemplo <b>Todos</b>), busca por nombre o código' +
+      (qrOn ? ', o pulsa <b>Escanear QR</b>' : '') + '. Así no salen todas las entradas de golpe.</p></div>';
   }
   var list = personasFiltradas();
   if (list.length === 0) {
@@ -17738,6 +17751,7 @@ function onBuscadorInput(value) {
 }
 
 function setFiltro(key) {
+  _filtroTocado = true; // el vigilante ha elegido una pestaña → ya se pueden ver las entradas
   _filtro = key;
   renderPuerta();
 }
@@ -18736,15 +18750,25 @@ function resolverEscaneo(valor, deCamara) {
     return;
   }
   var nombre = esc(p.nombre + " " + p.apellido);
-  // ACCESO AUTOMÁTICO: solo cámara + config ON + válida + fuera + sin nada que cobrar.
+  // ACCESO AUTOMÁTICO: cámara + config ON + válida + fuera + SIN nada que cobrar en la puerta.
+  // "Sin deuda" incluye: invitado gratis, entrada sin precio, ya pagada, y —clave para esta fiesta—
+  // cuando los RRPP venden (en la puerta NO se cobra), así una entrada de taquilla de RRPP entra sola.
   var pend = p.tipo === "vip" ? ((p.mesa.total || 0) - (p.importePagado || 0)) : 0;
-  var sinDeuda = p.tipo === "invitado" || p.sinPrecio || (p.importePagado || 0) > 0 && pend <= 0;
+  var sinDeuda = p.tipo === "invitado" || p.sinPrecio || ((p.importePagado || 0) > 0 && pend <= 0)
+    || (p.tipo === "taquilla" && puertaVentaRRPP());
   if (deCamara && state.config.accesoAuto && !p.dentro && sinDeuda) {
-    darAccesoSimple(p.id, p.tipo === "invitado" ? "Invitado" : (p.tipo === "vip" ? "VIP" : "Taquilla"));
-    _sonar('ok');
-    if (out) out.innerHTML = '<div class="scan-res scan-ok"><b class="scan-verde">✔ DENTRO</b>' +
-      '<span>' + nombre + ' · ' + esc(p.codigoReserva) + '</span></div>' +
-      '<button type="button" onclick="closeModal()">Siguiente</button>';
+    // En modo RRPP, la taquilla no liquidada se cuenta como VENDIDA (suma a caja/RRPP), como en el botón.
+    if (p.tipo === "taquilla" && puertaVentaRRPP() && !taquillaLiquidada(p)) darAccesoVendida(p.id);
+    else darAccesoSimple(p.id, p.tipo === "invitado" ? "Invitado" : (p.tipo === "vip" ? "VIP" : "Taquilla"));
+    // Solo confirmamos "DENTRO" si realmente entró. Si el aforo está completo, la función de acceso
+    // abre su propio aviso de confirmación y NO lo mete: no mentimos con un ✔ verde.
+    var _pd = personaPorId(p.id);
+    if (_pd && _pd.dentro) {
+      _sonar('ok');
+      if (out) out.innerHTML = '<div class="scan-res scan-ok"><b class="scan-verde">✔ DENTRO</b>' +
+        '<span>' + nombre + ' · ' + esc(p.codigoReserva) + '</span></div>' +
+        '<button type="button" onclick="closeModal()">Siguiente</button>';
+    }
     return;
   }
   if (p.dentro) {
