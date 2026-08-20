@@ -14430,9 +14430,11 @@ function procesarComandosVoz(frases) {
         return;
       }
       if (hayIA) { procesarConIA(p); return; }   // no entendido + hay clave: que lo mire Google
+      // Sugerencia: en vez de dejarte a ciegas, propone la orden más parecida (solo propone).
+      var _sug = (typeof _sugerenciaVoz === 'function') ? _sugerenciaVoz(p) : '';
       // En manos libres no soltamos "no te he entendido" en voz por cada ruido: solo aviso mudo.
-      if (_manosLibres) { toast('🎤 ¿cómo? repite'); return; }
-      _respVoz('No te he entendido. Di ayuda para oír lo que puedo hacer');
+      if (_manosLibres) { toast(_sug ? ('🎤 ¿Querías decir: «' + _sug + '»?') : '🎤 ¿cómo? repite'); return; }
+      _respVoz(_sug ? ('No te he entendido. ¿Querías decir: ' + _sug + '?') : 'No te he entendido. Di ayuda para oír lo que puedo hacer');
     }, i * 320);
   });
 }
@@ -14466,6 +14468,116 @@ function _hecho(detalle) {
   if (state && state.config && state.config.hablarAlHacer) hablar('Hecho');
   else if (typeof _sonar === 'function') _sonar('ok');
 }
+/* ===== "DESHAZ LO ÚLTIMO": red de seguridad de la voz =====
+   Si el micro oyó mal y se creó algo que no querías (un lote, un gasto, una mesa…),
+   di "deshaz lo último" y se quita. Solo cubre CREACIONES (lo seguro); nunca toca
+   cobros ni accesos. Cada creador por voz deja aquí su huella. */
+var _ultimaCreacion = null;
+function deshacerUltimo() {
+  var u = _ultimaCreacion;
+  if (!u) { _respVoz('No hay nada reciente que deshacer'); return; }
+  var desc = u.desc || u.tipo, hechoYa = false;
+  if (u.tipo === 'lote') {
+    mutate(function (s) {
+      var antes = s.personas.length;
+      s.personas = s.personas.filter(function (p) { return !(p.remesa === u.etiqueta && !p.dentro); });
+      if (s.personas.length < antes) { hechoYa = true; addLog('deshizo el lote "' + u.etiqueta + '" (' + (antes - s.personas.length) + ' entradas)', 'config'); }
+    });
+  } else if (u.tipo === 'persona') {
+    var pU = (state.personas || []).find(function (p) { return p.id === u.id; });
+    if (pU && pU.dentro) { _respVoz(_nombreDe(pU) + ' ya está dentro; bórrala a mano si hace falta'); return; }
+    mutate(function (s) {
+      var i = s.personas.findIndex(function (p) { return p.id === u.id; });
+      if (i >= 0) { addLog('deshizo la creación de ' + _nombreDe(s.personas[i]), 'config'); s.personas.splice(i, 1); hechoYa = true; }
+    });
+  } else if (u.tipo === 'gasto') {
+    mutate(function (s) {
+      for (var i = (s.gastos || []).length - 1; i >= 0; i--) {
+        if (s.gastos[i].concepto === u.concepto && s.gastos[i].importe === u.importe) { s.gastos.splice(i, 1); hechoYa = true; addLog('deshizo el gasto ' + u.concepto, 'config'); break; }
+      }
+    });
+  } else if (u.tipo === 'bonos') {
+    mutate(function (s) {
+      var antes = (s.bonos || []).length;
+      s.bonos = (s.bonos || []).filter(function (b) { return !(u.ids.indexOf(b.id) !== -1 && !b.vendido && !(b.usadas > 0)); });
+      if (s.bonos.length < antes) { hechoYa = true; addLog('deshizo ' + (antes - s.bonos.length) + ' bonos', 'config'); }
+    });
+  } else if (u.tipo === 'monedero') {
+    var mU = (state.monederos || []).find(function (m) { return m.id === u.id; });
+    if (mU && mU.saldo !== u.importe) { _respVoz('Ese monedero ya se ha usado; anúlalo a mano'); return; }
+    mutate(function (s) {
+      var i = (s.monederos || []).findIndex(function (m) { return m.id === u.id; });
+      if (i >= 0) {
+        s.monederos.splice(i, 1);
+        s.ingresosMonederos = Math.max(0, (s.ingresosMonederos || 0) - u.importe);
+        if (u.actor) s.recaudacionPorPerfil[u.actor] = Math.max(0, (s.recaudacionPorPerfil[u.actor] || 0) - u.importe);
+        hechoYa = true; addLog('deshizo el monedero (' + u.importe + ' € devueltos de caja)', 'config');
+      }
+    });
+  } else if (u.tipo === 'fase') {
+    if ((state.personas || []).some(function (p) { return p.faseId === u.id; })) { _respVoz('Esa fase ya tiene entradas; bórrala a mano'); return; }
+    mutate(function (s) {
+      var i = (s.config.fases || []).findIndex(function (f) { return f.id === u.id; });
+      if (i >= 0) { addLog('deshizo la fase ' + s.config.fases[i].nombre, 'config'); s.config.fases.splice(i, 1); hechoYa = true; }
+    });
+  } else if (u.tipo === 'rrpp') {
+    if ((state.personas || []).some(function (p) { return p.rrppSlug === u.slug; })) { _respVoz('Ese promotor ya tiene entradas repartidas; bórralo a mano'); return; }
+    mutate(function (s) {
+      var i = (s.rrpp || []).findIndex(function (r) { return r.slug === u.slug; });
+      if (i >= 0) { addLog('deshizo el alta del RRPP ' + s.rrpp[i].nombre, 'config'); s.rrpp.splice(i, 1); hechoYa = true; }
+    });
+  } else if (u.tipo === 'admin') {
+    mutate(function (s) {
+      var i = (s.config.adminsExtra || []).findIndex(function (a) { return a.id === u.id; });
+      if (i >= 0) { addLog('deshizo el nombramiento de ' + s.config.adminsExtra[i].nombre, 'config'); s.config.adminsExtra.splice(i, 1); hechoYa = true; }
+    });
+  } else if (u.tipo === 'nota') {
+    mutate(function (s) {
+      for (var i = (s.notas || []).length - 1; i >= 0; i--) { if (s.notas[i].texto === u.texto) { s.notas.splice(i, 1); hechoYa = true; break; } }
+    });
+  }
+  _ultimaCreacion = null;
+  if (hechoYa) _hecho('Deshecho: ' + desc);
+  else _respVoz('Eso ya no se puede deshacer solo; quítalo a mano');
+}
+/* Cuando NO entiende, sugiere la orden más parecida (por palabra clave) en vez de
+   dejarte a ciegas. Solo sugiere: nunca ejecuta lo sugerido. */
+function _sugerenciaVoz(frase) {
+  var f = _normVoz(frase || '');
+  var MAPA = [
+    ['mesa vip|vip', 'crea una mesa vip para Ana con 4 acompañantes'],
+    ['invitad|invita', 'invita a Ana'],
+    ['entrada', 'crea 10 entradas a 20 euros'],
+    ['fase', 'crea la fase 2 a 30 euros'],
+    ['monedero', 'carga un monedero de 50 euros'],
+    ['bono', 'crea 10 bonos de 2 copas'],
+    ['gasto', 'apunta un gasto de 50 en hielo'],
+    ['clave|codigo|contrasena', 'ponme las claves'],
+    ['camarero|vigilante|portero|segurata', 'pon 2 camareros y 2 vigilantes'],
+    ['dinero|caja|recauda|beneficio', 'cuánto dinero llevo'],
+    ['aforo|dentro|gente', 'cuánta gente hay dentro'],
+    ['zip|descarga|pdf|excel', 'descarga las entradas en zip'],
+    ['email|correo', 'envía los emails'],
+    ['whatsapp|guasap', 'mándale el whatsapp a Ana'],
+    ['acceso|entrar|pasar', 'dale acceso a Pedro'],
+    ['pagad|cobra', 'marca pagada la de Pedro'],
+    ['salida|se va', 'marca la salida de Pedro'],
+    ['nota|apunta', 'apunta que falta hielo'],
+    ['stock|existencias', 'pon el stock del ron a 30'],
+    ['color', 'pon el color en morado'],
+    ['precio', 'pon la entrada a 20 euros'],
+    ['historico|ultima fiesta', 'cuánto gané en la última fiesta'],
+    ['administrador|admin', 'nombra administrador a Ana'],
+    ['secreto', 'activa el modo secreto'],
+    ['bizum|tarjeta|nfc', 'activa el bizum con tu número'],
+    ['deshaz|deshacer|equivoc', 'deshaz lo último'],
+    ['comision|promotor|rrpp', 'sube la comisión de Nico a 3 euros']
+  ];
+  for (var i = 0; i < MAPA.length; i++) {
+    if (new RegExp('\\b(' + MAPA[i][0] + ')').test(f)) return MAPA[i][1];
+  }
+  return '';
+}
 /* Entiende la orden hablada y ejecuta la acción de la app. Cubre lo importante:
    enviar emails, dinero, aforo, entradas, copiar enlaces, crear entrada, y navegar. */
 var _cvHandled = false; // ¿el motor local entendió la última orden? (para decidir si llamar a Google)
@@ -14490,6 +14602,8 @@ function ejecutarComandoVoz(frases, quiet) {
   if (/(mas agud|mas fin|voz aguda|tono agudo|mas alto de tono)/.test(t)) { mutateSilent(function (s) { s.config.vozTono = _clamp((s.config.vozTono || 1) + 0.15, 0.4, 1.8, 1.0); }); hablar('Ahora hablo más agudo'); return; }
   if (/(mas despacio|mas lento|habla lento|mas lenta|mas pausad)/.test(t)) { mutateSilent(function (s) { s.config.vozVelocidad = _clamp((s.config.vozVelocidad || 0.95) - 0.12, 0.5, 1.6, 0.95); }); hablar('Vale, hablo más despacio'); return; }
   if (/(mas rapido|mas rapida|habla rapido|mas deprisa|corre mas)/.test(t)) { mutateSilent(function (s) { s.config.vozVelocidad = _clamp((s.config.vozVelocidad || 0.95) + 0.12, 0.5, 1.6, 0.95); }); hablar('Vale, hablo más rápido'); return; }
+  // "Deshaz lo último": red de seguridad si el micro oyó mal y se creó algo que no querías.
+  if (/(deshaz|deshacer|deshazlo|quita lo ultimo|borra lo ultimo|anula lo ultimo|no era eso|eso no era|te has equivocado|te equivocaste)/.test(t)) { deshacerUltimo(); return; }
   // TRADUCTOR LOCAL: si la frase es una orden de acción, la ejecuta con la misma maquinaria
   // que usa Google (así funciona TODO aunque Google esté caído o sin cupo).
   var _int = _intentLocal((frases || []).join(' '));
@@ -14779,6 +14893,7 @@ function _crearEntradaVoz(nombreCompleto, tipoE) {
       dentro: false, horaEntrada: null, tipo: tipoE });
     addLog('creo por voz la ' + (tipoE === 'invitado' ? 'invitación' : 'entrada') + ' de ' + nombreCompleto, 'alta');
   });
+  _ultimaCreacion = { tipo: 'persona', id: id, desc: (tipoE === 'invitado' ? 'invitación' : 'entrada') + ' de ' + nombreCompleto };
   duenoTab('entradas');
   _hecho((tipoE === 'invitado' ? 'Invitación' : 'Entrada') + ' creada · ' + nombreCompleto);
 }
@@ -14819,6 +14934,7 @@ function _crearLote(cantidad, opts) {
     }
     addLog('creó por voz/IA el lote "' + etiqueta + '" (' + cantidad + ' entradas)', 'alta');
   });
+  _ultimaCreacion = { tipo: 'lote', etiqueta: etiqueta, desc: cantidad + ' entradas (' + etiqueta + ')' };
   return { etiqueta: etiqueta, cantidad: cantidad, precio: precio };
 }
 /* Crea o ACTUALIZA una fase (mismo nombre = se actualiza, no duplica). La usan la voz
@@ -14845,6 +14961,7 @@ function _crearFaseVoz(nombre, precio, cantidad) {
     s.config.fases.push({ id: fId, nombre: nombreFinal, precio: fP, cantidad: fC });
     addLog('añadió la fase ' + nombreFinal + ' (' + fP + ' €)', 'config');
   });
+  _ultimaCreacion = { tipo: 'fase', id: fId, desc: 'fase ' + nombreFinal };
   return { nombre: nombreFinal, precio: fP, cantidad: fC, actualizada: false };
 }
 /* Saca un número pequeño (1-20) de una frase, en dígitos o en palabras. Para "pon 2 camareros". */
@@ -15265,6 +15382,7 @@ function anadirNota(texto) {
     s.notas.push({ id: 'n' + Date.now(), texto: tN, hora: nowHM() });
     addLog('apuntó una nota', 'config');
   });
+  _ultimaCreacion = { tipo: 'nota', texto: tN, desc: 'nota' };
   return true;
 }
 function anadirNotaUI() {
@@ -15354,7 +15472,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V29'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V30'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -15403,6 +15521,7 @@ function _accionesIA() {
     'apuntar_nota(texto) leer_notas borrar_nota(cual) borrar_notas — bloc Mis notas del dueño',
     'borrar_producto(producto) reponer_stock(producto?) borrar_fase(fase) borrar_rrpp(promotor) borrar_gasto(concepto) borrar_admin(nombre) quitar_logo quitar_cartel',
     'cargar_cartel cargar_logo importar_invitados cargar_copia poner_carpeta(url) — coge archivos de la carpeta (GitHub) por voz',
+    'deshacer_ultimo — quita lo ÚLTIMO creado por voz (lote, entrada, mesa, gasto, bonos, monedero, fase, rrpp, admin, nota) si fue un malentendido',
     'cerrar_fiesta(confirmar?) instalar_app ir_a(pestana:resumen|entradas|entregar|dinero|ajustes|registro) responder(texto)'
   ].join('\n');
 }
@@ -15678,6 +15797,7 @@ function ejecutarAccionIA(accion, args) {
         s.gastos.push({ id: 'g' + Date.now(), concepto: gc, importe: gi, categoria: String(args.categoria || 'otros'), hora: nowHM() });
         addLog('registró gasto ' + gc + ' (' + gi + ' €)', 'gasto');
       });
+      _ultimaCreacion = { tipo: 'gasto', concepto: gc, importe: gi, desc: 'gasto ' + gc + ' (' + Math.round(gi) + ' €)' };
       _hecho('Gasto: ' + gc + ' · ' + Math.round(gi) + ' €'); break;
     }
     case 'crear_bonos': {
@@ -15693,6 +15813,7 @@ function ejecutarAccionIA(accion, args) {
           etiqueta: bEti, hora: nowHM(), anulado: false, precio: bp, vendido: false, regalo: bp === 0 });
       }
       mutate(function (s) { if (!s.bonos) s.bonos = []; bNuevos.forEach(function (b) { s.bonos.push(b); }); addLog('creó lote de ' + bq + ' bonos de ' + bc + ' copas', 'alta'); });
+      _ultimaCreacion = { tipo: 'bonos', ids: bNuevos.map(function (b) { return b.id; }), desc: bq + ' bonos de ' + bc + ' copas' };
       duenoTab('fiesta');
       _hecho(bq + ' bonos · ' + bc + ' copas' + (bp > 0 ? (' · ' + Math.round(bp) + ' €') : ' · regalo')); break;
     }
@@ -15831,6 +15952,7 @@ function ejecutarAccionIA(accion, args) {
           precio: Number(args.precio) || s.config.precioEntrada || 0, comision: Number(args.comision) || 0 });
         addLog('añadió al RRPP ' + rn, 'rrpp');
       });
+      _ultimaCreacion = { tipo: 'rrpp', slug: rsg, desc: 'RRPP ' + rn };
       _hecho('RRPP ' + rn + (args.comision ? (' · com ' + Math.round(Number(args.comision)) + ' €') : '')); break;
     }
     case 'repartir_rrpp': {
@@ -15974,6 +16096,7 @@ function ejecutarAccionIA(accion, args) {
           pagado: mvTot > 0 && mvAde >= mvTot, importePagado: mvAde, dentro: false, horaEntrada: null });
         addLog('creó por voz la mesa VIP ' + sig + ' de ' + mvNom + ' (' + mvAc + ' acompañantes' + (mvAde > 0 ? ', señal ' + mvAde + ' €' : '') + ')', 'alta');
       });
+      _ultimaCreacion = { tipo: 'persona', id: mvId, desc: 'mesa VIP de ' + mvNom };
       duenoTab('entradas');
       _hecho('Mesa VIP · ' + mvNom + ' · ' + mvAc + ' acompañantes' + (mvPag ? ' · pagada' : (mvSen > 0 ? ' · señal ' + Math.round(mvSen) + ' €' : '')));
       break;
@@ -16011,6 +16134,7 @@ function ejecutarAccionIA(accion, args) {
         s.recaudacionPorPerfil[cmActor] = (s.recaudacionPorPerfil[cmActor] || 0) + cmImp;
         addLog('cargó por voz el monedero ' + cmCod + ' con ' + cmImp + ' €', 'cobro');
       });
+      _ultimaCreacion = { tipo: 'monedero', id: cmId, importe: cmImp, actor: cmActor, desc: 'monedero de ' + cmImp + ' €' };
       _hecho('Monedero ' + cmCod + ' · ' + cmImp + ' €');
       try { abreQRMonedero(cmId, true); } catch (eqm) {}
       break;
@@ -16090,6 +16214,7 @@ function ejecutarAccionIA(accion, args) {
         s.config.adminsExtra.push({ id: naId, nombre: naNom, clave: naCla });
         addLog('nombró administrador (por voz) a ' + naNom, 'config');
       });
+      _ultimaCreacion = { tipo: 'admin', id: naId, desc: 'administrador ' + naNom };
       toast('👑 ' + naNom + ' · PIN: ' + naCla);
       hablar('Hecho. ' + naNom + ' ya es administrador. Su PIN está en pantalla'); break;
     }
@@ -16154,6 +16279,7 @@ function ejecutarAccionIA(accion, args) {
       mutateSilent(function (s) { s.config.preguntarTipo = aptOn; addLog((aptOn ? 'activó' : 'desactivó') + ' la pregunta de tipo de combinado', 'config'); });
       _hecho(aptOn ? 'La barra preguntará el tipo de combinado' : 'La barra ya no pregunta el tipo'); break;
     }
+    case 'deshacer_ultimo': deshacerUltimo(); break;
     case 'responder': _respVoz(args.texto || 'Hecho'); break;
     default:
       // Que quede constancia de lo que la IA pidió y no existe: se ve en el Registro.
@@ -16175,6 +16301,7 @@ function _crearEntradaIA(args) {
       mesa: null, pagado: false, importePagado: 0, dentro: false, horaEntrada: null, tipo: tipoE });
     addLog('creó por voz (IA) la ' + (tipoE === 'invitado' ? 'invitación' : 'entrada') + ' de ' + nombreCompleto, 'alta');
   });
+  _ultimaCreacion = { tipo: 'persona', id: id, desc: (tipoE === 'invitado' ? 'invitación' : 'entrada') + ' de ' + nombreCompleto };
   duenoTab('entradas');
   _hecho((tipoE === 'invitado' ? 'Invitación' : 'Entrada') + ' creada · ' + nombreCompleto);
 }
