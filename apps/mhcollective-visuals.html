@@ -124,17 +124,13 @@
 
 <!-- Marca / watermark -->
 <div id="brand">
-  <svg class="mark" viewBox="0 0 100 100" aria-hidden="true">
-    <defs>
-      <linearGradient id="gr" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="#FEDA75"/><stop offset=".5" stop-color="#D62976"/><stop offset="1" stop-color="#4F5BD5"/>
-      </linearGradient>
-    </defs>
-    <circle cx="50" cy="50" r="47" fill="none" stroke="url(#gr)" stroke-width="4"/>
-    <path d="M50 18 82 50 50 82 18 50Z" fill="none" stroke="#fff" stroke-width="3.2"/>
-    <text x="50" y="52" font-family="Arial Black,Arial" font-weight="900" font-size="21" fill="#fff" text-anchor="middle">MH</text>
-    <rect x="34" y="60" width="32" height="10" rx="2" fill="#fff"/>
-    <text x="50" y="68" font-family="Arial" font-weight="700" font-size="7" fill="#0a0a12" text-anchor="middle" letter-spacing=".5">COLLECTIVE</text>
+  <img class="mark logo-real" alt="" style="display:none;border-radius:9px">
+  <svg class="mark logo-vec" viewBox="0 0 100 100" aria-hidden="true">
+    <rect x="4" y="4" width="92" height="92" rx="20" fill="#0a0a10"/>
+    <path d="M50 15 85 50 50 85 15 50Z" fill="none" stroke="#fff" stroke-width="3"/>
+    <text x="50" y="47" font-family="Arial Black,Arial" font-weight="900" font-size="22" fill="#fff" text-anchor="middle">MH</text>
+    <rect x="30" y="56" width="40" height="13" rx="2.5" fill="#fff"/>
+    <text x="50" y="65.5" font-family="Arial" font-weight="700" font-size="8" fill="#0a0a12" text-anchor="middle">Collective</text>
   </svg>
   <div class="txt"><b>MHCOLLECTIVE</b><span>VISUAL SYSTEM</span></div>
 </div>
@@ -144,18 +140,13 @@
 
 <!-- Pantalla de inicio -->
 <div id="intro">
-  <svg class="biglogo" viewBox="0 0 100 100" aria-hidden="true">
-    <defs>
-      <linearGradient id="gr2" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="#FEDA75"/><stop offset=".33" stop-color="#FA7E1E"/>
-        <stop offset=".66" stop-color="#D62976"/><stop offset="1" stop-color="#4F5BD5"/>
-      </linearGradient>
-    </defs>
-    <circle cx="50" cy="50" r="47" fill="none" stroke="url(#gr2)" stroke-width="4.5"/>
-    <path d="M50 16 84 50 50 84 16 50Z" fill="none" stroke="#fff" stroke-width="3"/>
-    <text x="50" y="51" font-family="Arial Black,Arial" font-weight="900" font-size="22" fill="#fff" text-anchor="middle">MH</text>
-    <rect x="33" y="60" width="34" height="11" rx="2" fill="#fff"/>
-    <text x="50" y="68.5" font-family="Arial" font-weight="700" font-size="7.2" fill="#0a0a12" text-anchor="middle" letter-spacing=".5">COLLECTIVE</text>
+  <img class="biglogo logo-real" alt="MHcollective" style="display:none;border-radius:16px">
+  <svg class="biglogo logo-vec" viewBox="0 0 100 100" aria-hidden="true">
+    <rect x="3" y="3" width="94" height="94" rx="20" fill="#0a0a10"/>
+    <path d="M50 14 86 50 50 86 14 50Z" fill="none" stroke="#fff" stroke-width="2.6"/>
+    <text x="50" y="46" font-family="Arial Black,Arial" font-weight="900" font-size="23" fill="#fff" text-anchor="middle">MH</text>
+    <rect x="29" y="56" width="42" height="14" rx="2.5" fill="#fff"/>
+    <text x="50" y="65.8" font-family="Arial" font-weight="700" font-size="8.4" fill="#0a0a12" text-anchor="middle">Collective</text>
   </svg>
   <h1>MHCOLLECTIVE<small>VISUALES EN DIRECTO</small></h1>
   <p>Visuales que <b>reaccionan a tu música en tiempo real</b>. Para que suenen y se vean acordes,
@@ -164,8 +155,11 @@
   <div class="btns">
     <button class="btn primary" id="btnMic">🎧 Empezar con la música (línea/micro)</button>
     <button class="btn ghost" id="btnDemo">▶︎ Ver en modo demo</button>
+    <button class="btn ghost" id="btnLogo">🖼️ Subir tu logo</button>
   </div>
-  <p class="sub">También puedes <b>arrastrar un archivo de audio</b> a la pantalla para que suene a través de él.
+  <input type="file" id="logoInput" accept="image/*" hidden>
+  <p class="sub">Sube tu <b>logo oficial</b> (PNG/JPG) y se usará idéntico en todas las escenas.
+     También puedes <b>arrastrar</b> a la pantalla un <b>archivo de audio</b> (suena por él) o una <b>imagen</b> (la pone de logo).
      El micro se pide permiso solo en tu equipo; no se envía nada a ningún sitio.</p>
   <div class="keys">
     <kbd>Espacio</kbd> auto on/off · <kbd>→</kbd>/<kbd>←</kbd> escena · <kbd>1</kbd>–<kbd>9</kbd> ir a · <kbd>F</kbd> pantalla completa · <kbd>H</kbd> ayuda
@@ -616,30 +610,42 @@ function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y);
   ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
   ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
 
-/* LOGO COMPLETO MH COLLECTIVE (anillo degradado + rombo + MH + tag Collective)
-   tal y como se ve en la captura. size = radio del anillo exterior. */
+/* LOGO OFICIAL MH COLLECTIVE.
+   Si el dueño sube su archivo (botón/arrastrar), se usa esa imagen EXACTA.
+   Si no, se dibuja una réplica del logo (baldosa negra + rombo + MH + Collective). */
+const LOGO={ img:null };
+function setLogo(src,save){
+  if(save!==false){ try{ localStorage.setItem('mh_logo',src); }catch(e){} }
+  const im=new Image(); im.onload=()=>{ LOGO.img=im; }; im.src=src;
+  document.querySelectorAll('.logo-real').forEach(el=>{ el.src=src; el.style.display=''; });
+  document.querySelectorAll('.logo-vec').forEach(el=>{ el.style.display='none'; });
+}
+try{ const _s=localStorage.getItem('mh_logo'); if(_s) setLogo(_s,false); }catch(e){}
+
 function drawLogoBadge(x,y,size,alpha){
-  if(size<18) { drawMH(x,y,size,alpha); return; }
-  ctx.save(); ctx.globalAlpha=alpha==null?1:alpha; ctx.translate(x,y);
-  // anillo degradado (Instagram)
-  const grd=ctx.createLinearGradient(-size,-size,size,size);
-  grd.addColorStop(0,'#FEDA75'); grd.addColorStop(.30,'#FA7E1E');
-  grd.addColorStop(.55,'#F56040'); grd.addColorStop(.78,'#D62976'); grd.addColorStop(1,'#4F5BD5');
-  ctx.beginPath(); ctx.arc(0,0,size,0,6.283); ctx.lineWidth=size*0.085; ctx.strokeStyle=grd;
-  ctx.shadowBlur=size*0.45; ctx.shadowColor=rgb(palAt(State.globalHue+0.5),0.85); ctx.stroke(); ctx.shadowBlur=0;
-  // disco negro
-  ctx.beginPath(); ctx.arc(0,0,size*0.865,0,6.283); ctx.fillStyle='#08080e'; ctx.fill();
+  const A=alpha==null?1:alpha;
+  if(LOGO.img){ // logo real subido por el dueño → idéntico
+    const s=size*2.1; ctx.save(); ctx.globalAlpha=A;
+    ctx.shadowBlur=size*0.5; ctx.shadowColor=rgb(palAt(State.globalHue+0.5),0.7);
+    ctx.drawImage(LOGO.img, x-s/2, y-s/2, s, s); ctx.restore(); ctx.shadowBlur=0; return;
+  }
+  if(size<16){ drawMH(x,y,size,A); return; }
+  ctx.save(); ctx.globalAlpha=A; ctx.translate(x,y);
+  // baldosa negra redondeada + brillo de marca (para que resalte en escenas oscuras)
+  ctx.shadowBlur=size*0.55; ctx.shadowColor=rgb(palAt(State.globalHue+0.5),0.55);
+  roundRect(-size,-size,size*2,size*2,size*0.26); ctx.fillStyle='rgba(8,8,14,0.6)'; ctx.fill();
+  ctx.shadowBlur=0;
   // rombo blanco
-  const d=size*0.6; ctx.beginPath(); diamond(0,-size*0.07,d);
-  ctx.lineWidth=size*0.05; ctx.strokeStyle='#fff'; ctx.stroke();
+  const d=size*0.82; ctx.beginPath(); diamond(0,0,d); ctx.lineWidth=size*0.05; ctx.strokeStyle='#fff';
+  ctx.shadowBlur=size*0.18; ctx.shadowColor=rgb(palAt(State.globalHue+0.5),0.8); ctx.stroke(); ctx.shadowBlur=0;
   // MH
   ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
-  ctx.font=`900 ${size*0.5}px "Arial Black",Arial,sans-serif`; ctx.fillText('MH',0,-size*0.07);
-  // tag COLLECTIVE
-  const tw=size*0.66, th=size*0.17, ty=size*0.17;
-  ctx.fillStyle='#fff'; roundRect(-tw/2, ty, tw, th, th*0.22); ctx.fill();
-  ctx.fillStyle='#08080e'; ctx.font=`700 ${size*0.105}px Arial,sans-serif`;
-  ctx.fillText('COLLECTIVE',0, ty+th*0.56);
+  ctx.font=`900 ${size*0.5}px "Arial Black",Arial,sans-serif`; ctx.fillText('MH',0,-size*0.13);
+  // barra "Collective"
+  const tw=size*0.92, th=size*0.26, ty=size*0.12;
+  ctx.fillStyle='#fff'; roundRect(-tw/2, ty, tw, th, th*0.16); ctx.fill();
+  ctx.fillStyle='#08080e'; ctx.font=`700 ${size*0.145}px Arial,sans-serif`;
+  ctx.fillText('Collective',0, ty+th*0.56);
   ctx.restore();
 }
 
@@ -961,6 +967,12 @@ function start(){
 document.getElementById('btnMic').addEventListener('click', async ()=>{ await Audio_.initMic(); start(); });
 document.getElementById('btnDemo').addEventListener('click', ()=>{ Audio_.initDemo(); start(); });
 
+/* subir logo (botón + input) */
+const logoInput=document.getElementById('logoInput');
+document.getElementById('btnLogo').addEventListener('click', ()=>logoInput.click());
+logoInput.addEventListener('change', e=>{ const f=e.target.files[0];
+  if(f){ const r=new FileReader(); r.onload=()=>setLogo(r.result); r.readAsDataURL(f); } });
+
 /* enlace estudio */
 const sl=document.getElementById('studioLink'); if(CONFIG.STUDIO_URL && CONFIG.STUDIO_URL!=="#") sl.href=CONFIG.STUDIO_URL;
 sl.textContent=`${CONFIG.STUDIO_BRAND} · por ${CONFIG.STUDIO_AUTHOR}`;
@@ -971,8 +983,11 @@ function toggleFS(){ if(!document.fullscreenElement){ (document.documentElement.
 /* arrastrar archivo de audio */
 ['dragover','drop'].forEach(ev=>window.addEventListener(ev,e=>e.preventDefault()));
 window.addEventListener('drop', async e=>{
-  const f=[...(e.dataTransfer?.files||[])].find(f=>f.type.startsWith('audio'));
-  if(f){ await Audio_.initFile(f); if(!State.running) start(); setStatus(); }
+  const files=[...(e.dataTransfer?.files||[])];
+  const img=files.find(f=>f.type.startsWith('image'));
+  if(img){ const r=new FileReader(); r.onload=()=>setLogo(r.result); r.readAsDataURL(img); }
+  const aud=files.find(f=>f.type.startsWith('audio'));
+  if(aud){ await Audio_.initFile(aud); if(!State.running) start(); setStatus(); }
 });
 
 /* teclado */
