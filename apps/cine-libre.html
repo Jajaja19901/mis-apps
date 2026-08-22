@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cine Libre · Películas y series clásicas para ver online, gratis y legal</title>
+<meta name="description" content="Cine Libre: ve online gratis y de forma legal cine de dominio público y con licencia libre (Archive.org). Busca cualquier título y descubre dónde verlo en su plataforma oficial. Sin registro.">
+<meta name="theme-color" content="#0b0b12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cine Libre">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0b12'/%3E%3Cpath d='M24 20l22 12-22 12z' fill='%237c5cff'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0b12'/%3E%3Cpath d='M24 20l22 12-22 12z' fill='%237c5cff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0b12; --bg2:#12121c; --card:#181826; --card2:#20202f;
+    --ink:#f6f6fb; --ink-soft:#c3c3d2; --ink-mut:#8b8b9e; --line:#26263a;
+    --brand:#7c5cff; --brand-deep:#6344e6; --brand-soft:#221c3d; --accent:#18d7c4;
+    --ok:#37c07a; --err:#ff6b5e; --warn:#f5b942;
+    --head:'Sora',system-ui,sans-serif; --sans:'Inter',-apple-system,system-ui,sans-serif;
+    --shadow:0 2px 8px rgba(0,0,0,.35),0 18px 48px rgba(0,0,0,.4);
+    --radius:16px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  @media(not (prefers-reduced-motion:reduce)){html{scroll-behavior:smooth}}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;min-height:100vh}
+  img{max-width:100%;display:block}
+  a{color:inherit;text-decoration:none}
+  h1,h2,h3{font-family:var(--head);font-weight:600;letter-spacing:-.02em;line-height:1.12}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 18px}
+  :focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:6px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-family:var(--sans);font-weight:600;font-size:15px;border:none;border-radius:999px;padding:13px 22px;cursor:pointer;transition:transform .15s,background .2s,border-color .2s;line-height:1}
+  .btn:active{transform:scale(.97)}
+  .btn-primary{background:var(--brand);color:#fff}
+  .btn-primary:hover{background:var(--brand-deep)}
+  .btn-ghost{background:rgba(255,255,255,.06);color:var(--ink);border:1px solid var(--line)}
+  .btn-ghost:hover{border-color:var(--ink-mut)}
+  .btn-lg{padding:16px 28px;font-size:16px}
+  .eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.16em;color:var(--accent);font-weight:600}
+
+  /* HEADER */
+  header.site{position:sticky;top:0;z-index:50;background:rgba(11,11,18,.82);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+  header.site .bar{display:flex;align-items:center;gap:14px;height:62px}
+  .logo{font-family:var(--head);font-weight:700;font-size:19px;display:flex;align-items:center;gap:9px;flex-shrink:0}
+  .logo .mk{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--brand),var(--accent));display:flex;align-items:center;justify-content:center}
+  .logo .mk svg{width:16px;height:16px;fill:#fff}
+  .logo b{background:linear-gradient(90deg,#fff,#cfc6ff);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .search{flex:1;max-width:440px;position:relative;margin-left:auto}
+  .search input{width:100%;background:var(--card);border:1px solid var(--line);color:var(--ink);border-radius:999px;padding:11px 16px 11px 40px;font-family:var(--sans);font-size:15px}
+  .search input:focus{outline:none;border-color:var(--brand)}
+  .search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:17px;height:17px;stroke:var(--ink-mut);fill:none}
+  .nav-links{display:flex;gap:4px;flex-shrink:0}
+  .nav-links a{font-size:14px;font-weight:600;color:var(--ink-soft);padding:9px 12px;border-radius:9px}
+  .nav-links a:hover,.nav-links a.active{color:var(--ink);background:rgba(255,255,255,.06)}
+
+  /* HERO */
+  .hero{position:relative;border-radius:22px;overflow:hidden;margin:20px 0 8px;min-height:360px;display:flex;align-items:flex-end;background:linear-gradient(135deg,#241a4d,#0e2a2c)}
+  .hero .bg{position:absolute;inset:0;background-size:cover;background-position:center top;opacity:.5;filter:saturate(1.1)}
+  .hero .shade{position:absolute;inset:0;background:linear-gradient(0deg,rgba(11,11,18,.96) 8%,rgba(11,11,18,.35) 60%,rgba(11,11,18,.55))}
+  .hero .in{position:relative;padding:26px 24px 28px;max-width:640px}
+  .hero .badge{display:inline-flex;gap:7px;align-items:center;background:rgba(124,92,255,.22);border:1px solid rgba(124,92,255,.5);color:#d9cfff;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:600;margin-bottom:12px}
+  .hero h1{font-size:clamp(28px,6vw,44px);margin-bottom:8px}
+  .hero .meta{color:var(--ink-soft);font-size:14px;margin-bottom:10px;display:flex;gap:12px;flex-wrap:wrap}
+  .hero p{color:var(--ink-soft);font-size:15px;margin-bottom:18px;max-width:540px}
+  .hero .cta{display:flex;gap:10px;flex-wrap:wrap}
+
+  /* SECTIONS / ROWS */
+  section.block{padding:22px 0}
+  .row-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:6px 0 14px}
+  .row-head h2{font-size:clamp(20px,3.5vw,26px)}
+  .row-head a{font-size:13px;color:var(--accent);font-weight:600;flex-shrink:0}
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex-shrink:0;background:var(--card);border:1px solid var(--line);color:var(--ink-soft);padding:9px 15px;border-radius:999px;font-size:13.5px;font-weight:600;cursor:pointer}
+  .chip:hover{border-color:var(--brand);color:var(--ink)}
+  .chip.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+
+  /* GRID */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px}
+  .card-film{position:relative;display:block;border-radius:14px;overflow:hidden;background:var(--card);border:1px solid var(--line);transition:transform .18s,border-color .18s;cursor:pointer}
+  .card-film:hover{transform:translateY(-4px);border-color:var(--brand)}
+  .poster{position:relative;aspect-ratio:2/3;background:linear-gradient(150deg,var(--brand-soft),#0e2a2c)}
+  .poster img{width:100%;height:100%;object-fit:cover}
+  .poster .fallback{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:14px;gap:8px}
+  .poster .fallback .ic{font-size:30px;opacity:.85}
+  .poster .fallback b{font-family:var(--head);font-size:14px;line-height:1.2}
+  .poster .type{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);color:#fff;font-size:11px;font-weight:600;padding:4px 9px;border-radius:999px}
+  .poster .play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;transition:.2s;background:rgba(11,11,18,.35)}
+  .card-film:hover .poster .play{opacity:1}
+  .poster .play span{width:52px;height:52px;border-radius:50%;background:var(--brand);display:flex;align-items:center;justify-content:center}
+  .poster .play svg{width:22px;height:22px;fill:#fff;margin-left:3px}
+  .card-body{padding:10px 12px 12px}
+  .card-body h3{font-size:14.5px;font-family:var(--sans);font-weight:600;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .card-body .sub{color:var(--ink-mut);font-size:12.5px;margin-top:3px}
+  .fav-btn{position:absolute;top:8px;right:8px;z-index:3;width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .fav-btn svg{width:17px;height:17px;fill:none;stroke:#fff;stroke-width:2}
+  .fav-btn.on{background:var(--brand);border-color:var(--brand)}
+  .fav-btn.on svg{fill:#fff;stroke:#fff}
+
+  .searchnote{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin:6px 0 18px}
+  .searchnote b{font-family:var(--head)}
+  .searchnote p{color:var(--ink-soft);font-size:14px;margin:6px 0 12px}
+  .searchnote .row{display:flex;gap:10px;flex-wrap:wrap}
+
+  .empty{text-align:center;color:var(--ink-mut);padding:56px 20px}
+  .empty .ic{font-size:42px;margin-bottom:10px}
+  .empty b{color:var(--ink-soft);font-family:var(--head);display:block;margin-bottom:4px}
+
+  /* WATCH */
+  .watch{padding:16px 0 40px}
+  .back{display:inline-flex;align-items:center;gap:7px;color:var(--ink-soft);font-size:14px;font-weight:600;margin-bottom:14px}
+  .back:hover{color:var(--ink)}
+  .player-box{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:16px;overflow:hidden;border:1px solid var(--line)}
+  .player-box iframe{width:100%;height:100%;border:0}
+  .watch-info{display:grid;grid-template-columns:1fr;gap:16px;margin-top:20px}
+  .watch-info h1{font-size:clamp(24px,5vw,34px);margin-bottom:8px}
+  .watch-info .meta{color:var(--ink-soft);font-size:14px;display:flex;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+  .watch-info .meta .pill{background:var(--card);border:1px solid var(--line);padding:5px 12px;border-radius:999px}
+  .watch-info p.syn{color:var(--ink-soft);font-size:16px;max-width:720px}
+  .watch-actions{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+  .notebox{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:12px;padding:14px 16px;font-size:14px;color:var(--ink-soft);max-width:760px}
+  .notebox a{color:var(--accent);font-weight:600}
+  .serie-eps{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px 20px;text-align:center}
+  .serie-eps .ic{font-size:40px;margin-bottom:10px}
+
+  /* GUIDE / LEGAL */
+  .prose{max-width:760px}
+  .prose h1{font-size:clamp(26px,5vw,36px);margin:8px 0 16px}
+  .prose h2{font-size:22px;margin:26px 0 10px}
+  .prose p{color:var(--ink-soft);margin-bottom:12px}
+  .prose ul{color:var(--ink-soft);margin:0 0 14px 20px}
+  .prose li{margin-bottom:7px}
+  .platforms{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin:16px 0}
+  .platforms a{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;font-weight:600;display:flex;align-items:center;gap:10px;font-size:14px}
+  .platforms a:hover{border-color:var(--brand)}
+  .platforms .lg{width:34px;height:34px;border-radius:8px;background:var(--brand-soft);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+
+  /* FOOTER */
+  footer.site{border-top:1px solid var(--line);padding:34px 0 40px;margin-top:24px;color:var(--ink-soft);font-size:14px}
+  footer .cols{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:24px}
+  footer h4{font-family:var(--sans);font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--ink-mut);margin-bottom:12px}
+  footer a{display:block;margin-bottom:8px;color:var(--ink-soft)}
+  footer a:hover{color:var(--ink)}
+  .copyr{margin-top:26px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-mut);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+  .copyr a{display:inline;color:var(--ink-mut)}
+  .studio{color:var(--ink-mut);font-size:12.5px}
+  .studio a{display:inline;color:var(--ink-soft);font-weight:600}
+
+  /* TOAST */
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--card2);border:1px solid var(--line);color:#fff;padding:12px 20px;border-radius:999px;font-size:14px;font-weight:500;opacity:0;pointer-events:none;transition:.3s;z-index:200;box-shadow:var(--shadow)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  /* INSTALL */
+  #installBtn{display:none}
+
+  /* ADMIN */
+  .admin{min-height:100vh;padding:22px 0 60px}
+  .admin-gate{max-width:400px;margin:6vh auto;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:30px;box-shadow:var(--shadow)}
+  .admin-gate h1{font-size:24px;margin-bottom:6px}
+  .admin-gate p{color:var(--ink-soft);font-size:14px;margin-bottom:16px}
+  .admin-gate input{width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--ink);border-radius:12px;padding:14px;font-size:16px;font-family:var(--sans);margin-bottom:12px}
+  .admin-gate input:focus{outline:none;border-color:var(--brand)}
+  .admin-gate .btn-primary{width:100%}
+  .admin-gate .err{color:var(--err);font-size:13px;margin-top:10px;display:none}
+  .admin-gate.bad .err{display:block}
+  .demo-hint{background:var(--brand-soft);border:1px solid rgba(124,92,255,.4);border-radius:10px;padding:10px 12px;margin-bottom:16px;font-size:13px;color:var(--ink-soft);line-height:1.5}
+  .admin-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+  .admin-bar h1{font-size:26px}
+  .admin-stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:22px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 18px;min-width:110px}
+  .stat .big{font-family:var(--head);font-size:26px;color:var(--brand)}
+  .stat small{color:var(--ink-mut);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+  .admin-grid{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
+  .panel h2{font-size:18px;margin-bottom:14px}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:13px;color:var(--ink-soft);margin-bottom:6px}
+  .field input,.field textarea,.field select{width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:11px 13px;font-family:var(--sans);font-size:15px}
+  .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--brand)}
+  .field textarea{min-height:76px;resize:vertical}
+  .field .hint{color:var(--ink-mut);font-size:12px;margin-top:5px}
+  .field.invalid input{border-color:var(--err)}
+  .field.invalid .err{display:block}
+  .field .err{color:var(--err);font-size:12.5px;margin-top:5px;display:none}
+  .admin-item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;gap:12px;align-items:flex-start}
+  .admin-item .thumb{width:46px;height:66px;border-radius:8px;object-fit:cover;background:var(--brand-soft);flex-shrink:0}
+  .admin-item .info{flex:1;min-width:0}
+  .admin-item b{font-size:15px;font-family:var(--sans);font-weight:600}
+  .admin-item .m{color:var(--ink-mut);font-size:12.5px;margin-top:2px}
+  .admin-item .acts{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .admin-item .acts button{background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--ink-soft);border-radius:8px;padding:6px 11px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:var(--sans)}
+  .admin-item .acts button:hover{color:var(--ink);border-color:var(--ink-mut)}
+  .admin-item .acts button.del:hover{color:var(--err);border-color:var(--err)}
+  .tag-seed{font-size:11px;background:var(--brand-soft);color:#c9befff0;color:#cbbcff;padding:2px 8px;border-radius:999px;margin-left:6px}
+
+  /* RESPONSIVE */
+  @media(max-width:860px){footer .cols{grid-template-columns:1fr 1fr}.admin-grid{grid-template-columns:1fr}}
+  @media(max-width:600px){
+    .grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+    .nav-links a{padding:9px 8px;font-size:13px}
+    .logo b{display:none}
+    footer .cols{grid-template-columns:1fr}
+    .hero{min-height:320px}
+  }
+  @media(max-width:420px){.grid{grid-template-columns:1fr 1fr}}
+  @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- Tests de aceptación (los ejecuta tools/verificar-app.mjs clic a clic) -->
+<script type="application/json" id="acceptance-tests">
+[
+  { "name": "La portada carga el catálogo de cine libre",
+    "steps": [ {"goto":"#/"}, {"wait":400}, {"expect":"La noche de los muertos vivientes"}, {"expectVisible":"#catalog"} ] },
+  { "name": "Se abre el reproductor de una película",
+    "steps": [ {"goto":"#/"}, {"wait":350}, {"click":".poster-link"}, {"wait":350}, {"expectVisible":"#player"}, {"expect":"Archive.org"} ] },
+  { "name": "El buscador filtra el catálogo",
+    "steps": [ {"goto":"#/"}, {"wait":300}, {"fill":{"sel":"#searchInput","value":"Nosferatu"}}, {"wait":350}, {"expect":"Nosferatu"}, {"expectGone":"[data-film=\"night_of_the_living_dead\"]"} ] },
+  { "name": "Añadir a Mi lista y encontrarla allí",
+    "steps": [ {"goto":"#/"}, {"wait":350}, {"click":"[data-fav=\"night_of_the_living_dead\"]"}, {"wait":250}, {"goto":"#/mi-lista"}, {"wait":350}, {"expect":"La noche de los muertos vivientes"} ] },
+  { "name": "El filtro por género muestra solo ese género",
+    "steps": [ {"goto":"#/genero/Terror"}, {"wait":350}, {"expect":"Terror"}, {"expect":"Nosferatu"} ] },
+  { "name": "La guía de dónde ver enlaza a plataformas gratis y legales",
+    "steps": [ {"goto":"#/guia"}, {"wait":300}, {"expect":"sin pagar"}, {"expect":"Plataformas gratis"} ] },
+  { "name": "El dueño entra con contraseña y añade un título al catálogo",
+    "steps": [ {"goto":"#/admin"}, {"wait":300}, {"fill":{"sel":"#gatePass","value":"cine-2026"}}, {"submit":"#gateForm"}, {"wait":350}, {"expect":"Catálogo actual"}, {"fill":{"sel":"#a-title","value":"Prueba QA"}}, {"fill":{"sel":"#a-id","value":"night_of_the_living_dead"}}, {"fill":{"sel":"#a-year","value":"2020"}}, {"fill":{"sel":"#a-synopsis","value":"Titulo de prueba del verificador."}}, {"submit":"#addForm"}, {"wait":350}, {"expect":"Prueba QA"} ] }
+]
+</script>
+
+<script>
+/* ==================================================================
+   ⚙️  CONFIGURA TU APP AQUÍ  (cambia estos valores y listo)
+   ================================================================== */
+const CONFIG = {
+  APP_NAME : "Cine Libre",                    // nombre PLACEHOLDER — cámbialo por el tuyo
+  TAGLINE  : "Cine para ver online, gratis y legal",
+  DESC     : "Clásicos y joyas de dominio público que puedes ver ahora mismo, sin registro. Y para lo demás, te decimos dónde verlo en su plataforma oficial.",
+  // ⚠️ Esta contraseña vive en el código: cualquiera que mire el fuente puede verla.
+  //    Es un cerrojo básico para el panel del dueño, NO seguridad real. Cámbiala.
+  ADMIN_PASSWORD : "cine-2026",
+  WHATSAPP : "34600000000",                   // opcional: contacto del titular (sin + ni espacios)
+  HOLDER   : "[Titular por definir]",          // para el aviso legal / retirada de contenido
+  CONTACT_EMAIL : "contacto@ejemplo.com",      // placeholder — cámbialo
+  // Firma del estudio (no la borres)
+  STUDIO_BRAND  : "Incuba tu Negocio",
+  STUDIO_AUTHOR : "Jaime M. M.",
+  STUDIO_URL    : "#",
+};
+
+/* ==================================================================
+   CATÁLOGO DE ARRANQUE — SOLO contenido de dominio público / licencia libre
+   Fuente reproducible: Archive.org (archive.org/details/<id>). El dueño
+   añade, edita o quita títulos desde el panel #/admin.
+   ================================================================== */
+const SEED = [
+  { id:"night_of_the_living_dead", title:"La noche de los muertos vivientes", year:1968, genre:"Terror", type:"Película", dur:"96 min", dir:"George A. Romero",
+    syn:"Siete personas se atrincheran en una granja aislada mientras los muertos, reanimados, acechan en la oscuridad. El clásico que fundó el cine moderno de zombis." },
+  { id:"nosferatu", title:"Nosferatu", year:1922, genre:"Terror", type:"Película", dur:"94 min", dir:"F. W. Murnau",
+    syn:"La primera gran adaptación de Drácula: el conde Orlok viaja para extender su sombra y su peste sobre una ciudad. Cumbre del expresionismo alemán." },
+  { id:"DasCabinetDesDrCaligari", title:"El gabinete del doctor Caligari", year:1920, genre:"Terror", type:"Película", dur:"76 min", dir:"Robert Wiene",
+    syn:"Un feriante hipnotiza a un sonámbulo para cometer crímenes. Decorados imposibles y un giro final que marcó para siempre al cine de terror." },
+  { id:"Metropolis1927", title:"Metrópolis", year:1927, genre:"Ciencia ficción", type:"Película", dur:"153 min", dir:"Fritz Lang",
+    syn:"En una ciudad futura dividida entre la élite y los obreros del subsuelo, un joven y una profeta intentan reconciliarlas. Obra maestra visual del cine mudo." },
+  { id:"Plan9FromOuterSpace", title:"Plan 9 del espacio exterior", year:1959, genre:"Ciencia ficción", type:"Película", dur:"79 min", dir:"Ed Wood",
+    syn:"Unos alienígenas resucitan a los muertos para frenar a la humanidad. La película de culto “tan mala que es genial” por excelencia." },
+  { id:"SantaClausConquersTheMartians", title:"Santa Claus conquista a los marcianos", year:1964, genre:"Ciencia ficción", type:"Película", dur:"81 min", dir:"Nicholas Webster",
+    syn:"Los marcianos secuestran a Papá Noel para llevar la alegría a sus hijos. Delirio navideño de serie B, puro entretenimiento kitsch." },
+  { id:"his_girl_friday", title:"Luna nueva", year:1940, genre:"Comedia", type:"Película", dur:"92 min", dir:"Howard Hawks",
+    syn:"Un director de periódico hará lo imposible por impedir que su mejor reportera —y exmujer— se retire y se case. Diálogos a velocidad de vértigo." },
+  { id:"TheGeneral_1926", title:"El maquinista de la General", year:1926, genre:"Aventuras", type:"Película", dur:"78 min", dir:"Buster Keaton",
+    syn:"Un maquinista persigue en tren a los soldados que le robaron la locomotora —y a su novia—. Acrobacias reales y comedia física perfecta." },
+  { id:"TheKid_1921", title:"El chico", year:1921, genre:"Comedia", type:"Película", dur:"68 min", dir:"Charlie Chaplin",
+    syn:"Charlot cría a un niño abandonado en un barrio pobre. Risa y ternura a partes iguales en el primer largometraje de Chaplin." },
+  { id:"CharadeGregoryPeck", title:"Charada", year:1963, genre:"Suspense", type:"Película", dur:"113 min", dir:"Stanley Donen",
+    syn:"Una viuda descubre que su difunto marido escondía una fortuna que muchos reclaman con violencia. Comedia de intriga con puro aire Hitchcock." },
+  { id:"reefer_madness1938", title:"Reefer Madness", year:1936, genre:"Culto", type:"Película", dur:"66 min", dir:"Louis J. Gasnier",
+    syn:"Propaganda antidroga de los años 30 convertida, por su exageración involuntaria, en uno de los grandes fenómenos de culto del cine." },
+  { id:"the_last_time_i_saw_paris", title:"La última vez que vi París", year:1954, genre:"Drama", type:"Película", dur:"116 min", dir:"Richard Brooks",
+    syn:"Un escritor recuerda su amor y su vida en el París de posguerra. Melodrama romántico basado en un relato de F. Scott Fitzgerald." },
+  { id:"dragnet", title:"Dragnet — episodios clásicos", year:1951, genre:"Policíaca", type:"Serie", dur:"Varios episodios", dir:"Jack Webb",
+    syn:"El sargento Joe Friday resuelve casos reales del departamento de policía de Los Ángeles. La serie que definió el drama policial “solo los hechos”." },
+  { id:"the_beverly_hillbillies", title:"The Beverly Hillbillies — episodios clásicos", year:1962, genre:"Comedia", type:"Serie", dur:"Varios episodios", dir:"Paul Henning",
+    syn:"Una familia rural se hace millonaria por el petróleo y se muda a Beverly Hills. Comedia de choque cultural, con episodios en dominio público." },
+];
+
+const GENRES = ["Terror","Comedia","Ciencia ficción","Suspense","Aventuras","Drama","Policíaca","Culto"];
+
+/* Plataformas legales GRATIS (sin pagar; con anuncios o registro gratuito) */
+const FREE_PLATFORMS = [
+  { ic:"🍿", name:"Pluto TV",     url:"https://pluto.tv/es/search/details?query=" },
+  { ic:"📺", name:"RTVE Play",    url:"https://www.rtve.es/play/buscador/?text=" },
+  { ic:"▶️", name:"YouTube (pelis gratis)", url:"https://www.youtube.com/results?search_query=" },
+  { ic:"🎬", name:"Rakuten (sección gratis)", url:"https://www.rakuten.tv/es/search?q=" },
+  { ic:"🟠", name:"Plex",         url:"https://watch.plex.tv/search?q=" },
+  { ic:"🗄️", name:"Archive.org",  url:"https://archive.org/search?query=" },
+];
+/* Buscador de disponibilidad (dice dónde está cada título, y filtra por gratis) */
+const FINDER = { ic:"🔎", name:"JustWatch — ¿dónde verlo?", url:"https://www.justwatch.com/es/buscar?q=" };
+/* Plataformas de pago (por si prefieres suscripción) */
+const PAID_PLATFORMS = [
+  { ic:"🅽", name:"Netflix",     url:"https://www.netflix.com/search?q=" },
+  { ic:"📦", name:"Prime Video", url:"https://www.primevideo.com/search/?phrase=" },
+  { ic:"➕", name:"Disney+",     url:"https://www.disneyplus.com/search?q=" },
+  { ic:"🎞️", name:"Filmin",      url:"https://www.filmin.es/buscar?stext=" },
+];
+
+/* ==================================================================
+   ALMACENAMIENTO  (todo en el navegador, sin servidores)
+   ================================================================== */
+const K = { custom:"cinelibre_custom_v1", hidden:"cinelibre_hidden_v1", fav:"cinelibre_fav_v1", recent:"cinelibre_recent_v1", admin:"cinelibre_admin_session" };
+function jget(key,def){ try{ const r=localStorage.getItem(key); return r?JSON.parse(r):def; }catch(e){ console.warn(e); return def; } }
+function jset(key,val){ try{ localStorage.setItem(key,JSON.stringify(val)); return true; }catch(e){ console.warn("No se pudo guardar:",e); showToast("No se pudo guardar en este dispositivo"); return false; } }
+
+function getCatalog(){
+  const hidden = new Set(jget(K.hidden,[]));
+  const custom = jget(K.custom,[]);
+  const map = new Map();
+  SEED.forEach(s=>{ if(!hidden.has(s.id)) map.set(s.id, {...s, seed:true}); });
+  custom.forEach(c=>{ if(c && c.id) map.set(c.id, {...c, seed:false}); });
+  return [...map.values()];
+}
+function getFilm(id){ return getCatalog().find(f=>f.id===id) || null; }
+function getFavs(){ return jget(K.fav,[]); }
+function isFav(id){ return getFavs().includes(id); }
+function toggleFav(id){
+  const f=getFavs(); const i=f.indexOf(id);
+  if(i>=0) f.splice(i,1); else f.unshift(id);
+  jset(K.fav,f); return i<0;
+}
+function pushRecent(id){
+  let r=jget(K.recent,[]).filter(x=>x!==id); r.unshift(id); r=r.slice(0,12); jset(K.recent,r);
+}
+
+/* ==================================================================
+   SEGURIDAD: escapar todo lo que venga de datos / usuario
+   ================================================================== */
+function esc(s){
+  if(s===null||s===undefined) return "";
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+                  .replace(/"/g,"&quot;").replace(/'/g,"&#039;");
+}
+function attr(s){ return esc(s); }
+/* Solo permitimos identificadores de Archive.org con caracteres seguros para URL */
+function safeArchiveId(id){ return /^[A-Za-z0-9._-]{1,120}$/.test(String(id||"")) ? String(id) : ""; }
+
+/* ==================================================================
+   ROUTER por hash
+   ================================================================== */
+let SEARCH = "";
+function parseHash(){
+  const h = location.hash.replace(/^#\/?/,"");
+  const parts = h.split("/").filter(Boolean).map(decodeURIComponent);
+  return { key: parts[0]||"", arg: parts.slice(1).join("/") };
+}
+function route(){
+  const {key,arg}=parseHash();
+  window.scrollTo(0,0);
+  if(key==="admin") return renderAdmin();
+  if(key==="ver")   return renderWatch(arg);
+  if(key==="genero")return renderHome({genre:arg});
+  if(key==="mi-lista") return renderList();
+  if(key==="guia")  return renderGuide();
+  if(key==="legal") return renderLegal();
+  return renderHome({});
+}
+window.addEventListener("hashchange",route);
+
+/* ==================================================================
+   CHROME (cabecera + pie) compartido
+   ================================================================== */
+function header(active){
+  const C=CONFIG;
+  return `
+  <header class="site"><div class="wrap"><div class="bar">
+    <a href="#/" class="logo" aria-label="${attr(C.APP_NAME)} — inicio">
+      <span class="mk" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span>
+      <b>${esc(C.APP_NAME)}</b>
+    </a>
+    <div class="search" role="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="searchInput" type="search" placeholder="Buscar películas y series…" aria-label="Buscar en el catálogo" value="${attr(SEARCH)}" autocomplete="off">
+    </div>
+    <nav class="nav-links" aria-label="Principal">
+      <a href="#/" class="${active==="home"?"active":""}">Inicio</a>
+      <a href="#/mi-lista" class="${active==="list"?"active":""}">Mi lista</a>
+      <a href="#/guia" class="${active==="guia"?"active":""}">Dónde ver</a>
+    </nav>
+  </div></div></header>`;
+}
+function footer(){
+  const C=CONFIG;
+  return `
+  <footer class="site"><div class="wrap">
+    <div class="cols">
+      <div>
+        <div class="logo" style="margin-bottom:10px"><span class="mk" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span><b>${esc(C.APP_NAME)}</b></div>
+        <p style="max-width:320px;color:var(--ink-mut);font-size:13.5px">Todo el contenido reproducible aquí es de <b>dominio público</b> o de <b>licencia libre</b>, alojado por Archive.org. Para el resto, te llevamos a su plataforma oficial.</p>
+        <button class="btn btn-ghost" id="installBtn" style="margin-top:14px">⬇️ Instalar app</button>
+      </div>
+      <div>
+        <h4>Explorar</h4>
+        <a href="#/">Inicio</a>
+        <a href="#/mi-lista">Mi lista</a>
+        <a href="#/guia">Dónde ver un estreno</a>
+        <a href="#/genero/Terror">Terror</a>
+        <a href="#/genero/Comedia">Comedia</a>
+      </div>
+      <div>
+        <h4>Información</h4>
+        <a href="#/legal">Aviso legal y privacidad</a>
+        <a href="https://archive.org/details/feature_films" target="_blank" rel="noopener noreferrer">Más cine libre (Archive.org)</a>
+        <a href="#/admin">Acceso del dueño</a>
+      </div>
+    </div>
+    <div class="copyr">
+      <span>© ${new Date().getFullYear()} ${esc(C.APP_NAME)} · <span class="studio">Diseñado por <a href="${attr(C.STUDIO_URL)}" target="_blank" rel="noopener noreferrer">${esc(C.STUDIO_BRAND)}</a> · por ${esc(C.STUDIO_AUTHOR)}</span></span>
+      <a href="#/legal">Uso legal del contenido</a>
+    </div>
+  </div></footer>`;
+}
+
+/* Tarjeta de película/serie */
+function filmCard(f){
+  const id=safeArchiveId(f.id);
+  const thumb = id ? `https://archive.org/services/img/${id}` : "";
+  const fav=isFav(f.id);
+  return `
+  <div class="card-film" data-film="${attr(f.id)}">
+    <button class="fav-btn ${fav?"on":""}" data-fav="${attr(f.id)}" aria-pressed="${fav?"true":"false"}" aria-label="${fav?"Quitar de Mi lista":"Añadir a Mi lista"}: ${attr(f.title)}" title="${fav?"Quitar de Mi lista":"Añadir a Mi lista"}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z"/></svg>
+    </button>
+    <a class="poster-link" href="#/ver/${attr(id||f.id)}" aria-label="Ver ${attr(f.title)} (${attr(f.year)})">
+      <div class="poster">
+        <span class="type">${esc(f.type)}</span>
+        ${thumb?`<img class="lazyposter" loading="lazy" alt="Carátula de ${attr(f.title)}" data-src="${attr(thumb)}">`:""}
+        <div class="fallback"><span class="ic" aria-hidden="true">🎞️</span><b>${esc(f.title)}</b><span style="color:var(--ink-mut);font-size:12px">${esc(f.year)}</span></div>
+        <div class="play" aria-hidden="true"><span><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span></div>
+      </div>
+    </a>
+    <a class="card-body" href="#/ver/${attr(id||f.id)}">
+      <h3>${esc(f.title)}</h3>
+      <div class="sub">${esc(f.year)} · ${esc(f.genre)}</div>
+    </a>
+  </div>`;
+}
+
+/* Carga diferida de carátulas + gestión de error (imagen rota → deja el fallback) */
+function hydratePosters(scope){
+  (scope||document).querySelectorAll("img.lazyposter").forEach(img=>{
+    const src=img.getAttribute("data-src"); if(!src) return;
+    img.addEventListener("error",()=>{ img.remove(); },{once:true});
+    img.addEventListener("load",()=>{ const fb=img.parentElement.querySelector(".fallback"); if(fb && img.naturalWidth>1) fb.style.display="none"; },{once:true});
+    img.src=src;
+  });
+}
+
+/* ==================================================================
+   HOME / GÉNERO
+   ================================================================== */
+function matchFilm(f,q){
+  if(!q) return true;
+  const n=(f.title+" "+f.genre+" "+f.type+" "+(f.dir||"")+" "+f.year).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+  const t=q.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"");
+  return t.split(/\s+/).every(w=>n.includes(w));
+}
+let CURRENT_GENRE="";
+function renderHome(opts){
+  CURRENT_GENRE = opts.genre || "";
+  const C=CONFIG;
+  const featured = getFilm("night_of_the_living_dead") || getCatalog()[0];
+  const fId = featured?safeArchiveId(featured.id):"";
+  const heroBg = fId ? `https://archive.org/services/img/${fId}` : "";
+  const recentIds = jget(K.recent,[]);
+  const recent = recentIds.map(getFilm).filter(Boolean).slice(0,10);
+
+  const heroHTML = (!CURRENT_GENRE && featured) ? `
+    <div class="hero">
+      <div class="bg" style="${heroBg?`background-image:url('${attr(heroBg)}')`:""}"></div>
+      <div class="shade"></div>
+      <div class="in">
+        <span class="badge">▶ Destacada · Gratis y legal</span>
+        <h1>${esc(featured.title)}</h1>
+        <div class="meta"><span>${esc(featured.year)}</span><span>${esc(featured.genre)}</span><span>${esc(featured.dur||"")}</span></div>
+        <p>${esc(featured.syn)}</p>
+        <div class="cta">
+          <a class="btn btn-primary btn-lg" href="#/ver/${attr(featured.id)}">▶ Ver ahora</a>
+          <a class="btn btn-ghost btn-lg" href="#/guia">¿Buscas un estreno?</a>
+        </div>
+      </div>
+    </div>` : "";
+
+  document.getElementById("app").innerHTML = `
+  ${header(CURRENT_GENRE?"":"home")}
+  <main class="wrap">
+    ${heroHTML}
+    <section class="block">
+      <div class="chips" role="tablist" aria-label="Géneros">
+        <a class="chip ${!CURRENT_GENRE?"active":""}" href="#/">Todo</a>
+        ${GENRES.map(g=>`<a class="chip ${CURRENT_GENRE===g?"active":""}" href="#/genero/${encodeURIComponent(g)}">${esc(g)}</a>`).join("")}
+      </div>
+      <div id="searchNote"></div>
+      ${(!CURRENT_GENRE && recent.length)?`
+      <div class="row-head"><h2>Vistas recientemente</h2></div>
+      <div class="grid" id="recentGrid">${recent.map(filmCard).join("")}</div>
+      <div style="height:14px"></div>`:""}
+      <div class="row-head"><h2 id="gridTitle">${CURRENT_GENRE?esc(CURRENT_GENRE):"Catálogo · dominio público"}</h2></div>
+      <div class="grid" id="catalog"></div>
+    </section>
+  </main>
+  ${footer()}`;
+
+  bindChrome();
+  renderGrid();
+  hydratePosters();
+}
+
+function renderGrid(){
+  const cat=getCatalog().filter(f=>(!CURRENT_GENRE||f.genre===CURRENT_GENRE) && matchFilm(f,SEARCH));
+  const grid=document.getElementById("catalog");
+  const note=document.getElementById("searchNote");
+  if(note){
+    if(SEARCH){
+      const q=encodeURIComponent(SEARCH);
+      note.innerHTML=`
+      <div class="searchnote">
+        <b>Resultados para “${esc(SEARCH)}”</b>
+        <p>Si no está aquí, quizá tenga derechos y no se pueda reproducir gratis. Búscalo en Archive.org (más cine libre) o mira en qué plataforma oficial está:</p>
+        <div class="row">
+          <a class="btn btn-ghost" href="https://archive.org/search?query=${q}" target="_blank" rel="noopener noreferrer">🔎 Buscar en Archive.org</a>
+          <a class="btn btn-ghost" href="https://www.justwatch.com/es/buscar?q=${q}" target="_blank" rel="noopener noreferrer">📺 ¿Dónde verlo? (JustWatch)</a>
+        </div>
+      </div>`;
+    } else note.innerHTML="";
+  }
+  if(!grid) return;
+  if(!cat.length){
+    grid.style.display="block";
+    grid.innerHTML=`<div class="empty"><div class="ic" aria-hidden="true">🍿</div><b>No hay títulos que coincidan</b><p>Prueba con otra búsqueda o revisa otro género.</p></div>`;
+  }else{
+    grid.style.display="";
+    grid.innerHTML=cat.map(filmCard).join("");
+  }
+  hydratePosters(grid);
+  bindCards(grid);
+}
+
+/* ==================================================================
+   MI LISTA
+   ================================================================== */
+function renderList(){
+  const favs=getFavs().map(getFilm).filter(Boolean);
+  document.getElementById("app").innerHTML=`
+  ${header("list")}
+  <main class="wrap">
+    <section class="block">
+      <div class="row-head"><h2>Mi lista</h2>${favs.length?`<a href="#/">Seguir explorando →</a>`:""}</div>
+      ${favs.length? `<div class="grid" id="catalog">${favs.map(filmCard).join("")}</div>` :
+        `<div class="empty"><div class="ic" aria-hidden="true">🔖</div><b>Tu lista está vacía</b><p>Pulsa el marcador de cualquier título para guardarlo aquí y verlo cuando quieras.</p><a class="btn btn-primary" href="#/" style="margin-top:14px">Explorar catálogo</a></div>`}
+    </section>
+  </main>
+  ${footer()}`;
+  bindChrome();
+  const grid=document.getElementById("catalog");
+  if(grid){ hydratePosters(grid); bindCards(grid); }
+}
+
+/* ==================================================================
+   REPRODUCTOR (#/ver/<id>)
+   ================================================================== */
+function renderWatch(rawId){
+  const id=safeArchiveId(rawId);
+  const f=getFilm(rawId) || getFilm(id);
+  document.getElementById("app").innerHTML=`
+  ${header("")}
+  <main class="wrap"><div class="watch">
+    <a class="back" href="#/">← Volver al catálogo</a>
+    <div id="watchBody"></div>
+  </div></main>
+  ${footer()}`;
+  bindChrome();
+  const body=document.getElementById("watchBody");
+
+  if(!f){
+    body.innerHTML=`<div class="empty"><div class="ic" aria-hidden="true">🎬</div><b>No encontramos ese título</b><p>Puede que se haya quitado del catálogo.</p><a class="btn btn-primary" href="#/" style="margin-top:14px">Volver al inicio</a></div>`;
+    return;
+  }
+  pushRecent(f.id);
+  const arcId=safeArchiveId(f.id);
+  const details = arcId ? `https://archive.org/details/${arcId}` : "";
+  const searchUrl = `https://archive.org/search?query=${encodeURIComponent(f.title)}`;
+  const fav=isFav(f.id);
+
+  const playerHTML = (f.type==="Serie") ? `
+    <div class="serie-eps" id="player">
+      <div class="ic" aria-hidden="true">📺</div>
+      <h2 style="margin-bottom:8px">Serie clásica — elige episodio</h2>
+      <p style="color:var(--ink-soft);max-width:520px;margin:0 auto 16px">Las series se ven por episodios. Ábrela en Archive.org para elegir el capítulo y darle al play. Todos los episodios enlazados son de dominio público.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+        ${details?`<a class="btn btn-primary" href="${attr(details)}" target="_blank" rel="noopener noreferrer">▶ Ver episodios en Archive.org</a>`:""}
+        <a class="btn btn-ghost" href="${attr(searchUrl)}" target="_blank" rel="noopener noreferrer">🔎 Buscar la serie</a>
+      </div>
+    </div>` : `
+    <div class="player-box">
+      <iframe id="player" src="https://archive.org/embed/${attr(arcId)}" allow="fullscreen; encrypted-media; picture-in-picture" allowfullscreen title="Reproductor de ${attr(f.title)}" referrerpolicy="no-referrer"></iframe>
+    </div>`;
+
+  body.innerHTML=`
+    ${playerHTML}
+    <div class="watch-info">
+      <div>
+        <h1>${esc(f.title)}</h1>
+        <div class="meta">
+          <span class="pill">${esc(f.year)}</span>
+          <span class="pill">${esc(f.genre)}</span>
+          <span class="pill">${esc(f.type)}</span>
+          ${f.dur?`<span class="pill">${esc(f.dur)}</span>`:""}
+          ${f.dir?`<span class="pill">Dir. ${esc(f.dir)}</span>`:""}
+        </div>
+        <div class="watch-actions">
+          <button class="btn ${fav?"btn-primary":"btn-ghost"}" id="favToggle" data-fav="${attr(f.id)}" aria-pressed="${fav?"true":"false"}">${fav?"✔ En Mi lista":"＋ Añadir a Mi lista"}</button>
+          ${details?`<a class="btn btn-ghost" href="${attr(details)}" target="_blank" rel="noopener noreferrer">Abrir en Archive.org ↗</a>`:""}
+        </div>
+        <p class="syn">${esc(f.syn)}</p>
+        <div class="notebox" style="margin-top:18px">
+          ℹ️ ¿El reproductor no carga? Este título se sirve desde <b>Archive.org</b> (dominio público). Puedes ${details?`<a href="${attr(details)}" target="_blank" rel="noopener noreferrer">abrirlo directamente allí</a>`:`<a href="${attr(searchUrl)}" target="_blank" rel="noopener noreferrer">buscarlo en Archive.org</a>`}.
+        </div>
+      </div>
+    </div>`;
+
+  const ft=document.getElementById("favToggle");
+  if(ft) ft.addEventListener("click",()=>{ const on=toggleFav(f.id); ft.className="btn "+(on?"btn-primary":"btn-ghost"); ft.textContent=on?"✔ En Mi lista":"＋ Añadir a Mi lista"; ft.setAttribute("aria-pressed",on?"true":"false"); showToast(on?"Añadida a Mi lista":"Quitada de Mi lista"); });
+}
+
+/* ==================================================================
+   GUÍA: ¿DÓNDE VER LO QUE TIENE DERECHOS?
+   ================================================================== */
+function renderGuide(){
+  document.getElementById("app").innerHTML=`
+  ${header("guia")}
+  <main class="wrap"><section class="block"><div class="prose">
+    <div class="eyebrow">Ver gratis y legal</div>
+    <h1>Dónde ver películas y series <span style="color:var(--accent)">sin pagar</span></h1>
+    <p>Legal <b>no</b> quiere decir de pago. Además de los cientos de títulos que ya se reproducen aquí, hay plataformas <b>100% gratis y legales</b> (se financian con anuncios, como la tele). Busca ahí lo que quieras ver:</p>
+
+    <h2>🆓 Plataformas gratis</h2>
+    <div class="platforms">
+      ${FREE_PLATFORMS.map(p=>`<a href="${attr(p.url)}" target="_blank" rel="noopener noreferrer"><span class="lg" aria-hidden="true">${p.ic}</span>${esc(p.name)}</a>`).join("")}
+    </div>
+    <p style="font-size:13.5px;color:var(--ink-mut)">Consejo: <b>${esc(FINDER.name.split("—")[0].trim())}</b> te dice de un vistazo en qué plataforma está cada título y cuáles lo tienen <b>gratis</b>.</p>
+    <p><a class="btn btn-ghost" href="${attr(FINDER.url)}" target="_blank" rel="noopener noreferrer">${FINDER.ic} ${esc(FINDER.name)}</a></p>
+
+    <h2>💳 Si prefieres suscripción</h2>
+    <p>Para estrenos recientes suele hacer falta una plataforma de pago. Aquí las tienes por si te compensa:</p>
+    <div class="platforms">
+      ${PAID_PLATFORMS.map(p=>`<a href="${attr(p.url)}" target="_blank" rel="noopener noreferrer"><span class="lg" aria-hidden="true">${p.ic}</span>${esc(p.name)}</a>`).join("")}
+    </div>
+
+    <h2>Una cosa importante</h2>
+    <p>Esta app <b>no</b> enlaza a webs de descargas o “pelis piratas”. Ver contenido con derechos sin permiso es ilegal, perjudica a quien hace el cine y esos sitios suelen colar virus y estafas. La buena noticia es que, entre lo gratuito de aquí y las plataformas gratis de arriba, tienes muchísimo para ver sin pagar y sin riesgos.</p>
+    <p><a class="btn btn-primary" href="#/">← Volver al catálogo gratuito</a></p>
+  </div></section></main>
+  ${footer()}`;
+  bindChrome();
+}
+
+/* ==================================================================
+   AVISO LEGAL / PRIVACIDAD
+   ================================================================== */
+function renderLegal(){
+  const C=CONFIG;
+  document.getElementById("app").innerHTML=`
+  ${header("")}
+  <main class="wrap"><section class="block"><div class="prose">
+    <div class="eyebrow">Información legal</div>
+    <h1>Aviso legal y privacidad</h1>
+
+    <h2>Sobre el contenido</h2>
+    <p>${esc(C.APP_NAME)} solo enlaza y reproduce obras en <b>dominio público</b> o con <b>licencias que permiten su difusión</b> (principalmente alojadas por <b>Internet Archive — archive.org</b>). No alojamos ningún archivo de vídeo en nuestros servidores: los contenidos se sirven desde su fuente original.</p>
+    <p>Si eres titular de derechos y consideras que una obra listada no es de dominio público, escríbenos a <a href="mailto:${attr(C.CONTACT_EMAIL)}">${esc(C.CONTACT_EMAIL)}</a> y la retiraremos del catálogo lo antes posible.</p>
+
+    <h2>Privacidad (RGPD / LSSI)</h2>
+    <ul>
+      <li>No pedimos registro ni creamos cuentas de usuario.</li>
+      <li>No recogemos datos personales ni usamos cookies de seguimiento o publicidad.</li>
+      <li>Tu <b>lista</b> y tu historial de “vistas recientemente” se guardan <b>solo en este dispositivo</b> (almacenamiento local del navegador). Puedes borrarlos vaciando los datos del navegador.</li>
+      <li>Los enlaces salientes (Archive.org, plataformas de streaming) tienen sus propias políticas de privacidad.</li>
+    </ul>
+
+    <h2>Titular</h2>
+    <p>Responsable: <b>${esc(C.HOLDER)}</b>. Contacto: <a href="mailto:${attr(C.CONTACT_EMAIL)}">${esc(C.CONTACT_EMAIL)}</a>.</p>
+    <p style="font-size:12.5px;color:var(--ink-mut)">Completa el nombre y los datos del titular en el bloque <code>CONFIG</code> del código antes de publicar.</p>
+
+    <p style="margin-top:20px"><a class="btn btn-primary" href="#/">← Volver</a></p>
+    <p class="studio" style="margin-top:20px">Diseñado por <a href="${attr(C.STUDIO_URL)}" target="_blank" rel="noopener noreferrer">${esc(C.STUDIO_BRAND)}</a> · por ${esc(C.STUDIO_AUTHOR)}</p>
+  </div></section></main>
+  ${footer()}`;
+  bindChrome();
+}
+
+/* ==================================================================
+   PANEL DEL DUEÑO (#/admin) — gestiona el catálogo
+   ================================================================== */
+function isAdmin(){ try{ return sessionStorage.getItem(K.admin)==="1"; }catch(e){ return false; } }
+
+function renderAdmin(){
+  if(!isAdmin()) return renderAdminGate(false);
+  const cat=getCatalog();
+  const pelis=cat.filter(f=>f.type==="Película").length;
+  const series=cat.filter(f=>f.type==="Serie").length;
+
+  document.getElementById("app").innerHTML=`
+  <main class="admin"><div class="wrap">
+    <div class="admin-bar">
+      <h1>Panel · ${esc(CONFIG.APP_NAME)}</h1>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost" id="exportBtn">Exportar catálogo</button>
+        <button class="btn btn-ghost" id="importBtn">Importar</button>
+        <input type="file" id="importFile" accept="application/json" style="display:none">
+        <a class="btn btn-ghost" href="#/">Ver la web</a>
+        <button class="btn btn-ghost" id="logoutBtn">Salir</button>
+      </div>
+    </div>
+    <div class="admin-stats">
+      <div class="stat"><div class="big">${cat.length}</div><small>Títulos</small></div>
+      <div class="stat"><div class="big">${pelis}</div><small>Películas</small></div>
+      <div class="stat"><div class="big">${series}</div><small>Series</small></div>
+    </div>
+
+    <div class="admin-grid">
+      <div class="panel">
+        <h2 id="formTitle">➕ Añadir título</h2>
+        <form id="addForm" novalidate>
+          <input type="hidden" id="a-editing" value="">
+          <div class="field" id="f-title">
+            <label for="a-title">Título *</label>
+            <input id="a-title" maxlength="120" autocomplete="off">
+            <div class="err">Pon un título.</div>
+          </div>
+          <div class="field" id="f-id">
+            <label for="a-id">Identificador de Archive.org *</label>
+            <input id="a-id" maxlength="120" autocomplete="off" placeholder="p. ej. night_of_the_living_dead">
+            <div class="hint">Es la parte final de la URL: archive.org/details/<b>ESTO</b>. Solo letras, números, punto, guion y guion bajo.</div>
+            <div class="err">Identificador no válido (solo A-Z, 0-9, . _ -).</div>
+          </div>
+          <div class="field">
+            <label for="a-year">Año</label>
+            <input id="a-year" inputmode="numeric" maxlength="4" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="a-genre">Género</label>
+            <select id="a-genre">${GENRES.map(g=>`<option>${esc(g)}</option>`).join("")}</select>
+          </div>
+          <div class="field">
+            <label for="a-type">Tipo</label>
+            <select id="a-type"><option>Película</option><option>Serie</option></select>
+          </div>
+          <div class="field">
+            <label for="a-dir">Dirección / año-dur (opcional)</label>
+            <input id="a-dir" maxlength="80" autocomplete="off" placeholder="Director">
+          </div>
+          <div class="field">
+            <label for="a-synopsis">Sinopsis</label>
+            <textarea id="a-synopsis" maxlength="600"></textarea>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary" type="submit" style="flex:1">Guardar título</button>
+            <button class="btn btn-ghost" type="button" id="resetForm">Limpiar</button>
+          </div>
+        </form>
+      </div>
+
+      <div>
+        <h2 style="font-size:18px;margin-bottom:14px">Catálogo actual (${cat.length})</h2>
+        <div id="adminList">
+          ${cat.length? cat.map(adminItem).join("") : `<div class="empty"><div class="ic">🎬</div><b>Catálogo vacío</b><p>Añade tu primer título con el formulario.</p></div>`}
+        </div>
+      </div>
+    </div>
+  </div></main>`;
+
+  document.getElementById("logoutBtn").addEventListener("click",()=>{ try{sessionStorage.removeItem(K.admin);}catch(e){} location.hash="#/admin"; renderAdminGate(false); });
+  document.getElementById("addForm").addEventListener("submit",onAddSubmit);
+  document.getElementById("resetForm").addEventListener("click",resetAddForm);
+  document.getElementById("exportBtn").addEventListener("click",exportCatalog);
+  document.getElementById("importBtn").addEventListener("click",()=>document.getElementById("importFile").click());
+  document.getElementById("importFile").addEventListener("change",importCatalog);
+  bindAdminList();
+}
+
+function adminItem(f){
+  const id=safeArchiveId(f.id);
+  const thumb=id?`https://archive.org/services/img/${id}`:"";
+  return `
+  <div class="admin-item" data-id="${attr(f.id)}">
+    ${thumb?`<img class="thumb lazyposter" alt="" data-src="${attr(thumb)}">`:`<div class="thumb"></div>`}
+    <div class="info">
+      <b>${esc(f.title)}</b>${f.seed?`<span class="tag-seed">de arranque</span>`:""}
+      <div class="m">${esc(f.year)} · ${esc(f.genre)} · ${esc(f.type)} · <code>${esc(f.id)}</code></div>
+      <div class="acts">
+        <button data-edit="${attr(f.id)}">✏️ Editar</button>
+        <button class="del" data-del="${attr(f.id)}">🗑️ Quitar</button>
+        <a class="btn" style="padding:6px 11px;font-size:12.5px;background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--ink-soft)" href="#/ver/${attr(id||f.id)}">▶ Ver</a>
+      </div>
+    </div>
+  </div>`;
+}
+
+function bindAdminList(){
+  const list=document.getElementById("adminList"); if(!list) return;
+  hydratePosters(list);
+  list.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>onDeleteFilm(b.dataset.del)));
+  list.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>onEditFilm(b.dataset.edit)));
+}
+
+function onAddSubmit(e){
+  e.preventDefault();
+  const title=document.getElementById("a-title").value.trim();
+  const rawId=document.getElementById("a-id").value.trim();
+  const id=safeArchiveId(rawId);
+  let ok=true;
+  document.getElementById("f-title").classList.toggle("invalid", !title); if(!title) ok=false;
+  document.getElementById("f-id").classList.toggle("invalid", !id); if(!id) ok=false;
+  if(!ok){ showToast("Revisa los campos marcados"); return; }
+
+  const yearRaw=document.getElementById("a-year").value.trim();
+  const item={
+    id,
+    title,
+    year: /^\d{1,4}$/.test(yearRaw)? parseInt(yearRaw,10) : (yearRaw||""),
+    genre: document.getElementById("a-genre").value,
+    type: document.getElementById("a-type").value,
+    dir: document.getElementById("a-dir").value.trim().slice(0,80),
+    dur: "",
+    syn: document.getElementById("a-synopsis").value.trim().slice(0,600) || "Sin sinopsis.",
+  };
+
+  const editing=document.getElementById("a-editing").value;
+  // Si estaba oculto un seed con este id, al re-crearlo lo "des-ocultamos"
+  const hidden=new Set(jget(K.hidden,[])); hidden.delete(id); jset(K.hidden,[...hidden]);
+  const custom=jget(K.custom,[]).filter(c=>c.id!==id && c.id!==editing);
+  custom.unshift(item);
+  jset(K.custom,custom);
+  showToast(editing?"Título actualizado":"Título añadido");
+  resetAddForm();
+  renderAdmin();
+}
+
+function resetAddForm(){
+  ["a-title","a-id","a-year","a-dir","a-synopsis","a-editing"].forEach(i=>{ const el=document.getElementById(i); if(el) el.value=""; });
+  const t=document.getElementById("formTitle"); if(t) t.textContent="➕ Añadir título";
+  ["f-title","f-id"].forEach(i=>{ const el=document.getElementById(i); if(el) el.classList.remove("invalid"); });
+}
+
+function onEditFilm(id){
+  const f=getFilm(id); if(!f) return;
+  document.getElementById("a-editing").value=f.id;
+  document.getElementById("a-title").value=f.title;
+  document.getElementById("a-id").value=f.id;
+  document.getElementById("a-year").value=f.year||"";
+  document.getElementById("a-genre").value=GENRES.includes(f.genre)?f.genre:GENRES[0];
+  document.getElementById("a-type").value=f.type==="Serie"?"Serie":"Película";
+  document.getElementById("a-dir").value=f.dir||"";
+  document.getElementById("a-synopsis").value=f.syn||"";
+  document.getElementById("formTitle").textContent="✏️ Editar título";
+  window.scrollTo(0,0);
+  showToast("Editando: "+f.title);
+}
+
+function onDeleteFilm(id){
+  const f=getFilm(id); if(!f) return;
+  if(!confirm(`¿Quitar “${f.title}” del catálogo?`)) return;
+  if(f.seed){ const h=new Set(jget(K.hidden,[])); h.add(id); jset(K.hidden,[...h]); }
+  jset(K.custom, jget(K.custom,[]).filter(c=>c.id!==id));
+  // por si estaba en favoritos
+  jset(K.fav, getFavs().filter(x=>x!==id));
+  showToast("Título quitado");
+  renderAdmin();
+}
+
+function exportCatalog(){
+  const data={ generado:new Date().toISOString(), catalogo:getCatalog().map(({seed,...r})=>r) };
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download=`catalogo-${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(a.href);
+}
+
+function importCatalog(e){
+  const file=e.target.files&&e.target.files[0]; if(!file) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    try{
+      const data=JSON.parse(rd.result);
+      const arr=Array.isArray(data)?data:(data.catalogo||[]);
+      const clean=arr.filter(x=>x&&safeArchiveId(x.id)&&x.title).map(x=>({
+        id:safeArchiveId(x.id), title:String(x.title).slice(0,120),
+        year:x.year||"", genre:GENRES.includes(x.genre)?x.genre:"Drama",
+        type:x.type==="Serie"?"Serie":"Película", dir:String(x.dir||"").slice(0,80),
+        dur:String(x.dur||"").slice(0,40), syn:String(x.syn||"Sin sinopsis.").slice(0,600)
+      }));
+      if(!clean.length){ showToast("El archivo no tiene títulos válidos"); return; }
+      jset(K.custom, clean); jset(K.hidden, []);
+      showToast(`Importados ${clean.length} títulos`); renderAdmin();
+    }catch(err){ showToast("Archivo no válido"); }
+  };
+  rd.readAsText(file);
+  e.target.value="";
+}
+
+function renderAdminGate(bad){
+  document.getElementById("app").innerHTML=`
+  <main class="admin"><div class="admin-gate ${bad?"bad":""}">
+    <h1>Acceso del dueño</h1>
+    <p>Zona privada de ${esc(CONFIG.APP_NAME)}. Introduce tu contraseña para gestionar el catálogo.</p>
+    <div class="demo-hint">🔎 <b>Demo:</b> entra con la contraseña <b>${esc(CONFIG.ADMIN_PASSWORD)}</b> para probar el panel. Cámbiala en el código antes de publicar.</div>
+    <form id="gateForm">
+      <input id="gatePass" type="password" placeholder="Contraseña" autocomplete="current-password" aria-label="Contraseña">
+      <button class="btn btn-primary" type="submit">Entrar</button>
+      <div class="err">Contraseña incorrecta.</div>
+    </form>
+    <p style="margin-top:16px;font-size:13px"><a href="#/" style="color:var(--ink-mut)">← Volver a la web</a></p>
+  </div></main>`;
+  document.getElementById("gateForm").addEventListener("submit",e=>{
+    e.preventDefault();
+    const now=Date.now();
+    let g={n:0,until:0};
+    try{ g=JSON.parse(sessionStorage.getItem("cinelibre_gate")||"{}"); }catch(err){}
+    if(g.until && now<g.until){ showToast(`Demasiados intentos. Espera ${Math.ceil((g.until-now)/1000)}s.`); return; }
+    if(document.getElementById("gatePass").value===CONFIG.ADMIN_PASSWORD){
+      try{ sessionStorage.setItem(K.admin,"1"); sessionStorage.removeItem("cinelibre_gate"); }catch(err){}
+      renderAdmin();
+    }else{
+      g.n=(g.n||0)+1;
+      if(g.n>=5){ g.until=now+60000; g.n=0; showToast("Demasiados intentos. Espera 60 segundos."); }
+      try{ sessionStorage.setItem("cinelibre_gate",JSON.stringify(g)); }catch(err){}
+      renderAdminGate(true);
+    }
+  });
+}
+
+/* ==================================================================
+   ENLACES DE CHROME (buscador + favoritos en tarjetas) + utilidades
+   ================================================================== */
+function bindChrome(){
+  const s=document.getElementById("searchInput");
+  if(s){
+    s.addEventListener("input",()=>{
+      SEARCH=s.value;
+      const {key}=parseHash();
+      if(key==="genero"||key===""){ renderGrid(); }
+      else { location.hash="#/"; }
+    });
+    s.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); const {key}=parseHash(); if(key!=="genero"&&key!=="") location.hash="#/"; } });
+  }
+  const ib=document.getElementById("installBtn");
+  if(ib){ ib.style.display = deferredPrompt ? "inline-flex" : "none";
+    ib.addEventListener("click",async()=>{ if(!deferredPrompt) return; deferredPrompt.prompt(); try{ await deferredPrompt.userChoice; }catch(e){} deferredPrompt=null; ib.style.display="none"; }); }
+}
+
+function bindCards(scope){
+  (scope||document).querySelectorAll(".fav-btn").forEach(b=>{
+    b.addEventListener("click",e=>{
+      e.preventDefault(); e.stopPropagation();
+      const id=b.dataset.fav; const on=toggleFav(id);
+      b.classList.toggle("on",on); b.setAttribute("aria-pressed",on?"true":"false");
+      b.setAttribute("aria-label",(on?"Quitar de Mi lista":"Añadir a Mi lista"));
+      showToast(on?"Añadida a Mi lista":"Quitada de Mi lista");
+    });
+  });
+}
+
+function showToast(m){ const t=document.getElementById("toast"); if(!t) return; t.textContent=m; t.classList.add("show"); clearTimeout(showToast._t); showToast._t=setTimeout(()=>t.classList.remove("show"),2400); }
+
+/* ==================================================================
+   PWA: manifest embebido + botón instalar
+   ================================================================== */
+let deferredPrompt=null;
+window.addEventListener("beforeinstallprompt",e=>{ e.preventDefault(); deferredPrompt=e; const ib=document.getElementById("installBtn"); if(ib) ib.style.display="inline-flex"; });
+(function injectManifest(){
+  try{
+    const icon="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='96' fill='%230b0b12'/%3E%3Cpath d='M196 156l160 100-160 100z' fill='%237c5cff'/%3E%3C/svg%3E";
+    const manifest={ name:CONFIG.APP_NAME, short_name:CONFIG.APP_NAME, description:CONFIG.DESC,
+      start_url:".", scope:".", display:"standalone", background_color:"#0b0b12", theme_color:"#0b0b12",
+      icons:[ {src:icon,sizes:"192x192",type:"image/svg+xml",purpose:"any maskable"}, {src:icon,sizes:"512x512",type:"image/svg+xml",purpose:"any maskable"} ] };
+    const blob=new Blob([JSON.stringify(manifest)],{type:"application/manifest+json"});
+    const l=document.createElement("link"); l.rel="manifest"; l.href=URL.createObjectURL(blob); document.head.appendChild(l);
+  }catch(e){ /* file:// puede bloquear blob manifest; la app sigue funcionando */ }
+})();
+
+/* ARRANQUE */
+route();
+</script>
+</body>
+</html>
