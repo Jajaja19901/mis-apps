@@ -356,9 +356,10 @@ const Audio_ = {
    MOTOR DE RENDER
 ════════════════════════════════════════════════════════════════════════ */
 const cv=document.getElementById('c'); const ctx=cv.getContext('2d');
+const MOBILE = (window.matchMedia && matchMedia('(pointer:coarse)').matches) || Math.min(innerWidth,innerHeight)<820;
 let W=0,H=0,DPR=1,CX=0,CY=0;
 function resize(){
-  DPR=Math.min(window.devicePixelRatio||1, 2);
+  DPR=Math.min(window.devicePixelRatio||1, MOBILE?1.5:2);
   W=window.innerWidth; H=window.innerHeight;
   cv.width=W*DPR; cv.height=H*DPR;
   ctx.setTransform(DPR,0,0,DPR,0,0);
@@ -1021,7 +1022,7 @@ function getMHPointsDense(){
   const o=oc.getContext('2d'); o.fillStyle='#000'; o.fillRect(0,0,S,S);
   o.fillStyle='#fff'; o.textAlign='center'; o.textBaseline='middle';
   o.font=`900 175px "Arial Black",Arial,sans-serif`; o.fillText('MH',S/2,S/2);
-  const d=o.getImageData(0,0,S,S).data, pts=[], step=2;
+  const d=o.getImageData(0,0,S,S).data, pts=[], step=(MOBILE?3:2);  // menos partículas en móvil
   for(let y=0;y<S;y+=step) for(let x=0;x<S;x+=step){ if(d[(y*S+x)*4]>128) pts.push([(x-S/2)/S,(y-S/2)/S]); }
   MHPTS_D=pts; return pts;
 }
@@ -1288,9 +1289,21 @@ function setStatus(){
 function start(){
   if(State.running) return;
   State.running=true; intro.classList.add('gone');
-  shuffleOrder(); gotoScene(SCENES.indexOf(scene_mhForm), true); setStatus();
+  shuffleOrder(); gotoScene(SCENES.indexOf(scene_mhForm), true); setStatus(); keepAwake();
   setTimeout(()=>{ if(intro.parentNode) intro.style.display='none'; },700);
 }
+/* mantener la pantalla ENCENDIDA durante el set (móvil) */
+let wakeLock=null;
+async function keepAwake(){ try{ if('wakeLock' in navigator) wakeLock=await navigator.wakeLock.request('screen'); }catch(e){} }
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && State.running) keepAwake(); });
+
+/* en móvil: texto claro + consejo del micrófono de sala */
+if(MOBILE){
+  document.getElementById('btnMic').textContent='🎧 Empezar (micrófono del móvil)';
+  const s=document.querySelector('#intro .sub');
+  if(s) s.insertAdjacentHTML('afterbegin','<b>En el móvil:</b> acepta el micrófono y deja el teléfono cerca de los altavoces; la pantalla no se apagará. Gíralo horizontal y ponlo a pantalla completa. ');
+}
+
 document.getElementById('btnMic').addEventListener('click', async ()=>{ await Audio_.initMic(); start(); showAudiobar(); });
 document.getElementById('btnDemo').addEventListener('click', ()=>{ Audio_.initDemo(); start(); });
 
