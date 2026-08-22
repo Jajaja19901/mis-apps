@@ -111,6 +111,19 @@
   #flash{position:fixed;inset:0;z-index:15;background:#fff;opacity:0;pointer-events:none;
     mix-blend-mode:overlay}
 
+  /* barra de audio (selector de entrada + medidor en vivo) */
+  #audiobar{position:fixed;bottom:max(16px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
+    z-index:30;display:none;align-items:center;gap:12px;padding:9px 14px;border-radius:12px;
+    background:rgba(10,10,18,.72);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);
+    opacity:0;transition:opacity .4s ease}
+  #audiobar.show{opacity:1}
+  #audiobar select{appearance:none;background:rgba(255,255,255,.06);color:#e8e8f2;border:1px solid rgba(255,255,255,.16);
+    border-radius:8px;padding:7px 10px;font-family:inherit;font-size:12.5px;max-width:46vw;cursor:pointer}
+  #audiobar .meter{width:120px;height:9px;border-radius:6px;background:rgba(255,255,255,.1);overflow:hidden}
+  #audiobar .meter span{display:block;height:100%;width:0%;border-radius:6px;
+    background:linear-gradient(90deg,var(--ring1),var(--ring3),var(--ring4));transition:width .05s linear}
+  #audiobar .lbl{font-size:11px;letter-spacing:.12em;color:var(--muted);white-space:nowrap}
+
   @media (max-width:520px){
     #brand .mark{width:36px;height:36px}
     #brand .txt b{font-size:13px}
@@ -136,6 +149,11 @@
 </div>
 
 <div id="status" class="hidden"><span class="dot" id="dot"></span><span id="statustxt">—</span></div>
+<div id="audiobar">
+  <span class="lbl">ENTRADA</span>
+  <select id="audioDev" title="Elige la salida de tu mesa (línea/loopback)"></select>
+  <div class="meter" title="Nivel de audio"><span id="meterFill"></span></div>
+</div>
 <div id="toast"><b id="toastname">—</b></div>
 
 <!-- Pantalla de inicio -->
@@ -159,9 +177,9 @@
     <button class="btn ghost" id="btnLogo">🖼️ Subir tu logo</button>
   </div>
   <input type="file" id="logoInput" accept="image/*" hidden>
-  <p class="sub">Sube tu <b>logo oficial</b> (PNG/JPG) y se usará idéntico en todas las escenas.
-     También puedes <b>arrastrar</b> a la pantalla un <b>archivo de audio</b> (suena por él) o una <b>imagen</b> (la pone de logo).
-     El micro se pide permiso solo en tu equipo; no se envía nada a ningún sitio.</p>
+  <p class="sub">Al pulsar «Empezar» sale abajo un <b>selector de entrada</b> (elige la salida de tu mesa: línea o loopback)
+     y un <b>medidor</b> que se mueve con la música: si se mueve, te está oyendo. Ajusta con <b>[</b> y <b>]</b>.
+     Sube tu <b>logo oficial</b> (PNG/JPG) y se usa idéntico en todo. El permiso de micro es solo en tu equipo; no se envía nada a ningún sitio.</p>
   <div class="keys">
     <kbd>Espacio</kbd> auto on/off · <kbd>→</kbd>/<kbd>←</kbd> escena · <kbd>1</kbd>–<kbd>9</kbd> ir a · <kbd>F</kbd> pantalla completa · <kbd>H</kbd> ayuda
   </div>
@@ -180,6 +198,7 @@
       <kbd>L</kbd><span>Mostrar / ocultar logo y textos</span>
       <kbd>C</kbd><span>Cambiar tema de color (Afterlife, Celeste, Éter, Ascuas, Ibiza)</span>
       <kbd>A</kbd><span>Cambiar fuente de audio (micro ↔ demo)</span>
+      <kbd>[ / ]</kbd><span>Sensibilidad del audio (menos / más)</span>
       <kbd>H / Esc</kbd><span>Abrir / cerrar esta ayuda</span>
     </div>
     <div class="foot">
@@ -246,12 +265,21 @@ const Audio_ = {
   level:0, bass:0, mid:0, treble:0, beat:0, beatHold:0,
   _hist:[], _cool:0, _demoT:0, _nextBeat:0,
 
-  async initMic(){
+  gain:1,            // ganancia manual (teclas)
+  _peak:0.12,        // auto-ganancia (se adapta al volumen de entrada)
+  async initMic(deviceId){
     try{
-      const stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+      // cerrar entrada anterior si la había
+      if(this._stream){ this._stream.getTracks().forEach(x=>x.stop()); }
+      if(this.source && this.mode==="mic"){ try{this.source.disconnect();}catch(e){} }
+      const audio = { echoCancellation:false, noiseSuppression:false, autoGainControl:false };
+      if(deviceId) audio.deviceId = { exact: deviceId };
+      const stream = await navigator.mediaDevices.getUserMedia({ audio });
       this._setup(); const s=this.ctx.createMediaStreamSource(stream);
-      s.connect(this.analyser); this.source=s; this.mode="mic"; return true;
-    }catch(e){ console.warn("Micro no disponible, uso demo:",e.name); this.initDemo(); return false; }
+      s.connect(this.analyser); this.source=s; this._stream=stream; this.mode="mic";
+      populateDevices();   // rellena el selector con los nombres reales
+      return true;
+    }catch(e){ console.warn("Entrada no disponible, uso demo:",e.name); this.initDemo(); return false; }
   },
   initDemo(){ this._setup(); this.mode="demo"; },
   async initFile(file){
@@ -281,11 +309,16 @@ const Audio_ = {
     this.analyser.getByteFrequencyData(this.freq);
     this.analyser.getByteTimeDomainData(this.wave);
     const N=this.freq.length;
-    this.bass   = this.band(1, Math.max(2,N*0.06|0));
-    this.mid    = this.band(N*0.06|0, N*0.30|0);
-    this.treble = this.band(N*0.30|0, N*0.75|0);
+    let bass   = this.band(1, Math.max(2,N*0.06|0));
+    let mid    = this.band(N*0.06|0, N*0.30|0);
+    let treble = this.band(N*0.30|0, N*0.75|0);
+    // AUTO-GANANCIA: normaliza según el volumen que entra (pico que decae lento)
+    const inst = Math.max(bass, mid, treble);
+    this._peak = Math.max(this._peak*0.9985, inst, 0.05);
+    const g = (0.85/this._peak) * this.gain;
+    this.bass=Math.min(1.4,bass*g); this.mid=Math.min(1.4,mid*g); this.treble=Math.min(1.4,treble*g);
     this.level  = this.bass*0.6 + this.mid*0.3 + this.treble*0.25;
-    // detección de golpe por energía de bajos
+    // detección de golpe por energía de bajos (sobre la señal normalizada)
     this._hist.push(this.bass); if(this._hist.length>43) this._hist.shift();
     const avg=this._hist.reduce((x,y)=>x+y,0)/this._hist.length;
     this._cool-=dt; this.beat=0;
@@ -1166,6 +1199,7 @@ function showToast(txt){ toastName.textContent=txt; toastEl.classList.add('show'
 /* ════════════════════════════════════════════════════════════════════════
    BUCLE
 ════════════════════════════════════════════════════════════════════════ */
+let meterEl=null;
 let last=performance.now();
 function loop(now){
   if(State.render){ requestAnimationFrame(loop); return; } // en modo render se dibuja a mano
@@ -1199,6 +1233,9 @@ function loop(now){
 
     // fundido a negro cinematográfico al cambiar de escena
     if(State.transition>0){ ctx.fillStyle=rgb([2,2,7], Math.min(1,State.transition)*0.82); ctx.fillRect(0,0,W,H); }
+
+    // medidor de audio en vivo
+    if(meterEl) meterEl.style.width = Math.min(100, Audio_.level*90) + '%';
   }
   requestAnimationFrame(loop);
 }
@@ -1254,8 +1291,29 @@ function start(){
   shuffleOrder(); gotoScene(SCENES.indexOf(scene_mhForm), true); setStatus();
   setTimeout(()=>{ if(intro.parentNode) intro.style.display='none'; },700);
 }
-document.getElementById('btnMic').addEventListener('click', async ()=>{ await Audio_.initMic(); start(); });
+document.getElementById('btnMic').addEventListener('click', async ()=>{ await Audio_.initMic(); start(); showAudiobar(); });
 document.getElementById('btnDemo').addEventListener('click', ()=>{ Audio_.initDemo(); start(); });
+
+/* ---- entrada de audio: selector de dispositivo + medidor ---- */
+const audiobar=document.getElementById('audiobar'), audioDev=document.getElementById('audioDev');
+meterEl=document.getElementById('meterFill');
+async function populateDevices(){
+  try{
+    const devs=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='audioinput');
+    if(!devs.length) return;
+    audioDev.innerHTML='';
+    devs.forEach((d,i)=>{ const o=document.createElement('option'); o.value=d.deviceId;
+      o.textContent=d.label||('Entrada de audio '+(i+1)); audioDev.appendChild(o); });
+    const cur=Audio_._stream&&Audio_._stream.getAudioTracks()[0];
+    const id=cur&&cur.getSettings&&cur.getSettings().deviceId; if(id) audioDev.value=id;
+  }catch(e){}
+}
+audioDev.addEventListener('change', async ()=>{ await Audio_.initMic(audioDev.value); setStatus(); showAudiobar(); });
+function showAudiobar(){
+  if(Audio_.mode!=='mic') return;
+  audiobar.style.display='flex'; requestAnimationFrame(()=>audiobar.classList.add('show'));
+  clearTimeout(showAudiobar._t); showAudiobar._t=setTimeout(()=>audiobar.classList.remove('show'), 4500);
+}
 
 /* subir logo (botón + input) */
 const logoInput=document.getElementById('logoInput');
@@ -1294,6 +1352,8 @@ window.addEventListener('keydown', e=>{
   else if(k==='f'){ toggleFS(); }
   else if(k==='l'){ State.showBrand=!State.showBrand; brand.classList.toggle('hidden',!State.showBrand); }
   else if(k==='c'){ cycleTheme(); }
+  else if(k===']'||k==='+'){ Audio_.gain=Math.min(4,Audio_.gain*1.25); showToast('SENSIBILIDAD ×'+Audio_.gain.toFixed(1)); }
+  else if(k==='['||k==='-'){ Audio_.gain=Math.max(0.25,Audio_.gain/1.25); showToast('SENSIBILIDAD ×'+Audio_.gain.toFixed(1)); }
   else if(k==='a'){ if(Audio_.mode==='demo'){ Audio_.initMic().then(setStatus); } else { Audio_.mode='demo'; setStatus(); } }
 });
 
@@ -1303,7 +1363,8 @@ cv.addEventListener('click', ()=>{ if(State.running) nextScene(); });
 /* ocultar cursor cuando está quieto */
 let curTimer=null;
 window.addEventListener('mousemove',()=>{ document.body.style.cursor='default'; clearTimeout(curTimer);
-  curTimer=setTimeout(()=>{ if(State.running) document.body.style.cursor='none'; },2500); });
+  curTimer=setTimeout(()=>{ if(State.running) document.body.style.cursor='none'; },2500);
+  showAudiobar(); });
 
 /* re-centrar tras rotar el móvil */
 window.addEventListener('orientationchange',()=>setTimeout(resize,300));

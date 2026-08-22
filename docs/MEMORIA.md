@@ -3,6 +3,10 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-22 — Visuales MHcollective: captación de audio a prueba de balas
+- Qué se hizo (6ª iteración): el cliente insiste "NO quiero MP4, quiero que FUNCIONE CON LA MÚSICA". Se reforzó la entrada de audio del HTML: (1) SELECTOR DE ENTRADA (`enumerateDevices` → `<select id="audioDev">`, `initMic(deviceId)` con limpieza del stream previo) para elegir la salida de la mesa/línea/loopback; (2) AUTO-GANANCIA en `update()` (pico que decae lento → normaliza; reacciona igual con señal floja o fuerte) + ganancia manual con teclas `[` / `]`; (3) MEDIDOR EN VIVO (`#audiobar` + `#meterFill`, se actualiza en el loop con `Audio_.level`) que aparece con el ratón; así el DJ VE que le está oyendo. Verificador ✅ APTO, 0 errores; probado con fake device (mode=mic, 3 entradas, medidor moviéndose).
+- Queda claro definitivamente: la entrega es el HTML reactivo en vivo (infinito), NO un vídeo. Nada de MP4.
+
 ## 2026-08-22 — Visuales MHcollective: escena estrella "MH se materializa" PRO
 - Qué se hizo (5ª iteración): al cliente le encantó la escena de partículas que forman el MH (#1). La pidió "igual pero mejorado mucho, calidad, colores, muchos efectos". Se reescribió `scene_mhForm` con `getMHPointsDense()` (~4150 puntos, glifo 300px): partículas con estela (composite 'lighter'), profundidad (z), color con onda de tono viajera + shimmer de brillo, respiración con el bajo, empuje radial en el golpe, ONDAS DE CHOQUE concéntricas por beat, RAYOS de luz en golpes fuertes, fondo nebulosa del tema, y REMOLINO cada ~9s que deshace el MH en una supernova y lo rehace. Verificador ✅ APTO, 0 errores. Capturas premium confirmadas.
 - Sobre "hora y media": sigue siendo el HTML (infinito). Se le envía showcase de 3 min renderizado SOLO de esta escena (sc grande para no cambiar). Si quiere MP4 real de 90 min hay que confirmar (troceado, ~horas de render).
