@@ -65,9 +65,9 @@
 
   /* ---- Pantalla de inicio ---- */
   #intro{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;
-    align-items:center;justify-content:center;text-align:center;gap:26px;padding:32px;
-    background:radial-gradient(120% 90% at 50% 30%,#12071c 0%,#05050a 62%);
-    transition:opacity .6s ease}
+    align-items:center;justify-content:center;text-align:center;gap:24px;padding:32px;
+    background:radial-gradient(120% 90% at 50% 35%,rgba(10,7,18,.35) 0%,rgba(5,5,10,.82) 72%);
+    backdrop-filter:blur(2px);transition:opacity .7s ease}
   #intro.gone{opacity:0;pointer-events:none}
   #intro .biglogo{width:min(38vw,150px);height:auto;filter:drop-shadow(0 10px 40px rgba(214,41,118,.35))}
   #intro h1{font-size:clamp(28px,7vw,58px);font-weight:900;letter-spacing:.04em;line-height:1;
@@ -1286,12 +1286,15 @@ function setStatus(){
   else { dot.className="dot demo"; statustxt.textContent="MODO DEMO"; }
   clearTimeout(setStatus._t); setStatus._t=setTimeout(()=>statusEl.classList.add('hidden'),3500);
 }
-function start(){
+/* las visuales arrancan solas (modo demo) — siempre hay algo profesional en pantalla */
+function launchVisuals(){
   if(State.running) return;
-  State.running=true; intro.classList.add('gone');
-  shuffleOrder(); gotoScene(SCENES.indexOf(scene_mhForm), true); setStatus(); keepAwake();
-  setTimeout(()=>{ if(intro.parentNode) intro.style.display='none'; },700);
+  State.running=true; Audio_.initDemo();
+  shuffleOrder(); gotoScene(SCENES.indexOf(scene_mhForm), false);
 }
+/* quitar la portada y dejar las visuales a pantalla completa */
+function reveal(){ intro.classList.add('gone'); setTimeout(()=>{ intro.style.display='none'; },750); }
+function start(){ launchVisuals(); reveal(); setStatus(); keepAwake(); }
 /* mantener la pantalla ENCENDIDA durante el set (móvil) */
 let wakeLock=null;
 async function keepAwake(){ try{ if('wakeLock' in navigator) wakeLock=await navigator.wakeLock.request('screen'); }catch(e){} }
@@ -1305,7 +1308,11 @@ if(MOBILE){
 }
 
 document.getElementById('btnMic').addEventListener('click', async ()=>{ await Audio_.initMic(); start(); showAudiobar(); });
-document.getElementById('btnDemo').addEventListener('click', ()=>{ Audio_.initDemo(); start(); });
+document.getElementById('btnDemo').addEventListener('click', ()=>{ start(); });
+
+/* ARRANQUE AUTOMÁTICO: en cuanto carga, las visuales ya están corriendo detrás
+   de la portada (modo demo). Así nada más abrir se ve algo profesional. */
+launchVisuals();
 
 /* ---- entrada de audio: selector de dispositivo + medidor ---- */
 const audiobar=document.getElementById('audiobar'), audioDev=document.getElementById('audioDev');
