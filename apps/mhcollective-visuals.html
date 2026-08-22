@@ -980,23 +980,83 @@ function getMHPoints(){
   MHPTS=pts; return pts;
 }
 
-/* MH se materializa: partículas que vuelan y forman el MH; estallan y se rehacen con el golpe */
+/* nube de puntos MÁS densa para la escena estrella */
+let MHPTS_D=null;
+function getMHPointsDense(){
+  if(MHPTS_D) return MHPTS_D;
+  const S=300, oc=document.createElement('canvas'); oc.width=S; oc.height=S;
+  const o=oc.getContext('2d'); o.fillStyle='#000'; o.fillRect(0,0,S,S);
+  o.fillStyle='#fff'; o.textAlign='center'; o.textBaseline='middle';
+  o.font=`900 175px "Arial Black",Arial,sans-serif`; o.fillText('MH',S/2,S/2);
+  const d=o.getImageData(0,0,S,S).data, pts=[], step=2;
+  for(let y=0;y<S;y+=step) for(let x=0;x<S;x+=step){ if(d[(y*S+x)*4]>128) pts.push([(x-S/2)/S,(y-S/2)/S]); }
+  MHPTS_D=pts; return pts;
+}
+
+/* ★ ESCENA ESTRELLA — MH se materializa (versión PRO, muchos efectos) ★
+   partículas doradas con estela que forman el MH; respira, hace shimmer,
+   emite ondas de choque en cada golpe, se deshace en remolino y se rehace,
+   y lanza rayos de luz en los golpes fuertes. */
 const scene_mhForm = {
   name:"MH se materializa",
-  enter(){ const pts=getMHPoints();
-    this.p=pts.map(h=>({hx:h[0],hy:h[1],cx:Math.random()*W,cy:Math.random()*H,s:0.4+Math.random()})); },
+  enter(){
+    const pts=getMHPointsDense();
+    this.p=pts.map(h=>{ const ang=Math.random()*6.283, rad=Math.max(W,H)*(0.45+Math.random()*0.7);
+      return { hx:h[0], hy:h[1], cx:CX+Math.cos(ang)*rad, cy:CY+Math.sin(ang)*rad,
+        px:0, py:0, pinit:false, z:0.55+Math.random()*0.7, seed:Math.random(), hue:(Math.random()-0.5)*0.13 }; });
+    this.rings=[]; this.timer=0;
+  },
   draw(a,t,dt){
-    const scale=Math.min(W,H)*0.72, kick=a.beatHold*a.beatHold;
+    this.timer+=dt;
+    const S=Math.min(W,H)*0.78, kick=a.beatHold*a.beatHold;
+
+    // fondo nebulosa tenue del tema (profundidad, no negro plano)
+    const bg=ctx.createRadialGradient(CX,CY,0,CX,CY,Math.max(W,H)*0.72);
+    const cc=palAt(State.globalHue+0.15);
+    bg.addColorStop(0,rgb(cc,0.06+a.bass*0.06)); bg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+
+    // cada ~9s: remolino que deshace y rehace el MH
+    const cyc=this.timer%9, swirl = cyc>7 ? (cyc-7)/2 : 0, sw=swirl*(1-swirl)*4;
+
+    ctx.globalCompositeOperation='lighter';
+    const breathe=1+Math.sin(t*1.6)*0.02 + a.bass*0.06;
     for(const q of this.p){
-      const ang=Math.atan2(q.hy,q.hx);
-      const tx=CX+q.hx*scale+Math.cos(ang)*kick*scale*0.55*q.s;
-      const ty=CY+q.hy*scale+Math.sin(ang)*kick*scale*0.55*q.s;
-      q.cx+=(tx-q.cx)*Math.min(1,dt*7); q.cy+=(ty-q.cy)*Math.min(1,dt*7);
-      const c=palAt(State.globalHue+q.hx*0.4+0.15);
-      ctx.beginPath(); ctx.arc(q.cx,q.cy,1.3+a.beatHold*2.4,0,6.283);
-      ctx.fillStyle=rgb(c,0.85); ctx.shadowBlur=7+a.beatHold*12; ctx.shadowColor=rgb(c,0.95); ctx.fill();
+      const ang=Math.atan2(q.hy,q.hx), hueWave=Math.sin(q.hx*4 - t*1.2)*0.06;
+      let tx=CX+q.hx*S*breathe, ty=CY+q.hy*S*breathe;
+      tx+=Math.cos(ang)*kick*S*0.42*q.seed; ty+=Math.sin(ang)*kick*S*0.42*q.seed;   // empuje en el golpe
+      if(sw>0){ const a2=ang+sw*3*q.seed, r2=Math.hypot(q.hx,q.hy)*S*(1+sw*1.25);      // remolino
+        tx=CX+Math.cos(a2)*r2; ty=CY+Math.sin(a2)*r2; }
+      tx+=Math.sin(t*3+q.seed*10)*1.6; ty+=Math.cos(t*2.6+q.seed*10)*1.6;             // shimmer posición
+      if(!q.pinit){ q.px=q.cx; q.py=q.cy; q.pinit=true; }
+      q.px=q.cx; q.py=q.cy;
+      const ease=Math.min(1,dt*(5.5+q.z*3.5));
+      q.cx+=(tx-q.cx)*ease; q.cy+=(ty-q.cy)*ease;
+      const c=palAt(State.globalHue + q.hue + hueWave + q.z*0.15);
+      const bri=0.55+0.45*Math.sin(t*4+q.seed*12), sz=(0.8+q.z*1.9)*(1+a.beatHold*1.1);
+      ctx.strokeStyle=rgb(c,0.10+bri*0.10); ctx.lineWidth=sz*0.8;                     // estela
+      ctx.beginPath(); ctx.moveTo(q.px,q.py); ctx.lineTo(q.cx,q.cy); ctx.stroke();
+      ctx.beginPath(); ctx.arc(q.cx,q.cy,sz,0,6.283);                                 // punto brillante
+      ctx.fillStyle=rgb(c,0.5+bri*0.5); ctx.fill();
     }
-    ctx.shadowBlur=0;
+    ctx.globalCompositeOperation='source-over';
+
+    // ondas de choque en cada golpe
+    if(a.beat) this.rings.push({r:S*0.18,life:0});
+    for(let i=this.rings.length-1;i>=0;i--){ const r=this.rings[i]; r.life+=dt; r.r+=S*1.7*dt;
+      if(r.life>1){ this.rings.splice(i,1); continue; } const k=1-r.life;
+      ctx.beginPath(); ctx.arc(CX,CY,r.r,0,6.283); ctx.lineWidth=1+2*k;
+      ctx.strokeStyle=rgb(palAt(State.globalHue+0.5),k*0.5);
+      ctx.shadowBlur=16*k; ctx.shadowColor=rgb(palAt(State.globalHue+0.5),k); ctx.stroke(); ctx.shadowBlur=0; }
+
+    // rayos de luz en los golpes fuertes
+    if(a.beatHold>0.4){ ctx.globalCompositeOperation='lighter';
+      for(let i=0;i<12;i++){ const ang=i/12*6.283+t*0.2, c=palAt(State.globalHue+i/12);
+        const ex=CX+Math.cos(ang)*S*2, ey=CY+Math.sin(ang)*S*2;
+        const g=ctx.createLinearGradient(CX,CY,ex,ey);
+        g.addColorStop(0,rgb(c,a.beatHold*0.16)); g.addColorStop(1,rgb(c,0));
+        ctx.strokeStyle=g; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(CX,CY); ctx.lineTo(ex,ey); ctx.stroke(); }
+      ctx.globalCompositeOperation='source-over'; }
   }
 };
 

@@ -3,6 +3,10 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-22 — Visuales MHcollective: escena estrella "MH se materializa" PRO
+- Qué se hizo (5ª iteración): al cliente le encantó la escena de partículas que forman el MH (#1). La pidió "igual pero mejorado mucho, calidad, colores, muchos efectos". Se reescribió `scene_mhForm` con `getMHPointsDense()` (~4150 puntos, glifo 300px): partículas con estela (composite 'lighter'), profundidad (z), color con onda de tono viajera + shimmer de brillo, respiración con el bajo, empuje radial en el golpe, ONDAS DE CHOQUE concéntricas por beat, RAYOS de luz en golpes fuertes, fondo nebulosa del tema, y REMOLINO cada ~9s que deshace el MH en una supernova y lo rehace. Verificador ✅ APTO, 0 errores. Capturas premium confirmadas.
+- Sobre "hora y media": sigue siendo el HTML (infinito). Se le envía showcase de 3 min renderizado SOLO de esta escena (sc grande para no cambiar). Si quiere MP4 real de 90 min hay que confirmar (troceado, ~horas de render).
+
 ## 2026-08-22 — Visuales MHcollective: el símbolo MH cobra vida (30 escenas)
 - Qué se hizo (4ª iteración): el cliente pidió que "el símbolo MH se vea haciendo cosas" (usando skill de diseño → se aplicó `frontend-design`: el MH es el héroe/tesis). Se convirtió el glifo "MH" en nube de puntos (`getMHPoints()`: offscreen canvas + getImageData) y se crearon 4 escenas protagonistas: `scene_mhForm` (se materializa desde partículas; estalla/rehace con el golpe), `scene_mh3D` (losa MH que voltea en 3D), `scene_mhShatter` (estalla en mil pedazos y se recompone con muelle en cada beat), `scene_mhWipe` (se dibuja solo con línea de escaneo). Total **30 escenas**; el arranque (directo y render) fuerza `scene_mhForm` primero. Verificador ✅ APTO, 0 errores. Muestras enviadas al cliente (mp4).
 - Aclaración recurrente: el cliente pensaba que "26/30 escenas" = poca duración; NO — las escenas se encadenan/barajan sin parar (infinito) mientras suene la música. Se le explicó y se le envió muestra + el HTML.
