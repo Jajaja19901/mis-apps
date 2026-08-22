@@ -3,6 +3,11 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-20 (decies) — MH Collective: V44 (EXPULSAR a distancia desde el dueño)
+- Petición: "quiero tener la opción yo de expulsar a quien quiera" (soltar OTRO móvil, no solo el propio).
+- V44: en Resumen → "Equipo conectado", botón "🚪 Expulsar" por trabajador. `expulsarPuesto(id)` guarda `state.expulsiones[id]=Date.now()` (sincroniza). Cada móvil, al adoptar remoto y en el latido, llama `_chequearExpulsion()`: si su `perfilActivo` tiene una expulsión MÁS NUEVA que `_sesionInicioMovil` (fijado en bootApp), hace `salirPuesto()` (vuelve a la portada). El dueño en #/dueno no se auto-expulsa; un móvil que abre DESPUÉS de la expulsión no se ve afectado (evita dejar pillado al que coge el puesto). Riesgo menor: desfase de reloj entre móviles (aceptable).
+- Verificado V44: 49/49 aceptación · 5/5 batería expulsión (botón presente; marca expulsión; expulsado vuelve a portada; posterior no; dueño no se auto-expulsa).
+
 ## 2026-08-20 (nonies) — MH Collective: V43 (el botón "Salir" pasa al Dueño) + manual con imágenes
 - Petición: el botón "🚪 Salir" (soltar el puesto del móvil) confundía a los trabajadores (no lo veían si entraban con contraseña general + chips). El usuario pidió "que ese botón lo tenga el dueño".
 - V43: quitado `btnSalirPuesto` de la barra de los trabajadores (siempre display:none). Nuevo botón "🚪 Soltar este móvil (volver a la portada)" en el panel del Dueño → Ajustes → Personal (`duenoSoltarMovil` con confirm; cierra sesión de dueño + `salirPuesto`). Así solo con el PIN se devuelve un móvil a la portada.

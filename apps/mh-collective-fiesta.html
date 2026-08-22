@@ -69,6 +69,8 @@ p{margin:0 0 .75rem;color:var(--text-dim)}
 .eq-estado{font-size:.85rem;color:var(--text-dim)}
 .eq-item.eq-off .eq-estado{color:#ff5c6c}
 .eq-bat{font-weight:700;white-space:nowrap;flex-shrink:0}
+.eq-expulsar{flex-shrink:0;background:rgba(255,92,108,.14);color:#ff8a95;border:1px solid rgba(255,92,108,.5);border-radius:10px;padding:8px 12px;font-weight:700;font-size:.82rem;min-height:40px;cursor:pointer}
+.eq-expulsar:hover{background:rgba(255,92,108,.24)}
 .ent-contacto{font-size:.8rem;opacity:.85}
 .ent-contacto.ent-sincontacto{color:var(--text-dim);opacity:.6}
 /* Buscador y filtros */
@@ -15530,7 +15532,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V43'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V44'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -16655,6 +16657,7 @@ function adoptarRemoto(remoto) {
   }
   if (window.__mhSync) window.__mhSync.pendientes = quedan;
   persistLocal();
+  if (typeof _chequearExpulsion === 'function') _chequearExpulsion(); // ¿me han expulsado desde otro móvil?
   renderApp();
   return quedan.length;
 }
@@ -16950,6 +16953,7 @@ function refrescarSync() {
    El Dueño ve, por cada trabajador: conectado / desconectado hace X / sin conectar, y la
    batería (batería solo en Android; Apple no la deja leer en iPhone). */
 var _bateriaNivel = null, _bateriaCargando = null;
+var _sesionInicioMovil = 0; // momento en que ESTE móvil abrió (para saber si una expulsión es posterior)
 function _initBateria() {
   try {
     if (navigator.getBattery) {
@@ -16962,6 +16966,7 @@ function _initBateria() {
   } catch (e) {}
 }
 function latidoPresencia() {
+  if (typeof _chequearExpulsion === 'function') _chequearExpulsion(); // por si me expulsaron y no llegó el snapshot
   var id = state && state.perfilActivo;
   if (!id) return;
   mutateSilent(function (s) {
@@ -16994,12 +16999,42 @@ function seccionEquipo() {
     var bat = '';
     if (pr && pr.bat != null) bat = (pr.carg ? '⚡ ' : '🔋 ') + pr.bat + '%';
     else if (pr && pr.t) bat = '🔋 n/d';
+    // Botón EXPULSAR: manda a ese móvil de vuelta a la portada, a distancia (por sincronización).
+    // Útil para soltar el móvil de un trabajador sin tenerlo en la mano. Solo lo ve el dueño (este panel va tras el PIN).
+    var expBtn = '<button type="button" class="eq-expulsar" data-testid="expulsar-' + esc(p.id) +
+      '" onclick="expulsarPuesto(\'' + escJs(p.id) + '\')" title="Devolver ese móvil a la portada">🚪 Expulsar</button>';
     html += '<li class="eq-item ' + cls + '"><span class="eq-info"><b>' + esc(p.label) + '</b><br>' +
       '<span class="eq-estado">' + estado + (detalle ? ' · ' + esc(detalle) : '') + '</span></span>' +
-      (bat ? '<span class="eq-bat">' + esc(bat) + '</span>' : '') + '</li>';
+      (bat ? '<span class="eq-bat">' + esc(bat) + '</span>' : '') + expBtn + '</li>';
   });
-  html += '</ul></section>';
+  html += '</ul>';
+  html += '<p class="nota">👉 <b>Expulsar</b> devuelve ese móvil a la portada (a distancia): el trabajador tendrá que volver a meter su código. Tarda unos segundos en llegarle.</p>';
+  html += '</section>';
   return html;
+}
+/* EXPULSAR A DISTANCIA: el dueño marca un puesto para que ESE móvil vuelva solo a la portada.
+   Va por la nube: se guarda una marca de tiempo; el móvil de ese puesto, al sincronizar, ve que su
+   expulsión es más nueva que su sesión y se suelta solo. No hace falta tener el móvil en la mano. */
+function expulsarPuesto(id) {
+  if (!id) return;
+  mutate(function (s) {
+    if (!s.expulsiones || typeof s.expulsiones !== 'object') s.expulsiones = {};
+    s.expulsiones[id] = Date.now();
+    addLog('expulsó el móvil de ' + etiquetaPerfil(id) + ' (vuelve a la portada)', 'personal');
+  });
+  toast('🚪 ' + etiquetaPerfil(id) + ': su móvil volverá a la portada en unos segundos.');
+  if (typeof refrescarEquipo === 'function') refrescarEquipo();
+}
+/* Cada móvil comprueba si le han expulsado: si su puesto tiene una expulsión MÁS NUEVA que el
+   momento en que abrió, se suelta solo (vuelve a la portada). El dueño en su panel no se auto-expulsa. */
+function _chequearExpulsion() {
+  try {
+    if (location.hash === '#/dueno' || duenoAutenticado) return; // el dueño no se echa a sí mismo
+    var id = state && state.perfilActivo;
+    if (!id || id === 'dueno') return;
+    var ex = state.expulsiones && state.expulsiones[id];
+    if (ex && ex > _sesionInicioMovil) { _sesionInicioMovil = ex; salirPuesto(); }
+  } catch (e) {}
 }
 /* Mantiene vivo el "hace X min" y la batería sin repintar todo el panel. */
 function refrescarEquipo() {
@@ -17526,6 +17561,7 @@ function bootApp() {
   // Solo pinta su entrada (los datos van en el propio enlace). Así el invitado no descarga
   // NADA del resto (ni la lista, ni la caja, ni las contraseñas).
   var esTicket = /^#\/(e|t|s)\//.test(location.hash || '');
+  _sesionInicioMovil = Date.now(); // este móvil abre AHORA: una expulsión anterior no le afecta
   capturarTokenDeEnlace();
   load();
   chequearAcceso();
