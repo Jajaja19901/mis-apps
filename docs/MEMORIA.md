@@ -3,6 +3,12 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-22 — Visuales DJ audio-reactivos para MHcollective
+- Qué se hizo: motor VJ de una sola pieza `apps/mhcollective-visuals.html`. A pantalla completa, escucha la música en tiempo real (Web Audio API: entrada de línea/micro, o arrastrar archivo de audio; con modo demo sintético si no hay audio). Mide bajo/medio/agudo y detecta golpes. 12 escenas Canvas 2D que rotan cada 26s y se barajan solas → +90 min sin repetirse (anillo MH, espectro radial, ecualizador, onda, enjambre, túnel de rombos, hipervelocidad, retrowave, caleidoscopio, nebulosa, órbitas, nombre glitch). Marca: rombo MH + "Collective" y paleta degradada del anillo del logo (estilo Instagram). Controles teclado (espacio/←→/1-9/F/L/C/A/H) + toque. PWA instalable, favicon=logo. Verificador: ✅ APTO, 0 errores de consola. Capturas de varias escenas confirmadas.
+- Archivos tocados: `apps/mhcollective-visuals.html` (nuevo), `docs/MEMORIA.md`.
+- Pendiente / siguiente paso: para que suene "acorde" en directo, el DJ debe enrutar la salida de la mesa a la entrada de línea/micro del equipo (o loopback). Si el usuario da fotos/logo oficial en alta, se puede sustituir el logo SVG recreado por el real. Se podría añadir bloque #acceptance-tests embebido.
+- Datos a confirmar: logo recreado en SVG a partir de la captura de Instagram (@mhcollective_); si tienen el logo vectorial oficial, mejor incrustarlo.
+
 ## 2026-07-19 — Vídeo demo en la portada de Incuba tu Negocio
 - Qué se hizo: vídeo demo del producto (32s, MP4 1080p): la app peluqueria-aurora navegada de verdad (Playwright) dentro de un móvil flotante, narrador es-ES (Piper davefx via sherpa-onnx), música y efectos generados con numpy, rótulos y subtítulos (Remotion). Integrado en la PORTADA de apps/incuba-tu-negocio.html (tras el subtítulo, antes de la incubadora). Verificador: ✅ APTO.
 - Archivos tocados: apps/incuba-tu-negocio.html, apps/incuba-demo.mp4 (nuevo), apps/incuba-demo-poster.jpg (nuevo). Fuentes del vídeo en scratchpad de la sesión (video-incuba/).

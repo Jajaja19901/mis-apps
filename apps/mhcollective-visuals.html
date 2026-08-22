@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#05050a">
+<title>MHcollective · Visuales DJ</title>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     MHCOLLECTIVE — MOTOR DE VISUALES DJ (audio-reactivo, tiempo real)
+     Un solo archivo. Escucha la música (línea/micro) y se mueve con ella.
+     12 escenas que rotan y se barajan → +90 min sin repetirse.
+     Diseñado por Incuba tu Negocio · por Jaime M. M.
+════════════════════════════════════════════════════════════════════════════ -->
+
+<link rel="manifest" href='data:application/manifest+json,{"name":"MHcollective Visuals","short_name":"MH Visuals","display":"fullscreen","orientation":"landscape","background_color":"%2305050a","theme_color":"%2305050a","icons":[{"src":"data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 192 192%27%3E%3Crect width=%27192%27 height=%27192%27 fill=%27%2305050a%27/%3E%3Cg fill=%27none%27 stroke=%27%23fff%27 stroke-width=%277%27%3E%3Cpath d=%27M96 26 166 96 96 166 26 96Z%27/%3E%3C/g%3E%3Ctext x=%2796%27 y=%27108%27 font-family=%27Arial Black,Arial%27 font-weight=%27900%27 font-size=%2746%27 fill=%27%23fff%27 text-anchor=%27middle%27%3EMH%3C/text%3E%3C/svg%3E","sizes":"192x192","type":"image/svg+xml"}]}'>
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' fill='%2305050a'/%3E%3Cpath d='M90 24 156 90 90 156 24 90Z' fill='none' stroke='%23fff' stroke-width='7'/%3E%3Ctext x='90' y='102' font-family='Arial Black,Arial' font-weight='900' font-size='44' fill='%23fff' text-anchor='middle'%3EMH%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%2305050a'/%3E%3Cpath d='M50 14 86 50 50 86 14 50Z' fill='none' stroke='%23fff' stroke-width='5'/%3E%3Ctext x='50' y='58' font-family='Arial Black,Arial' font-weight='900' font-size='26' fill='%23fff' text-anchor='middle'%3EMH%3C/text%3E%3C/svg%3E">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<style>
+  :root{
+    --bg:#05050a;
+    --ink:#f4f4fb;
+    --muted:#9aa0b5;
+    --ring1:#FEDA75; --ring2:#FA7E1E; --ring3:#F56040;
+    --ring4:#D62976; --ring5:#962FBF; --ring6:#4F5BD5;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Arial,sans-serif;
+    -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  #stage{position:fixed;inset:0;display:block;background:var(--bg)}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+
+  /* ---- Watermark logo (siempre visible, discreto) ---- */
+  #brand{position:fixed;top:max(14px,env(safe-area-inset-top));left:max(16px,env(safe-area-inset-left));
+    z-index:20;display:flex;align-items:center;gap:11px;opacity:.9;pointer-events:none;
+    transition:opacity .5s ease}
+  #brand.hidden{opacity:0}
+  #brand .mark{width:44px;height:44px;flex:0 0 auto;filter:drop-shadow(0 2px 10px rgba(0,0,0,.6))}
+  #brand .txt{line-height:1}
+  #brand .txt b{display:block;font-weight:800;font-size:15px;letter-spacing:.14em;
+    background:linear-gradient(92deg,var(--ring1),var(--ring3),var(--ring4),var(--ring6));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  #brand .txt span{display:block;font-size:10px;letter-spacing:.32em;color:var(--muted);margin-top:3px}
+
+  /* ---- Toast nombre de escena ---- */
+  #toast{position:fixed;bottom:max(18px,env(safe-area-inset-bottom));left:max(16px,env(safe-area-inset-left));
+    z-index:20;font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);
+    opacity:0;transition:opacity .4s ease;pointer-events:none}
+  #toast b{color:var(--ink);font-weight:700}
+  #toast.show{opacity:.85}
+
+  /* ---- Barra de estado audio (arriba dcha) ---- */
+  #status{position:fixed;top:max(16px,env(safe-area-inset-top));right:max(16px,env(safe-area-inset-right));
+    z-index:20;display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.14em;
+    color:var(--muted);opacity:.85;transition:opacity .5s ease}
+  #status.hidden{opacity:0}
+  #status .dot{width:9px;height:9px;border-radius:50%;background:#555;box-shadow:0 0 0 0 rgba(214,41,118,.5)}
+  #status .dot.live{background:#38e08a;animation:pl 1.4s infinite}
+  #status .dot.demo{background:var(--ring4)}
+  @keyframes pl{0%{box-shadow:0 0 0 0 rgba(56,224,138,.5)}70%{box-shadow:0 0 0 9px rgba(56,224,138,0)}100%{box-shadow:0 0 0 0 rgba(56,224,138,0)}}
+
+  /* ---- Pantalla de inicio ---- */
+  #intro{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;gap:26px;padding:32px;
+    background:radial-gradient(120% 90% at 50% 30%,#12071c 0%,#05050a 62%);
+    transition:opacity .6s ease}
+  #intro.gone{opacity:0;pointer-events:none}
+  #intro .biglogo{width:min(38vw,150px);height:auto;filter:drop-shadow(0 10px 40px rgba(214,41,118,.35))}
+  #intro h1{font-size:clamp(28px,7vw,58px);font-weight:900;letter-spacing:.04em;line-height:1;
+    background:linear-gradient(96deg,var(--ring1),var(--ring2),var(--ring4),var(--ring6));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  #intro h1 small{display:block;font-size:.26em;letter-spacing:.5em;color:var(--muted);
+    -webkit-text-fill-color:var(--muted);margin-top:12px;font-weight:600}
+  #intro p{max-width:520px;color:#c7cbdb;font-size:clamp(13px,2.4vw,15px);line-height:1.65}
+  #intro p.sub{color:var(--muted);font-size:12px;max-width:560px}
+  .btns{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:4px}
+  .btn{appearance:none;border:0;cursor:pointer;font-family:inherit;font-weight:800;
+    font-size:15px;letter-spacing:.03em;padding:15px 26px;border-radius:14px;color:#fff;
+    transition:transform .12s ease,filter .2s ease}
+  .btn:active{transform:scale(.96)}
+  .btn.primary{background:linear-gradient(96deg,var(--ring2),var(--ring4) 55%,var(--ring6));
+    box-shadow:0 8px 30px rgba(214,41,118,.4)}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn.ghost{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14)}
+  .btn.ghost:hover{background:rgba(255,255,255,.11)}
+  .keys{margin-top:10px;color:var(--muted);font-size:11.5px;line-height:1.9;letter-spacing:.02em}
+  .keys kbd{display:inline-block;min-width:20px;text-align:center;padding:2px 7px;margin:0 2px;
+    border-radius:6px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);
+    font-family:ui-monospace,monospace;font-size:11px;color:#e6e6f0}
+
+  /* ---- Panel de ayuda flotante ---- */
+  #help{position:fixed;inset:0;z-index:55;display:none;align-items:center;justify-content:center;
+    background:rgba(4,4,9,.86);backdrop-filter:blur(6px);padding:28px}
+  #help.show{display:flex}
+  #help .card{max-width:560px;background:#0c0c16;border:1px solid rgba(255,255,255,.12);
+    border-radius:18px;padding:26px 28px}
+  #help h2{font-size:19px;margin-bottom:6px;letter-spacing:.03em}
+  #help .grid{display:grid;grid-template-columns:auto 1fr;gap:9px 16px;margin-top:16px;
+    font-size:13.5px;color:#d3d6e4;align-items:center}
+  #help kbd{justify-self:start;min-width:26px;text-align:center;padding:3px 9px;border-radius:7px;
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);
+    font-family:ui-monospace,monospace;font-size:12px}
+  #help .foot{margin-top:20px;color:var(--muted);font-size:11.5px;line-height:1.6}
+  #help .foot a{color:#d78bff;text-decoration:none}
+
+  /* fade de transición entre escenas */
+  #flash{position:fixed;inset:0;z-index:15;background:#fff;opacity:0;pointer-events:none;
+    mix-blend-mode:overlay}
+
+  @media (max-width:520px){
+    #brand .mark{width:36px;height:36px}
+    #brand .txt b{font-size:13px}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<div id="flash"></div>
+
+<!-- Marca / watermark -->
+<div id="brand">
+  <svg class="mark" viewBox="0 0 100 100" aria-hidden="true">
+    <defs>
+      <linearGradient id="gr" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#FEDA75"/><stop offset=".5" stop-color="#D62976"/><stop offset="1" stop-color="#4F5BD5"/>
+      </linearGradient>
+    </defs>
+    <circle cx="50" cy="50" r="47" fill="none" stroke="url(#gr)" stroke-width="4"/>
+    <path d="M50 18 82 50 50 82 18 50Z" fill="none" stroke="#fff" stroke-width="3.2"/>
+    <text x="50" y="52" font-family="Arial Black,Arial" font-weight="900" font-size="21" fill="#fff" text-anchor="middle">MH</text>
+    <rect x="34" y="60" width="32" height="10" rx="2" fill="#fff"/>
+    <text x="50" y="68" font-family="Arial" font-weight="700" font-size="7" fill="#0a0a12" text-anchor="middle" letter-spacing=".5">COLLECTIVE</text>
+  </svg>
+  <div class="txt"><b>MHCOLLECTIVE</b><span>VISUAL SYSTEM</span></div>
+</div>
+
+<div id="status" class="hidden"><span class="dot" id="dot"></span><span id="statustxt">—</span></div>
+<div id="toast"><b id="toastname">—</b></div>
+
+<!-- Pantalla de inicio -->
+<div id="intro">
+  <svg class="biglogo" viewBox="0 0 100 100" aria-hidden="true">
+    <defs>
+      <linearGradient id="gr2" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#FEDA75"/><stop offset=".33" stop-color="#FA7E1E"/>
+        <stop offset=".66" stop-color="#D62976"/><stop offset="1" stop-color="#4F5BD5"/>
+      </linearGradient>
+    </defs>
+    <circle cx="50" cy="50" r="47" fill="none" stroke="url(#gr2)" stroke-width="4.5"/>
+    <path d="M50 16 84 50 50 84 16 50Z" fill="none" stroke="#fff" stroke-width="3"/>
+    <text x="50" y="51" font-family="Arial Black,Arial" font-weight="900" font-size="22" fill="#fff" text-anchor="middle">MH</text>
+    <rect x="33" y="60" width="34" height="11" rx="2" fill="#fff"/>
+    <text x="50" y="68.5" font-family="Arial" font-weight="700" font-size="7.2" fill="#0a0a12" text-anchor="middle" letter-spacing=".5">COLLECTIVE</text>
+  </svg>
+  <h1>MHCOLLECTIVE<small>VISUALES EN DIRECTO</small></h1>
+  <p>Visuales que <b>reaccionan a tu música en tiempo real</b>. Para que suenen y se vean acordes,
+     conecta el <b>audio de tu mesa</b> (entrada de línea o micro) y pincha. 12 escenas que rotan
+     y se barajan solas: más de 90 minutos sin repetirse.</p>
+  <div class="btns">
+    <button class="btn primary" id="btnMic">🎧 Empezar con la música (línea/micro)</button>
+    <button class="btn ghost" id="btnDemo">▶︎ Ver en modo demo</button>
+  </div>
+  <p class="sub">También puedes <b>arrastrar un archivo de audio</b> a la pantalla para que suene a través de él.
+     El micro se pide permiso solo en tu equipo; no se envía nada a ningún sitio.</p>
+  <div class="keys">
+    <kbd>Espacio</kbd> auto on/off · <kbd>→</kbd>/<kbd>←</kbd> escena · <kbd>1</kbd>–<kbd>9</kbd> ir a · <kbd>F</kbd> pantalla completa · <kbd>H</kbd> ayuda
+  </div>
+</div>
+
+<!-- Ayuda -->
+<div id="help">
+  <div class="card">
+    <h2>🎛️ Controles</h2>
+    <div class="grid">
+      <kbd>Espacio</kbd><span>Rotación automática de escenas (on/off)</span>
+      <kbd>→ / N</kbd><span>Siguiente escena</span>
+      <kbd>← / P</kbd><span>Escena anterior</span>
+      <kbd>1…9 0</kbd><span>Ir directo a una escena</span>
+      <kbd>F</kbd><span>Pantalla completa</span>
+      <kbd>L</kbd><span>Mostrar / ocultar logo y textos</span>
+      <kbd>C</kbd><span>Cambiar rumbo de color</span>
+      <kbd>A</kbd><span>Cambiar fuente de audio (micro ↔ demo)</span>
+      <kbd>H / Esc</kbd><span>Abrir / cerrar esta ayuda</span>
+    </div>
+    <div class="foot">
+      Consejo DJ: en tu equipo, envía la salida de la mesa a la <b>entrada de línea/micro</b> del ordenador
+      (o usa un cable/loopback). El motor mide bajos, medios y agudos y detecta cada golpe.<br><br>
+      Diseñado por <a id="studioLink" href="#" target="_blank" rel="noopener">Incuba tu Negocio · por Jaime M. M.</a>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════════
+   CONFIG — cambia aquí marca, textos y enlace del estudio en 1 minuto
+════════════════════════════════════════════════════════════════════════ */
+const CONFIG = {
+  BUSINESS_NAME: "MHCOLLECTIVE",
+  HANDLE: "@mhcollective_",
+  SCENE_SECS: 26,               // segundos por escena en modo automático
+  STUDIO_BRAND: "Incuba tu Negocio",
+  STUDIO_AUTHOR: "Jaime M. M.",
+  STUDIO_URL: "#"
+};
+
+/* Paleta = anillo del logo (degradado estilo Instagram) */
+const STOPS = [
+  [254,218,117],[250,126,30],[245,96,64],
+  [214,41,118],[150,47,191],[79,91,213]
+];
+
+/* ---------- utilidades de color ---------- */
+function palAt(t){ // t 0..1 recorre el degradado
+  t=((t%1)+1)%1; const n=STOPS.length; const f=t*n; let i=Math.floor(f); const k=f-i;
+  const a=STOPS[i%n], b=STOPS[(i+1)%n];
+  return [a[0]+(b[0]-a[0])*k, a[1]+(b[1]-a[1])*k, a[2]+(b[2]-a[2])*k];
+}
+function rgb(c,al){ return al==null? `rgb(${c[0]|0},${c[1]|0},${c[2]|0})` : `rgba(${c[0]|0},${c[1]|0},${c[2]|0},${al})`; }
+function hueShiftedPal(t,shift){ return palAt(t+shift); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   AUDIO — mide bajo/medio/agudo, nivel y detecta golpes.
+   Fuente real (micro/línea o archivo) o síntesis en modo demo.
+════════════════════════════════════════════════════════════════════════ */
+const Audio_ = {
+  ctx:null, analyser:null, freq:null, wave:null, source:null, mode:"idle",
+  level:0, bass:0, mid:0, treble:0, beat:0, beatHold:0,
+  _hist:[], _cool:0, _demoT:0, _nextBeat:0,
+
+  async initMic(){
+    try{
+      const stream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+      this._setup(); const s=this.ctx.createMediaStreamSource(stream);
+      s.connect(this.analyser); this.source=s; this.mode="mic"; return true;
+    }catch(e){ console.warn("Micro no disponible, uso demo:",e.name); this.initDemo(); return false; }
+  },
+  initDemo(){ this._setup(); this.mode="demo"; },
+  async initFile(file){
+    this._setup();
+    if(this._el){ try{this._el.pause();}catch(e){} }
+    const url=URL.createObjectURL(file);
+    const el=new Audio(url); el.loop=true; el.crossOrigin="anonymous";
+    const s=this.ctx.createMediaElementSource(el);
+    s.connect(this.analyser); this.analyser.connect(this.ctx.destination);
+    this._el=el; this.source=s; this.mode="file";
+    try{ await el.play(); }catch(e){ console.warn(e); }
+  },
+  _setup(){
+    if(this.ctx){ if(this.ctx.state==="suspended") this.ctx.resume(); return; }
+    const AC=window.AudioContext||window.webkitAudioContext;
+    this.ctx=new AC();
+    this.analyser=this.ctx.createAnalyser();
+    this.analyser.fftSize=2048; this.analyser.smoothingTimeConstant=0.82;
+    this.freq=new Uint8Array(this.analyser.frequencyBinCount);
+    this.wave=new Uint8Array(this.analyser.fftSize);
+  },
+  band(a,b){ // media de bins entre índices a..b
+    let s=0; for(let i=a;i<b;i++) s+=this.freq[i]; return (s/((b-a)*255))||0;
+  },
+  update(dt){
+    if(this.mode==="demo" || !this.analyser){ this._demo(dt); return; }
+    this.analyser.getByteFrequencyData(this.freq);
+    this.analyser.getByteTimeDomainData(this.wave);
+    const N=this.freq.length;
+    this.bass   = this.band(1, Math.max(2,N*0.06|0));
+    this.mid    = this.band(N*0.06|0, N*0.30|0);
+    this.treble = this.band(N*0.30|0, N*0.75|0);
+    this.level  = this.bass*0.6 + this.mid*0.3 + this.treble*0.25;
+    // detección de golpe por energía de bajos
+    this._hist.push(this.bass); if(this._hist.length>43) this._hist.shift();
+    const avg=this._hist.reduce((x,y)=>x+y,0)/this._hist.length;
+    this._cool-=dt; this.beat=0;
+    if(this.bass>avg*1.32 && this.bass>0.12 && this._cool<=0){ this.beat=1; this.beatHold=1; this._cool=0.14; }
+    this.beatHold=Math.max(0,this.beatHold-dt*3.2);
+  },
+  _demo(dt){ // síntesis: espectro creíble + golpes ~124bpm, para probar sin audio
+    this._demoT+=dt; const t=this._demoT;
+    const N=this.freq? this.freq.length:1024;
+    if(!this.freq) this.freq=new Uint8Array(N);
+    if(!this.wave) this.wave=new Uint8Array(2048);
+    const beatEvery=60/124;
+    this.beat=0;
+    if(t>=this._nextBeat){ this.beat=1; this.beatHold=1; this._nextBeat=t+beatEvery*(Math.random()<0.25?0.5:1); }
+    this.beatHold=Math.max(0,this.beatHold-dt*3.0);
+    const kick=this.beatHold*this.beatHold;
+    this.bass  =0.28+0.55*kick+0.08*Math.sin(t*1.7);
+    this.mid   =0.24+0.20*Math.abs(Math.sin(t*2.3+1))+0.12*kick;
+    this.treble=0.16+0.20*Math.abs(Math.sin(t*5.1))+0.10*Math.abs(Math.sin(t*11+0.5));
+    this.level =this.bass*0.6+this.mid*0.3+this.treble*0.25;
+    for(let i=0;i<N;i++){
+      const f=i/N;
+      let v=(this.bass*Math.exp(-f*9)+this.mid*Math.exp(-Math.abs(f-0.25)*7)+this.treble*Math.exp(-Math.abs(f-0.55)*5));
+      v*=0.75+0.5*Math.abs(Math.sin(i*0.35+t*3));
+      this.freq[i]=Math.max(0,Math.min(255,v*255));
+    }
+    for(let i=0;i<this.wave.length;i++){
+      const x=i/this.wave.length;
+      this.wave[i]=128+90*(this.bass*Math.sin(x*Math.PI*4+t*6)+this.treble*0.5*Math.sin(x*Math.PI*40+t*20))|0;
+    }
+  }
+};
+
+/* ════════════════════════════════════════════════════════════════════════
+   MOTOR DE RENDER
+════════════════════════════════════════════════════════════════════════ */
+const cv=document.getElementById('c'); const ctx=cv.getContext('2d');
+let W=0,H=0,DPR=1,CX=0,CY=0;
+function resize(){
+  DPR=Math.min(window.devicePixelRatio||1, 2);
+  W=window.innerWidth; H=window.innerHeight;
+  cv.width=W*DPR; cv.height=H*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  CX=W/2; CY=H/2;
+}
+window.addEventListener('resize',resize); resize();
+
+/* estado global */
+const State = {
+  running:false, auto:true, sceneIdx:0, sceneT:0, order:[], orderPos:0,
+  globalHue:0, colorDir:0.012, showBrand:true, t:0, transition:0
+};
+
+/* ---------- helper: diamante (rombo del logo) ---------- */
+function diamond(x,y,r){ ctx.moveTo(x,y-r); ctx.lineTo(x+r,y); ctx.lineTo(x,y+r); ctx.lineTo(x-r,y); ctx.closePath(); }
+
+/* ---------- ESCENAS ---------- */
+/* cada escena: {name, enter?(), draw(a, t, dt)} — dibuja sobre ctx.
+   'a' es el objeto Audio_. Todo audio-reactivo. */
+const scene_ringPulse = {
+  name:"Anillo MH",
+  draw(a,t){
+    const beat=a.beatHold, base=Math.min(W,H)*0.15;
+    for(let i=8;i>=0;i--){
+      const r=base + i*Math.min(W,H)*0.05 + beat*70 + a.bass*90;
+      const c=palAt(State.globalHue + i*0.06 + t*0.03);
+      ctx.beginPath(); ctx.arc(CX,CY,r,0,Math.PI*2);
+      ctx.lineWidth=2+beat*6+a.mid*8; ctx.strokeStyle=rgb(c, 0.10+0.5*(i<3?1:0.5));
+      ctx.shadowBlur=24+beat*40; ctx.shadowColor=rgb(c,0.9); ctx.stroke();
+    }
+    ctx.shadowBlur=0;
+    // rombo central
+    const dr=base*0.9+beat*26+a.bass*30;
+    ctx.beginPath(); diamond(CX,CY,dr);
+    ctx.lineWidth=3+beat*4; ctx.strokeStyle=rgb([255,255,255],0.85+beat*0.15);
+    ctx.shadowBlur=20+beat*40; ctx.shadowColor=rgb(palAt(State.globalHue+0.5),1); ctx.stroke();
+    ctx.shadowBlur=0;
+    drawMH(CX,CY,dr*0.9,0.9+beat*0.1);
+  }
+};
+
+const scene_spectrumRadial = {
+  name:"Espectro radial",
+  draw(a,t){
+    const bins=96, R=Math.min(W,H)*0.14;
+    ctx.save(); ctx.translate(CX,CY); ctx.rotate(t*0.05);
+    for(let i=0;i<bins;i++){
+      const idx=(i/bins*a.freq.length*0.7)|0; const v=(a.freq[idx]||0)/255;
+      const ang=(i/bins)*Math.PI*2; const len=R + v*Math.min(W,H)*0.34 + a.beatHold*20;
+      const c=palAt(State.globalHue + i/bins);
+      ctx.strokeStyle=rgb(c,0.85); ctx.lineWidth=Math.max(2,(Math.min(W,H)/bins)*0.7);
+      ctx.shadowBlur=12+v*22; ctx.shadowColor=rgb(c,0.9);
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(ang)*R,Math.sin(ang)*R);
+      ctx.lineTo(Math.cos(ang)*len,Math.sin(ang)*len);
+      ctx.stroke();
+      // espejo interior
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(ang)*R,Math.sin(ang)*R);
+      ctx.lineTo(Math.cos(ang)*(R-v*R*0.7),Math.sin(ang)*(R-v*R*0.7));
+      ctx.stroke();
+    }
+    ctx.restore(); ctx.shadowBlur=0;
+    drawMH(CX,CY,R*0.8,0.85);
+  }
+};
+
+const scene_cityEq = {
+  name:"Ecualizador",
+  draw(a,t){
+    const bars=64, bw=W/bars;
+    for(let i=0;i<bars;i++){
+      const idx=(i/bars*a.freq.length*0.6)|0; const v=(a.freq[idx]||0)/255;
+      const h=v*H*0.55 + a.beatHold*30;
+      const c=palAt(State.globalHue + i/bars*0.8);
+      const grad=ctx.createLinearGradient(0,H,0,H-h);
+      grad.addColorStop(0,rgb(c,0.15)); grad.addColorStop(1,rgb(c,0.95));
+      ctx.fillStyle=grad; ctx.shadowBlur=14+v*16; ctx.shadowColor=rgb(c,0.8);
+      ctx.fillRect(i*bw+bw*0.12, H-h, bw*0.76, h);
+      // reflejo
+      ctx.globalAlpha=0.12; ctx.fillRect(i*bw+bw*0.12, H, bw*0.76, h*0.4); ctx.globalAlpha=1;
+    }
+    ctx.shadowBlur=0;
+    drawMH(CX,CY-H*0.06, Math.min(W,H)*0.13, 0.55+a.beatHold*0.3);
+  }
+};
+
+const scene_wave = {
+  name:"Onda neón",
+  draw(a,t){
+    const layers=3;
+    for(let L=0;L<layers;L++){
+      const c=palAt(State.globalHue + L*0.18 + t*0.02);
+      ctx.beginPath();
+      const amp=(H*0.16)*(1-L*0.28)*(0.5+a.level*1.6);
+      const step=Math.max(2,(a.wave.length/W)|0);
+      for(let i=0;i<a.wave.length;i+=step){
+        const x=i/a.wave.length*W;
+        const y=CY + ((a.wave[i]-128)/128)*amp + Math.sin(i*0.01+t*2+L)*8;
+        i===0? ctx.moveTo(x,y):ctx.lineTo(x,y);
+      }
+      ctx.lineWidth=(3-L*0.7)+a.beatHold*3; ctx.strokeStyle=rgb(c,0.9-L*0.22);
+      ctx.shadowBlur=22-L*4; ctx.shadowColor=rgb(c,1); ctx.stroke();
+    }
+    ctx.shadowBlur=0;
+    drawMH(CX,CY,Math.min(W,H)*0.1,0.4+a.beatHold*0.3);
+  }
+};
+
+/* partículas persistentes */
+const P=[]; function ensureParticles(n){ while(P.length<n) P.push({a:Math.random()*6.28,r:Math.random(),sp:0.2+Math.random()*0.8,s:0.5+Math.random()*2}); }
+const scene_particles = {
+  name:"Enjambre",
+  enter(){ ensureParticles(220); },
+  draw(a,t,dt){
+    const maxR=Math.min(W,H)*0.48;
+    for(const p of P){
+      p.a += (p.sp*0.3 + a.mid*1.2)*dt;
+      p.r += (a.beat? 0.12:0) - dt*0.04*p.sp; if(p.r>1) p.r-=1; if(p.r<0) p.r+=1;
+      const rr=(0.15+p.r*0.85)*maxR*(1+a.bass*0.5);
+      const x=CX+Math.cos(p.a)*rr, y=CY+Math.sin(p.a)*rr*0.9;
+      const c=palAt(State.globalHue + p.r);
+      const sz=p.s*(1+a.beatHold*2+a.treble*3);
+      ctx.beginPath(); ctx.arc(x,y,sz,0,6.283);
+      ctx.fillStyle=rgb(c,0.5+0.5*p.r); ctx.shadowBlur=8+a.beatHold*14; ctx.shadowColor=rgb(c,0.9); ctx.fill();
+    }
+    ctx.shadowBlur=0;
+    drawMH(CX,CY,Math.min(W,H)*0.12,0.6+a.beatHold*0.35);
+  }
+};
+
+const scene_tunnel = {
+  name:"Túnel de rombos",
+  draw(a,t){
+    const N=22; const zoom=(t*0.7 + a.level*2)%1;
+    ctx.save(); ctx.translate(CX,CY); ctx.rotate(Math.sin(t*0.1)*0.3);
+    for(let i=N;i>=0;i--){
+      const z=((i+zoom)/N); const r=z*z*Math.max(W,H)*0.9 + a.beatHold*40;
+      const c=palAt(State.globalHue + i*0.05 + t*0.05);
+      ctx.beginPath(); diamond(0,0,r);
+      ctx.lineWidth=2+ (1-z)*6 + a.beatHold*4; ctx.strokeStyle=rgb(c, 0.15+0.7*(1-z));
+      ctx.shadowBlur=18*(1-z)+a.beatHold*20; ctx.shadowColor=rgb(c,0.9); ctx.stroke();
+    }
+    ctx.restore(); ctx.shadowBlur=0;
+    drawMH(CX,CY,Math.min(W,H)*0.09,0.5+a.beatHold*0.4);
+  }
+};
+
+/* estrellas warp */
+const ST=[]; function ensureStars(n){ while(ST.length<n) ST.push({a:Math.random()*6.28,z:Math.random()}); }
+const scene_starWarp = {
+  name:"Hipervelocidad",
+  enter(){ ensureStars(320); },
+  draw(a,t,dt){
+    const sp=(0.25+a.level*2.2+a.beatHold*1.5);
+    for(const s of ST){
+      s.z-=dt*sp*0.25; if(s.z<=0.02){ s.z=1; s.a=Math.random()*6.28; }
+      const r=(1-s.z)*Math.max(W,H)*0.75;
+      const x=CX+Math.cos(s.a)*r, y=CY+Math.sin(s.a)*r;
+      const r2=(1-Math.min(1,s.z+0.05))*Math.max(W,H)*0.75;
+      const x2=CX+Math.cos(s.a)*r2, y2=CY+Math.sin(s.a)*r2;
+      const c=palAt(State.globalHue + s.a/6.28);
+      ctx.beginPath(); ctx.moveTo(x2,y2); ctx.lineTo(x,y);
+      ctx.lineWidth=(1-s.z)*3.2; ctx.strokeStyle=rgb(c,0.85*(1-s.z));
+      ctx.shadowBlur=8; ctx.shadowColor=rgb(c,0.8); ctx.stroke();
+    }
+    ctx.shadowBlur=0;
+    drawMH(CX,CY,Math.min(W,H)*0.11,0.45+a.beatHold*0.4);
+  }
+};
+
+const scene_grid = {
+  name:"Retrowave",
+  draw(a,t){
+    // sol
+    const sy=CY-Math.min(W,H)*0.05, sr=Math.min(W,H)*0.22*(1+a.bass*0.2);
+    const g=ctx.createLinearGradient(0,sy-sr,0,sy+sr);
+    g.addColorStop(0,rgb(palAt(State.globalHue),0.95)); g.addColorStop(1,rgb(palAt(State.globalHue+0.3),0.9));
+    ctx.save(); ctx.beginPath(); ctx.arc(CX,sy,sr,0,6.283); ctx.clip();
+    ctx.fillStyle=g; ctx.fillRect(CX-sr,sy-sr,sr*2,sr*2);
+    ctx.globalCompositeOperation="destination-out";
+    for(let i=0;i<7;i++){ ctx.fillStyle="#000"; ctx.fillRect(CX-sr, sy+i*sr*0.16-a.beatHold*4, sr*2, sr*0.06); }
+    ctx.restore();
+    // rejilla en perspectiva
+    const hz=CY+Math.min(W,H)*0.02; const c=palAt(State.globalHue+0.5);
+    ctx.strokeStyle=rgb(c,0.55); ctx.shadowBlur=10; ctx.shadowColor=rgb(c,0.7); ctx.lineWidth=1.5;
+    const scroll=(t*0.6)%1;
+    for(let i=0;i<16;i++){
+      const z=((i+scroll)/16); const y=hz + z*z*(H-hz);
+      ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.globalAlpha=z; ctx.stroke();
+    }
+    ctx.globalAlpha=1;
+    for(let i=-12;i<=12;i++){
+      ctx.beginPath(); ctx.moveTo(CX+i*22,hz); ctx.lineTo(CX+i*(W*0.14),H); ctx.stroke();
+    }
+    ctx.shadowBlur=0;
+    drawMH(CX,hz-Math.min(W,H)*0.16,Math.min(W,H)*0.08,0.7);
+  }
+};
+
+const scene_kaleido = {
+  name:"Caleidoscopio",
+  draw(a,t){
+    const seg=10, R=Math.min(W,H)*0.5;
+    ctx.save(); ctx.translate(CX,CY);
+    for(let s=0;s<seg;s++){
+      ctx.save(); ctx.rotate((s/seg)*Math.PI*2 + t*0.08); if(s%2) ctx.scale(1,-1);
+      for(let i=0;i<40;i++){
+        const idx=(i/40*a.freq.length*0.5)|0; const v=(a.freq[idx]||0)/255;
+        const ang=(i/40)*(Math.PI*2/seg); const rr=R*(0.1+ (i/40))*(0.6+v*0.9);
+        const c=palAt(State.globalHue + i/40 + s*0.03);
+        ctx.beginPath(); ctx.arc(Math.cos(ang)*rr,Math.sin(ang)*rr, 2+v*12+a.beatHold*6,0,6.283);
+        ctx.fillStyle=rgb(c,0.5+v*0.5); ctx.shadowBlur=10+v*14; ctx.shadowColor=rgb(c,0.9); ctx.fill();
+      }
+      ctx.restore();
+    }
+    ctx.restore(); ctx.shadowBlur=0;
+  }
+};
+
+const scene_plasma = {
+  name:"Nebulosa",
+  draw(a,t){
+    ctx.globalCompositeOperation="lighter";
+    const blobs=6;
+    for(let i=0;i<blobs;i++){
+      const ph=i/blobs*6.283;
+      const x=CX+Math.cos(t*0.3+ph)*W*0.28*(1+a.mid);
+      const y=CY+Math.sin(t*0.37+ph*1.3)*H*0.28*(1+a.bass);
+      const r=Math.min(W,H)*(0.22+0.12*Math.sin(t*0.6+ph))*(1+a.beatHold*0.6);
+      const c=palAt(State.globalHue + i/blobs + t*0.02);
+      const g=ctx.createRadialGradient(x,y,0,x,y,r);
+      g.addColorStop(0,rgb(c,0.55)); g.addColorStop(0.5,rgb(c,0.16)); g.addColorStop(1,rgb(c,0));
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,6.283); ctx.fill();
+    }
+    ctx.globalCompositeOperation="source-over";
+    drawMH(CX,CY,Math.min(W,H)*0.12,0.55+a.beatHold*0.35);
+  }
+};
+
+const scene_orbits = {
+  name:"Órbitas",
+  draw(a,t){
+    const rings=5;
+    ctx.save(); ctx.translate(CX,CY);
+    for(let R=0;R<rings;R++){
+      const rad=Math.min(W,H)*(0.1+R*0.08)*(1+a.bass*0.3);
+      const c=palAt(State.globalHue + R*0.12 + t*0.03);
+      ctx.beginPath(); ctx.arc(0,0,rad,0,6.283); ctx.strokeStyle=rgb(c,0.18); ctx.lineWidth=1; ctx.stroke();
+      const dots=6+R*3;
+      for(let i=0;i<dots;i++){
+        const ang=(i/dots)*6.283 + t*(0.4-R*0.05)*(R%2?-1:1) + a.mid*2;
+        const x=Math.cos(ang)*rad, y=Math.sin(ang)*rad;
+        ctx.beginPath(); diamond(x,y, 4+a.beatHold*8+a.treble*6);
+        ctx.fillStyle=rgb(c,0.85); ctx.shadowBlur=12+a.beatHold*16; ctx.shadowColor=rgb(c,1); ctx.fill();
+      }
+    }
+    ctx.restore(); ctx.shadowBlur=0;
+    drawMH(CX,CY,Math.min(W,H)*0.07,0.9);
+  }
+};
+
+const scene_nameStrobe = {
+  name:"MHCOLLECTIVE",
+  draw(a,t){
+    const beat=a.beatHold;
+    // fondo de barras suaves
+    ctx.globalAlpha=0.25;
+    for(let i=0;i<40;i++){ const v=(a.freq[(i/40*a.freq.length*0.5)|0]||0)/255;
+      const c=palAt(State.globalHue+i/40); ctx.fillStyle=rgb(c,0.4);
+      ctx.fillRect(i*W/40, CY+120, W/40*0.8, -v*180-10*beat); }
+    ctx.globalAlpha=1;
+    const fs=Math.min(W*0.14, H*0.3)*(1+beat*0.06);
+    ctx.font=`900 ${fs}px "Arial Black",Arial,sans-serif`;
+    ctx.textAlign="center"; ctx.textBaseline="middle";
+    // glitch RGB en el golpe
+    const gx=beat*18*(Math.random()-0.5), gy=beat*8*(Math.random()-0.5);
+    ctx.globalCompositeOperation="lighter";
+    ctx.fillStyle=rgb([255,40,120],0.8); ctx.fillText(CONFIG.BUSINESS_NAME, CX+gx, CY-gy);
+    ctx.fillStyle=rgb([40,180,255],0.8); ctx.fillText(CONFIG.BUSINESS_NAME, CX-gx, CY+gy);
+    ctx.globalCompositeOperation="source-over";
+    const c=palAt(State.globalHue+t*0.05);
+    ctx.fillStyle=rgb([255,255,255],0.95); ctx.shadowBlur=20+beat*40; ctx.shadowColor=rgb(c,1);
+    ctx.fillText(CONFIG.BUSINESS_NAME, CX, CY); ctx.shadowBlur=0;
+    ctx.font=`600 ${fs*0.16}px system-ui,Arial`; ctx.fillStyle=rgb(palAt(State.globalHue+0.4),0.85);
+    ctx.fillText(CONFIG.HANDLE.toUpperCase().split('').join('  '), CX, CY+fs*0.62);
+  }
+};
+
+/* dibuja el rombo MH con textura (usado como firma central) */
+function drawMH(x,y,r,alpha){
+  if(r<10) return;
+  ctx.save(); ctx.globalAlpha=alpha==null?1:alpha;
+  ctx.beginPath(); diamond(x,y,r); ctx.lineWidth=Math.max(1.5,r*0.03);
+  ctx.strokeStyle=rgb([255,255,255],0.9); ctx.shadowBlur=r*0.12; ctx.shadowColor=rgb(palAt(State.globalHue+0.5),1); ctx.stroke();
+  ctx.shadowBlur=0;
+  ctx.fillStyle=rgb([255,255,255],0.95);
+  ctx.font=`900 ${r*0.7}px "Arial Black",Arial,sans-serif`; ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText("MH", x, y-r*0.02);
+  ctx.restore();
+}
+
+const SCENES=[scene_ringPulse,scene_spectrumRadial,scene_cityEq,scene_wave,scene_particles,
+  scene_tunnel,scene_starWarp,scene_grid,scene_kaleido,scene_plasma,scene_orbits,scene_nameStrobe];
+
+/* ---------- orden barajado (no repetir seguido) ---------- */
+function shuffleOrder(){
+  const a=SCENES.map((_,i)=>i);
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  // evita que la primera nueva sea la misma que la última mostrada
+  if(a[0]===State.sceneIdx && a.length>1){ [a[0],a[1]]=[a[1],a[0]]; }
+  State.order=a; State.orderPos=0;
+}
+function gotoScene(idx,announce){
+  State.sceneIdx=((idx%SCENES.length)+SCENES.length)%SCENES.length;
+  State.sceneT=0; State.transition=1;
+  const s=SCENES[State.sceneIdx]; if(s.enter) s.enter();
+  flash();
+  if(announce!==false) showToast(`${State.sceneIdx+1}/${SCENES.length} · ${s.name}`);
+}
+function nextScene(){
+  if(State.orderPos>=State.order.length) shuffleOrder();
+  gotoScene(State.order[State.orderPos++], true);
+}
+function prevScene(){ gotoScene(State.sceneIdx-1,true); }
+
+/* ---------- flash de transición ---------- */
+const flashEl=document.getElementById('flash');
+function flash(){ flashEl.style.transition="none"; flashEl.style.opacity="0.55";
+  requestAnimationFrame(()=>{ flashEl.style.transition="opacity .5s ease"; flashEl.style.opacity="0"; }); }
+
+/* ---------- toast ---------- */
+const toastEl=document.getElementById('toast'), toastName=document.getElementById('toastname');
+let toastTimer=null;
+function showToast(txt){ toastName.textContent=txt; toastEl.classList.add('show');
+  clearTimeout(toastTimer); toastTimer=setTimeout(()=>toastEl.classList.remove('show'),2600); }
+
+/* ════════════════════════════════════════════════════════════════════════
+   BUCLE
+════════════════════════════════════════════════════════════════════════ */
+let last=performance.now();
+function loop(now){
+  const dt=Math.min(0.05,(now-last)/1000); last=now; State.t+=dt;
+  if(State.running){
+    Audio_.update(dt);
+    // rumbo de color global evoluciona lento → nunca los mismos tonos
+    State.globalHue=(State.globalHue+State.colorDir*dt*3)%1;
+    // rotación automática
+    State.sceneT+=dt;
+    if(State.auto && State.sceneT>CONFIG.SCENE_SECS){ nextScene(); }
+    if(State.transition>0) State.transition=Math.max(0,State.transition-dt*2);
+
+    // rastro (trail) — no borra del todo → estelas
+    ctx.globalCompositeOperation="source-over";
+    ctx.fillStyle="rgba(5,5,10,0.22)"; ctx.fillRect(0,0,W,H);
+
+    const s=SCENES[State.sceneIdx];
+    try{ s.draw(Audio_, State.t, dt); }catch(e){ console.error("scene",s.name,e); }
+
+    // viñeta sutil
+    const vg=ctx.createRadialGradient(CX,CY,Math.min(W,H)*0.3,CX,CY,Math.max(W,H)*0.75);
+    vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(0,0,0,0.55)");
+    ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ════════════════════════════════════════════════════════════════════════
+   ARRANQUE Y CONTROLES
+════════════════════════════════════════════════════════════════════════ */
+const intro=document.getElementById('intro');
+const statusEl=document.getElementById('status'), dot=document.getElementById('dot'), statustxt=document.getElementById('statustxt');
+const brand=document.getElementById('brand'), helpEl=document.getElementById('help');
+
+function setStatus(){
+  statusEl.classList.remove('hidden');
+  if(Audio_.mode==="mic"){ dot.className="dot live"; statustxt.textContent="EN DIRECTO · LÍNEA/MICRO"; }
+  else if(Audio_.mode==="file"){ dot.className="dot live"; statustxt.textContent="ARCHIVO DE AUDIO"; }
+  else { dot.className="dot demo"; statustxt.textContent="MODO DEMO"; }
+  clearTimeout(setStatus._t); setStatus._t=setTimeout(()=>statusEl.classList.add('hidden'),3500);
+}
+function start(){
+  if(State.running) return;
+  State.running=true; intro.classList.add('gone');
+  shuffleOrder(); nextScene(); setStatus();
+  setTimeout(()=>{ if(intro.parentNode) intro.style.display='none'; },700);
+}
+document.getElementById('btnMic').addEventListener('click', async ()=>{ await Audio_.initMic(); start(); });
+document.getElementById('btnDemo').addEventListener('click', ()=>{ Audio_.initDemo(); start(); });
+
+/* enlace estudio */
+const sl=document.getElementById('studioLink'); if(CONFIG.STUDIO_URL && CONFIG.STUDIO_URL!=="#") sl.href=CONFIG.STUDIO_URL;
+sl.textContent=`${CONFIG.STUDIO_BRAND} · por ${CONFIG.STUDIO_AUTHOR}`;
+
+/* fullscreen */
+function toggleFS(){ if(!document.fullscreenElement){ (document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen||function(){}).call(document.documentElement); } else { (document.exitFullscreen||document.webkitExitFullscreen||function(){}).call(document); } }
+
+/* arrastrar archivo de audio */
+['dragover','drop'].forEach(ev=>window.addEventListener(ev,e=>e.preventDefault()));
+window.addEventListener('drop', async e=>{
+  const f=[...(e.dataTransfer?.files||[])].find(f=>f.type.startsWith('audio'));
+  if(f){ await Audio_.initFile(f); if(!State.running) start(); setStatus(); }
+});
+
+/* teclado */
+window.addEventListener('keydown', e=>{
+  const k=e.key.toLowerCase();
+  if(k==='h'||k==='?'){ helpEl.classList.toggle('show'); return; }
+  if(k==='escape'){ helpEl.classList.remove('show'); return; }
+  if(!State.running){ if(k===' '||k==='enter'){ Audio_.initDemo(); start(); } return; }
+  if(k===' '){ e.preventDefault(); State.auto=!State.auto; showToast(State.auto?"AUTO ▶︎":"MANUAL ⏸"); }
+  else if(k==='arrowright'||k==='n'){ nextScene(); }
+  else if(k==='arrowleft'||k==='p'){ prevScene(); }
+  else if(k>='1'&&k<='9'){ gotoScene(parseInt(k)-1,true); }
+  else if(k==='0'){ gotoScene(9,true); }
+  else if(k==='f'){ toggleFS(); }
+  else if(k==='l'){ State.showBrand=!State.showBrand; brand.classList.toggle('hidden',!State.showBrand); }
+  else if(k==='c'){ State.colorDir=-State.colorDir; State.globalHue=(State.globalHue+0.33)%1; showToast("COLOR ⟳"); }
+  else if(k==='a'){ if(Audio_.mode==='demo'){ Audio_.initMic().then(setStatus); } else { Audio_.mode='demo'; setStatus(); } }
+});
+
+/* toque en pantalla (móvil/tablet): siguiente escena */
+cv.addEventListener('click', ()=>{ if(State.running) nextScene(); });
+
+/* ocultar cursor cuando está quieto */
+let curTimer=null;
+window.addEventListener('mousemove',()=>{ document.body.style.cursor='default'; clearTimeout(curTimer);
+  curTimer=setTimeout(()=>{ if(State.running) document.body.style.cursor='none'; },2500); });
+
+/* re-centrar tras rotar el móvil */
+window.addEventListener('orientationchange',()=>setTimeout(resize,300));
+</script>
+</body>
+</html>
