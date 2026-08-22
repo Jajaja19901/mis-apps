@@ -531,14 +531,16 @@ function renderGrid(){
   if(note){
     if(SEARCH){
       const q=encodeURIComponent(SEARCH);
+      const freeBtns=FREE_PLATFORMS.map(p=>`<a class="btn btn-ghost" href="${attr(p.url)}${q}" target="_blank" rel="noopener noreferrer">${p.ic} ${esc(p.name)}</a>`).join("");
       note.innerHTML=`
       <div class="searchnote">
-        <b>Resultados para “${esc(SEARCH)}”</b>
-        <p>Si no está aquí, quizá tenga derechos y no se pueda reproducir gratis. Búscalo en Archive.org (más cine libre) o mira en qué plataforma oficial está:</p>
-        <div class="row">
-          <a class="btn btn-ghost" href="https://archive.org/search?query=${q}" target="_blank" rel="noopener noreferrer">🔎 Buscar en Archive.org</a>
-          <a class="btn btn-ghost" href="https://www.justwatch.com/es/buscar?q=${q}" target="_blank" rel="noopener noreferrer">📺 ¿Dónde verlo? (JustWatch)</a>
+        <b>Buscar “${esc(SEARCH)}” en todas partes</b>
+        <p>Si no aparece abajo en el catálogo gratis de la app, búscalo directamente en estas fuentes <b>legales</b> (primero las gratis). Escribe cualquier película o serie: la busca donde de verdad se puede ver.</p>
+        <div class="row">${freeBtns}</div>
+        <div class="row" style="margin-top:8px">
+          <a class="btn btn-primary" href="${attr(FINDER.url)}${q}" target="_blank" rel="noopener noreferrer">${FINDER.ic} ¿Dónde verlo? (JustWatch)</a>
         </div>
+        <p style="font-size:12.5px;color:var(--ink-mut);margin-top:10px;margin-bottom:0">JustWatch te dice en qué plataforma está y cuáles lo tienen gratis. No enlazamos a webs pirata.</p>
       </div>`;
     } else note.innerHTML="";
   }
