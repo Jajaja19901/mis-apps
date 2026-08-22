@@ -15530,7 +15530,7 @@ function _buscarPersonaVoz(q) {
 /* OJO: Google jubila modelos (gemini-2.0-flash murió el 1-jun-2026). Orden: primero los
    vivos hoy, y "flash-latest" como comodín que siempre apunta al último. */
 var IA_MODELOS = ['gemini-2.5-flash', 'gemini-3-flash', 'gemini-flash-latest', 'gemini-2.5-pro'];
-var IA_VERSION = 'V42'; // sello visible: para saber qué versión del asistente hay subida
+var IA_VERSION = 'V43'; // sello visible: para saber qué versión del asistente hay subida
 /* La IA a veces manda el mismo dato con otro nombre (n/cantidad/numero…): cogemos el primero que venga. */
 function _arg(args, nombres) {
   for (var i = 0; i < nombres.length; i++) {
@@ -16788,13 +16788,11 @@ function renderAppInterno() {
   var vista = document.getElementById('vista');
   var hash = location.hash || '#/puerta';
 
-  // Botón "🚪 Salir": solo aparece si ESTE móvil está registrado en un puesto (un trabajador
-  // metió su código). Sirve para olvidar el puesto y pasarle el móvil a otro. Fuera del panel del dueño.
+  // El botón "🚪 Salir" ya NO va en la barra de los trabajadores (les confundía). Ahora es el DUEÑO
+  // quien suelta el móvil, desde su panel (Ajustes → Personal → "Soltar este móvil"). Así solo con el
+  // PIN se puede devolver un móvil a la portada.
   var btnSalirP = document.getElementById('btnSalirPuesto');
-  if (btnSalirP) {
-    if (_rolMovilGuardado() && hash !== '#/dueno') { btnSalirP.style.display = ''; btnSalirP.onclick = salirPuesto; }
-    else btnSalirP.style.display = 'none';
-  }
+  if (btnSalirP) btnSalirP.style.display = 'none';
 
   // SEGURIDAD (1): fuera del panel del dueño, la sesión de admin SIEMPRE cae.
   // Así, si se sale del panel (botón Atrás, chip de rol, enlace) no se puede
@@ -17413,6 +17411,15 @@ function salirPuesto() {
   try { localStorage.removeItem('mh_rol_movil'); localStorage.removeItem('mh_acceso_ok'); } catch (e) {}
   _perfilOK = {};
   try { location.reload(); } catch (e) { location.hash = '#/puerta'; renderApp(); }
+}
+/* El DUEÑO suelta ESTE móvil desde su panel (Ajustes → Personal). Pide confirmación para no
+   devolverlo a la portada sin querer. Deja de ser admin en este móvil y vuelve a la portada. */
+function duenoSoltarMovil() {
+  var ok = true;
+  try { ok = window.confirm('¿Soltar este móvil y volver a la portada? El siguiente tendrá que meter su código.'); } catch (e) {}
+  if (!ok) return;
+  duenoAutenticado = false;
+  salirPuesto();
 }
 function _emblemaMH() {
   // Recreación en vector del logo MH Collective (rombo + monograma + banda "Collective").
@@ -20557,6 +20564,11 @@ function seccionPersonal() {
       '<input type="text" autocomplete="off" id="clave-' + esc(pf.id) + '" value="' + esc(claves[pf.id] || '') +
       '" placeholder="sin código" onchange="duenoSetClavePerfil(\'' + escJs(pf.id) + '\', this.value)"></label>';
   });
+  // 🚪 SOLTAR ESTE MÓVIL: solo el dueño (aquí, tras el PIN) devuelve ESTE móvil a la portada, para
+  // dárselo a otro trabajador. Antes esto era un botón "Salir" en la barra de los trabajadores y les liaba.
+  html += '<h3>Este móvil</h3>';
+  html += '<p class="nota">Si este móvil estaba puesto en un puesto (un vigilante/camarero metió su código) y quieres <b>dárselo a otra persona</b>, suéltalo: vuelve a la portada y el siguiente mete su código.</p>';
+  html += '<button type="button" class="btn-secundario" data-testid="btn-soltar-movil" onclick="duenoSoltarMovil()" style="width:100%;min-height:44px">🚪 Soltar este móvil (volver a la portada)</button>';
   html += '</section>';
   return html;
 }

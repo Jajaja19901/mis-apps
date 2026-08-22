@@ -3,6 +3,12 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-20 (nonies) — MH Collective: V43 (el botón "Salir" pasa al Dueño) + manual con imágenes
+- Petición: el botón "🚪 Salir" (soltar el puesto del móvil) confundía a los trabajadores (no lo veían si entraban con contraseña general + chips). El usuario pidió "que ese botón lo tenga el dueño".
+- V43: quitado `btnSalirPuesto` de la barra de los trabajadores (siempre display:none). Nuevo botón "🚪 Soltar este móvil (volver a la portada)" en el panel del Dueño → Ajustes → Personal (`duenoSoltarMovil` con confirm; cierra sesión de dueño + `salirPuesto`). Así solo con el PIN se devuelve un móvil a la portada.
+- Verificado V43: 49/49 aceptación · 5/5 batería (trabajador sin botón Salir; dueño tiene "Soltar este móvil"; al pulsar borra mh_rol_movil + mh_acceso_ok + cierra dueño).
+- Manual: se entregó `Manual-MH-Collective.pdf`/`.html` EXHAUSTIVO (30 apartados, 34 capturas reales con flechas). Generador en scratchpad (manual.html + img/ + _css.txt); ojo: al extraer el CSS con sed hay que incluir el `</style>` o el body sale vacío.
+
 ## 2026-08-20 (octies) — MH Collective: V42 (filtro "Ya dentro" en la lista del dueño)
 - Petición: el dueño quiere poder ver, en su lista de "Entradas creadas", solo las que YA están dentro.
 - Añadidas 2 opciones al desplegable de filtro (seccionEntradas): "✅ Ya dentro (N)" y "🚪 Aún fuera / por llegar (N)", con contador en vivo. `entradasFiltradas` filtra por `p.dentro`.
