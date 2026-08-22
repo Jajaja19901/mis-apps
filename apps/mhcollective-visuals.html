@@ -159,8 +159,8 @@
   </svg>
   <h1>MHCOLLECTIVE<small>VISUALES EN DIRECTO</small></h1>
   <p>Visuales que <b>reaccionan a tu música en tiempo real</b>. Para que suenen y se vean acordes,
-     conecta el <b>audio de tu mesa</b> (entrada de línea o micro) y pincha. 12 escenas que rotan
-     y se barajan solas: más de 90 minutos sin repetirse.</p>
+     conecta el <b>audio de tu mesa</b> (entrada de línea o micro) y pincha. <b>21 escenas</b> que rotan
+     y se barajan solas, con el color siempre cambiando: horas sin repetirse.</p>
   <div class="btns">
     <button class="btn primary" id="btnMic">🎧 Empezar con la música (línea/micro)</button>
     <button class="btn ghost" id="btnDemo">▶︎ Ver en modo demo</button>
@@ -207,6 +207,16 @@ const CONFIG = {
   STUDIO_AUTHOR: "Jaime M. M.",
   STUDIO_URL: "#"
 };
+
+/* ---------- MODO RENDER (grabar a vídeo, determinista) ---------- */
+const _rp = new URLSearchParams(location.search);
+const RENDER = _rp.has('render');
+const RFPS = +(_rp.get('fps')||30);
+if(RENDER){ // PRNG con semilla → cada frame reproducible
+  let s = 20260822 >>> 0;
+  Math.random = function(){ s = (s + 0x6D2B79F5) | 0; let t = Math.imul(s ^ s>>>15, 1|s);
+    t = (t + Math.imul(t ^ t>>>7, 61|t)) ^ t; return ((t ^ t>>>14) >>> 0) / 4294967296; };
+}
 
 /* Paleta = anillo del logo (degradado estilo Instagram) */
 const STOPS = [
@@ -322,7 +332,7 @@ window.addEventListener('resize',resize); resize();
 /* estado global */
 const State = {
   running:false, auto:true, sceneIdx:0, sceneT:0, order:[], orderPos:0,
-  globalHue:0, colorDir:0.012, showBrand:true, t:0, transition:0
+  globalHue:0, colorDir:0.012, showBrand:true, t:0, transition:0, render:false
 };
 
 /* ---------- helper: diamante (rombo del logo) ---------- */
@@ -349,7 +359,7 @@ const scene_ringPulse = {
     ctx.lineWidth=3+beat*4; ctx.strokeStyle=rgb([255,255,255],0.85+beat*0.15);
     ctx.shadowBlur=20+beat*40; ctx.shadowColor=rgb(palAt(State.globalHue+0.5),1); ctx.stroke();
     ctx.shadowBlur=0;
-    drawMH(CX,CY,dr*0.9,0.9+beat*0.1);
+    drawLogoBadge(CX,CY,dr*0.86,0.95);
   }
 };
 
@@ -456,7 +466,7 @@ const scene_tunnel = {
       ctx.shadowBlur=18*(1-z)+a.beatHold*20; ctx.shadowColor=rgb(c,0.9); ctx.stroke();
     }
     ctx.restore(); ctx.shadowBlur=0;
-    drawMH(CX,CY,Math.min(W,H)*0.09,0.5+a.beatHold*0.4);
+    drawLogoBadge(CX,CY,Math.min(W,H)*0.1,0.55+a.beatHold*0.4);
   }
 };
 
@@ -548,7 +558,7 @@ const scene_plasma = {
       ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y,r,0,6.283); ctx.fill();
     }
     ctx.globalCompositeOperation="source-over";
-    drawMH(CX,CY,Math.min(W,H)*0.12,0.55+a.beatHold*0.35);
+    drawLogoBadge(CX,CY,Math.min(W,H)*0.12,0.6+a.beatHold*0.35);
   }
 };
 
@@ -570,7 +580,7 @@ const scene_orbits = {
       }
     }
     ctx.restore(); ctx.shadowBlur=0;
-    drawMH(CX,CY,Math.min(W,H)*0.07,0.9);
+    drawLogoBadge(CX,CY,Math.min(W,H)*0.11,0.95);
   }
 };
 
@@ -601,6 +611,38 @@ const scene_nameStrobe = {
   }
 };
 
+/* rectángulo redondeado */
+function roundRect(x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+/* LOGO COMPLETO MH COLLECTIVE (anillo degradado + rombo + MH + tag Collective)
+   tal y como se ve en la captura. size = radio del anillo exterior. */
+function drawLogoBadge(x,y,size,alpha){
+  if(size<18) { drawMH(x,y,size,alpha); return; }
+  ctx.save(); ctx.globalAlpha=alpha==null?1:alpha; ctx.translate(x,y);
+  // anillo degradado (Instagram)
+  const grd=ctx.createLinearGradient(-size,-size,size,size);
+  grd.addColorStop(0,'#FEDA75'); grd.addColorStop(.30,'#FA7E1E');
+  grd.addColorStop(.55,'#F56040'); grd.addColorStop(.78,'#D62976'); grd.addColorStop(1,'#4F5BD5');
+  ctx.beginPath(); ctx.arc(0,0,size,0,6.283); ctx.lineWidth=size*0.085; ctx.strokeStyle=grd;
+  ctx.shadowBlur=size*0.45; ctx.shadowColor=rgb(palAt(State.globalHue+0.5),0.85); ctx.stroke(); ctx.shadowBlur=0;
+  // disco negro
+  ctx.beginPath(); ctx.arc(0,0,size*0.865,0,6.283); ctx.fillStyle='#08080e'; ctx.fill();
+  // rombo blanco
+  const d=size*0.6; ctx.beginPath(); diamond(0,-size*0.07,d);
+  ctx.lineWidth=size*0.05; ctx.strokeStyle='#fff'; ctx.stroke();
+  // MH
+  ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.font=`900 ${size*0.5}px "Arial Black",Arial,sans-serif`; ctx.fillText('MH',0,-size*0.07);
+  // tag COLLECTIVE
+  const tw=size*0.66, th=size*0.17, ty=size*0.17;
+  ctx.fillStyle='#fff'; roundRect(-tw/2, ty, tw, th, th*0.22); ctx.fill();
+  ctx.fillStyle='#08080e'; ctx.font=`700 ${size*0.105}px Arial,sans-serif`;
+  ctx.fillText('COLLECTIVE',0, ty+th*0.56);
+  ctx.restore();
+}
+
 /* dibuja el rombo MH con textura (usado como firma central) */
 function drawMH(x,y,r,alpha){
   if(r<10) return;
@@ -614,8 +656,187 @@ function drawMH(x,y,r,alpha){
   ctx.restore();
 }
 
+/* ══════ ESCENAS EXTRA — muy marcadas por el golpe (beat) ══════ */
+const BURST=[], RIPPLE=[], RAIN=[];
+
+/* Estallido de rombos en cada golpe */
+const scene_beatBurst = {
+  name:"Estallido MH",
+  enter(){ BURST.length=0; },
+  draw(a,t,dt){
+    const M=Math.min(W,H);
+    if(a.beat){ const n=14+((a.bass*22)|0);
+      for(let i=0;i<n;i++){ const ang=Math.random()*6.283, sp=(120+Math.random()*420)*(0.6+a.bass);
+        BURST.push({vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp,life:0,max:0.6+Math.random()*0.7,
+          size:4+Math.random()*11,c:palAt(State.globalHue+Math.random())}); } }
+    for(let i=BURST.length-1;i>=0;i--){ const p=BURST[i]; p.life+=dt;
+      if(p.life>p.max){ BURST.splice(i,1); continue; }
+      const k=1-p.life/p.max, x=CX+p.vx*p.life, y=CY+p.vy*p.life;
+      ctx.globalAlpha=k; ctx.beginPath(); diamond(x,y,p.size*k+1.5);
+      ctx.fillStyle=rgb(p.c,1); ctx.shadowBlur=14; ctx.shadowColor=rgb(p.c,1); ctx.fill(); }
+    ctx.globalAlpha=1; ctx.shadowBlur=0;
+    drawLogoBadge(CX,CY,M*0.1,0.7+a.beatHold*0.3);
+  }
+};
+
+/* Pulsos concéntricos emitidos en cada golpe */
+const scene_ripples = {
+  name:"Pulsos",
+  enter(){ RIPPLE.length=0; },
+  draw(a,t,dt){
+    if(a.beat) RIPPLE.push({r:12,life:0,max:1.5,c:palAt(State.globalHue+Math.random()*0.25)});
+    for(let i=RIPPLE.length-1;i>=0;i--){ const p=RIPPLE[i]; p.life+=dt; p.r+=(200+a.bass*360)*dt;
+      if(p.life>p.max){ RIPPLE.splice(i,1); continue; }
+      const k=1-p.life/p.max;
+      ctx.beginPath(); ctx.arc(CX,CY,p.r,0,6.283); ctx.lineWidth=2+k*5; ctx.strokeStyle=rgb(p.c,k*0.8);
+      ctx.shadowBlur=18*k; ctx.shadowColor=rgb(p.c,k); ctx.stroke();
+      ctx.beginPath(); diamond(CX,CY,p.r); ctx.lineWidth=1+k*2; ctx.strokeStyle=rgb(p.c,k*0.35); ctx.stroke(); }
+    ctx.shadowBlur=0;
+    drawLogoBadge(CX,CY,Math.min(W,H)*0.1,0.75+a.beatHold*0.25);
+  }
+};
+
+/* Barras espejo desde el centro (arriba y abajo) */
+const scene_mirrorBars = {
+  name:"Barras espejo",
+  draw(a,t){
+    const bars=56, bw=W/bars;
+    for(let i=0;i<bars;i++){
+      const idx=(i/bars*a.freq.length*0.6)|0, v=(a.freq[idx]||0)/255;
+      const h=v*H*0.42+a.beatHold*26, c=palAt(State.globalHue+i/bars*0.9);
+      ctx.fillStyle=rgb(c,0.9); ctx.shadowBlur=12+v*16; ctx.shadowColor=rgb(c,0.8);
+      ctx.fillRect(i*bw+bw*0.14, CY-h, bw*0.72, h);
+      ctx.fillRect(i*bw+bw*0.14, CY,   bw*0.72, h);
+    }
+    ctx.shadowBlur=0;
+    drawMH(CX,CY,Math.min(W,H)*0.08,0.5+a.beatHold*0.4);
+  }
+};
+
+/* Focos de club giratorios (estroboscopio en el golpe) */
+const scene_clubBeams = {
+  name:"Focos de club",
+  draw(a,t){
+    const N=10; ctx.save(); ctx.translate(CX,CY); ctx.rotate(t*0.35+a.mid*2);
+    ctx.globalCompositeOperation="lighter";
+    const L=Math.max(W,H);
+    for(let i=0;i<N;i++){
+      const ang=(i/N)*6.283, w=0.06+0.05*Math.sin(t*3+i)+a.beatHold*0.06;
+      const c=palAt(State.globalHue+i/N);
+      const g=ctx.createLinearGradient(0,0,Math.cos(ang)*L,Math.sin(ang)*L);
+      g.addColorStop(0,rgb(c,0.45+a.beatHold*0.4)); g.addColorStop(1,rgb(c,0));
+      ctx.fillStyle=g; ctx.beginPath(); ctx.moveTo(0,0);
+      ctx.lineTo(Math.cos(ang-w)*L,Math.sin(ang-w)*L);
+      ctx.lineTo(Math.cos(ang+w)*L,Math.sin(ang+w)*L); ctx.closePath(); ctx.fill();
+    }
+    ctx.restore(); ctx.globalCompositeOperation="source-over";
+    drawLogoBadge(CX,CY,Math.min(W,H)*0.11,0.85);
+  }
+};
+
+/* Rejilla de puntos que laten por frecuencia */
+const scene_dotGrid = {
+  name:"Rejilla latente",
+  draw(a,t){
+    const gap=Math.min(W,H)*0.06, cols=Math.ceil(W/gap), rows=Math.ceil(H/gap);
+    for(let y=0;y<rows;y++) for(let x=0;x<cols;x++){
+      const dx=(x+0.5)*gap, dy=(y+0.5)*gap;
+      const d=Math.hypot(dx-CX,dy-CY)/Math.max(W,H);
+      const idx=((d*a.freq.length*0.7)|0)%a.freq.length, v=(a.freq[idx]||0)/255;
+      const puls=Math.max(0,Math.sin(t*4 - d*10)*0.5+0.5);
+      const r=1+v*7*(0.5+puls)+a.beatHold*4*(1-d);
+      const c=palAt(State.globalHue+d);
+      ctx.beginPath(); ctx.arc(dx,dy,r,0,6.283); ctx.fillStyle=rgb(c,0.35+v*0.6); ctx.fill();
+    }
+    drawLogoBadge(CX,CY,Math.min(W,H)*0.1,0.6+a.beatHold*0.35);
+  }
+};
+
+/* Lluvia de rombos MH (velocidad según el golpe) */
+const scene_diamondRain = {
+  name:"Lluvia MH",
+  enter(){ RAIN.length=0; for(let i=0;i<70;i++) RAIN.push({x:Math.random()*W,y:Math.random()*H,sp:0.4+Math.random(),size:6+Math.random()*16}); },
+  draw(a,t,dt){
+    for(const p of RAIN){
+      p.y += (120*p.sp + a.bass*420)*dt; if(p.y>H+20){ p.y=-20; p.x=Math.random()*W; }
+      const c=palAt(State.globalHue+p.x/W);
+      ctx.beginPath(); diamond(p.x,p.y,p.size*(0.7+a.beatHold*0.6));
+      ctx.lineWidth=1.5; ctx.strokeStyle=rgb(c,0.5+a.treble*0.5);
+      ctx.shadowBlur=8; ctx.shadowColor=rgb(c,0.7); ctx.stroke();
+    }
+    ctx.shadowBlur=0;
+    drawLogoBadge(CX,CY,Math.min(W,H)*0.11,0.8);
+  }
+};
+
+/* Espiral de partículas (radio late con el bajo) */
+const scene_spiral = {
+  name:"Espiral",
+  draw(a,t){
+    const N=260, turns=5;
+    ctx.save(); ctx.translate(CX,CY); ctx.rotate(t*0.4);
+    for(let i=0;i<N;i++){
+      const f=i/N, ang=f*turns*6.283, rad=f*Math.min(W,H)*0.5*(0.7+a.bass*0.6);
+      const idx=(f*a.freq.length*0.5)|0, v=(a.freq[idx]||0)/255;
+      const c=palAt(State.globalHue+f);
+      const x=Math.cos(ang)*rad, y=Math.sin(ang)*rad;
+      ctx.beginPath(); ctx.arc(x,y,1.5+v*6+a.beatHold*3,0,6.283);
+      ctx.fillStyle=rgb(c,0.5+v*0.5); ctx.shadowBlur=8+v*10; ctx.shadowColor=rgb(c,0.9); ctx.fill();
+    }
+    ctx.restore(); ctx.shadowBlur=0;
+    drawMH(CX,CY,Math.min(W,H)*0.07,0.7);
+  }
+};
+
+/* VU vertical con picos que caen */
+const scene_vu = {
+  name:"VU",
+  enter(){ this.peak=[]; },
+  draw(a,t,dt){
+    const cols=24, cw=W/cols; if(!this.peak.length) this.peak=new Array(cols).fill(0);
+    for(let i=0;i<cols;i++){
+      const idx=(i/cols*a.freq.length*0.55)|0, v=(a.freq[idx]||0)/255;
+      const h=v*H*0.8; this.peak[i]=Math.max(this.peak[i]-dt*H*0.5, h);
+      const segs=18, sh=(H*0.8)/segs;
+      for(let s=0;s<segs;s++){
+        const sy=H*0.92 - s*sh; if(H*0.92-sy>h) break;
+        const c=palAt(State.globalHue + s/segs*0.5);
+        ctx.fillStyle=rgb(c,0.9); ctx.fillRect(i*cw+cw*0.16, sy-sh*0.7, cw*0.68, sh*0.62);
+      }
+      ctx.fillStyle=rgb([255,255,255],0.9);
+      ctx.fillRect(i*cw+cw*0.16, H*0.92-this.peak[i]-3, cw*0.68, 3);
+    }
+    drawMH(CX,H*0.28,Math.min(W,H)*0.09,0.5+a.beatHold*0.4);
+  }
+};
+
+/* Blob de espectro relleno */
+const scene_blob = {
+  name:"Blob",
+  draw(a,t){
+    const pts=90, base=Math.min(W,H)*0.18;
+    ctx.save(); ctx.translate(CX,CY); ctx.rotate(t*0.1);
+    ctx.beginPath();
+    for(let i=0;i<=pts;i++){
+      const f=(i%pts)/pts, ang=f*6.283;
+      const idx=(f*a.freq.length*0.5)|0, v=(a.freq[idx]||0)/255;
+      const r=base + v*Math.min(W,H)*0.28 + a.beatHold*18;
+      const x=Math.cos(ang)*r, y=Math.sin(ang)*r; i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    }
+    ctx.closePath();
+    const g=ctx.createRadialGradient(0,0,base*0.3,0,0,base*2.2);
+    g.addColorStop(0,rgb(palAt(State.globalHue),0.5)); g.addColorStop(1,rgb(palAt(State.globalHue+0.4),0.05));
+    ctx.fillStyle=g; ctx.shadowBlur=30; ctx.shadowColor=rgb(palAt(State.globalHue+0.5),0.8); ctx.fill();
+    ctx.lineWidth=2.5; ctx.strokeStyle=rgb([255,255,255],0.6); ctx.stroke();
+    ctx.restore(); ctx.shadowBlur=0;
+    drawLogoBadge(CX,CY,Math.min(W,H)*0.12,0.9);
+  }
+};
+
 const SCENES=[scene_ringPulse,scene_spectrumRadial,scene_cityEq,scene_wave,scene_particles,
-  scene_tunnel,scene_starWarp,scene_grid,scene_kaleido,scene_plasma,scene_orbits,scene_nameStrobe];
+  scene_tunnel,scene_starWarp,scene_grid,scene_kaleido,scene_plasma,scene_orbits,scene_nameStrobe,
+  scene_beatBurst,scene_ripples,scene_mirrorBars,scene_clubBeams,scene_dotGrid,
+  scene_diamondRain,scene_spiral,scene_vu,scene_blob];
 
 /* ---------- orden barajado (no repetir seguido) ---------- */
 function shuffleOrder(){
@@ -637,6 +858,7 @@ function nextScene(){
   gotoScene(State.order[State.orderPos++], true);
 }
 function prevScene(){ gotoScene(State.sceneIdx-1,true); }
+window.__goto=function(i){ State.auto=false; gotoScene(i,true); }; // saltar a una escena (uso interno/pruebas)
 
 /* ---------- flash de transición ---------- */
 const flashEl=document.getElementById('flash');
@@ -654,6 +876,7 @@ function showToast(txt){ toastName.textContent=txt; toastEl.classList.add('show'
 ════════════════════════════════════════════════════════════════════════ */
 let last=performance.now();
 function loop(now){
+  if(State.render){ requestAnimationFrame(loop); return; } // en modo render se dibuja a mano
   const dt=Math.min(0.05,(now-last)/1000); last=now; State.t+=dt;
   if(State.running){
     Audio_.update(dt);
@@ -671,6 +894,12 @@ function loop(now){
     const s=SCENES[State.sceneIdx];
     try{ s.draw(Audio_, State.t, dt); }catch(e){ console.error("scene",s.name,e); }
 
+    // destello global en el golpe → todo late a ritmo
+    if(Audio_.beatHold>0.02){
+      ctx.fillStyle=rgb(palAt(State.globalHue+0.5), Audio_.beatHold*0.05);
+      ctx.fillRect(0,0,W,H);
+    }
+
     // viñeta sutil
     const vg=ctx.createRadialGradient(CX,CY,Math.min(W,H)*0.3,CX,CY,Math.max(W,H)*0.75);
     vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(0,0,0,0.55)");
@@ -679,6 +908,35 @@ function loop(now){
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
+
+/* ---- API de render determinista (usada por tools/render-video.mjs) ---- */
+function _renderAdvanceScene(){
+  if(State.orderPos>=State.order.length) shuffleOrder();
+  State.sceneIdx=State.order[State.orderPos++]%SCENES.length; State.sceneT=0;
+  const sc=SCENES[State.sceneIdx]; if(sc.enter) sc.enter();
+}
+window.__setup=function(){
+  State.render=true; State.running=true; State.auto=true;
+  document.getElementById('intro').style.display='none';
+  document.getElementById('status').classList.add('hidden');
+  document.getElementById('toast').classList.remove('show');
+  Audio_.mode='demo'; Audio_._demoT=0; Audio_._nextBeat=0;
+  State.globalHue=0; State.orderPos=0; State.sceneT=0;
+  shuffleOrder(); _renderAdvanceScene();
+};
+window.__frame=function(n){
+  const dt=1/RFPS; State.t=n*dt;
+  Audio_._demo(dt);
+  State.globalHue=(State.globalHue+State.colorDir*dt*3)%1;
+  State.sceneT+=dt;
+  if(State.sceneT>CONFIG.SCENE_SECS) _renderAdvanceScene();
+  ctx.globalCompositeOperation="source-over";
+  ctx.fillStyle="rgba(5,5,10,0.22)"; ctx.fillRect(0,0,W,H);
+  try{ SCENES[State.sceneIdx].draw(Audio_,State.t,dt); }catch(e){ console.error(e); }
+  const vg=ctx.createRadialGradient(CX,CY,Math.min(W,H)*0.3,CX,CY,Math.max(W,H)*0.75);
+  vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(0,0,0,0.55)");
+  ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+};
 
 /* ════════════════════════════════════════════════════════════════════════
    ARRANQUE Y CONTROLES
