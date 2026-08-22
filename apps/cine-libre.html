@@ -515,6 +515,7 @@ function renderHome(opts){
       <div style="height:14px"></div>`:""}
       <div class="row-head"><h2 id="gridTitle">${CURRENT_GENRE?esc(CURRENT_GENRE):"Catálogo · dominio público"}</h2></div>
       <div class="grid" id="catalog"></div>
+      <div id="onlineWrap"></div>
     </section>
   </main>
   ${footer()}`;
@@ -525,35 +526,109 @@ function renderHome(opts){
 }
 
 function renderGrid(){
+  const searching=!!String(SEARCH).trim();
   const cat=getCatalog().filter(f=>(!CURRENT_GENRE||f.genre===CURRENT_GENRE) && matchFilm(f,SEARCH));
   const grid=document.getElementById("catalog");
   const note=document.getElementById("searchNote");
-  if(note){
-    if(SEARCH){
-      const q=encodeURIComponent(SEARCH);
-      const freeBtns=FREE_PLATFORMS.map(p=>`<a class="btn btn-ghost" href="${attr(p.url)}${q}" target="_blank" rel="noopener noreferrer">${p.ic} ${esc(p.name)}</a>`).join("");
-      note.innerHTML=`
-      <div class="searchnote">
-        <b>Buscar “${esc(SEARCH)}” en todas partes</b>
-        <p>Si no aparece abajo en el catálogo gratis de la app, búscalo directamente en estas fuentes <b>legales</b> (primero las gratis). Escribe cualquier película o serie: la busca donde de verdad se puede ver.</p>
-        <div class="row">${freeBtns}</div>
-        <div class="row" style="margin-top:8px">
-          <a class="btn btn-primary" href="${attr(FINDER.url)}${q}" target="_blank" rel="noopener noreferrer">${FINDER.ic} ¿Dónde verlo? (JustWatch)</a>
-        </div>
-        <p style="font-size:12.5px;color:var(--ink-mut);margin-top:10px;margin-bottom:0">JustWatch te dice en qué plataforma está y cuáles lo tienen gratis. No enlazamos a webs pirata.</p>
-      </div>`;
-    } else note.innerHTML="";
+  const title=document.getElementById("gridTitle");
+  if(title) title.textContent = searching ? "Coincidencias en esta app" : (CURRENT_GENRE || "Catálogo · dominio público");
+  if(note) note.innerHTML="";
+  if(grid){
+    if(!cat.length){
+      grid.style.display="block";
+      grid.innerHTML = searching
+        ? `<div class="empty" style="padding:20px 10px"><b>Nada del catálogo propio coincide</b><p>Mira los resultados de la biblioteca libre aquí debajo 👇</p></div>`
+        : `<div class="empty"><div class="ic" aria-hidden="true">🍿</div><b>No hay títulos que coincidan</b><p>Prueba con otra búsqueda o revisa otro género.</p></div>`;
+    }else{
+      grid.style.display="";
+      grid.innerHTML=cat.map(filmCard).join("");
+    }
+    hydratePosters(grid);
+    bindCards(grid);
   }
-  if(!grid) return;
-  if(!cat.length){
-    grid.style.display="block";
-    grid.innerHTML=`<div class="empty"><div class="ic" aria-hidden="true">🍿</div><b>No hay títulos que coincidan</b><p>Prueba con otra búsqueda o revisa otro género.</p></div>`;
-  }else{
-    grid.style.display="";
-    grid.innerHTML=cat.map(filmCard).join("");
+  const online=document.getElementById("onlineWrap");
+  if(online){
+    if(searching) runOnlineSearch(String(SEARCH).trim());
+    else online.innerHTML="";
   }
-  hydratePosters(grid);
-  bindCards(grid);
+}
+
+/* ==================================================================
+   BUSCADOR EN VIVO sobre la biblioteca de dominio público de Archive.org
+   (millones de títulos legales; se reproducen dentro de la app)
+   ================================================================== */
+let _searchToken=0;
+function runOnlineSearch(q){
+  const wrap=document.getElementById("onlineWrap"); if(!wrap) return;
+  const token=++_searchToken;
+  // La búsqueda en vivo necesita una página servida (http/https o app instalada),
+  // no funciona abriendo el .html con doble clic (file://).
+  if(location.protocol==="file:"){
+    wrap.innerHTML=onlineFallback(q,"Para buscar en toda la biblioteca, abre la app desde una web o instálala (no con doble clic al archivo). Mientras, búscalo aquí:");
+    return;
+  }
+  wrap.innerHTML=`<div class="row-head" style="margin-top:20px"><h2>En la biblioteca libre (Archive.org)</h2></div>
+    <div style="color:var(--ink-mut);padding:6px 0 18px">Buscando “${esc(q)}” entre miles de títulos…</div>`;
+  const url=`https://archive.org/advancedsearch.php?q=${encodeURIComponent("("+q+") AND mediatype:movies")}&fl[]=identifier&fl[]=title&fl[]=year&fl[]=downloads&sort[]=downloads+desc&rows=48&output=json`;
+  fetch(url).then(r=>r.json()).then(j=>{
+    if(token!==_searchToken) return;
+    const docs=(j&&j.response&&j.response.docs)||[];
+    const valid=docs.filter(d=>d&&safeArchiveId(d.identifier));
+    if(!valid.length){ wrap.innerHTML=onlineFallback(q,"No lo encontramos entre el cine libre. Quizá tenga derechos; míralo en su plataforma:"); return; }
+    wrap.innerHTML=`<div class="row-head" style="margin-top:20px"><h2>En la biblioteca libre · ${valid.length} resultados</h2></div>
+      <div class="grid">${valid.map(extCard).join("")}</div>`
+      +onlineFallback(q,"¿Buscabas un estreno reciente? No estará aquí (tiene derechos); míralo en su plataforma:");
+    hydratePosters(wrap);
+  }).catch(()=>{
+    if(token!==_searchToken) return;
+    wrap.innerHTML=onlineFallback(q,"No se pudo buscar en línea ahora mismo. Prueba otra vez o búscalo aquí:");
+  });
+}
+
+function extCard(d){
+  const id=safeArchiveId(d.identifier); if(!id) return "";
+  const title=Array.isArray(d.title)?(d.title[0]||id):(d.title||id);
+  const year=Array.isArray(d.year)?d.year[0]:(d.year||"");
+  const thumb=`https://archive.org/services/img/${id}`;
+  return `
+  <div class="card-film" data-film="${attr(id)}">
+    <a class="poster-link" href="#/ver/${attr(id)}" aria-label="Ver ${attr(title)}">
+      <div class="poster">
+        <span class="type">Archive.org</span>
+        <img class="lazyposter" loading="lazy" alt="Carátula de ${attr(title)}" data-src="${attr(thumb)}">
+        <div class="fallback"><span class="ic" aria-hidden="true">🎞️</span><b>${esc(title)}</b>${year?`<span style="color:var(--ink-mut);font-size:12px">${esc(year)}</span>`:""}</div>
+        <div class="play" aria-hidden="true"><span><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg></span></div>
+      </div>
+    </a>
+    <a class="card-body" href="#/ver/${attr(id)}"><h3>${esc(title)}</h3><div class="sub">${esc(year||"Archive.org")}</div></a>
+  </div>`;
+}
+
+function onlineFallback(q,msg){
+  const enc=encodeURIComponent(q);
+  const free=FREE_PLATFORMS.map(p=>`<a class="btn btn-ghost" href="${attr(p.url)}${enc}" target="_blank" rel="noopener noreferrer">${p.ic} ${esc(p.name)}</a>`).join("");
+  return `
+  <div class="searchnote" style="margin-top:18px">
+    <b>${esc(msg)}</b>
+    <div class="row" style="margin-top:10px">${free}</div>
+    <div class="row" style="margin-top:8px"><a class="btn btn-primary" href="${attr(FINDER.url)}${enc}" target="_blank" rel="noopener noreferrer">${FINDER.ic} ¿Dónde verlo? (JustWatch)</a></div>
+    <p style="font-size:12.5px;color:var(--ink-mut);margin:10px 0 0">JustWatch te dice en qué plataforma está y cuáles lo tienen gratis. No enlazamos a webs pirata.</p>
+  </div>`;
+}
+
+function fillExternalMeta(id){
+  if(location.protocol==="file:") return;
+  fetch(`https://archive.org/metadata/${encodeURIComponent(id)}`).then(r=>r.json()).then(j=>{
+    const m=(j&&j.metadata)||{};
+    const title=Array.isArray(m.title)?m.title[0]:m.title;
+    const year=Array.isArray(m.year)?m.year[0]:(m.year||(m.date?String(m.date).slice(0,4):""));
+    let desc=Array.isArray(m.description)?m.description.join(" "):(m.description||"");
+    desc=String(desc).replace(/<[^>]*>/g," ").replace(/&[a-z#0-9]+;/gi," ").replace(/\s+/g," ").trim().slice(0,700);
+    const h1=document.querySelector(".watch-info h1"); if(h1&&title) h1.textContent=title;
+    const yp=document.getElementById("wYear"); if(yp&&year){ yp.textContent=year; yp.style.display=""; }
+    const syn=document.querySelector(".watch-info p.syn"); if(syn) syn.textContent=desc||"Título de la biblioteca de dominio público de Archive.org.";
+    if(title){ try{ document.title=title+" · "+CONFIG.APP_NAME; }catch(e){} }
+  }).catch(()=>{});
 }
 
 /* ==================================================================
@@ -581,7 +656,12 @@ function renderList(){
    ================================================================== */
 function renderWatch(rawId){
   const id=safeArchiveId(rawId);
-  const f=getFilm(rawId) || getFilm(id);
+  let f=getFilm(rawId) || getFilm(id);
+  const external = !f && !!id;   // título que viene del buscador en vivo, no del catálogo propio
+  if(external){
+    const guess=decodeURIComponent(id).replace(/[._-]+/g," ").replace(/\b\d{5,}\b/g," ").replace(/\s+/g," ").trim();
+    f={ id, title: guess||id, year:"", genre:"Biblioteca libre", type:"Película", dur:"", dir:"", syn:"Cargando la información del título desde Archive.org…" };
+  }
   document.getElementById("app").innerHTML=`
   ${header("")}
   <main class="wrap"><div class="watch">
@@ -614,7 +694,7 @@ function renderWatch(rawId){
       <div>
         <h1>${esc(f.title)}</h1>
         <div class="meta">
-          <span class="pill">${esc(f.year)}</span>
+          <span class="pill" id="wYear" ${f.year?"":'style="display:none"'}>${esc(f.year)}</span>
           <span class="pill">${esc(f.genre)}</span>
           <span class="pill">${esc(f.type)}</span>
           ${f.dur?`<span class="pill">${esc(f.dur)}</span>`:""}
@@ -633,6 +713,8 @@ function renderWatch(rawId){
 
   const ft=document.getElementById("favToggle");
   if(ft) ft.addEventListener("click",()=>{ const on=toggleFav(f.id); ft.className="btn "+(on?"btn-primary":"btn-ghost"); ft.textContent=on?"✔ En Mi lista":"＋ Añadir a Mi lista"; ft.setAttribute("aria-pressed",on?"true":"false"); showToast(on?"Añadida a Mi lista":"Quitada de Mi lista"); });
+
+  if(external) fillExternalMeta(id);
 }
 
 /* ==================================================================
