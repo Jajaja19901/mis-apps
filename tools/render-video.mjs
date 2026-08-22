@@ -5,7 +5,8 @@ import { spawn } from 'node:child_process';
 import ffmpegPath from 'ffmpeg-static';
 import path from 'node:path';
 
-const html = path.resolve(process.argv[2]);
+const [rawPath, rawQuery] = String(process.argv[2]).split('?');
+const html = path.resolve(rawPath);
 const out  = path.resolve(process.argv[3]);
 const secs = +(process.argv[4]||300);
 const fps  = +(process.argv[5]||30);
@@ -26,7 +27,9 @@ const browser = await puppeteer.launch({ headless:'new',
 const page = await browser.newPage();
 await page.setViewport({ width:W, height:H, deviceScaleFactor:1 });
 const errs=[]; page.on('pageerror',e=>errs.push(e.message));
-await page.goto(`file://${html}?render=1&fps=${fps}`, { waitUntil:'load' });
+const qp = new URLSearchParams(rawQuery || '');
+qp.set('render','1'); qp.set('fps', String(fps));
+await page.goto(`file://${html}?${qp.toString()}`, { waitUntil:'load' });
 await page.evaluate(()=>window.__setup());
 
 const t0=Date.now();
