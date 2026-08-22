@@ -150,9 +150,9 @@
   </svg>
   <h1>MHCOLLECTIVE<small>VISUALES EN DIRECTO</small></h1>
   <p>Visuales que <b>reaccionan a tu música en tiempo real</b>. Para que suenen y se vean acordes,
-     conecta el <b>audio de tu mesa</b> (entrada de línea o micro) y pincha. <b>26 escenas</b> cinematográficas
-     (geometría sagrada, esfera celeste, agujero de gusano, aurora…) que rotan y se barajan con fundidos:
-     estética <b>Afterlife</b>, horas sin repetirse. Pulsa <b>C</b> para cambiar de tema de color.</p>
+     conecta el <b>audio de tu mesa</b> (entrada de línea o micro) y pincha. El <b>símbolo MH cobra vida</b>
+     —se materializa, gira en 3D, estalla y se recompone— dentro de <b>30 escenas</b> cinematográficas que
+     rotan y se barajan con fundidos: estética <b>Afterlife</b>, horas sin repetirse. Pulsa <b>C</b> para cambiar de tema.</p>
   <div class="btns">
     <button class="btn primary" id="btnMic">🎧 Empezar con la música (línea/micro)</button>
     <button class="btn ghost" id="btnDemo">▶︎ Ver en modo demo</button>
@@ -966,7 +966,106 @@ const scene_constellation = {
   }
 };
 
-const SCENES=[scene_ringPulse,scene_spectrumRadial,scene_cityEq,scene_wave,scene_particles,
+/* ══════ EL SÍMBOLO MH COBRA VIDA (protagonista) ══════
+   Convierte el glifo "MH" en una nube de puntos para animarlo. */
+let MHPTS=null;
+function getMHPoints(){
+  if(MHPTS) return MHPTS;
+  const S=220, oc=document.createElement('canvas'); oc.width=S; oc.height=S;
+  const o=oc.getContext('2d'); o.fillStyle='#000'; o.fillRect(0,0,S,S);
+  o.fillStyle='#fff'; o.textAlign='center'; o.textBaseline='middle';
+  o.font=`900 130px "Arial Black",Arial,sans-serif`; o.fillText('MH',S/2,S/2);
+  const d=o.getImageData(0,0,S,S).data, pts=[], step=3;
+  for(let y=0;y<S;y+=step) for(let x=0;x<S;x+=step){ if(d[(y*S+x)*4]>128) pts.push([(x-S/2)/S,(y-S/2)/S]); }
+  MHPTS=pts; return pts;
+}
+
+/* MH se materializa: partículas que vuelan y forman el MH; estallan y se rehacen con el golpe */
+const scene_mhForm = {
+  name:"MH se materializa",
+  enter(){ const pts=getMHPoints();
+    this.p=pts.map(h=>({hx:h[0],hy:h[1],cx:Math.random()*W,cy:Math.random()*H,s:0.4+Math.random()})); },
+  draw(a,t,dt){
+    const scale=Math.min(W,H)*0.72, kick=a.beatHold*a.beatHold;
+    for(const q of this.p){
+      const ang=Math.atan2(q.hy,q.hx);
+      const tx=CX+q.hx*scale+Math.cos(ang)*kick*scale*0.55*q.s;
+      const ty=CY+q.hy*scale+Math.sin(ang)*kick*scale*0.55*q.s;
+      q.cx+=(tx-q.cx)*Math.min(1,dt*7); q.cy+=(ty-q.cy)*Math.min(1,dt*7);
+      const c=palAt(State.globalHue+q.hx*0.4+0.15);
+      ctx.beginPath(); ctx.arc(q.cx,q.cy,1.3+a.beatHold*2.4,0,6.283);
+      ctx.fillStyle=rgb(c,0.85); ctx.shadowBlur=7+a.beatHold*12; ctx.shadowColor=rgb(c,0.95); ctx.fill();
+    }
+    ctx.shadowBlur=0;
+  }
+};
+
+/* MH girando en 3D (losa que voltea) */
+const scene_mh3D = {
+  name:"MH en 3D",
+  enter(){ this.pts=getMHPoints(); },
+  draw(a,t){
+    const scale=Math.min(W,H)*0.62*(1+a.bass*0.1), ang=t*0.9, ca=Math.cos(ang), sa=Math.sin(ang);
+    for(const z0 of [-0.05,0,0.05]) for(const h of this.pts){
+      const x1=h[0]*ca - z0*sa, z1=h[0]*sa + z0*ca, persp=1/(1.45 - z1);
+      const sx=CX+x1*scale*persp, sy=CY+h[1]*scale*persp, depth=z1+0.5;
+      const c=palAt(State.globalHue+0.1+depth*0.3);
+      ctx.beginPath(); ctx.arc(sx,sy,1.2*persp+a.beatHold*1.4,0,6.283);
+      ctx.fillStyle=rgb(c,0.45+0.45*depth); ctx.shadowBlur=6; ctx.shadowColor=rgb(c,0.7); ctx.fill();
+    }
+    ctx.shadowBlur=0;
+  }
+};
+
+/* MH estalla en mil pedazos y se recompone en cada golpe */
+const scene_mhShatter = {
+  name:"MH estalla",
+  enter(){ const pts=getMHPoints();
+    this.p=pts.map(h=>({hx:h[0],hy:h[1],cx:0,cy:0,vx:0,vy:0,init:false,s:0.4+Math.random()})); },
+  draw(a,t,dt){
+    const scale=Math.min(W,H)*0.72;
+    for(const q of this.p){
+      const homeX=CX+q.hx*scale, homeY=CY+q.hy*scale;
+      if(!q.init){ q.cx=homeX; q.cy=homeY; q.init=true; }
+      if(a.beat){ const ang=Math.atan2(q.hy,q.hx)+(Math.random()-.5)*1.2, f=(140+a.bass*360)*q.s;
+        q.vx+=Math.cos(ang)*f; q.vy+=Math.sin(ang)*f; }
+      q.vx+=(homeX-q.cx)*24*dt; q.vy+=(homeY-q.cy)*24*dt;
+      const damp=Math.pow(0.015,dt); q.vx*=damp; q.vy*=damp;
+      q.cx+=q.vx*dt; q.cy+=q.vy*dt;
+      const c=palAt(State.globalHue+q.s*0.25);
+      ctx.beginPath(); ctx.arc(q.cx,q.cy,1.5,0,6.283); ctx.fillStyle=rgb(c,0.85);
+      ctx.shadowBlur=6+a.beatHold*8; ctx.shadowColor=rgb(c,0.85); ctx.fill();
+    }
+    ctx.shadowBlur=0;
+  }
+};
+
+/* MH se dibuja solo (línea de escaneo que lo revela) */
+const scene_mhWipe = {
+  name:"MH se dibuja",
+  enter(){ this.pts=getMHPoints(); this.prog=0; },
+  draw(a,t,dt){
+    const scale=Math.min(W,H)*0.72;
+    this.prog+=dt*0.32*(1+a.level*0.8); if(this.prog>1.45) this.prog=0;
+    const p=Math.min(1,this.prog), wipeX=-0.5+p;
+    for(const h of this.pts){
+      if(h[0]>wipeX) continue;
+      const near=(wipeX-h[0])<0.06, x=CX+h[0]*scale, y=CY+h[1]*scale;
+      const c=palAt(State.globalHue+(near?0.5:0.12));
+      ctx.beginPath(); ctx.arc(x,y,near?2.6:1.4,0,6.283);
+      ctx.fillStyle=near?rgb([255,255,255],0.95):rgb(c,0.8);
+      ctx.shadowBlur=near?14:6; ctx.shadowColor=rgb(c,near?1:0.6); ctx.fill();
+    }
+    ctx.shadowBlur=0;
+    if(p<1){ const lx=CX+wipeX*scale;
+      ctx.beginPath(); ctx.moveTo(lx,CY-scale*0.42); ctx.lineTo(lx,CY+scale*0.42);
+      ctx.strokeStyle=rgb(palAt(State.globalHue+0.5),0.6); ctx.lineWidth=2;
+      ctx.shadowBlur=12; ctx.shadowColor=rgb(palAt(State.globalHue+0.5),1); ctx.stroke(); ctx.shadowBlur=0; }
+  }
+};
+
+const SCENES=[scene_mhForm,scene_mh3D,scene_mhShatter,scene_mhWipe,
+  scene_ringPulse,scene_spectrumRadial,scene_cityEq,scene_wave,scene_particles,
   scene_tunnel,scene_starWarp,scene_grid,scene_kaleido,scene_plasma,scene_orbits,scene_nameStrobe,
   scene_beatBurst,scene_ripples,scene_mirrorBars,scene_clubBeams,scene_dotGrid,
   scene_diamondRain,scene_spiral,scene_vu,scene_blob,
@@ -1058,7 +1157,8 @@ window.__setup=function(){
   document.getElementById('toast').classList.remove('show');
   Audio_.mode='demo'; Audio_._demoT=0; Audio_._nextBeat=0;
   State.globalHue=0; State.orderPos=0; State.sceneT=0;
-  shuffleOrder(); _renderAdvanceScene();
+  shuffleOrder(); State.sceneIdx=SCENES.indexOf(scene_mhForm); State.sceneT=0;
+  { const sc=SCENES[State.sceneIdx]; if(sc.enter) sc.enter(); }
 };
 window.__frame=function(n){
   const dt=1/RFPS; State.t=n*dt;
@@ -1091,7 +1191,7 @@ function setStatus(){
 function start(){
   if(State.running) return;
   State.running=true; intro.classList.add('gone');
-  shuffleOrder(); nextScene(); setStatus();
+  shuffleOrder(); gotoScene(SCENES.indexOf(scene_mhForm), true); setStatus();
   setTimeout(()=>{ if(intro.parentNode) intro.style.display='none'; },700);
 }
 document.getElementById('btnMic').addEventListener('click', async ()=>{ await Audio_.initMic(); start(); });

@@ -3,6 +3,11 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-22 — Visuales MHcollective: el símbolo MH cobra vida (30 escenas)
+- Qué se hizo (4ª iteración): el cliente pidió que "el símbolo MH se vea haciendo cosas" (usando skill de diseño → se aplicó `frontend-design`: el MH es el héroe/tesis). Se convirtió el glifo "MH" en nube de puntos (`getMHPoints()`: offscreen canvas + getImageData) y se crearon 4 escenas protagonistas: `scene_mhForm` (se materializa desde partículas; estalla/rehace con el golpe), `scene_mh3D` (losa MH que voltea en 3D), `scene_mhShatter` (estalla en mil pedazos y se recompone con muelle en cada beat), `scene_mhWipe` (se dibuja solo con línea de escaneo). Total **30 escenas**; el arranque (directo y render) fuerza `scene_mhForm` primero. Verificador ✅ APTO, 0 errores. Muestras enviadas al cliente (mp4).
+- Aclaración recurrente: el cliente pensaba que "26/30 escenas" = poca duración; NO — las escenas se encadenan/barajan sin parar (infinito) mientras suene la música. Se le explicó y se le envió muestra + el HTML.
+- render: se arregló `tools/render-video.mjs` para pasar params de URL (?sc= acorta la escena en muestras).
+
 ## 2026-08-22 — Visuales MHcollective: modo "Afterlife" (26 escenas + temas cinematográficos)
 - Qué se hizo (3ª iteración): el cliente pidió "magia, sorprender, como Afterlife". Se subió el nivel de `apps/mhcollective-visuals.html`:
   - **5 escenas nuevas cinematográficas**: geometría sagrada (mandala/flor de la vida), esfera celeste (partículas 3D girando con proyección en perspectiva), agujero de gusano (túnel 3D que curva), aurora (velos de luz), constelación (red de puntos que se enlazan). Total **26 escenas**.
