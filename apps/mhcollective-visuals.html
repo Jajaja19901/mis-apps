@@ -150,8 +150,9 @@
   </svg>
   <h1>MHCOLLECTIVE<small>VISUALES EN DIRECTO</small></h1>
   <p>Visuales que <b>reaccionan a tu música en tiempo real</b>. Para que suenen y se vean acordes,
-     conecta el <b>audio de tu mesa</b> (entrada de línea o micro) y pincha. <b>21 escenas</b> que rotan
-     y se barajan solas, con el color siempre cambiando: horas sin repetirse.</p>
+     conecta el <b>audio de tu mesa</b> (entrada de línea o micro) y pincha. <b>26 escenas</b> cinematográficas
+     (geometría sagrada, esfera celeste, agujero de gusano, aurora…) que rotan y se barajan con fundidos:
+     estética <b>Afterlife</b>, horas sin repetirse. Pulsa <b>C</b> para cambiar de tema de color.</p>
   <div class="btns">
     <button class="btn primary" id="btnMic">🎧 Empezar con la música (línea/micro)</button>
     <button class="btn ghost" id="btnDemo">▶︎ Ver en modo demo</button>
@@ -177,7 +178,7 @@
       <kbd>1…9 0</kbd><span>Ir directo a una escena</span>
       <kbd>F</kbd><span>Pantalla completa</span>
       <kbd>L</kbd><span>Mostrar / ocultar logo y textos</span>
-      <kbd>C</kbd><span>Cambiar rumbo de color</span>
+      <kbd>C</kbd><span>Cambiar tema de color (Afterlife, Celeste, Éter, Ascuas, Ibiza)</span>
       <kbd>A</kbd><span>Cambiar fuente de audio (micro ↔ demo)</span>
       <kbd>H / Esc</kbd><span>Abrir / cerrar esta ayuda</span>
     </div>
@@ -212,11 +213,19 @@ if(RENDER){ // PRNG con semilla → cada frame reproducible
     t = (t + Math.imul(t ^ t>>>7, 61|t)) ^ t; return ((t ^ t>>>14) >>> 0) / 4294967296; };
 }
 
-/* Paleta = anillo del logo (degradado estilo Instagram) */
-const STOPS = [
-  [254,218,117],[250,126,30],[245,96,64],
-  [214,41,118],[150,47,191],[79,91,213]
+/* Temas de color cinematográficos. Se cambian con la tecla C.
+   Por defecto "Afterlife Oro": monocromo cálido, elegante e hipnótico. */
+const THEMES = [
+  { name:"Afterlife Oro", stops:[[18,13,8],[86,56,22],[196,142,60],[240,206,138],[255,248,232]] },
+  { name:"Celestial",     stops:[[8,12,34],[36,54,130],[110,142,224],[196,216,255],[245,250,255]] },
+  { name:"Éter Violeta",  stops:[[14,8,26],[60,26,110],[128,70,208],[200,150,255],[244,232,255]] },
+  { name:"Ascuas",        stops:[[16,5,4],[110,20,10],[218,66,20],[250,150,44],[255,224,158]] },
+  { name:"Ibiza",         stops:[[254,218,117],[250,126,30],[245,96,64],[214,41,118],[150,47,191],[79,91,213]] }
 ];
+let THEME = 0;
+let STOPS = THEMES[THEME].stops;
+function cycleTheme(){ THEME=(THEME+1)%THEMES.length; STOPS=THEMES[THEME].stops;
+  if(typeof showToast==='function') showToast('TEMA · '+THEMES[THEME].name); }
 
 /* ---------- utilidades de color ---------- */
 function palAt(t){ // t 0..1 recorre el degradado
@@ -839,10 +848,128 @@ const scene_blob = {
   }
 };
 
+/* ══════ ESCENAS "MAGIA" — cinematográficas, tipo Afterlife ══════ */
+
+/* Geometría sagrada / mandala que respira */
+const scene_mandala = {
+  name:"Geometría sagrada",
+  draw(a,t){
+    const R=Math.min(W,H); const layers=6;
+    ctx.save(); ctx.translate(CX,CY);
+    for(let l=1;l<=layers;l++){
+      ctx.save(); ctx.rotate((l%2?1:-1)*t*0.06*l);
+      const petals=6*l, rad=R*0.055*l*(1+a.bass*0.22);
+      const c=palAt(State.globalHue + l/layers*0.6);
+      for(let i=0;i<petals;i++){
+        const ang=i/petals*6.283, x=Math.cos(ang)*rad, y=Math.sin(ang)*rad;
+        const v=(a.freq[(i*4+l)%a.freq.length]||0)/255;
+        ctx.beginPath(); ctx.arc(x,y, R*0.048*(1+v*0.7)+a.beatHold*7, 0,6.283);
+        ctx.lineWidth=1.2; ctx.strokeStyle=rgb(c,0.35+v*0.45);
+        ctx.shadowBlur=10+v*10; ctx.shadowColor=rgb(c,0.7); ctx.stroke();
+      }
+      ctx.restore();
+    }
+    ctx.restore(); ctx.shadowBlur=0;
+    drawLogoBadge(CX,CY,R*0.075,0.92);
+  }
+};
+
+/* Esfera de estrellas 3D girando (celeste) */
+const scene_wireSphere = {
+  name:"Esfera celeste",
+  enter(){ this.pts=[]; const N=460;
+    for(let i=0;i<N;i++){ const y=1-(i/(N-1))*2, r=Math.sqrt(Math.max(0,1-y*y)), th=i*2.399963;
+      this.pts.push([Math.cos(th)*r,y,Math.sin(th)*r]); } },
+  draw(a,t){
+    const R=Math.min(W,H)*0.36*(1+a.bass*0.16);
+    const cy=Math.cos(t*0.3),sy=Math.sin(t*0.3),cx=Math.cos(t*0.18),sx=Math.sin(t*0.18);
+    for(let k=0;k<this.pts.length;k++){ const p=this.pts[k];
+      let x=p[0],y=p[1],z=p[2];
+      let x1=x*cy - z*sy, z1=x*sy + z*cy;
+      let y1=y*cx - z1*sx, z2=y*sx + z1*cx;
+      const persp=1/(2.2 - z2), sX=CX+x1*R*persp, sY=CY+y1*R*persp;
+      const depth=(z2+1)/2, v=(a.freq[(k*3)%a.freq.length]||0)/255;
+      const c=palAt(State.globalHue+depth*0.5);
+      ctx.beginPath(); ctx.arc(sX,sY,(0.6+depth*2.6)*(1+a.beatHold*0.8)+v*2,0,6.283);
+      ctx.fillStyle=rgb(c,0.15+depth*0.8); ctx.shadowBlur=depth*10; ctx.shadowColor=rgb(c,depth); ctx.fill();
+    }
+    ctx.shadowBlur=0;
+    drawLogoBadge(CX,CY,Math.min(W,H)*0.09,0.85);
+  }
+};
+
+/* Agujero de gusano (túnel 3D que curva) */
+const scene_wormhole = {
+  name:"Agujero de gusano",
+  draw(a,t){
+    const M=Math.max(W,H), layers=30;
+    for(let i=0;i<layers;i++){
+      const p=((i/layers)+t*0.10)%1;          // 0 lejos → 1 cerca
+      const r=M*0.85*p*p*(1+a.beatHold*0.12);
+      const ox=Math.cos(t*0.7+p*7)* (1-p)*W*0.16;
+      const oy=Math.sin(t*0.6+p*7)* (1-p)*H*0.16;
+      const c=palAt(State.globalHue + p*0.7 + t*0.03);
+      ctx.beginPath(); ctx.arc(CX+ox,CY+oy,r,0,6.283);
+      ctx.lineWidth=1+p*3.5; ctx.strokeStyle=rgb(c,0.06+p*0.6);
+      ctx.shadowBlur=14*p; ctx.shadowColor=rgb(c,0.6*p); ctx.stroke();
+    }
+    ctx.shadowBlur=0;
+    drawLogoBadge(CX,CY,Math.min(W,H)*0.07,0.6+a.beatHold*0.4);
+  }
+};
+
+/* Aurora — velos de luz que fluyen */
+const scene_aurora = {
+  name:"Aurora",
+  draw(a,t){
+    ctx.globalCompositeOperation="lighter";
+    const veils=5;
+    for(let vv=0; vv<veils; vv++){
+      const c=palAt(State.globalHue + vv*0.12 + t*0.02);
+      const baseX=W*(0.12+0.18*vv), amp=70+a.mid*180;
+      ctx.beginPath();
+      for(let y=0;y<=H;y+=18){ const x=baseX + Math.sin(y*0.006+t*0.6+vv)*amp + Math.sin(y*0.02-t)*24; y===0?ctx.moveTo(x,y):ctx.lineTo(x,y); }
+      for(let y=H;y>=0;y-=18){ const x=baseX+90+a.bass*140 + Math.sin(y*0.006+t*0.6+vv)*amp; ctx.lineTo(x,y); }
+      ctx.closePath();
+      const g=ctx.createLinearGradient(baseX,0,baseX,H);
+      g.addColorStop(0,rgb(c,0)); g.addColorStop(.5,rgb(c,0.22+a.beatHold*0.2)); g.addColorStop(1,rgb(c,0));
+      ctx.fillStyle=g; ctx.fill();
+    }
+    ctx.globalCompositeOperation="source-over";
+    drawLogoBadge(CX,CY,Math.min(W,H)*0.1,0.82);
+  }
+};
+
+/* Constelación — red de puntos que se enlazan al pasar cerca */
+const scene_constellation = {
+  name:"Constelación",
+  enter(){ this.n=[]; for(let i=0;i<64;i++) this.n.push({x:Math.random()*W,y:Math.random()*H,vx:(Math.random()-.5)*30,vy:(Math.random()-.5)*30}); },
+  draw(a,t,dt){
+    const spd=1+a.level*3;
+    for(const p of this.n){ p.x+=p.vx*dt*spd; p.y+=p.vy*dt*spd;
+      if(p.x<0||p.x>W) p.vx*=-1; if(p.y<0||p.y>H) p.vy*=-1;
+      p.x=Math.max(0,Math.min(W,p.x)); p.y=Math.max(0,Math.min(H,p.y)); }
+    const lim=Math.min(W,H)*0.22;
+    for(let i=0;i<this.n.length;i++){ const p=this.n[i];
+      for(let j=i+1;j<this.n.length;j++){ const q=this.n[j];
+        const d=Math.hypot(p.x-q.x,p.y-q.y);
+        if(d<lim){ const c=palAt(State.globalHue+d/lim*0.4);
+          ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(q.x,q.y);
+          ctx.lineWidth=1; ctx.strokeStyle=rgb(c,(1-d/lim)*(0.35+a.beatHold*0.4)); ctx.stroke(); } }
+      const c=palAt(State.globalHue+0.3);
+      ctx.beginPath(); ctx.arc(p.x,p.y,1.8+a.beatHold*3,0,6.283); ctx.fillStyle=rgb(c,0.9);
+      ctx.shadowBlur=8; ctx.shadowColor=rgb(c,0.9); ctx.fill();
+    }
+    ctx.shadowBlur=0;
+    drawLogoBadge(CX,CY,Math.min(W,H)*0.11,0.85);
+  }
+};
+
 const SCENES=[scene_ringPulse,scene_spectrumRadial,scene_cityEq,scene_wave,scene_particles,
   scene_tunnel,scene_starWarp,scene_grid,scene_kaleido,scene_plasma,scene_orbits,scene_nameStrobe,
   scene_beatBurst,scene_ripples,scene_mirrorBars,scene_clubBeams,scene_dotGrid,
-  scene_diamondRain,scene_spiral,scene_vu,scene_blob];
+  scene_diamondRain,scene_spiral,scene_vu,scene_blob,
+  scene_mandala,scene_wireSphere,scene_wormhole,scene_aurora,scene_constellation];
 
 /* ---------- orden barajado (no repetir seguido) ---------- */
 function shuffleOrder(){
@@ -868,8 +995,7 @@ window.__goto=function(i){ State.auto=false; gotoScene(i,true); }; // saltar a u
 
 /* ---------- flash de transición ---------- */
 const flashEl=document.getElementById('flash');
-function flash(){ flashEl.style.transition="none"; flashEl.style.opacity="0.55";
-  requestAnimationFrame(()=>{ flashEl.style.transition="opacity .5s ease"; flashEl.style.opacity="0"; }); }
+function flash(){ /* transición cinematográfica: fundido a negro por canvas (State.transition) */ }
 
 /* ---------- toast ---------- */
 const toastEl=document.getElementById('toast'), toastName=document.getElementById('toastname');
@@ -910,6 +1036,9 @@ function loop(now){
     const vg=ctx.createRadialGradient(CX,CY,Math.min(W,H)*0.3,CX,CY,Math.max(W,H)*0.75);
     vg.addColorStop(0,"rgba(0,0,0,0)"); vg.addColorStop(1,"rgba(0,0,0,0.55)");
     ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+
+    // fundido a negro cinematográfico al cambiar de escena
+    if(State.transition>0){ ctx.fillStyle=rgb([2,2,7], Math.min(1,State.transition)*0.82); ctx.fillRect(0,0,W,H); }
   }
   requestAnimationFrame(loop);
 }
@@ -1003,7 +1132,7 @@ window.addEventListener('keydown', e=>{
   else if(k==='0'){ gotoScene(9,true); }
   else if(k==='f'){ toggleFS(); }
   else if(k==='l'){ State.showBrand=!State.showBrand; brand.classList.toggle('hidden',!State.showBrand); }
-  else if(k==='c'){ State.colorDir=-State.colorDir; State.globalHue=(State.globalHue+0.33)%1; showToast("COLOR ⟳"); }
+  else if(k==='c'){ cycleTheme(); }
   else if(k==='a'){ if(Audio_.mode==='demo'){ Audio_.initMic().then(setStatus); } else { Audio_.mode='demo'; setStatus(); } }
 });
 

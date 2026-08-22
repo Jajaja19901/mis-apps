@@ -3,6 +3,14 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-22 — Visuales MHcollective: modo "Afterlife" (26 escenas + temas cinematográficos)
+- Qué se hizo (3ª iteración): el cliente pidió "magia, sorprender, como Afterlife". Se subió el nivel de `apps/mhcollective-visuals.html`:
+  - **5 escenas nuevas cinematográficas**: geometría sagrada (mandala/flor de la vida), esfera celeste (partículas 3D girando con proyección en perspectiva), agujero de gusano (túnel 3D que curva), aurora (velos de luz), constelación (red de puntos que se enlazan). Total **26 escenas**.
+  - **Temas de color** (tecla C): "Afterlife Oro" (por defecto, monocromo cálido elegante), Celestial, Éter Violeta, Ascuas, Ibiza (el degradado Instagram anterior). `THEMES[]` + `let STOPS` + `cycleTheme()`; `palAt()` lee STOPS.
+  - **Transición cinematográfica**: fundido a negro por canvas (`State.transition`) en cada cambio de escena; se anuló el flash blanco.
+  - Textos de portada/ayuda actualizados. Verificador: ✅ APTO, 0 errores. Capturas de las 5 escenas mágicas confirmadas (se ven espectaculares con el logo B/N al centro).
+- Nota estética: la estética Afterlife = oscuro, monocromo oro/celeste, geometría sagrada, hipnótico. El logo B/N pega perfecto con el oro.
+
 ## 2026-08-22 — Visuales DJ audio-reactivos para MHcollective (21 escenas)
 - Qué se hizo: motor VJ de una sola pieza `apps/mhcollective-visuals.html`. A pantalla completa, escucha la música en tiempo real (Web Audio API: entrada de línea/micro, o arrastrar archivo de audio; con modo demo sintético si no hay audio). Mide bajo/medio/agudo y detecta cada golpe (beat). **21 escenas** Canvas 2D que rotan cada 26s y se barajan solas, con el color siempre cambiando → horas sin repetirse: anillo MH, espectro radial, ecualizador, onda, enjambre, túnel de rombos, hipervelocidad, retrowave, caleidoscopio, nebulosa, órbitas, nombre glitch, estallido MH, pulsos, barras espejo, focos de club, rejilla latente, lluvia MH, espiral, VU y blob. Emblema central = **logo completo MH Collective** (anillo degradado Instagram + rombo blanco + "MH" + tag "COLLECTIVE"), igual que la captura de perfil. Destello global sutil en cada golpe. Controles teclado (espacio/←→/1-9/F/L/C/A/H) + toque. PWA instalable, favicon=logo. Verificador: ✅ APTO, 0 errores. Capturas de escenas nuevas y del logo confirmadas.
 - IMPORTANTE (aclaración del cliente): NO quería un MP4. Quería MUCHAS visuales distintas con la temática MH que reaccionen a la música → la web reactiva es la entrega buena. Se descartó renderizar vídeo (probé pipeline puppeteer+ffmpeg-static: 90 min ≈ 1 GB y ~3,5 h, inviable en el repo). Quedó `tools/render-video.mjs` por si algún día se quiere exportar clips, pero NO es la entrega.
