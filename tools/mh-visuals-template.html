@@ -132,7 +132,7 @@ const A={ ctx:null, src:null, stream:null, meterAn:null, mode:"idle", level:0, b
   beat:0, beatHold:0, _hist:[], _cool:0,
   _setup(){ if(this.ctx){ if(this.ctx.state==='suspended') this.ctx.resume(); return; }
     const AC=window.AudioContext||window.webkitAudioContext; this.ctx=new AC();
-    this.meterAn=this.ctx.createAnalyser(); this.meterAn.fftSize=1024; this._m=new Uint8Array(this.meterAn.frequencyBinCount); },
+    this.meterAn=this.ctx.createAnalyser(); this.meterAn.fftSize=1024; this.meterAn.smoothingTimeConstant=0.6; this._m=new Uint8Array(this.meterAn.frequencyBinCount); },
   _wire(node){ if(this.src){ try{this.src.disconnect();}catch(e){} } this.src=node; node.connect(this.meterAn);
     if(viz) viz.connectAudio(node); },
   async initMic(id){ try{ if(this.stream) this.stream.getTracks().forEach(t=>t.stop());
@@ -143,23 +143,30 @@ const A={ ctx:null, src:null, stream:null, meterAn:null, mode:"idle", level:0, b
   initDemo(){ this._setup(); this._wire(demoSource(this.ctx)); this.mode="demo"; },
   async initFile(f){ this._setup(); const el=new Audio(URL.createObjectURL(f)); el.loop=true;
     const s=this.ctx.createMediaElementSource(el); s.connect(this.ctx.destination); this._wire(s); this.mode="file"; try{await el.play();}catch(e){} },
-  meter(){ if(!this.meterAn) return; this.meterAn.getByteFrequencyData(this._m);
+  meter(){
+    if(this.mode==='demo'){ // pulso sintético limpio (126 BPM) para que el MH lata en demo
+      this._dt=(this._dt||0)+0.0166; const be=60/126, ph=(this._dt%be)/be, env=Math.pow(1-ph,2.6);
+      this.bass=0.12+0.85*env; this.level=0.35+0.45*env; return; }
+    if(!this.meterAn) return; this.meterAn.getByteFrequencyData(this._m);
     let b=0; const n=this._m.length; for(let i=1;i<n*0.08;i++) b+=this._m[i]; this.bass=b/((n*0.08)*255)||0;
     let s=0; for(let i=0;i<n;i++) s+=this._m[i]; this.level=s/(n*255)||0; }
 };
 /* fuente sintética para el modo demo (silenciosa, solo alimenta el visualizador) */
 function demoSource(ctx){
   const out=ctx.createGain(); out.gain.value=1.0;
-  const o1=ctx.createOscillator(); o1.type='sawtooth'; o1.frequency.value=55; const g1=ctx.createGain(); g1.gain.value=0.35; o1.connect(g1).connect(out); o1.start();
+  const o1=ctx.createOscillator(); o1.type='sawtooth'; o1.frequency.value=55; const g1=ctx.createGain(); g1.gain.value=0.06; o1.connect(g1).connect(out); o1.start();
   const o2=ctx.createOscillator(); o2.type='triangle'; o2.frequency.value=220; const g2=ctx.createGain(); g2.gain.value=0.12; o2.connect(g2).connect(out); o2.start();
   // ruido agudos
   const bufSize=ctx.sampleRate*2, buf=ctx.createBuffer(1,bufSize,ctx.sampleRate), d=buf.getChannelData(0);
   for(let i=0;i<bufSize;i++) d[i]=(Math.random()*2-1)*0.25; const noise=ctx.createBufferSource(); noise.buffer=buf; noise.loop=true;
   const ng=ctx.createGain(); ng.gain.value=0.08; noise.connect(ng).connect(out); noise.start();
   // "kick" rítmico ~126 BPM modulando la ganancia
-  const lfo=ctx.createOscillator(); lfo.type='square'; lfo.frequency.value=126/60; const lg=ctx.createGain(); lg.gain.value=0.5;
-  lfo.connect(lg); lg.connect(out.gain); lfo.start();
+  const lfo=ctx.createOscillator(); lfo.type='sawtooth'; lfo.frequency.value=126/60; const lg=ctx.createGain(); lg.gain.value=0.6;
+  lfo.connect(lg); lg.connect(g1.gain); lfo.start();   // "kick" percusivo → el bajo pulsa fuerte
   const lfo2=ctx.createOscillator(); lfo2.type='sine'; lfo2.frequency.value=0.07; const lg2=ctx.createGain(); lg2.gain.value=40; lfo2.connect(lg2); lg2.connect(o1.frequency); lfo2.start();
+  // conectar a la salida en SILENCIO: mantiene el grafo procesando para que los
+  // analizadores (medidor + Butterchurn) reciban datos. Inaudible.
+  const silent=ctx.createGain(); silent.gain.value=0.0008; out.connect(silent); silent.connect(ctx.destination);
   return out;
 }
 
@@ -320,7 +327,10 @@ requestAnimationFrame(frame);
 /* ═══ arranque / UI ═══ */
 function launch(){ if(State.running) return; A.initDemo(); initViz(); State.running=true; }
 function reveal(){ intro.classList.add('gone'); setTimeout(()=>intro.style.display='none',750); }
-function start(){ launch(); reveal(); setStatus(); keepAwake(); }
+/* IMPORTANTE: el audio del navegador arranca EN PAUSA hasta que el usuario toca.
+   Hay que reanudarlo en cada gesto o no llega señal y nada reacciona. */
+function resumeAudio(){ try{ if(A.ctx && A.ctx.state==='suspended') A.ctx.resume(); }catch(e){} }
+function start(){ launch(); resumeAudio(); reveal(); setStatus(); keepAwake(); }
 let toastT;
 function setStatus(){ statusEl.classList.remove('hidden');
   dot.className = A.mode==='mic'||A.mode==='file' ? 'dot live':'dot demo';
@@ -339,7 +349,7 @@ function showAudiobar(){ if(A.mode!=='mic') return; audiobar.style.display='flex
 if(MOBILE){ document.getElementById('btnMic').textContent='🎧 Empezar (micrófono)';
   document.getElementById('hint').innerHTML='En el móvil: acepta el micrófono, deja el teléfono cerca de los altavoces y ponlo horizontal a pantalla completa.'; }
 
-document.getElementById('btnMic').addEventListener('click',async()=>{ launch(); await A.initMic(); reveal(); setStatus(); keepAwake(); showAudiobar(); });
+document.getElementById('btnMic').addEventListener('click',async()=>{ launch(); resumeAudio(); await A.initMic(); reveal(); setStatus(); keepAwake(); showAudiobar(); });
 document.getElementById('btnDemo').addEventListener('click',()=>start());
 const logoInput=document.getElementById('logoInput');
 document.getElementById('btnLogo').addEventListener('click',()=>logoInput.click());
@@ -358,7 +368,8 @@ addEventListener('keydown',e=>{ const k=e.key.toLowerCase();
   else if(k==='l'){ State.showBrand=!State.showBrand; brand.classList.toggle('hidden',!State.showBrand); }
   else if(k==='a'){ if(A.mode==='demo'){ A.initMic().then(()=>{setStatus();showAudiobar();}); } else { A.initDemo(); setStatus(); } }
 });
-addEventListener('click',e=>{ if(State.running && !intro.contains(e.target) && !helpEl.contains(e.target)) nextPreset(); });
+addEventListener('click',e=>{ resumeAudio(); if(State.running && !intro.contains(e.target) && !helpEl.contains(e.target)) nextPreset(); });
+addEventListener('touchstart',resumeAudio,{passive:true});
 let curT=null; addEventListener('mousemove',()=>{ document.body.style.cursor='default'; clearTimeout(curT); curT=setTimeout(()=>{ if(State.running) document.body.style.cursor='none'; },2500); showAudiobar(); });
 addEventListener('orientationchange',()=>setTimeout(resize,300));
 
