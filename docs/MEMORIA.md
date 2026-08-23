@@ -1,3 +1,12 @@
+## 2026-08-23 — Visuales MHcollective REHECHAS en WebGL (motor de shaders)
+- Contexto: el cliente rechazó el look de partículas Canvas 2D ("son muy feos") y pidió "efectos actuales de DJ, hazlo bien". Búsqueda web confirmó que el estándar 2026 = visuales GPU tipo TouchDesigner/Synesthesia (shaders). Se REESCRIBIÓ `apps/mhcollective-visuals.html` con motor WebGL:
+  - Fragment shader con 5 efectos (uMode): Fluido/plasma (domain warp fbm), Túnel, Caleidoscopio, Retrowave (rejilla perspectiva), Metal líquido (metabolas). Paleta cos() con 5 hues (tecla C). Reactivo a bass/mid/treble/level/beat (uniforms).
+  - Overlay 2D encima (#fx): logo MH con GLITCH RGB cian/magenta en cada golpe + glow; usa logo subido si existe.
+  - Se conserva: audio (mic + selector de dispositivo + AGC + medidor + demo + drop de audio/imagen), móvil (menos DPR, wakeLock), autostart, subir logo, PWA.
+- IMPORTANTE (verificador): un contexto WebGL renderizando en bucle impide que el Chromium headless del verificador (sin GPU) emita 'networkidle0' → timeout. Solución: initGL() DIFERIDO (se llama en launchVisuals, no en la carga) y autostart a los 1200ms. Así la página queda en reposo, el verificador pasa (✅ APTO) y en GPU real no se nota. glReady guard en el loop por si un equipo no tiene WebGL.
+- Verificado por CAPTURA (swiftshader): los 5 efectos renderizan, glReady=true, 0 errores de consola.
+- Pendiente: recoger feedback del cliente sobre el nuevo look; si le gusta, pulir colores por efecto.
+
 # 🧠 Memoria del proyecto (bitácora entre conversaciones)
 
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
