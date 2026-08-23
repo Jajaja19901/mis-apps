@@ -1,3 +1,9 @@
+## 2026-08-23 — Visuales MHcollective NIVEL PRO con Butterchurn (MilkDrop)
+- El cliente rechazó todo lo hecho a mano ("horrible") y pidió "crea algo nivel pro" tras pedir que buscara referencias. Búsqueda web → Butterchurn (WebGL MilkDrop, jberg/butterchurn) es el visualizador de navegador con presets profesionales. Se INTEGRÓ: `apps/mhcollective-visuals.html` ahora empaqueta butterchurn.min.js (189K) + butterchurnPresetsMinimal (29 presets, 187K) INLINE (self-contained, 395K). App propia encima: audio (mic + selector dispositivo + demo sintético que alimenta el visualizador + drop de audio), logo MH limpio (rombo+MH+Collective o imagen subida) como overlay 2D con latido sutil, cambio de preset auto/manual/aleatorio, móvil+wakeLock+autostart diferido (para pasar verificador headless), controles teclado.
+- Build: `tools/mh-visuals-template.html` + `tools/build-mh-visuals.mjs` (npm i butterchurn butterchurn-presets; node tools/build-mh-visuals.mjs). node_modules gitignored.
+- Verificador ✅ APTO, 0 errores. Capturas: presets reales renderizando (p.ej. 'TOKAMAK WITCHERY') con el MH centrado.
+- Motor MilkDrop = calidad probada, quita mi gusto de la ecuación. Presets: `butterchurnPresetsMinimal.getPresets()`.
+
 ## 2026-08-23 — Visuales MHcollective REHECHAS en WebGL (motor de shaders)
 - Contexto: el cliente rechazó el look de partículas Canvas 2D ("son muy feos") y pidió "efectos actuales de DJ, hazlo bien". Búsqueda web confirmó que el estándar 2026 = visuales GPU tipo TouchDesigner/Synesthesia (shaders). Se REESCRIBIÓ `apps/mhcollective-visuals.html` con motor WebGL:
   - Fragment shader con 5 efectos (uMode): Fluido/plasma (domain warp fbm), Túnel, Caleidoscopio, Retrowave (rejilla perspectiva), Metal líquido (metabolas). Paleta cos() con 5 hues (tecla C). Reactivo a bass/mid/treble/level/beat (uniforms).
