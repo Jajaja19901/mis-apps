@@ -3,6 +3,12 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-25 — Herramienta anonimizar-video (pixelar caras y matrículas)
+- Qué se hizo: el usuario pidió pixelar caras y matrículas de un vídeo suyo de WhatsApp (calle con peatones y coches aparcados, 86s). Se construyó `tools/anonimizar-video/`: detección ONNX en CPU (YOLOX-S personas/vehículos + pasada en mosaico para gente pequeña, YuNet caras, YOLOv9-t matrículas con zoom por vehículo), seguimiento temporal con interpolación de huecos, pixelado con márgenes y ffmpeg conservando el audio. QA: cobertura 100% de 11,5k detecciones, revisión visual fotograma a fotograma de matrículas y cabezas. Vídeo entregado por chat; NO se sube al repo (`.gitignore` ahora excluye `*.mp4` salvo la demo y los modelos ONNX).
+- Archivos tocados: `tools/anonimizar-video/{anonimizar.py,detect_lib.py,descargar-modelos.sh,README.md}`, `.gitignore`, `docs/MEMORIA.md`.
+- Pendiente / siguiente paso: nada. Para reutilizar: `./descargar-modelos.sh` (≈43 MB, una vez) y `python3 anonimizar.py entrada.mp4 salida.mp4`.
+- Datos a confirmar: ninguno.
+
 ## 2026-07-19 — Vídeo demo en la portada de Incuba tu Negocio
 - Qué se hizo: vídeo demo del producto (32s, MP4 1080p): la app peluqueria-aurora navegada de verdad (Playwright) dentro de un móvil flotante, narrador es-ES (Piper davefx via sherpa-onnx), música y efectos generados con numpy, rótulos y subtítulos (Remotion). Integrado en la PORTADA de apps/incuba-tu-negocio.html (tras el subtítulo, antes de la incubadora). Verificador: ✅ APTO.
 - Archivos tocados: apps/incuba-tu-negocio.html, apps/incuba-demo.mp4 (nuevo), apps/incuba-demo-poster.jpg (nuevo). Fuentes del vídeo en scratchpad de la sesión (video-incuba/).
