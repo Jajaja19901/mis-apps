@@ -17,10 +17,22 @@ personas** (más fiable que solo caras cuando la gente sale pequeña o de espald
 3. **Pixelado** en mosaico (bloques grandes, irreversible a efectos prácticos) con margen
    alrededor de cada zona, y codificación H.264 (`crf 18`) copiando el audio original.
 
-## Uso
+## Uso — aplicación con interfaz (recomendado)
 ```bash
-./descargar-modelos.sh                       # una vez (≈43 MB de modelos, no van al repo)
-pip install opencv-python-headless numpy onnxruntime
+pip install opencv-python-headless numpy onnxruntime   # una vez
+python3 app.py                                          # abre http://127.0.0.1:8765
+```
+Arrastras el vídeo y la app hace todo sola: los modelos se descargan la primera vez,
+ves el análisis **en directo** (los 4 procesos con sus recuadros) y luego cómo va
+quedando el pixelado. Al terminar muestra el QA (cobertura de todas las detecciones,
+duración intacta) y te deja **retocar**: pausa el vídeo, añade una zona dibujándola o
+quita un falso positivo con un clic, y re-exporta. El servidor solo escucha en
+127.0.0.1 y los trabajos quedan en `trabajos/` (fuera del repo).
+
+Requiere `ffmpeg` instalado (o `pip install imageio-ffmpeg`).
+
+## Uso — línea de comandos
+```bash
 python3 anonimizar.py entrada.mp4 salida.mp4
 ```
 

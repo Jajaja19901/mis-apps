@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Anonimizador de vídeos</title>
+<style>
+  :root{
+    --fondo:#0e1116; --panel:#161b23; --panel2:#1d242f; --borde:#2a3342;
+    --texto:#e8edf4; --suave:#93a1b5; --acento:#2dd4a7; --acento2:#22b18c;
+    --rojo:#f0546c; --ambar:#e8b93c;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{background:var(--fondo); color:var(--texto);
+    font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    min-height:100vh; display:flex; flex-direction:column}
+  main{width:min(760px,94vw); margin:0 auto; flex:1; padding:28px 0 40px}
+  header h1{font-size:1.5rem; letter-spacing:-.02em}
+  header p{color:var(--suave); margin-top:6px; font-size:.95rem}
+  .privacidad{display:inline-flex; align-items:center; gap:8px; margin-top:12px;
+    background:#12261f; border:1px solid #1e4235; color:#7fe0c3; font-size:.85rem;
+    padding:6px 12px; border-radius:999px}
+  .tarjeta{background:var(--panel); border:1px solid var(--borde); border-radius:14px;
+    padding:22px; margin-top:22px}
+  /* zona de soltar */
+  #zona{border:2px dashed var(--borde); border-radius:12px; padding:44px 20px;
+    text-align:center; cursor:pointer; transition:.15s}
+  #zona:hover, #zona.encima{border-color:var(--acento); background:#141d1a}
+  #zona .icono{font-size:2.2rem}
+  #zona strong{display:block; margin-top:10px}
+  #zona span{color:var(--suave); font-size:.9rem}
+  /* progreso */
+  .fase{display:flex; justify-content:space-between; align-items:baseline; gap:12px}
+  .fase b{font-size:1.05rem}
+  .fase small{color:var(--suave)}
+  .barra{height:10px; background:var(--panel2); border-radius:999px; overflow:hidden; margin-top:12px}
+  .barra i{display:block; height:100%; width:0; background:linear-gradient(90deg,var(--acento2),var(--acento));
+    border-radius:999px; transition:width .4s}
+  #detalle{color:var(--suave); font-size:.9rem; margin-top:10px; min-height:1.4em}
+  /* vista en directo */
+  #vivo{margin-top:16px}
+  #vivo p{color:var(--suave); font-size:.85rem; margin-bottom:8px}
+  #vivoImgs{display:flex; flex-wrap:wrap; gap:8px; justify-content:center}
+  #vivoImgs img{border-radius:10px; border:1px solid var(--borde); background:#000;
+    max-height:300px; max-width:100%; height:auto}
+  #vivoImgs.cuatro img{flex:1 1 130px; max-height:240px; width:auto; object-fit:contain}
+  #vivoImgs.uno img{max-height:420px}
+  /* resultado */
+  .lienzo{position:relative; border-radius:12px; overflow:hidden; background:#000;
+    margin-top:6px; line-height:0}
+  .lienzo video{width:100%; height:auto; display:block}
+  .lienzo canvas{position:absolute; inset:0; width:100%; height:100%; pointer-events:none}
+  .lienzo.editando canvas{pointer-events:auto; cursor:crosshair}
+  .insignias{display:flex; flex-wrap:wrap; gap:8px; margin:14px 0 4px}
+  .insignia{font-size:.82rem; padding:5px 11px; border-radius:999px;
+    background:var(--panel2); border:1px solid var(--borde); color:var(--suave)}
+  .insignia.ok{color:#7fe0c3; border-color:#1e4235; background:#12261f}
+  .insignia.mal{color:#ffb3be; border-color:#59202b; background:#2a1418}
+  .botones{display:flex; flex-wrap:wrap; gap:10px; margin-top:16px}
+  button, .boton{font:inherit; font-weight:600; border:0; border-radius:10px;
+    padding:11px 18px; cursor:pointer; transition:.15s}
+  .primario{background:var(--acento); color:#08251c}
+  .primario:hover{background:#43e6ba}
+  .secundario{background:var(--panel2); color:var(--texto); border:1px solid var(--borde)}
+  .secundario:hover{border-color:var(--suave)}
+  .peligro{background:transparent; color:var(--rojo); border:1px solid #59202b}
+  .activo{outline:2px solid var(--acento)}
+  button:disabled{opacity:.45; cursor:not-allowed}
+  /* retoques */
+  #retoques h3{font-size:1.02rem; margin-bottom:4px}
+  #retoques>p{color:var(--suave); font-size:.88rem}
+  #listaCambios{list-style:none; margin-top:10px; display:flex; flex-direction:column; gap:6px}
+  #listaCambios li{display:flex; justify-content:space-between; align-items:center; gap:10px;
+    background:var(--panel2); border:1px solid var(--borde); border-radius:9px;
+    padding:7px 12px; font-size:.88rem}
+  #listaCambios button{padding:3px 10px; font-size:.8rem}
+  #duracionPanel{margin-top:12px; padding:12px; background:var(--panel2);
+    border:1px solid var(--borde); border-radius:10px; font-size:.9rem;
+    display:flex; flex-wrap:wrap; gap:10px; align-items:center}
+  #duracionPanel input{width:70px; font:inherit; padding:6px 8px; border-radius:8px;
+    border:1px solid var(--borde); background:var(--fondo); color:var(--texto)}
+  .oculto{display:none !important}
+  #error{margin-top:16px; padding:14px; border-radius:10px; background:#2a1418;
+    border:1px solid #59202b; color:#ffb3be; font-size:.92rem}
+  footer{text-align:center; padding:18px; color:#5a6678; font-size:.8rem}
+  footer a{color:inherit}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>🕶️ Anonimizador de vídeos</h1>
+    <p>Pixela automáticamente <b>caras, cabezas y matrículas</b>. Detecta, sigue cada zona
+       entre fotogramas y verifica la cobertura antes de darte el vídeo.</p>
+    <div class="privacidad">🔒 Todo se procesa en tu ordenador — el vídeo no se sube a internet</div>
+  </header>
+
+  <!-- paso 1: elegir vídeo -->
+  <section class="tarjeta" id="pasoSubir">
+    <div id="zona">
+      <div class="icono">🎬</div>
+      <strong>Arrastra aquí tu vídeo o haz clic para elegirlo</strong>
+      <span>mp4, mov, webm… · máximo 2 GB</span>
+    </div>
+    <input type="file" id="fichero" accept="video/*,.mp4,.mov,.webm,.mkv,.avi,.3gp" hidden>
+  </section>
+
+  <!-- paso 2: progreso -->
+  <section class="tarjeta oculto" id="pasoProgreso">
+    <div class="fase"><b id="faseTitulo">Subiendo…</b><small id="fasePct">0%</small></div>
+    <div class="barra"><i id="barra"></i></div>
+    <div id="detalle"></div>
+    <div id="vivo" class="oculto">
+      <p id="vivoTitulo"></p>
+      <div id="vivoImgs"></div>
+    </div>
+  </section>
+
+  <!-- paso 3: resultado + retoques -->
+  <section class="tarjeta oculto" id="pasoResultado">
+    <div class="fase"><b>✅ Vídeo anonimizado</b><small id="nombreArchivo"></small></div>
+    <div class="insignias" id="insignias"></div>
+    <div class="lienzo" id="lienzo">
+      <video id="video" controls playsinline></video>
+      <canvas id="capa"></canvas>
+    </div>
+
+    <div class="botones">
+      <a class="boton primario" id="btnDescargar" href="#" download>⬇️ Descargar vídeo</a>
+      <button class="secundario" id="btnOtro">Procesar otro vídeo</button>
+    </div>
+
+    <div id="retoques" style="margin-top:26px">
+      <h3>Retoques (opcional)</h3>
+      <p>Pausa el vídeo donde quieras retocar: verás las zonas pixeladas marcadas.
+         Puedes <b>añadir</b> una zona que falte dibujándola, o <b>quitar</b> una que sobre
+         (un falso positivo) haciendo clic en ella.</p>
+      <div class="botones">
+        <button class="secundario" id="btnAnadir">➕ Añadir zona</button>
+        <button class="secundario" id="btnQuitar">🧽 Quitar zona</button>
+        <button class="primario oculto" id="btnAplicar">Aplicar retoques y re-exportar</button>
+      </div>
+      <div id="duracionPanel" class="oculto">
+        Zona dibujada. ¿Cuánto debe durar el pixelado?
+        <button class="secundario" data-dur="video">Todo el vídeo</button>
+        <button class="secundario" data-dur="fin">Desde aquí hasta el final</button>
+        <label>Desde aquí, <input type="number" id="durSeg" value="5" min="1" step="1"> s
+          <button class="secundario" data-dur="seg">Vale</button></label>
+        <button class="peligro" data-dur="cancelar">Cancelar</button>
+      </div>
+      <ul id="listaCambios"></ul>
+    </div>
+  </section>
+
+  <div id="error" class="oculto"></div>
+</main>
+<footer>Diseñado por <b>Incuba tu Negocio</b> · por Jaime M. M. — herramienta local, sin nube</footer>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const FASES = {en_cola:"En cola…", modelos:"Preparando los modelos", deteccion:"Detectando caras y matrículas",
+               pixelado:"Pixelando el vídeo", qa:"Verificando el resultado", listo:"Terminado", error:"Error"};
+let jobId = null, estado = null, sondeo = null;
+let quitar = new Set();       // ids de pista excluidos, p.ej. "pl:p3"
+let anadir = [];              // {x1,y1,x2,y2,f0,f1,_desc}
+let modo = null;              // null | "anadir" | "quitar"
+let rectTmp = null;           // rectángulo recién dibujado (px de vídeo)
+
+// ---------- subida ----------
+$("zona").onclick = () => $("fichero").click();
+$("fichero").onchange = () => { if ($("fichero").files[0]) subir($("fichero").files[0]); };
+["dragover","dragenter"].forEach(ev => $("zona").addEventListener(ev, e => {e.preventDefault(); $("zona").classList.add("encima");}));
+["dragleave","drop"].forEach(ev => $("zona").addEventListener(ev, e => {e.preventDefault(); $("zona").classList.remove("encima");}));
+$("zona").addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if (f) subir(f); });
+
+function subir(f){
+  ocultarError();
+  $("pasoSubir").classList.add("oculto");
+  $("pasoProgreso").classList.remove("oculto");
+  ponProgreso("Subiendo el vídeo…", 0, f.name);
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", "/api/subir");
+  xhr.setRequestHeader("X-Nombre-Archivo", encodeURIComponent(f.name));
+  xhr.upload.onprogress = e => { if (e.lengthComputable) ponProgreso("Subiendo el vídeo…", e.loaded*100/e.total, f.name); };
+  xhr.onload = () => {
+    let r = {};
+    try { r = JSON.parse(xhr.responseText); } catch(_){}
+    if (xhr.status !== 200) return fallo(r.error || "No se pudo subir el vídeo");
+    jobId = r.id;
+    sondeo = setInterval(consultarEstado, 800);
+  };
+  xhr.onerror = () => fallo("No se pudo conectar con la aplicación. ¿Sigue arrancada en la terminal?");
+  xhr.send(f);
+}
+
+// ---------- progreso ----------
+function ponProgreso(titulo, pct, detalle){
+  $("faseTitulo").textContent = titulo;
+  $("fasePct").textContent = Math.round(pct) + "%";
+  $("barra").style.width = Math.max(2, Math.round(pct)) + "%";
+  if (detalle !== undefined) $("detalle").textContent = detalle;
+}
+
+async function consultarEstado(){
+  let e;
+  try { e = await (await fetch(`/api/estado/${jobId}`)).json(); }
+  catch(_){ return; }
+  estado = e;
+  if (e.fase === "error"){ clearInterval(sondeo); ocultarVivo(); return fallo(e.error || "Algo falló procesando el vídeo"); }
+  if (!e.listo){ ponProgreso(FASES[e.fase] || e.fase, e.pct, e.detalle); actualizarVivo(e.fase); return; }
+  clearInterval(sondeo);
+  ocultarVivo();
+  mostrarResultado();
+}
+
+// ---------- vista en directo ----------
+const vivoImgs = {};  // nombre -> <img>
+function imgVivo(nombre){
+  if (!vivoImgs[nombre]){
+    const im = document.createElement("img");
+    im.alt = "vista en directo";
+    im.style.display = "none";
+    $("vivoImgs").appendChild(im);
+    vivoImgs[nombre] = im;
+  }
+  return vivoImgs[nombre];
+}
+function actualizarVivo(fase){
+  const caja = $("vivo");
+  if (fase === "deteccion"){
+    caja.classList.remove("oculto");
+    $("vivoImgs").className = "cuatro";
+    $("vivoTitulo").textContent = "🔎 Vista en directo del análisis (4 procesos a la vez) — verde: personas · rosa: caras · rojo: matrículas";
+    for (let i = 0; i < 4; i++) cargaVivo(`analisis_${i}`);
+  } else if (fase === "pixelado"){
+    if ($("vivoImgs").className !== "uno"){
+      Object.values(vivoImgs).forEach(im => im.remove());
+      for (const k in vivoImgs) delete vivoImgs[k];
+    }
+    caja.classList.remove("oculto");
+    $("vivoImgs").className = "uno";
+    $("vivoTitulo").textContent = "🖌️ Vista en directo — así va quedando el vídeo";
+    cargaVivo("progreso");
+  } else ocultarVivo();
+}
+function cargaVivo(nombre){
+  const im = imgVivo(nombre);
+  const pre = new Image();
+  pre.onload = () => { im.src = pre.src; im.style.display = ""; };
+  pre.src = `/api/preview/${jobId}?f=${nombre}&t=${Date.now()}`;
+}
+function ocultarVivo(){ $("vivo").classList.add("oculto"); }
+
+// ---------- resultado ----------
+function mostrarResultado(){
+  $("pasoProgreso").classList.add("oculto");
+  $("pasoResultado").classList.remove("oculto");
+  $("nombreArchivo").textContent = estado.nombre;
+  $("btnDescargar").href = `/api/descargar/${jobId}`;
+  const v = $("video");
+  v.src = `/api/video/${jobId}?v=${estado.version}`;
+  const ins = [];
+  if (estado.pistas) ins.push(["insignia", `👤 ${estado.pistas.persons} personas · 🙂 ${estado.pistas.faces} caras · 🚗 ${estado.pistas.plates} matrículas detectadas`]);
+  if (estado.qa){
+    const q = estado.qa;
+    const excl = q.excluidas ? ` · ${q.excluidas} quitadas por ti` : "";
+    ins.push([q.sin_cubrir === 0 ? "insignia ok" : "insignia mal",
+      q.sin_cubrir === 0 ? `✅ Cobertura 100% (${q.revisadas.toLocaleString("es")} detecciones tapadas${excl})`
+                         : `⚠️ ${q.sin_cubrir} detecciones sin tapar — revisa y retoca`]);
+    ins.push([q.frames_ok ? "insignia ok" : "insignia mal",
+      q.frames_ok ? `✅ ${q.frames_salida} fotogramas, duración intacta` : `⚠️ nº de fotogramas distinto`]);
+  }
+  $("insignias").innerHTML = "";
+  for (const [cls, txt] of ins){
+    const s = document.createElement("span"); s.className = cls; s.textContent = txt;
+    $("insignias").appendChild(s);
+  }
+  pintarLista();
+}
+
+$("btnOtro").onclick = () => location.reload();
+
+function fallo(msg){
+  $("pasoProgreso").classList.add("oculto");
+  $("error").classList.remove("oculto");
+  $("error").textContent = "❌ " + msg;
+  $("pasoSubir").classList.remove("oculto");
+}
+function ocultarError(){ $("error").classList.add("oculto"); }
+
+// ---------- capa de regiones ----------
+const video = $("video"), capa = $("capa");
+let regionesFrame = [];  // [[kind,tid,x1,y1,x2,y2],...] del fotograma actual
+
+function frameActual(){
+  if (!estado || !estado.fps) return 0;
+  return Math.max(0, Math.min(estado.frames - 1, Math.round(video.currentTime * estado.fps)));
+}
+function escala(){
+  const r = capa.getBoundingClientRect();
+  capa.width = r.width; capa.height = r.height;
+  return { sx: r.width / (video.videoWidth || estado.w || 1),
+           sy: r.height / (video.videoHeight || estado.h || 1) };
+}
+async function refrescarCapa(){
+  if (video.paused && !video.seeking){
+    try {
+      const r = await (await fetch(`/api/regiones/${jobId}?n=${frameActual()}`)).json();
+      regionesFrame = r.regiones || [];
+    } catch(_){ regionesFrame = []; }
+  } else regionesFrame = [];
+  pintarCapa();
+}
+function pintarCapa(){
+  const {sx, sy} = escala();
+  const g = capa.getContext("2d");
+  g.clearRect(0, 0, capa.width, capa.height);
+  if (!video.paused) return;
+  const n = frameActual();
+  for (const r of regionesFrame){
+    const [kind, tid, x1, y1, x2, y2] = r;
+    const fuera = quitar.has(tid) || kind === "quitado";
+    g.lineWidth = 2;
+    g.setLineDash(fuera ? [5,4] : []);
+    g.strokeStyle = fuera ? "#f0546c" : (kind === "plate" ? "#e8b93c" : "#2dd4a7");
+    g.strokeRect(x1*sx, y1*sy, (x2-x1)*sx, (y2-y1)*sy);
+    if (fuera){
+      g.beginPath();
+      g.moveTo(x1*sx, y1*sy); g.lineTo(x2*sx, y2*sy);
+      g.moveTo(x2*sx, y1*sy); g.lineTo(x1*sx, y2*sy);
+      g.stroke();
+    }
+  }
+  g.setLineDash([]);
+  g.strokeStyle = "#7fb2ff";
+  for (const z of anadir){
+    if (z.f0 <= n && n <= z.f1) g.strokeRect(z.x1*sx, z.y1*sy, (z.x2-z.x1)*sx, (z.y2-z.y1)*sy);
+  }
+  if (rectTmp) g.strokeRect(rectTmp.x1*sx, rectTmp.y1*sy, (rectTmp.x2-rectTmp.x1)*sx, (rectTmp.y2-rectTmp.y1)*sy);
+}
+video.addEventListener("pause", refrescarCapa);
+video.addEventListener("seeked", refrescarCapa);
+video.addEventListener("play", pintarCapa);
+window.addEventListener("resize", pintarCapa);
+
+// ---------- modos de edición ----------
+function ponModo(m){
+  modo = (modo === m) ? null : m;
+  $("btnAnadir").classList.toggle("activo", modo === "anadir");
+  $("btnQuitar").classList.toggle("activo", modo === "quitar");
+  $("lienzo").classList.toggle("editando", modo !== null);
+  $("duracionPanel").classList.add("oculto");
+  rectTmp = null;
+  if (modo){ video.pause(); refrescarCapa(); }
+  else pintarCapa();
+}
+$("btnAnadir").onclick = () => ponModo("anadir");
+$("btnQuitar").onclick = () => ponModo("quitar");
+
+// dibujo / clic en la capa
+let arrastre = null;
+function coordsVideo(ev){
+  const r = capa.getBoundingClientRect();
+  const sx = (video.videoWidth || estado.w) / r.width;
+  const sy = (video.videoHeight || estado.h) / r.height;
+  return { x: (ev.clientX - r.left) * sx, y: (ev.clientY - r.top) * sy };
+}
+capa.addEventListener("pointerdown", ev => {
+  if (!modo) return;
+  ev.preventDefault();
+  capa.setPointerCapture(ev.pointerId);
+  const p = coordsVideo(ev);
+  if (modo === "anadir") arrastre = p;
+  else if (modo === "quitar"){
+    for (const r of regionesFrame){
+      const [, tid, x1, y1, x2, y2] = r;
+      if (p.x >= x1 && p.x <= x2 && p.y >= y1 && p.y <= y2){
+        if (quitar.has(tid)) quitar.delete(tid); else quitar.add(tid);
+        pintarLista(); pintarCapa();
+        return;
+      }
+    }
+  }
+});
+capa.addEventListener("pointermove", ev => {
+  if (modo !== "anadir" || !arrastre) return;
+  const p = coordsVideo(ev);
+  rectTmp = { x1: Math.min(arrastre.x, p.x), y1: Math.min(arrastre.y, p.y),
+              x2: Math.max(arrastre.x, p.x), y2: Math.max(arrastre.y, p.y) };
+  pintarCapa();
+});
+capa.addEventListener("pointerup", () => {
+  if (modo !== "anadir" || !arrastre) return;
+  arrastre = null;
+  if (rectTmp && (rectTmp.x2 - rectTmp.x1) > 4 && (rectTmp.y2 - rectTmp.y1) > 4)
+    $("duracionPanel").classList.remove("oculto");
+  else { rectTmp = null; pintarCapa(); }
+});
+
+// duración de la zona añadida
+$("duracionPanel").addEventListener("click", ev => {
+  const d = ev.target.dataset && ev.target.dataset.dur;
+  if (!d) return;
+  $("duracionPanel").classList.add("oculto");
+  if (d === "cancelar" || !rectTmp){ rectTmp = null; pintarCapa(); return; }
+  const f0v = frameActual();
+  let f0 = 0, f1 = estado.frames - 1, desc = "todo el vídeo";
+  if (d === "fin"){ f0 = f0v; desc = `desde ${seg(f0)} hasta el final`; }
+  if (d === "seg"){
+    const s = Math.max(1, parseFloat($("durSeg").value) || 5);
+    f0 = f0v; f1 = Math.min(estado.frames - 1, Math.round(f0 + s * estado.fps));
+    desc = `de ${seg(f0)} a ${seg(f1)}`;
+  }
+  anadir.push({...rectTmp, f0, f1, _desc: desc});
+  rectTmp = null;
+  ponModo(null);
+  pintarLista(); pintarCapa();
+});
+const seg = f => { const t = f / (estado.fps || 30); return `${Math.floor(t/60)}:${String(Math.floor(t%60)).padStart(2,"0")}`; };
+
+// lista de cambios pendientes + aplicar
+const NOMBRE_TIPO = {"p":"cabeza", "f":"cara", "pl":"matrícula"};
+function pintarLista(){
+  const ul = $("listaCambios");
+  ul.innerHTML = "";
+  quitar.forEach(tid => {
+    const li = document.createElement("li");
+    const tipo = NOMBRE_TIPO[tid.split(":")[0]] || "zona";
+    li.append(`🧽 Quitar pixelado de una ${tipo} (${tid})`);
+    li.appendChild(botonDeshacer(() => { quitar.delete(tid); }));
+    ul.appendChild(li);
+  });
+  anadir.forEach((z, i) => {
+    const li = document.createElement("li");
+    li.append(`➕ Zona nueva pixelada — ${z._desc}`);
+    li.appendChild(botonDeshacer(() => { anadir.splice(i, 1); }));
+    ul.appendChild(li);
+  });
+  $("btnAplicar").classList.toggle("oculto", quitar.size === 0 && anadir.length === 0);
+}
+function botonDeshacer(fn){
+  const b = document.createElement("button");
+  b.className = "peligro"; b.textContent = "deshacer";
+  b.onclick = () => { fn(); pintarLista(); pintarCapa(); };
+  return b;
+}
+
+$("btnAplicar").onclick = async () => {
+  ponModo(null);
+  const cuerpo = { quitar: [...quitar],
+                   anadir: anadir.map(z => ({x1:z.x1, y1:z.y1, x2:z.x2, y2:z.y2, f0:z.f0, f1:z.f1})) };
+  const r = await fetch(`/api/retocar/${jobId}`, {method:"POST", headers:{"Content-Type":"application/json"},
+                                                  body: JSON.stringify(cuerpo)});
+  if (!r.ok){ const e = await r.json().catch(()=>({})); return fallo(e.error || "No se pudo re-exportar"); }
+  $("pasoResultado").classList.add("oculto");
+  $("pasoProgreso").classList.remove("oculto");
+  ponProgreso("Aplicando retoques…", 0, "");
+  sondeo = setInterval(consultarEstado, 800);
+};
+</script>
+</body>
+</html>
