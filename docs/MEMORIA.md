@@ -3,6 +3,12 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-25 (2) — App local del anonimizador, automática y con vista en directo
+- Qué se hizo: el usuario pidió convertir el anonimizador en aplicación automática y ver el proceso en directo. Nueva app local (`python3 app.py` → http://127.0.0.1:8765): arrastras el vídeo, ves el análisis EN DIRECTO (4 procesos con recuadros de lo detectado) y el pixelado según avanza, QA con insignias (cobertura + duración) y editor de retoques (añadir zona dibujando / quitar falso positivo con un clic, re-export rápido desde detecciones cacheadas; lo quitado cuenta como "quitadas por ti", no como fallo). Probada de punta a punta: Playwright (UI real, 0 errores JS), API con retoque verificado píxel a píxel, y el vídeo completo del usuario (2570 fotogramas, 11.471 detecciones, 0 sin cubrir). Ojo: el Chromium de pruebas del sandbox no trae códec H.264 (el reproductor sale negro ahí; en navegadores reales se ve).
+- Archivos tocados: `tools/anonimizar-video/{app.py,interfaz.html,anonimizar.py,README.md}`, `.gitignore` (excluye `trabajos/` con los vídeos de usuarios).
+- Pendiente / siguiente paso: nada. Ideas futuras: elegir mosaico/desenfoque en la UI, procesar varios vídeos en cola.
+- Datos a confirmar: ninguno.
+
 ## 2026-08-25 — Herramienta anonimizar-video (pixelar caras y matrículas)
 - Qué se hizo: el usuario pidió pixelar caras y matrículas de un vídeo suyo de WhatsApp (calle con peatones y coches aparcados, 86s). Se construyó `tools/anonimizar-video/`: detección ONNX en CPU (YOLOX-S personas/vehículos + pasada en mosaico para gente pequeña, YuNet caras, YOLOv9-t matrículas con zoom por vehículo), seguimiento temporal con interpolación de huecos, pixelado con márgenes y ffmpeg conservando el audio. QA: cobertura 100% de 11,5k detecciones, revisión visual fotograma a fotograma de matrículas y cabezas. Vídeo entregado por chat; NO se sube al repo (`.gitignore` ahora excluye `*.mp4` salvo la demo y los modelos ONNX).
 - Archivos tocados: `tools/anonimizar-video/{anonimizar.py,detect_lib.py,descargar-modelos.sh,README.md}`, `.gitignore`, `docs/MEMORIA.md`.
