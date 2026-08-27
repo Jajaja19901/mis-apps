@@ -3,6 +3,12 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-27 (4) — v1.9: caché de matrículas en escena estable (el fix del "86s → 15min")
+- Qué se hizo: el usuario reportó 86 s de vídeo → 15 min. Causa: en vídeos de coches APARCADOS, los zooms de matrícula (hasta 5 inferencias de 640) se repetían en cada análisis. v1.9: si los vehículos no se movieron (IoU>0.85 con el análisis anterior), se reutilizan las matrículas desplazadas por el movimiento medio de la escena (cámara en mano), re-detección forzada cada 8 análisis o al primer cambio. ⚡Rápido por defecto (salto 4, sin tiles, 4 zooms — la caché los abarata). Clip de prueba: análisis 64s→24s, cobertura verificada VISUALMENTE fotograma a fotograma. LECCIÓN de QA: las tablas de MAE con coordenadas fijas dan falsas alarmas cuando la cámara se mueve — la verificación válida es visual (o con coordenadas por fotograma). CI run #9 verde, release v1.9 (versionCode 9). Estimación comunicada: 86s → 2-4 min en su móvil.
+- Archivos tocados: `tools/anonimizar-video/movil/{motor.js,index.html}`.
+- Pendiente / siguiente paso: esperar tiempos reales del usuario con la 1.9 (etiquetas ⏱️ y ⚙️). Si aún domina el análisis → pipelining decode∥inferencia nativa; si domina el pixelado → mirar códec (¿cayó a vp8/vp9 software?). Alternativa en pie: vídeos por chat y los proceso yo.
+- Datos a confirmar: tiempos e insignias reales de su móvil con la 1.9.
+
 ## 2026-08-27 (3) — v1.8: cronómetro por fases; el usuario NO tiene ordenador
 - Qué se hizo: seguía pareciéndole lento (sin datos de su móvil: nunca respondió qué decía la línea de diagnóstico). v1.7: actualización totalmente silenciosa (PackageInstaller + UPDATE_PACKAGES_WITHOUT_USER_ACTION; solo la primera auto-instalación pide confirmar). v1.8: cronómetro por fases visible en vivo y en insignias ("análisis Xs (N ms/fotograma) · pixelado Ys") para optimizar a tiro fijo con datos reales; ⚡ ahora salto 6 + 1 zoom. Escritorio: --rapido (tiny+salto 2, verificado píxel a píxel, clip 4s en ~22s netos) y app.py --movil (LAN+QR) — PREPARADO PERO EL USUARIO DIJO QUE NO TIENE ORDENADOR. Le expliqué que 10 s/min en móvil es físicamente imposible y que sin PC su vía "rápido y bien" es mandar el vídeo al chat para que lo procese yo. CI runs #7 y #8 verdes; release v1.8 con version.json 8.
 - Archivos tocados: `tools/anonimizar-video/{movil/motor.js,movil/index.html,app.py,anonimizar.py,detect_lib.py,android/**}`.
