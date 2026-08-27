@@ -6,7 +6,7 @@
 ## 2026-08-27 — Anonimizador móvil: web con WebCodecs + APK compilado en GitHub Actions
 - Qué se hizo: el usuario pidió "aplicación modo APK en GitHub". Se portó el pipeline completo a JavaScript (`tools/anonimizar-video/movil/`): onnxruntime-web (WebGPU→WASM) + mediabunny (WebCodecs), mismas constantes que escritorio, pistas con interpolación, vista en directo, QA de cobertura, audio copiado sin recomprimir; el vídeo no sale del dispositivo. Envoltorio Android WebView (`android/`, Kotlin: selector de vídeo + guardado a Descargas por puente JS) y workflow `apk-anonimizador.yml` que descarga modelos+libs, empaqueta assets, compila el APK debug y lo publica en la release `anonimizador-apk`. Probado el motor web de punta a punta con Playwright (clip VP9: cobertura 100%, salida verificada píxel a píxel, audio opus presente). Trampas descubiertas: ort resuelve `wasmPaths` contra su propio script (usar URL absoluta) y hay que empaquetar TAMBIÉN el par wasm sin sufijo `.jsep`.
 - Archivos tocados: `tools/anonimizar-video/{movil/**,android/**,README.md}`, `.github/workflows/apk-anonimizador.yml`, `.gitignore`.
-- Pendiente / siguiente paso: confirmar que la release `anonimizador-apk` queda publicada con el APK y que instala en un móvil real del usuario. Ideas: YuNet en móvil, editor de retoques móvil.
+- Pendiente / siguiente paso: CI ✅ verde (run #2) y release `anonimizador-apk` publicada con `anonimizador.apk` (60,6 MB). Falta que el usuario lo pruebe en su móvil real. Ideas: YuNet en móvil, editor de retoques móvil.
 - Datos a confirmar: ninguno.
 
 ## 2026-08-25 (2) — App local del anonimizador, automática y con vista en directo
