@@ -48,8 +48,23 @@ class MainActivity : AppCompatActivity() {
         }
 
         web.webViewClient = object : WebViewClientCompat() {
-            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
-                cargador.shouldInterceptRequest(request.url)
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
+                val r = cargador.shouldInterceptRequest(request.url) ?: return null
+                // MIME correcto para módulos ES y wasm (el adivinador de assets no los conoce)
+                val ruta = request.url.path ?: ""
+                when {
+                    ruta.endsWith(".mjs") || ruta.endsWith(".js") -> r.mimeType = "text/javascript"
+                    ruta.endsWith(".wasm") -> r.mimeType = "application/wasm"
+                    ruta.endsWith(".onnx") -> r.mimeType = "application/octet-stream"
+                }
+                // COOP/COEP: activa crossOriginIsolated → SharedArrayBuffer → WASM multi-hilo
+                val cab = HashMap(r.responseHeaders ?: emptyMap())
+                cab["Cross-Origin-Opener-Policy"] = "same-origin"
+                cab["Cross-Origin-Embedder-Policy"] = "require-corp"
+                cab["Cross-Origin-Resource-Policy"] = "same-origin"
+                r.responseHeaders = cab
+                return r
+            }
         }
 
         web.webChromeClient = object : WebChromeClient() {

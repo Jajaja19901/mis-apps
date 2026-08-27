@@ -123,18 +123,38 @@ $("btnOtro").onclick = () => location.reload();
 const FASES = { modelos:"Preparando los modelos", deteccion:"Detectando caras y matrículas",
   pistas:"Siguiendo las zonas", pixelado:"Pixelando el vídeo", audio:"Copiando el audio", final:"Terminando" };
 
+// modos: cuántos fotogramas se analizan y cuántas pasadas extra se hacen
+const MODOS = {
+  "3": { salto: 3, tiles: false, maxZooms: 2 },   // ⚡ rápido
+  "2": { salto: 2, tiles: true,  maxZooms: 4 },   // ⚖️ equilibrado
+  "1": { salto: 1, tiles: true,  maxZooms: 99 },  // 🔬 máximo
+};
+
+// estimación de tiempo restante a partir del ritmo reciente
+const histo = [];
+function eta(p){
+  const ahora = Date.now();
+  histo.push([ahora, p]);
+  while (histo.length > 24) histo.shift();
+  const [t0, p0] = histo[0];
+  if (ahora - t0 < 6000 || p - p0 < 0.4) return "";
+  const seg = (100 - p) * (ahora - t0) / 1000 / (p - p0);
+  if (!isFinite(seg) || seg <= 0) return "";
+  return seg < 90 ? ` · quedan ~${Math.round(seg)} s` : ` · quedan ~${Math.round(seg / 60)} min`;
+}
+
 async function empezar(fichero){
   nombreBase = (fichero.name || "video").replace(/\.[^.]+$/, "");
-  const salto = +document.querySelector('input[name="salto"]:checked').value;
+  const modo = MODOS[document.querySelector('input[name="salto"]:checked').value] || MODOS["2"];
   $("pasoSubir").classList.add("oculto");
   $("error").classList.add("oculto");
   $("pasoProgreso").classList.remove("oculto");
   const vivo = $("vivo"), vctx = vivo.getContext("2d");
   const avisos = [];
   try {
-    resultado = await anonimizar(fichero, { salto, minucioso: true }, {
-      fase: (f, d) => { $("faseTitulo").textContent = FASES[f] || f; $("detalle").textContent = d || ""; },
-      progreso: p => { $("fasePct").textContent = Math.round(p) + "%"; $("barra").style.width = Math.max(2, p) + "%"; },
+    resultado = await anonimizar(fichero, modo, {
+      fase: (f, d) => { $("faseTitulo").textContent = FASES[f] || f; $("detalle").textContent = d || ""; histo.length = 0; },
+      progreso: p => { $("fasePct").textContent = Math.round(p) + "%" + eta(p); $("barra").style.width = Math.max(2, p) + "%"; },
       aviso: t => avisos.push(t),
       vivo: (canvas, dets) => {
         $("vivoCaja").classList.remove("oculto");
@@ -169,7 +189,7 @@ function mostrarResultado(avisos){
   const s = resultado.stats;
   const ins = [
     ["insignia", `🎞️ ${s.frames} fotogramas · ${s.detecciones.toLocaleString("es")} detecciones`],
-    ["insignia", `⚙️ ${s.backend === "webgpu" ? "GPU (WebGPU)" : "CPU (WASM)"} · ${s.codec}${s.audio ? " + audio" : ""}`],
+    ["insignia", `⚙️ ${s.backend === "webgpu" ? "GPU (WebGPU)" : `CPU ${s.hilos} hilo${s.hilos > 1 ? "s" : ""}`} · ${s.modelo || ""} · ${s.codec}${s.audio ? " + audio" : ""}`],
     [s.sinCubrir === 0 ? "insignia ok" : "insignia mal",
       s.sinCubrir === 0 ? `✅ Cobertura 100% (${s.revisadas.toLocaleString("es")} tapadas)` : `⚠️ ${s.sinCubrir} sin tapar`],
   ];

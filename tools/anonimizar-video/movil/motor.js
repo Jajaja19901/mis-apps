@@ -23,7 +23,12 @@ const TRACK_CFG = {
   plates:  { iou: 0.15, gap: 30, extend: 8 },
 };
 const VEHICULOS = new Set([1, 2, 3, 5, 7]);
-const TAM = 640;
+const TAM_PLACAS = 640;
+// candidatos de detector de personas/vehículos, en orden de preferencia (móvil: tiny)
+const MODELOS_YOLOX = [
+  { fichero: 'yolox_tiny.onnx', tam: 416 },
+  { fichero: 'yolox_s.onnx', tam: 640 },
+];
 
 // ---------- utilidades geométricas ----------
 const iou = (a, b) => {
@@ -66,19 +71,27 @@ export class Detectores {
     const ort = globalThis.ort;
     // ruta ABSOLUTA: ort resuelve rutas relativas contra su propio script (ya en lib/)
     ort.env.wasm.wasmPaths = new URL(this.rutaLibs, document.baseURI).href;
-    ort.env.wasm.numThreads = globalThis.crossOriginIsolated
-      ? Math.min(4, navigator.hardwareConcurrency || 2) : 1;
+    // multi-hilo solo con aislamiento de origen (COOP/COEP); el APK lo activa
+    this.hilos = globalThis.crossOriginIsolated
+      ? Math.max(1, Math.min(8, (navigator.hardwareConcurrency || 2) - 1)) : 1;
+    ort.env.wasm.numThreads = this.hilos;
     const carga = async n => {
       avisa(`Cargando modelo ${n}…`);
       const r = await fetch(`${this.rutaModelos}/${n}`);
-      if (!r.ok) throw new Error(`No puedo cargar el modelo ${n} (${r.status})`);
+      if (!r.ok) return null;
       return new Uint8Array(await r.arrayBuffer());
     };
-    const [byolox, bplacas] = await Promise.all([
-      carga('yolox_s.onnx'), carga('plates-yolov9t-640.onnx')]);
+    let byolox = null;
+    for (const m of MODELOS_YOLOX) {
+      byolox = await carga(m.fichero);
+      if (byolox) { this.modelo = m.fichero.replace('.onnx', ''); this.tamY = m.tam; break; }
+    }
+    if (!byolox) throw new Error('No encuentro ningún modelo YOLOX en ' + this.rutaModelos);
+    const bplacas = await carga('plates-yolov9t-640.onnx');
+    if (!bplacas) throw new Error('No encuentro el modelo de matrículas');
     for (const eps of [['webgpu'], ['wasm']]) {
       try {
-        avisa(`Preparando el motor (${eps[0]})…`);
+        avisa(`Preparando el motor (${eps[0]}, ${this.hilos} hilo${this.hilos > 1 ? 's' : ''})…`);
         this.yolox = await ort.InferenceSession.create(byolox, { executionProviders: eps });
         this.placas = await ort.InferenceSession.create(bplacas, { executionProviders: eps });
         this.backend = eps[0];
@@ -87,29 +100,31 @@ export class Detectores {
         if (eps[0] === 'wasm') throw e;
       }
     }
-    // rejillas de YOLOX (strides 8/16/32)
+    // rejillas de YOLOX (strides 8/16/32) para su tamaño de entrada
     this.grids = [];
     for (const s of [8, 16, 32]) {
-      const n = TAM / s;
+      const n = this.tamY / s;
       for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) this.grids.push([x, y, s]);
     }
-    this.lienzo = new OffscreenCanvas(TAM, TAM);
-    this.ctx = this.lienzo.getContext('2d', { willReadFrequently: true });
+    this.cnvY = new OffscreenCanvas(this.tamY, this.tamY);
+    this.ctxY = this.cnvY.getContext('2d', { willReadFrequently: true });
+    this.cnvP = new OffscreenCanvas(TAM_PLACAS, TAM_PLACAS);
+    this.ctxP = this.cnvP.getContext('2d', { willReadFrequently: true });
   }
 
-  // dibuja fuente (canvas) con letterbox 640, devuelve ratio y los píxeles RGBA
-  _letterbox(fuente, sx, sy, sw, sh) {
-    const r = Math.min(TAM / sw, TAM / sh);
+  // dibuja fuente (canvas) con letterbox al tamaño dado, devuelve ratio y los píxeles RGBA
+  _letterbox(ctx, tam, fuente, sx, sy, sw, sh) {
+    const r = Math.min(tam / sw, tam / sh);
     const nw = Math.round(sw * r), nh = Math.round(sh * r);
-    this.ctx.fillStyle = 'rgb(114,114,114)';
-    this.ctx.fillRect(0, 0, TAM, TAM);
-    this.ctx.imageSmoothingEnabled = true;
-    this.ctx.drawImage(fuente, sx, sy, sw, sh, 0, 0, nw, nh);
-    return { r, datos: this.ctx.getImageData(0, 0, TAM, TAM).data };
+    ctx.fillStyle = 'rgb(114,114,114)';
+    ctx.fillRect(0, 0, tam, tam);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(fuente, sx, sy, sw, sh, 0, 0, nw, nh);
+    return { r, datos: ctx.getImageData(0, 0, tam, tam).data };
   }
 
-  _tensor(datos, orden, norm) {
-    const n = TAM * TAM;
+  _tensor(datos, tam, orden, norm) {
+    const n = tam * tam;
     const t = new Float32Array(3 * n);
     for (let i = 0; i < n; i++) {
       const p = i * 4;
@@ -117,16 +132,17 @@ export class Detectores {
       t[n + i] = datos[p + orden[1]] / norm;
       t[2 * n + i] = datos[p + orden[2]] / norm;
     }
-    return new globalThis.ort.Tensor('float32', t, [1, 3, TAM, TAM]);
+    return new globalThis.ort.Tensor('float32', t, [1, 3, tam, tam]);
   }
 
   // personas y vehículos sobre un recorte (sx,sy,sw,sh) del canvas fuente
   async _yolox(fuente, sx, sy, sw, sh, confP, confV) {
-    const { r, datos } = this._letterbox(fuente, sx, sy, sw, sh);
-    const salida = await this.yolox.run({ images: this._tensor(datos, [2, 1, 0], 1) }); // BGR sin normalizar
-    const o = salida.output.data; // (8400, 85)
+    const { r, datos } = this._letterbox(this.ctxY, this.tamY, fuente, sx, sy, sw, sh);
+    const salida = await this.yolox.run({ images: this._tensor(datos, this.tamY, [2, 1, 0], 1) }); // BGR sin normalizar
+    const o = salida.output.data; // (n_anclas, 85)
     const P = [], V = [];
-    for (let i = 0; i < 8400; i++) {
+    const nAnclas = this.grids.length;
+    for (let i = 0; i < nAnclas; i++) {
       const b = i * 85, obj = o[b + 4];
       if (obj < 0.05) continue;
       const [gx, gy, s] = this.grids[i];
@@ -144,8 +160,8 @@ export class Detectores {
   }
 
   async _placas(fuente, sx, sy, sw, sh, conf) {
-    const { r, datos } = this._letterbox(fuente, sx, sy, sw, sh);
-    const salida = await this.placas.run({ images: this._tensor(datos, [0, 1, 2], 255) }); // RGB /255
+    const { r, datos } = this._letterbox(this.ctxP, TAM_PLACAS, fuente, sx, sy, sw, sh);
+    const salida = await this.placas.run({ images: this._tensor(datos, TAM_PLACAS, [0, 1, 2], 255) }); // RGB /255
     const o = salida.output0.data; // (N, 7): [batch, x1,y1,x2,y2, clase, score]
     const res = [];
     for (let i = 0; i < o.length; i += 7) {
@@ -156,10 +172,12 @@ export class Detectores {
     return res;
   }
 
-  /** Detección completa de un fotograma (canvas a tamaño nativo WxH). */
-  async detectar(base, W, H, minucioso = true) {
+  /** Detección completa de un fotograma (canvas a tamaño nativo WxH).
+   *  opciones: { tiles: bool, maxZooms: number } */
+  async detectar(base, W, H, opciones = {}) {
+    const { tiles = true, maxZooms = 99 } = opciones;
     let { P, V } = await this._yolox(base, 0, 0, W, H, CONF_PERSON, CONF_VEHICLE);
-    if (minucioso) { // 2 tiles verticales para personas pequeñas
+    if (tiles) { // 2 tiles verticales para personas pequeñas
       const corte = Math.round(H * (0.5 + TILE_OVERLAP / 2));
       for (const [y1, y2] of [[0, corte], [H - corte, H]]) {
         const t = await this._yolox(base, 0, y1, W, y2 - y1, CONF_PERSON_TILE, 1.01);
@@ -168,7 +186,10 @@ export class Detectores {
       P = nms(P);
     }
     let PL = await this._placas(base, 0, 0, W, H, CONF_PLATE_FULL);
-    for (const v of V) { // zoom por vehículo
+    // zoom por vehículo: primero los MENORES (sus matrículas son las que lo necesitan)
+    const conZoom = [...V].sort((a, b) =>
+      (a[2] - a[0]) * (a[3] - a[1]) - (b[2] - b[0]) * (b[3] - b[1])).slice(0, maxZooms);
+    for (const v of conZoom) {
       const mw = (v[2] - v[0]) * 0.25, mh = (v[3] - v[1]) * 0.25;
       const cx1 = Math.max(0, v[0] - mw), cy1 = Math.max(0, v[1] - mh);
       const cw = Math.min(W, v[2] + mw) - cx1, ch = Math.min(H, v[3] + mh) - cy1;
@@ -253,12 +274,12 @@ async function elegirSalida(W, H, codecAudio) {
 
 // ---------- pipeline completo ----------
 /**
- * opciones: { salto: 1|2|3, minucioso: bool }
+ * opciones: { salto: 1|2|3, tiles: bool, maxZooms: number }
  * eventos: { fase(nombre, detalle), progreso(pct), vivo(canvas, cajas|null), aviso(txt) }
  * Devuelve { blob, ext, mime, stats }
  */
 export async function anonimizar(fichero, opciones, eventos) {
-  const { salto = 2, minucioso = true } = opciones || {};
+  const { salto = 2, tiles = true, maxZooms = 4 } = opciones || {};
   const ev = { fase() {}, progreso() {}, vivo() {}, aviso() {}, ...eventos };
 
   const det = new Detectores(opciones?.rutaModelos, opciones?.rutaLibs);
@@ -289,7 +310,7 @@ export async function anonimizar(fichero, opciones, eventos) {
       }
       if (n % salto === 0) {
         s.draw(bctx, 0, 0, W, H); // draw() aplica la rotación del vídeo
-        const d = await det.detectar(base, W, H, minucioso);
+        const d = await det.detectar(base, W, H, { tiles, maxZooms });
         dets.set(n, d);
         ev.vivo(base, d);
       }
@@ -388,7 +409,8 @@ export async function anonimizar(fichero, opciones, eventos) {
   return {
     blob, ext: salida.ext, mime,
     stats: {
-      frames: total, duracion, backend: det.backend, codec: salida.vcodec,
+      frames: total, duracion, backend: det.backend, hilos: det.hilos,
+      modelo: det.modelo, codec: salida.vcodec,
       audio: !!fuenteA, revisadas, sinCubrir,
       detecciones: [...dets.values()].reduce((a, d) => a + d.persons.length + d.plates.length, 0),
     },

@@ -11,13 +11,29 @@ android {
         applicationId = "es.incubatunegocio.anonimizador"
         minSdk = 29          // Android 10+; WebCodecs necesita un System WebView moderno
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
+    }
+
+    // Firma fija del repo: así cada APK nuevo ACTUALIZA al anterior en vez de
+    // pedir desinstalar (la clave debug de cada runner de CI cambiaría siempre).
+    signingConfigs {
+        create("propia") {
+            storeFile = file("firma.p12")
+            storeType = "pkcs12"
+            storePassword = "anonimizador"
+            keyAlias = "anonimizador"
+            keyPassword = "anonimizador"
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("propia")
+        }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("propia")
         }
     }
     compileOptions {

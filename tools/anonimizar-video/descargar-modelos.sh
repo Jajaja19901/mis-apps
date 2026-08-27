@@ -9,9 +9,13 @@ echo "· YuNet (caras)…"
 curl -sL -o models/yunet.onnx \
   "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx"
 
-echo "· YOLOX-S (personas y vehículos)…"
+echo "· YOLOX-S (personas y vehículos, escritorio)…"
 curl -sL -o models/yolox_s.onnx \
   "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.onnx"
+
+echo "· YOLOX-Tiny (personas y vehículos, móvil)…"
+curl -sL -o models/yolox_tiny.onnx \
+  "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_tiny.onnx"
 
 echo "· YOLOv9-t matrículas (open-image-models)…"
 curl -sL -o models/plates-yolov9t-640.onnx \
