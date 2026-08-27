@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Anonimizador de vídeos</title>
+<style>
+  :root{--fondo:#0e1116;--panel:#161b23;--panel2:#1d242f;--borde:#2a3342;
+    --texto:#e8edf4;--suave:#93a1b5;--acento:#2dd4a7;--rojo:#f0546c}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--fondo);color:var(--texto);min-height:100vh;display:flex;flex-direction:column;
+    font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) 0 env(safe-area-inset-left)}
+  main{width:min(680px,100%);margin:0 auto;flex:1;padding:20px 16px 34px}
+  h1{font-size:1.35rem;letter-spacing:-.02em}
+  header p{color:var(--suave);margin-top:6px;font-size:.92rem}
+  .privacidad{display:inline-flex;align-items:center;gap:8px;margin-top:10px;background:#12261f;
+    border:1px solid #1e4235;color:#7fe0c3;font-size:.8rem;padding:5px 11px;border-radius:999px}
+  .tarjeta{background:var(--panel);border:1px solid var(--borde);border-radius:14px;padding:18px;margin-top:16px}
+  #zona{border:2px dashed var(--borde);border-radius:12px;padding:34px 16px;text-align:center;cursor:pointer}
+  #zona:active,#zona.encima{border-color:var(--acento);background:#141d1a}
+  #zona .icono{font-size:2rem}
+  #zona strong{display:block;margin-top:8px}
+  #zona span{color:var(--suave);font-size:.85rem}
+  fieldset{border:0;margin-top:14px}
+  legend{font-size:.85rem;color:var(--suave);margin-bottom:8px}
+  .opciones{display:flex;gap:8px;flex-wrap:wrap}
+  .opciones label{flex:1 1 30%;text-align:center;background:var(--panel2);border:1px solid var(--borde);
+    border-radius:10px;padding:9px 6px;font-size:.85rem;cursor:pointer}
+  .opciones input{display:none}
+  .opciones input:checked+span{color:var(--acento);font-weight:700}
+  .fase{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+  .fase b{font-size:1rem}
+  .fase small{color:var(--suave)}
+  .barra{height:9px;background:var(--panel2);border-radius:999px;overflow:hidden;margin-top:10px}
+  .barra i{display:block;height:100%;width:0;background:linear-gradient(90deg,#22b18c,var(--acento));transition:width .5s}
+  #detalle{color:var(--suave);font-size:.85rem;margin-top:8px;min-height:1.3em}
+  #vivoCaja{margin-top:14px;text-align:center}
+  #vivoCaja p{color:var(--suave);font-size:.8rem;margin-bottom:6px}
+  #vivo{max-width:100%;max-height:56vh;border-radius:10px;border:1px solid var(--borde);background:#000}
+  video{width:100%;border-radius:10px;background:#000;margin-top:6px}
+  .insignias{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+  .insignia{font-size:.78rem;padding:4px 10px;border-radius:999px;background:var(--panel2);
+    border:1px solid var(--borde);color:var(--suave)}
+  .insignia.ok{color:#7fe0c3;border-color:#1e4235;background:#12261f}
+  .insignia.mal{color:#ffb3be;border-color:#59202b;background:#2a1418}
+  .botones{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+  button{font:inherit;font-weight:600;border:0;border-radius:10px;padding:12px 18px;cursor:pointer;flex:1 1 45%}
+  .primario{background:var(--acento);color:#08251c}
+  .secundario{background:var(--panel2);color:var(--texto);border:1px solid var(--borde)}
+  #error{margin-top:14px;padding:13px;border-radius:10px;background:#2a1418;border:1px solid #59202b;
+    color:#ffb3be;font-size:.88rem}
+  .nota{color:var(--suave);font-size:.8rem;margin-top:10px}
+  .oculto{display:none !important}
+  footer{text-align:center;padding:14px;color:#5a6678;font-size:.75rem}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>🕶️ Anonimizador de vídeos</h1>
+    <p>Pixela automáticamente <b>caras, cabezas y matrículas</b>, con seguimiento entre
+       fotogramas y verificación de cobertura.</p>
+    <div class="privacidad">🔒 Todo se procesa en tu dispositivo — el vídeo no se sube a internet</div>
+  </header>
+
+  <section class="tarjeta" id="pasoSubir">
+    <div id="zona">
+      <div class="icono">🎬</div>
+      <strong>Toca para elegir un vídeo</strong>
+      <span>o arrástralo aquí · mp4, mov, webm…</span>
+    </div>
+    <input type="file" id="fichero" accept="video/*" hidden>
+    <fieldset>
+      <legend>Velocidad del análisis (en el móvil, "equilibrado" va bien)</legend>
+      <div class="opciones">
+        <label><input type="radio" name="salto" value="3"><span>⚡ Rápido<br><small>analiza 1 de cada 3</small></span></label>
+        <label><input type="radio" name="salto" value="2" checked><span>⚖️ Equilibrado<br><small>1 de cada 2</small></span></label>
+        <label><input type="radio" name="salto" value="1"><span>🔬 Máximo<br><small>todos</small></span></label>
+      </div>
+    </fieldset>
+  </section>
+
+  <section class="tarjeta oculto" id="pasoProgreso">
+    <div class="fase"><b id="faseTitulo">Preparando…</b><small id="fasePct">0%</small></div>
+    <div class="barra"><i id="barra"></i></div>
+    <div id="detalle"></div>
+    <div id="vivoCaja" class="oculto">
+      <p id="vivoTexto">🔎 Vista en directo</p>
+      <canvas id="vivo"></canvas>
+    </div>
+  </section>
+
+  <section class="tarjeta oculto" id="pasoResultado">
+    <div class="fase"><b>✅ Vídeo anonimizado</b><small id="nombreArchivo"></small></div>
+    <div class="insignias" id="insignias"></div>
+    <video id="video" controls playsinline></video>
+    <div class="botones">
+      <button class="primario" id="btnGuardar">⬇️ Guardar vídeo</button>
+      <button class="secundario" id="btnOtro">Procesar otro</button>
+    </div>
+    <p class="nota">💡 Para retoques finos (añadir o quitar zonas a mano) usa la versión de
+       ordenador (<code>app.py</code> en el mismo repositorio).</p>
+  </section>
+
+  <div id="error" class="oculto"></div>
+</main>
+<footer>Diseñado por <b>Incuba tu Negocio</b> · por Jaime M. M. — sin nube, sin cuentas</footer>
+
+<script src="./lib/ort.all.min.js"></script>
+<script type="module">
+import { anonimizar } from './motor.js';
+const $ = id => document.getElementById(id);
+let resultado = null, nombreBase = 'video';
+
+$("zona").onclick = () => $("fichero").click();
+["dragover","dragenter"].forEach(e => $("zona").addEventListener(e, ev => {ev.preventDefault(); $("zona").classList.add("encima");}));
+["dragleave","drop"].forEach(e => $("zona").addEventListener(e, ev => {ev.preventDefault(); $("zona").classList.remove("encima");}));
+$("zona").addEventListener("drop", ev => { const f = ev.dataTransfer.files[0]; if (f) empezar(f); });
+$("fichero").onchange = () => { const f = $("fichero").files[0]; if (f) empezar(f); };
+$("btnOtro").onclick = () => location.reload();
+
+const FASES = { modelos:"Preparando los modelos", deteccion:"Detectando caras y matrículas",
+  pistas:"Siguiendo las zonas", pixelado:"Pixelando el vídeo", audio:"Copiando el audio", final:"Terminando" };
+
+async function empezar(fichero){
+  nombreBase = (fichero.name || "video").replace(/\.[^.]+$/, "");
+  const salto = +document.querySelector('input[name="salto"]:checked').value;
+  $("pasoSubir").classList.add("oculto");
+  $("error").classList.add("oculto");
+  $("pasoProgreso").classList.remove("oculto");
+  const vivo = $("vivo"), vctx = vivo.getContext("2d");
+  const avisos = [];
+  try {
+    resultado = await anonimizar(fichero, { salto, minucioso: true }, {
+      fase: (f, d) => { $("faseTitulo").textContent = FASES[f] || f; $("detalle").textContent = d || ""; },
+      progreso: p => { $("fasePct").textContent = Math.round(p) + "%"; $("barra").style.width = Math.max(2, p) + "%"; },
+      aviso: t => avisos.push(t),
+      vivo: (canvas, dets) => {
+        $("vivoCaja").classList.remove("oculto");
+        $("vivoTexto").textContent = dets ? "🔎 Vista en directo — lo que va detectando" : "🖌️ Vista en directo — así va quedando";
+        if (vivo.width !== canvas.width){ vivo.width = canvas.width; vivo.height = canvas.height; }
+        vctx.drawImage(canvas, 0, 0);
+        if (dets){
+          const pinta = (lista, color, gr) => { vctx.strokeStyle = color; vctx.lineWidth = gr;
+            for (const [x1,y1,x2,y2] of lista) vctx.strokeRect(x1, y1, x2-x1, y2-y1); };
+          pinta(dets.vehicles, "#50c8c8", 1);
+          pinta(dets.persons, "#50dc50", 2);
+          pinta(dets.plates, "#f03c3c", 2);
+        }
+      },
+    });
+    mostrarResultado(avisos);
+  } catch (e) {
+    console.error(e);
+    $("pasoProgreso").classList.add("oculto");
+    $("pasoSubir").classList.remove("oculto");
+    $("error").classList.remove("oculto");
+    $("error").textContent = "❌ " + (e && e.message ? e.message : "Algo falló procesando el vídeo");
+  }
+}
+
+function mostrarResultado(avisos){
+  window.__stats = resultado.stats; // para pruebas automatizadas
+  $("pasoProgreso").classList.add("oculto");
+  $("pasoResultado").classList.remove("oculto");
+  $("nombreArchivo").textContent = nombreBase;
+  $("video").src = URL.createObjectURL(resultado.blob);
+  const s = resultado.stats;
+  const ins = [
+    ["insignia", `🎞️ ${s.frames} fotogramas · ${s.detecciones.toLocaleString("es")} detecciones`],
+    ["insignia", `⚙️ ${s.backend === "webgpu" ? "GPU (WebGPU)" : "CPU (WASM)"} · ${s.codec}${s.audio ? " + audio" : ""}`],
+    [s.sinCubrir === 0 ? "insignia ok" : "insignia mal",
+      s.sinCubrir === 0 ? `✅ Cobertura 100% (${s.revisadas.toLocaleString("es")} tapadas)` : `⚠️ ${s.sinCubrir} sin tapar`],
+  ];
+  for (const t of avisos) ins.push(["insignia mal", "⚠️ " + t]);
+  $("insignias").innerHTML = "";
+  for (const [cls, txt] of ins){ const sp = document.createElement("span"); sp.className = cls; sp.textContent = txt; $("insignias").appendChild(sp); }
+}
+
+$("btnGuardar").onclick = async () => {
+  if (!resultado) return;
+  const nombre = `${nombreBase}-anonimizado.${resultado.ext}`;
+  if (window.Guardar){ // puente del APK Android → carpeta Descargas
+    $("btnGuardar").textContent = "Guardando…"; $("btnGuardar").disabled = true;
+    try {
+      window.Guardar.empezar(nombre, resultado.mime);
+      const buf = new Uint8Array(await resultado.blob.arrayBuffer());
+      const TROZO = 1 << 20;
+      for (let i = 0; i < buf.length; i += TROZO){
+        let bin = "";
+        const parte = buf.subarray(i, Math.min(buf.length, i + TROZO));
+        for (let j = 0; j < parte.length; j += 0x8000)
+          bin += String.fromCharCode.apply(null, parte.subarray(j, j + 0x8000));
+        window.Guardar.trozo(btoa(bin));
+      }
+      window.Guardar.terminar();
+      $("btnGuardar").textContent = "✅ Guardado en Descargas";
+    } catch(e){
+      $("btnGuardar").textContent = "❌ No se pudo guardar"; console.error(e);
+    }
+  } else {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(resultado.blob); a.download = nombre;
+    document.body.appendChild(a); a.click(); a.remove();
+    $("btnGuardar").textContent = "✅ Descargado";
+  }
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+name: APK Anonimizador
+
+on:
+  push:
+    branches: [main, claude/pixelate-faces-plates-0n3n57]
+    paths:
+      - "tools/anonimizar-video/**"
+      - ".github/workflows/apk-anonimizador.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Descargar modelos y librerías del motor web
+        run: |
+          bash tools/anonimizar-video/descargar-modelos.sh
+          bash tools/anonimizar-video/movil/descargar-libs.sh
+
+      - name: Empaquetar la web en los assets del APK
+        run: |
+          cd tools/anonimizar-video
+          mkdir -p android/app/src/main/assets/www/modelos
+          cp movil/index.html movil/motor.js android/app/src/main/assets/www/
+          cp -r movil/lib android/app/src/main/assets/www/
+          cp models/yolox_s.onnx models/plates-yolov9t-640.onnx android/app/src/main/assets/www/modelos/
+          du -sh android/app/src/main/assets/www
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: "8.7"
+
+      - name: Compilar APK (debug, instalable)
+        run: |
+          cd tools/anonimizar-video/android
+          gradle --no-daemon assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk anonimizador.apk
+          ls -la anonimizador.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: anonimizador-apk
+          path: tools/anonimizar-video/android/anonimizador.apk
+
+      - name: Publicar en la release "anonimizador-apk"
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: anonimizador-apk
+          name: "📱 Anonimizador de vídeos — APK Android"
+          prerelease: true
+          body: |
+            APK compilado automáticamente por GitHub Actions desde `tools/anonimizar-video/`.
+
+            **Instalación**: descarga `anonimizador.apk` en el móvil, ábrelo y acepta
+            "instalar apps desconocidas" (es un APK de desarrollo firmado con clave debug,
+            no viene de Google Play). Android 10 o superior, con Android System WebView
+            actualizado.
+
+            **Qué hace**: pixela caras, cabezas y matrículas de un vídeo, 100% en tu
+            móvil (sin subir nada a internet), con vista en directo del proceso y
+            verificación de cobertura. El audio se conserva.
+          files: tools/anonimizar-video/android/anonimizador.apk

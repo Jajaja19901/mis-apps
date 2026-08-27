@@ -31,6 +31,19 @@ quita un falso positivo con un clic, y re-exporta. El servidor solo escucha en
 
 Requiere `ffmpeg` instalado (o `pip install imageio-ffmpeg`).
 
+## Uso — móvil (APK de Android compilado en GitHub)
+El mismo pipeline, portado a JavaScript (`movil/`): corre entero en el navegador del
+dispositivo con WebCodecs + onnxruntime-web (WebGPU si lo hay, WASM si no). El APK es un
+envoltorio WebView de esa web con guardado en Descargas; **lo compila GitHub Actions**
+(`.github/workflows/apk-anonimizador.yml`) y lo publica en la release **`anonimizador-apk`**
+del repo. En el móvil: descargar el APK de la release, permitir "apps desconocidas" e
+instalar (Android 10+, WebView actualizado). Diferencias con la versión de escritorio:
+sin detector YuNet (las caras quedan cubiertas por la cabeza de cada persona detectada),
+sin editor de retoques, y selector de velocidad (analiza 1 de cada 1/2/3 fotogramas; las
+pistas interpolan los saltos). Probado de punta a punta con Playwright (clip VP9,
+cobertura 100%, audio copiado). Para desarrollo local: `movil/descargar-libs.sh` +
+copiar 2 modelos a `movil/modelos/` + servir `movil/` por HTTP.
+
 ## Uso — línea de comandos
 ```bash
 python3 anonimizar.py entrada.mp4 salida.mp4
