@@ -14,9 +14,13 @@ import android.webkit.WebView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import java.io.OutputStream
+import java.util.concurrent.Executors
 
 /** Envoltorio mínimo: toda la app vive en assets/www (HTML+JS) y corre en el WebView.
  *  El vídeo se procesa íntegramente en el dispositivo. */
@@ -80,9 +84,42 @@ class MainActivity : AppCompatActivity() {
         }
 
         web.addJavascriptInterface(Guardar(), "Guardar")
+        conectarMotorNativo()
         web.loadUrl("https://appassets.androidplatform.net/assets/www/index.html")
 
         Actualizador.comprobar(this)
+    }
+
+    /** Puente de inferencia nativa: el motor JS manda los píxeles y recibe la salida
+     *  del modelo calculada con todos los núcleos (mucho más rápido que WASM). */
+    private fun conectarMotorNativo() {
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER) ||
+            !WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_ARRAY_BUFFER)) return
+        val ejecutor = Executors.newSingleThreadExecutor()
+        WebViewCompat.addWebMessageListener(
+            web, "Inferir", setOf("https://appassets.androidplatform.net")
+        ) { _, mensaje, _, _, respuesta ->
+            if (mensaje.type == WebMessageCompat.TYPE_STRING) {
+                if (mensaje.data == "hola") {
+                    respuesta.postMessage(
+                        """{"version":"${BuildConfig.VERSION_NAME}","nucleos":${MotorNativo.nucleos}}""")
+                }
+                return@addWebMessageListener
+            }
+            val datos = mensaje.arrayBuffer
+            ejecutor.execute {
+                var fallo: String? = null
+                val salida = try {
+                    MotorNativo.inferir(this, datos)
+                } catch (e: Exception) {
+                    fallo = e.message; null
+                }
+                runOnUiThread {
+                    if (salida != null) respuesta.postMessage(WebMessageCompat(salida))
+                    else respuesta.postMessage("ERROR: ${fallo ?: "inferencia nativa falló"}")
+                }
+            }
+        }
     }
 
     /** Puente JS → Descargas del móvil (la web le pasa el vídeo por trozos en base64). */

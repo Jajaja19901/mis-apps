@@ -45,10 +45,15 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+    buildFeatures {
+        buildConfig = true
+    }
+    defaultConfig.ndk.abiFilters += listOf("arm64-v8a")
 }
 
 dependencies {
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.webkit:webkit:1.11.0")
     implementation("androidx.activity:activity-ktx:1.9.1")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.19.2")
 }

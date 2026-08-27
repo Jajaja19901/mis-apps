@@ -74,7 +74,7 @@
     <fieldset>
       <legend>Velocidad del análisis (en el móvil, "equilibrado" va bien)</legend>
       <div class="opciones">
-        <label><input type="radio" name="salto" value="3"><span>⚡ Rápido<br><small>analiza 1 de cada 3</small></span></label>
+        <label><input type="radio" name="salto" value="4"><span>⚡ Rápido<br><small>analiza 1 de cada 4</small></span></label>
         <label><input type="radio" name="salto" value="2" checked><span>⚖️ Equilibrado<br><small>1 de cada 2</small></span></label>
         <label><input type="radio" name="salto" value="1"><span>🔬 Máximo<br><small>todos</small></span></label>
       </div>
@@ -85,6 +85,7 @@
     <div class="fase"><b id="faseTitulo">Preparando…</b><small id="fasePct">0%</small></div>
     <div class="barra"><i id="barra"></i></div>
     <div id="detalle"></div>
+    <div id="diag" style="color:#5a6678;font-size:.78rem;margin-top:4px"></div>
     <div id="vivoCaja" class="oculto">
       <p id="vivoTexto">🔎 Vista en directo</p>
       <canvas id="vivo"></canvas>
@@ -125,7 +126,7 @@ const FASES = { modelos:"Preparando los modelos", deteccion:"Detectando caras y 
 
 // modos: cuántos fotogramas se analizan y cuántas pasadas extra se hacen
 const MODOS = {
-  "3": { salto: 3, tiles: false, maxZooms: 2 },   // ⚡ rápido
+  "4": { salto: 4, tiles: false, maxZooms: 2 },   // ⚡ rápido
   "2": { salto: 2, tiles: true,  maxZooms: 4 },   // ⚖️ equilibrado
   "1": { salto: 1, tiles: true,  maxZooms: 99 },  // 🔬 máximo
 };
@@ -155,6 +156,7 @@ async function empezar(fichero){
     resultado = await anonimizar(fichero, modo, {
       fase: (f, d) => { $("faseTitulo").textContent = FASES[f] || f; $("detalle").textContent = d || ""; histo.length = 0; },
       progreso: p => { $("fasePct").textContent = Math.round(p) + "%" + eta(p); $("barra").style.width = Math.max(2, p) + "%"; },
+      diag: t => { $("diag").textContent = t; },
       aviso: t => avisos.push(t),
       vivo: (canvas, dets) => {
         $("vivoCaja").classList.remove("oculto");
@@ -189,7 +191,7 @@ function mostrarResultado(avisos){
   const s = resultado.stats;
   const ins = [
     ["insignia", `🎞️ ${s.frames} fotogramas · ${s.detecciones.toLocaleString("es")} detecciones`],
-    ["insignia", `⚙️ ${s.backend === "webgpu" ? "GPU (WebGPU)" : `CPU ${s.hilos} hilo${s.hilos > 1 ? "s" : ""}`} · ${s.modelo || ""} · ${s.codec}${s.audio ? " + audio" : ""}`],
+    ["insignia", `⚙️ ${s.backend === "nativo" ? `Motor nativo · ${s.hilos} núcleos` : s.backend === "webgpu" ? "GPU (WebGPU)" : `CPU ${s.hilos} hilo${s.hilos > 1 ? "s" : ""}`} · ${s.modelo || ""} · ${s.codec}${s.audio ? " + audio" : ""}`],
     [s.sinCubrir === 0 ? "insignia ok" : "insignia mal",
       s.sinCubrir === 0 ? `✅ Cobertura 100% (${s.revisadas.toLocaleString("es")} tapadas)` : `⚠️ ${s.sinCubrir} sin tapar`],
   ];

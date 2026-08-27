@@ -59,48 +59,53 @@ const expandir = ([x1, y1, x2, y2], dxf, dyf, mn, W, H) => {
   return [Math.max(0, x1 - dx), Math.max(0, y1 - dy), Math.min(W, x2 + dx), Math.min(H, y2 + dy)];
 };
 
+// ---------- puente de inferencia nativa (APK Android) ----------
+class PuenteNativo {
+  constructor() {
+    this.ok = typeof window !== 'undefined' && !!window.Inferir;
+    this.cola = [];
+    if (this.ok) {
+      window.Inferir.onmessage = e => { const fn = this.cola.shift(); if (fn) fn(e.data); };
+    }
+  }
+  llamar(carga) {
+    return new Promise((res, rej) => {
+      this.cola.push(res);
+      try { window.Inferir.postMessage(carga); }
+      catch (e) { this.cola.pop(); rej(e); }
+    });
+  }
+}
+
 // ---------- detectores ----------
 export class Detectores {
   constructor(rutaModelos = './modelos', rutaLibs = './lib/') {
     this.rutaModelos = rutaModelos;
     this.rutaLibs = rutaLibs;
     this.backend = '?';
+    this.hilos = 1;
   }
 
   async init(avisa = () => {}) {
-    const ort = globalThis.ort;
-    // ruta ABSOLUTA: ort resuelve rutas relativas contra su propio script (ya en lib/)
-    ort.env.wasm.wasmPaths = new URL(this.rutaLibs, document.baseURI).href;
-    // multi-hilo solo con aislamiento de origen (COOP/COEP); el APK lo activa
-    this.hilos = globalThis.crossOriginIsolated
-      ? Math.max(1, Math.min(8, (navigator.hardwareConcurrency || 2) - 1)) : 1;
-    ort.env.wasm.numThreads = this.hilos;
-    const carga = async n => {
-      avisa(`Cargando modelo ${n}…`);
-      const r = await fetch(`${this.rutaModelos}/${n}`);
-      if (!r.ok) return null;
-      return new Uint8Array(await r.arrayBuffer());
-    };
-    let byolox = null;
-    for (const m of MODELOS_YOLOX) {
-      byolox = await carga(m.fichero);
-      if (byolox) { this.modelo = m.fichero.replace('.onnx', ''); this.tamY = m.tam; break; }
-    }
-    if (!byolox) throw new Error('No encuentro ningún modelo YOLOX en ' + this.rutaModelos);
-    const bplacas = await carga('plates-yolov9t-640.onnx');
-    if (!bplacas) throw new Error('No encuentro el modelo de matrículas');
-    for (const eps of [['webgpu'], ['wasm']]) {
+    this.puente = new PuenteNativo();
+    this.nativo = false;
+    if (this.puente.ok) {
       try {
-        avisa(`Preparando el motor (${eps[0]}, ${this.hilos} hilo${this.hilos > 1 ? 's' : ''})…`);
-        this.yolox = await ort.InferenceSession.create(byolox, { executionProviders: eps });
-        this.placas = await ort.InferenceSession.create(bplacas, { executionProviders: eps });
-        this.backend = eps[0];
-        break;
-      } catch (e) {
-        if (eps[0] === 'wasm') throw e;
-      }
+        avisa('Conectando con el motor nativo…');
+        const h = JSON.parse(await this.puente.llamar('hola'));
+        this.nativo = true;
+        this.backend = 'nativo';
+        this.hilos = h.nucleos || 2;
+        this.versionApp = h.version || '';
+        this.modelo = 'yolox_tiny';
+        this.tamY = 416;
+      } catch (_) { this.nativo = false; }
     }
-    // rejillas de YOLOX (strides 8/16/32) para su tamaño de entrada
+    if (!this.nativo) await this._prepararWasm(avisa);
+    this._rejillas();
+  }
+
+  _rejillas() {
     this.grids = [];
     for (const s of [8, 16, 32]) {
       const n = this.tamY / s;
@@ -110,6 +115,81 @@ export class Detectores {
     this.ctxY = this.cnvY.getContext('2d', { willReadFrequently: true });
     this.cnvP = new OffscreenCanvas(TAM_PLACAS, TAM_PLACAS);
     this.ctxP = this.cnvP.getContext('2d', { willReadFrequently: true });
+  }
+
+  async _prepararWasm(avisa = () => {}) {
+    const ort = globalThis.ort;
+    // ruta ABSOLUTA: ort resuelve rutas relativas contra su propio script (ya en lib/)
+    ort.env.wasm.wasmPaths = new URL(this.rutaLibs, document.baseURI).href;
+    // multi-hilo solo con aislamiento de origen (COOP/COEP)
+    const hilosWasm = globalThis.crossOriginIsolated
+      ? Math.max(1, Math.min(8, (navigator.hardwareConcurrency || 2) - 1)) : 1;
+    ort.env.wasm.numThreads = hilosWasm;
+    const carga = async n => {
+      avisa(`Cargando modelo ${n}…`);
+      const r = await fetch(`${this.rutaModelos}/${n}`);
+      if (!r.ok) return null;
+      return new Uint8Array(await r.arrayBuffer());
+    };
+    let byolox = null;
+    for (const m of MODELOS_YOLOX) {
+      byolox = await carga(m.fichero);
+      if (byolox) { this.modelo = m.fichero.replace('.onnx', ''); this.tamY = this.tamY || m.tam;
+        if (!this.nativo) this.tamY = m.tam; break; }
+    }
+    if (!byolox) throw new Error('No encuentro ningún modelo YOLOX en ' + this.rutaModelos);
+    const bplacas = await carga('plates-yolov9t-640.onnx');
+    if (!bplacas) throw new Error('No encuentro el modelo de matrículas');
+    for (const eps of [['webgpu'], ['wasm']]) {
+      try {
+        avisa(`Preparando el motor (${eps[0]}, ${hilosWasm} hilo${hilosWasm > 1 ? 's' : ''})…`);
+        this.yolox = await ort.InferenceSession.create(byolox, { executionProviders: eps });
+        this.placas = await ort.InferenceSession.create(bplacas, { executionProviders: eps });
+        if (!this.nativo) { this.backend = eps[0]; this.hilos = hilosWasm; }
+        break;
+      } catch (e) {
+        if (eps[0] === 'wasm') throw e;
+      }
+    }
+  }
+
+  /** Ejecuta un modelo sobre los píxeles RGBA de un letterbox y devuelve los floats de salida.
+   *  modeloId: 1=yolox, 2=matrículas. */
+  async _inferir(modeloId, datos, tam, bgr, norm255, forzarWasm = false) {
+    if (this.nativo && !forzarWasm) {
+      const buf = new ArrayBuffer(16 + datos.length);
+      new Int32Array(buf, 0, 4).set([777, modeloId, bgr ? 1 : 0, norm255 ? 1 : 0]);
+      new Uint8Array(buf, 16).set(datos);
+      const r = await this.puente.llamar(buf);
+      if (typeof r === 'string') throw new Error(r);
+      return new Float32Array(r);
+    }
+    const sesion = modeloId === 1 ? this.yolox : this.placas;
+    const salida = await sesion.run({
+      images: this._tensor(datos, tam, bgr ? [2, 1, 0] : [0, 1, 2], norm255 ? 255 : 1) });
+    return (modeloId === 1 ? salida.output : salida.output0).data;
+  }
+
+  /** Comprueba en el primer fotograma que el motor nativo devuelve lo mismo que WASM;
+   *  si se desvía, degrada a WASM (lento pero probado). */
+  async _autoverificar(base, W, H) {
+    try {
+      const { datos } = this._letterbox(this.ctxY, this.tamY, base, 0, 0, W, H);
+      const nat = await this._inferir(1, datos, this.tamY, true, false);
+      await this._prepararWasm(() => {});
+      const was = await this._inferir(1, datos, this.tamY, true, false, true);
+      let dif = 0;
+      for (let i = 0; i < nat.length; i += 97) dif = Math.max(dif, Math.abs(nat[i] - was[i]));
+      if (!(dif < 0.15)) throw new Error(`desviación ${dif.toFixed(3)}`);
+      try { this.yolox?.release?.(); this.placas?.release?.(); } catch (_) {}
+      this.yolox = this.placas = null;
+    } catch (e) {
+      console.warn('Autoverificación del motor nativo falló; sigo con WASM:', e);
+      this.nativo = false;
+      this.backend = 'wasm (a salvo)';
+      this.hilos = 1;
+      if (!this.yolox) await this._prepararWasm(() => {});
+    }
   }
 
   // dibuja fuente (canvas) con letterbox al tamaño dado, devuelve ratio y los píxeles RGBA
@@ -138,8 +218,7 @@ export class Detectores {
   // personas y vehículos sobre un recorte (sx,sy,sw,sh) del canvas fuente
   async _yolox(fuente, sx, sy, sw, sh, confP, confV) {
     const { r, datos } = this._letterbox(this.ctxY, this.tamY, fuente, sx, sy, sw, sh);
-    const salida = await this.yolox.run({ images: this._tensor(datos, this.tamY, [2, 1, 0], 1) }); // BGR sin normalizar
-    const o = salida.output.data; // (n_anclas, 85)
+    const o = await this._inferir(1, datos, this.tamY, true, false); // BGR sin normalizar
     const P = [], V = [];
     const nAnclas = this.grids.length;
     for (let i = 0; i < nAnclas; i++) {
@@ -161,8 +240,8 @@ export class Detectores {
 
   async _placas(fuente, sx, sy, sw, sh, conf) {
     const { r, datos } = this._letterbox(this.ctxP, TAM_PLACAS, fuente, sx, sy, sw, sh);
-    const salida = await this.placas.run({ images: this._tensor(datos, TAM_PLACAS, [0, 1, 2], 255) }); // RGB /255
-    const o = salida.output0.data; // (N, 7): [batch, x1,y1,x2,y2, clase, score]
+    const o = await this._inferir(2, datos, TAM_PLACAS, false, true); // RGB /255
+    // (N, 7): [batch, x1,y1,x2,y2, clase, score]
     const res = [];
     for (let i = 0; i < o.length; i += 7) {
       const sc = o[i + 6];
@@ -176,6 +255,10 @@ export class Detectores {
    *  opciones: { tiles: bool, maxZooms: number } */
   async detectar(base, W, H, opciones = {}) {
     const { tiles = true, maxZooms = 99 } = opciones;
+    if (this.nativo && !this._verificado) {
+      await this._autoverificar(base, W, H);
+      this._verificado = true;
+    }
     let { P, V } = await this._yolox(base, 0, 0, W, H, CONF_PERSON, CONF_VEHICLE);
     if (tiles) { // 2 tiles verticales para personas pequeñas
       const corte = Math.round(H * (0.5 + TILE_OVERLAP / 2));
@@ -280,11 +363,18 @@ async function elegirSalida(W, H, codecAudio) {
  */
 export async function anonimizar(fichero, opciones, eventos) {
   const { salto = 2, tiles = true, maxZooms = 4 } = opciones || {};
-  const ev = { fase() {}, progreso() {}, vivo() {}, aviso() {}, ...eventos };
+  const ev = { fase() {}, progreso() {}, vivo() {}, aviso() {}, diag() {}, ...eventos };
 
   const det = new Detectores(opciones?.rutaModelos, opciones?.rutaLibs);
   ev.fase('modelos', 'Cargando los modelos de detección…');
   await det.init(d => ev.fase('modelos', d));
+  const textoMotor = extra => {
+    const m = det.backend === 'nativo' ? `⚡ motor nativo · ${det.hilos} núcleos`
+      : det.backend === 'webgpu' ? '⚡ GPU (WebGPU)'
+      : `🐢 CPU wasm · ${det.hilos} hilo${det.hilos > 1 ? 's' : ''}`;
+    return `${m} · ${det.modelo}${det.versionApp ? ` · app ${det.versionApp}` : ''}${extra || ''}`;
+  };
+  ev.diag(textoMotor());
 
   const input = new Input({ source: new BlobSource(fichero), formats: ALL_FORMATS });
   if (!(await input.canRead())) throw new Error('No puedo leer este vídeo. ¿Es un formato compatible (mp4, mov, webm…)?');
@@ -313,6 +403,7 @@ export async function anonimizar(fichero, opciones, eventos) {
         const d = await det.detectar(base, W, H, { tiles, maxZooms });
         dets.set(n, d);
         ev.vivo(base, d);
+        if (n === 0) ev.diag(textoMotor(` · vídeo ${W}×${H}`)); // tras la autoverificación
       }
       ev.progreso(Math.min(49, (s.timestamp / duracion) * 49));
       s.close();
