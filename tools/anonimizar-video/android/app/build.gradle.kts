@@ -11,8 +11,10 @@ android {
         applicationId = "es.incubatunegocio.anonimizador"
         minSdk = 29          // Android 10+; WebCodecs necesita un System WebView moderno
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1"
+        // en CI, el nº de ejecución del workflow: cada build publicado es "más nuevo"
+        // y la auto-actualización de la app lo detecta sola
+        versionCode = (System.getenv("VERSION_CODE") ?: "2").toInt()
+        versionName = System.getenv("VERSION_NAME") ?: "1.1-local"
     }
 
     // Firma fija del repo: así cada APK nuevo ACTUALIZA al anterior en vez de

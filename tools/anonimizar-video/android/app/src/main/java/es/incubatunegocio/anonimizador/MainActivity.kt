@@ -81,6 +81,8 @@ class MainActivity : AppCompatActivity() {
 
         web.addJavascriptInterface(Guardar(), "Guardar")
         web.loadUrl("https://appassets.androidplatform.net/assets/www/index.html")
+
+        Actualizador.comprobar(this)
     }
 
     /** Puente JS → Descargas del móvil (la web le pasa el vídeo por trozos en base64). */

@@ -41,10 +41,16 @@ jobs:
           gradle-version: "8.7"
 
       - name: Compilar APK (debug, instalable)
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: "1.${{ github.run_number }}"
         run: |
           cd tools/anonimizar-video/android
           gradle --no-daemon assembleDebug
           cp app/build/outputs/apk/debug/app-debug.apk anonimizador.apk
+          printf '{"versionCode": %s, "versionName": "1.%s", "apk": "https://github.com/Jajaja19901/mis-apps/releases/download/anonimizador-apk/anonimizador.apk"}\n' \
+            "${{ github.run_number }}" "${{ github.run_number }}" > version.json
+          cat version.json
           ls -la anonimizador.apk
 
       - uses: actions/upload-artifact@v4
@@ -60,11 +66,14 @@ jobs:
           prerelease: true
           body: |
             APK compilado automáticamente por GitHub Actions desde `tools/anonimizar-video/`.
+            Versión **1.${{ github.run_number }}**.
 
-            **v1.1** — mucho más rápida: multi-hilo (COOP/COEP en el WebView), modelo
-            ligero YOLOX-Tiny y pasadas extra solo en los modos altos. ⚠️ Si tenías la
-            v1.0 instalada, desinstálala una vez antes (cambió la firma); desde la v1.1
-            las versiones nuevas actualizan sin desinstalar.
+            **La app se actualiza sola**: al abrirla comprueba esta release y, si hay
+            versión nueva, la descarga y te pide confirmar la instalación. Rápida:
+            multi-hilo + modelo ligero, todo procesado en el móvil sin subir nada.
+
+            ⚠️ Si tenías instalada la v1.0 original, desinstálala una vez antes de
+            instalar esta (cambió la firma). Desde entonces, todo se actualiza solo.
 
             **Instalación**: descarga `anonimizador.apk` en el móvil, ábrelo y acepta
             "instalar apps desconocidas" (no viene de Google Play). Android 10 o
@@ -73,4 +82,6 @@ jobs:
             **Qué hace**: pixela caras, cabezas y matrículas de un vídeo, 100% en tu
             móvil (sin subir nada a internet), con vista en directo del proceso y
             verificación de cobertura. El audio se conserva.
-          files: tools/anonimizar-video/android/anonimizador.apk
+          files: |
+            tools/anonimizar-video/android/anonimizador.apk
+            tools/anonimizar-video/android/version.json
