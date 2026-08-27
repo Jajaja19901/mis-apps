@@ -1,22 +1,25 @@
 package es.incubatunegocio.anonimizador
 
-import android.app.AlertDialog
+import android.app.PendingIntent
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.widget.LinearLayout
-import android.widget.ProgressBar
-import android.widget.TextView
+import android.content.pm.PackageInstaller
+import android.os.Build
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.FileProvider
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 import kotlin.concurrent.thread
 
-/** Auto-actualización desde la release "anonimizador-apk" del repo.
- *  Comprueba version.json al arrancar; si hay versión nueva, descarga el APK
- *  y abre el instalador (Android pide una confirmación al usuario). */
+/** Auto-actualización SILENCIOSA desde la release "anonimizador-apk" del repo.
+ *
+ *  Al abrir la app: comprueba version.json y, si hay versión nueva, la descarga y la
+ *  instala en segundo plano con PackageInstaller. En Android 12+ y siendo la app su
+ *  propio instalador, se aplica sin preguntar nada; la ÚNICA vez que Android muestra
+ *  su diálogo es la primera auto-instalación (o en Android 10/11). */
 object Actualizador {
 
     private const val BASE = "https://github.com/Jajaja19901/mis-apps/releases/download/anonimizador-apk"
@@ -37,69 +40,70 @@ object Actualizador {
                 val urlApk = j.optString("apk", "$BASE/anonimizador.apk")
                 val actual = act.packageManager.getPackageInfo(act.packageName, 0).longVersionCode
                 if (nuevo > actual) {
-                    act.runOnUiThread { preguntar(act, nombre, urlApk) }
+                    act.runOnUiThread {
+                        Toast.makeText(act, "Actualizando a la versión $nombre en segundo plano…",
+                            Toast.LENGTH_LONG).show()
+                    }
+                    val apk = descargar(act, urlApk)
+                    instalar(act, apk)
                 }
             } catch (_: Exception) {
-                // sin red o GitHub caído: la app funciona igual, se reintenta al próximo arranque
+                // sin red o GitHub caído: la app funciona igual; se reintenta al próximo arranque
             }
         }
     }
 
-    private fun preguntar(act: AppCompatActivity, nombre: String, urlApk: String) {
-        if (act.isFinishing) return
-        AlertDialog.Builder(act)
-            .setTitle("Actualización disponible")
-            .setMessage("Hay una versión nueva del Anonimizador ($nombre). ¿Actualizar ahora? " +
-                    "Se descarga de GitHub y Android te pedirá confirmar la instalación.")
-            .setPositiveButton("Actualizar") { _, _ -> descargar(act, urlApk) }
-            .setNegativeButton("Ahora no", null)
-            .show()
+    private fun descargar(ctx: Context, urlApk: String): File {
+        val destino = File(ctx.cacheDir, "actualizacion.apk")
+        val con = URL(urlApk).openConnection() as HttpURLConnection
+        con.connectTimeout = 10000
+        con.instanceFollowRedirects = true
+        con.inputStream.use { entrada -> destino.outputStream().use { entrada.copyTo(it) } }
+        con.disconnect()
+        return destino
     }
 
-    private fun descargar(act: AppCompatActivity, urlApk: String) {
-        val caja = LinearLayout(act).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 32, 48, 16)
-            addView(TextView(act).apply { text = "Descargando actualización…" })
-            addView(ProgressBar(act, null, android.R.attr.progressBarStyleHorizontal).apply {
-                isIndeterminate = false; max = 100; tag = "barra"
-            })
+    private fun instalar(ctx: Context, apk: File) {
+        val instalador = ctx.packageManager.packageInstaller
+        val params = PackageInstaller.SessionParams(
+            PackageInstaller.SessionParams.MODE_FULL_INSTALL).apply {
+            setAppPackageName(ctx.packageName)
+            if (Build.VERSION.SDK_INT >= 31) {
+                setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED)
+            }
         }
-        val dialogo = AlertDialog.Builder(act).setView(caja).setCancelable(false).create()
-        dialogo.show()
-        val barra = caja.findViewWithTag<ProgressBar>("barra")
-        thread {
-            try {
-                val destino = File(act.cacheDir, "actualizacion.apk")
-                val con = URL(urlApk).openConnection() as HttpURLConnection
-                con.connectTimeout = 10000
-                con.instanceFollowRedirects = true
-                val total = con.contentLengthLong
-                con.inputStream.use { entrada ->
-                    destino.outputStream().use { salida ->
-                        val buf = ByteArray(1 shl 16)
-                        var leidos = 0L
-                        while (true) {
-                            val n = entrada.read(buf)
-                            if (n < 0) break
-                            salida.write(buf, 0, n)
-                            leidos += n
-                            if (total > 0) act.runOnUiThread { barra.progress = (leidos * 100 / total).toInt() }
-                        }
-                    }
-                }
-                con.disconnect()
-                val uri: Uri = FileProvider.getUriForFile(act, act.packageName + ".fileprovider", destino)
-                val intento = Intent(Intent.ACTION_VIEW)
-                    .setDataAndType(uri, "application/vnd.android.package-archive")
-                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-                act.runOnUiThread { dialogo.dismiss(); act.startActivity(intento) }
-            } catch (e: Exception) {
-                act.runOnUiThread {
-                    dialogo.dismiss()
-                    AlertDialog.Builder(act).setTitle("No se pudo descargar")
-                        .setMessage("Inténtalo más tarde o descarga el APK desde la release de GitHub.\n\n${e.message}")
-                        .setPositiveButton("Vale", null).show()
+        val idSesion = instalador.createSession(params)
+        instalador.openSession(idSesion).use { sesion ->
+            sesion.openWrite("anonimizador.apk", 0, apk.length()).use { salida ->
+                apk.inputStream().use { it.copyTo(salida) }
+                sesion.fsync(salida)
+            }
+            val intento = Intent(ctx, InstalacionReceiver::class.java)
+            val flags = PendingIntent.FLAG_UPDATE_CURRENT or
+                (if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0)
+            val pendiente = PendingIntent.getBroadcast(ctx, idSesion, intento, flags)
+            sesion.commit(pendiente.intentSender)
+        }
+    }
+}
+
+/** Recibe el resultado de la instalación. Si Android exige confirmar (primera vez o
+ *  Android 10/11), abre su diálogo del sistema; si no, la actualización ya está aplicada. */
+class InstalacionReceiver : BroadcastReceiver() {
+    override fun onReceive(ctx: Context, intent: Intent) {
+        when (intent.getIntExtra(PackageInstaller.EXTRA_STATUS, -99)) {
+            PackageInstaller.STATUS_PENDING_USER_ACTION -> {
+                @Suppress("DEPRECATION")
+                val confirmar = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
+                confirmar?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                try { ctx.startActivity(confirmar) } catch (_: Exception) {}
+            }
+            PackageInstaller.STATUS_SUCCESS ->
+                Toast.makeText(ctx, "Anonimizador actualizado ✅", Toast.LENGTH_LONG).show()
+            else -> {
+                val motivo = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE)
+                if (motivo != null) {
+                    Toast.makeText(ctx, "La actualización no se aplicó: $motivo", Toast.LENGTH_LONG).show()
                 }
             }
         }
