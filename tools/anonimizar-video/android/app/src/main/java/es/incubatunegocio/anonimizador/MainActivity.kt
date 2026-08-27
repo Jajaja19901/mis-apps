@@ -115,7 +115,7 @@ class MainActivity : AppCompatActivity() {
                     fallo = e.message; null
                 }
                 runOnUiThread {
-                    if (salida != null) respuesta.postMessage(WebMessageCompat(salida))
+                    if (salida != null) respuesta.postMessage(salida)
                     else respuesta.postMessage("ERROR: ${fallo ?: "inferencia nativa falló"}")
                 }
             }
