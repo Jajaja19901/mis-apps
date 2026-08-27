@@ -252,7 +252,10 @@ export class Detectores {
   }
 
   /** Detección completa de un fotograma (canvas a tamaño nativo WxH).
-   *  opciones: { tiles: bool, maxZooms: number } */
+   *  opciones: { tiles: bool, maxZooms: number }
+   *  Truco clave para vídeos de coches aparcados: si los vehículos NO se han movido
+   *  desde el análisis anterior, reutiliza las matrículas ya encontradas (con
+   *  re-detección forzada cada pocas veces por seguridad). */
   async detectar(base, W, H, opciones = {}) {
     const { tiles = true, maxZooms = 99 } = opciones;
     if (this.nativo && !this._verificado) {
@@ -268,18 +271,41 @@ export class Detectores {
       }
       P = nms(P);
     }
-    let PL = await this._placas(base, 0, 0, W, H, CONF_PLATE_FULL);
-    // zoom por vehículo: primero los MENORES (sus matrículas son las que lo necesitan)
-    const conZoom = [...V].sort((a, b) =>
-      (a[2] - a[0]) * (a[3] - a[1]) - (b[2] - b[0]) * (b[3] - b[1])).slice(0, maxZooms);
-    for (const v of conZoom) {
-      const mw = (v[2] - v[0]) * 0.25, mh = (v[3] - v[1]) * 0.25;
-      const cx1 = Math.max(0, v[0] - mw), cy1 = Math.max(0, v[1] - mh);
-      const cw = Math.min(W, v[2] + mw) - cx1, ch = Math.min(H, v[3] + mh) - cy1;
-      if (cw < 12 || ch < 12) continue;
-      PL = PL.concat(await this._placas(base, cx1, cy1, cw, ch, CONF_PLATE_ZOOM));
+
+    const prev = this._prevEscena;
+    const escenaEstable = prev && V.length === prev.V.length && V.length > 0 &&
+      V.every(v => prev.V.some(pv => iou(v, pv) > 0.85));
+    let PL;
+    if (escenaEstable && prev.usosPL < 8) {
+      // cámara en mano: la escena se desplaza unos píxeles → mover las matrículas igual
+      let dx = 0, dy = 0;
+      for (const v of V) {
+        let mejor = prev.V[0], mejorIou = -1;
+        for (const pv of prev.V) { const s = iou(v, pv); if (s > mejorIou) { mejorIou = s; mejor = pv; } }
+        dx += ((v[0] + v[2]) - (mejor[0] + mejor[2])) / 2;
+        dy += ((v[1] + v[3]) - (mejor[1] + mejor[3])) / 2;
+      }
+      dx /= V.length; dy /= V.length;
+      PL = prev.PL.map(p => [p[0] + dx, p[1] + dy, p[2] + dx, p[3] + dy, p[4]]);
+      prev.usosPL++;
+      prev.V = V;
+      prev.PL = PL;
+    } else {
+      PL = await this._placas(base, 0, 0, W, H, CONF_PLATE_FULL);
+      // zoom por vehículo: primero los MENORES (sus matrículas son las que lo necesitan)
+      const conZoom = [...V].sort((a, b) =>
+        (a[2] - a[0]) * (a[3] - a[1]) - (b[2] - b[0]) * (b[3] - b[1])).slice(0, maxZooms);
+      for (const v of conZoom) {
+        const mw = (v[2] - v[0]) * 0.25, mh = (v[3] - v[1]) * 0.25;
+        const cx1 = Math.max(0, v[0] - mw), cy1 = Math.max(0, v[1] - mh);
+        const cw = Math.min(W, v[2] + mw) - cx1, ch = Math.min(H, v[3] + mh) - cy1;
+        if (cw < 12 || ch < 12) continue;
+        PL = PL.concat(await this._placas(base, cx1, cy1, cw, ch, CONF_PLATE_ZOOM));
+      }
+      PL = nms(PL, 0.35);
+      this._prevEscena = { V, PL, usosPL: 0 };
     }
-    return { persons: P, vehicles: V, plates: nms(PL, 0.35) };
+    return { persons: P, vehicles: V, plates: PL };
   }
 }
 
