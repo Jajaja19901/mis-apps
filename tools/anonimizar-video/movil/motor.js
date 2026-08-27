@@ -384,11 +384,13 @@ export async function anonimizar(fichero, opciones, eventos) {
   const codecAudio = pistaA ? await pistaA.getCodec() : null;
   const duracion = await input.computeDuration();
 
-  // --- pasada 1: detección ---
+  // --- pasada 1: detección (con cronómetro para saber dónde se va el tiempo) ---
   ev.fase('deteccion', 'Buscando caras, personas y matrículas…');
   const dets = new Map();
   let W = 0, H = 0, total = 0;
   let base = null, bctx = null;
+  const tAnalisis0 = performance.now();
+  let msDetectar = 0, nAnalizados = 0;
   {
     const sink = new VideoSampleSink(pistaV);
     let n = 0;
@@ -400,10 +402,15 @@ export async function anonimizar(fichero, opciones, eventos) {
       }
       if (n % salto === 0) {
         s.draw(bctx, 0, 0, W, H); // draw() aplica la rotación del vídeo
+        const td = performance.now();
         const d = await det.detectar(base, W, H, { tiles, maxZooms });
+        msDetectar += performance.now() - td;
+        nAnalizados++;
         dets.set(n, d);
         ev.vivo(base, d);
-        if (n === 0) ev.diag(textoMotor(` · vídeo ${W}×${H}`)); // tras la autoverificación
+        if (n === 0 || nAnalizados % 20 === 0) {
+          ev.diag(textoMotor(` · vídeo ${W}×${H} · ${Math.round(msDetectar / nAnalizados)} ms/análisis`));
+        }
       }
       ev.progreso(Math.min(49, (s.timestamp / duracion) * 49));
       s.close();
@@ -412,6 +419,7 @@ export async function anonimizar(fichero, opciones, eventos) {
     total = n;
   }
   if (!total) throw new Error('El vídeo no tiene fotogramas legibles.');
+  const segAnalisis = (performance.now() - tAnalisis0) / 1000;
 
   // --- pistas ---
   ev.fase('pistas', 'Siguiendo cada zona entre fotogramas…');
@@ -420,6 +428,7 @@ export async function anonimizar(fichero, opciones, eventos) {
 
   // --- pasada 2: pixelar + codificar ---
   const salida = await elegirSalida(W, H, codecAudio);
+  const tPixelado0 = performance.now();
   ev.fase('pixelado', `Pixelando y codificando (${salida.vcodec}${salida.audio ? ' + audio' : ''})…`);
   if (pistaA && !salida.audio) ev.aviso('El audio original no cabe en el formato de salida de este navegador; el vídeo saldrá sin sonido.');
 
@@ -504,6 +513,9 @@ export async function anonimizar(fichero, opciones, eventos) {
       modelo: det.modelo, codec: salida.vcodec,
       audio: !!fuenteA, revisadas, sinCubrir,
       detecciones: [...dets.values()].reduce((a, d) => a + d.persons.length + d.plates.length, 0),
+      segAnalisis: Math.round(segAnalisis),
+      msPorAnalisis: nAnalizados ? Math.round(msDetectar / nAnalizados) : 0,
+      segPixelado: Math.round((performance.now() - tPixelado0) / 1000),
     },
   };
 }

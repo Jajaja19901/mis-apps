@@ -32,6 +32,12 @@ sys.path.insert(0, BASE)
 CONF_PERSON, CONF_PERSON_TILE, CONF_VEHICLE = 0.22, 0.25, 0.25
 CONF_PLATE_FULL, CONF_PLATE_ZOOM = 0.25, 0.28
 TILE_OVERLAP = 0.16
+
+# perfiles de velocidad del análisis (las pistas interpolan los fotogramas saltados)
+PERFILES = {
+    "maximo": {"modelo": "yolox_s.onnx", "tam": 640, "salto": 1},
+    "rapido": {"modelo": "yolox_tiny.onnx", "tam": 416, "salto": 2},
+}
 TRACK_CFG = {
     "persons": {"iou": 0.18, "gap": 20, "extend": 6},
     "faces":   {"iou": 0.15, "gap": 12, "extend": 5},
@@ -100,7 +106,8 @@ def info_video(video):
 # ---------- fase 1: detección ----------
 
 def _worker(args):
-    video, start, end, wid, tmpdir, preview_dir = args
+    video, start, end, wid, tmpdir, preview_dir, perfil = args
+    cfg = PERFILES[perfil]
     os.environ["OMP_NUM_THREADS"] = "1"
     import cv2
     import numpy as np
@@ -111,16 +118,24 @@ def _worker(args):
     opts.inter_op_num_threads = 1
     orig = ort.InferenceSession
     ort.InferenceSession = lambda p, **kw: orig(p, sess_options=opts, providers=["CPUExecutionProvider"])
-    yolox, faces, plates = detect_lib.YoloxDetector(), detect_lib.FaceDetector(), detect_lib.PlateDetector()
+    yolox = detect_lib.YoloxDetector(os.path.join(MODELS_DIR, cfg["modelo"]), cfg["tam"])
+    faces, plates = detect_lib.FaceDetector(), detect_lib.PlateDetector()
     ort.InferenceSession = orig
 
     cap = cv2.VideoCapture(video)
     cap.set(cv2.CAP_PROP_POS_FRAMES, start)
     out = {}
+    salto = cfg["salto"]
     for n in range(start, end):
         ok, img = cap.read()
         if not ok:
             break
+        done = n - start + 1
+        if n % salto != 0:  # las pistas interpolan los fotogramas no analizados
+            if done % 10 == 0:
+                with open(os.path.join(tmpdir, f"prog_{wid}.txt"), "w") as fh:
+                    fh.write(str(done))
+            continue
         h = img.shape[0]
         P, V = yolox.detect(img, conf_person=CONF_PERSON, conf_vehicle=CONF_VEHICLE)
         cut = int(h * (0.5 + TILE_OVERLAP / 2))
@@ -175,11 +190,11 @@ def _foto(img, ruta, calidad=82):
         os.replace(ruta + ".tmp", ruta)
 
 
-def detectar(video, workers, tmpdir, progreso=None, preview_dir=None):
+def detectar(video, workers, tmpdir, progreso=None, preview_dir=None, perfil="maximo"):
     """Detección completa. progreso(frames_hechos, frames_totales). Devuelve dict {n: {...}}."""
     total = info_video(video)["frames"]
     bounds = [round(i * total / workers) for i in range(workers + 1)]
-    jobs = [(video, bounds[i], bounds[i + 1], i, tmpdir, preview_dir) for i in range(workers)]
+    jobs = [(video, bounds[i], bounds[i + 1], i, tmpdir, preview_dir, perfil) for i in range(workers)]
     with mp.Pool(workers) as pool:
         res = pool.map_async(_worker, jobs)
         while not res.ready():
@@ -379,7 +394,9 @@ def main():
     ap = argparse.ArgumentParser(description="Pixela caras, cabezas y matrículas de un vídeo.")
     ap.add_argument("entrada")
     ap.add_argument("salida")
-    ap.add_argument("--workers", type=int, default=max(1, min(4, os.cpu_count() or 1)))
+    ap.add_argument("--workers", type=int, default=max(1, min(8, os.cpu_count() or 1)))
+    ap.add_argument("--rapido", action="store_true",
+                    help="perfil rápido: YOLOX-Tiny y análisis de 1 de cada 2 fotogramas")
     ap.add_argument("--detecciones", help="JSON de detecciones ya calculado (se salta la fase 1)")
     ap.add_argument("--guardar-detecciones", help="ruta donde guardar el JSON de detecciones")
     ap.add_argument("--regiones", help="ruta donde guardar el JSON de regiones pixeladas (QA)")
@@ -398,7 +415,8 @@ def main():
         else:
             print("[1/3] Detectando…")
             dets, total = detectar(args.entrada, args.workers, tmpdir,
-                                   lambda a, b: print(f"  {a}/{b}", end="\r"))
+                                   lambda a, b: print(f"  {a}/{b}", end="\r"),
+                                   perfil="rapido" if args.rapido else "maximo")
             print()
             if args.guardar_detecciones:
                 json.dump({str(k): v for k, v in dets.items()}, open(args.guardar_detecciones, "w"))

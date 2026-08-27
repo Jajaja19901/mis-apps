@@ -28,6 +28,7 @@ import anonimizar  # noqa: E402
 TRABAJOS_DIR = os.path.join(BASE, "trabajos")
 MAX_SUBIDA = 2 * 1024 * 1024 * 1024  # 2 GB
 ID_RE = re.compile(r"^[0-9a-f]{12}$")
+PERFIL = "maximo"  # lo cambia --rapido
 
 JOBS = {}          # id -> estado (dict)
 JOBS_LOCK = threading.Lock()
@@ -92,10 +93,10 @@ def procesar(jid):
                            detalle="Buscando caras, personas y matrículas en cada fotograma…")
                 with tempfile.TemporaryDirectory() as tmpdir:
                     dets, total = anonimizar.detectar(
-                        entrada, max(1, min(4, os.cpu_count() or 1)), tmpdir,
+                        entrada, max(1, min(8, os.cpu_count() or 1)), tmpdir,
                         lambda a, b: actualizar(jid, pct=int(a * 100 / max(1, b)),
                                                 detalle=f"Analizando fotograma {a} de {b}"),
-                        preview_dir=d)
+                        preview_dir=d, perfil=PERFIL)
                 with open(dets_path + ".tmp", "w") as fh:
                     json.dump({str(k): v for k, v in dets.items()}, fh)
                 os.replace(dets_path + ".tmp", dets_path)
@@ -341,14 +342,41 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
+    global PERFIL
     ap = argparse.ArgumentParser(description="Anonimizador de vídeos (app local)")
     ap.add_argument("--puerto", type=int, default=8765)
     ap.add_argument("--sin-navegador", action="store_true")
+    ap.add_argument("--rapido", action="store_true",
+                    help="perfil rápido (YOLOX-Tiny + 1 de cada 2 fotogramas); ideal con --movil")
+    ap.add_argument("--movil", action="store_true",
+                    help="acepta conexiones del móvil por la WiFi de casa y muestra un QR con la dirección")
     args = ap.parse_args()
+    if args.rapido:
+        PERFIL = "rapido"
     os.makedirs(TRABAJOS_DIR, exist_ok=True)
-    srv = ThreadingHTTPServer(("127.0.0.1", args.puerto), Handler)
+    host = "0.0.0.0" if args.movil else "127.0.0.1"
+    srv = ThreadingHTTPServer((host, args.puerto), Handler)
     url = f"http://127.0.0.1:{args.puerto}"
     print(f"🕶️  Anonimizador de vídeos — abre {url} en tu navegador (Ctrl+C para salir)")
+    if args.movil:
+        import socket
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+            s.close()
+        except Exception:
+            ip = "IP-de-este-ordenador"
+        url_movil = f"http://{ip}:{args.puerto}"
+        print(f"📱 Desde el móvil (misma WiFi): abre {url_movil}")
+        print("   (si no carga, permite a Python en el cortafuegos de este ordenador)")
+        try:
+            import qrcode
+            qr = qrcode.QRCode()
+            qr.add_data(url_movil)
+            qr.print_ascii(tty=False, invert=True)
+        except ImportError:
+            print("   (instala 'pip install qrcode' para ver aquí un QR escaneable)")
     if not anonimizar.ffmpeg_bin():
         print("⚠️  AVISO: no encuentro ffmpeg. Instálalo o ejecuta: pip install imageio-ffmpeg")
     if anonimizar.modelos_que_faltan():

@@ -38,7 +38,8 @@ class YoloxDetector:
     PERSON = 0
     VEHICLES = {1: "bicycle", 2: "car", 3: "motorcycle", 5: "bus", 7: "truck"}
 
-    def __init__(self, path=f"{MODELS_DIR}/yolox_s.onnx", size=640):
+    def __init__(self, path=None, size=640):
+        path = path or os.path.join(MODELS_DIR, "yolox_s.onnx")
         self.sess = ort.InferenceSession(path, providers=["CPUExecutionProvider"])
         self.size = size
         self._grids, self._strides = self._make_grids(size)
