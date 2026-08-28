@@ -3,6 +3,9 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-10 (13) — VISUALES DJ: 28 efectos (apps/visuales-dj.html)
+- Qué se hizo: el usuario pidió "muchísimos efectos diferentes". Se ampliaron de 10 a 28 efectos en el fragment shader: +espiral, túnel cuadrado, rayos giratorios, ondas de agua, nebulosa, lluvia matrix, puntos que laten, ecualizador de barras (FFT), confeti, zigzag, vórtice de fuego, panal hexagonal, aurora, diana pulsante, doble hélice, osciloscopio (FFT), mosaico voronoi, túnel espejo. ponerFx usa NOMBRES.length (antes %10). Probado headless: los 28 ciclan sin errores de consola/GLSL.
+- OJO CONTENEDOR EFÍMERO: se reinició y borró los archivos locales no commiteados (las tandas de efectos 11-28 se habían republicado como Artifact pero NO commiteado) → se perdieron y hubo que RE-APLICARLOS desde el código del propio chat. LECCIÓN: commitear cada tanda de cambios, no solo republicar el Artifact. Recuperación: git fetch + checkout -B a origin/<rama> restaura todo lo pusheado.
 ## 2026-08-10 (12) — VISUALES DJ: instalable como app (PWA) + enlace https
 - Qué se hizo: el usuario quiere instalarlo como app en el móvil. Se añadieron metas PWA (apple-mobile-web-app-capable, status-bar, apple-touch-icon con icono PNG generado con PIL — plato de DJ + barras de ecualizador dorado/verde/cian/rosa, 512px base64 embebido) + manifest embebido por JS (blob, display fullscreen) para Android. Se publicó como Artifact (https) para que el micro funcione en el móvil: https://claude.ai/code/artifact/bbcda0a9-ffdc-45d0-b626-b489e5ce9e51 (misma URL en republicaciones). Instalación = "Añadir a pantalla de inicio" desde el navegador (iOS Safari usa las apple-metas; Android usa el manifest). Probado headless móvil: sin errores.
 ## 2026-08-10 (11) — VISUALES DJ: móvil + auto + micro ambiente (apps/visuales-dj.html)

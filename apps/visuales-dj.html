@@ -268,10 +268,110 @@ vec3 fxDiamante(vec2 u){ vec2 p=abs(u*rot(T*0.2)); float d=p.x+p.y;
   float b=smoothstep(0.05,0.,abs(fract(d*5.-T*2.-BEAT)-0.5)*0.2);
   vec3 c=hsv(fract(floor(d*5.-T*2.)*0.13+T*0.04),0.8,1.)*b; c*=0.5+0.5*BEAT+ENERGY*0.6;
   c+=vec3(1.)*smoothstep(0.03,0.,d-0.05)*BEAT*1.4; return c*smoothstep(1.6,0.5,d); }
+/* 11 · ESPIRAL HIPNÓTICA */
+vec3 fxEspiral(vec2 u){ float a=atan(u.y,u.x),r=length(u);
+  float s=sin(a*3.-log(r+0.03)*7.+T*(2.+ENERGY*3.5));
+  float m=smoothstep(0.1,0.7,s); vec3 c=hsv(fract(r*0.6-T*0.06+a*0.08),0.9,1.)*m;
+  c*=smoothstep(1.3,0.08,r)*(0.55+BEAT*1.3); return c+BEAT*0.1; }
+/* 12 · TÚNEL CUADRADO */
+vec3 fxCuadrado(vec2 u){ u*=rot(T*0.12); float d=max(abs(u.x),abs(u.y));
+  float z=0.32/(d+0.05)+T*(1.5+ENERGY*2.6);
+  float an=smoothstep(0.4,0.,abs(fract(z)-0.5))*(0.5+BEAT*1.5);
+  return hsv(fract(z*0.06+T*0.03),0.85,1.)*an*smoothstep(1.4,0.25,d)+BEAT*0.1; }
+/* 13 · RAYOS GIRATORIOS */
+vec3 fxRayos(vec2 u){ float a=atan(u.y,u.x),r=length(u);
+  float rays=pow(0.5+0.5*sin(a*8.+T*1.6),4.)*(0.4+ENERGY*1.2);
+  vec3 c=hsv(fract(a/6.2832+T*0.05),0.8,1.)*rays*smoothstep(1.2,0.05,r);
+  c+=vec3(1.)*smoothstep(0.12+BEAT*0.12,0.,r)*(0.6+BEAT*1.6); return c; }
+/* 14 · ONDAS DE AGUA */
+vec3 fxAgua(vec2 u){ float r=length(u);
+  float w=0.5+0.5*sin(r*26.-T*(3.+BASS*5.)); w=pow(w,2.)*smoothstep(1.2,0.08,r);
+  return hsv(fract(0.55+r*0.3-T*0.03),0.7,1.)*w*(0.45+MID*1.2+BEAT*0.6); }
+/* 15 · NEBULOSA */
+vec3 fxNebulosa(vec2 u){ vec2 p=u*1.3+vec2(T*0.05,0.);
+  float n=fbm(p*2.+fbm(p*1.3+T*0.1)*1.5);
+  vec3 c=mix(vec3(0.08,0.0,0.18),hsv(fract(0.7+n*0.5+T*0.02),0.8,1.),smoothstep(0.3,0.85,n));
+  c+=pow(n,5.)*vec3(1.,0.9,1.)*(0.4+HIGH*2.2); return c*(0.5+ENERGY*0.6+BEAT*0.3); }
+/* 16 · LLUVIA MATRIX */
+vec3 fxMatrix(vec2 u){ float cols=20.; float x=floor((u.x+0.9)/1.8*cols);
+  float sp=0.6+hash(vec2(x,1.))*1.5+BASS;
+  float yy=fract((u.y*0.5+0.5)+T*sp+hash(vec2(x,7.)));
+  float bright=pow(yy,3.)*step(0.2,hash(vec2(x,floor(T*sp))));
+  return vec3(0.1,1.0,0.35)*bright*(0.5+BEAT*0.8); }
+/* 17 · PUNTOS QUE LATEN */
+vec3 fxPuntos(vec2 u){ vec2 g=fract(u*8.+0.5)-0.5; vec2 id=floor(u*8.+0.5);
+  float pr=0.5+0.5*sin(T*3.+id.x*0.6+id.y*0.7+BEAT*3.);
+  float dot=smoothstep(0.1+pr*0.12+BEAT*0.06,0.,length(g));
+  return hsv(fract((id.x+id.y)*0.05+T*0.05),0.8,1.)*dot*(0.6+BEAT); }
+/* 18 · ECUALIZADOR DE BARRAS */
+vec3 fxBarras(vec2 u){ float x=(u.x+0.9)/1.8; if(x<0.||x>1.)return vec3(0.);
+  float f=fftAt(x)*1.3+0.04; float h=u.y+0.45; float bar=step(0.,h)*step(h,f);
+  float gap=step(0.12,fract(x*22.)); vec3 c=mix(vec3(0.,1.,0.45),vec3(1.,0.2,0.2),h/max(f,0.01));
+  return c*bar*gap*(0.7+BEAT*0.5); }
+/* 19 · CONFETI */
+vec3 fxConfeti(vec2 u){ vec3 c=vec3(0.);
+  for(int i=0;i<22;i++){ float fi=float(i); float x=hash(vec2(fi,1.))*2.-1.;
+    float sp=0.3+hash(vec2(fi,2.))*0.6+BASS*0.4; float y=0.6-fract(T*sp+hash(vec2(fi,3.)))*1.3;
+    vec2 p=u-vec2(x+0.1*sin(T+fi),y);
+    c+=hsv(fract(hash(vec2(fi,4.))+T*0.1),0.8,1.)*smoothstep(0.03,0.,length(p*vec2(1.,1.6)))*(0.8+BEAT*0.6); }
+  return c; }
+/* 20 · ZIGZAG */
+vec3 fxZig(vec2 u){ float w=abs(fract(u.x*4.-T*(0.5+BASS))-0.5)*2.;
+  float y=u.y+w*0.3+T*(1.+ENERGY*2.);
+  float b=smoothstep(0.1,0.,abs(fract(y*3.)-0.5)*0.3);
+  return hsv(fract(floor(y*3.)*0.1+T*0.03),0.85,1.)*b*(0.6+BEAT); }
+/* 21 · VÓRTICE DE FUEGO */
+vec3 fxFuego(vec2 u){ float a=atan(u.y,u.x),r=length(u);
+  float n=fbm(vec2(a*1.5+r*3.-T*(1.+BASS*2.),r*3.-T*1.5));
+  float fire=pow(n,2.)*smoothstep(1.1,0.1,r);
+  return mix(vec3(0.6,0.05,0.),vec3(1.,0.85,0.2),fire)*fire*2.*(0.6+ENERGY*0.8+BEAT*0.4); }
+/* 22 · PANAL HEXAGONAL */
+float hexD(vec2 p){ p=abs(p); return max(p.x*0.866+p.y*0.5,p.y); }
+vec3 fxHex(vec2 u){ vec2 p=u*5.; vec2 rr=vec2(1.,1.732); vec2 hh=rr*0.5;
+  vec2 a=mod(p,rr)-hh; vec2 b=mod(p-hh,rr)-hh; vec2 gv=dot(a,a)<dot(b,b)?a:b; vec2 id=p-gv;
+  float d=0.5-hexD(gv); float pr=0.5+0.5*sin(T*2.+id.x*0.5+id.y*0.5+BEAT*2.);
+  vec3 c=hsv(fract((id.x+id.y)*0.03+T*0.04),0.8,1.)*smoothstep(0.,0.06,d)*pr;
+  return c*(0.6+BEAT*0.6); }
+/* 23 · AURORA */
+vec3 fxAurora(vec2 u){ vec3 c=vec3(0.);
+  for(int i=0;i<4;i++){ float fi=float(i);
+    float y=0.2*sin(u.x*(1.5+fi*0.5)+T*(0.6+fi*0.3))+fi*0.12-0.2+0.1*fbm(vec2(u.x*2.+T*0.2,fi));
+    c+=hsv(fract(0.35+fi*0.12+T*0.03),0.7,1.)*(0.02+MID*0.025)/max(abs(u.y-y),0.01)*smoothstep(0.6,0.,abs(u.x)); }
+  return c*(0.6+BEAT*0.5); }
+/* 24 · DIANA PULSANTE */
+vec3 fxDiana(vec2 u){ float r=length(u); float rings=0.5+0.5*sin(r*20.-T*4.-BEAT*3.);
+  return hsv(fract(r*0.5-T*0.05),0.85,1.)*pow(rings,2.)*smoothstep(1.2,0.1,r)*(0.5+BEAT*1.2); }
+/* 25 · DOBLE HÉLICE */
+vec3 fxADN(vec2 u){ vec3 c=vec3(0.); float ph=u.y*4.+T*(1.+ENERGY);
+  c+=vec3(0.2,0.8,1.)*smoothstep(0.04,0.,abs(u.x-0.3*sin(ph)));
+  c+=vec3(1.,0.3,0.6)*smoothstep(0.04,0.,abs(u.x-0.3*sin(ph+3.14159)));
+  float rung=smoothstep(0.05,0.,abs(fract(u.y*4.)-0.5)*0.3);
+  c+=vec3(1.)*rung*smoothstep(0.32,0.,abs(u.x))*0.4;
+  return c*(0.7+BEAT*0.6); }
+/* 26 · OSCILOSCOPIO */
+vec3 fxOsc(vec2 u){ float x=(u.x+0.9)/1.8; float f=fftAt(x)-0.3;
+  return hsv(fract(x+T*0.05),0.9,1.)*(0.006+BEAT*0.004)/max(abs(u.y-f*0.8),0.003)*(0.6+MID); }
+/* 27 · MOSAICO */
+vec3 fxMosaico(vec2 u){ vec2 p=u*5.; vec2 id=floor(p); vec2 gv=fract(p)-0.5; float md=9.0; vec2 mid=id;
+  for(int y=-1;y<=1;y++) for(int x=-1;x<=1;x++){ vec2 o=vec2(float(x),float(y));
+    vec2 cc=o+0.5*sin(T+(id+o)*vec2(1.3,1.7))*(0.5+BEAT*0.3); float d=length(gv-cc);
+    if(d<md){ md=d; mid=id+o; } }
+  return hsv(fract((mid.x*1.3+mid.y*2.1)*0.1+T*0.05),0.8,1.)*(0.5+0.5*smoothstep(0.,0.1,md))*(0.6+BEAT*0.6); }
+/* 28 · TÚNEL ESPEJO */
+vec3 fxEspejo(vec2 u){ u=abs(u); float a=atan(u.y,u.x),r=length(u);
+  float z=0.3/(r+0.05)+T*(1.4+ENERGY*2.); float an=smoothstep(0.4,0.,abs(fract(z)-0.5))*(0.5+BEAT*1.4);
+  float rd=smoothstep(0.3,0.,abs(fract(a/3.14159*8.+T*0.5)-0.5))*0.4*MID;
+  return (hsv(fract(z*0.08+T*0.03),0.85,1.)*an+hsv(fract(T*0.1),0.7,1.)*rd)*smoothstep(1.4,0.3,r); }
 void main(){ vec2 u=(gl_FragCoord.xy-0.5*R)/R.y; vec3 c=vec3(0.);
   if(FX==0)c=fxTunel(u);else if(FX==1)c=fxEspectro(u);else if(FX==2)c=fxOndas(u);else if(FX==3)c=fxWarp(u);
   else if(FX==4)c=fxRejilla(u);else if(FX==5)c=fxPlasma(u);else if(FX==6)c=fxKaleido(u);else if(FX==7)c=fxAnillos(u);
-  else if(FX==8)c=fxLatigos(u);else c=fxDiamante(u);
+  else if(FX==8)c=fxLatigos(u);else if(FX==9)c=fxDiamante(u);
+  else if(FX==10)c=fxEspiral(u);else if(FX==11)c=fxCuadrado(u);else if(FX==12)c=fxRayos(u);
+  else if(FX==13)c=fxAgua(u);else if(FX==14)c=fxNebulosa(u);else if(FX==15)c=fxMatrix(u);
+  else if(FX==16)c=fxPuntos(u);else if(FX==17)c=fxBarras(u);else if(FX==18)c=fxConfeti(u);
+  else if(FX==19)c=fxZig(u);else if(FX==20)c=fxFuego(u);else if(FX==21)c=fxHex(u);
+  else if(FX==22)c=fxAurora(u);else if(FX==23)c=fxDiana(u);else if(FX==24)c=fxADN(u);
+  else if(FX==25)c=fxOsc(u);else if(FX==26)c=fxMosaico(u);else c=fxEspejo(u);
   c*=1.-0.45*dot(u,u); c+=c*DROP*0.35; gl_FragColor=vec4(pow(c,vec3(0.85)),1.); }`;
 function comp(t,s){ const sh=gl.createShader(t); gl.shaderSource(sh,s); gl.compileShader(sh);
   if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh)); return sh; }
@@ -286,10 +386,10 @@ gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR); gl.texParameter
 gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
 
 /* ---------- efectos: control ---------- */
-const NOMBRES=['TÚNEL DE NEÓN','ESPECTRO CIRCULAR','ONDAS LÁSER','WARP ESTELAR','REJILLA SYNTHWAVE','PLASMA LÍQUIDO','CALEIDOSCOPIO','ANILLOS DE CHOQUE','LÁTIGOS DE LUZ','DIAMANTE'];
+const NOMBRES=['TÚNEL DE NEÓN','ESPECTRO CIRCULAR','ONDAS LÁSER','WARP ESTELAR','REJILLA SYNTHWAVE','PLASMA LÍQUIDO','CALEIDOSCOPIO','ANILLOS DE CHOQUE','LÁTIGOS DE LUZ','DIAMANTE','ESPIRAL HIPNÓTICA','TÚNEL CUADRADO','RAYOS GIRATORIOS','ONDAS DE AGUA','NEBULOSA','LLUVIA MATRIX','PUNTOS QUE LATEN','ECUALIZADOR','CONFETI','ZIGZAG','VÓRTICE DE FUEGO','PANAL HEXAGONAL','AURORA','DIANA PULSANTE','DOBLE HÉLICE','OSCILOSCOPIO','MOSAICO','TÚNEL ESPEJO'];
 let fx=0, auto=true, tCambio=0;
 const fxnombre=document.getElementById('fxnombre');
-function ponerFx(i){ fx=(i+10)%10; fxnombre.textContent=(auto?'AUTO · ':'')+NOMBRES[fx]; }
+function ponerFx(i){ const N=NOMBRES.length; fx=((i%N)+N)%N; fxnombre.textContent=(auto?'AUTO · ':'')+NOMBRES[fx]; }
 ponerFx(0);
 
 /* ---------- nombre del DJ + estilos ---------- */
