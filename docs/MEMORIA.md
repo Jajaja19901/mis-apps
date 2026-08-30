@@ -3,6 +3,12 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-08-30 — Comparador de voces (¿misma voz en dos audios?)
+- Qué se hizo: el usuario preguntó si se puede saber si dos audios son la misma voz. Ahora sí: `tools/comparar-voces.py` + skill `comparar-voces` comparan la huella de voz (WeSpeaker ResNet34/VoxCeleb vía sherpa-onnx, 100% local) de 2+ audios con veredicto ✅/⚠/❌. Calibrado con 2 voces Piper es-ES: misma voz 0.94–0.95, voces distintas 0.43–0.51 (incluso con la misma frase). Acepta wav/mp3/ogg/opus y convierte m4a solo.
+- Archivos tocados: tools/comparar-voces.py (nuevo), .claude/skills/comparar-voces/SKILL.md (nuevo), docs/MEMORIA.md.
+- Pendiente / siguiente paso: cuando el usuario pase 2 audios reales, ejecutar la skill y darle el veredicto con sus avisos.
+- Datos a confirmar: ninguno.
+
 ## 2026-07-19 — Vídeo demo en la portada de Incuba tu Negocio
 - Qué se hizo: vídeo demo del producto (32s, MP4 1080p): la app peluqueria-aurora navegada de verdad (Playwright) dentro de un móvil flotante, narrador es-ES (Piper davefx via sherpa-onnx), música y efectos generados con numpy, rótulos y subtítulos (Remotion). Integrado en la PORTADA de apps/incuba-tu-negocio.html (tras el subtítulo, antes de la incubadora). Verificador: ✅ APTO.
 - Archivos tocados: apps/incuba-tu-negocio.html, apps/incuba-demo.mp4 (nuevo), apps/incuba-demo-poster.jpg (nuevo). Fuentes del vídeo en scratchpad de la sesión (video-incuba/).
