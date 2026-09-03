@@ -3,6 +3,13 @@
 > Cada sesión de Claude añade ARRIBA una entrada corta al terminar un trabajo.
 > Las sesiones nuevas LEEN este archivo antes de empezar (skill `memoria-sesiones`).
 
+## 2026-09-03 — Segundo vídeo del usuario procesado en el chat + filtros anti-falsos-positivos
+- Qué se hizo: el usuario mandó otro vídeo (31s, 720x1280: dos hombres forcejeando en un parking, Toyota Yaris rojo con matrícula legible "3251 JJH", furgoneta). Procesado con el motor de escritorio a máxima calidad (4,5 min) y entregado por chat (10,6 MB). El QA visual destapó DOS familias de falsos positivos que el QA de cobertura no ve: (1) el triángulo de señal pintado en el asfalto detectado como "matrícula" gigante (220 dets, hasta score 0.89) y (2) "caras" de YuNet en texturas (alcorque/sombras, ¡con score 1.0!, hasta 242px). Se limpiaron en los datos y se re-renderizó desde el caché de detecciones (18s/re-render). Resultado final: barrido completo limpio, cobertura 2151/2151, matrícula y caras/cabezas ilegibles, triángulo y alcantarilla intactos.
+- Endurecimiento del motor (escritorio + móvil): `filtrar_falsos_positivos()` — una "matrícula" con alto >12% del fotograma o ancho >30% se descarta (señales pintadas); una "cara" que no está sobre ninguna persona detectada se descarta (las cabezas ya cubren las caras reales). Regresión móvil OK.
+- Archivos tocados: `tools/anonimizar-video/{anonimizar.py,movil/motor.js}`.
+- Pendiente / siguiente paso: sin noticias del usuario sobre la app 1.9 en su móvil (ni tiempos ni insignias). El flujo "vídeo por chat" funciona muy bien como servicio.
+- Datos a confirmar: ninguno.
+
 ## 2026-08-27 (4) — v1.9: caché de matrículas en escena estable (el fix del "86s → 15min")
 - Qué se hizo: el usuario reportó 86 s de vídeo → 15 min. Causa: en vídeos de coches APARCADOS, los zooms de matrícula (hasta 5 inferencias de 640) se repetían en cada análisis. v1.9: si los vehículos no se movieron (IoU>0.85 con el análisis anterior), se reutilizan las matrículas desplazadas por el movimiento medio de la escena (cámara en mano), re-detección forzada cada 8 análisis o al primer cambio. ⚡Rápido por defecto (salto 4, sin tiles, 4 zooms — la caché los abarata). Clip de prueba: análisis 64s→24s, cobertura verificada VISUALMENTE fotograma a fotograma. LECCIÓN de QA: las tablas de MAE con coordenadas fijas dan falsas alarmas cuando la cámara se mueve — la verificación válida es visual (o con coordenadas por fotograma). CI run #9 verde, release v1.9 (versionCode 9). Estimación comunicada: 86s → 2-4 min en su móvil.
 - Archivos tocados: `tools/anonimizar-video/movil/{motor.js,index.html}`.

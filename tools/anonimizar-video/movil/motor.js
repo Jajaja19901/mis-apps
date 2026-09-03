@@ -302,7 +302,9 @@ export class Detectores {
         if (cw < 12 || ch < 12) continue;
         PL = PL.concat(await this._placas(base, cx1, cy1, cw, ch, CONF_PLATE_ZOOM));
       }
-      PL = nms(PL, 0.35);
+      // una "matrícula" más alta que el 12% del fotograma (o >30% de ancho) es una
+      // señal pintada en el asfalto u otra textura, nunca una matrícula real
+      PL = nms(PL, 0.35).filter(p => (p[3] - p[1]) <= 0.12 * H && (p[2] - p[0]) <= 0.30 * W);
       this._prevEscena = { V, PL, usosPL: 0 };
     }
     return { persons: P, vehicles: V, plates: PL };

@@ -290,6 +290,27 @@ def _pixelate(img, box, cell, min_cells=3, max_cells=16):
     img[y1:y2, x1:x2] = cv2.resize(small, (w, h), interpolation=cv2.INTER_NEAREST)
 
 
+def filtrar_falsos_positivos(dets, W, H):
+    """Filtros aprendidos de vídeos reales:
+    - una 'matrícula' más alta que el 12% del fotograma (o más ancha que el 30%)
+      es una señal pintada en el asfalto u otra textura, no una matrícula;
+    - una 'cara' que no está sobre ninguna persona detectada es textura (alcorques,
+      sombras...); las cabezas de las personas ya cubren las caras reales."""
+    for v in dets.values():
+        pers = v.get("persons", [])
+        v["plates"] = [p for p in v.get("plates", [])
+                       if (p[3] - p[1]) <= 0.12 * H and (p[2] - p[0]) <= 0.30 * W]
+
+        def sobre_persona(f):
+            cx, cy = (f[0] + f[2]) / 2, (f[1] + f[3]) / 2
+            return any(
+                pp[0] - 0.25 * (pp[2] - pp[0]) <= cx <= pp[2] + 0.25 * (pp[2] - pp[0]) and
+                pp[1] - 0.25 * (pp[3] - pp[1]) <= cy <= pp[3] + 0.25 * (pp[3] - pp[1])
+                for pp in pers)
+        v["faces"] = [f for f in v.get("faces", []) if sobre_persona(f)]
+    return dets
+
+
 def renderizar(video_in, video_out, dets, total, regions_out=None, progreso=None,
                excluir=None, extra=None, preview_path=None):
     """Pixela y codifica.
@@ -304,6 +325,7 @@ def renderizar(video_in, video_out, dets, total, regions_out=None, progreso=None
     cap = cv2.VideoCapture(video_in)
     W, H = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+    dets = filtrar_falsos_positivos(dets, W, H)
     pers, _ = pistas(dets, "persons", total)
     face, _ = pistas(dets, "faces", total)
     plat, _ = pistas(dets, "plates", total)
